@@ -1,5 +1,5 @@
-import { IconButton } from '@app/components/ui/icon-button'
 import { cn } from '@shared/lib/uiUtils'
+import { IconButton } from '@shared/ui/components/primitives'
 import { XIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'

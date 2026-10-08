@@ -1,10 +1,9 @@
 import type { QuickPresetItem } from '@features/ai'
 
-import { IconButton } from '@app/components/ui/icon-button'
 import { MenuItem } from '@app/components/ui/menu'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { MoreHorizontal } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'

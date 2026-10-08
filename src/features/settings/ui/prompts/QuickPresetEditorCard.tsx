@@ -1,10 +1,10 @@
 import type { QuickPresetItem } from '@features/ai'
 
-import { Button } from '@app/components/ui/button'
 import { Input } from '@app/components/ui/input'
 import { Label } from '@app/components/ui/label'
 import { Textarea } from '@app/components/ui/textarea'
 import { cn } from '@shared/lib/uiUtils'
+import { Button } from '@shared/ui/components/primitives'
 
 import { RotateCcw } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'

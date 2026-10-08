@@ -1,7 +1,11 @@
-import { Button } from '@app/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
 import type { UpdateInfo } from '@app/providers'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import {
+  Button,
+  SettingsSection,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@shared/ui/components/primitives'
 import { DownloadIcon, InfoIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'

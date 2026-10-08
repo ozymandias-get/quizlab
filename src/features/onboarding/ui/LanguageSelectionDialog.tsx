@@ -1,8 +1,8 @@
-import { Button } from '@app/components/ui/button'
 import { DialogBackdrop } from '@app/components/ui/dialog'
 import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
+import { Button } from '@shared/ui/components/primitives'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { memo, useCallback, useId, useRef, useState } from 'react'

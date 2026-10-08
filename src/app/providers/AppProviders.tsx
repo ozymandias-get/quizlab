@@ -1,5 +1,5 @@
-import { TooltipProvider } from '@app/components/ui/tooltip'
 import AppEffects from '@app/effects/AppEffects'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import type { ReactNode } from 'react'
 

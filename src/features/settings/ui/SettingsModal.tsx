@@ -1,7 +1,7 @@
-import { Button } from '@app/components/ui/button'
 import { Separator } from '@app/components/ui/separator'
 import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
+import { Button } from '@shared/ui/components/primitives'
 import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'

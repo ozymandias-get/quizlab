@@ -1,5 +1,5 @@
-import { Button } from '@app/components/ui/button'
 import type { Tab } from '@app/providers/ai-context'
+import { Button } from '@shared/ui/components/primitives'
 
 import { MousePointerClick } from 'lucide-react'
 import { memo } from 'react'

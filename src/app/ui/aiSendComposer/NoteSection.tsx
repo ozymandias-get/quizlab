@@ -1,5 +1,5 @@
-import { Button } from '@app/components/ui/button'
 import { Textarea } from '@app/components/ui/textarea'
+import { Button } from '@shared/ui/components/primitives'
 
 import { Sparkles } from 'lucide-react'
 import { type KeyboardEvent, memo, useCallback, useRef, useState } from 'react'

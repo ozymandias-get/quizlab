@@ -1,6 +1,5 @@
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { useClipboard } from '@shared/hooks/useClipboard'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Check, Copy, Square, ThumbsDown, ThumbsUp, Trash2, Volume2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'

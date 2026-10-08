@@ -17,11 +17,16 @@ vi.mock('@ui/components/Icons', () => ({
   )
 }))
 
-vi.mock('@app/components/ui/tooltip', () => ({
+// Only the tooltip is stubbed: it renders through a portal, so a click on the
+// wrapped control never reaches the trigger from this test. The barrel re-exports
+// this module, so the stub has to define every name it exports — `WithTooltip`
+// included — or the barrel's own initialisation fails.
+vi.mock('@shared/ui/components/primitives/tooltip', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
   TooltipTrigger: ({ children, ...props }: any) => <span {...props}>{children}</span>,
   TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>
+  TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  WithTooltip: ({ children }: { children: ReactNode }) => <>{children}</>
 }))
 
 vi.mock('motion/react', () => ({

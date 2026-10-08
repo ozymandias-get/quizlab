@@ -11,7 +11,7 @@ vi.mock('@features/ai/aiViewSurface', () => ({
   AiViewSurface: () => <div data-testid="ai-content">AI Content</div>
 }))
 
-vi.mock('@ui/layout/BottomBar', () => ({
+vi.mock('@app/ui/BottomBar', () => ({
   default: () => <div data-testid="bottom-bar">Bottom Bar</div>
 }))
 

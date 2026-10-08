@@ -1,7 +1,6 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 
-import { Button } from '@app/components/ui/button'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { CheckIcon, GeminiIcon, LoaderIcon, RefreshIcon, XIcon } from '@ui/components/Icons'
 
 import i18next from 'i18next'

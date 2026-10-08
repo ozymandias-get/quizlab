@@ -1,9 +1,7 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { cn } from '@shared/lib/uiUtils'
-import { ToolbarGroup } from '@shared/ui/components/primitives'
+import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Hand, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { motion } from 'motion/react'

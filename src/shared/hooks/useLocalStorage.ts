@@ -1,4 +1,3 @@
-import { queryClient as globalQueryClient } from '@app/providers/queryClient'
 import { Logger } from '@shared/lib/logger'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
 
@@ -115,8 +114,16 @@ function useBaseStorage<T>({
     serializeRef.current = serialize
   })
 
-  // QueryClient for single-source-of-truth invalidation — prefer contextual client
-  // (tests create their own QueryClient) and fall back to the global singleton.
+  // QueryClient for single-source-of-truth invalidation, taken from React Query's
+  // own context. `QueryProvider` mounts the app's singleton there, so every
+  // consumer inside the app has a client; a component rendered without a provider
+  // (an isolated test) simply has nothing to invalidate.
+  //
+  // The client used to be imported from `@app/providers/queryClient` as a
+  // fallback. That made a lower-layer hook depend on the composition root, and the
+  // fallback could never win inside the app anyway — the provider hands out that
+  // very same singleton.
+  //
   // Uses QueryClientContext directly to avoid the "rules-of-hooks" violation that
   // `try { useQueryClient() }` would trigger.
   const queryClientFromContext = useContext(
@@ -124,9 +131,7 @@ function useBaseStorage<T>({
       { invalidateQueries: (f: unknown) => void } | undefined
     >
   ) as { invalidateQueries: (f: unknown) => void } | undefined
-  const effectiveQueryClient =
-    (queryClientFromContext as { invalidateQueries: (f: unknown) => void } | null) ??
-    (globalQueryClient as unknown as { invalidateQueries: (f: unknown) => void })
+  const effectiveQueryClient = queryClientFromContext ?? null
 
   useEffect(() => {
     storedValueRef.current = storedValue

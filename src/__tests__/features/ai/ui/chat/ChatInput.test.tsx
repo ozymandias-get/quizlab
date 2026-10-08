@@ -2,7 +2,7 @@ import type { ApiConfig } from '@shared-core/types'
 
 import type { ComponentProps } from 'react'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import ChatInput from '@features/ai/ui/chat/ChatInput'
 
 import { fireEvent, render, screen } from '@testing-library/react'

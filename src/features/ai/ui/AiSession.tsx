@@ -2,6 +2,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 
+import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
 import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
@@ -88,8 +89,10 @@ const AiSession = memo(
       [registerContent, tab.id]
     )
 
+    const { showWarning } = useToastActions()
     const managed = useManagedContentView({
       viewId: tab.id,
+      showWarning,
       source: { kind: 'ai-platform', modelId: tab.modelId },
       restoredUrl: entryUrl,
       modelId: tab.modelId,

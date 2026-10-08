@@ -67,6 +67,24 @@ const featureInternalImportSelector =
   `ImportExpression[source.value=/^@features\\/[^/]+\\//u]` +
   `:not([source.value=/^@features\\/(?:${publicEntryAlternatives})(?:\\/|$)/u])`
 
+/**
+ * `src/shared` sits below `src/app` in the layer order (App → Features →
+ * Shared), so it may not reach into the composition root at all. This used to
+ * be allowed and cost 22 edges: shared hooks pulling the global QueryClient,
+ * shared UI reading app contexts, a shared toast container bound to the app's
+ * toast provider. The consumers moved down or took the dependency as an option
+ * instead; see `src/__tests__/architecture/layer-boundaries.test.ts`.
+ */
+const sharedToAppPattern = {
+  regex: '^@app/',
+  message:
+    'src/shared must not import @app/*. The app shell is the composition root and ' +
+    'sits above the shared layer. Pass the capability in as an option, or move the consumer.'
+}
+
+/** Same scope as the static rule above, for `import()` expressions. */
+const sharedToAppImportSelector = 'ImportExpression[source.value=/^@app\\//u]'
+
 export default [
   {
     ignores: [
@@ -230,6 +248,11 @@ export default [
     // `no-restricted-imports` and silently drop the feature-internal patterns
     // (flat config replaces a rule wholesale, it does not merge options), so
     // the architecture rule looked configured but never ran.
+    //
+    // The same hazard applies to the src/shared block below: flat config does not
+    // merge rule options, so that block has to repeat every pattern this one
+    // declares rather than "adding" to it. `src/__tests__/architecture/
+    // feature-privacy-gate.test.ts` asserts all of them survive in both.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/features/**/*', 'src/__tests__/**/*'],
     rules: {
@@ -252,6 +275,48 @@ export default [
         {
           selector: featureInternalImportSelector,
           message: featureInternalImportPattern.message
+        }
+      ]
+    }
+  },
+  {
+    // src/shared is the layer *below* app, so `@app/*` is banned here — and only
+    // here. Repeats the patterns from the src/** block above because flat config
+    // replaces a rule instead of merging it; dropping one of them would silently
+    // re-open a boundary the block above still holds for src/app.
+    files: ['src/shared/**/*.{ts,tsx}'],
+    ignores: [
+      'src/__tests__/**/*',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx'
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            legacySrcAliasPattern,
+            featureInternalImportPattern,
+            sharedToAppPattern,
+            {
+              regex: '^electron(/|$)',
+              message:
+                'Renderer must not import Electron directly. Use the preload bridge via @platform/electron.'
+            }
+          ]
+        }
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: featureInternalImportSelector,
+          message: featureInternalImportPattern.message
+        },
+        {
+          selector: sharedToAppImportSelector,
+          message: sharedToAppPattern.message
         }
       ]
     }

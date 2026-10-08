@@ -2,9 +2,8 @@ import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
 import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
 
-import { Button } from '@app/components/ui/button'
 import { getElectronApi } from '@shared/lib/electronApi'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { LoaderIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { memo, useState } from 'react'

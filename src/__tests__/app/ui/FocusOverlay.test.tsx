@@ -67,7 +67,7 @@ vi.mock('@ui/components/ErrorBoundary', () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>
 }))
 
-vi.mock('@ui/layout/BottomBar/animations', () => ({
+vi.mock('@app/ui/BottomBar/animations', () => ({
   focusBackdropVariants: {},
   focusBackdropReducedVariants: {},
   focusContentVariants: {},

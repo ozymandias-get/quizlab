@@ -1,9 +1,8 @@
 import { queryClient } from '@app/providers/queryClient'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
+import { Logger } from '@shared/lib/logger'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
-
-import { getElectronApi, hasElectronApi } from './electronApi'
-import { Logger } from './logger'
 
 /**
  * Settings kept in the renderer's localStorage but mirrored to the main

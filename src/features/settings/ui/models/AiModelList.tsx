@@ -1,11 +1,15 @@
 import type { AiPlatform } from '@shared-core/types'
 
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
-import { EmptyState, InlineSpinner, SettingsRowIcon } from '@shared/ui/components/primitives'
+import {
+  EmptyState,
+  IconButton,
+  InlineSpinner,
+  SettingsRowIcon,
+  WithTooltip
+} from '@shared/ui/components/primitives'
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { Description, Field, Label } from '@headlessui/react'

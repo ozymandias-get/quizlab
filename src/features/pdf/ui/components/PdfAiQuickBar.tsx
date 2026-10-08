@@ -1,6 +1,9 @@
-import { Button } from '@app/components/ui/button'
-import { WithTooltip } from '@app/components/ui/tooltip'
-import { ToolbarGroup, ToolbarSeparator } from '@shared/ui/components/primitives'
+import {
+  Button,
+  ToolbarGroup,
+  ToolbarSeparator,
+  WithTooltip
+} from '@shared/ui/components/primitives'
 
 import { Crop, Image as ImageIcon, RefreshCw, Type } from 'lucide-react'
 import { memo } from 'react'

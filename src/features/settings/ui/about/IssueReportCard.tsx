@@ -1,8 +1,8 @@
-import { Button } from '@app/components/ui/button'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
+import { Button } from '@shared/ui/components/primitives'
 
 import { Copy, Loader2 } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'

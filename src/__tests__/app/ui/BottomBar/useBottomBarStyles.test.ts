@@ -1,4 +1,4 @@
-import { useBottomBarStyles } from '@shared/ui/layout/BottomBar/useBottomBarStyles'
+import { useBottomBarStyles } from '@app/ui/BottomBar/useBottomBarStyles'
 
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'

@@ -1,7 +1,7 @@
 import { type QuickPresetKey, useQuickAiPresets } from '@features/ai'
 
-import { Button } from '@app/components/ui/button'
 import { useToastActions } from '@app/providers'
+import { Button } from '@shared/ui/components/primitives'
 
 import { RotateCcw } from 'lucide-react'
 import { memo, useCallback } from 'react'

@@ -1,7 +1,6 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 import type { AiViewSource } from '@shared-core/types/aiView'
 
-import { useToastActions } from '@app/providers'
 import { createAiContentController } from '@shared/hooks/aiContent/createAiContentController'
 import { useAiContentLifecycle } from '@shared/hooks/aiContent/useAiContentLifecycle'
 import { useAiViewHost } from '@shared/hooks/aiContent/useAiViewHost'
@@ -37,6 +36,14 @@ export interface UseManagedContentViewOptions {
   /** Hide the view while a fatal load error is displayed over it. */
   hideWhenError?: boolean
   modelId: string
+  /**
+   * Reports a non-fatal view problem to the user.
+   *
+   * Passed in rather than read from `@app/providers` because this hook is
+   * shared by two features and sits *below* the composition root: reaching up
+   * for the toast hook made `src/shared` depend on `src/app`.
+   */
+  showWarning: (message: string) => void
   onUrlChange?: (url: string) => void
   onPageSettled?: (controller: AiContentController) => void
   /** Publishes the controller so messaging / selector consumers can address it. */
@@ -82,11 +89,11 @@ export function useManagedContentView({
   revealAfterFirstLoad = false,
   hideWhenError = false,
   modelId,
+  showWarning,
   onUrlChange,
   onPageSettled,
   registerContent
 }: UseManagedContentViewOptions): UseManagedContentViewResult {
-  const { showWarning } = useToastActions()
   const { t } = useTranslation()
 
   const hostTokenRef = useRef<string | null>(null)

@@ -63,6 +63,9 @@ const baseOptions = {
   viewId: 'tab-1',
   source: { kind: 'ai-platform' as const, modelId: 'chatgpt' },
   modelId: 'chatgpt',
+  // The hook takes its warning reporter as a port instead of reaching for the
+  // toast provider itself, so the test supplies the reporter directly.
+  showWarning: vi.fn(),
   isEnabled: true,
   isHostOwner: true,
   visible: true

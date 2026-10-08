@@ -20,7 +20,7 @@ import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'

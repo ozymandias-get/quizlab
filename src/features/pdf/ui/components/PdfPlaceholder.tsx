@@ -1,8 +1,8 @@
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types'
 
-import { Button } from '@app/components/ui/button'
 import { Kbd } from '@app/components/ui/kbd'
 import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
+import { Button } from '@shared/ui/components/primitives'
 
 import { FileText, Upload } from 'lucide-react'
 import { memo } from 'react'

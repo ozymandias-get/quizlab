@@ -1,5 +1,5 @@
-import { Button } from '@app/components/ui/button'
 import { DURATION } from '@shared/lib/motion'
+import { Button } from '@shared/ui/components/primitives'
 
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'

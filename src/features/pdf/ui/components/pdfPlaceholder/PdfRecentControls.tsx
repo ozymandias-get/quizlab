@@ -1,4 +1,3 @@
-import { IconButton } from '@app/components/ui/icon-button'
 import { Input } from '@app/components/ui/input'
 import {
   Select,
@@ -7,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@app/components/ui/select'
-import { WithTooltip } from '@app/components/ui/tooltip'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
 import { ArrowUpDown, History, Search, Trash2 } from 'lucide-react'

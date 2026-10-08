@@ -1,6 +1,6 @@
-import { Button } from '@app/components/ui/button'
 import { useNotificationPrefs, useToastActions } from '@app/providers'
 import {
+  Button,
   IconBadge,
   SettingsRow,
   SettingsRowDescription,

@@ -1,26 +1,5 @@
 import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
 import type {
-  AiRegistryResponse,
-  AiSelectorConfig,
-  ApiChatMessage,
-  ApiConfig,
-  AutomationConfig,
-  ClearAiModelDataInput,
-  CustomAiInput,
-  CustomAiResult,
-  GeminiWebSessionActionResult,
-  GeminiWebSessionRefreshEvent,
-  GeminiWebSessionStatus,
-  PdfSelection,
-  PdfSelectOptions,
-  PdfStreamResult,
-  PdfViewerZoomAction,
-  ScreenshotType,
-  TextInputMode,
-  UpdateCheckResult
-} from '@shared-core/types'
-import type { NativeMessagingExtensionInfo } from '@shared-core/types'
-import type {
   AiViewAttachRequest,
   AiViewAttachResponse,
   AiViewEvent,
@@ -36,7 +15,23 @@ import type {
 
 import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
 import type { IpcResult } from '../lib/typedIpc.js'
+import type {
+  AiRegistryResponse,
+  ClearAiModelDataInput,
+  CustomAiInput,
+  CustomAiResult
+} from './ai.js'
+import type { ApiChatMessage, ApiConfig } from './apiChat.js'
+import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'
+import type {
+  GeminiWebSessionActionResult,
+  GeminiWebSessionRefreshEvent,
+  GeminiWebSessionStatus
+} from './gemini-web.js'
+import type { NativeMessagingExtensionInfo } from './native-messaging.js'
+import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
+import type { ScreenshotType, UpdateCheckResult } from './system.js'
 
 /**
  * IPC contract between renderer (preload window.electronAPI) and the main process.

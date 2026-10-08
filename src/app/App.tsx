@@ -1,8 +1,8 @@
+import ToastContainer from '@app/components/Toast/ToastContainer'
+import AppBackground from '@app/ui/AppBackground'
 import MainWorkspace from '@app/ui/MainWorkspace'
 import { useAppearance } from '@shared/stores/appearanceStore'
 import { useLanguage } from '@shared/stores/languageStore'
-import ToastContainer from '@ui/components/Toast/ToastContainer'
-import AppBackground from '@ui/layout/AppBackground'
 
 import { AnimatePresence, LayoutGroup } from 'motion/react'
 import type { RefObject } from 'react'
@@ -15,7 +15,7 @@ const ScreenshotTool = lazy(() =>
 const TutorialOverlay = lazy(() =>
   import('@features/tutorial').then((m) => ({ default: m.TutorialOverlay }))
 )
-const UpdateBanner = lazy(() => import('@ui/components/UpdateBanner'))
+const UpdateBanner = lazy(() => import('@app/components/UpdateBanner'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const LanguageSelectionDialog = lazy(() =>
   import('@features/onboarding').then((m) => ({

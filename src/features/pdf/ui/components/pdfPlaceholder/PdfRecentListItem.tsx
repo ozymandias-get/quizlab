@@ -1,8 +1,11 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
-import { WithTooltip } from '@app/components/ui/tooltip'
 import { Logger } from '@shared/lib/logger'
-import { IconBadge, ListItemCard } from '@shared/ui/components/primitives'
+import {
+  Button,
+  IconBadge,
+  IconButton,
+  ListItemCard,
+  WithTooltip
+} from '@shared/ui/components/primitives'
 
 import { FileText, FolderOpen, Play, Trash2 } from 'lucide-react'
 import {

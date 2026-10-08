@@ -1,6 +1,11 @@
-import { IconButton } from '@app/components/ui/icon-button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip'
-import { ToolbarGroup, ToolbarSeparator } from '@shared/ui/components/primitives'
+import {
+  IconButton,
+  ToolbarGroup,
+  ToolbarSeparator,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@shared/ui/components/primitives'
 
 import { ZoomIn as ZoomInIcon, ZoomOut as ZoomOutIcon } from 'lucide-react'
 import { type ComponentType, memo, type ReactElement } from 'react'

@@ -8,7 +8,7 @@ import {
   isSyncableSettingKey,
   SETTINGS_SYNC_KEYS,
   syncSettingToMain
-} from '@shared/lib/settingsSync'
+} from '@app/lib/settingsSync'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

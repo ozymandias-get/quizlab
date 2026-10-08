@@ -1,7 +1,7 @@
 import type { ApiConfig } from '@shared-core/types'
 
-import { Button } from '@app/components/ui/button'
 import { InlineSelector } from '@app/components/ui/inline-selector'
+import { Button } from '@shared/ui/components/primitives'
 
 import { Check, ChevronDown, Database } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'

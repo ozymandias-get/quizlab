@@ -6,7 +6,7 @@
  */
 import { TabStripHomeButton } from '@shared/ui/components/primitives/TabStripHomeButton'
 
-import { TooltipProvider } from '@app/components/ui/tooltip'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 

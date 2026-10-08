@@ -1,4 +1,4 @@
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
 import { Check, Loader2, Trash2 } from 'lucide-react'

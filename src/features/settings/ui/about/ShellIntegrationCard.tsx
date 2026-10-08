@@ -4,9 +4,8 @@ import {
   useShellIntegrationStatus
 } from '@platform/electron/api/useShellIntegrationApi'
 
-import { Button } from '@app/components/ui/button'
 import { useToastActions } from '@shared/stores/toastStore'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { ImportIcon, LoaderIcon } from '@ui/components/Icons'
 
 import { memo, useCallback } from 'react'

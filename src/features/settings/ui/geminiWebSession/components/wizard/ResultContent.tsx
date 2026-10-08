@@ -1,6 +1,4 @@
-import { Button } from '@app/components/ui/button'
-import { IconButton } from '@app/components/ui/icon-button'
-import { IconBadge } from '@shared/ui/components/primitives'
+import { Button, IconBadge, IconButton } from '@shared/ui/components/primitives'
 
 import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react'
 import type { ReactNode } from 'react'

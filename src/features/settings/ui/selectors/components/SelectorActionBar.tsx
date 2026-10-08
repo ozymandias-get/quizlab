@@ -1,4 +1,4 @@
-import { Button } from '@app/components/ui/button'
+import { Button } from '@shared/ui/components/primitives'
 import { LoaderIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
