@@ -22,9 +22,6 @@ const config = {
   },
   timeoutMS: 30000,
   concurrency: 2,
-  jsdoc: {
-    parse: 'typescript'
-  },
   dashboard: {
     reportType: 'json'
   }

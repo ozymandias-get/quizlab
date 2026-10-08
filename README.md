@@ -339,7 +339,7 @@ Analysis tooling:
 npm run analyze:architecture  # dependency-cruiser import rules
 npm run analyze:circular      # madge
 npm run analyze:duplicates    # jscpd
-npm run analyze:deadcode      # knip + ts-prune
+npm run analyze:deadcode      # knip
 npm run analyze:types         # type-coverage
 npm run analyze:css           # stylelint
 npm run analyze:security      # Semgrep + npm audit + Electronegativity
