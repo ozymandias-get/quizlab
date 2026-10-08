@@ -151,6 +151,7 @@ export async function showDisplayMediaPicker(
     }
 
     const detachListeners = () => {
+      parent?.removeListener('closed', parentCloseCleanup)
       ipcMain.removeListener(selectCh, selectHandler)
       ipcMain.removeListener(cancelCh, cancelHandler)
     }

@@ -249,6 +249,63 @@ describe('userElementPicker integration', () => {
     })
   })
 
+  it.each(['selected', 'rejected'] as const)(
+    'restores original inline styles when Escape cancels a %s flash',
+    (kind) => {
+      vi.useFakeTimers()
+      try {
+        eval(generatePickerScript())
+        const textbox = document.createElement('textarea')
+        textbox.style.setProperty('transition', 'opacity 1s', 'important')
+        textbox.style.setProperty('box-shadow', '1px 2px 3px red', 'important')
+        document.body.appendChild(textbox)
+        const rejected = document.createElement('span')
+        rejected.style.setProperty('transition', 'color 2s', 'important')
+        rejected.style.setProperty('box-shadow', '2px 3px 4px blue', 'important')
+        document.body.appendChild(rejected)
+        const target = kind === 'selected' ? textbox : rejected
+        const original = target.getAttribute('style')
+        textbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        if (kind === 'rejected') {
+          rejected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        }
+        expect(target.style.boxShadow).toContain('0 0')
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        expect(target.getAttribute('style')).toBe(original)
+        vi.advanceTimersByTime(1000)
+        expect(target.getAttribute('style')).toBe(original)
+      } finally {
+        ;(window as PickerWindow)._aiPickerCleanup?.()
+        vi.useRealTimers()
+      }
+    }
+  )
+
+  it('restores inline styles after the latest repeated flash completes', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+      const textbox = document.createElement('textarea')
+      document.body.appendChild(textbox)
+      textbox.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      const rejected = document.createElement('span')
+      rejected.style.setProperty('transition', 'color 2s', 'important')
+      rejected.style.setProperty('box-shadow', '2px 3px 4px blue', 'important')
+      document.body.appendChild(rejected)
+      const original = rejected.getAttribute('style')
+      rejected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      vi.advanceTimersByTime(100)
+      rejected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      vi.advanceTimersByTime(100)
+      expect(rejected.style.boxShadow).toContain('#ef4444')
+      vi.advanceTimersByTime(100)
+      expect(rejected.getAttribute('style')).toBe(original)
+    } finally {
+      ;(window as PickerWindow)._aiPickerCleanup?.()
+      vi.useRealTimers()
+    }
+  })
+
   // S11: S7 — clicking a non-button in 'typing' step should flash the
   // rejected target red instead of silently doing nothing.
   it('flashes the rejected target red when typing-step click is not a button', () => {
