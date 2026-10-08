@@ -38,6 +38,16 @@ export type NativePdfDocumentStatus = 'idle' | 'loading' | 'ready' | 'error'
 interface NativePdfPageDimensions {
   width: number
   height: number
+  /**
+   * The page's `/UserUnit`, as PDF.js reports it on `PageViewport#userUnit`.
+   *
+   * `PageViewport` multiplies the requested scale by it before computing the page's
+   * size, so this is the same factor the canvas is painted at — which is why it
+   * cannot be left out of the page box's `--total-scale-factor`. Read from the first
+   * page: `/UserUnit` is a per-page entry but exporters set it document-wide, and it
+   * is the only place a fit-scale input already comes from.
+   */
+  userUnit: number
 }
 
 interface UseNativePdfDocumentOptions {
@@ -79,6 +89,8 @@ export function useNativePdfDocument({
   const [totalPages, setTotalPages] = useState(0)
   const [pageDimensions, setPageDimensions] = useState<NativePdfPageDimensions | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const identity = `${pdfUrl}::${reloadKey}`
+  const [loadedIdentity, setLoadedIdentity] = useState<string | null>(null)
 
   useEffect(() => {
     if (!enabled || !pdfUrl) {
@@ -86,6 +98,7 @@ export function useNativePdfDocument({
       setTotalPages(0)
       setPageDimensions(null)
       setLoadError(null)
+      setLoadedIdentity(null)
       return
     }
 
@@ -98,6 +111,8 @@ export function useNativePdfDocument({
     let cancelled = false
     setStatus('loading')
     setLoadError(null)
+    setTotalPages(0)
+    setPageDimensions(null)
 
     void (async () => {
       try {
@@ -111,11 +126,17 @@ export function useNativePdfDocument({
         const viewport = firstPage.getViewport({ scale: 1 })
 
         setTotalPages(document_.numPages)
-        setPageDimensions({ width: viewport.width, height: viewport.height })
+        setPageDimensions({
+          width: viewport.width,
+          height: viewport.height,
+          userUnit: viewport.userUnit
+        })
+        setLoadedIdentity(identity)
         setStatus('ready')
       } catch (error) {
         if (cancelled) return
         setLoadError(toLoadErrorMessage(error))
+        setLoadedIdentity(identity)
         setStatus('error')
       }
     })()
@@ -125,7 +146,17 @@ export function useNativePdfDocument({
     }
     // `reloadKey` is the reload signal: it is what makes the same URL start a
     // new document lifecycle even though nothing else in the closure changed.
-  }, [enabled, engine, pdfUrl, reloadKey])
+  }, [enabled, engine, pdfUrl, reloadKey, identity])
 
+  // Hide the outgoing document's metadata during the identity-changing render,
+  // before effects consume the new resume page and initial fit exactly once.
+  if (loadedIdentity !== identity) {
+    return {
+      status: enabled && pdfUrl ? 'loading' : 'idle',
+      totalPages: 0,
+      pageDimensions: null,
+      loadError: null
+    }
+  }
   return { status, totalPages, pageDimensions, loadError }
 }

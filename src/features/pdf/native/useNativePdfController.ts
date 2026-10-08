@@ -150,6 +150,15 @@ export interface NativePdfController {
   currentPage: number
   /** Effective numeric scale, within the product's zoom range. */
   scale: number
+  /**
+   * The page's `/UserUnit`, folded into the page box's `--total-scale-factor`.
+   *
+   * `1` for the overwhelming majority of documents. It exists because PDF.js's
+   * `PageViewport` multiplies the requested scale by it before sizing the canvas, so
+   * a document that declares `/UserUnit 2` is painted twice the size the CSS layers
+   * would place its text in unless the same number is published alongside the scale.
+   */
+  pageUserUnit: number
   loadError: string | null
   renderError: string | null
   /** A genuine text-layer failure. `null` while rendering and on teardown. */
@@ -271,8 +280,11 @@ export function useNativePdfController({
   // reach this controller's own rAF-coalesced channel, and `reset` lands on the
   // same numeric fit scale `useNativePdfScaleState#fit` applies. Declared here
   // rather than in the shared state hook so the subscription lives and dies with
-  // the native viewer: while `enabled` is false it is inert, and it is the only
-  // such subscription in the app.
+  // the native viewer: while `enabled` is false it is inert. Only one viewer is
+  // mounted at a time in the app's own composition — `App.tsx` swaps
+  // `MainWorkspace` for `FocusOverlay` — though `AnimatePresence` keeps the exiting
+  // overlay alive for its exit animation, so a second subscriber exists for that
+  // brief overlap and the `enabled` gate is what keeps it quiet.
   usePdfViewerZoomIpc(zoomTo, scale, fitScale, isReady)
 
   // Ctrl/Cmd + `-` / `=` / `0` are owned here, not by a viewer plugin. All three
@@ -355,6 +367,7 @@ export function useNativePdfController({
       totalPages,
       currentPage: clampPdfPage(currentPage, totalPages),
       scale,
+      pageUserUnit: pageDimensions?.userUnit ?? 1,
       loadError,
       renderError,
       textLayerError,
@@ -376,6 +389,7 @@ export function useNativePdfController({
       totalPages,
       currentPage,
       scale,
+      pageDimensions,
       loadError,
       renderError,
       textLayerError,

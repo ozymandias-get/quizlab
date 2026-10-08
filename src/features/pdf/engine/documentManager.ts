@@ -25,8 +25,11 @@
  *      publishing
  *
  * `disposeActiveDocument()` is the single owner of task teardown, and the
- * generation only ever advances immediately after it runs — so a task observed
- * as stale has already been destroyed and is not destroyed twice.
+ * generation only ever advances immediately before it runs — so a task observed
+ * as stale has already been destroyed and is not destroyed twice. (The failed-load
+ * path is the one place that disposes a task itself rather than through
+ * `disposeActiveDocument()`, because it is the one place where the manager still
+ * holds a live task that no future call can reach.)
  *
  * Resolving to `null` mirrors how the capture path drops a stale render
  * (`usePdfCaptureActions`) rather than handing back a value nobody should use.
@@ -108,9 +111,19 @@ export function createPdfDocumentManager(): PdfDocumentManager {
     try {
       resolved = await task.promise
     } catch (error) {
-      // Only clear the slot if this task is still the current one; a newer load
-      // has already installed its own.
-      if (loadingTask === task) loadingTask = null
+      // A rejected `task.promise` does not release anything: PDF.js rejects the
+      // capability and leaves the task holding its own `PDFWorker` — a dedicated
+      // worker thread plus a transport with live network requests. Only
+      // `PDFDocumentLoadingTask#destroy()` terminates it, and this is the one place
+      // that still holds the only reference to it.
+      //
+      // The `loadingTask === task` guard is what keeps this from double-destroying:
+      // a newer load ran `disposeActiveDocument()`, which nulls the slot *before*
+      // disposing, so a task that has already been torn down never compares equal.
+      if (loadingTask === task) {
+        loadingTask = null
+        disposeTask(task)
+      }
       throw error
     }
 

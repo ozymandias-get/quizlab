@@ -3,7 +3,7 @@ import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import { TooltipProvider } from '@app/components/ui/tooltip'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The bar is closed until something opens it � Ctrl+F through usePdfShortcuts, or the
 // toggle in the collapsed state. Every case below wants it open.
@@ -223,11 +223,20 @@ describe('PdfToolbar', () => {
   // The search bar and the page navigation are asserted here because they are the
   // two things that must stay reachable on a viewer that owns its own state.
   describe('viewer with no legacy renderer branch', () => {
-    function renderNativeToolbar() {
-      return render(
+    interface NativeToolbarOverrides {
+      highlight?: Mock<(keyword: string) => void>
+      clearHighlights?: Mock<() => void>
+    }
+
+    function nativeToolbar(props: {
+      pdfFile: { path: string; name: string } | null
+      highlight: Mock<(keyword: string) => void>
+      clearHighlights: Mock<() => void>
+    }) {
+      return (
         <TooltipProvider>
           <PdfToolbar
-            pdfFile={null}
+            pdfFile={props.pdfFile}
             onStartScreenshot={vi.fn()}
             onFullPageScreenshot={vi.fn()}
             onAddCurrentPageTextToAi={vi.fn()}
@@ -238,8 +247,8 @@ describe('PdfToolbar', () => {
             totalPages={61}
             onPreviousPage={vi.fn()}
             onNextPage={vi.fn()}
-            highlight={vi.fn()}
-            clearHighlights={vi.fn()}
+            highlight={props.highlight}
+            clearHighlights={props.clearHighlights}
             ZoomIn={ZoomIn}
             ZoomOut={ZoomOut}
             CurrentScale={CurrentScale}
@@ -247,6 +256,30 @@ describe('PdfToolbar', () => {
           />
         </TooltipProvider>
       )
+    }
+
+    /**
+     * `setPdfFile` re-renders the same tree with a different file, which is what a
+     * document switch is: the component is not remounted, so its effects — including
+     * the pending search debounce — are exactly what has to cope.
+     */
+    function renderNativeToolbar(
+      overrides: NativeToolbarOverrides = {},
+      pdfFile: { path: string; name: string } | null = null
+    ) {
+      const props = {
+        pdfFile,
+        highlight: overrides.highlight ?? vi.fn(),
+        clearHighlights: overrides.clearHighlights ?? vi.fn()
+      }
+      const view = render(nativeToolbar(props))
+      return {
+        ...view,
+        setPdfFile: (next: { path: string; name: string } | null) => {
+          props.pdfFile = next
+          view.rerender(nativeToolbar(props))
+        }
+      }
     }
 
     it('reveals the search bar when the shared store opens it', async () => {
@@ -274,6 +307,56 @@ describe('PdfToolbar', () => {
       expect(getByTestId('pdf-quick-image-ai')).toBeEnabled()
       expect(getByTestId('pdf-quick-area-ai')).toBeEnabled()
       expect(getByTestId('pdf-quick-reload')).toBeEnabled()
+    })
+
+    it('clears the highlights when the search input is emptied', async () => {
+      // The search bar's inline clear button empties the input through the same
+      // callback typing uses, so the toolbar — not the bar — is what has to reach
+      // `clearHighlights`. Without it the previous query's rectangles stay painted
+      // under an empty box, because the search hook drops a query on an emptied
+      // keyword and never repaints on its own.
+      const highlight = vi.fn()
+      const clearHighlights = vi.fn()
+      renderNativeToolbar({ highlight, clearHighlights })
+
+      const input = screen.getByPlaceholderText('search_placeholder')
+      fireEvent.change(input, { target: { value: 'thermodynamics' } })
+      await waitFor(() => expect(highlight).toHaveBeenCalledWith('thermodynamics'))
+      expect(clearHighlights).not.toHaveBeenCalled()
+
+      fireEvent.click(screen.getByLabelText('clear'))
+
+      await waitFor(() => expect(clearHighlights).toHaveBeenCalledTimes(1))
+      expect(highlight).toHaveBeenCalledTimes(1)
+      expect(screen.getByPlaceholderText('search_placeholder')).toHaveValue('')
+    })
+
+    it('does not carry a pending search into the next document', async () => {
+      // The debounce holds a keyword typed for the *previous* file. Clearing the
+      // overlay on a file switch is not enough: left alive, the timer fires a few
+      // hundred ms later and highlights the old document's term on the new
+      // document's page.
+      const highlight = vi.fn()
+      const clearHighlights = vi.fn()
+      const { setPdfFile } = renderNativeToolbar(
+        { highlight, clearHighlights },
+        { path: '/docs/first.pdf', name: 'first.pdf' }
+      )
+
+      fireEvent.change(screen.getByPlaceholderText('search_placeholder'), {
+        target: { value: 'thermodynamics' }
+      })
+      // The 300 ms debounce has not elapsed, so nothing has been highlighted yet.
+      expect(highlight).not.toHaveBeenCalled()
+
+      setPdfFile({ path: '/docs/second.pdf', name: 'second.pdf' })
+      await waitFor(() => expect(clearHighlights).toHaveBeenCalled())
+
+      // Well past the debounce the pending timer would have fired in.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+      })
+      expect(highlight).not.toHaveBeenCalled()
     })
   })
 })

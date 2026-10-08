@@ -144,9 +144,16 @@ interface NativePdfViewerProps {
  * the *viewport* scale — the same number `pageRenderer` hands to `page.render()`. That
  * is what keeps a selected span's box, and a link's hitbox, on what the canvas painted,
  * at every zoom level and every rotation.
+ *
+ * `userUnit` is part of that number, not a separate factor: PDF.js's `PageViewport`
+ * does `scale *= userUnit` before sizing, so a document declaring `/UserUnit 2` is
+ * painted at `2 × scale` while the layers would otherwise be laid out at `1 × scale` —
+ * every word at half size in the top-left quadrant of the page. PDF.js's own viewer
+ * publishes the same product as `--total-scale-factor: calc(var(--scale-factor) *
+ * var(--user-unit))` for exactly this reason.
  */
-function totalScaleFactorStyle(scale: number): CSSProperties {
-  return { '--total-scale-factor': String(scale) } as CSSProperties
+function totalScaleFactorStyle(scale: number, userUnit: number): CSSProperties {
+  return { '--total-scale-factor': String(scale * userUnit) } as CSSProperties
 }
 
 function NativePdfViewer({
@@ -158,7 +165,7 @@ function NativePdfViewer({
   t,
   tt
 }: NativePdfViewerProps) {
-  const { status, currentPage, scale, loadError, renderError } = controller
+  const { status, currentPage, scale, pageUserUnit, loadError, renderError } = controller
 
   // Null-checked rather than truthiness-checked: a failure with an empty message
   // must still render the error shell, with the unknown-error copy standing in
@@ -209,7 +216,7 @@ function NativePdfViewer({
       <div
         data-native-pdf-page={currentPage}
         className="m-auto"
-        style={totalScaleFactorStyle(scale)}
+        style={totalScaleFactorStyle(scale, pageUserUnit)}
       >
         <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-lg" />
         <div

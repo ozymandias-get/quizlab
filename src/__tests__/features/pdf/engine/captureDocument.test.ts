@@ -160,7 +160,11 @@ describe('loadTemporaryCaptureDocument', () => {
     })
 
     await expect(loadTemporaryCaptureDocument('local-pdf://book')).rejects.toThrow('bad file')
-    expect(lastTask!.destroy).not.toHaveBeenCalled()
+    // The caller never receives the object, so it never gets to call `release()`.
+    // A rejected `task.promise` releases nothing on its own either, so this is the
+    // only place the task can be torn down — and a failed load is the common case
+    // here, since the temporary path exists for the moments nothing can be borrowed.
+    expect(lastTask!.destroy).toHaveBeenCalledTimes(1)
   })
 })
 

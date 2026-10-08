@@ -248,7 +248,9 @@ export function usePdfCaptureActions({
         try {
           result = await captureCanvasAsBlob(targetCanvas)
         } catch {
-          showError('toast_capture_failed')
+          // Only the current request may complain. A superseded one that fails on the
+          // way out would raise a failure toast next to whatever its successor queued.
+          if (isCurrentCapture()) showError('toast_capture_failed')
           return
         }
         if (!isCurrentCapture()) {

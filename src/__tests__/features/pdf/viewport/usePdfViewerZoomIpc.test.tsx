@@ -1,4 +1,8 @@
-import { PDF_ZOOM_MIN_SCALE, PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
+import {
+  PDF_ZOOM_MAX_SCALE,
+  PDF_ZOOM_MIN_SCALE,
+  PDF_ZOOM_STEP
+} from '@features/pdf/constants/pdfZoom'
 import { usePdfViewerZoomIpc } from '@features/pdf/viewport/usePdfViewerZoomIpc'
 
 import { renderHook } from '@testing-library/react'
@@ -51,6 +55,18 @@ describe('usePdfViewerZoomIpc', () => {
     lastActionHandler()('out')
 
     expect(zoomTo).toHaveBeenCalledWith(PDF_ZOOM_MIN_SCALE)
+  })
+
+  it('clamps zoom in at the maximum scale', () => {
+    // Symmetry is the point: this hook is renderer-agnostic and hands whatever
+    // `zoomTo` it is given an absolute scale, so both directions have to stay inside
+    // the product's range here rather than relying on the caller's channel to absorb
+    // an out-of-range value.
+    setup(PDF_ZOOM_MAX_SCALE, true)
+
+    lastActionHandler()('in')
+
+    expect(zoomTo).toHaveBeenCalledWith(PDF_ZOOM_MAX_SCALE)
   })
 
   // Phase 8B: reset is the viewer's numeric fit scale, not RPV's

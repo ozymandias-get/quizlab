@@ -1,5 +1,5 @@
 /**
- * ScrollMode.Page modunda fare tekerleği ile sayfa geçişi.
+ * Sayfa modunda fare tekerleği ile sayfa geçişi.
  *
  * Ctrl/Meta tuşu olmadan tekerlek → sayfa geçişi (usePdfCtrlWheelZoom'a bırakılmaz).
  * Ctrl/Meta + tekerlek → usePdfCtrlWheelZoom tarafından işlenir (zoom), burada dokunulmaz.
@@ -39,7 +39,8 @@ export function usePdfWheelNavigation(
       // Ctrl/Meta + tekerlek → zoom hook'una bırak
       if (e.ctrlKey || e.metaKey) return
 
-      // Varsayılan scroll davranışını engelle (ScrollMode.Page zaten scroll etmez)
+      // Claim the event: this viewer turns pages on the wheel instead of scrolling,
+      // so leaving the default in place would scroll the panel behind the page.
       e.preventDefault()
       e.stopPropagation()
 

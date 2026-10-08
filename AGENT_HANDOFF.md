@@ -12,15 +12,15 @@ migration plan.
 
 ## Current State
 
-| Field                | Value                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                     |
-| Current phase        | **Phase 10 — final stabilization, complete**                                        |
-| Last completed phase | Phase 10 — deferred-debt closure + baseline refresh (see _Deferred-Debt Decisions_) |
-| Current HEAD         | run `git rev-parse HEAD`                                                            |
-| Working tree         | **clean**                                                                           |
-| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                          |
-| Readiness            | single runtime, sole renderer, no feature flag; all gates re-run green in Phase 10  |
+| Field                | Value                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------- |
+| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                                          |
+| Current phase        | **Post-Phase-10 stabilization, complete and uncommitted**                                                |
+| Last completed phase | Phase 10 — deferred-debt closure + baseline refresh (see _Deferred-Debt Decisions_)                      |
+| Current HEAD         | `f037d2c`                                                                                                |
+| Working tree         | **dirty** — see _Uncommitted Work_ below                                                                 |
+| Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                                               |
+| Readiness            | single runtime, sole renderer, no feature flag; gates green **as measured at 50bd7ea**, not re-run since |
 
 **The PDF viewer migration is complete and the cleanup phases are complete.** There is
 one PDF.js in the tree, one worker, one viewer, and no feature flag.
@@ -29,10 +29,66 @@ stale comments and documentation, unused dependencies, a refreshed baseline — 
 neither changed what the app does. The migration's own exit criterion (Phase 8B) was
 met before either began.
 
-Phase 4's manual smoke was resolved by user validation in the real application.
-The Phase 5, 6, 7, 8A and 8B interactive lists are **still outstanding** — see
-_Interactive Smoke State_. They are the only thing Phase 8B could not verify, and
-neither Phase 9 nor Phase 10 touched them.
+A further **stabilization round** then landed on top of Phase 10, uncommitted. It fixed
+eleven proven defects and closed two test-coverage gaps; it changed no design decision.
+See _Post-Phase-10 Stabilization_ for the list and the tests that pin each one.
+
+### _Uncommitted Work_
+
+The tree is a **mixed batch**. Three groups, and they must not be committed together:
+
+| Group                        | Files                                                                                                                                                               | Notes                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1. PDF stabilization         | `src/features/pdf/**`, `electron/__tests__/features/pdf/pdfHandlers.test.ts`, this file, `docs/pdfjs-migration-plan.md`                                             | The 9 fixes, the 2 coverage gaps and the documentation sync. One logical commit.   |
+| 2. Unrelated feature work    | automation picker, AI sessions/composer, settings sync, dialog behaviour, language store, `usePdfWorkspaceState` + `usePdfPlaceholderState` relink, and their tests | Belongs to other workstreams. **Do not fold into the PDF commit.**                 |
+| 3. `docs/CODING_STANDARD.md` | replaces a stale hardcoded test count with a count-free statement                                                                                                   | Repo-wide doc hygiene, same thread as the Phase 10 baseline refresh. Not PDF work. |
+
+Note that group 2's untracked `src/__tests__/features/pdf/components/pdfPlaceholder/usePdfPlaceholderState.test.tsx`
+sits under `features/pdf/` but belongs to the relink workstream, not to group 1.
+
+Phase 4's manual smoke was resolved by user validation in the real application, and the
+post-Phase-10 stabilization tree has since had a further **manual session in the
+development environment in which the user reported no issue**. Both were manual, and
+neither was a per-item walk of a list. The Phase 5, 6, 7, 8A and 8B interactive lists are
+therefore **still open** — they are the only thing Phase 8B could not verify, and neither
+Phase 9, Phase 10 nor the stabilization round touched them.
+
+## Post-Phase-10 Stabilization
+
+Proven defects found by auditing the migrated code rather than by running it. Each is
+pinned by a test that fails without the fix. Items 1–7 are the first round (verified and
+committed together with it); 10 and 11 are the follow-up round, which re-verified all
+nine and added two more.
+
+| #   | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                   | Root cause in one line                                                                                                                                                                                                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **A canvas is capturable only for the page it is holding.** `nativePdfDom.ts` exports `NATIVE_CANVAS_PAGE_ATTRIBUTE`; `useNativePdfRender` removes it before its first `await` and writes it back only after `renderPage` resolves past the `cancelled` guard; `findNativePageCanvas` now requires the page box **and** the canvas to name the same page, and `findPageCanvas`'s cache re-validates against exactly those conditions. | `data-native-pdf-page` is React _state_ — the page being asked for. `pageRenderer` deliberately never clears the canvas (Known Issue 22), so between a page turn and its render commit the page box already says N while the canvas still shows N−1. A capture in that window sent the **previous page's image labelled N**.                            |
+| 2   | **A failed `load()` destroys its own loading task** (`engine/documentManager.ts`).                                                                                                                                                                                                                                                                                                                                                    | A rejected `task.promise` releases nothing in PDF.js; `getDocument` had already spawned a dedicated `PDFWorker` thread, and only `PDFDocumentLoadingTask#destroy()` terminates it. Each failed load left an unreachable orphan worker.                                                                                                                  |
+| 3   | **A rejected temporary capture load releases its manager** (`engine/captureDocument.ts`).                                                                                                                                                                                                                                                                                                                                             | `release()` is only reachable once the promise resolves, and a rejected load is the _common_ case for the temporary path — it exists for the moments there is nothing to borrow.                                                                                                                                                                        |
+| 4   | **Emptying the search input clears the highlights** (`PdfToolbar.tsx`).                                                                                                                                                                                                                                                                                                                                                               | The search bar's inline `clear` X goes through the same callback as typing; the debounce's `if (keyword.trim())` therefore did nothing, and `clearHighlights()` was unreachable from that path.                                                                                                                                                         |
+| 5   | **`/UserUnit` is folded into `--total-scale-factor`** (`useNativePdfDocument.ts` → `useNativePdfController.ts` → `NativePdfViewer.tsx`).                                                                                                                                                                                                                                                                                              | PDF.js's `PageViewport` does `scale *= userUnit` before sizing, so the canvas was `scale × userUnit` while the CSS layers were laid out at `scale`. For a `/UserUnit 2` document every word and every annotation hitbox sat at half size in the top-left quadrant.                                                                                      |
+| 6   | **A superseded capture is silent** (`usePdfCaptureActions.ts`).                                                                                                                                                                                                                                                                                                                                                                       | The inner `showError` skipped the supersession guard every other `showError` honours, so a double-clicked capture could raise "capture failed" next to the image its successor queued.                                                                                                                                                                  |
+| 7   | **IPC zoom-in is clamped like zoom-out** (`usePdfViewerZoomIpc.ts`).                                                                                                                                                                                                                                                                                                                                                                  | One direction clamped and the other did not, contradicting invariant 11 as written. Latent only: the channel clamps.                                                                                                                                                                                                                                    |
+| 8   | **New `src/__tests__/features/pdf/viewport/usePdfWheelNavigation.test.tsx`**.                                                                                                                                                                                                                                                                                                                                                         | `usePdfWheelNavigation` is all of wheel navigation and had **zero** coverage after the `usePdfNavigation` tests were deleted with that hook.                                                                                                                                                                                                            |
+| 9   | **New `pdfHandlers.test.ts` case** for the `safeSend` `isDestroyed` guard commit `38c8a4c` added.                                                                                                                                                                                                                                                                                                                                     | Every other mock sender lacks `isDestroyed`, so the guard's actual purpose was never exercised.                                                                                                                                                                                                                                                         |
+| 10  | **A named-destination lookup that rejects resolves to "no destination"** (`nativePdfLinkService.ts`).                                                                                                                                                                                                                                                                                                                                 | The `getDestination` await was unguarded while its `getPageIndex` sibling was guarded, contradicting the module's own "Nothing here rejects" promise. PDF.js wires `goToDestination` into a link `onclick` without awaiting it, so a corrupt `/Dests` tree surfaced as an unhandled rejection and an error toast over a link the reader merely clicked. |
+| 11  | **A file switch cancels the pending search debounce** (`PdfToolbar.tsx`).                                                                                                                                                                                                                                                                                                                                                             | The file-change effect cleared the overlay but not the timer, so a keyword typed for the previous file fired up to 300 ms later and highlighted the **old document's term on the new document's page**.                                                                                                                                                 |
+
+Two tests changed **assertions** rather than adding cases, and both changes are
+behavioural, not cosmetic:
+
+- `captureDocument.test.ts` — a test literally named _"propagates a failed load without
+  leaking a task"_ asserted `expect(destroy).not.toHaveBeenCalled()`, pinning the leak
+  its own name described. Now `toHaveBeenCalledTimes(1)`.
+- `findPageCanvas.test.ts` — the fixture stamps the committed-page attribute, and the
+  page-turn case now asserts that **neither** page is served from a canvas whose render
+  has not committed. This is the corrected contract fix 1 establishes.
+
+Two production changes already in the tree before either round are load-bearing for the
+same reason and are recorded here so the next agent does not "simplify" them: `renderError`
+is keyed to `(page, scale)` and cleared on leaving `ready`, because the error shell
+removes the canvas; and `useNativePdfDocument` withholds the outgoing document's metadata
+during an identity-changing render, so `initialPage` and the fit effect cannot read it.
 
 ## Current Goal
 
@@ -163,15 +219,15 @@ needs the eslint conflict resolved first, and that is not cleanup.
 `src/features/pdf/engine/` — React-free, DOM-free, viewer-free, asserted by test.
 Direction is `UI → engine → pdfjs-dist`; the reverse is forbidden.
 
-| File                    | Responsibility                                                                                                                                        |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pdfWorker.ts`          | publishes `GlobalWorkerOptions.workerSrc` once — the **only** assignment in the codebase                                                              |
-| `pdfDocumentOptions.ts` | the single authoritative `getDocument` parameter builder: scripting + asset policy                                                                    |
-| `documentManager.ts`    | owns the `PDFLoadingTask`; load / reload / getDocument / getPage / destroy, generation-based stale-load protection                                    |
-| `pageCache.ts`          | page number → `PDFPageProxy`; clearable, rejected lookups not cached                                                                                  |
-| `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, supersede-cancel, typed cancellation                                                               |
-| `captureDocument.ts`    | the engine's public **capture/document adapter**: handle creation + the temporary isolated load                                                       |
-| `index.ts`              | barrel: exactly `createPdfDocumentManager`, `createPageRenderer`, `isRenderCancelled` and their types — the entry point for everything except capture |
+| File                    | Responsibility                                                                                                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pdfWorker.ts`          | publishes `GlobalWorkerOptions.workerSrc` once — the **only** assignment in the codebase                                                                                                                                                           |
+| `pdfDocumentOptions.ts` | the single authoritative `getDocument` parameter builder: scripting + asset policy                                                                                                                                                                 |
+| `documentManager.ts`    | owns the `PDFLoadingTask`; load / reload / getDocument / getPage / destroy, generation-based stale-load protection. A failed load disposes its own task — the one path that has to, because a rejected `task.promise` leaves a worker thread alive |
+| `pageCache.ts`          | page number → `PDFPageProxy`; clearable, rejected lookups not cached                                                                                                                                                                               |
+| `pageRenderer.ts`       | `PDFPageProxy` → viewport → canvas → `RenderTask`, supersede-cancel, typed cancellation                                                                                                                                                            |
+| `captureDocument.ts`    | the engine's public **capture/document adapter**: handle creation + the temporary isolated load. A load that never resolves hands its teardown to `manager.destroy()`, because the caller never receives the object                                |
+| `index.ts`              | barrel: exactly `createPdfDocumentManager`, `createPageRenderer`, `isRenderCancelled` and their types — the entry point for everything except capture                                                                                              |
 
 `captureDocument.ts` is the one deliberate addition to a pure engine, and it earns its
 place: capture needs a PDF.js document, the engine is the only place allowed to import
@@ -249,27 +305,27 @@ barrel of its own since `native/index.ts` was deleted in Phase 9. Asserted by
 `architecture/pdfjs-single-runtime.test.ts`, together with the inverse: no
 `@react-pdf-viewer` import and no `rpv-*` string in that boundary.
 
-| File                             | Responsibility                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `nativePdfBounds.ts`             | `clampPdfPage` (1-based) and `clampPdfScale` on the shared `PDF_ZOOM_*`       |
-| `nativePdfDom.ts`                | the viewer's markup contract + the page/canvas/text/annotation/search lookups |
-| `nativePdfTextLayer.css`         | PDF.js's text-layer layout, scoped to `data-native-pdf-*`                     |
-| `nativePdfAnnotationLayer.css`   | PDF.js's `.annotationLayer` layout rules, scoped the same way                 |
-| `nativePdfSearchLayer.css`       | the search overlay + highlight layout, scoped to `data-native-pdf-search-*`   |
-| `nativePdfLinkService.ts`        | PDF.js's link-service surface over the page state + `openExternal`            |
-| `nativePdfSearch.ts`             | the search engine: page text, literal matching, `Range` geometry              |
-| `nativeZoomControls.tsx`         | render-prop zoom components for the shared toolbar, incl. `aria-keyshortcuts` |
-| `useNativeCoalescedScale.ts`     | the one-zoom-per-frame channel                                                |
-| `useNativePdfEngine.ts`          | 1 × `createPdfDocumentManager()` + 1 × `createPageRenderer()` per mount       |
-| `useNativePdfDocument.ts`        | `(pdfUrl, reloadKey)` → status, `numPages`, first-page size                   |
-| `useNativePdfCaptureDocument.ts` | publishes the mounted document to the capture registry, token-scoped          |
-| `useNativePdfPageState.ts`       | 1-based clamped `currentPage`; consumes `initialPage` once per identity       |
-| `useNativePdfScaleState.ts`      | numeric clamped `scale`, fit once per document identity                       |
-| `useNativePdfRender.ts`          | one page → one canvas, supersede-cancel                                       |
-| `useNativePdfTextLayer.ts`       | one page → one PDF.js `TextLayer`, supersede-cancel, page cache               |
-| `useNativePdfAnnotationLayer.ts` | one page → one PDF.js `AnnotationLayer` + link service, supersede-destroy     |
-| `useNativePdfSearch.ts`          | keyword → highlight rectangles: lifecycle + `highlight`/`clearHighlights`     |
-| `useNativePdfController.ts`      | composition, the toolbar contract, and the shared-hook wiring                 |
+| File                             | Responsibility                                                                                                                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nativePdfBounds.ts`             | `clampPdfPage` (1-based) and `clampPdfScale` on the shared `PDF_ZOOM_*`                                                                                                                                                |
+| `nativePdfDom.ts`                | the viewer's markup contract + the page/canvas/text/annotation/search lookups. Also owns `NATIVE_CANVAS_PAGE_ATTRIBUTE`, the marker a canvas carries for the page it is _holding_ — half of what makes a capture exact |
+| `nativePdfTextLayer.css`         | PDF.js's text-layer layout, scoped to `data-native-pdf-*`                                                                                                                                                              |
+| `nativePdfAnnotationLayer.css`   | PDF.js's `.annotationLayer` layout rules, scoped the same way                                                                                                                                                          |
+| `nativePdfSearchLayer.css`       | the search overlay + highlight layout, scoped to `data-native-pdf-search-*`                                                                                                                                            |
+| `nativePdfLinkService.ts`        | PDF.js's link-service surface over the page state + `openExternal`                                                                                                                                                     |
+| `nativePdfSearch.ts`             | the search engine: page text, literal matching, `Range` geometry                                                                                                                                                       |
+| `nativeZoomControls.tsx`         | render-prop zoom components for the shared toolbar, incl. `aria-keyshortcuts`                                                                                                                                          |
+| `useNativeCoalescedScale.ts`     | the one-zoom-per-frame channel                                                                                                                                                                                         |
+| `useNativePdfEngine.ts`          | 1 × `createPdfDocumentManager()` + 1 × `createPageRenderer()` per mount                                                                                                                                                |
+| `useNativePdfDocument.ts`        | `(pdfUrl, reloadKey)` → status, `numPages`, first-page size and `/UserUnit`; withholds the outgoing document's metadata during an identity-changing render                                                             |
+| `useNativePdfCaptureDocument.ts` | publishes the mounted document to the capture registry, token-scoped                                                                                                                                                   |
+| `useNativePdfPageState.ts`       | 1-based clamped `currentPage`; consumes `initialPage` once per identity                                                                                                                                                |
+| `useNativePdfScaleState.ts`      | numeric clamped `scale`, fit once per document identity                                                                                                                                                                |
+| `useNativePdfRender.ts`          | one page → one canvas, supersede-cancel                                                                                                                                                                                |
+| `useNativePdfTextLayer.ts`       | one page → one PDF.js `TextLayer`, supersede-cancel, page cache                                                                                                                                                        |
+| `useNativePdfAnnotationLayer.ts` | one page → one PDF.js `AnnotationLayer` + link service, supersede-destroy                                                                                                                                              |
+| `useNativePdfSearch.ts`          | keyword → highlight rectangles: lifecycle + `highlight`/`clearHighlights`                                                                                                                                              |
+| `useNativePdfController.ts`      | composition, the toolbar contract, and the shared-hook wiring                                                                                                                                                          |
 
 Invariants worth knowing before changing it:
 
@@ -287,9 +343,20 @@ Invariants worth knowing before changing it:
   clamped by `clampPdfScale` and funnels through the same channel.
 - **Cancellation is not an error.** `RenderingCancelledException` (canvas) and
   `AbortException` (text layer) are dropped; genuine failures become `renderError` /
-  `textLayerError` / `annotationLayerError`.
-- **Canvas, text layer and annotation layer share one viewport**, and
-  `--total-scale-factor` on the page box is that same number.
+  `textLayerError` / `annotationLayerError`. `renderError` is keyed to the `(page, scale)`
+  that produced it and is cleared as soon as the status leaves `ready`, because the
+  error shell removes the canvas and a stale failure would keep the replacement page
+  from ever mounting one.
+- **Canvas, text layer and annotation layer share one viewport.** The canvas is painted
+  at `getViewport({ scale })`, which PDF.js computes as `scale × userUnit`, so
+  `--total-scale-factor` on the page box is that same product (`scale * pageUserUnit`) —
+  not the bare scale. Publishing only the scale mislaid both layers on any document
+  declaring `/UserUnit != 1`.
+- **A canvas is capturable only while it is holding the requested page.**
+  `useNativePdfRender` removes `data-native-pdf-canvas-page` before its first `await` and
+  writes it back only after `renderPage()` resolves past the `cancelled` guard, so the
+  interval between a page turn and its render commit — and the whole of a zoom re-render —
+  is refused rather than labelled with a page it is not showing. See _Known Issues_ 25.
 - **The search overlay is the fourth layer**, declared last in the DOM on purpose,
   painted by `z-index: 1` between the text layer and the annotation layer.
 - **Capture borrows; it never destroys.** No `page.cleanup()` on a borrowed proxy.
@@ -387,8 +454,12 @@ only while a PDF panel existed.
     through the engine, never by building its own.
 18. The page a capture is labelled with is the viewer's live page.
 19. **A canvas is only ever captured for the page it is showing.**
-    `findNativePageCanvas` validates `[data-native-pdf-page]` rather than falling back to
-    "the one canvas there is".
+    Two markers have to agree: `data-native-pdf-page` names the page the viewer is
+    _asking for_ (React state, so it flips on commit) and `data-native-pdf-canvas-page`
+    names the page the canvas is _holding_ (`useNativePdfRender` writes it only on render
+    commit). `findNativePageCanvas` answers `null` unless both name the same page, and
+    `findPageCanvas`'s cache re-checks exactly that, so it can never serve a canvas the
+    lookup would have refused.
 20. `initialPage` is consumed once per `(pdfUrl, reloadKey)` identity, so a saved page that
     no longer matches where the reader is must be **ignored**.
 21. `pdf-highlight-fadein` is defined once, in `src/shared/styles/modules/_pdf-viewer.css`.
@@ -431,6 +502,12 @@ so nothing was silently excluded. The **2 skips** are pre-existing and host-spec
 `electron/__tests__/core/ConfigManager.extended.test.ts` guards two POSIX `chmod`
 tests with `skip: os.platform() === 'win32'`, so the number is 2 on Windows and 0
 elsewhere.
+
+**This block is not re-measured since `50bd7ea`.** Commits and an uncommitted
+stabilization tree have landed since; the suite has not been re-run in full, so treat the
+figures above as a past measurement, not a current one. The on-disk suite has since grown
+past the 330 files the run reported. Per the rule below, the next agent who changes the
+suite re-measures rather than editing these numbers.
 
 ### Targeted sets re-run during Phase 10
 
@@ -509,11 +586,12 @@ untouched.
 test assertions that re-checked React state the code already holds. No CSS rule, no
 `querySelector`, no `dataset`, no `getAttribute` in production, no doc, and the
 repository has no e2e harness at all. Contrast the siblings that _are_ load-bearing:
-`data-native-pdf-text-page` backs `findNativeTextLayerForPage`, and
-`data-native-pdf-page` is what makes `findNativePageCanvas` refuse a wrong-page canvas.
-Neither removed attribute had a selector constant or a lookup function. Both layers are
-ref-addressed, so their page comes from React state and from
-`searchLayer.closest(NATIVE_PAGE_SELECTOR)`. Two `waitForFrames` conditions were
+`data-native-pdf-text-page` backs `findNativeTextLayerForPage`, and `data-native-pdf-page`
+is one of the **two** markers that make `findNativePageCanvas` refuse a wrong-page canvas
+(the other is `data-native-pdf-canvas-page`, added by the stabilization round — see
+_Post-Phase-10 Stabilization_ #1). Neither removed attribute had a selector constant or a
+lookup function. Both layers are ref-addressed, so their page comes from React state and
+from `searchLayer.closest(NATIVE_PAGE_SELECTOR)`. Two `waitForFrames` conditions were
 **rebuilt, not deleted**, and both are stricter than what they replaced — the old
 page-change wait was satisfied by a re-render from `currentPage` alone, so it would
 have passed with no new `AnnotationLayer` ever constructed.
@@ -531,11 +609,17 @@ loses access to it; only the root declaration is gone.
 
 ## Interactive Smoke State
 
-**USER-OWNED / OUTSTANDING until the user reports results. Do not mark this PASS.**
+**USER-OWNED. One manual session has been run on the current tree and the user reported
+no issue. That is weak positive evidence, not a per-item sign-off: do not mark any line
+below PASS on the strength of it.**
 
+- **USER-VERIFIED (manual)**: the user exercised the viewer in the development
+  environment on the post-Phase-10 stabilization tree and reported no issue. Manual,
+  user-driven; **not** an automated smoke, E2E or screenshot comparison, and not a
+  walk of this list item by item.
 - **Phase 4**: resolved — the user manually exercised the viewer and reported no issue.
-- **Phase 5**: outstanding. No interactive session existed; the native text layer has
-  never been looked at in a real browser.
+- **Phase 5**: still open individually. A manual session has now looked at the native text
+  layer and reported no issue, but that is not a sign-off of the Phase 5 line.
 - **Phase 6**: outstanding, and jsdom structurally cannot cover it — an annotation layer's
   whole point is geometry, and no test can prove a link's hitbox sits over its words.
 - **Phase 7**: outstanding, for the same reason once more: a highlight's whole point is
@@ -546,12 +630,13 @@ loses access to it; only the root declaration is gone.
 - **Phase 8B**: outstanding, and it now carries an extra question — **does Ctrl/Cmd +
   `-` / `=` / `0` zoom actually work**, and did it work under RPV? The audit could not
   settle whether RPV's focus-containment check made those bindings unreachable in
-  QuizLab's own markup.
+  QuizLab's own markup. (They now have their own test suite, which cannot substitute for
+  a real keypress in a real window.)
 - **Phase 8B follow-up (vertical centering)**: outstanding. jsdom has no box model, so
   `nativePageLayout.test.tsx` pins the _structural_ contract (which element scrolls, which
-  element carries `m-auto`, which subtree moves together) and nothing more. Nobody has
-  looked at a centered page in a real window, so treat "the page is vertically centered"
-  as unverified until the user runs the list below.
+  element carries `m-auto`, which subtree moves together) and nothing more. The manual
+  session reported no issue, which is weak positive evidence for this invariant and not a
+  measurement of it; treat "the page is vertically centered" as unverified.
 - **Phase 10 finding that changes the list**: the "Electron context-menu zoom" smoke item
   **cannot pass as written**. The native Electron menu is unreachable — nothing calls
   `electronAPI.showPdfContextMenu` — so a right-click shows only the renderer's own React
@@ -667,6 +752,27 @@ has.
     production, genuine feature-flag residue, threaded into 9 sub-hooks. Kept in Phase 10
     because removal is a 16-file change across the whole native boundary for no
     architectural gain. Do not re-audit it; read _Deferred-Debt Decisions_ §1 instead.
+24. **`/UserUnit` is read from page 1 and published document-wide.**
+    `viewport.userUnit` comes from `firstPage.getViewport({ scale: 1 })`, so
+    `pageUserUnit` is a document-scoped number, not a per-page one. That is correct for
+    every document that does not set `/UserUnit` (all of them) and for the documents that
+    do, because exporters set it uniformly; it is only wrong for a document whose pages
+    declare _different_ `/UserUnit` values, where each canvas is painted at its own
+    userUnit while all three layers are laid out at page 1's. Page 1 is the only place a
+    fit-scale input already comes from, and adding a per-page lookup would cost an async
+    round trip per page turn to fix a case no known exporter produces. Recorded so a future
+    agent does not mistake the scoping for an oversight.
+25. **The canvas legitimately holds the previous page between a turn and its render
+    commit.** This is the direct consequence of Known Issue 22: not clearing the canvas
+    is correct for presentation and wrong for capture, and
+    `data-native-pdf-canvas-page` exists to reconcile them. **Do not reintroduce the
+    unconditional `canvas.width` / `canvas.height` assignment in `pageRenderer` expecting
+    capture to be unaffected** — that is precisely the interval the committed-page marker
+    closes, and the white flash Known Issue 22 describes would return with it.
+26. **`renderError` is keyed to `(page, scale)` and cleared on leaving `ready`.** Worth
+    recording because it changes the meaning of a controller field and because it exists
+    only because the error shell replaces the canvas: a failure left standing would keep
+    the replacement page from ever mounting a canvas to render into.
 
 ## Temporary Migration Components
 
@@ -752,8 +858,10 @@ explicitly requested.
   (`usePdfNavigation.ts` was deleted in Phase 8B; only these three remain)
 - `src/features/pdf/native/**` + `engine/**` — the migration's output; the
   naming is settled, the behaviour is not. `enabled` is settled too: see
-  _Deferred-Debt Decisions_ §1 before touching it
-- `electron/features/pdf/pdfHandlers.ts` — kept only under _Deferred-Debt Decisions_ §2
+  _Deferred-Debt Decisions_ §1 before touching it. The stabilization round did change six
+  files here, so "unchanged" here means unchanged _by a phase_, not frozen forever.
+- `electron/features/pdf/pdfHandlers.ts` — kept only under _Deferred-Debt Decisions_ §2.
+  (Its test changed in the stabilization round; the handler itself did not.)
 - `package.json`, `package-lock.json`, `.npmrc` (`legacy-peer-deps` needs the eslint
   peer conflict resolved first; the two `semver` entries are already gone)
 - `src/shared/styles/**` (the native layers have their own stylesheets)
@@ -789,20 +897,19 @@ branch". Do not merge to master, tag, release or bump the version.
 
 ## Next Phase
 
-**None pending from cleanup.** Phases 9 and 10 are both closed: dead code removed,
-deferred-debt decisions recorded, and the regression baseline freshly measured. The
-branch is prepared for user smoke and then a merge decision.
+**None pending from cleanup.** Phases 9 and 10 are both closed, and the stabilization
+round is closed too. The branch is prepared for a commit and then a merge decision.
 
 The merge decision still needs its **own authorisation** and is not part of any cleanup
 phase.
 
 Open candidates, none of which is cleanup:
 
-1. **The interactive smoke list.** This is the real next step. jsdom cannot see layout, so
-   geometry, real selection, link hitboxes, highlight alignment, capture fidelity and
-   keyboard zoom are all still unproven, and only a human in a real window can settle
-   them. Read the Phase 10 note in _Interactive Smoke State_ before running the
-   context-menu line.
+1. **The interactive smoke list.** This is still the real next step. One manual session has
+   reported no issue, but jsdom cannot see layout, so geometry, real selection, link
+   hitboxes, highlight alignment, capture fidelity and keyboard zoom are all still
+   unproven item by item, and only a human in a real window can settle them. Read the
+   Phase 10 note in _Interactive Smoke State_ before running the context-menu line.
 2. **Decide the native Electron PDF context menu** — build the sender for
    `SHOW_PDF_CONTEXT_MENU`, or delete the handler and the two `TRIGGER_*` chains it
    feeds. That is a product decision with a dependency-cascade consequence, deliberately
@@ -849,6 +956,12 @@ Open candidates, none of which is cleanup:
   layer readiness, or move the ramp earlier than the render commit. See _Known Issues_ 21.
 - Do not assign `canvas.width` / `canvas.height` unconditionally in `pageRenderer`, and do not
   add a `clearRect` there. See _Known Issues_ 22.
+- Do not add, remove or hand-set `data-native-pdf-canvas-page` anywhere but
+  `useNativePdfRender`, and do not capture from `[data-native-pdf-canvas]` without it. It is
+  the only thing standing between a capture and the previous page's pixels. See
+  _Known Issues_ 25.
+- Do not publish a bare `scale` as `--total-scale-factor`. It has to be
+  `scale * pageUserUnit`, or every `/UserUnit != 1` document misplaces its text and links.
 - Do not rename the native viewer or the `native/` boundary. That is a separate phase.
 
 ## Resume Checklist
@@ -856,8 +969,10 @@ Open candidates, none of which is cleanup:
 1. Read this file.
 2. Run `git status --short`, `git branch --show-current`, `git rev-parse HEAD`,
    `git rev-parse origin/refactor/native-pdfjs-viewer`,
-   `git rev-list --left-right --count origin/master...HEAD`. Stop if the tree is dirty or
-   master has advanced.
+   `git rev-list --left-right --count origin/master...HEAD`. **The tree is dirty right
+   now**, by design — read _Current State_ → _Uncommitted Work_ and the
+   _Post-Phase-10 Stabilization_ list before touching anything, and stop if the tree is
+   dirty in a way neither describes.
 3. Compare repository state against this file; where they conflict the repository wins.
 4. Read `docs/pdfjs-migration-plan.md` — especially Part I §12 (zoom and navigation), the
    Phase 3B exit plan, and the Phase 8B section.

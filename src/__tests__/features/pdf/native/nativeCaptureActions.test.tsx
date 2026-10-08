@@ -286,6 +286,42 @@ afterEach(() => {
 /* ------------------------------------------------------------------- tests */
 
 describe('native viewer — capture actions', () => {
+  it('does not clone a page canvas while its replacement render is incomplete', async () => {
+    const pdf = createFakeDocument({ numPages: 12, settleRenders: false })
+    mocks.getDocument.mockImplementation(() => {
+      const task = createLoadingTask()
+      task.resolve(pdf)
+      return task
+    })
+    const { container } = renderDocument()
+    await waitFor(() => expect(pdf.page(1).renderCalls.length).toBeGreaterThan(0))
+    await act(async () => {
+      pdf.page(1).settleLastRender()
+      await settle()
+    })
+    const liveCanvas = container.querySelector<HTMLCanvasElement>('[data-native-pdf-canvas]')!
+    const pageTwo = pdf.page(2)
+    const renderPageTwo = pageTwo.render
+    pageTwo.render = (params) => {
+      // The independent capture render fails, while the visible render is still
+      // waiting for its PDF.js task to settle. The ladder must not clone it.
+      if (params.canvas !== liveCanvas) throw new Error('capture render failed')
+      return renderPageTwo(params)
+    }
+    fireEvent.click(screen.getByLabelText('next_page'))
+    await waitFor(() => expect(pageTwo.renderCalls.length).toBeGreaterThan(0))
+    openAiActions()
+    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    await waitFor(
+      () =>
+        expect(
+          mocks.showError.mock.calls.length + mocks.queueImageForAi.mock.calls.length
+        ).toBeGreaterThan(0),
+      2500
+    )
+    expect(mocks.queueImageForAi).not.toHaveBeenCalled()
+  })
+
   it('publishes the mounted document so a capture can borrow it', async () => {
     renderDocument()
 

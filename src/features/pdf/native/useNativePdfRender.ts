@@ -39,8 +39,20 @@
  *
  * It is read through a ref so a new callback identity can never re-run the effect: a
  * presentation concern must not be able to cost an extra `getPage` or an extra render.
+ *
+ * ## The canvas's committed page
+ *
+ * Because the previous page's pixels deliberately stay on the canvas until a render
+ * commits, the canvas cannot be captured for the page the viewer is merely *asking*
+ * for. `data-native-pdf-canvas-page` is what makes the two distinguishable: this hook
+ * removes it when a render starts and writes it back only once the render commits, so
+ * `findNativePageCanvas` refuses the canvas for the whole interval and a capture falls
+ * through to rendering the page from the document. On a turn that is the previous
+ * page's image; on a zoom it is a resized, partly blanked backing store. Neither may
+ * be sent to the AI under the new page's number.
  */
 import { isRenderCancelled } from '@features/pdf/engine'
+import { NATIVE_CANVAS_PAGE_ATTRIBUTE } from '@features/pdf/native/nativePdfDom'
 import type { NativePdfDocumentStatus } from '@features/pdf/native/useNativePdfDocument'
 import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEngine'
 
@@ -63,7 +75,14 @@ interface UseNativePdfRenderOptions {
 }
 
 export interface NativePdfRenderHandle {
-  /** Message for a genuine render failure; `null` while rendering or on cancel. */
+  /**
+   * Message for a genuine render failure; `null` while rendering, on cancel, and
+   * whenever the failure belongs to a page or scale other than the current one.
+   *
+   * It is keyed rather than plain because the error shell replaces the canvas: a
+   * failure left standing would keep the replacement page from ever mounting a
+   * canvas to render into.
+   */
   renderError: string | null
 }
 
@@ -82,14 +101,24 @@ export function useNativePdfRender({
   scale,
   onRenderCommitted
 }: UseNativePdfRenderOptions): NativePdfRenderHandle {
-  const [renderError, setRenderError] = useState<string | null>(null)
+  const [renderError, setRenderError] = useState<{
+    page: number
+    scale: number
+    message: string
+  } | null>(null)
 
   const onRenderCommittedRef = useRef(onRenderCommitted)
   onRenderCommittedRef.current = onRenderCommitted
 
   useEffect(() => {
+    // The error shell removes the canvas. Clear the old failure during a new
+    // loading lifecycle so the ready frame can mount a canvas and render again.
+    if (status !== 'ready') {
+      setRenderError(null)
+      return
+    }
     const canvas = canvasRef.current
-    if (!enabled || status !== 'ready' || !canvas) return
+    if (!enabled || !canvas) return
 
     const engineInstance = engine()
     if (!engineInstance) return
@@ -98,6 +127,9 @@ export function useNativePdfRender({
     // Clear eagerly so a failure from the previous page does not stay on screen
     // while the replacement page renders.
     setRenderError(null)
+    // Down before the first await: until this render commits the canvas is still
+    // showing the previous one, so it must stop claiming to hold this page.
+    canvas.removeAttribute(NATIVE_CANVAS_PAGE_ATTRIBUTE)
 
     void (async () => {
       try {
@@ -108,12 +140,15 @@ export function useNativePdfRender({
         // page's own viewport at this scale, rotation included.
         await engineInstance.renderer.renderPage(page, canvas, { scale })
         if (cancelled) return
+        // The pixels are in the canvas, so it holds this page now. A superseded
+        // render gets here too late to claim that.
+        canvas.setAttribute(NATIVE_CANVAS_PAGE_ATTRIBUTE, String(currentPage))
         // Last, and after the guard: the pixels are in the canvas, and a render nobody
         // is waiting for any more has already said so.
         onRenderCommittedRef.current?.(currentPage)
       } catch (error) {
         if (cancelled || isRenderCancelled(error)) return
-        setRenderError(toRenderErrorMessage(error))
+        setRenderError({ page: currentPage, scale, message: toRenderErrorMessage(error) })
       }
     })()
 
@@ -123,5 +158,8 @@ export function useNativePdfRender({
     }
   }, [enabled, engine, status, canvasRef, currentPage, scale])
 
-  return { renderError }
+  return {
+    renderError:
+      renderError?.page === currentPage && renderError.scale === scale ? renderError.message : null
+  }
 }
