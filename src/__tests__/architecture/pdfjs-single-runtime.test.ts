@@ -60,6 +60,21 @@ function productionFiles(dir: string): string[] {
 /** Repo-relative path to an absolute one, for the literal file references below. */
 const repoPath = (relativePath: string): string => join(repoRoot, relativePath)
 
+/**
+ * A path with `/` separators, whatever the host produced.
+ *
+ * `path.relative()` and `path.join()` return the *host* separator: `\` on Windows,
+ * `/` on POSIX. A literal compared against their output therefore passes on the
+ * developer machine and fails on the `ubuntu-latest` runner — a separator is not
+ * evidence about the code under assertion. Every repo-relative path this file
+ * compares against a literal goes through here first, so the literals below are
+ * written once in the POSIX shape and read the same on every OS.
+ */
+const slashPath = (path: string): string => path.replaceAll('\\', '/')
+
+/** `slashPath` applied to `relative()`, for the sweeps that report offenders. */
+const relativeToRepo = (absolutePath: string): string => slashPath(relative(repoRoot, absolutePath))
+
 const readSource = (absolutePath: string): string => readFileSync(absolutePath, 'utf-8')
 
 /**
@@ -216,8 +231,24 @@ describe('single runtime: one worker', () => {
           codeOf(file)
         )
       )
-      .map((file) => relative(repoRoot, file))
-    expect(writers).toEqual(['src\\features\\pdf\\engine\\pdfWorker.ts'])
+      .map(relativeToRepo)
+    expect(writers).toEqual(['src/features/pdf/engine/pdfWorker.ts'])
+  })
+
+  it('reports a repo-relative offender identically on Windows and POSIX', () => {
+    // The normalization the assertions above depend on is itself pinned, so a
+    // future edit that drops `slashPath` — or loosens it into a no-op — fails here
+    // on the runner that happens to have the other separator instead of failing
+    // silently on one platform only. Both shapes are fed explicitly because CI
+    // only ever exercises the host one.
+    const posix = 'src/features/pdf/engine/pdfWorker.ts'
+    const windows = 'src\\features\\pdf\\engine\\pdfWorker.ts'
+    expect(slashPath(posix)).toBe(posix)
+    expect(slashPath(windows)).toBe(posix)
+    // The real sweep, end to end, for the file the strict assertion above names.
+    expect(relativeToRepo(repoPath('src/features/pdf/engine/pdfWorker.ts'))).toBe(posix)
+    // And a genuinely wrong path stays wrong after normalization.
+    expect(slashPath('src\\features\\pdf\\engine\\pdfWorker2.ts')).not.toBe(posix)
   })
 })
 
@@ -237,9 +268,9 @@ describe('single runtime: the engine boundary', () => {
 
   it('only the declared boundary may import the engine', () => {
     const offenders = pdfProductionFiles
-      .filter((file) => !ENGINE_IMPORTERS.includes(relative(repoRoot, file).replaceAll('\\', '/')))
+      .filter((file) => !ENGINE_IMPORTERS.includes(relativeToRepo(file)))
       .filter((file) => /from ['"]@features\/pdf\/engine/.test(codeOf(file)))
-      .map((file) => relative(repoRoot, file).replaceAll('\\', '/'))
+      .map(relativeToRepo)
     expect(offenders).toEqual([])
   })
 
