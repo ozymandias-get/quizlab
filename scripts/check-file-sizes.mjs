@@ -5,14 +5,20 @@
  *   - 700 lines max for general files
  *   - 650 lines max for hooks (use*.ts) and components (*.tsx)
  *
+ * Discovery uses node:fs globSync (Node 22+; CI pins 24) instead of the `glob`
+ * package. `glob` was never declared here: it only resolved because npm hoisted
+ * glob@7 out of @doyensec/electronegativity's dependency tree, so a CI gate
+ * depended on an unrelated package's transitive shape — and on a glob major
+ * that is EOL and carries known advisories. Node's glob understands the same
+ * patterns (`**`, `{ts,tsx}`) and takes its exclusions as `exclude` instead of
+ * `ignore`; the matched file list is byte-for-byte identical on this tree.
+ *
  * Usage: node scripts/check-file-sizes.mjs
  */
 
-import { readFileSync, statSync } from 'fs'
-import pkg from 'glob'
-import { join, relative, sep } from 'path'
+import { globSync, readFileSync } from 'fs'
+import { join, relative } from 'path'
 import { fileURLToPath } from 'url'
-const { sync: globSync } = pkg
 
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
 const GENERAL_LIMIT = 700
@@ -24,7 +30,7 @@ const patterns = [
   join(ROOT, 'shared/**/*.{ts,tsx}').replaceAll('\\', '/')
 ]
 
-const ignore = [
+const exclude = [
   '**/node_modules/**',
   '**/dist/**',
   '**/__tests__/**',
@@ -36,7 +42,7 @@ const ignore = [
 let files = []
 for (const pattern of patterns) {
   try {
-    const matches = globSync(pattern, { ignore })
+    const matches = globSync(pattern, { exclude })
     files = [...files, ...matches]
   } catch (e) {
     console.error(`Error with pattern ${pattern}:`, e.message)
