@@ -15,10 +15,10 @@ migration plan.
 | Field                | Value                                                                                                    |
 | -------------------- | -------------------------------------------------------------------------------------------------------- |
 | Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                                          |
-| Current phase        | **Post-Phase-10 stabilization, complete and uncommitted**                                                |
+| Current phase        | **Post-Phase-10 stabilization, complete and committed**                                                  |
 | Last completed phase | Phase 10 — deferred-debt closure + baseline refresh (see _Deferred-Debt Decisions_)                      |
-| Current HEAD         | `f037d2c`                                                                                                |
-| Working tree         | **dirty** — see _Uncommitted Work_ below                                                                 |
+| Current HEAD         | `c2fd7ea`                                                                                                |
+| Working tree         | **clean**                                                                                                |
 | Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                                               |
 | Readiness            | single runtime, sole renderer, no feature flag; gates green **as measured at 50bd7ea**, not re-run since |
 
@@ -33,18 +33,28 @@ A further **stabilization round** then landed on top of Phase 10, uncommitted. I
 eleven proven defects and closed two test-coverage gaps; it changed no design decision.
 See _Post-Phase-10 Stabilization_ for the list and the tests that pin each one.
 
-### _Uncommitted Work_
+### _Committed After This File's Last Edit_
 
-The tree is a **mixed batch**. Three groups, and they must not be committed together:
+Two rounds landed on top of Phase 10, in seven commits. Both were audits of the
+migrated code rather than runs of it.
 
-| Group                        | Files                                                                                                                                                               | Notes                                                                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 1. PDF stabilization         | `src/features/pdf/**`, `electron/__tests__/features/pdf/pdfHandlers.test.ts`, this file, `docs/pdfjs-migration-plan.md`                                             | The 9 fixes, the 2 coverage gaps and the documentation sync. One logical commit.   |
-| 2. Unrelated feature work    | automation picker, AI sessions/composer, settings sync, dialog behaviour, language store, `usePdfWorkspaceState` + `usePdfPlaceholderState` relink, and their tests | Belongs to other workstreams. **Do not fold into the PDF commit.**                 |
-| 3. `docs/CODING_STANDARD.md` | replaces a stale hardcoded test count with a count-free statement                                                                                                   | Repo-wide doc hygiene, same thread as the Phase 10 baseline refresh. Not PDF work. |
+**Round 1 — PDF stabilization.** `9da1d57`, 29 files. Nine proven defects and two
+coverage gaps, listed in _Post-Phase-10 Stabilization_. It deliberately excluded
+everything else that was in the working tree at the time.
 
-Note that group 2's untracked `src/__tests__/features/pdf/components/pdfPlaceholder/usePdfPlaceholderState.test.tsx`
-sits under `features/pdf/` but belongs to the relink workstream, not to group 1.
+**Round 2 — the rest of the working tree**, six commits, each one workflow:
+
+| Commit    | Scope                                                                                                                                                                                                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `18b93fb` | `fix(automation)` — the display-media picker never removed its `parent.once('closed')` listener, and the element picker reverted host inline styles by writing `''`, which destroyed the host's own value (and, once teardown started draining timers, stuck permanently). |
+| `31cafc9` | `fix(ai)` — clearing a conversation: the composer's outside click wiped the note before asking; the messages query cache was never invalidated; and the storage merge union resurrected the transcript the clear had just removed.                                         |
+| `7f8c387` | `fix(ui)` — `useDialogBehavior`: an explicit overlay stack so only the topmost dialog takes Escape, the body scroll lock restored only by the last close, and a focus-trap hole closed.                                                                                    |
+| `cfa5644` | `fix(boot)` — stores created by static import snapshot `localStorage` before `hydrateSettingsFromMain()` runs. Appearance and language are re-read; the **reading-progress store** was the third instance and was missed, which was data loss rather than a stale list.    |
+| `58166f3` | `fix(pdf)` — relinking a moved PDF re-spliced the missing old path back into the history as a valid entry and wrote it to disk.                                                                                                                                            |
+| `c2fd7ea` | `docs` — the coding standard stopped asserting a hardcoded test count.                                                                                                                                                                                                     |
+
+Three of those fixes were found by auditing this round's own changes, not the
+original diff, and each is pinned by a test that fails without it.
 
 Phase 4's manual smoke was resolved by user validation in the real application, and the
 post-Phase-10 stabilization tree has since had a further **manual session in the
@@ -969,10 +979,8 @@ Open candidates, none of which is cleanup:
 1. Read this file.
 2. Run `git status --short`, `git branch --show-current`, `git rev-parse HEAD`,
    `git rev-parse origin/refactor/native-pdfjs-viewer`,
-   `git rev-list --left-right --count origin/master...HEAD`. **The tree is dirty right
-   now**, by design — read _Current State_ → _Uncommitted Work_ and the
-   _Post-Phase-10 Stabilization_ list before touching anything, and stop if the tree is
-   dirty in a way neither describes.
+   `git rev-list --left-right --count origin/master...HEAD`. Stop if the tree is
+   dirty or master has advanced.
 3. Compare repository state against this file; where they conflict the repository wins.
 4. Read `docs/pdfjs-migration-plan.md` — especially Part I §12 (zoom and navigation), the
    Phase 3B exit plan, and the Phase 8B section.
