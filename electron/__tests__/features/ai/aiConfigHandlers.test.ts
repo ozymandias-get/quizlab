@@ -78,7 +78,7 @@ describe('aiConfigHandlers', () => {
     managerState.writes = []
   })
 
-  it('migrates legacy selector records and resolves unique canonical host aliases', async () => {
+  it('migrates legacy selector records without leaking them across subdomains', async () => {
     managerState.data = {
       'www.chat.openai.com': {
         input: '#prompt',
@@ -94,7 +94,12 @@ describe('aiConfigHandlers', () => {
     const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
 
     const allConfigs = await getConfigHandler?.(trustedEvent, undefined)
-    const aliasConfig = await getConfigHandler?.(trustedEvent, 'app.openai.com')
+    const ownConfig = await getConfigHandler?.(trustedEvent, 'www.chat.openai.com')
+    // A different service under the same registrable domain. Resolving it from the
+    // `canonicalHostname` **field** is what this previously did, and it handed
+    // chat.openai.com's selectors to app.openai.com - automation typing into and
+    // clicking a sibling product's DOM. The key has to match, not just the domain.
+    const siblingConfig = await getConfigHandler?.(trustedEvent, 'app.openai.com')
 
     expect(managerState.writes).toHaveLength(1)
     expect(allConfigs).toMatchObject({
@@ -113,7 +118,8 @@ describe('aiConfigHandlers', () => {
         }
       }
     })
-    expect(aliasConfig).toMatchObject({
+    // The site the selectors were picked for still resolves, by its own key.
+    expect(ownConfig).toMatchObject({
       ok: true,
       data: {
         input: '#prompt',
@@ -121,6 +127,44 @@ describe('aiConfigHandlers', () => {
         canonicalHostname: 'openai.com',
         submitMode: 'enter_key',
         health: 'migrated'
+      }
+    })
+    // And a sibling subdomain resolves to nothing rather than to those selectors.
+    expect(siblingConfig).toMatchObject({ ok: false })
+    expect(siblingConfig).not.toMatchObject({ data: { input: '#prompt' } })
+  })
+
+  it('resolves a subdomain through a config saved under the canonical key', async () => {
+    // The legitimate version of canonical resolution: the user saved selectors for
+    // the registrable domain itself, so any host under it inherits them. This is
+    // what keeps removing the field scan from breaking real setups.
+    managerState.data = {
+      'openai.com': {
+        version: 2,
+        input: '#prompt',
+        button: '#send',
+        inputCandidates: ['#prompt'],
+        buttonCandidates: ['#send'],
+        canonicalHostname: 'openai.com',
+        sourceHostname: 'openai.com',
+        submitMode: 'enter_key',
+        health: 'ready',
+        timestamp: 123
+      }
+    }
+
+    const { registerAiConfigHandlers } = await import('../../../features/ai/aiConfigHandlers.js')
+    registerAiConfigHandlers()
+
+    const getConfigHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AI_CONFIG)
+    const resolved = await getConfigHandler?.(trustedEvent, 'app.openai.com')
+
+    expect(resolved).toMatchObject({
+      ok: true,
+      data: {
+        input: '#prompt',
+        button: '#send',
+        canonicalHostname: 'openai.com'
       }
     })
   })
