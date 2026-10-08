@@ -25,6 +25,9 @@ const mockAddEmptyPdfTab = vi.fn()
 const mockGoToPdfHome = vi.fn()
 const mockOpenPdfInTab = vi.fn()
 const mockUpsertLastReadingInfo = vi.fn()
+const recentReadingInfo = [
+  { path: '/notes.pdf', name: 'notes.pdf', page: 8, totalPages: 20, lastOpenedAt: 1 }
+]
 
 vi.mock('@features/pdf', () => ({
   usePdfSelection: () => ({
@@ -39,7 +42,7 @@ vi.mock('@features/pdf', () => ({
     handlePdfDrop: mockHandlePdfDrop,
     updateReadingProgress: mockUpdateReadingProgress,
     resumeLastPdf: mockResumeLastPdf,
-    recentReadingInfo: [],
+    recentReadingInfo,
     clearLastReading: mockClearLastReading,
     restoreRecentReading: mockRestoreRecentReading,
     addEmptyPdfTab: mockAddEmptyPdfTab,
@@ -65,6 +68,8 @@ vi.mock('@shared/lib/electronApi', () => ({
   getElectronApi: vi.fn(() => null)
 }))
 
+const { getElectronApi } = await import('@shared/lib/electronApi')
+
 const { usePdfWorkspaceState } = await import('@app/hooks/usePdfWorkspaceState')
 
 describe('usePdfWorkspaceState', () => {
@@ -72,6 +77,10 @@ describe('usePdfWorkspaceState', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // `clearAllMocks` is `mockClear`: it drops call history but keeps return
+    // values. A test that installs a fake API and then fails would otherwise
+    // leave it installed for every later test in the file.
+    vi.mocked(getElectronApi).mockReturnValue(null)
   })
 
   it('returns the expected shape', () => {
@@ -108,6 +117,36 @@ describe('usePdfWorkspaceState', () => {
   })
 
   describe('readingProps', () => {
+    it('removes only the old history entry when relinking to a different path', async () => {
+      vi.mocked(getElectronApi).mockReturnValue({
+        selectPdf: vi.fn().mockResolvedValue({ path: '/moved/notes.pdf', name: 'notes.pdf' }),
+        getPdfStreamUrl: vi.fn().mockResolvedValue('local-pdf://notes')
+      } as never)
+      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
+      await act(async () => {
+        expect(await result.current.readingProps.onRelinkPdf('/notes.pdf')).toBe(true)
+      })
+      expect(mockUpsertLastReadingInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ path: '/moved/notes.pdf', page: 8 })
+      )
+      expect(mockClearLastReading).toHaveBeenCalledWith('/notes.pdf')
+      vi.mocked(getElectronApi).mockReturnValue(null)
+    })
+    it('preserves history when relinking to the same path', async () => {
+      vi.mocked(getElectronApi).mockReturnValue({
+        selectPdf: vi.fn().mockResolvedValue({ path: '/notes.pdf', name: 'notes.pdf' }),
+        getPdfStreamUrl: vi.fn().mockResolvedValue('local-pdf://notes')
+      } as never)
+      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
+      await act(async () => {
+        expect(await result.current.readingProps.onRelinkPdf('/notes.pdf')).toBe(true)
+      })
+      expect(mockUpsertLastReadingInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ path: '/notes.pdf', page: 8 })
+      )
+      expect(mockClearLastReading).not.toHaveBeenCalled()
+      vi.mocked(getElectronApi).mockReturnValue(null)
+    })
     it('includes reading progress callbacks without lastReadingInfo', () => {
       const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
       expect(result.current.readingProps).toHaveProperty('onReadingProgressChange')
