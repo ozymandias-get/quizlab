@@ -1,0 +1,10 @@
+{
+  // madge reads this file through `rc('madge')` (madge/bin/cli.js:7 → node_modules/rc/index.js:44
+  // `cc.find('.madgerc')`). Without `tsConfig` madge cannot resolve the `@app/* @shared/* @ui/*
+  // @features/* @platform/* @shared-core/* @electron/*` aliases, so every aliased import lands in
+  // `skipped` and the cycle graph silently covers a fraction of the tree — the gate passes while
+  // analysing almost nothing. `.madge.json` is NOT a channel madge reads (only `.madgerc` and
+  // `package.json#madge` are), which is why it was dead config.
+  "tsConfig": "tsconfig.json",
+  "fileExtensions": ["ts", "tsx", "js", "jsx"]
+}
