@@ -35,29 +35,14 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('pdfjs-dist', async () => {
-  // Imported lazily because a `vi.mock` factory is hoisted above this file's
-  // static imports; the double lives in its own dependency-free module so that
-  // awaiting it cannot re-enter the mocked module.
-  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
-  const { FakeTextLayer } = await import('./nativeTextLayerDouble')
-  return {
-    getDocument: mocks.getDocument,
-    TextLayer: FakeTextLayer,
-    AnnotationLayer: FakeAnnotationLayer,
-    RenderingCancelledException: class RenderingCancelledException extends Error {
-      constructor(message = 'Rendering cancelled') {
-        super(message)
-        this.name = 'RenderingCancelledException'
-      }
-    }
-  }
+  const { createPdfJsDistMock } = await import('./pdfJsMockFactories')
+  return createPdfJsDistMock(mocks)
 })
 
-vi.mock('@features/pdf/engine/pdfWorker', () => ({
-  initializeNativePdfWorker: mocks.initializeNativePdfWorker,
-  nativeWorkerUrl: 'pdf.worker.min.test.mjs',
-  resetNativePdfWorkerForTests: vi.fn()
-}))
+vi.mock('@features/pdf/engine/pdfWorker', async () => {
+  const { createPdfWorkerMock } = await import('./pdfJsMockFactories')
+  return createPdfWorkerMock(mocks)
+})
 
 /** Fit scale for a 400×600 page in an 800×1000 container: min(2, 1.666…) → 1.67. */
 const FIT_SCALE = 1.67

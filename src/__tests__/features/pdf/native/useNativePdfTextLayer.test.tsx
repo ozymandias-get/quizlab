@@ -36,29 +36,14 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('pdfjs-dist', async () => {
-  // Lazy: a `vi.mock` factory is hoisted above this file's static imports, and
-  // the double has to be a dependency-free module so awaiting it cannot re-enter
-  // the mocked module.
-  const { FakeAnnotationLayer } = await import('./nativeAnnotationLayerDouble')
-  const { FakeTextLayer: Double } = await import('./nativeTextLayerDouble')
-  return {
-    getDocument: mocks.getDocument,
-    TextLayer: Double,
-    AnnotationLayer: FakeAnnotationLayer,
-    RenderingCancelledException: class RenderingCancelledException extends Error {
-      constructor(message = 'Rendering cancelled') {
-        super(message)
-        this.name = 'RenderingCancelledException'
-      }
-    }
-  }
+  const { createPdfJsDistMock } = await import('./pdfJsMockFactories')
+  return createPdfJsDistMock(mocks)
 })
 
-vi.mock('@features/pdf/engine/pdfWorker', () => ({
-  initializeNativePdfWorker: mocks.initializeNativePdfWorker,
-  nativeWorkerUrl: 'pdf.worker.min.test.mjs',
-  resetNativePdfWorkerForTests: vi.fn()
-}))
+vi.mock('@features/pdf/engine/pdfWorker', async () => {
+  const { createPdfWorkerMock } = await import('./pdfJsMockFactories')
+  return createPdfWorkerMock(mocks)
+})
 
 let frameCallbacks: FrameRequestCallback[]
 
