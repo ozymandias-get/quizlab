@@ -16,7 +16,7 @@
  *
  * The algorithm implemented here is the DOM-walking one, not the controller's:
  * concatenate the text layer's runs, scan that string, and measure each match with
- * `document.createRange()`. `AGENT_HANDOFF.md` records the same conclusion.
+ * `document.createRange()`. `docs/AGENT_HANDOFF.md` records the same conclusion.
  *
  * ## What search must guarantee
  *

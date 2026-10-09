@@ -101,7 +101,7 @@ const NATIVE_CANVAS_SELECTOR = '[data-native-pdf-canvas]'
  * The page the canvas is actually *holding*, as opposed to the page the viewer wants
  * to show.
  *
- * `pageRenderer` never clears the canvas — deliberately, see `AGENT_HANDOFF.md`
+ * `pageRenderer` never clears the canvas — deliberately, see `docs/AGENT_HANDOFF.md`
  * Known Issue 22 — so a same-size page turn keeps the outgoing page's pixels on
  * screen until the incoming render commits, and a zoom keeps the outgoing page's
  * pixels while the backing store has already been resized. Meanwhile
