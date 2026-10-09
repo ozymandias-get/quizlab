@@ -5,7 +5,7 @@
 > `pdfjs-dist@3.11.174` + `@react-pdf-viewer@3.12.0` tree. Those versions, the
 > `isEvalSupported: false` mitigation, the `CVE-2024-4367` exception entry and the
 > "open blockers" framing are the **Phase-1 baseline, not the shipped tree**.
-> `AGENT_HANDOFF.md` holds the current state; this document is the reasoning behind it
+> `docs/AGENT_HANDOFF.md` holds the current state; this document is the reasoning behind it
 > and is kept for that reason. Sections that were superseded carry a banner saying so.
 
 Planning document. No upgrade has been performed; this records what a move would
@@ -471,7 +471,7 @@ effect, the resume flow) funnels through `useCoalescedZoom(zoomTo)` — now
 ## 13. Security baseline (current — do not change in this phase)
 
 > **Superseded.** Every row below describes `master`'s 3.x + RPV tree, not the shipped
-> one. The current state is `AGENT_HANDOFF.md` § Security State: `enableScripting: false`
+> one. The current state is `docs/AGENT_HANDOFF.md` § Security State: `enableScripting: false`
 > on every `getDocument` path _and_ on the annotation layer, `hasJSActions: false`,
 > `renderForms: false`, no `isEvalSupported` at all, and **zero** audit exceptions. The
 > rows are left as written because they are the Phase-1 baseline this plan reasons from.
@@ -2413,7 +2413,7 @@ the adapter has to destroy the manager itself; otherwise the loading task's dedi
 worker thread outlives the capture. This matters more than it looks: the temporary path
 exists precisely for the moments there is nothing to borrow, and those are exactly the
 moments a load tends to fail. Added after the post-Phase-10 audit — see
-`AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #3.
+`docs/AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #3.
 
 This is why `renderPageToImage.ts` no longer imports `pdfjs-dist`: it imports **no**
 PDF.js runtime at all. The legacy viewer is now the only 3.x `getDocument` call site,
@@ -2468,7 +2468,7 @@ The second is written only by `useNativePdfRender`, removed before its first `aw
 set back after `renderPage()` resolves past the `cancelled` guard, so it answers "which
 page is the canvas _holding_". `findPageCanvas`'s cache re-validates against exactly the
 conditions the lookup enforces, so it cannot serve a canvas the lookup would refuse. See
-`AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #1, Critical Invariant 19 and Known
+`docs/AGENT_HANDOFF.md` _Post-Phase-10 Stabilization_ #1, Critical Invariant 19 and Known
 Issue 25.
 
 ### The page number, and why capture needed a ref
@@ -2651,7 +2651,7 @@ user-owned and outstanding.
 once and reported no issue, most recently on the post-Phase-10 stabilization tree. Those
 were **manual sessions in a real window — not automated smoke or E2E runs, and not a
 per-item walk of any list**, so every line above stays open. The wording here matches
-`AGENT_HANDOFF.md` § Interactive Smoke State deliberately.
+`docs/AGENT_HANDOFF.md` § Interactive Smoke State deliberately.
 
 ---
 
@@ -2660,7 +2660,7 @@ per-item walk of any list**, so every line above stays open. The wording here ma
 > **Written in Phase 1; the "Where" column is not current.** Several rows name components
 > Phase 8B deleted (`PdfWorkerHost`, `useCoalescedZoom`, the `rpv-*` rules in
 > `_pdf-viewer.css`). The _mechanisms_ all survived, under the names in
-> `AGENT_HANDOFF.md`. The row bodies are the baseline this plan measures against, so they
+> `docs/AGENT_HANDOFF.md`. The row bodies are the baseline this plan measures against, so they
 > are left as written.
 
 | Mechanism                                       | Where                                                                                    | Notes                                                                                                                                              |

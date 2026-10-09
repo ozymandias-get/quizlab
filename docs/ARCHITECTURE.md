@@ -9,6 +9,8 @@ is the stylistic half (naming, import order, error handling, test conventions).
 History is kept elsewhere: the completed PDF.js migration is recorded in
 [pdfjs-migration-plan.md](pdfjs-migration-plan.md), the installer story in
 [windows-installer.md](windows-installer.md). Neither is restated here.
+[AGENT_HANDOFF.md](AGENT_HANDOFF.md) is the agent working memory — current
+state, decisions and next step — and cites this file rather than repeating it.
 
 ---
 

@@ -35,7 +35,7 @@
  * So what is asserted here is the **structural layout contract**: which element scrolls,
  * which element owns the centering declaration, and which subtree moves with the page.
  * Those are the decisions a regression would undo, they are observable in jsdom, and they
- * are what the interactive smoke list in `AGENT_HANDOFF.md` then confirms visually.
+ * are what the interactive smoke list in `docs/AGENT_HANDOFF.md` then confirms visually.
  *
  * ## What is deliberately *not* asserted
  *
