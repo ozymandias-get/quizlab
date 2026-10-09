@@ -14,7 +14,6 @@
     "shared/**/*.ts",
     "scripts/**/*.{mjs,mts}"
   ],
-  "exclude": ["unlisted", "unresolved"],
   "ignore": ["src/shared/types/global.d.ts", "src/types/assets.d.ts"],
   "ignoreDependencies": ["@doyensec/electronegativity"],
   "ignoreBinaries": ["taskkill"]

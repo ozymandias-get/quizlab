@@ -12,7 +12,7 @@ const config = {
   ],
   testRunner: 'vitest',
   vitest: {
-    projectFile: 'vitest.config.mts'
+    configFile: 'vitest.config.mts'
   },
   coverageAnalysis: 'perTest',
   reporters: ['html', 'clear-text', 'progress'],
@@ -23,7 +23,7 @@ const config = {
   timeoutMS: 30000,
   concurrency: 2,
   dashboard: {
-    reportType: 'json'
+    reportType: 'mutationScore'
   }
 }
 
