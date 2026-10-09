@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Persistent working memory for agents on the `refactor/native-pdfjs-viewer` branch.
+Persistent working memory for agents on the current work branch (verify with
+`git branch --show-current`; the migration branch `refactor/native-pdfjs-viewer`
+no longer exists locally).
 A new agent that has exhausted its context should be able to read only the
 repository and this file, and continue safely from where the last agent stopped.
 
@@ -14,10 +16,10 @@ migration plan.
 
 | Field                | Value                                                                                                    |
 | -------------------- | -------------------------------------------------------------------------------------------------------- |
-| Branch               | `refactor/native-pdfjs-viewer` (base: `master`)                                                          |
+| Branch               | `fix/architecture-security-consistency` (base: `master`; verify: `git branch --show-current`)            |
 | Current phase        | **Post-Phase-10 stabilization, complete and committed**                                                  |
 | Last completed phase | Phase 10 — deferred-debt closure + baseline refresh (see _Deferred-Debt Decisions_)                      |
-| Current HEAD         | `c2fd7ea`                                                                                                |
+| Current HEAD         | dated snapshot `38ece81` (2026-10-09; verify: `git rev-parse --short HEAD`)                              |
 | Working tree         | **clean**                                                                                                |
 | Base SHA at Phase 4  | `5a47228b3d784951ce63e1da30746ce20cadffd0`                                                               |
 | Readiness            | single runtime, sole renderer, no feature flag; gates green **as measured at 50bd7ea**, not re-run since |
@@ -519,6 +521,22 @@ figures above as a past measurement, not a current one. The on-disk suite has si
 past the 330 files the run reported. Per the rule below, the next agent who changes the
 suite re-measures rather than editing these numbers.
 
+### Full-suite measurement 2026-10-09 (`fix/architecture-security-consistency`)
+
+```
+Measured at:   38ece81 (code) on 2026-10-09 (Windows)
+Command:       npx vitest run
+Test files:    342 passed / 342
+Tests:         3991 passed | 2 skipped | 0 failed   (3993 total)
+Duration:      262.59s
+```
+
+Delta vs the 50bd7ea run: +12 files / +163 tests (suite growth since Phase 10
+plus 2 new gate files from this round: `electron-no-renderer-gate.test.ts`,
+`errorClassifierParity.test.ts`). The **2 skips** are the same pre-existing
+host-specific POSIX `chmod` guards (2 on Windows, 0 elsewhere). Re-measure with
+`npx vitest run` instead of editing these numbers.
+
 ### Targeted sets re-run during Phase 10
 
 ```
@@ -884,10 +902,33 @@ explicitly requested.
 ## Git State
 
 ```
-Branch: refactor/native-pdfjs-viewer  (tracks origin, fast-forward only)
+Branch: fix/architecture-security-consistency  (local only, not pushed; base: master)
 Base:   master
 Ahead of master: run `git rev-list --left-right --count master...HEAD` (stale as of writing)
 ```
+
+Work on top of `chore/root-simplification` (`48b4965`), oldest first:
+
+```
+c9fcac4 fix(architecture): enforce electron renderer boundaries on resolved paths
+8f74cd2 fix(errors): align guest error classifier with canonical contracts
+bc9df83 refactor(electron): remove verified dead ipc surfaces
+38ece81 test(pdf): consolidate pdfjs mocks safely
+```
+
+What each did, in one line: `c9fcac4` repaired the dead `electron-no-renderer`
+rule (`^@…` → `^src/…`, warn → error, documented logger exception) and added
+a negative gate test that cruises real fixtures; `8f74cd2` fixed 5 wrong
+`triggerFallback` flags + 4 missing codes + numeric normalize in
+`errorClassifierRuntime` and added a parametric host-vs-guest parity test;
+`bc9df83` removed 3 proven-dead IPC surfaces (`IS_AUTH_DOMAIN`,
+`OPEN_RELEASES`, `NATIVE_MESSAGING_BRIDGE_CONFIG`, 192 lines across the
+channel→contract→preload→handler→stub→test chain, incl. dead `isAuthDomain`
+util); `38ece81` extracted `pdfJsMockFactories.ts` so 14 native viewer tests
+share one mock factory (net −110 lines, engine unit tests intentionally keep
+their minimal mocks). `quitApp`, `geminiWeb.export/import`, `aiView.getUrl`
+and the stdio `startNativeMessagingListener` were audited and deliberately
+kept (DEFER) — see the round report for the per-channel evidence.
 
 Phase commits, oldest first:
 
@@ -978,7 +1019,6 @@ Open candidates, none of which is cleanup:
 
 1. Read this file.
 2. Run `git status --short`, `git branch --show-current`, `git rev-parse HEAD`,
-   `git rev-parse origin/refactor/native-pdfjs-viewer`,
    `git rev-list --left-right --count origin/master...HEAD`. Stop if the tree is
    dirty or master has advanced.
 3. Compare repository state against this file; where they conflict the repository wins.
