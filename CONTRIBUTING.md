@@ -183,7 +183,21 @@ npm run build
 
 # Format code
 npm run format
+
+# Repository hygiene — tracked build output and portable git paths only
+npm run ci:check-hygiene
+
+# Version badge and tag ↔ package.json consistency
+npm run ci:check-version
+
+# Production dependency advisories (high/critical)
+npm run check:audit
+
+# Electronegativity on the Electron surface (high/critical)
+npm run check:electron-security
 ```
+
+The last four are blocking in CI. Do not leave them out of a local run.
 
 Pre-commit hooks are set up via **Husky** and **lint-staged** — they run Prettier and ESLint automatically on staged files.
 

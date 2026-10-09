@@ -345,6 +345,17 @@ npm test              # Vitest, tüm paket
 npm run test:coverage # Vitest + eşiklerle coverage
 ```
 
+Dört kapı daha CI'da bloklayıcıdır ancak belgelerde yalnızca araç adıyla
+geçer, komut olarak yazılmamıştır — bunları da çalıştırın, yoksa PR hiç
+anılmamış bir kapıda kırmızıya döner:
+
+```bash
+npm run ci:check-hygiene        # takip edilen build çıktısı ve taşınabilir olmayan git yolu yok
+npm run ci:check-version        # sürüm rozeti + tag ↔ package.json
+npm run check:audit            # üretim bağımlılık uyarıları
+npm run check:electron-security # Electron yüzeyinde Electronegativity
+```
+
 Analiz araçları:
 
 ```bash
@@ -355,7 +366,7 @@ npm run analyze:deadcode      # knip
 npm run analyze:types         # type-coverage
 npm run analyze:css           # stylelint
 npm run analyze:security      # Semgrep + npm audit + Electronegativity
-npm run analyze:all           # yukarıdakilerin tümü + paket raporu
+npm run analyze:all           # yukarıdaki analizler zincirlenir (`analyze:bundle` ayrı çalışır)
 ```
 
 Commit mesajları [Conventional Commits](https://www.conventionalcommits.org/)

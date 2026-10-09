@@ -10,15 +10,18 @@ import { AnimatePresence, motion } from 'motion/react'
 import { memo, useCallback, useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  InstallConfirmStepContent,
-  LoadingContent,
-  RemoveConfirmStepContent,
-  ResultContent,
-  RiskStepContent,
-  StatusIndicator,
-  StepIndicator
-} from './wizard'
+/**
+ * The wizard step components are imported directly, not through a barrel: the
+ * barrel had exactly one consumer (this file), so it named nothing and enforced
+ * no boundary — both sides sit in the same directory.
+ */
+import { default as InstallConfirmStepContent } from './wizard/InstallConfirmStepContent'
+import { default as LoadingContent } from './wizard/LoadingContent'
+import { default as RemoveConfirmStepContent } from './wizard/RemoveConfirmStepContent'
+import { default as ResultContent } from './wizard/ResultContent'
+import { default as RiskStepContent } from './wizard/RiskStepContent'
+import { default as StatusIndicator } from './wizard/StatusIndicator'
+import { default as StepIndicator } from './wizard/StepIndicator'
 
 interface ExtensionWizardPanelProps {
   open: boolean

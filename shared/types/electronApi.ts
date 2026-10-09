@@ -1,4 +1,14 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
+// `shared/` imports itself with relative specifiers only — `@shared-core/*` is
+// the renderer's spelling of this same tree (docs/CODING_STANDARD.md:117), and
+// a cross-process module depending on a renderer alias would be resolvable
+// only because the renderer tsconfigs happen to declare it.
+import type { GoogleWebSessionAppId } from '../constants/googleAiWebApps.js'
+import type {
+  AiRegistryResponse,
+  ClearAiModelDataInput,
+  CustomAiInput,
+  CustomAiResult
+} from './ai.js'
 import type {
   AiViewAttachRequest,
   AiViewAttachResponse,
@@ -11,14 +21,7 @@ import type {
   AiViewScriptRequest,
   AiViewTabRequest,
   AiViewTextRequest
-} from '@shared-core/types/aiView'
-
-import type {
-  AiRegistryResponse,
-  ClearAiModelDataInput,
-  CustomAiInput,
-  CustomAiResult
-} from './ai.js'
+} from './aiView.js'
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type {

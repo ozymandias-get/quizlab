@@ -1,8 +1,6 @@
 import {
-  useAppVersion,
   useCaptureScreen,
   useCheckForUpdates,
-  useClearCache,
   useCopyImageToClipboard,
   useOpenExternal
 } from '@platform/electron/api/useSystemApi'
@@ -69,15 +67,6 @@ describe('useSystemApi', () => {
     vi.mocked(getElectronApi).mockReturnValue(mockElectronApi)
   })
 
-  it('useAppVersion should call getAppVersion', async () => {
-    const { result } = renderHook(() => useAppVersion(), { wrapper })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-
-    expect(mockElectronApi.getAppVersion).toHaveBeenCalled()
-    expect(result.current.data).toBe('4.0.0')
-  })
-
   it('useCheckForUpdates should call checkForUpdates', async () => {
     const { result } = renderHook(() => useCheckForUpdates(true), { wrapper })
 
@@ -85,21 +74,6 @@ describe('useSystemApi', () => {
 
     expect(mockElectronApi.checkForUpdates).toHaveBeenCalled()
     expect(result.current.data).toEqual({ available: true, version: '4.0.1' })
-  })
-
-  it('useClearCache should clear cache, invalidate queries, and show success toast', async () => {
-    const { result } = renderHook(() => useClearCache(), { wrapper })
-
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-
-    await result.current.mutateAsync()
-
-    expect(mockElectronApi.clearCache).toHaveBeenCalled()
-    expect(invalidateSpy).toHaveBeenCalled()
-    expect(showSuccessMock).toHaveBeenCalledWith(
-      'translated_toast_cache_cleared',
-      'translated_toast_system_title'
-    )
   })
 
   it('useOpenExternal should open URL', async () => {

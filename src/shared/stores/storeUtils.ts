@@ -7,8 +7,11 @@ import type { StateCreator } from 'zustand'
 import { create } from 'zustand'
 import { createJSONStorage, persist, type PersistOptions } from 'zustand/middleware'
 
-/** localStorage adapter (repeated in every persisted store). */
-const createLocalStorageAdapter = <T>() => createJSONStorage<T>(() => localStorage)
+/**
+ * There was a `createLocalStorageAdapter = <T>() => …` factory here. It held no
+ * configuration, took no argument and had exactly one call site with one type
+ * argument, so it was a one-shot generic — the adapter is inlined below.
+ */
 
 /**
  * Debounced localStorage adapter for high-frequency stores (e.g. sliders).
@@ -93,7 +96,7 @@ export function createPersistedStore<T>(
 ) {
   const persistOptions: PersistOptions<T, Partial<T>> = {
     name,
-    storage: createLocalStorageAdapter<Partial<T>>(),
+    storage: createJSONStorage<Partial<T>>(() => localStorage),
     partialize: partialize ?? ((state) => state)
   }
   return create<T>()(persist(config, persistOptions))

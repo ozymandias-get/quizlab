@@ -10,14 +10,60 @@ import {
   useState
 } from 'react'
 
-import {
-  calculatePanelBounds,
-  clampPanelPercentage,
-  DEFAULT_RESIZER_WIDTH,
-  setBodyResizingState,
-  WIDTH_CHANGE_THRESHOLD
-} from './panelResize/panelResizeUtils'
 import { useLocalStorage } from './useLocalStorage'
+
+/**
+ * Panel-resize geometry.
+ *
+ * This was `constants/panelResize.ts` (the body class) plus
+ * `hooks/panelResize/panelResizeUtils.ts` (the bounds arithmetic) — three files
+ * and two directories for one hook, where the constants module had exactly one
+ * consumer, the utils module, which itself had exactly one consumer, this file.
+ * The hook and its arithmetic are now one unit: 293 lines, well inside the
+ * 650-line hook limit.
+ */
+/** Set on `document.body` synchronously while hub/panel drag runs (before React state updates). */
+const PANEL_RESIZING_BODY_CLASS = 'panel-resizing'
+
+const DEFAULT_RESIZER_WIDTH = 48
+const WIDTH_CHANGE_THRESHOLD = 0.3
+
+function setBodyResizingState(isResizing: boolean) {
+  if (typeof document === 'undefined') return
+  if (isResizing) {
+    document.body.classList.add(PANEL_RESIZING_BODY_CLASS)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  } else {
+    document.body.classList.remove(PANEL_RESIZING_BODY_CLASS)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+}
+
+function calculatePanelBounds(
+  windowWidth: number,
+  resizerWidth: number,
+  minLeft: number,
+  minRight: number
+) {
+  const effectiveResizerWidth = Math.max(28, resizerWidth)
+  const maxAvailable = Math.max(0, windowWidth - effectiveResizerWidth)
+  const safeMinLeft = Math.min(minLeft, maxAvailable)
+  const safeMaxLeft = Math.max(safeMinLeft, windowWidth - minRight - effectiveResizerWidth)
+  return { effectiveResizerWidth, safeMinLeft, safeMaxLeft }
+}
+
+function clampPanelPercentage(
+  currentPercentage: number,
+  windowWidth: number,
+  safeMinLeft: number,
+  safeMaxLeft: number
+): number {
+  const desiredWidthPx = (currentPercentage / 100) * windowWidth
+  const clampedWidthPx = Math.max(safeMinLeft, Math.min(desiredWidthPx, safeMaxLeft))
+  return windowWidth > 0 ? (clampedWidthPx / windowWidth) * 100 : currentPercentage
+}
 
 interface UsePanelResizeOptions {
   initialWidth?: number

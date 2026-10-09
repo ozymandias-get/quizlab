@@ -22,13 +22,13 @@ export function normalizeHostname(hostname: unknown): string | null {
   return normalized
 }
 
+/**
+ * A selector is a bounded string. `sanitizeString` already implements the
+ * absent/cleared/unusable triage; this binds its length limit to
+ * `MAX_SELECTOR_LENGTH` so the two cannot drift apart.
+ */
 export function sanitizeSelector(value: unknown): string | null | undefined {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (typeof value !== 'string') return undefined
-  const normalized = value.trim()
-  if (!normalized || normalized.length > MAX_SELECTOR_LENGTH) return undefined
-  return normalized
+  return sanitizeString(value, MAX_SELECTOR_LENGTH)
 }
 
 export function sanitizeString(value: unknown, maxLength: number): string | null | undefined {

@@ -1,3 +1,7 @@
+// `@shared-core/*` rather than a relative path into `shared/`: the renderer
+// names the cross-process tree by alias, and this was the one place that
+// reached it relatively.
+import type * as ErrorClassifier from '@shared-core/lib/errorClassifier'
 import {
   normalizeSubmitMode,
   toAutomationConfig as normalizeAutomationConfig
@@ -13,7 +17,6 @@ import { reportSuppressedError } from '@shared/lib/logger'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type * as ErrorClassifier from '../../../../shared/lib/errorClassifier'
 import type {
   AiErrorClassification,
   AiSendOptions,
@@ -24,7 +27,7 @@ import type {
 let errorClassifierPromise: Promise<typeof ErrorClassifier> | null = null
 function loadErrorClassifier() {
   if (!errorClassifierPromise) {
-    errorClassifierPromise = import('../../../../shared/lib/errorClassifier')
+    errorClassifierPromise = import('@shared-core/lib/errorClassifier')
   }
   return errorClassifierPromise
 }

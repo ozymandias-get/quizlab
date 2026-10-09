@@ -11,12 +11,10 @@ on:
     branches:
       - main
       - master
+  # No `inputs`: the release version comes from the pushed tag, which
+  # `ci:check-version` reconciles against package.json. An `inputs.version`
+  # was declared here once and read by nothing, so it is gone.
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g., v1.0.1)'
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -192,7 +190,7 @@ jobs:
         run: |
           if (Test-Path release) { Get-ChildItem -Recurse release }
 
-      - name: List release files (Linux / macOS)
+      - name: List release files (Linux)
         if: matrix.platform != 'win'
         run: |
           if [ -d release ]; then

@@ -333,6 +333,17 @@ npm test              # Vitest, full suite
 npm run test:coverage # Vitest with coverage thresholds
 ```
 
+Four further gates are blocking in CI but are listed here under their tool name
+rather than as commands — run these too, or a pull request fails on a gate that
+was never mentioned:
+
+```bash
+npm run ci:check-hygiene        # no tracked build output, no non-portable git paths
+npm run ci:check-version        # version badge + tag ↔ package.json
+npm run check:audit            # production dependency advisories
+npm run check:electron-security # Electronegativity on the Electron surface
+```
+
 Analysis tooling:
 
 ```bash
@@ -343,7 +354,7 @@ npm run analyze:deadcode      # knip
 npm run analyze:types         # type-coverage
 npm run analyze:css           # stylelint
 npm run analyze:security      # Semgrep + npm audit + Electronegativity
-npm run analyze:all           # all of the above plus the bundle report
+npm run analyze:all           # the analyses above, chained (run `analyze:bundle` separately)
 ```
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)

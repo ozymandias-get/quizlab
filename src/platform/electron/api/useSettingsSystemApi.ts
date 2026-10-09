@@ -122,11 +122,11 @@ export function useClearPartitionCache() {
 }
 
 /**
- * Open External Link Mutation
+ * Open External Link Mutation.
+ *
+ * Re-exported rather than duplicated: `useSystemApi` owns the implementation
+ * and `UpdateBanner` consumes it there, while the settings tier imports it
+ * through this module. Two byte-identical implementations of one IPC mutation
+ * is how they drift.
  */
-export function useOpenExternal() {
-  const { t } = useTranslation()
-  return useElectronMutation<boolean, string>((api, url) => api.openExternal(url), {
-    errorMessage: t('toast_open_link_failed')
-  })
-}
+export { useOpenExternal } from './useSystemApi'
