@@ -10,6 +10,14 @@
  * zaten bilinir; buradaki tek sorumluluk **fallback tetikleyip tetiklememe**
  * ve **kullanıcı dostu kod dönüşü**dür. Bu sayede ana script sınıflandırma
  * bilgisi taşımak zorunda kalmaz.
+ *
+ * Tablo `shared/lib/errorClassifier.ts` içindeki ERROR_TABLE ile satır satır
+ * eşleşmelidir (regex, retry, triggerFallback, category, toastKey):
+ * guest yalnızca bu beş alanı kullanır; `description` ve `isUserActionable`
+ * bilinçli olarak taşınmaz. Eşleşme
+ * `electron/__tests__/features/automation/errorClassifierParity.test.ts`
+ * tarafından parametrik olarak doğrulanır — tabloya satır eklerken iki dosyayı
+ * birlikte güncelle.
  */
 
 export const errorClassifierRuntime = `    /**
@@ -17,8 +25,9 @@ export const errorClassifierRuntime = `    /**
      * Illegal invocation gibi framework hataları "unknown" olur.
      */
     const __normalizeErrorCode = (raw) => {
+        if (typeof raw === 'number') return String(raw);
         if (typeof raw !== 'string') return 'unknown';
-        const trimmed = String(raw).trim();
+        const trimmed = raw.trim();
         if (!trimmed || trimmed === 'Illegal invocation') return 'unknown';
         return trimmed;
     };
@@ -38,21 +47,25 @@ export const errorClassifierRuntime = `    /**
         [/^ambiguous_match$/, 'after-repick', false, 'selector', 'toast_selectors_ambiguous'],
         [/^submit_not_ready$/, 'different-strategy', true, 'submit', 'toast_submit_not_ready'],
         [/^submit_failed$/, 'same-strategy', true, 'submit', 'toast_submit_failed'],
+        [/^autosend_failed_draft_saved$/, 'never', false, 'submit', 'toast_autosend_draft_saved'],
         [/^click_failed$/, 'same-strategy', false, 'submit', 'toast_click_failed'],
         [/^paste_failed$/, 'different-strategy', true, 'paste', 'toast_paste_failed'],
         [/^paste_not_applied$/, 'different-strategy', true, 'paste', 'toast_paste_not_applied'],
-        [/^clipboard_failed$/, 'after-backoff', true, 'clipboard', 'toast_clipboard_failed'],
+        [/^clipboard_failed$/, 'after-backoff', false, 'clipboard', 'toast_clipboard_failed'],
         [/^upload_failed$/, 'different-strategy', true, 'upload', 'toast_upload_failed'],
-        [/^upload_timed_out$/, 'after-backoff', true, 'upload', 'toast_upload_timed_out'],
-        [/^network_error$/, 'after-backoff', true, 'network', 'toast_network_error'],
-        [/^timed_out$/, 'same-strategy', true, 'timeout', 'toast_automation_timed_out'],
-        [/(timeout|timed_out)/i, 'same-strategy', true, 'timeout', 'toast_automation_timed_out'],
+        [/^upload_timed_out$/, 'after-backoff', false, 'upload', 'toast_upload_timed_out'],
+        [/^network_error$/, 'after-backoff', false, 'network', 'toast_network_error'],
+        [/^timed_out$/, 'same-strategy', false, 'timeout', 'toast_automation_timed_out'],
+        [/(timeout|timed_out)/i, 'same-strategy', false, 'timeout', 'toast_automation_timed_out'],
         [/^webview_destroyed$/, 'never', false, 'webview', 'toast_webview_destroyed'],
         [/^webview_not_ready$/, 'never', false, 'webview', 'toast_webview_not_ready'],
+        [/^webview_api_missing$/, 'never', false, 'webview', 'toast_webview_api_missing'],
         [/^wrong_url$/, 'never', false, 'site', 'toast_wrong_url'],
         [/^auth_required$/, 'never', false, 'permission', 'toast_auth_required'],
         [/^config_not_found$/, 'never', false, 'config', 'toast_config_not_found'],
+        [/^registry_not_loaded$/, 'never', false, 'config', 'toast_registry_not_loaded'],
         [/^empty_text$/, 'never', false, 'config', 'toast_empty_text'],
+        [/^invalid_input$/, 'never', false, 'config', 'toast_invalid_input'],
         [/^invalid_image_format$/, 'never', false, 'config', 'toast_invalid_image_format'],
         [/^cancelled$/, 'never', false, 'unknown', 'toast_automation_cancelled']
     ]);
