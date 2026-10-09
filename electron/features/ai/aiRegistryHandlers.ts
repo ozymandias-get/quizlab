@@ -17,13 +17,7 @@ import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { geminiWebSessionManager } from '../gemini-web-session/sessionManager.js'
-import {
-  AI_REGISTRY,
-  CHROME_USER_AGENT,
-  DEFAULT_AI_ID,
-  INACTIVE_PLATFORMS,
-  isAuthDomain
-} from './aiManager.js'
+import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
 import { getCustomPlatformStore } from './customPlatformStore.js'
 
 type AddCustomAiInput = { name: string; url: string; isSite?: boolean }
@@ -226,24 +220,5 @@ export function registerAiRegistryHandlers() {
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.IS_AUTH_DOMAIN,
-    (_event, urlOrHostname: string) => {
-      try {
-        const parsed = new URL(urlOrHostname)
-        return success(isAuthDomain(parsed.hostname))
-      } catch {
-        try {
-          const parsed = new URL(`https://${urlOrHostname}`)
-          return success(isAuthDomain(parsed.hostname))
-        } catch {
-          return success(false)
-        }
-      }
-    },
-    requireTrustedIpcSender,
-    success(false)
   )
 }

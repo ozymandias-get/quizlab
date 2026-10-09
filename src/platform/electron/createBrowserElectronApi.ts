@@ -124,7 +124,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
   return {
     getAiRegistry,
-    isAuthDomain: stubReturn(false),
 
     automation: {
       generateFocusScript: stubReturn(null),
@@ -164,7 +163,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     quitApp: async () => true,
 
     checkForUpdates: stubReturn({ available: false, cached: true } as UpdateCheckResult),
-    openReleasesPage: async () => true,
     getAppVersion: stubReturn('dev-web'),
     clearCache: stubReturn(true),
     clearAiModelData: stubReturn(true),
@@ -251,7 +249,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       } as NativeMessagingExtensionInfo),
       installExtension: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       removeExtension: stubReturn({ success: false, error: 'web_dev_mode_only' }),
-      getBridgeConfig: () => Promise.resolve(null),
       onExtensionConnected: () => () => {},
       onExtensionDisconnected: () => () => {}
     },

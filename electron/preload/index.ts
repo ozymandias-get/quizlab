@@ -8,7 +8,6 @@ import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload.js'
 const electronApi: ElectronApi = {
   getAiRegistry: (forceRefresh?) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_AI_REGISTRY, forceRefresh)),
-  isAuthDomain: (url) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.IS_AUTH_DOMAIN, url)),
   automation: {
     generateFocusScript: (config) =>
       unwrapIpcResult(
@@ -80,7 +79,6 @@ const electronApi: ElectronApi = {
   quitApp: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.APP_QUIT)),
 
   checkForUpdates: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CHECK_FOR_UPDATES)),
-  openReleasesPage: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPEN_RELEASES)),
   getAppVersion: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_APP_VERSION)),
   clearCache: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CLEAR_CACHE)),
   clearAiModelData: (input) =>
@@ -148,8 +146,6 @@ const electronApi: ElectronApi = {
 
   nativeMessaging: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_STATUS)),
-    getBridgeConfig: () =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG)),
     installExtension: () =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION)),
     removeExtension: () =>

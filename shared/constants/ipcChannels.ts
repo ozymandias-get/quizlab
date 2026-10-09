@@ -19,7 +19,6 @@ export const IPC_CHANNELS = {
   TRIGGER_PDF_VIEWER_ZOOM: 'trigger-pdf-viewer-zoom',
   TRIGGER_SCREENSHOT: 'trigger-screenshot',
   CHECK_FOR_UPDATES: 'check-for-updates',
-  OPEN_RELEASES: 'open-releases-page',
   GET_APP_VERSION: 'get-app-version',
   SAVE_AI_CONFIG: 'save-ai-config',
   GET_AI_CONFIG: 'get-ai-config',
@@ -46,7 +45,6 @@ export const IPC_CHANNELS = {
   AI_VIEW_EVENT: 'ai-view-event',
   ADD_CUSTOM_AI: 'add-custom-ai',
   DELETE_CUSTOM_AI: 'delete-custom-ai',
-  IS_AUTH_DOMAIN: 'is-auth-domain',
   CLEAR_CACHE: 'clear-cache',
   CLEAR_AI_MODEL_DATA: 'clear-ai-model-data',
   CACHE_INFO: 'cache-info',
@@ -79,7 +77,6 @@ export const IPC_CHANNELS = {
   NATIVE_MESSAGING_REMOVE_EXTENSION: 'native-messaging-remove-extension',
   NATIVE_MESSAGING_EXTENSION_CONNECTED: 'native-messaging-extension-connected',
   NATIVE_MESSAGING_EXTENSION_DISCONNECTED: 'native-messaging-extension-disconnected',
-  NATIVE_MESSAGING_BRIDGE_CONFIG: 'native-messaging-bridge-config',
 
   // Logger (renderer → main process forwarding)
   LOGGER_LOG: 'logger:log'

@@ -48,12 +48,12 @@ describe('registerNativeMessagingHandlers', () => {
     removeExtension.mockReset()
   })
 
-  it('registers all 4 IPC handlers', async () => {
+  it('registers all 3 IPC handlers', async () => {
     const { registerNativeMessagingHandlers } =
       await import('../../../features/native-messaging/nativeMessagingHandlers.js')
     registerNativeMessagingHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(4)
+    expect(ipcHandle).toHaveBeenCalledTimes(3)
     expect(ipcHandle).toHaveBeenCalledWith(
       APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
       expect.any(Function)
@@ -66,10 +66,6 @@ describe('registerNativeMessagingHandlers', () => {
       APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION,
       expect.any(Function)
     )
-    expect(ipcHandle).toHaveBeenCalledWith(
-      APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG,
-      expect.any(Function)
-    )
   })
 
   it('registers handlers only once', async () => {
@@ -79,7 +75,7 @@ describe('registerNativeMessagingHandlers', () => {
     registerNativeMessagingHandlers()
     registerNativeMessagingHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(4)
+    expect(ipcHandle).toHaveBeenCalledTimes(3)
   })
 
   describe('NATIVE_MESSAGING_STATUS handler', () => {
@@ -178,47 +174,6 @@ describe('registerNativeMessagingHandlers', () => {
 
       expect(result).toEqual({ ok: true, data: { success: false, error: 'Unauthorized' } })
       expect(removeExtension).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('NATIVE_MESSAGING_BRIDGE_CONFIG handler', () => {
-    it('returns bridge config when sender is trusted', async () => {
-      requireTrustedIpcSender.mockReturnValue(true)
-
-      const { registerNativeMessagingHandlers } =
-        await import('../../../features/native-messaging/nativeMessagingHandlers.js')
-      registerNativeMessagingHandlers()
-
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG)
-      const result = await handler({ sender: { id: 1 }, type: 'invoke' })
-
-      expect(result).toEqual({
-        ok: true,
-        data: {
-          port: 51999,
-          host: '127.0.0.1',
-          endpoints: {
-            cookies: '/api/cookies',
-            health: '/api/health'
-          }
-        }
-      })
-    })
-
-    it('returns null when sender is untrusted', async () => {
-      requireTrustedIpcSender.mockReturnValue(false)
-
-      const { registerNativeMessagingHandlers } =
-        await import('../../../features/native-messaging/nativeMessagingHandlers.js')
-      registerNativeMessagingHandlers()
-
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG)
-      const result = await handler({ sender: { id: 404 }, type: 'invoke' })
-
-      expect(result).toEqual({
-        ok: false,
-        error: { code: 'unauthorized', message: 'Not authorized' }
-      })
     })
   })
 })
