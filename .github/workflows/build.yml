@@ -92,6 +92,15 @@ jobs:
       - name: Circular Dependency Check
         run: npm run analyze:circular
 
+      # Nothing else on a pull request or a branch push compiles the app on
+      # Linux: the `build` job (which runs `npm run build` + electron-builder on
+      # ubuntu-22.04) only fires for tags and workflow_dispatch, so a PR could
+      # be green here while the renderer or the Electron backend fails to
+      # produce an artifact. This is the same command packaging uses, so a red
+      # step means the shipped build is broken, not that a lint rule moved.
+      - name: Build (renderer + backend)
+        run: npm run build
+
       - name: Setup Python (Semgrep)
         uses: actions/setup-python@v5
         with:
