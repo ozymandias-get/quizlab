@@ -50,7 +50,13 @@ export function isRepairFlapping(params: {
   return previousSelector !== candidateSelector
 }
 
-export interface PromotedSelectors {
+/**
+ * Module-private: `shared/` is a cross-process contract surface, and nothing
+ * outside this file needs this shape — `buildPromotedSelectors` is the entry
+ * point. Keeping it local means the barrel cannot grow a consumer that binds
+ * to it.
+ */
+interface PromotedSelectors {
   primary: string
   candidates: string[]
 }

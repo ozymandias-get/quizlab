@@ -3,12 +3,7 @@ import { isStagedSendResult } from '@features/ai'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { SendFeedback } from './types'
-
-interface ComposerPayload {
-  noteText?: string
-  autoSend?: boolean
-}
+import type { ComposerPayload, SendFeedback } from './types'
 
 interface UseComposerSendActionOptions {
   isSubmitting: boolean

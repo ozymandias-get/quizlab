@@ -1,7 +1,0 @@
-export { default as InstallConfirmStepContent } from './InstallConfirmStepContent'
-export { default as LoadingContent } from './LoadingContent'
-export { default as RemoveConfirmStepContent } from './RemoveConfirmStepContent'
-export { default as ResultContent } from './ResultContent'
-export { default as RiskStepContent } from './RiskStepContent'
-export { default as StatusIndicator } from './StatusIndicator'
-export { default as StepIndicator } from './StepIndicator'

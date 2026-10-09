@@ -1,4 +1,12 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
+import type { GoogleWebSessionAppId } from '../constants/googleAiWebApps.js'
+import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
+import type { IpcResult } from '../lib/typedIpc.js'
+import type {
+  AiRegistryResponse,
+  ClearAiModelDataInput,
+  CustomAiInput,
+  CustomAiResult
+} from './ai.js'
 import type {
   AiViewAttachRequest,
   AiViewAttachResponse,
@@ -11,16 +19,7 @@ import type {
   AiViewScriptRequest,
   AiViewTabRequest,
   AiViewTextRequest
-} from '@shared-core/types/aiView'
-
-import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
-import type { IpcResult } from '../lib/typedIpc.js'
-import type {
-  AiRegistryResponse,
-  ClearAiModelDataInput,
-  CustomAiInput,
-  CustomAiResult
-} from './ai.js'
+} from './aiView.js'
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'

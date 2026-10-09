@@ -12,7 +12,7 @@ import { findNativeTextLayer } from '../native/nativePdfDom'
 import { orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
 import { findTextLayerSource } from './pdfTextLayerSource'
-import type { SelectionPosition } from './types'
+import type { PdfTextItem, SelectionPosition } from './types'
 
 function isNodeInsideContainer(node: Node | null, container: HTMLElement): boolean {
   return !!node && container.contains(node)
@@ -121,20 +121,12 @@ function selectedContentsOf(range: Range, node: Node): Range | null {
   return covered
 }
 
-interface SelectedTextItem {
-  text: string
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
 /**
  * The runs the selection touches, each carrying only the characters it covers.
  *
  * The layer's whole box is walked every time — PDF.js owns this DOM and its runs
- * come and go on every zoom, so there is nothing stable to cache — but the cost is
- * one `Range` comparison per run and **no layout read at all**: `getBoundingClientRect`
+ * come and go on every zoom, so there is nothing stable to cache — but the cost
+ * is one `Range` comparison per run and **no layout read at all**: `getBoundingClientRect`
  * is here because `orderTextItems` needs it to order columns, not to decide what is
  * selected. That is also cheaper than the rectangle-overlap test this replaced,
  * which called `getClientRects()` once and then intersected every run with every
@@ -148,8 +140,8 @@ function collectSelectedTextItems(
   range: Range,
   layer: HTMLElement,
   spanSelector: string
-): SelectedTextItem[] {
-  const items: SelectedTextItem[] = []
+): PdfTextItem[] {
+  const items: PdfTextItem[] = []
   for (const span of layer.querySelectorAll<HTMLElement>(spanSelector)) {
     const rect = span.getBoundingClientRect()
     if (rect.width <= 0 || rect.height <= 0) continue

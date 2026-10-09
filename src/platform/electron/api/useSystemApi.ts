@@ -2,26 +2,11 @@ import type { UpdateCheckResult } from '@shared-core/types'
 
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 
-const SYSTEM_VERSION_KEY = ['system', 'version']
 const SYSTEM_UPDATE_KEY = ['system', 'update']
-
-/**
- * App Version Query
- */
-export function useAppVersion() {
-  return useElectronQuery<string>({
-    key: SYSTEM_VERSION_KEY,
-    queryFn: (api) => api.getAppVersion(),
-    options: {
-      staleTime: Infinity
-    }
-  })
-}
 
 /**
  * Check For Updates Query
@@ -33,23 +18,6 @@ export function useCheckForUpdates(enabled: boolean = false) {
     options: {
       enabled,
       staleTime: 1000 * 60 * 30
-    }
-  })
-}
-
-/**
- * Clear Cache Mutation
- */
-export function useClearCache() {
-  const queryClient = useQueryClient()
-  const { showSuccess } = useToastActions()
-  const { t } = useTranslation()
-
-  return useElectronMutation<boolean, void>((api) => api.clearCache(), {
-    errorMessage: t('toast_cache_cleared_failed'),
-    onSuccess: () => {
-      queryClient.invalidateQueries()
-      showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
     }
   })
 }

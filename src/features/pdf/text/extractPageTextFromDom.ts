@@ -18,6 +18,7 @@ import {
   findTextLayerSourceForPage,
   type TextLayerSource
 } from './pdfTextLayerSource'
+import type { PdfTextItem } from './types'
 
 const PAGE_LAYER_CACHE = new Map<number, HTMLElement>()
 
@@ -55,28 +56,20 @@ function getPageLayer(pageNumber: number): HTMLElement | null {
  */
 const SUSPICIOUS_GLYPH_RUN = /[¸ˆ˜]/
 
-interface TextItem {
-  text: string
-  left: number
-  top: number
-  width: number
-  height: number
-}
-
 /**
  * Collects positioned text items from a pdf.js text layer.
  *
  * The text layer is a flat list of absolutely-positioned spans. On two-column
  * layouts the DOM order is the PDF content-stream order (top-left block, then
- * top-right block), so a naive vertical sort interleaves the two columns
+ * top-right), so a naive vertical sort interleaves the two columns
  * sentence-by-sentence. We cluster the items by X position first (column
  * detection) and sort by Y within each column to reconstruct the reading order.
  *
  * `spanSelector` is the renderer's own marker for one text run — see
  * `./pdfTextLayerSource` for why it is not simply `span` everywhere.
  */
-function collectTextItems(layer: HTMLElement, spanSelector: string): TextItem[] {
-  const items: TextItem[] = []
+function collectTextItems(layer: HTMLElement, spanSelector: string): PdfTextItem[] {
+  const items: PdfTextItem[] = []
   const spans = layer.querySelectorAll<HTMLElement>(spanSelector)
   for (const span of spans) {
     const text = (span.textContent || '').trim()
@@ -93,7 +86,7 @@ function collectTextItems(layer: HTMLElement, spanSelector: string): TextItem[] 
  * by Y. Returns lines of text in reading order (columns top-to-bottom, left
  * to right).
  */
-function orderTextItems(items: TextItem[]): string[] {
+function orderTextItems(items: PdfTextItem[]): string[] {
   if (items.length === 0) return []
 
   // Sort by horizontal position so column gaps are easy to detect.
@@ -107,8 +100,8 @@ function orderTextItems(items: TextItem[]): string[] {
   const medianWidth = widths[Math.floor(widths.length / 2)] || 1
   const gapThreshold = Math.max(8, medianWidth * 0.6)
 
-  const columns: TextItem[][] = []
-  let currentColumn: TextItem[] = []
+  const columns: PdfTextItem[][] = []
+  let currentColumn: PdfTextItem[] = []
   let columnRight = -Infinity
 
   for (const item of sorted) {
@@ -129,7 +122,7 @@ function orderTextItems(items: TextItem[]): string[] {
 
     // Group items on the same visual line (their tops are within a line-height
     // tolerance) and join them with spaces; separate lines with newlines.
-    let lineItems: TextItem[] = []
+    let lineItems: PdfTextItem[] = []
     let lineTop = -Infinity
     const flushLine = () => {
       if (lineItems.length === 0) return

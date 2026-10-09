@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-import { renderContent } from './parseMessageContentUtils'
+import { renderContent } from './parseMessageContentRender'
 
 function MessageContent({ content }: { content: string }) {
   const rendered = useMemo(() => renderContent(content), [content])
