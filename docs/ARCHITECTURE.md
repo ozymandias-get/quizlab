@@ -237,10 +237,14 @@ Directory responsibilities:
 
 `electron/app/ipcHandlers.ts` is the only place that wires handlers. Direct
 `ipcMain.handle(...)` calls exist in exactly one file —
-`electron/core/typedIpcMain.ts:29`. The three `ipcMain.on(...)` sites
+`electron/core/typedIpcMain.ts:29`. The five `ipcMain.on(...)` sites
 (`core/systemHandlers/systemHandlers.ts:71`,
-`features/ai-view/aiViewHandlers.ts:211`, `features/pdf/pdfHandlers.ts:14`)
-each call `requireTrustedIpcSender(event)` first.
+`features/ai-view/aiViewHandlers.ts:211`, `features/pdf/pdfHandlers.ts:14`,
+and the two per-picker-instance listeners in `app/displayMediaPicker.ts:188-189`)
+each verify the sender first. Three call `requireTrustedIpcSender(event)`; the two
+picker listeners compare `event.sender` against the picker window's own
+`webContents` directly (`app/displayMediaPicker.ts:164`, `:180`), which is the
+equivalent check for a window that is not the main window.
 
 ### C.2 Preload — `electron/preload/`
 
@@ -301,8 +305,12 @@ main ──► webContents.send(channel, …) ──► onEvent(channel, cb) ─
 (`scripts/build-electron.mjs` → `vite build` with `ELECTRON=1`) +
 `build:backend` (`package.json:46`). The packaged app loads
 `dist/index.html` over `file://` (`rendererLoader.ts:82`); in dev it waits for
-the Vite server on `APP_RENDERER_URL` (default `http://localhost:5173`) and
-loads that instead (`rendererLoader.ts:96`).
+the Vite server and loads that instead (`rendererLoader.ts:96`). The URL comes
+from `DEV_SERVER_URL` in `electron/app/window/environment.ts:4`, which reads the
+`APP_RENDERER_URL` environment variable and falls back to
+`http://localhost:5173`; `APP_RENDERER_URL` is the variable name, not the
+constant, and `environment.ts` also derives `DEV_SERVER_ORIGIN` from it for the
+navigation allowlist.
 
 ---
 
@@ -367,9 +375,10 @@ matches `ElectronApi`, and no extra channel is reachable.
    which range-checks ids, host tokens, rectangles (`MAX_VIEW_RECT_EDGE`,
    `MAX_VIEW_BORDER_RADIUS`), scripts and input events before anything reaches
    `WebContents`.
-4. **Event channels.** The three `ipcMain.on` sites re-check
-   `requireTrustedIpcSender` themselves (see C.1); a fire-and-forget message
-   gets no automatic protection from `registerIpcHandler`.
+4. **Event channels.** All five `ipcMain.on` sites verify the sender themselves
+   (see C.1) - three through `requireTrustedIpcSender`, the two picker listeners
+   by comparing against the picker window's `webContents`. A fire-and-forget
+   message gets no automatic protection from `registerIpcHandler`.
 
 ### D.4 What the renderer can never ask for
 
@@ -510,9 +519,12 @@ over a second correctness surface.
   toolbar uses: `highlight(keyword)` / `clearHighlights()`. No match count, no
   next/previous, no auto page jump — synchronous and generation-free by
   design; the effect's dependency list _is_ the invalidation.
-- Geometry overlay: `native/nativePdfSearch.ts` renders
-  `data-native-pdf-search-layer`, styled by `nativePdfSearchLayer.css`; the
-  highlight keyframe `pdf-highlight-fadein` is defined once in
+- Geometry overlay: the host element is
+  `ui/components/NativePdfViewer.tsx:230` (`<div ref={searchLayerRef} data-native-pdf-search-layer />`),
+  always mounted so the DOM contract does not
+  change shape with the search state, styled by `nativePdfSearchLayer.css`;
+  `native/nativePdfSearch.ts` only computes and injects the rectangles into it.
+  The highlight keyframe `pdf-highlight-fadein` is defined once in
   `src/shared/styles/modules/_pdf-viewer.css`.
 
 ### E.8 Capture
@@ -771,13 +783,13 @@ context-menu entry and signing, is [windows-installer.md](windows-installer.md).
 
 Three jobs:
 
-1. **`quality`** (`:29`) — `ubuntu-latest`, on push/PR to `main`/`master`,
+1. **`quality`** (job `quality`) — `ubuntu-latest`, on push/PR to `main`/`master`,
    Node 24, blocking except where noted: `ci:check-hygiene`, `ci:check-version`,
    `lint`, `format:check`, `typecheck`, `analyze:architecture`, `analyze:css`,
    `analyze:knip`, `test:coverage`, `analyze:types:ci`, `analyze:duplicates`,
    `analyze:circular`, `build`, `analyze:semgrep`, `check:audit`,
    `check:electron-security`. **Advisory** (`continue-on-error: true`):
-   `analyze:file-sizes` (`:70`) and `analyze:spell:ci`.
+   `analyze:file-sizes` (step `File Size Check`) and `analyze:spell:ci`.
 
    Two of these are blocking by design rather than by accident, and the
    workflow tests pin both:
@@ -798,12 +810,16 @@ Three jobs:
    in both shells; `knip-dead-code-gate.test.ts` rejects any script that uses a
    single-quoted argument.
 
-2. **`build`** (`:115`) — `needs: quality`, runs only on `v*` tags (or manual
+2. **`build`** (job `build`) — `needs: quality`, runs only on `v*` tags (or manual
    dispatch), matrix `windows-latest` → `win` and `ubuntu-22.04` → `linux`;
    `npm run build && npx electron-builder --<platform> --publish never`, then
    uploads `release/*` artifacts.
-3. **`release`** (`:210`) — `needs: build`, tags only; downloads the artifacts
-   and attaches them to a GitHub Release with generated notes.
+3. **`release`** (job `release`) — `needs: build`, tags only; downloads the
+   artifacts and attaches them to a GitHub Release with generated notes.
+
+Jobs are named rather than line-numbered here on purpose: a sibling commit that
+adds a step shifts every line below it, and a stale line number reads as a
+factual claim about the file.
 
 Tags must match `package.json`'s version; `npm run ci:check-version` is what
 enforces that.

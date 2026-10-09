@@ -365,7 +365,9 @@ biçimini izler ve Husky kancası üzerinden commitlint tarafından denetlenir.
 
 Vitest her iki süreci de çalıştırır: `src/__tests__/` jsdom'da,
 `electron/__tests__/` Node ortamında; seçim `vitest.config.mts` içindeki
-`environmentMatchGlobs` ile yapılır. Mevcut paket 309 dosya / 3106 testtir.
+`environmentMatchGlobs` ile yapılır. Güncel dosya ve test sayısı için
+`npm test` çalıştırın — bu sayılar her commit ile değiştiği için burada
+kasıtlı olarak tekrarlanmıyor.
 
 Coverage eşikleri `vitest.config.mts` içinde kapsam başına uygulanır — genel
 olarak satır için %50, ayrıca `electron/features/gemini-web-session`,
