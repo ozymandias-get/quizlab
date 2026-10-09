@@ -226,4 +226,4 @@ export function invalidatePageCache(pageNumber: number): void {
   PAGE_LAYER_CACHE.delete(pageNumber)
 }
 
-export { collectTextItems, orderTextItems }
+export { orderTextItems }

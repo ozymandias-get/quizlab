@@ -14,7 +14,6 @@ export {
 export { default as SettingsSection } from './SettingsSection'
 export { default as SettingsTabIcon } from './SettingsTabIcon'
 export { default as SettingsTabIntro } from './SettingsTabIntro'
-export { SurfaceCard } from './SurfaceCard'
 export { TabPill, TabPillContainer, TabPillIcon, TabPillLabel } from './TabPill'
 export { TabStripHomeButton } from './TabStripHomeButton'
 export { ToolbarButton } from './ToolbarButton'

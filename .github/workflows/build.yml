@@ -70,13 +70,10 @@ jobs:
         continue-on-error: true
         run: npm run analyze:file-sizes
 
-      # Advisory, not a gate. knip reports the real, unbaselined count on
-      # stdout; the command itself is ratcheted at the current baseline, so a
-      # red step here means dead code grew. Making it blocking would also pin
-      # the whole pipeline to that number, which turns any concurrent
-      # refactor's findings into someone else's red build.
-      - name: Dead Code (knip, advisory)
-        continue-on-error: true
+      # Blocking gate: knip exits non-zero on any unused export, type, file or
+      # dependency. The command carries no --max-issues ceiling, so a red step
+      # here means dead code exists, not that a budget was overspent.
+      - name: Dead Code (knip)
         run: npm run analyze:knip
 
       - name: Run Tests with Coverage

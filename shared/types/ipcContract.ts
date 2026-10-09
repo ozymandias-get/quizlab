@@ -443,4 +443,4 @@ export type AutomationScriptInvokeArgs = {
   [A in AutomationScriptAction]: [action: A, ...args: AutomationScriptArgsByAction[A]]
 }[AutomationScriptAction]
 
-export type { CacheInfoResponse, ElectronApi, WaitForSubmitReadyOptions } from './electronApi.js'
+export type { CacheInfoResponse, ElectronApi } from './electronApi.js'

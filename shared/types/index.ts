@@ -6,10 +6,8 @@
  * Import from '@shared-core/types' as before — this barrel re-exports everything.
  */
 
-export type { IpcError, IpcErrorCode, IpcResult } from '../lib/typedIpc.js'
 export type {
   AiPlatform,
-  AiPlatformMeta,
   AiRegistry,
   AiRegistryResponse,
   ClearAiModelDataInput,
@@ -17,27 +15,6 @@ export type {
   CustomAiResult,
   InactivePlatforms
 } from './ai.js'
-export type { AiContentController, AiContentRef } from './aiContent.js'
-export type {
-  AiContentInputEvent,
-  AiContentInputEventType,
-  AiViewAttachRequest,
-  AiViewAttachResponse,
-  AiViewBounds,
-  AiViewEvent,
-  AiViewEventKind,
-  AiViewEventOf,
-  AiViewHostRequest,
-  AiViewHostSyncRequest,
-  AiViewInputEventRequest,
-  AiViewLoadUrlRequest,
-  AiViewNavigateRequest,
-  AiViewScriptRequest,
-  AiViewSource,
-  AiViewStateSnapshot,
-  AiViewTabRequest,
-  AiViewTextRequest
-} from './aiView.js'
 export type { ApiChatMessage, ApiConfig, ApiProviderConfig } from './apiChat.js'
 export type {
   AiSelectorConfig,
@@ -70,24 +47,11 @@ export type {
   HealthCheckResult,
   SessionActionLike
 } from './gemini-web.js'
-export type {
-  CacheInfoResponse,
-  ElectronApi,
-  IpcEventChannel,
-  IpcEventMap,
-  IpcInvokeChannel,
-  IpcInvokeRequestMap
-} from './ipcContract.js'
+export type { CacheInfoResponse } from './ipcContract.js'
 export type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
 } from './native-messaging.js'
-export type {
-  PdfFile,
-  PdfSelection,
-  PdfSelectOptions,
-  PdfStreamResult,
-  PdfViewerZoomAction
-} from './pdf.js'
-export type { ScreenshotType, UpdateCheckResult } from './system.js'
+export type { PdfFile, PdfSelection, PdfSelectOptions, PdfViewerZoomAction } from './pdf.js'
+export type { UpdateCheckResult } from './system.js'

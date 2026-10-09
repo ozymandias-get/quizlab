@@ -24,7 +24,7 @@
     "check:audit": "node scripts/check-audit.mjs",
     "check:electron-security": "node scripts/check-electron-security.mjs",
     "analyze:bundle": "vite-bundle-visualizer",
-    "analyze:knip": "knip --max-issues 59",
+    "analyze:knip": "knip",
     "analyze:deadcode": "npm run analyze:knip",
     "analyze:duplicates": "jscpd src electron shared --reporters console",
     "analyze:circular": "madge --circular --extensions ts,tsx,js,jsx src/ electron/ shared/",

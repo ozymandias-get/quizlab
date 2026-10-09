@@ -61,13 +61,13 @@
  */
 
 /** The part of a page's viewport the pixel budget needs. */
-export interface CapturePageViewport {
+interface CapturePageViewport {
   width: number
   height: number
 }
 
 /** PDF.js's render handle. `cancel` is never called on a borrowed page. */
-export interface CaptureRenderTask {
+interface CaptureRenderTask {
   promise: Promise<void>
   cancel?: () => void
 }

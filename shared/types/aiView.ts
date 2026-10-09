@@ -26,7 +26,7 @@ export interface AiViewBounds {
   borderRadius?: number
 }
 
-export type AiContentInputEventType = 'keyDown' | 'keyUp' | 'char'
+type AiContentInputEventType = 'keyDown' | 'keyUp' | 'char'
 
 /** Mirrors the subset of `Electron.InputEvent` the paste fallback needs. */
 export interface AiContentInputEvent {

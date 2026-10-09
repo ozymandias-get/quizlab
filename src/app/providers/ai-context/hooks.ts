@@ -9,7 +9,6 @@ import type {
   AiMessagingActions,
   AiModelActions,
   AiModelsCatalogSliceState,
-  AiRegistryMetaSliceState,
   AiSessionActions,
   AiSessionUiPrefsSliceState,
   AiTabActions,
@@ -76,14 +75,6 @@ export const useAiTabsSliceState = (): AiTabsSliceState => {
     throw new Error('useAiTabsSliceState must be used within AiProvider')
   }
   return useMemo(() => ({ ...tabsList, ...tabFocus }), [tabsList, tabFocus])
-}
-
-export const useAiRegistryMeta = (): AiRegistryMetaSliceState => {
-  const context = useContext(AiRegistryMetaSliceContext)
-  if (!context) {
-    throw new Error('useAiRegistryMeta must be used within AiProvider')
-  }
-  return context
 }
 
 export const useAiModelsCatalog = (): AiModelsCatalogSliceState => {
