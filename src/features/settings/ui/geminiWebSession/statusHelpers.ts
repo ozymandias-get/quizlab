@@ -1,13 +1,13 @@
 import type { GeminiWebSessionStatusView } from './types'
 
-export type GeminiWebStatusTone = 'primary' | 'success' | 'danger' | 'warning'
+type GeminiWebStatusTone = 'primary' | 'success' | 'danger' | 'warning'
 
 /**
  * Maps the session state onto a semantic tone. Used for the status glyph in the
  * session section header so the state reads without relying on hue alone (the
  * resolved `stateText` always accompanies it).
  */
-export const getStatusTone = (status: GeminiWebSessionStatusView): GeminiWebStatusTone => {
+const getStatusTone = (status: GeminiWebSessionStatusView): GeminiWebStatusTone => {
   if (status.isRefreshing) return 'primary'
   if (status.isAuthenticated) return 'success'
   if (status.needsReauth) return 'danger'

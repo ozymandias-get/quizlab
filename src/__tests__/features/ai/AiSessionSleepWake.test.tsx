@@ -146,7 +146,6 @@ vi.mock('@features/ai/hooks/useAiLifecycleSettings', () => ({
 
 const registerContent = vi.hoisted(() => vi.fn())
 vi.mock('@app/providers/ai-context', () => ({
-  useAiRegistryMeta: () => ({ isRegistryLoaded: true, chromeUserAgent: 'ua' }),
   useAiSites: () => ({
     chatgpt: { url: 'https://chatgpt.com/', displayName: 'ChatGPT' }
   }),

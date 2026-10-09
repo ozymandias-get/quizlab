@@ -20,8 +20,6 @@ import {
   getRepairCandidate,
   isPersistableSelector,
   isPromotionEligible,
-  isProviderDerivedStrategy,
-  isRecoveryStrategy,
   isRepairFlapping,
   normalizeConfidenceLevel,
   normalizeLookupStrategy
@@ -335,22 +333,3 @@ export function evaluateSelectorRepairEvidence(
 
   return { patch, shouldPersist, reasons, promoted }
 }
-
-/**
- * Exposed for tests and for the Settings panel: does this saved selector look
- * like it came from an automatic repair?
- */
-export function hasPromotedRepair(
-  config: AiSelectorConfig | null | undefined,
-  kind: SelectorRepairKind
-): boolean {
-  if (!config?.lastRepair) return false
-  const selector =
-    kind === 'input' ? config.lastRepair.inputSelector : config.lastRepair.buttonSelector
-  if (!selector) return false
-  const primary = kind === 'input' ? config.input : config.button
-  return primary === selector
-}
-
-/** Exposed for tests: strategy risk helper re-used by the policy tests. */
-export { isProviderDerivedStrategy, isRecoveryStrategy }

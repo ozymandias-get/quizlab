@@ -58,7 +58,7 @@ export function toSelectorRepairEvidence(
  * Picks the best record for one locator across every operation script of the
  * send. `null` means no script even produced a record for it.
  */
-export function pickBestLocatorEvidence(
+function pickBestLocatorEvidence(
   kind: SelectorRepairKind,
   records: ReadonlyArray<AutomationSelectorDiagnostics | undefined>
 ): AutomationSelectorDiagnostics | null {

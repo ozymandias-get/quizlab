@@ -6,10 +6,6 @@ import { describe, expect, it, vi } from 'vitest'
 const useManagedContentView = vi.fn()
 
 vi.mock('@app/providers/ai-context', () => ({
-  useAiRegistryMeta: () => ({
-    isRegistryLoaded: true,
-    chromeUserAgent: 'mock-user-agent'
-  }),
   useAiSites: () => ({
     'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
     'claude-3': { url: 'https://claude.ai', displayName: 'Claude' },

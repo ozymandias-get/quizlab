@@ -264,8 +264,8 @@ describe('dependency-cruiser: the --do-not-follow argument survives every shell'
   })
 })
 
-describe('CI: the dead-code gate is visible without pinning the pipeline to it', () => {
-  const KNIP_STEP = 'Dead Code (knip, advisory)'
+describe('CI: the dead-code gate is blocking and tolerance-free', () => {
+  const KNIP_STEP = 'Dead Code (knip)'
 
   it('runs the analyser', () => {
     expect(stepNames()).toContain(KNIP_STEP)
@@ -273,26 +273,35 @@ describe('CI: the dead-code gate is visible without pinning the pipeline to it',
     expect(step).toContain('npm run analyze:knip')
   })
 
-  it('is explicitly advisory rather than silently blocking', () => {
-    // knip cannot be a hard gate while the tree carries the documented dead
-    // code: today it reports 11 unused exports and 48 unused exported types,
-    // and blocking on that fails every build including the ones that remove
-    // some of it. The step is advisory so the debt stays visible.
+  it('is blocking: the step carries no continue-on-error', () => {
+    // The step used to be advisory while the tree carried the documented dead
+    // code (11 unused exports, 48 unused exported types). That debt is gone, so
+    // a softened step would now only hide regressions — the whole point of the
+    // gate is that any finding fails the build.
     const step = stepBlocks().find((block) => block.includes(`- name: ${KNIP_STEP}`))
-    expect(step).toContain('continue-on-error: true')
+    expect(step).toBeDefined()
+    expect(step).not.toContain('continue-on-error')
   })
 
-  it('is named so a reader cannot mistake advisory for enforced', () => {
-    expect(KNIP_STEP).toContain('advisory')
+  it('is named so a reader cannot mistake it for advisory', () => {
+    expect(KNIP_STEP).not.toContain('advisory')
+    expect(stepNames()).not.toContain('Dead Code (knip, advisory)')
   })
 
-  it('ratchets the analyser so a regression still shows up', () => {
-    // `knip` alone exits 1 forever, which is indistinguishable from a working
-    // gate. The ceiling turns "there is debt" into "the debt grew", and it is
-    // deliberately the one number to re-baseline after a cleanup.
-    expect(scripts['analyze:knip']).toMatch(/^knip --max-issues (\d+)$/)
-    const baseline = Number(/--max-issues (\d+)/.exec(scripts['analyze:knip'])?.[1])
-    expect(baseline).toBeGreaterThan(0)
+  it('runs knip bare, with no issue ceiling to regress against', () => {
+    // The step used to be ratcheted at `knip --max-issues 59`, which turned
+    // "there is dead code" into "the debt grew past 59" and let a nonzero
+    // finding pass as green. `knip` alone exits 1 on any finding, which is the
+    // only reading a gate should have.
+    expect(scripts['analyze:knip']).toBe('knip')
+  })
+
+  it('no script anywhere hides a knip finding behind a tolerance', () => {
+    // Catches the ceiling coming back on a differently-named script.
+    const ratcheted = Object.entries(scripts).filter(([, command]) =>
+      command.includes('--max-issues')
+    )
+    expect(ratcheted).toEqual([])
   })
 
   it('deadcode stays an alias of the same command', () => {
@@ -308,6 +317,7 @@ describe('CI: the dead-code gate is visible without pinning the pipeline to it',
       'Typecheck',
       'Architecture (dependency-cruiser)',
       'CSS Lint',
+      'Dead Code (knip)',
       'Run Tests with Coverage',
       'Type Coverage (guard)',
       'Duplicate Code Detection',

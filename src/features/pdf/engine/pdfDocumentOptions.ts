@@ -49,7 +49,7 @@ import { type getDocument } from 'pdfjs-dist'
  * map, so a deep import would mean depending on an internal file layout.
  * Deriving it keeps the engine on the public surface.
  */
-export type PdfDocumentInitParameters = NonNullable<Parameters<typeof getDocument>[0]>
+type PdfDocumentInitParameters = NonNullable<Parameters<typeof getDocument>[0]>
 
 /**
  * The document-init parameters the engine passes, plus the one option PDF.js

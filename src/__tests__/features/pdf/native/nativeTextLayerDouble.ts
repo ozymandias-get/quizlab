@@ -21,7 +21,7 @@
  */
 
 /** PDF.js's own cancellation signal for a text layer. */
-export class CancelledTextLayerError extends Error {
+class CancelledTextLayerError extends Error {
   constructor(message = 'TextLayer task cancelled.') {
     super(message)
     this.name = 'AbortException'

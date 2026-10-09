@@ -34,20 +34,20 @@ import { vi } from 'vitest'
 import type { FakeAnnotation } from './nativeAnnotationLayerDouble'
 import type { FakeTextContent } from './nativeTextLayerDouble'
 
-export class CancelledRenderError extends Error {
+class CancelledRenderError extends Error {
   constructor(message = 'Rendering cancelled, page 1') {
     super(message)
     this.name = 'RenderingCancelledException'
   }
 }
 
-export interface Deferred<T> {
+interface Deferred<T> {
   promise: Promise<T>
   resolve: (value: T) => void
   reject: (error: unknown) => void
 }
 
-export function createDeferred<T>(): Deferred<T> {
+function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void
   let reject!: (error: unknown) => void
   const promise = new Promise<T>((res, rej) => {
@@ -59,7 +59,7 @@ export function createDeferred<T>(): Deferred<T> {
 
 /* ------------------------------------------------------------------ render */
 
-export interface FakeRenderTask {
+interface FakeRenderTask {
   promise: Promise<void>
   cancel: () => void
   resolve: () => void
@@ -92,7 +92,7 @@ function createRenderTask(settleImmediately: boolean): FakeRenderTask {
   return task
 }
 
-export interface FakeRenderCall {
+interface FakeRenderCall {
   pageNumber: number
   scale: number
   canvas: HTMLCanvasElement
@@ -100,16 +100,16 @@ export interface FakeRenderCall {
   height: number
 }
 
-export interface FakeGetTextContentCall {
+interface FakeGetTextContentCall {
   pageNumber: number
 }
 
-export interface FakeGetAnnotationsCall {
+interface FakeGetAnnotationsCall {
   pageNumber: number
   intent: string | undefined
 }
 
-export interface FakePage {
+interface FakePage {
   pageNumber: number
   getViewport: (options: { scale: number; rotation?: number }) => {
     width: number

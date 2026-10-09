@@ -34,7 +34,7 @@
  */
 
 /** A plain rectangle, which is all the tests need to talk about. */
-export interface StubRect {
+interface StubRect {
   left: number
   top: number
   width: number

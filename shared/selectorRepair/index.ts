@@ -29,7 +29,7 @@
  *   repairCandidate      candidate identity + staged-success bookkeeping
  *   selectorPromotion    the staged → persisted transition + flapping guard
  */
-export type { RepairEvidenceInput, SelectorRepairEvidence } from './evidenceTypes.js'
+export type { SelectorRepairEvidence } from './evidenceTypes.js'
 export {
   MAX_REPAIR_CANDIDATE_COUNT,
   MIN_AUTO_REPAIR_SCORE_GAP,
@@ -50,7 +50,6 @@ export {
   compareRepairEvidence,
   isUsableRepairEvidence
 } from './repairEvidence.js'
-export type { PromotedSelectors } from './selectorPromotion.js'
 export {
   buildPromotedSelectors,
   isPromotionEligible,

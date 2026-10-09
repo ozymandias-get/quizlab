@@ -1,4 +1,4 @@
-export type IpcErrorCode =
+type IpcErrorCode =
   | 'invalid_input'
   | 'not_found'
   | 'already_exists'
@@ -6,7 +6,7 @@ export type IpcErrorCode =
   | 'internal_error'
   | 'cancelled'
 
-export type IpcError = {
+type IpcError = {
   code: IpcErrorCode
   message: string
   details?: Record<string, unknown>

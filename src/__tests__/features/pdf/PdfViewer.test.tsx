@@ -33,10 +33,6 @@ vi.mock('@app/providers/ai-context', () => ({
     autoSend: false,
     chromeUserAgent: 'mock-user-agent'
   }),
-  useAiRegistryMeta: () => ({
-    isRegistryLoaded: true,
-    chromeUserAgent: 'mock-user-agent'
-  }),
   useAiSessionUiPrefsState: () => ({
     autoSend: false,
     isTutorialActive: false
