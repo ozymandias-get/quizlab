@@ -264,6 +264,36 @@ describe('dependency-cruiser: the --do-not-follow argument survives every shell'
   })
 })
 
+describe('npm scripts: no argument is single-quoted', () => {
+  /**
+   * npm runs scripts through cmd.exe on Windows, where a single quote is not
+   * quoting — it is a literal character. The argument then reaches the tool with
+   * its quotes attached, so a glob matches nothing and the tool silently reports
+   * a different (usually wider) result than the same script produces under bash.
+   *
+   * `--do-not-follow 'node_modules'` was the instance that made the analyser
+   * validate the wrong graph; `--ignore-files '**\/*.test.*'` was the instance
+   * that made `analyze:types` exclude nothing and report 98.76% on Windows
+   * against 99.75% on Linux, for the same tree. Both are invisible locally,
+   * because the developer machine is the one shell that tolerates the quoting.
+   *
+   * Double quotes are correct in both shells, so the rule is simply: none.
+   */
+  it('leaves no script with a single-quoted argument', () => {
+    const offenders = Object.entries(scripts)
+      .filter(([, command]) => /'[^']*'/.test(command))
+      .map(([name]) => name)
+    expect(offenders).toEqual([])
+  })
+
+  it('still excludes the test globs, with double quotes that survive cmd.exe', () => {
+    const command = scripts['analyze:types']
+    for (const pattern of ['**/*.test.*', '**/*.spec.*', '**/__tests__/**']) {
+      expect(command).toContain(`--ignore-files "${pattern}"`)
+    }
+  })
+})
+
 describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   const KNIP_STEP = 'Dead Code (knip)'
 

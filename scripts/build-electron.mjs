@@ -6,4 +6,9 @@ const result = spawnSync('npx', ['vite', 'build'], {
   env: { ...process.env, ELECTRON: '1' }
 })
 
-process.exit(result.status ?? 0)
+if (result.error) {
+  console.error(`[build:renderer:electron] could not run vite build: ${result.error.message}`)
+  process.exit(1)
+}
+
+process.exit(result.status ?? 1)
