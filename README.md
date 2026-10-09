@@ -352,8 +352,9 @@ and are checked by commitlint through a Husky hook.
 ## Testing
 
 Vitest runs both processes: `src/__tests__/` in jsdom and `electron/__tests__/`
-in Node, selected by `environmentMatchGlobs` in `vitest.config.mts`. The current
-suite is 309 files / 3106 tests.
+in Node, selected by `environmentMatchGlobs` in `vitest.config.mts`. For the
+current file and test count run `npm test` — the totals move with every commit,
+so they are deliberately not restated here.
 
 Coverage thresholds are enforced per scope in `vitest.config.mts` — globally
 50% lines, with separate floors for `electron/features/gemini-web-session`,
