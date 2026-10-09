@@ -40,26 +40,14 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('pdfjs-dist', async () => {
-  const { FakeAnnotationLayer: AnnotationDouble } = await import('./nativeAnnotationLayerDouble')
-  const { FakeTextLayer: TextDouble } = await import('./nativeTextLayerDouble')
-  return {
-    getDocument: mocks.getDocument,
-    TextLayer: TextDouble,
-    AnnotationLayer: AnnotationDouble,
-    RenderingCancelledException: class RenderingCancelledException extends Error {
-      constructor(message = 'Rendering cancelled') {
-        super(message)
-        this.name = 'RenderingCancelledException'
-      }
-    }
-  }
+  const { createPdfJsDistMock } = await import('./pdfJsMockFactories')
+  return createPdfJsDistMock(mocks)
 })
 
-vi.mock('@features/pdf/engine/pdfWorker', () => ({
-  initializeNativePdfWorker: mocks.initializeNativePdfWorker,
-  nativeWorkerUrl: 'pdf.worker.min.test.mjs',
-  resetNativePdfWorkerForTests: vi.fn()
-}))
+vi.mock('@features/pdf/engine/pdfWorker', async () => {
+  const { createPdfWorkerMock } = await import('./pdfJsMockFactories')
+  return createPdfWorkerMock(mocks)
+})
 
 // The link service's default external pathway. Replaced with a spy so a test can see
 // that a URL reached it — and, more importantly, that an unsafe one did not.
