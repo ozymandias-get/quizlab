@@ -107,7 +107,16 @@ jobs:
           python-version: '3.12'
 
       - name: Install Semgrep
-        run: python -m pip install --disable-pip-version-check semgrep==1.144.0
+        # pydantic is pinned because semgrep 1.144.0 reaches into a private
+        # pydantic symbol through its mcp dependency: pydantic 2.14.0 removed
+        # `eval_type_backport` from `pydantic._internal._typing_extra`, so the
+        # newest resolution makes `semgrep --version` exit 1 on an ImportError
+        # before a single rule runs. Verified locally against both versions:
+        # pydantic 2.13.5 starts, 2.14.0 does not. Remove the pin once the
+        # semgrep release we track stops importing it.
+        run: >-
+          python -m pip install --disable-pip-version-check
+          semgrep==1.144.0 "pydantic<2.14"
 
       - name: Semgrep (production sources)
         run: npm run analyze:semgrep
