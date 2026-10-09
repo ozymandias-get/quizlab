@@ -1,4 +1,4 @@
-import { app, net, shell } from 'electron'
+import { app, net } from 'electron'
 
 import { failure, success } from '../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../app/constants.js'
@@ -199,19 +199,6 @@ export function initUpdater() {
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Unauthorized')
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.OPEN_RELEASES,
-    async () => {
-      const { GITHUB } = APP_CONFIG
-      const { OWNER, REPO } = GITHUB
-      const url = updateInfo?.htmlUrl || `https://github.com/${OWNER}/${REPO}/releases/latest`
-      await shell.openExternal(url)
-      return success(true)
-    },
-    requireTrustedIpcSender,
-    success(false)
   )
 
   registerIpcHandler(

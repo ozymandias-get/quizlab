@@ -18,27 +18,6 @@ import youtube from './platforms/youtube.js'
 
 const { CHROME_USER_AGENT } = APP_CONFIG
 
-const AUTH_DOMAINS = new Set([
-  'accounts.google.com',
-  'myaccount.google.com',
-  'auth.openai.com',
-  'auth0.openai.com',
-  'platform.openai.com',
-  'login.microsoftonline.com',
-  'login.live.com',
-  'login.x.com',
-  'challenges.cloudflare.com',
-  'cdn.cloudflare.com'
-])
-
-const isAuthDomain = (hostname?: string) => {
-  if (!hostname) return false
-  const normalized = hostname.toLowerCase().trim()
-  if (AUTH_DOMAINS.has(normalized)) return true
-
-  return [...AUTH_DOMAINS].some((domain) => normalized.endsWith('.' + domain))
-}
-
 const enhancePlatform = (platform: AiPlatform): AiPlatform => {
   return {
     ...platform,
@@ -154,10 +133,4 @@ const AI_REGISTRY: AiRegistry = platforms
 
 const DEFAULT_AI_ID = 'chatgpt'
 
-export {
-  AI_REGISTRY,
-  CHROME_USER_AGENT,
-  DEFAULT_AI_ID,
-  inactivePlatforms as INACTIVE_PLATFORMS,
-  isAuthDomain
-}
+export { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, inactivePlatforms as INACTIVE_PLATFORMS }

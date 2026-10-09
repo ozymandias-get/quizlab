@@ -81,7 +81,6 @@ export type WaitForSubmitReadyOptions = {
 
 export interface ElectronApi {
   getAiRegistry: (forceRefresh?: boolean) => Promise<AiRegistryResponse | null>
-  isAuthDomain: (url: string) => Promise<boolean>
   automation: {
     generateFocusScript: (config: AutomationConfig) => Promise<string | null>
     generateClickSendScript: (config: AutomationConfig) => Promise<string | null>
@@ -132,7 +131,6 @@ export interface ElectronApi {
   platform: string
   quitApp: () => Promise<boolean>
   checkForUpdates: () => Promise<UpdateCheckResult>
-  openReleasesPage: () => Promise<boolean>
   getAppVersion: () => Promise<string>
   clearCache: () => Promise<boolean>
   clearAiModelData: (input: ClearAiModelDataInput) => Promise<boolean>
@@ -185,11 +183,6 @@ export interface ElectronApi {
     getStatus: () => Promise<NativeMessagingExtensionInfo | null>
     installExtension: () => Promise<{ success: boolean; error?: string; installedPath?: string }>
     removeExtension: () => Promise<{ success: boolean; error?: string }>
-    getBridgeConfig: () => Promise<{
-      port: number
-      host: string
-      endpoints: { cookies: string; health: string }
-    } | null>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
   }

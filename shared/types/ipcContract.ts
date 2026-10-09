@@ -185,11 +185,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<UpdateCheckResult>
   }
 
-  [IPC_CHANNELS.OPEN_RELEASES]: {
-    args: []
-    result: IpcResult<boolean>
-  }
-
   [IPC_CHANNELS.GET_APP_VERSION]: {
     args: []
     result: IpcResult<string>
@@ -223,11 +218,6 @@ export interface IpcInvokeRequestMap {
 
   [IPC_CHANNELS.DELETE_CUSTOM_AI]: {
     args: [id: string]
-    result: IpcResult<boolean>
-  }
-
-  [IPC_CHANNELS.IS_AUTH_DOMAIN]: {
-    args: [urlOrHostname: string]
     result: IpcResult<boolean>
   }
 
@@ -360,15 +350,6 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION]: {
     args: []
     result: IpcResult<{ success: boolean; error?: string }>
-  }
-
-  [IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG]: {
-    args: []
-    result: IpcResult<{
-      port: number
-      host: string
-      endpoints: { cookies: string; health: string }
-    }>
   }
 }
 

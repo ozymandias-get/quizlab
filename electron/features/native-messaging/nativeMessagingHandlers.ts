@@ -38,20 +38,4 @@ export function registerNativeMessagingHandlers(): void {
     requireTrustedIpcSender,
     success({ success: false, error: 'Unauthorized' })
   )
-
-  registerIpcHandler(
-    IPC_CHANNELS.NATIVE_MESSAGING_BRIDGE_CONFIG,
-    async () => {
-      return success({
-        port: nativeMessagingManager.port,
-        host: '127.0.0.1',
-        endpoints: {
-          cookies: '/api/cookies',
-          health: '/api/health'
-        }
-      })
-    },
-    requireTrustedIpcSender,
-    failure('unauthorized', 'Not authorized')
-  )
 }
