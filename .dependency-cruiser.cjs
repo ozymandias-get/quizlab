@@ -116,13 +116,15 @@ module.exports = {
     },
     {
       name: 'electron-no-renderer',
-      severity: 'warn',
-      comment: 'Electron main process renderer alias import etmemeli',
+      severity: 'error',
+      comment:
+        'Electron main process renderer katmanına bağımlı olamaz. `to` çözümlenmiş src/ yollarına bakar: alias yazımı (@features/…) depcruise tarafından src/features/… olarak çözümlendiği için ^@… deseni hiçbir şeyi yakalayamazdı. Tek istisna runtime-agnostik logger shimi (src/shared/lib/logger.ts); electron/core/logger.ts + diskLogger.ts onu relative path ile re-export eder, bkz. src/shared/lib/logger.ts:6.',
       from: {
         path: '^electron/'
       },
       to: {
-        path: '^@(app|features|shared|ui|platform)/'
+        path: '^src/(app|features|shared|platform)/',
+        pathNot: '^src/shared/lib/logger\\.ts$'
       }
     },
     {
