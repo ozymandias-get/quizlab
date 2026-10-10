@@ -85,7 +85,7 @@
   "select_pdf": "Select PDF File",
   "select_pdf_hint": "you can also use the shortcut",
   "sent_successfully": "Sent successfully!",
-  "draft_queue_full": "AI queue is full. Oldest draft was removed.",
+  "draft_queue_full": "AI draft is full (20 items max). New content was not added; remove existing items to continue.",
   "settings": "Settings",
   "settings_title": "Settings",
   "performance_mode": "Low Performance Mode",

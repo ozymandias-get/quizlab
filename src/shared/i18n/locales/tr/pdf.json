@@ -31,5 +31,5 @@
   "pdf_quick_area_ai": "Alan Seç AI'ye Ekle",
   "pdf_selection_menu_label": "Seçim işlemleri",
   "pdf_add_to_draft": "Taslağa Ekle",
-  "pdf_draft_added": "Taslağa eklendi · {{count}} içerik"
+  "pdf_draft_added": "Taslağa eklendi · {count} içerik"
 }

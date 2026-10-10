@@ -8,7 +8,6 @@ import type {
   ResumePdfResult
 } from '@features/pdf/hooks/types'
 
-import { useAiSessionActions, useAiSessionUiPrefsState } from '@app/providers/ai-context'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
 import { memo, useEffect, useRef, useState } from 'react'
@@ -51,9 +50,7 @@ function PdfViewer({
   isInteractionBlocked = false,
   isPanelResizing = false
 }: PdfViewerProps) {
-  const { autoSend } = useAiSessionUiPrefsState()
-  const { toggleAutoSend } = useAiSessionActions()
-  const { startScreenshot, queueImageForAi } = useAppToolActions()
+  const { startScreenshot, offerFullPageCapture } = useAppToolActions()
   const { t: contextT } = useTranslation()
   const t = propT || contextT || ((k: string) => k)
 
@@ -112,10 +109,8 @@ function PdfViewer({
             initialPage={persistentInitialPage}
             onReadingProgressChange={onReadingProgressChange}
             isInteractionBlocked={isInteractionBlocked || !pdfFile}
-            autoSend={autoSend}
-            onToggleAutoSend={toggleAutoSend}
             startScreenshot={startScreenshot}
-            queueImageForAi={queueImageForAi}
+            onFullPageCapture={offerFullPageCapture}
             isPanelResizing={isPanelResizing}
           />
         </div>

@@ -68,8 +68,10 @@ interface BulkSendPipelineParams {
  * yapıştırılır, prompt yalnızca bir kez eklenir, tek submit yapılır.
  *
  * Magic Selector onarım mekanizması korunur (tek rapor, fire-and-forget).
- * Hazır olmadan submit yapılmaz: tüm yapıştırmalardan sonra tek
- * submit-ready beklemesi koşar (görsel sayısına göre ölçeklenir).
+ * Görseller arasında sabit bekleme yoktur: her yapıştırmadan sonra submit-ready
+ * betiği ile gerçek hazır olma doğrulaması yapılır, yalnızca alan hazırsa
+ * sıradaki ek yapıştırılır. Submit'ten önce de tek bir submit-ready beklemesi
+ * koşar (görsel sayısına göre ölçeklenir).
  */
 export async function executeBulkSendPipeline(
   params: BulkSendPipelineParams
@@ -230,9 +232,44 @@ export async function executeBulkSendPipeline(
           requestStartedAt
         )
       }
-      // Site asenkron işliyorsa bir sonraki yapıştırmadan önce kısa nefes.
+      // Site asenkron işliyorsa bir sonraki yapıştırmadan önce gerçek hazır
+      // olma doğrulaması: sabit milisaniye beklemiyoruz. Submit-ready betiği
+      // giriş alanının/butonun etkileşime hazır olduğunu DOM üzerinden doğrular
+      // (MutationObserver ile), böylece her ek gerçekten işlendikten sonra
+      // sıradaki yapıştırma yapılır.
       if (i < imageDataUrls.length - 1) {
-        await sleep(400)
+        const betweenPasteStep = await executePipelineStep<SendImageResult>({
+          name: 'Paste_ready',
+          content,
+          scheduledContent,
+          diagnostics,
+          requestStartedAt,
+          canUseContent,
+          generateScript: () =>
+            generateWaitForSubmitReadyScript({
+              config: toAutomationConfig(resolved.aiConfig),
+              options: {
+                timeoutMs: Math.max(2000, perImageWait),
+                settleMs: 300,
+                minimumWaitMs: 300
+              }
+            }),
+          onTiming: (ms) => {
+            diagnostics.timings.submitReadyScriptGenerationMs = ms
+          },
+          onExecuteTiming: (ms) => {
+            diagnostics.timings.submitReadyExecuteJavaScriptMs =
+              (diagnostics.timings.submitReadyExecuteJavaScriptMs ?? 0) + ms
+          },
+          onResult: () => {
+            // Ara adım: ek bir diagnostics alanı tutmaz.
+          }
+        })
+        if (!betweenPasteStep.success) {
+          // Yapıştırma sonrası alan hazır değil: kör bekleme yerine dur.
+          // Taslak korunur (caller), sessizce devam edilmez.
+          return betweenPasteStep.error
+        }
       }
     }
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)

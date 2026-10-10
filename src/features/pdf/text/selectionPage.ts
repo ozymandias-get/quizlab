@@ -94,47 +94,78 @@ export function findLastTextLineRect(pageNumber: number): DOMRect | null {
 /**
  * İkili menü konumu: seçimin bitişine yakın, ekran/PDF sınırlarına göre
  * ayarlı. Alt'ta yer yoksa üstte, sağda yoksa solda; PDF dışına taşmaz.
- * İçerik değişmedikçe yeniden konumlandırma yapılmamalı (caller memo'lar).
+ *
+ * Tek konumlandırma kararı: gerçek bitiş rect'i + menü ölçüsü + sınırlar
+ * girilir, çıkışta son konum döner. Çağıran bu değeri olduğu gibi kullanır;
+ * ikinci bir tahmin dönüşümü yapmaz.
  */
 export interface MenuAnchor {
   top: number
   left: number
 }
 
-const MENU_WIDTH = 240
-const MENU_HEIGHT = 48
 const MARGIN = 8
 
+/**
+ * Menünün gerçek DOM boyutları (PdfSelectionMenu sabit ölçülüdür).
+ * Konumlandırma bu ölçüyü kullanır; böylece kelepçeleme render edilen
+ * yüzeyle birebir aynı geometriyi hesaplar.
+ *
+ * Genişlik, iki eylemin de ikon + metin + iç boşlukla TAM sığdığı en küçük
+ * değerdir: "AI'ye Gönder" / "Taslağa Ekle" (TR) ve "Send to AI" / "Add to
+ * Draft" (EN) etiketleri 12px semibold ile ~82px ölçülür; iki düğme
+ * (20 ikon + 8 boşluk + 20 yatay dolgu + 82 metin) + ayırıcı + yüzey dolgusu
+ * ≈ 290px. Daha dar bir yüzey etiketleri üç nokta ile kırpıyordu (gerçek
+ * Electron'da ölçüldü: "AI'ye Gö…" / "Taslağa …").
+ */
+export const DEFAULT_SELECTION_MENU_SIZE = { width: 296, height: 44 } as const
+
+export interface MenuBounds {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
 export function computeSelectionMenuAnchor(
-  endRect: { top: number; bottom: number; left: number; right: number },
-  containerRect?: { top: number; bottom: number; left: number; right: number } | null
+  endRect: MenuBounds,
+  containerRect?: MenuBounds | null,
+  menuSize: { width: number; height: number } = DEFAULT_SELECTION_MENU_SIZE
 ): MenuAnchor {
   const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024
   const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768
 
-  const bounds = containerRect ?? { top: 0, bottom: viewportH, left: 0, right: viewportW }
+  const bounds: MenuBounds = containerRect ?? {
+    top: 0,
+    bottom: viewportH,
+    left: 0,
+    right: viewportW
+  }
+  const menuW = menuSize.width
+  const menuH = menuSize.height
 
-  // Varsayılan: bitiş rect'inin altında, ortalanmış.
+  // Sınırlar: PDF paneli varsa onun dikdörtgeni, yoksa viewport.
+  const boundsTop = Math.max(0, bounds.top)
+  const boundsBottom = Math.min(viewportH, bounds.bottom)
+
+  // Yatay: bitiş rect'inin ortası, menü genişliğinin yarısı kadar sola.
+  const endCenterX = (endRect.left + endRect.right) / 2
+  let left = endCenterX - menuW / 2
+
+  // Dikey: önce bitişin altını dene, yer yoksa üstüne al, o da olmazsa
+  // sınırların içine kelepçele.
+  const minTop = boundsTop + MARGIN
+  const maxTop = Math.max(minTop, boundsBottom - menuH - MARGIN)
   let top = endRect.bottom + MARGIN
-  let left = (endRect.left + endRect.right) / 2 - MENU_WIDTH / 2
-
-  // Alt'ta yer yoksa üste al.
-  const maxTop = Math.min(viewportH, bounds.bottom) - MENU_HEIGHT - MARGIN
-  if (top + MENU_HEIGHT > Math.min(viewportH, bounds.bottom) - MARGIN) {
-    const above = endRect.top - MENU_HEIGHT - MARGIN
-    if (above >= Math.max(0, bounds.top) + MARGIN) {
-      top = above
-    } else {
-      top = Math.max(Math.max(0, bounds.top) + MARGIN, maxTop)
-    }
+  if (top + menuH > boundsBottom - MARGIN) {
+    const above = endRect.top - menuH - MARGIN
+    top = above >= minTop ? above : maxTop
   }
-  if (top < Math.max(0, bounds.top) + MARGIN) {
-    top = Math.min(endRect.bottom + MARGIN, maxTop)
-  }
+  top = Math.min(Math.max(top, minTop), maxTop)
 
-  // Yatay taşmayı engelle.
+  // Yatay taşmayı engelle (viewport + PDF paneli sınırlarının kesişimi).
   const minLeft = Math.max(MARGIN, bounds.left + MARGIN)
-  const maxLeft = Math.min(viewportW - MENU_WIDTH - MARGIN, bounds.right - MENU_WIDTH - MARGIN)
+  const maxLeft = Math.min(viewportW - menuW - MARGIN, bounds.right - menuW - MARGIN)
   if (maxLeft >= minLeft) {
     if (left < minLeft) left = minLeft
     if (left > maxLeft) left = maxLeft

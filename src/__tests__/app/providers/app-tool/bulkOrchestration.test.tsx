@@ -40,27 +40,26 @@ describe('bulk orchestration (single message)', () => {
     vi.clearAllMocks()
   })
 
-  function buildHarness(initial: AiDraftItem[]) {
+  function buildHarness(initial: AiDraftItem[], providerId = 'chatgpt') {
     const sendTextToAI = vi.fn().mockResolvedValue({ success: true })
-    const sendImageToAI = vi.fn().mockResolvedValue({ success: true })
     const sendBulkToAI = vi.fn().mockResolvedValue({ success: true })
     const pendingAiItemsRef: { current: AiDraftItem[] } = { current: initial }
     const setPendingAiItems = vi.fn()
     const { result } = renderHook(() =>
       useDraftSendOrchestration({
         autoSend: true,
+        providerId,
         sendTextToAI,
-        sendImageToAI,
         sendBulkToAI,
         pendingAiItemsRef,
         setPendingAiItems
       })
     )
-    return { result, sendTextToAI, sendImageToAI, sendBulkToAI, setPendingAiItems }
+    return { result, sendTextToAI, sendBulkToAI, setPendingAiItems }
   }
 
   it('sends three images with a single bulk call and a single prompt', async () => {
-    const { result, sendBulkToAI, sendImageToAI } = buildHarness([
+    const { result, sendBulkToAI } = buildHarness([
       imageItem('i1', 11),
       imageItem('i2', 12),
       imageItem('i3', 13)
@@ -69,7 +68,6 @@ describe('bulk orchestration (single message)', () => {
       await result.current.sendPendingAiItems({ promptText: 'Özetle' })
     })
     expect(sendBulkToAI).toHaveBeenCalledTimes(1)
-    expect(sendImageToAI).not.toHaveBeenCalled()
     const [urls, opts] = sendBulkToAI.mock.calls[0]
     expect(urls).toHaveLength(3)
     // Prompt yalnızca bir kez.
@@ -105,6 +103,23 @@ describe('bulk orchestration (single message)', () => {
     expect(sendBulkToAI).toHaveBeenCalledTimes(1)
   })
 
+  it('never splits into multiple messages for an unsupported provider', async () => {
+    // Bilinmeyen/kullanıcı tanımlı sağlayıcı desteklenmiyor sayılır:
+    // gönderim reddedilir, taslak korunur, sessiz çoklu mesaj ÜRETİLMEZ.
+    const { result, sendBulkToAI, setPendingAiItems } = buildHarness(
+      [imageItem('i1', 11), imageItem('i2', 12)],
+      'my-custom-site'
+    )
+    let res: { success: boolean; error?: string } = { success: true }
+    await act(async () => {
+      res = (await result.current.sendPendingAiItems()) as typeof res
+    })
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('bulk_not_supported')
+    expect(sendBulkToAI).not.toHaveBeenCalled()
+    expect(setPendingAiItems).not.toHaveBeenCalled()
+  })
+
   it('guards double submit', async () => {
     const { result, sendBulkToAI } = buildHarness([imageItem('i1', 11)])
     let resolveFirst!: (v: { success: boolean }) => void
@@ -132,5 +147,25 @@ describe('bulk orchestration (single message)', () => {
       expect.anything(),
       expect.objectContaining({ autoSend: false })
     )
+  })
+
+  it('propagates a staged text result (auto-send off) instead of claiming delivery', async () => {
+    const { result, sendTextToAI } = buildHarness([textItem('t1', 'A', 11)], 'chatgpt')
+    sendTextToAI.mockResolvedValueOnce({ success: true, mode: 'staged' })
+    let res: { success: boolean; mode?: string } = { success: false }
+    await act(async () => {
+      res = (await result.current.sendPendingAiItems({ autoSend: false })) as typeof res
+    })
+    expect(res.success).toBe(true)
+    // Hazırlanan (staged) sonuç "gönderildi" (delivered) olarak dönmemeli.
+    expect(res.mode).toBe('staged')
+  })
+
+  it('single image needs no provider capability and sends as one message', async () => {
+    const { result, sendBulkToAI } = buildHarness([imageItem('i1', 11)], 'my-custom-site')
+    await act(async () => {
+      await result.current.sendPendingAiItems()
+    })
+    expect(sendBulkToAI).toHaveBeenCalledTimes(1)
   })
 })

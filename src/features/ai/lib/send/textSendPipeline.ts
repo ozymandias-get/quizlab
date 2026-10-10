@@ -124,6 +124,16 @@ export async function executeTextSendPipeline(
     configCache
   })
 
+  // Submit kapalıysa metin yalnızca alana yazıldı: `submitMode` (click /
+  // enter_key / mixed) gönderim *yapılandırmasını* tarif eder, sonucu değil.
+  // O değeri olduğu gibi döndürmek "teslim edildi" gibi okunur ve kullanıcı
+  // henüz göndermediği halde "Gönderildi" bildirimi gösterilir. Staged modu
+  // açıkça bildirilir; auto-send açıkken script'in bildirdiği submit modu
+  // korunur.
+  if (!effectiveAutoSend) {
+    return attachDiagnostics({ success: true, mode: 'staged' }, diagnostics, requestStartedAt)
+  }
+
   return attachDiagnostics(
     {
       success: true,

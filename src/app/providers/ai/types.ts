@@ -1,4 +1,4 @@
-import type { AiPlatform } from '@shared-core/types'
+import type { AiPlatform, SelectionPosition } from '@shared-core/types'
 import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { AiSendOptions, AiSendResult } from '@features/ai'
@@ -6,6 +6,12 @@ import type { AiSendOptions, AiSendResult } from '@features/ai'
 import type { Dispatch, SetStateAction } from 'react'
 
 export type { AiSendResult }
+
+// Tek kaynak: seçim konum tipi katmanlar arası bir sözleşmedir ve
+// @shared-core/types altında yaşar (bkz. shared/types/pdf.ts).
+export type { SelectionPosition }
+
+import type { PdfSourceMeta } from './pdfSource'
 
 export interface PinnedTabStorage {
   id: string
@@ -18,15 +24,6 @@ export interface Tab {
   modelId: string
   title?: string
   pinned?: boolean
-}
-
-import type { PdfSourceMeta } from './pdfSource'
-
-export interface SelectionPosition {
-  top: number
-  left: number
-  width?: number
-  height?: number
 }
 
 interface AiDraftTextItem {

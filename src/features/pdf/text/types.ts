@@ -1,9 +1,8 @@
-export interface SelectionPosition {
-  top: number
-  left: number
-  width?: number
-  height?: number
-}
+import type { SelectionPosition } from '@shared-core/types'
+
+// PDF özelliği tarafından üretilip app katmanında saklanan ortak sözleşme;
+// tanımı @shared-core/types'te yaşar (bkz. shared/types/pdf.ts).
+export type { SelectionPosition }
 
 /**
  * One positioned run of PDF text, measured from the DOM.

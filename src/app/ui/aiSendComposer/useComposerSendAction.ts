@@ -1,6 +1,6 @@
 import { isStagedSendResult } from '@features/ai'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { ComposerPayload, SendFeedback } from './types'
@@ -15,6 +15,9 @@ interface UseComposerSendActionOptions {
   setStoredExpanded: (value: boolean) => void
 }
 
+/** Sonuç bildiriminin görünür kalma süreleri. */
+const FEEDBACK_TIMEOUT_MS = { success: 1500, staged: 2500 } as const
+
 export function useComposerSendAction({
   isSubmitting,
   setIsSubmitting,
@@ -27,6 +30,24 @@ export function useComposerSendAction({
   const { t } = useTranslation()
   const [sendFeedback, setSendFeedback] = useState<SendFeedback>('idle')
   const [lastError, setLastError] = useState<string | null>(null)
+
+  // Tek zamanlayıcı, ref ile: üst üste gelen gönderimlerde eski zamanlayıcı
+  // yeni bildirimi silemez; unmount'ta sızar.
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const timerRef = feedbackTimerRef
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  const scheduleFeedbackReset = useCallback((afterMs: number) => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    feedbackTimerRef.current = setTimeout(() => {
+      feedbackTimerRef.current = null
+      setSendFeedback('idle')
+    }, afterMs)
+  }, [])
 
   const noteTextRef = useRef(noteText)
   noteTextRef.current = noteText
@@ -64,10 +85,16 @@ export function useComposerSendAction({
 
         if (succeeded && !staged) {
           setSendFeedback('success')
-          setTimeout(() => setSendFeedback('idle'), 1500)
+          scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.success)
         } else if (staged) {
-          setSendFeedback('idle')
+          // Hazırlandı durumu: gönderilmedi; kısa bilgi sonra dinlenir.
+          setSendFeedback('staged')
+          scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.staged)
         } else {
+          if (feedbackTimerRef.current) {
+            clearTimeout(feedbackTimerRef.current)
+            feedbackTimerRef.current = null
+          }
           setSendFeedback('error')
           const rawError =
             typeof result === 'object' && result && 'error' in result
@@ -80,6 +107,10 @@ export function useComposerSendAction({
           setStoredExpanded(true)
         }
       } catch {
+        if (feedbackTimerRef.current) {
+          clearTimeout(feedbackTimerRef.current)
+          feedbackTimerRef.current = null
+        }
         setSendFeedback('error')
         setLastError('unknown_error')
         setIsExpanded(true)
@@ -88,10 +119,22 @@ export function useComposerSendAction({
         setIsSubmitting(false)
       }
     },
-    [onSend, isSubmitting, setIsSubmitting, setIsExpanded, setStoredExpanded, t]
+    [
+      onSend,
+      isSubmitting,
+      setIsSubmitting,
+      setIsExpanded,
+      setStoredExpanded,
+      scheduleFeedbackReset,
+      t
+    ]
   )
 
   const handleRetry = useCallback(() => {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current)
+      feedbackTimerRef.current = null
+    }
     setSendFeedback('idle')
     setLastError(null)
   }, [])

@@ -29,6 +29,13 @@
  * its object URL revoked**, at each `await`. The stamp covers a document switch
  * (the URL must still match), a newer capture request, and unmount — so a render
  * that lands after the reader moved on cannot overwrite the current action state.
+ *
+ * ## The capture does not decide its destination
+ *
+ * A finished page capture is handed to `onFullPageCapture`, which parks it as a
+ * *pending* capture behind the binary choice menu (AI'ye Gönder | Taslağa
+ * Ekle). It is never written straight into the draft queue: the user decides,
+ * exactly like a text selection or an area crop.
  */
 import { useToastActions } from '@app/providers'
 import { buildPdfSourceMeta } from '@app/providers/ai/pdfSource'
@@ -66,7 +73,11 @@ interface UsePdfCaptureActionsOptions {
    * pressed the button and not with whatever is current when the render lands.
    */
   capturePageRef?: React.RefObject<number>
-  queueImageForAi: (dataUrl: string, imageMeta?: CaptureMeta) => void
+  /**
+   * Tamamlanan tam sayfa yakalaması buraya iletilir; karar (gönder / taslak)
+   * kullanıcıya bırakılır. Yakalama sonucu doğrudan kuyruğa yazılmaz.
+   */
+  onFullPageCapture: (imageUri: string, meta: CaptureMeta) => void
   startScreenshot: (imageMeta?: CaptureMeta) => void
   pdfUrl?: string | null
 }
@@ -76,7 +87,7 @@ export function usePdfCaptureActions({
   totalPages,
   pdfFile,
   capturePageRef,
-  queueImageForAi,
+  onFullPageCapture,
   startScreenshot,
   pdfUrl
 }: UsePdfCaptureActionsOptions) {
@@ -158,7 +169,7 @@ export function usePdfCaptureActions({
                 return
               }
               if (dataUrl.startsWith('data:image/')) {
-                queueImageForAi(dataUrl, buildFullPageMeta(pageAtCaptureTime))
+                onFullPageCapture(dataUrl, buildFullPageMeta(pageAtCaptureTime))
                 URL.revokeObjectURL(rendered.blobUrl)
                 return
               }
@@ -169,7 +180,7 @@ export function usePdfCaptureActions({
               URL.revokeObjectURL(rendered.blobUrl)
               return
             }
-            queueImageForAi(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
+            onFullPageCapture(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
             return
           } else {
             Logger.warn('[PdfCapture] renderPageToImageFallback returned null')
@@ -220,7 +231,7 @@ export function usePdfCaptureActions({
               return
             }
             if (rendered?.blobUrl) {
-              queueImageForAi(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
+              onFullPageCapture(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
               return
             }
           } catch {}
@@ -258,7 +269,7 @@ export function usePdfCaptureActions({
         const quality = isLarge ? 0.95 : undefined
         const dataUrl = targetCanvas.toDataURL(mime, quality as unknown as number)
         if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl !== 'data:,') {
-          queueImageForAi(dataUrl, buildFullPageMeta(pageAtCaptureTime))
+          onFullPageCapture(dataUrl, buildFullPageMeta(pageAtCaptureTime))
           queued = true
         }
       } catch {}
@@ -277,12 +288,12 @@ export function usePdfCaptureActions({
           URL.revokeObjectURL(result.blobUrl)
           return
         }
-        queueImageForAi(result.blobUrl, buildFullPageMeta(pageAtCaptureTime))
+        onFullPageCapture(result.blobUrl, buildFullPageMeta(pageAtCaptureTime))
       }
     } catch {
       if (isCurrentCapture()) showError('toast_capture_failed')
     }
-  }, [queueImageForAi, showError, buildFullPageMeta])
+  }, [onFullPageCapture, showError, buildFullPageMeta])
 
   const handleAreaScreenshot = useCallback(() => {
     const page = currentPageRef.current

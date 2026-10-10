@@ -85,7 +85,7 @@
   "select_pdf": "PDF Dosyası Seç",
   "select_pdf_hint": "ile de açabilirsin",
   "sent_successfully": "Başarıyla gönderildi!",
-  "draft_queue_full": "AI kuyruğu dolu. En eski taslak kaldırıldı.",
+  "draft_queue_full": "AI taslağı dolu (en fazla 20 öğe). Yeni içerik eklenmedi; mevcut öğeleri silerek devam edebilirsiniz.",
   "settings": "Ayarlar",
   "settings_title": "Ayarlar",
   "performance_mode": "Düşük Performans Modu",

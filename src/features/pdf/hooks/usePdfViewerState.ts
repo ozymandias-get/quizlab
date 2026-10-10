@@ -52,7 +52,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     onReadingProgressChange,
     isInteractionBlocked,
     startScreenshot,
-    queueImageForAi,
+    onFullPageCapture,
     isPanelResizing = false
   } = props
 
@@ -122,6 +122,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     pdfFile,
     currentPage,
     totalPages: nativeViewer.totalPages,
+    zoomToken: nativeViewer.scale,
     onTextSelection
   })
 
@@ -130,7 +131,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     totalPages: nativeViewer.totalPages,
     pdfFile,
     capturePageRef: props.capturePageRef,
-    queueImageForAi,
+    onFullPageCapture,
     startScreenshot,
     pdfUrl
   })

@@ -57,7 +57,7 @@ export {
 } from './hooks/useReadingProgressPersistence'
 export { useShellOpenPdf } from './hooks/useShellOpenPdf'
 export { usePdfTabStore } from './store/usePdfTabStore'
-export { computeSelectionMenuAnchor } from './text/selectionPage'
+export { computeSelectionMenuAnchor, findLastTextLineRect } from './text/selectionPage'
 export type { ReadingProgressUpdate, ResumePdfResult } from './types'
 export { AI_DRAFT_SLOT_ID } from './ui/components/PdfDraftSlot'
 export type { SelectionMenuFeedback } from './ui/components/PdfSelectionMenu'

@@ -19,6 +19,7 @@
   "error_empty_text": "Text to send is empty.",
   "error_invalid_name": "Invalid folder name",
   "error_paste_failed": "Failed to paste image",
+  "error_paste_ready_failed": "The AI field did not become ready between image attachments. Wait a moment and try again.",
   "error_pdf_access": "Cannot access file",
   "error_pdf_handler": "PDF Processor Error",
   "error_pdf_load": "Failed to load PDF. Please try again.",
@@ -69,5 +70,6 @@
   "error_name_too_short": "Name is too short",
   "error_url_required": "URL is required",
   "error_url_protocol": "Only http(s) URLs are allowed",
-  "error_url_invalid": "Invalid URL"
+  "error_url_invalid": "Invalid URL",
+  "error_bulk_not_supported": "This provider does not support multiple images in one message. The draft was kept; remove items to send them one at a time."
 }

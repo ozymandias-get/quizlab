@@ -12,7 +12,7 @@ const FocusOverlay = lazy(() => import('@app/ui/FocusOverlay'))
 const ScreenshotTool = lazy(() =>
   import('@features/screenshot/tool').then((m) => ({ default: m.ScreenshotTool }))
 )
-const AreaImageChoiceMenu = lazy(() => import('@app/ui/AreaImageChoiceMenu'))
+const CaptureChoiceMenu = lazy(() => import('@app/ui/CaptureChoiceMenu'))
 const UpdateBanner = lazy(() => import('@app/components/UpdateBanner'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const AiDraftLayer = lazy(() =>
@@ -184,7 +184,7 @@ function App() {
         </Suspense>
 
         <Suspense fallback={null}>
-          <AreaImageChoiceMenu />
+          <CaptureChoiceMenu />
         </Suspense>
 
         <Suspense fallback={null}>
