@@ -15,7 +15,9 @@ import {
   inferSendLikeControl,
   isElementContentEditable,
   normalizeText,
-  pushCandidate
+  pickVerifiedPrimary,
+  pushCandidate,
+  safeMatchesSelector
 } from './dom/pickerDomRuntime.js'
 
 /**
@@ -47,6 +49,11 @@ export function buildInjectedPickerDomHelpers(): string {
     buildLocalPath,
     buildHostChain,
     buildCssCandidates,
+    // Verification helpers must precede generateLocatorBundle: the emitted
+    // script defines each helper as a const from fn.toString(), so every
+    // name referenced inside generateLocatorBundle has to be emitted.
+    safeMatchesSelector,
+    pickVerifiedPrimary,
     inferSendLikeControl,
     getElementInfo,
     generateLocatorBundle
