@@ -45,7 +45,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div
         ref={containerRef}
-        data-tour-id="tour-target-pdf-viewer"
         className={`pdf-viewer-container relative flex h-full min-h-0 flex-1 flex-col overflow-hidden scrollbar-gutter-stable${
           isPanMode ? 'pdf-pan-mode-active' : ''
         }${isPanDragging ? 'pdf-pan-mode-dragging' : ''}`}

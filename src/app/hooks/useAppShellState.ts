@@ -1,5 +1,3 @@
-import { useTutorialStore } from '@features/tutorial'
-
 import { useAppearance, useUpdate } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useAiSurfaceMount, usePanelResize } from '@shared/hooks'
@@ -24,12 +22,6 @@ export function useAppShellState() {
         toggleFocusMode: s.toggleFocusMode
       }))
     )
-  const { activeTutorialId, closeTutorial } = useTutorialStore(
-    useShallow((s) => ({
-      activeTutorialId: s.activeTutorialId,
-      closeTutorial: s.closeTutorial
-    }))
-  )
   const [isBarHovered, setIsBarHovered] = useState(false)
   const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
 
@@ -69,14 +61,6 @@ export function useAppShellState() {
     [isUpdateBannerVisible, closeUpdateBanner]
   )
 
-  const tour = useMemo(
-    () => ({
-      isActive: !!activeTutorialId,
-      close: closeTutorial
-    }),
-    [activeTutorialId, closeTutorial]
-  )
-
   const focus = useMemo(
     () => ({
       mode: focusMode,
@@ -96,7 +80,6 @@ export function useAppShellState() {
       panelResize,
       workspaceState,
       updateBanner,
-      tour,
       focus
     }),
     [
@@ -108,7 +91,6 @@ export function useAppShellState() {
       panelResize,
       workspaceState,
       updateBanner,
-      tour,
       focus
     ]
   )

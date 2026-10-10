@@ -26,7 +26,7 @@ const depcruiseConfig = require('../../../.dependency-cruiser.cjs') as {
   forbidden: Array<{ name: string; from?: { pathNot?: string } }>
 }
 
-const FEATURE_DIRS = ['ai', 'pdf', 'settings', 'tutorial', 'screenshot', 'automation', 'onboarding']
+const FEATURE_DIRS = ['ai', 'pdf', 'settings', 'screenshot', 'automation', 'onboarding']
 
 /**
  * Loading the flat config pulls in every ESLint plugin, which is slow enough

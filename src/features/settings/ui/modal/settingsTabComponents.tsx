@@ -4,18 +4,13 @@ import { useSettings } from '../../hooks/useSettings'
 import type { SettingsContext, SettingsTabId } from './settingsTabDefinitions'
 
 const SelectorsTab = lazy(() => import('../SelectorsTab'))
-const TutorialCenterTab = lazy(() => import('../TutorialCenterTab'))
 const AboutTab = lazy(() => import('../AboutTab'))
 
 const SelectorsTabWrapper = memo(function SelectorsTabWrapper({ onClose }: SettingsContext) {
   return <SelectorsTab onCloseSettings={onClose} />
 })
 
-const TutorialTabWrapper = memo(function TutorialTabWrapper({ onClose }: SettingsContext) {
-  return <TutorialCenterTab onCloseSettings={onClose} />
-})
-
-const AboutTabWrapper = memo(function AboutTabWrapper({ onClose }: SettingsContext) {
+const AboutTabWrapper = memo(function AboutTabWrapper() {
   const settings = useSettings()
   return (
     <AboutTab
@@ -24,7 +19,6 @@ const AboutTabWrapper = memo(function AboutTabWrapper({ onClose }: SettingsConte
       updateInfo={settings.updateInfo}
       checkForUpdates={settings.checkForUpdates}
       openReleasesPage={settings.openReleasesPage}
-      onClose={onClose}
     />
   )
 })
@@ -54,7 +48,6 @@ export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<Settin
   appearance: AppearanceTab,
   'bottom-bar': BottomBarSettingsTab,
   language: LanguageTab,
-  tutorial: TutorialTabWrapper,
   about: AboutTabWrapper,
   'api-chat': ApiChatTab,
   storage: StorageTab

@@ -32,12 +32,6 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiViewRequestNonce: () => 0
 }))
 vi.mock('@features/screenshot/tool', () => ({ ScreenshotTool: () => null }))
-vi.mock('@features/tutorial', () => ({
-  TutorialOverlay: () => null,
-  useTutorialStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({ activeTutorialId: null, closeTutorial: vi.fn() }),
-  getTutorialEntry: () => null
-}))
 vi.mock('@app/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
 vi.mock('@app/hooks/useCacheThresholdWarning', () => ({
@@ -75,8 +69,6 @@ vi.mock('@app/providers', () => ({
   useAppToolQueueState: () => ({}),
   useAppToolScreenshotState: () => ({})
 }))
-vi.mock('@features/tutorial/store/tutorialStore', () => ({ useTutorialStore: () => ({}) }))
-vi.mock('@features/tutorial/tutorialRegistry', () => ({ getTutorialEntry: () => null }))
 vi.mock('@app/components/Toast/ToastContainer', () => ({ default: () => null }))
 vi.mock('@app/ui/AppBackground', () => ({ default: () => null }))
 vi.mock('@app/ui/BottomBar', () => ({ default: () => null }))

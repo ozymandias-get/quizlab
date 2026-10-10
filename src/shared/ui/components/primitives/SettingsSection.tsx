@@ -13,10 +13,8 @@ interface SettingsSectionProps {
  * Canonical titled section card for a settings tab. Replaces the per-tab
  * hand-rolled "icon + title + detail inside a bordered card" blocks.
  *
- * Lives in shared primitives rather than the settings feature because the
- * tutorial center renders the same surface. Importing it from
- * `@features/settings` would close a cycle (settings → app providers → app
- * effects → tutorial → settings).
+ * Lives in shared primitives rather than the settings feature so settings
+ * tabs can share one surface without duplicating the recipe.
  *
  * Matches the section surface used by the AI home screen and the PDF
  * placeholder: translucent card, neutral icon chip, hairline-free but with a

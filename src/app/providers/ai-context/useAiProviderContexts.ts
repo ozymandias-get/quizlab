@@ -37,7 +37,6 @@ interface UseAiProviderContextsParams {
   enabledModels: string[]
   defaultAiModel: string
   autoSend: boolean
-  isTutorialActive: boolean
   getContentController: (tabId?: string) => AiContentController | null
   hasActiveContent: boolean
   addTab: (modelId: string) => void
@@ -51,8 +50,6 @@ interface UseAiProviderContextsParams {
   setDefaultAiModel: (model: string) => void
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
-  startTutorial: () => void
-  stopTutorial: () => void
   registerContent: (id: string, instance: AiContentController | null) => void
   reloadActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
@@ -72,7 +69,6 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     enabledModels,
     defaultAiModel,
     autoSend,
-    isTutorialActive,
     getContentController,
     hasActiveContent,
     addTab,
@@ -86,8 +82,6 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     setDefaultAiModel,
     setAutoSend,
     toggleAutoSend,
-    startTutorial,
-    stopTutorial,
     registerContent,
     reloadActiveContent,
     sendTextToAI,
@@ -120,8 +114,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
   )
 
   const sessionUiPrefsSliceValue = useMemo<AiSessionUiPrefsSliceState>(
-    () => ({ autoSend, isTutorialActive }),
-    [autoSend, isTutorialActive]
+    () => ({ autoSend }),
+    [autoSend]
   )
 
   const contentValue = useMemo<AiContentState>(
@@ -146,9 +140,7 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       setEnabledModels,
       setDefaultAiModel,
       setAutoSend,
-      toggleAutoSend,
-      startTutorial,
-      stopTutorial
+      toggleAutoSend
     }),
     [
       addTab,
@@ -161,9 +153,7 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       setEnabledModels,
       setDefaultAiModel,
       setAutoSend,
-      toggleAutoSend,
-      startTutorial,
-      stopTutorial
+      toggleAutoSend
     ]
   )
 
@@ -185,8 +175,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
   )
 
   const sessionActionsValue = useMemo<AiSessionActions>(
-    () => ({ setAutoSend, toggleAutoSend, startTutorial, stopTutorial }),
-    [setAutoSend, toggleAutoSend, startTutorial, stopTutorial]
+    () => ({ setAutoSend, toggleAutoSend }),
+    [setAutoSend, toggleAutoSend]
   )
 
   const contentHostActionsValue = useMemo<AiContentHostActions>(

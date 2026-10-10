@@ -12,9 +12,3 @@ export const OVERLAY_FOCUS_TRANSFER_MS = 80
 
 /** Defer before focusing a search input revealed by a toggle. */
 export const SEARCH_INPUT_FOCUS_MS = 100
-
-/**
- * Wait for a dialog/tab to finish its exit transition before triggering a
- * follow-up action (e.g. starting a tutorial behind closed settings).
- */
-export const MODAL_EXIT_TRANSITION_MS = 300

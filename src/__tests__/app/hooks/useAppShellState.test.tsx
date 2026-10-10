@@ -1,7 +1,7 @@
 /**
  * Tests for src/app/hooks/useAppShellState.ts
  *
- * Top-level shell state hook composing appearance, tutorial, panel resize,
+ * Top-level shell state hook composing appearance, panel resize,
  * focus mode, animations, and content mount.  All deps are mocked.
  */
 import { act, renderHook } from '@testing-library/react'
@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // --- Mocks ---
 const mockSetFocusMode = vi.fn()
 const mockToggleFocusMode = vi.fn()
-const mockCloseTutorial = vi.fn()
 
 vi.mock('@app/providers', () => ({
   useAppearance: (selector: (s: any) => any) =>
@@ -36,14 +35,6 @@ vi.mock('@shared/hooks', () => ({
     stopResizing: vi.fn()
   }),
   useAiSurfaceMount: () => true
-}))
-
-vi.mock('@features/tutorial/store/tutorialStore', () => ({
-  useTutorialStore: (selector: (s: any) => any) =>
-    selector({
-      activeTutorialId: null,
-      closeTutorial: mockCloseTutorial
-    })
 }))
 
 vi.mock('@app/hooks/useAppAnimations', () => ({
@@ -104,21 +95,6 @@ describe('useAppShellState', () => {
         result.current.updateBanner.close()
       })
       expect(result.current.updateBanner.isVisible).toBe(false)
-    })
-  })
-
-  describe('tour', () => {
-    it('is not active by default', () => {
-      const { result } = renderHook(() => useAppShellState())
-      expect(result.current.tour.isActive).toBe(false)
-    })
-
-    it('close calls closeTutorial', () => {
-      const { result } = renderHook(() => useAppShellState())
-      act(() => {
-        result.current.tour.close()
-      })
-      expect(mockCloseTutorial).toHaveBeenCalled()
     })
   })
 

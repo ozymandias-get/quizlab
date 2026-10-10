@@ -1,15 +1,10 @@
-import { useTutorialStore } from '@features/tutorial'
-
-import { getStorageItem, removeStorageItem } from '@shared/hooks/localStorageUtils'
+import { removeStorageItem } from '@shared/hooks/localStorageUtils'
 import { hexToRgba } from '@shared/lib/uiUtils'
 import { useAppearance } from '@shared/stores/appearanceStore'
 import { DEFAULT_LANGUAGE, LANGUAGES, useLanguage } from '@shared/stores/languageStore'
 
 import i18next from 'i18next'
 import { useEffect } from 'react'
-import { useShallow } from 'zustand/react/shallow'
-
-const ONBOARDING_STORAGE_KEY = 'has_seen_tour_v1'
 
 function applySelectionColorTheme(color: string) {
   const root = document.documentElement
@@ -40,13 +35,6 @@ function pauseAmbientAnimations(paused: boolean) {
 function AppEffects() {
   const language = useLanguage((state) => state.language)
   const selectionColor = useAppearance((state) => state.selectionColor)
-  const { onboardingDone, startTutorial, markOnboardingDone } = useTutorialStore(
-    useShallow((s) => ({
-      onboardingDone: s.onboardingDone,
-      startTutorial: s.startTutorial,
-      markOnboardingDone: s.markOnboardingDone
-    }))
-  )
 
   useEffect(() => {
     const root = document.documentElement
@@ -80,29 +68,19 @@ function AppEffects() {
     applySelectionColorTheme(selectionColor)
   }, [selectionColor])
 
-  useEffect(() => {
-    const legacySeen = getStorageItem(ONBOARDING_STORAGE_KEY)
-
-    if (!onboardingDone && !legacySeen) {
-      const timer = setTimeout(() => {
-        startTutorial('general')
-        markOnboardingDone()
-      }, 1500)
-      return () => clearTimeout(timer)
-    }
-
-    if (legacySeen && !onboardingDone) {
-      markOnboardingDone()
-      // best-effort cleanup of the legacy key
-      removeStorageItem(ONBOARDING_STORAGE_KEY)
-    }
-  }, [onboardingDone, startTutorial, markOnboardingDone])
-
   // Remove legacy keys from removed experiments/features. `ocr-storage` is
   // left behind on disks that ran a version with the local OCR integration.
+  // The tutorial keys below belong to the removed usage-guide system
+  // (`tutorial-storage` zustand persist, `has_seen_tour_v1` auto-tour flag and
+  // two reserved keys that were never written). Removing them is idempotent
+  // and touches nothing else the user has stored.
   useEffect(() => {
     removeStorageItem('useCustomPdfEngine')
     removeStorageItem('ocr-storage')
+    removeStorageItem('has_seen_tour_v1')
+    removeStorageItem('tutorial-storage')
+    removeStorageItem('tutorial-completion')
+    removeStorageItem('tutorial-onboarding-done')
   }, [])
 
   useEffect(() => {

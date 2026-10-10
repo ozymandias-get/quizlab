@@ -78,7 +78,6 @@ export default memo(function SettingsModalContent({
   return (
     <main
       id={SETTINGS_MODAL_MAIN_PANEL_ID}
-      data-tour-id="tour-target-settings-modal"
       className="flex min-w-0 flex-1 flex-col overflow-hidden"
     >
       <ScrollArea className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10">

@@ -49,8 +49,9 @@ authoritative sources for the strings themselves are
   replaced after destruction. State and events from older generations are ignored.
 
 Electron `WebContents` and guest page remain valid technical terms. Legacy
-automation error codes, stored `webviewUrl` fields and tutorial target ids are
-compatibility values; their spelling does not describe the active embedding API.
+automation error codes and stored `webviewUrl` fields are compatibility values;
+their spelling does not describe the active embedding API. Dock tool ids keep
+their `tour-target-*` spelling because they are persisted user preferences.
 
 ## Naming rules
 

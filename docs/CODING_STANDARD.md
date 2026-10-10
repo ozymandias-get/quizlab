@@ -351,7 +351,7 @@ Alan özelinde mock'lar testin kendi yanında tutulur; örnekler için
 - Uzak içerik yalnızca ana süreçte oluşturulan güvenli `WebContentsView` içinde çalışır; `webviewTag: false` korunur. Renderer `AiContentController` ve tipli IPC kullanır, bölüm veya WebContents kimliği seçmez.
 - Host unmount yalnızca detach eder; sekme kapanması, LRU çıkarma ve uyku destroy eder. Yeni generation ilk yükleme durumunu sıfırlar.
 - Her IPC handler `requireTrustedIpcSender(event)` ile başlar.
-- Kullanıcıdan gelen HTML/metin render edilmeden önce `sanitize*` veya `DOMPurify` benzeri geçitten geçirilir (`tutorial` HTML ipuçları gibi).
+- Kullanıcıdan gelen HTML/metin render edilmeden önce `sanitize*` veya `DOMPurify` benzeri geçitten geçirilir.
 - API anahtarları kod içinde, logda, versiyon kontrolünde **olmaz**; IPC üzerinden main süreçte tutulur, renderer'a geri dönmez.
 - Dependency audit: `npm run check:audit` her PR'da temizdir. Kargo ağacı `npm ls --omit=dev` ile belirlenir; dev araçları (eslint, stryker, electron-builder) gate'e girmez.
 - Kabul edilmiş **production advisory istisnası yoktur**; `security/audit-exceptions.json` boştur. Geçmişte tek istisna `pdfjs-dist` içindeki CVE-2024-4367 / GHSA-wgrm-67xf-hhpq idi ve PDF.js göçünde, kurulu sürüm etkilenen aralığın (`<=4.1.392`) dışına çıktığı için **silindi** (yeniden tarihlenmedi — istisnanın advisory'si artık raporlanmadığı için kendisi de gate'i kırar). Checker; advisory id, kurulu sürüm, son kullanma tarihi ve "artık raporlanmıyor" durumlarında ayrı ayrı başarısız olur, böylece istisna gerekçesiz yaşayamaz.

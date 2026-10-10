@@ -4,10 +4,7 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
-import { useTutorialStore } from '@features/tutorial'
-
 import type { UpdateInfo } from '@app/providers'
-import { MODAL_EXIT_TRANSITION_MS } from '@shared/constants/timingConstants'
 import { formatBytes } from '@shared/lib/formatUtils'
 import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { InfoIcon } from '@ui/components/Icons'
@@ -28,21 +25,12 @@ interface AboutTabProps {
   updateInfo: UpdateInfo | null
   checkForUpdates: () => Promise<void>
   openReleasesPage: () => Promise<void>
-  onClose: () => void
 }
 
 const AboutTab = memo(
-  ({
-    appVersion,
-    updateStatus,
-    updateInfo,
-    checkForUpdates,
-    openReleasesPage,
-    onClose
-  }: AboutTabProps) => {
+  ({ appVersion, updateStatus, updateInfo, checkForUpdates, openReleasesPage }: AboutTabProps) => {
     const { t, i18n } = useTranslation()
     const language = i18n.language
-    const startTutorial = useTutorialStore((s) => s.startTutorial)
 
     const {
       mutate: clearCache,
@@ -52,11 +40,6 @@ const AboutTab = memo(
     } = useClearCache()
     const { mutate: deepCleanCache, isPending: isDeepCleaning } = useDeepCleanCache()
     const { data: cacheInfo } = useCacheInfo()
-
-    const handleStartTour = useCallback(() => {
-      if (onClose) onClose()
-      window.setTimeout(() => startTutorial('general'), MODAL_EXIT_TRANSITION_MS)
-    }, [onClose, startTutorial])
 
     const handleClearCache = useCallback(() => {
       clearCache()
@@ -90,7 +73,6 @@ const AboutTab = memo(
             updateStatus={updateStatus}
             updateInfo={updateInfo}
             t={t}
-            handleStartTour={handleStartTour}
             checkForUpdates={checkForUpdates}
             openReleasesPage={openReleasesPage}
           />

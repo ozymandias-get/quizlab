@@ -35,7 +35,6 @@ function AiProvider({ children }: { children: ReactNode }) {
   const { showSuccess, showWarning } = useToastActions()
   const { data: registryData, isLoading, isError } = useAiRegistry()
   const { data: geminiWebStatus } = useGeminiWebStatus()
-  const [isTutorialActive, setIsTutorialActive] = useState(false)
   const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
 
   const {
@@ -143,14 +142,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     getContentController()?.reload?.()
   }, [getContentController])
 
-  const startTutorial = useCallback(() => {
-    setIsTutorialActive(true)
-  }, [])
-
-  const stopTutorial = useCallback(() => {
-    setIsTutorialActive(false)
-  }, [])
-
   const contextValues = useAiProviderContexts({
     tabs,
     activeTabId,
@@ -162,7 +153,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     enabledModels,
     defaultAiModel,
     autoSend,
-    isTutorialActive,
     getContentController,
     hasActiveContent,
     addTab,
@@ -176,8 +166,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     setDefaultAiModel,
     setAutoSend,
     toggleAutoSend,
-    startTutorial,
-    stopTutorial,
     registerContent,
     reloadActiveContent,
     sendTextToAI,

@@ -88,7 +88,6 @@ function MainWorkspace({
         ref={leftPanelRef}
         variants={leftPanelVariants}
         className="h-full will-change-transform"
-        data-tour-id="tour-target-left-panel"
         style={{
           transform: 'translateZ(0)',
           width: `${leftPanelWidth}%`,
@@ -123,7 +122,6 @@ function MainWorkspace({
       <motion.div
         variants={rightPanelVariants}
         className="relative flex min-w-[280px] flex-1 flex-col will-change-transform sm:min-w-[320px] lg:min-w-[350px]"
-        data-tour-id="tour-target-right-panel"
         style={{ transform: 'translateZ(0)' }}
       >
         <Suspense fallback={<AestheticLoader />}>

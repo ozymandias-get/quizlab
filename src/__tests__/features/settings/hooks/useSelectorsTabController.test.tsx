@@ -8,7 +8,6 @@ const mocked = vi.hoisted(() => ({
   currentAI: 'gemini',
   contentController: { executeJavaScript: vi.fn() as any },
   aiSites: { gemini: { isSite: false, name: 'Gemini' } },
-  startTutorial: vi.fn(),
   openAiWorkspace: vi.fn(),
   startPickerWhenReady: vi.fn(),
   showError: vi.fn(),
@@ -35,9 +34,6 @@ vi.mock('@app/providers', () => ({
 vi.mock('@app/providers/ai-context', () => ({
   useAiTabActions: () => ({
     openAiWorkspace: mocked.openAiWorkspace
-  }),
-  useAiSessionActions: () => ({
-    startTutorial: mocked.startTutorial
   }),
   useAiSites: () => mocked.aiSites,
   useAiTabsList: () => ({ tabs: mocked.tabs }),

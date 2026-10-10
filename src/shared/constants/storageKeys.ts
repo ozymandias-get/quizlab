@@ -16,7 +16,5 @@ export const STORAGE_KEYS = {
   AI_NEVER_SLEEP_SITES: 'aiNeverSleepSites',
   TEXT_INPUT_MODE: 'textInputMode',
   TYPING_SPEED: 'typingSpeed',
-  TUTORIAL_COMPLETION: 'tutorial-completion',
-  TUTORIAL_ONBOARDING_DONE: 'tutorial-onboarding-done',
   QUICK_AI_PRESETS: 'quickAiPresets'
 } as const

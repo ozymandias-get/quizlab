@@ -1,12 +1,6 @@
 import type { UpdateInfo } from '@app/providers'
-import {
-  Button,
-  SettingsSection,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '@shared/ui/components/primitives'
-import { DownloadIcon, InfoIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
+import { Button, SettingsSection } from '@shared/ui/components/primitives'
+import { DownloadIcon, LoaderIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { memo, type ReactNode } from 'react'
@@ -142,7 +136,6 @@ interface UpdatesCardProps {
   updateStatus: UpdateStatus
   updateInfo: UpdateInfo | null
   t: (key: string) => string
-  handleStartTour: () => void
   checkForUpdates: () => Promise<void>
   openReleasesPage: () => Promise<void>
 }
@@ -150,14 +143,7 @@ interface UpdatesCardProps {
 const SHOW_CHECK_BUTTON_STATUSES: UpdateStatus[] = ['idle', 'error', 'latest', 'checking']
 
 const UpdatesCard = memo(
-  ({
-    updateStatus,
-    updateInfo,
-    t,
-    handleStartTour,
-    checkForUpdates,
-    openReleasesPage
-  }: UpdatesCardProps) => {
+  ({ updateStatus, updateInfo, t, checkForUpdates, openReleasesPage }: UpdatesCardProps) => {
     const showCheckForUpdatesButton = SHOW_CHECK_BUTTON_STATUSES.includes(updateStatus)
     const showDownloadButton = updateStatus === 'available'
 
@@ -184,19 +170,6 @@ const UpdatesCard = memo(
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Tooltip>
-            <TooltipTrigger>
-              <UpdatesActionButton
-                onClick={handleStartTour}
-                tone="accent"
-                icon={<InfoIcon className="h-4 w-4" strokeWidth={2} />}
-              >
-                {t('usage_assistant_start')}
-              </UpdatesActionButton>
-            </TooltipTrigger>
-            <TooltipContent>{t('usage_assistant_tooltip')}</TooltipContent>
-          </Tooltip>
-
           {showCheckForUpdatesButton && (
             <UpdatesActionButton
               onClick={checkForUpdates}

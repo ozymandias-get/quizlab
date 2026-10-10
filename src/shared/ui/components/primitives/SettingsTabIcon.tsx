@@ -10,10 +10,6 @@ interface SettingsTabIconProps {
  * own copy of this tile, which is how the surface drifted. Mirrors the hero
  * chip recipe used by the PDF placeholder: neutral-tinted tile, 1px border,
  * soft radius, `aria-hidden` because the adjacent heading carries the meaning.
- *
- * Shared rather than settings-owned for the same reason as `SettingsSection`:
- * the tutorial center reuses it, and a cross-feature barrel import would
- * reintroduce the settings ↔ tutorial cycle.
  */
 function SettingsTabIcon({ children, className = '' }: SettingsTabIconProps) {
   return (
