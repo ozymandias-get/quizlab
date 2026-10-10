@@ -240,7 +240,7 @@ describe('PdfViewerDocument renderer wiring', () => {
   it('keeps the toolbar out of the viewer area the page is centered inside', () => {
     renderDocument()
 
-    const viewerArea = document.querySelector('[data-tour-id="tour-target-pdf-viewer"]')
+    const viewerArea = document.querySelector('.pdf-viewer-container')
     const toolbar = screen.getByTestId('pdf-toolbar')
 
     // Vertical centering happens inside the page viewport, which fills this container.

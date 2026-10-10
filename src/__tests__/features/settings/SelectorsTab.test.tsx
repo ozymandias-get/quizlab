@@ -17,7 +17,6 @@ const {
   mockShowSuccess,
   mockShowWarning,
   mockStartPickerWhenReady,
-  mockStartTutorial,
   mockContent,
   selectorsData
 } = vi.hoisted(() => ({
@@ -55,7 +54,6 @@ const {
   mockShowSuccess: vi.fn(),
   mockShowWarning: vi.fn(),
   mockStartPickerWhenReady: vi.fn(),
-  mockStartTutorial: vi.fn(),
   mockContent: {
     executeJavaScript: vi.fn()
   },
@@ -98,9 +96,6 @@ vi.mock('@app/providers/ai-context', () => ({
   }),
   useAiTabActions: () => ({
     openAiWorkspace: mockOpenAiWorkspace
-  }),
-  useAiSessionActions: () => ({
-    startTutorial: mockStartTutorial
   }),
   useAiContent: () => ({
     getContentController: () => mockContent
@@ -186,17 +181,6 @@ describe('SelectorsTab', () => {
         button: { strategy: 'direct', matchedSelector: '#send', requestedSelector: '#send' }
       }
     })
-  })
-
-  it('starts the tutorial and closes settings from the CTA card', () => {
-    const onCloseSettings = vi.fn()
-
-    render(<SelectorsTab onCloseSettings={onCloseSettings} />)
-
-    fireEvent.click(screen.getByText('tutorial_button_title'))
-
-    expect(mockStartTutorial).toHaveBeenCalledTimes(1)
-    expect(onCloseSettings).toHaveBeenCalledTimes(1)
   })
 
   it('renders advanced selector controls and validates the current tab', async () => {

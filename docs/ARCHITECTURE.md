@@ -24,7 +24,7 @@ tab.
 | Component               | Lives in                        | Responsibility                                                                                                                |
 | ----------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Renderer shell          | `src/app/`                      | Composition root: `main.tsx` bootstrap, `App.tsx`, providers, effects, the floating send composer, focus overlay              |
-| Renderer features       | `src/features/`                 | `ai`, `automation`, `onboarding`, `pdf`, `screenshot`, `settings`, `tutorial` — one barrel per feature                        |
+| Renderer features       | `src/features/`                 | `ai`, `automation`, `onboarding`, `pdf`, `screenshot`, `settings` — one barrel per feature                                    |
 | Renderer shared layer   | `src/shared/`                   | UI primitives, hooks, i18n, styles, Zustand stores, TanStack Query keys, `logger`                                             |
 | Platform adapters       | `src/platform/electron/`        | The only renderer code that talks to `window.electronAPI`; browser fallback for `dev:web`                                     |
 | Cross-process contracts | `shared/`                       | IPC channel names, the invoke/event contract, shared domain types, selector-repair policy — no Electron, no DOM               |
@@ -64,7 +64,7 @@ Two design points that shape everything below:
 its own — it exists so UI primitives get their own import-sort group.
 
 The feature set is fixed by `FEATURE_NAMES` in `.dependency-cruiser.cjs:15`:
-`ai`, `automation`, `onboarding`, `pdf`, `screenshot`, `settings`, `tutorial`.
+`ai`, `automation`, `onboarding`, `pdf`, `screenshot`, `settings`.
 A new feature directory must be added there (and to `FEATURE_DIRS` in
 `src/__tests__/architecture/feature-privacy-gate.test.ts`) or its cross-feature
 edges are not policed.

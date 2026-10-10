@@ -34,8 +34,7 @@ vi.mock('@app/providers/ai-context', () => ({
     chromeUserAgent: 'mock-user-agent'
   }),
   useAiSessionUiPrefsState: () => ({
-    autoSend: false,
-    isTutorialActive: false
+    autoSend: false
   }),
   useAiSessionActions: () => ({
     toggleAutoSend: vi.fn()

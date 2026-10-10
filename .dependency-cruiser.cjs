@@ -12,15 +12,7 @@ const PUBLIC_FEATURE_ENTRYPOINTS = [
   'screenshot/tool'
 ]
 
-const FEATURE_NAMES = [
-  'ai',
-  'automation',
-  'onboarding',
-  'pdf',
-  'screenshot',
-  'settings',
-  'tutorial'
-]
+const FEATURE_NAMES = ['ai', 'automation', 'onboarding', 'pdf', 'screenshot', 'settings']
 
 /**
  * One rule per ordered feature pair.

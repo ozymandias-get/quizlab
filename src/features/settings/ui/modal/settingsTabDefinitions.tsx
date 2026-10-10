@@ -147,15 +147,6 @@ export const SETTINGS_TABS = [
     glow: '#84cc16'
   },
   {
-    id: 'tutorial',
-    group: 'app',
-    labelKey: 'tutorial_tab_label',
-    descriptionKey: 'tutorial_tab_description',
-    icon: InfoIcon,
-    accent: 'from-amber-300/28 via-orange-200/12 to-transparent',
-    glow: '#f59e0b'
-  },
-  {
     id: 'about',
     group: 'app',
     labelKey: 'about',

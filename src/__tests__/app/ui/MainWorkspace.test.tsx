@@ -61,13 +61,12 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
 }
 
 describe('MainWorkspace', () => {
-  it('renders the real left/right workspace panels', () => {
-    const { container } = renderWorkspace()
+  it('renders the real left/right workspace panels', async () => {
+    renderWorkspace()
 
-    // Tour targets are rendered by MainWorkspace itself (not by mocks).
-    expect(container.querySelector('[data-tour-id="tour-target-left-panel"]')).not.toBeNull()
-    expect(container.querySelector('[data-tour-id="tour-target-right-panel"]')).not.toBeNull()
     expect(screen.getByTestId('left-panel')).toBeInTheDocument()
+    // AiViewSurface is lazy: the Suspense boundary resolves after mount.
+    expect(await screen.findByTestId('ai-content')).toBeInTheDocument()
   })
 
   it('lays panels out left-to-right by default, reversed when swapped', () => {

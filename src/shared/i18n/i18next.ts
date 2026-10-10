@@ -19,7 +19,6 @@ import enPicker from './locales/en/picker.json'
 import enSelectors from './locales/en/selectors.json'
 import enSettings from './locales/en/settings.json'
 import enToasts from './locales/en/toasts.json'
-import enTutorial from './locales/en/tutorial.json'
 import trAi from './locales/tr/ai.json'
 import trAiChat from './locales/tr/ai-chat.json'
 import trAiSend from './locales/tr/ai-send.json'
@@ -38,7 +37,6 @@ import trPicker from './locales/tr/picker.json'
 import trSelectors from './locales/tr/selectors.json'
 import trSettings from './locales/tr/settings.json'
 import trToasts from './locales/tr/toasts.json'
-import trTutorial from './locales/tr/tutorial.json'
 
 const enResources = {
   ...enCommon,
@@ -52,7 +50,6 @@ const enResources = {
   ...enAiChat,
   ...enSelectors,
   ...enPicker,
-  ...enTutorial,
   ...enGws,
   ...enErrors,
   ...enToasts,
@@ -74,7 +71,6 @@ const trResources = {
   ...trAiChat,
   ...trSelectors,
   ...trPicker,
-  ...trTutorial,
   ...trGws,
   ...trErrors,
   ...trToasts,

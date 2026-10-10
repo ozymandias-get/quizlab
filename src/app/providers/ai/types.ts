@@ -57,7 +57,6 @@ interface AiContextState {
   defaultAiModel: string
   aiSites: Record<string, AiPlatform>
   autoSend: boolean
-  isTutorialActive: boolean
 }
 
 /** Yalnızca sekme listesi (aktif sekme değişince referans genelde aynı kalır). */
@@ -82,8 +81,8 @@ export type AiModelsCatalogSliceState = Pick<
   'enabledModels' | 'defaultAiModel' | 'aiSites'
 >
 
-/** Gönderim / tutorial gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
-export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend' | 'isTutorialActive'>
+/** Gönderim gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
+export type AiSessionUiPrefsSliceState = Pick<AiContextState, 'autoSend'>
 
 export interface AiContentState {
   getContentController: (tabId?: string) => AiContentController | null
@@ -116,8 +115,6 @@ interface AiContextActions {
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
-  startTutorial: () => void
-  stopTutorial: () => void
 }
 
 /** Content tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
@@ -151,10 +148,7 @@ export type AiModelActions = Pick<
   'setCurrentAI' | 'setEnabledModels' | 'setDefaultAiModel'
 >
 
-export type AiSessionActions = Pick<
-  AiContextActions,
-  'setAutoSend' | 'toggleAutoSend' | 'startTutorial' | 'stopTutorial'
->
+export type AiSessionActions = Pick<AiContextActions, 'setAutoSend' | 'toggleAutoSend'>
 
 export type AiContextType = AiContextState & AiContentState & AiContextActions
 export type SetStoredValue<T> = Dispatch<SetStateAction<T>>

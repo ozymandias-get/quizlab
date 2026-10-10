@@ -11,7 +11,6 @@ import { useAppToolActions, useToastActions } from '@app/providers'
 import {
   useAiContent,
   useAiContentPresence,
-  useAiSessionActions,
   useAiSites,
   useAiTabActions,
   useAiTabFocus,
@@ -36,7 +35,6 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
   const { getContentController } = useAiContent()
   const { hasActiveContent } = useAiContentPresence()
   const { openAiWorkspace } = useAiTabActions()
-  const { startTutorial } = useAiSessionActions()
   const { startPickerWhenReady } = useAppToolActions()
   const { showError, showSuccess, showWarning } = useToastActions()
   const { t } = useTranslation()
@@ -73,11 +71,6 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     },
     [deleteConfig, t, showError]
   )
-
-  const handleStartTutorial = useCallback(() => {
-    startTutorial()
-    onCloseSettings?.()
-  }, [onCloseSettings, startTutorial])
 
   const handleToggleExpanded = useCallback((id: string) => {
     setExpandedIds((current) =>
@@ -196,7 +189,6 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     isDeleting,
     isTesting,
     handleDeleteSelectors,
-    handleStartTutorial,
     handleToggleExpanded,
     handleSubmitModeChange,
     handleOpenRepick,

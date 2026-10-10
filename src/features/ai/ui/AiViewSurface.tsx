@@ -1,11 +1,6 @@
 import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceState'
 
-import {
-  useAiSessionActions,
-  useAiSessionUiPrefsState,
-  useAiTabActions,
-  useAiTabsSliceState
-} from '@app/providers/ai-context'
+import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 
@@ -16,9 +11,6 @@ import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
 
 const AiHomePage = lazy(() => import('./AiHomePage'))
-const MagicSelectorTutorial = lazy(() =>
-  import('@features/tutorial').then((m) => ({ default: m.MagicSelectorTutorial }))
-)
 
 const PANEL_STYLE = {
   border: '1px solid oklch(var(--border))',
@@ -38,7 +30,7 @@ interface AiViewSurfaceProps {
 }
 
 /**
- * The AI panel chrome: tab strip, AI Home, Magic Selector tutorial, and one host
+ * The AI panel chrome: tab strip, AI Home, and one host
  * placeholder per alive tab.
  *
  * The remote pages themselves live in the main process as `WebContentsView`s;
@@ -46,15 +38,13 @@ interface AiViewSurfaceProps {
  */
 function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurfaceProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
-  const { isTutorialActive } = useAiSessionUiPrefsState()
   const { openAiWorkspace } = useAiTabActions()
-  const { stopTutorial } = useAiSessionActions()
   const isDialogOpen = useIsAnyDialogOpen()
 
   const { aliveTabIds, showHome, showHideHome, recordTabUrl, getRestoredUrl } = surfaceState
   // A native view is composited above every DOM layer, so any full-panel DOM
   // overlay — or any dialog anywhere in the app — has to be able to hide it.
-  const isOverlayActive = showHome || isTutorialActive || isDialogOpen
+  const isOverlayActive = showHome || isDialogOpen
 
   const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
 
@@ -98,10 +88,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
   )
 
   return (
-    <div
-      className="panel-3d-wrapper flex min-h-0 flex-1 flex-col"
-      data-tour-id="tour-target-ai-webview"
-    >
+    <div className="panel-3d-wrapper flex min-h-0 flex-1 flex-col">
       <div
         className="glass-tier-1 panel-3d-right relative flex min-h-0 flex-1 flex-col overflow-hidden"
         style={panelStyle}
@@ -132,14 +119,6 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
 
           {renderedSessions}
         </div>
-
-        {isTutorialActive && (
-          <div className="z-overlay bg-background absolute inset-0">
-            <Suspense fallback={null}>
-              <MagicSelectorTutorial onClose={stopTutorial} onComplete={stopTutorial} />
-            </Suspense>
-          </div>
-        )}
       </div>
     </div>
   )

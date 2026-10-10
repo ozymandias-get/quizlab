@@ -67,7 +67,6 @@ vi.mock('@app/providers/ai-context', () => ({
     defaultAiModel: 'chatgpt'
   }),
   useAiTabActions: () => ({ openAiWorkspace: vi.fn() }),
-  useAiSessionActions: () => ({ startTutorial: vi.fn() }),
   useAiContent: () => ({ getContentController: () => null }),
   useAiContentPresence: () => ({ hasActiveContent: false })
 }))

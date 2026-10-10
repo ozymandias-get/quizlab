@@ -8,17 +8,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 interface MockAiState {
   tabs: Array<{ id: string; modelId: string; title?: string; pinned?: boolean }>
   activeTabId: string
-  isTutorialActive: boolean
   openAiWorkspace: ReturnType<typeof vi.fn>
-  stopTutorial: ReturnType<typeof vi.fn>
 }
 
 let mockAiState: MockAiState = {
   tabs: [],
   activeTabId: '1',
-  isTutorialActive: false,
-  openAiWorkspace: vi.fn(),
-  stopTutorial: vi.fn()
+  openAiWorkspace: vi.fn()
 }
 
 let mockIsAnyDialogOpen = false
@@ -34,13 +30,10 @@ vi.mock('@app/providers/ai-context', () => ({
     currentAI: 'gpt-4'
   }),
   useAiSessionUiPrefsState: () => ({
-    isTutorialActive: mockAiState.isTutorialActive
+    autoSend: false
   }),
   useAiTabActions: () => ({
     openAiWorkspace: mockAiState.openAiWorkspace
-  }),
-  useAiSessionActions: () => ({
-    stopTutorial: mockAiState.stopTutorial
   })
 }))
 
@@ -66,10 +59,6 @@ vi.mock('@features/ai/ui/AiSession', () => ({
 
 vi.mock('@features/ai/ui/AiTabStrip', () => ({
   default: () => <div data-testid="ai-tab-strip">Tab Strip</div>
-}))
-
-vi.mock('@features/tutorial/ui/MagicSelectorTutorial', () => ({
-  default: () => <div data-testid="tutorial-overlay">Tutorial Active</div>
 }))
 
 function createSurfaceState(overrides: Partial<AiViewSurfaceState> = {}): AiViewSurfaceState {
@@ -102,9 +91,7 @@ describe('AiViewSurface', () => {
         { id: '2', modelId: 'claude-3', title: 'Claude 3' }
       ],
       activeTabId: '1',
-      isTutorialActive: false,
-      openAiWorkspace: vi.fn(),
-      stopTutorial: vi.fn()
+      openAiWorkspace: vi.fn()
     }
   })
 
@@ -133,13 +120,6 @@ describe('AiViewSurface', () => {
   it('marks every session as an overlay when AI Home is open', () => {
     renderSurface({ aliveTabIds: ['1'], showHome: true })
     expect(screen.getByText('GPT-4 - Inactive - Owner - Overlay')).toBeInTheDocument()
-  })
-
-  it('marks every session as an overlay while the tutorial is up', async () => {
-    mockAiState.isTutorialActive = true
-    renderSurface({ aliveTabIds: ['1'] })
-    expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
-    expect(await screen.findByTestId('tutorial-overlay', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('marks every session as an overlay while a dialog is open anywhere', () => {

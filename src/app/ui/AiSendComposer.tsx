@@ -145,7 +145,6 @@ function AiSendComposer({
         <motion.aside
           key="ai-send-composer"
           data-app-locale={language}
-          data-tour-id="tour-target-ai-send-composer"
           ref={asideRef}
           initial="hidden"
           animate="visible"

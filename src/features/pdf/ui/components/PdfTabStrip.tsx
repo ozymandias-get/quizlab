@@ -149,7 +149,7 @@ function PdfTabStrip({
   const contextMenuTab = contextMenu ? tabs.find((tab) => tab.id === contextMenu.tabId) : undefined
 
   return (
-    <div className={TAB_STRIP_BAR_CLASS} data-tour-id="tour-target-pdf-tab-strip">
+    <div className={TAB_STRIP_BAR_CLASS}>
       <div
         ref={rowRef}
         role="tablist"

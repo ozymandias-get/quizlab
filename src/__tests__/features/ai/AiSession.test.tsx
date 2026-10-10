@@ -143,7 +143,7 @@ describe('AiSession', () => {
     expect((lastOptions() as { isHostOwner: boolean }).isHostOwner).toBe(false)
   })
 
-  it('treats an overlay (home / tutorial) as hidden', () => {
+  it('treats an overlay (home) as hidden', () => {
     render(<AiSession tab={defaultTab} isActive {...defaultProps} isOverlayActive />)
     expect((lastOptions() as { visible: boolean }).visible).toBe(false)
   })

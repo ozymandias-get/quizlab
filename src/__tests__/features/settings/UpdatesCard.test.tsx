@@ -46,7 +46,6 @@ describe('UpdatesCard', () => {
     updateStatus: 'idle' as const,
     updateInfo: null,
     t: (key: string) => key,
-    handleStartTour: vi.fn(),
     checkForUpdates: vi.fn(async () => undefined),
     openReleasesPage: vi.fn(async () => undefined),
     ...overrides
@@ -58,7 +57,6 @@ describe('UpdatesCard', () => {
     render(<UpdatesCard {...props} />)
 
     expect(screen.getByText('update_not_available')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /usage_assistant_start/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /check_for_updates/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /download_from_github/i })).not.toBeInTheDocument()
   })
@@ -81,17 +79,15 @@ describe('UpdatesCard', () => {
     expect(props.openReleasesPage).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the tour action and refresh action callable for latest status', () => {
+  it('keeps the refresh action callable for latest status', () => {
     const props = createProps({ updateStatus: 'latest' })
 
     render(<UpdatesCard {...props} />)
 
     expect(screen.getByText('you_have_latest')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /usage_assistant_start/i }))
     fireEvent.click(screen.getByRole('button', { name: /check_for_updates/i }))
 
-    expect(props.handleStartTour).toHaveBeenCalledTimes(1)
     expect(props.checkForUpdates).toHaveBeenCalledTimes(1)
   })
 })

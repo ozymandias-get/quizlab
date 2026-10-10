@@ -30,7 +30,7 @@ interface AiSessionProps {
    * that is still mounted behind a focus-mode animation cannot fight it.
    */
   isSurfaceActive: boolean
-  /** True while a full-panel overlay (AI Home, Magic Selector tutorial) is up. */
+  /** True while a full-panel overlay (AI Home) is up. */
   isOverlayActive: boolean
   /** Last URL before cold unmount; must match current model (parent validates). */
   restoredUrl?: string
@@ -101,8 +101,8 @@ const AiSession = memo(
       // "which placeholder may position this view", and losing it while the view
       // is still on screen would leave nobody able to say `visible: false` — the
       // last rectangle would stay painted over whatever is now on top. Keeping
-      // ownership lets an inactive tab hide itself, which is what makes AI Home,
-      // the tutorial and tab switching clear the view instead of stranding it.
+      // ownership lets an inactive tab hide itself, which is what makes AI Home
+      // and tab switching clear the view instead of stranding it.
       isHostOwner: canHostRemoteView && isSurfaceActive,
       visible: canHostRemoteView && isActive && isSurfaceActive && !isOverlayActive,
       revealAfterFirstLoad: true,

@@ -72,7 +72,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   }, [actions])
 
   return (
-    <div className={TAB_STRIP_BAR_CLASS} data-tour-id="tour-target-ai-tab-strip">
+    <div className={TAB_STRIP_BAR_CLASS}>
       <div className={TAB_STRIP_ROW_CLASS}>
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 

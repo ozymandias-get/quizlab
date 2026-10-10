@@ -41,12 +41,8 @@ const FloatingDockInner = memo(function FloatingDockInner({
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeaveReset}
       className="border-border/60 bg-card/30 flex w-full flex-col items-center gap-1.5 rounded-2xl border p-1.5 py-2"
-      data-tour-id="tour-target-hub-btn"
     >
-      <div
-        className="flex w-full flex-col items-center gap-1"
-        data-tour-id="tour-target-tools-panel"
-      >
+      <div className="flex w-full flex-col items-center gap-1">
         {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
           <SettingsToolButton onOpenSettings={onOpenSettings} />
         )}

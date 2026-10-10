@@ -108,14 +108,12 @@ diagnostics:
   colour, accent colour, and a configurable hub/dock for the tools you actually
   use.
 - **Language** — English and Turkish, selectable on first run and changeable in
-  settings. 19 per-domain JSON bundles per language.
+  settings. 18 per-domain JSON bundles per language.
 - **Storage and cache management** — measured cache totals, a scheduled cleanup
   routine and a warning toast at 80% of the 500 MB budget.
 - **Update notifier** — checks the GitHub Releases API about five seconds after
   start, compares semver and offers a link to the release page. It never
   downloads or installs anything.
-- **Guided tours** — five built-in tours (general, PDF, AI, settings, Magic
-  Picker) plus a Usage Guide page in settings.
 - **Windows shell integration** — an optional "Open with QuizLab" entry in the
   Explorer right-click menu for `.pdf` files, without taking over your default
   PDF handler.
@@ -293,7 +291,7 @@ electron/            Main process
 shared/              Cross-process contracts: IPC channels, types, constants
 src/                 Renderer
   app/               Shell, providers, app effects, floating composer
-  features/          ai, automation, onboarding, pdf, screenshot, settings, tutorial
+  features/          ai, automation, onboarding, pdf, screenshot, settings
   platform/electron/ Adapters between the app and window.electronAPI
   shared/            Shared UI, hooks, i18n, styles, stores, lib
   __tests__/         Renderer tests

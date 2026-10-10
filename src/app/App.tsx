@@ -12,9 +12,6 @@ const FocusOverlay = lazy(() => import('@app/ui/FocusOverlay'))
 const ScreenshotTool = lazy(() =>
   import('@features/screenshot/tool').then((m) => ({ default: m.ScreenshotTool }))
 )
-const TutorialOverlay = lazy(() =>
-  import('@features/tutorial').then((m) => ({ default: m.TutorialOverlay }))
-)
 const UpdateBanner = lazy(() => import('@app/components/UpdateBanner'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const LanguageSelectionDialog = lazy(() =>
@@ -25,8 +22,6 @@ const LanguageSelectionDialog = lazy(() =>
 import { useAiViewSurfaceState } from '@features/ai/viewState'
 import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 import { usePdfShortcuts } from '@features/pdf'
-import { useTutorialStore } from '@features/tutorial'
-import { getTutorialEntry } from '@features/tutorial'
 
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
@@ -188,10 +183,6 @@ function App() {
           <ScreenshotToolLayer />
         </Suspense>
 
-        <Suspense fallback={null}>
-          <TutorialLayer isFocusActive={isFocusActive} />
-        </Suspense>
-
         {!isOnboardingDone && (
           <Suspense fallback={null}>
             <LanguageSelectionDialog />
@@ -238,23 +229,6 @@ const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
       onClose={closeScreenshot}
     />
   )
-})
-
-const TutorialLayer = memo(function TutorialLayer({ isFocusActive }: { isFocusActive: boolean }) {
-  const activeTutorialId = useTutorialStore((s) => s.activeTutorialId)
-  const closeTutorial = useTutorialStore((s) => s.closeTutorial)
-
-  if (!activeTutorialId || isFocusActive) return null
-
-  const entry = getTutorialEntry(activeTutorialId)
-  if (!entry) return null
-
-  const CustomComponent = entry.component
-  if (CustomComponent) {
-    return <CustomComponent tutorialId={activeTutorialId} isActive onClose={closeTutorial} />
-  }
-
-  return <TutorialOverlay tutorialId={activeTutorialId} isActive onClose={closeTutorial} />
 })
 
 export default memo(App)

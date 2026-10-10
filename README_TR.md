@@ -112,14 +112,12 @@ ve tanılama araçları:
 - **Görünüm** — animasyonlu veya düz arka planlar, cam ölçeği, seçim rengi, vurgu
   rengi ve gerçekten kullandığınız araçlar için yapılandırılabilir merkez (hub).
 - **Dil** — İngilizce ve Türkçe; ilk çalıştırmada seçilir, ayarlardan değiştirilir.
-  Dil başına 19 alan adı JSON dosyası vardır.
+  Dil başına 18 alan adı JSON dosyası vardır.
 - **Depolama ve önbellek yönetimi** — ölçülen önbellek toplamı, zamanlanmış temizlik
   ve 500 MB bütçesinin %80'inde uyarı balonu.
 - **Güncelleme bildirimi** — başlangıçtan yaklaşık beş saniye sonra GitHub
   Releases API'sini sorgular, semver karşılaştırması yapar ve sürüm sayfasına
   bağlantı sunar. Hiçbir şey indirmez veya kurmaz.
-- **Rehberli turlar** — beş hazır tur (genel, PDF, yapay zeka, ayarlar, Magic
-  Picker) ve ayarlarda bir Kullanım Rehberi sayfası.
 - **Windows kabuk entegrasyonu** — `.pdf` dosyaları için Gezgin sağ tık menüsünde
   isteğe bağlı bir "QuizLab ile Aç" girdisi; varsayılan PDF uygulamanız değişmez.
 
@@ -304,7 +302,7 @@ electron/            Ana süreç
 shared/              Süreçler arası sözleşmeler: IPC kanalları, tipler, sabitler
 src/                 Renderer
   app/               Kabuk, sağlayıcılar, uygulama efektleri, yüzen gönderme bileşeni
-  features/          ai, automation, onboarding, pdf, screenshot, settings, tutorial
+  features/          ai, automation, onboarding, pdf, screenshot, settings
   platform/electron/ Uygulama ile window.electronAPI arasındaki adaptörler
   shared/            Paylaşılan arayüz, hook'lar, i18n, stiller, store'lar, lib
   __tests__/         Renderer testleri

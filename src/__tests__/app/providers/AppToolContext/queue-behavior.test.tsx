@@ -11,8 +11,7 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiSessionActions: () => ({ setAutoSend: vi.fn() }),
   useAiState: () => ({ autoSend: mockState.autoSend }),
   useAiSessionUiPrefsState: () => ({
-    autoSend: mockState.autoSend,
-    isTutorialActive: false
+    autoSend: mockState.autoSend
   }),
   useAiContent: () => ({
     getContentController: () => mockState.contentController
