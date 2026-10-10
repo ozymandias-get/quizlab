@@ -65,6 +65,22 @@ function asSingleSelectorConfig(
 }
 
 /**
+ * True when the persisted locators no longer match the send-time snapshot —
+ * i.e. somebody (a manual re-pick, a competing promotion) replaced the
+ * selectors this evidence was captured against. Only the primaries are
+ * compared: a re-pick always regenerates them, and identical primaries mean
+ * identical locators, in which case the evidence is still about this config.
+ * An unavailable send-time snapshot fails open (previous behavior).
+ */
+function hasLocatorIdentityMoved(
+  sendTime: AiSelectorConfig | null,
+  latest: AiSelectorConfig
+): boolean {
+  if (!sendTime) return false
+  return sendTime.input !== latest.input || sendTime.button !== latest.button
+}
+
+/**
  * Reads the current persisted config for a hostname straight from the main
  * process, bypassing React Query and the renderer's `ConfigCache` so a queued
  * repair can never observe its own previous write as stale.
@@ -95,6 +111,17 @@ async function processRepair(params: {
   // sees its own result and the streak advances instead of oscillating.
   const latest = await readLatestSelectorConfig(hostname)
   const baseConfig = latest ?? aiConfig
+
+  // Compare-and-swap: the evidence was captured against the send-time
+  // locators. If the persisted primaries moved since (manual re-pick, another
+  // promotion), the evidence is stale and must never overwrite the newer
+  // manual selection — not even as a staged candidate.
+  if (latest && hasLocatorIdentityMoved(asSingleSelectorConfig(aiConfig), latest)) {
+    Logger.info(
+      `${SELECTOR_REPAIR_LOG_PREFIX} ${hostname} dropping stale evidence (locators changed since capture)`
+    )
+    return false
+  }
 
   const evaluation = evaluateSelectorRepairEvidence({
     config: baseConfig,
