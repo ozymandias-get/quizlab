@@ -5,10 +5,27 @@ import { Logger } from '@shared/lib/logger'
 
 import { PICKER_SCRIPTS } from '../lib/automationConstants'
 
+function hasElementIdentity(fingerprint: unknown): boolean {
+  if (!fingerprint || typeof fingerprint !== 'object') return false
+  const candidate = fingerprint as { tag?: unknown }
+  return typeof candidate.tag === 'string' && candidate.tag.length > 0
+}
+
 export function isPickerConfig(value: unknown): value is AiSelectorConfig {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<AiSelectorConfig>
-  return Boolean(candidate.inputFingerprint && candidate.buttonFingerprint)
+  // Target integrity: fingerprints alone only prove *something* was probed.
+  // A persistable config must also carry non-empty selectors for BOTH
+  // locators (the picker always produces them, including the bare-tag
+  // fallback) plus fingerprints with real element identity (a tag). Anything
+  // less is a missing/wrong target and must surface picker_selection_missing
+  // instead of being saved as a valid configuration.
+  if (typeof candidate.input !== 'string' || candidate.input.length === 0) return false
+  if (typeof candidate.button !== 'string' || candidate.button.length === 0) return false
+  return (
+    hasElementIdentity(candidate.inputFingerprint) &&
+    hasElementIdentity(candidate.buttonFingerprint)
+  )
 }
 
 export interface UseElementPickerReturn {

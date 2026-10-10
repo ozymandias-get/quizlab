@@ -5,6 +5,8 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
 
+import { enqueueSelectorRepair } from '@features/ai'
+
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
@@ -36,6 +38,30 @@ export function useElementPicker(
   // resolves.
   const startInFlightRef = useRef(false)
   const activePickerContentRef = useRef<AiContentController | null>(null)
+  // Binds a picker run to the result it produces: the session id travels
+  // into the injected script and back through the console bridge, so a
+  // delayed emit from an older run can never be saved as the new run's
+  // result. The start URL snapshots where the pick began: if the view
+  // navigated mid-pick, the stale selectors must not be saved onto the new
+  // hostname.
+  const pickerSessionRef = useRef<string | null>(null)
+  const pickerStartUrlRef = useRef<string | null>(null)
+
+  function createPickerSessionId(): string {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }
+
+  function readContentUrl(content: AiContentController | null | undefined): string | null {
+    try {
+      if (content && typeof content.getURL === 'function') {
+        const url = content.getURL()
+        return typeof url === 'string' && url ? url : null
+      }
+    } catch {
+      // getURL may throw for a destroyed view; treat as unknown.
+    }
+    return null
+  }
 
   // Stabilize the content getter so consumers passing an inline arrow
   // function don't churn the mount effect's identity on every render.
@@ -68,6 +94,29 @@ export function useElementPicker(
         return
       }
 
+      // The view may have navigated between the pick and the save (same
+      // webview, in-page navigation keeps the controller identity). Saving
+      // the old site's selectors onto the new hostname would silently aim
+      // future automation at the wrong site.
+      try {
+        const startUrl = pickerStartUrlRef.current
+        const currentUrl = readContentUrl(content)
+        if (startUrl && currentUrl) {
+          const startHost = new URL(startUrl).hostname.toLowerCase()
+          const currentHost = new URL(currentUrl).hostname.toLowerCase()
+          if (startHost && currentHost && startHost !== currentHost) {
+            Logger.info(
+              `[Picker] savePickerResult: hostname changed during pick (${startHost} -> ${currentHost}), aborting`
+            )
+            showError('picker_selection_missing')
+            return
+          }
+        }
+      } catch {
+        // URL parsing must never block a save; the hostname save below still
+        // derives from the current URL.
+      }
+
       try {
         await resetPickerArtifacts(content)
 
@@ -86,18 +135,31 @@ export function useElementPicker(
         }
 
         const normalizedHostname = new URL(url).hostname.toLowerCase()
-        await saveAiConfig({
-          hostname: normalizedHostname,
-          config: {
-            ...config,
-            version: 2,
-            sourceUrl: url,
-            sourceHostname: normalizedHostname,
-            canonicalHostname: canonicalizeHostname(normalizedHostname) || normalizedHostname,
-            submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
-            health: 'ready'
-          }
-        })
+        // A manual pick is a new baseline: staged self-healing state from the
+        // previous locators must not survive (it would otherwise keep a dead
+        // recovery alive and let stale evidence advance it). `lastRepair`
+        // history is kept: it only ever blocks a *future* different promotion
+        // and can never rewrite the just-picked primaries.
+        // The save joins the per-host repair queue so it is totally ordered
+        // with in-flight self-healing writes: a repair queued before the pick
+        // persists first and the full manual config wins; a repair queued
+        // after re-reads the picked config and its staleness check drops the
+        // outdated evidence instead of overwriting the manual selection.
+        await enqueueSelectorRepair(normalizedHostname, () =>
+          saveAiConfig({
+            hostname: normalizedHostname,
+            config: {
+              ...config,
+              version: 2,
+              sourceUrl: url,
+              sourceHostname: normalizedHostname,
+              canonicalHostname: canonicalizeHostname(normalizedHostname) || normalizedHostname,
+              submitMode: normalizeSubmitMode(config.submitMode) || 'mixed',
+              health: 'ready',
+              repair: null
+            }
+          })
+        )
         Logger.info(`[Picker] savePickerResult: saved for ${normalizedHostname}`)
       } catch (err) {
         const message = ensureErrorMessage(err, t('error_unknown_error'))
@@ -109,6 +171,8 @@ export function useElementPicker(
       } finally {
         if (isMountedRef.current) {
           activePickerContentRef.current = null
+          pickerSessionRef.current = null
+          pickerStartUrlRef.current = null
           setIsPickerActive(false)
         }
       }
@@ -119,8 +183,15 @@ export function useElementPicker(
   const { startListening, stopListening } = usePickerConsoleBridge({
     getContentController: () => getContentRef.current(),
     mountedRef: isMountedRef,
-    onResult: async (data) => {
+    onResult: async (data, resultSessionId) => {
       Logger.info('[Picker] bridge onResult:', data)
+      // Defense in depth: the bridge already matched the session, but a
+      // mismatched session here means a stale run is being saved — drop it.
+      const activeSession = pickerSessionRef.current
+      if (activeSession && resultSessionId && resultSessionId !== activeSession) {
+        Logger.info('[Picker] bridge onResult: stale session result ignored')
+        return
+      }
       if (isPickerConfig(data)) {
         await savePickerResult(data, activePickerContentRef.current)
       } else if (isMountedRef.current) {
@@ -134,6 +205,8 @@ export function useElementPicker(
       Logger.info('[Picker] bridge onCancelled: user pressed ESC')
       if (isMountedRef.current) {
         activePickerContentRef.current = null
+        pickerSessionRef.current = null
+        pickerStartUrlRef.current = null
         setIsPickerActive(false)
         // User explicitly pressed Escape — confirm the dismissal with a
         // toast so the click that toggled the picker off feels acknowledged.
@@ -154,6 +227,8 @@ export function useElementPicker(
       stopListening()
       void resetPickerArtifacts(activePickerContentRef.current ?? getContentRef.current() ?? null)
       activePickerContentRef.current = null
+      pickerSessionRef.current = null
+      pickerStartUrlRef.current = null
     }
   }, [stopListening])
 
@@ -184,7 +259,8 @@ export function useElementPicker(
         return
       }
 
-      const script = await generatePickerScript(pickerTranslations)
+      const sessionId = createPickerSessionId()
+      const script = await generatePickerScript({ translations: pickerTranslations, sessionId })
       if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
         Logger.info('[Picker] startPicker: source content changed, aborting')
         return
@@ -206,11 +282,13 @@ export function useElementPicker(
         return
       }
       activePickerContentRef.current = content
+      pickerSessionRef.current = sessionId
+      pickerStartUrlRef.current = readContentUrl(content)
       Logger.info('[Picker] startPicker: script injected into content, setting isPickerActive=true')
 
       setIsPickerActive(true)
       showInfo('picker_started_hint')
-      startListening(content)
+      startListening(content, sessionId)
     } catch (err) {
       Logger.error('[Picker] startPicker: error', err)
       showError('picker_init_failed')
@@ -226,6 +304,8 @@ export function useElementPicker(
     stopListening()
     const content = activePickerContentRef.current ?? getContentRef.current()
     activePickerContentRef.current = null
+    pickerSessionRef.current = null
+    pickerStartUrlRef.current = null
     if (!content) {
       setIsPickerActive(false)
       return

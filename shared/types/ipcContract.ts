@@ -416,7 +416,7 @@ export type AutomationScriptArgsByAction = {
   ]
   generateValidateSelectorsScript: [config: AutomationConfig]
   generateWaitForSubmitReadyScript: [config: AutomationConfig, options?: WaitForSubmitReadyOptions]
-  generatePickerScript: [translations: Record<string, string>]
+  generatePickerScript: [translations: Record<string, string>, sessionId?: string]
 }
 
 export type AutomationScriptInvokeArgs = {

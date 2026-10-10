@@ -86,7 +86,8 @@ describe('preload electronAPI', () => {
       2,
       IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
       'generatePickerScript',
-      { pickInput: 'Pick input' }
+      { pickInput: 'Pick input' },
+      undefined
     )
     expect(invoke).toHaveBeenNthCalledWith(
       3,

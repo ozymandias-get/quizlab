@@ -128,7 +128,29 @@ describe('automationHandlers', () => {
     expect(waitResult).toEqual({ ok: true, data: 'wait-script' })
     expect(generateWaitForSubmitReadyScript).toHaveBeenCalledWith(config, options)
     expect(pickerResult).toEqual({ ok: true, data: 'picker-script' })
-    expect(generatePickerScript).toHaveBeenCalledWith(translations)
+    expect(generatePickerScript).toHaveBeenCalledWith(translations, undefined)
+
+    // The picker session id is forwarded so emitted results bind to it…
+    const sessionResult = await handler?.(
+      trustedEvent,
+      'generatePickerScript',
+      translations,
+      'session-7'
+    )
+    expect(sessionResult).toEqual({ ok: true, data: 'picker-script' })
+    expect(generatePickerScript).toHaveBeenCalledWith(translations, 'session-7')
+
+    // …while a non-string session id is rejected by the IPC guard.
+    const sessionInvalid = await handler?.(
+      trustedEvent,
+      'generatePickerScript',
+      translations,
+      123 as never
+    )
+    expect(sessionInvalid).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+    })
   })
 
   it('routes focus/click/validate actions to their generators', async () => {

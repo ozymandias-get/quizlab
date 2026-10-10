@@ -135,8 +135,15 @@ describe('useAutomationApi', () => {
   it('useGeneratePickerScript generates picker script with translations', async () => {
     const { result } = renderHook(() => useGeneratePickerScript(), { wrapper })
     const translations = { picker_title: 'Select element' }
-    await result.current.mutateAsync(translations)
-    expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations)
+    await result.current.mutateAsync({ translations })
+    expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, undefined)
+  })
+
+  it('useGeneratePickerScript forwards the picker session id', async () => {
+    const { result } = renderHook(() => useGeneratePickerScript(), { wrapper })
+    const translations = { picker_title: 'Select element' }
+    await result.current.mutateAsync({ translations, sessionId: 'session-1' })
+    expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, 'session-1')
   })
 
   it('returns null when Electron API returns null', async () => {

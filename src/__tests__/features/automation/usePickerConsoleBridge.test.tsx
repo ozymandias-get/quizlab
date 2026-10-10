@@ -91,7 +91,7 @@ describe('usePickerConsoleBridge', () => {
     const payload = { inputFingerprint: { tag: 'textarea' } }
     handlerSink.current?.({ message: `_aiPicker:result:${JSON.stringify(payload)}` })
 
-    expect(onResult).toHaveBeenCalledWith(payload)
+    expect(onResult).toHaveBeenCalledWith(payload, null)
     expect(onCancelled).not.toHaveBeenCalled()
     expect(onError).not.toHaveBeenCalled()
     expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
