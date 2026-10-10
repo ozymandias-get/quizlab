@@ -30,3 +30,11 @@ export type { AiSendOptions, AiSendResult } from './model/types'
 export type { SendApiChatResult } from './queries/useSendMessageMutation'
 export { sendApiChatMessage, useSendMessageMutation } from './queries/useSendMessageMutation'
 export { useChatUiStore } from './store/chatUiStore'
+/**
+ * Per-hostname serialization for selector config writes. Exported so the
+ * manual Element Picker save path can join the same total order as the
+ * self-healing repairs: a repair queued before a manual pick persists first
+ * and the pick (a full config) wins; a repair queued after re-reads the
+ * picked config and its staleness check drops the outdated evidence.
+ */
+export { enqueueSelectorRepair } from './lib/selectorRepair/repairQueue'
