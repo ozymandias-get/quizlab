@@ -54,6 +54,11 @@ export interface UseAiSenderReturn {
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<SendTextResult>
   sendImageToAI: (imageDataUrl: string, options?: AiSendOptions) => Promise<SendImageResult>
   /**
+   * Çoklu görseli tek mesaj olarak gönderir (web içerikleri).
+   * Tüm ekler sırayla yapıştırılır, prompt bir kez eklenir, tek submit yapılır.
+   */
+  sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<SendImageResult>
+  /**
    * Bu hook'a bağlı content için bekleyen/işleyen tüm gönderimleri iptal
    * eder. Sıradaki `executePipelineStep` çağrısı `cancelled` hatasıyla
    * erken döner. Yeni bir istek tetiklendiğinde **otomatik** olarak da

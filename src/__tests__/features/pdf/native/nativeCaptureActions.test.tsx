@@ -60,8 +60,12 @@ vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: mocks.startScreenshot,
     queueImageForAi: mocks.queueImageForAi,
-    queueTextForAi: mocks.queueTextForAi
-  })
+    queueTextForAi: mocks.queueTextForAi,
+    sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
+    sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
+  }),
+  useAppToolQueueState: () => ({ pendingAiItems: [], autoSend: false }),
+  useAppToolScreenshotState: () => ({ isScreenshotMode: false, pendingAreaCapture: null })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
@@ -208,9 +212,10 @@ function renderDocument() {
   )
 }
 
-/** Open the AI actions group in the real toolbar. */
-function openAiActions(): void {
-  fireEvent.click(screen.getByTestId('pdf-toolbar-mode-toggle'))
+/** Full-page image via the right-click menu (toolbar AI controls were removed). */
+function requestFullPageImageViaContextMenu(): void {
+  openContextMenu()
+  fireEvent.click(menuItem('pdf_send_page_as_image'))
 }
 
 /** Right-click the shared viewer container, which is what opens the menu. */
@@ -296,8 +301,7 @@ describe('native viewer — capture actions', () => {
     }
     fireEvent.click(screen.getByLabelText('next_page'))
     await waitFor(() => expect(pageTwo.renderCalls.length).toBeGreaterThan(0))
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
     await waitFor(
       () =>
         expect(
@@ -320,8 +324,7 @@ describe('native viewer — capture actions', () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
 
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
     const [queued] = queuedImages()
@@ -341,8 +344,7 @@ describe('native viewer — capture actions', () => {
     fireEvent.click(screen.getByLabelText('next_page'))
 
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
 
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalled())
     const [queued] = queuedImages()
@@ -354,8 +356,7 @@ describe('native viewer — capture actions', () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
 
     // The whole reason the registry exists: no network round-trip and no second
@@ -368,8 +369,7 @@ describe('native viewer — capture actions', () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
     await settle()
 
@@ -381,21 +381,22 @@ describe('native viewer — capture actions', () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-area-ai'))
+    openContextMenu()
+    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
 
     expect(mocks.startScreenshot).toHaveBeenCalledTimes(1)
     // The crop path never touches PDF.js: the main process crops the window, so
     // only the page label has to come from the right renderer.
-    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
+    expect(mocks.startScreenshot).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, captureKind: 'selection' })
+    )
   })
 
   it('restarts the document on reload and keeps capture pointed at the new one', async () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-reload'))
+    fireEvent.click(screen.getByTestId('pdf-toolbar-reload'))
 
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
     // A reload is a new document generation, so a second load is expected here —
@@ -403,7 +404,7 @@ describe('native viewer — capture actions', () => {
     expect(mocks.getDocument).toHaveBeenCalledTimes(2)
 
     mocks.queueImageForAi.mockClear()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
+    requestFullPageImageViaContextMenu()
     await waitFor(() => expect(mocks.queueImageForAi).toHaveBeenCalledTimes(1))
     expect(mocks.getDocument).toHaveBeenCalledTimes(2)
   })
@@ -445,7 +446,9 @@ describe('native viewer — context menu', () => {
     openContextMenu()
     fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
 
-    expect(mocks.startScreenshot).toHaveBeenCalledWith({ page: 1, captureKind: 'selection' })
+    expect(mocks.startScreenshot).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, captureKind: 'selection' })
+    )
     expect(mocks.queueImageForAi).not.toHaveBeenCalled()
   })
 

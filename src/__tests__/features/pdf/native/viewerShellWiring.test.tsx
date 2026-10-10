@@ -37,8 +37,12 @@ vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: vi.fn(),
     queueImageForAi: vi.fn(),
-    queueTextForAi: vi.fn()
-  })
+    queueTextForAi: vi.fn(),
+    sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
+    sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
+  }),
+  useAppToolQueueState: () => ({ pendingAiItems: [], autoSend: false }),
+  useAppToolScreenshotState: () => ({ isScreenshotMode: false, pendingAreaCapture: null })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
@@ -252,5 +256,18 @@ describe('PdfViewerDocument renderer wiring', () => {
     expect(viewerArea).not.toBe(null)
     expect(viewerArea?.contains(toolbar)).toBe(false)
     expect(toolbar.parentElement).toBe(viewerArea?.parentElement)
+  })
+
+  it('mounts the AI draft slot inside the viewer, not as a viewport overlay', () => {
+    renderDocument()
+
+    // Taslak, PDF'den toplanan içeriğin kontrolüdür: panelin içinde, sağ altta
+    // durur. Viewport'a sabitlenmiş bir yüzen katman olsaydı AI paneliyle ve alt
+    // dock ile çakışırdı.
+    const slot = screen.getByTestId('pdf-ai-draft-slot')
+    const viewerArea = document.querySelector('.pdf-viewer-container')
+    expect(viewerArea?.contains(slot)).toBe(true)
+    expect(slot.className).toContain('absolute')
+    expect(slot.className).not.toContain('fixed')
   })
 })

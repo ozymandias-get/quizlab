@@ -2,12 +2,20 @@ import { Logger, reportSuppressedError } from '@shared/lib/logger'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { PdfSourceMeta } from '../ai/pdfSource'
 import type { AiDraftImageItem, AiDraftItem, SelectionPosition } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
-export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>>
+export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>> & {
+  source?: PdfSourceMeta | null
+}
 
-const MAX_QUEUE_SIZE = 20
+export interface QueuedTextMeta {
+  source?: PdfSourceMeta | null
+}
+
+export const MAX_DRAFT_QUEUE_SIZE = 20
+const MAX_QUEUE_SIZE = MAX_DRAFT_QUEUE_SIZE
 
 function revokeDraftItemBlob(draft: AiDraftItem) {
   if (draft.type === 'image' && draft.blobUrl) {
@@ -39,21 +47,46 @@ export function useAiDraftQueue(onDrop?: () => void) {
     }
   }, [])
 
-  const queueTextForAi = useCallback((text: string, position?: SelectionPosition | null) => {
-    const normalized = text.trim()
-    if (!normalized) {
-      return
-    }
+  const queueTextForAi = useCallback(
+    (
+      text: string,
+      position?: SelectionPosition | null,
+      meta?: QueuedTextMeta | PdfSourceMeta | null
+    ) => {
+      const normalized = text.trim()
+      if (!normalized) {
+        return
+      }
 
-    const draft: AiDraftItem = {
-      id: buildPendingId('text'),
-      type: 'text',
-      text: normalized,
-      position: position ?? null
-    }
+      // Üçüncü argüman hem { source } hem de doğrudan PdfSourceMeta olabilir.
+      const source =
+        meta && typeof meta === 'object' && 'page' in meta && 'docId' in meta
+          ? (meta as PdfSourceMeta)
+          : ((meta as QueuedTextMeta | null)?.source ?? null)
 
-    setPendingAiItems((current) => [...current, draft])
-  }, [])
+      const draft: AiDraftItem = {
+        id: buildPendingId('text'),
+        type: 'text',
+        text: normalized,
+        position: position ?? null,
+        source,
+        createdAt: Date.now()
+      }
+
+      setPendingAiItems((current) => {
+        if (current.length >= MAX_QUEUE_SIZE) {
+          const dropped = current[0]
+          pendingDraftIdsRef.current.delete(dropped.id)
+          revokeDraftItemBlob(dropped)
+          Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
+          onDropRef.current?.()
+          return [...current.slice(1), draft]
+        }
+        return [...current, draft]
+      })
+    },
+    []
+  )
 
   const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta) => {
     const draftId = buildPendingId('image')
@@ -136,7 +169,9 @@ export function useAiDraftQueue(onDrop?: () => void) {
             type: 'image',
             ...(dataUrl ? { dataUrl } : {}),
             blobUrl,
-            ...imageMeta
+            ...imageMeta,
+            source: imageMeta?.source ?? null,
+            createdAt: Date.now()
           }
         ]
       }
@@ -147,7 +182,9 @@ export function useAiDraftQueue(onDrop?: () => void) {
           type: 'image',
           ...(dataUrl ? { dataUrl } : {}),
           blobUrl,
-          ...imageMeta
+          ...imageMeta,
+          source: imageMeta?.source ?? null,
+          createdAt: Date.now()
         }
       ]
     })
