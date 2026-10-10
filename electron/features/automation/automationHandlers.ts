@@ -27,6 +27,10 @@ function isOptionalObject(value: unknown): value is Record<string, unknown> | un
   return value === undefined || isObject(value)
 }
 
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string'
+}
+
 // SECURITY: Maximum size for text being embedded into generated scripts.
 // Larger values would produce an oversized script string that could exhaust
 // IPC buffer limits or cause OOM in the renderer when the script is parsed.
@@ -57,7 +61,10 @@ const actionGuard: {
     args
   ): args is [config: Record<string, unknown>, options?: Record<string, unknown>] =>
     isObject(args[0]) && isOptionalObject(args[1]),
-  generatePickerScript: (args): args is [translations: Record<string, string>] => isObject(args[0])
+  generatePickerScript: (
+    args
+  ): args is [translations: Record<string, string>, sessionId?: string] =>
+    isObject(args[0]) && (args.length < 2 || isOptionalString(args[1]))
 }
 
 const actionHandlers: {
@@ -70,7 +77,7 @@ const actionHandlers: {
   generateValidateSelectorsScript: (config) => generateValidateSelectorsScript(config),
   generateWaitForSubmitReadyScript: (config, options) =>
     generateWaitForSubmitReadyScript(config, options),
-  generatePickerScript: (translations) => generatePickerScript(translations)
+  generatePickerScript: (translations, sessionId) => generatePickerScript(translations, sessionId)
 }
 
 let handlersRegistered = false

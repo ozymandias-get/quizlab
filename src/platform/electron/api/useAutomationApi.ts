@@ -80,8 +80,12 @@ export function useGenerateWaitForSubmitReadyScript() {
  * Generate Picker Script Mutation
  */
 export function useGeneratePickerScript() {
-  return useElectronMutation<string | null, Record<string, string>>(
-    (api, translations) => api.automation.generatePickerScript(translations),
+  return useElectronMutation<
+    string | null,
+    { translations: Record<string, string>; sessionId?: string }
+  >(
+    (api, { translations, sessionId }) =>
+      api.automation.generatePickerScript(translations, sessionId),
     { showErrorToast: false }
   )
 }

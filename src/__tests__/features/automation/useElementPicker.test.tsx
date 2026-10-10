@@ -69,6 +69,22 @@ describe('useElementPicker', () => {
     handler({ message })
   }
 
+  // The injected script emits session-bound results; read the session the
+  // hook generated so the test speaks the current bridge protocol.
+  const activeSessionId = (): string => {
+    const call = mockGeneratePickerScriptMutate.mock.calls[0]?.[0] as
+      | { sessionId?: string }
+      | undefined
+    if (!call?.sessionId) {
+      throw new Error('picker session was not generated')
+    }
+    return call.sessionId
+  }
+
+  const fireSessionResult = (payload: unknown) => {
+    fireConsoleMessage(`_aiPicker:result:${activeSessionId()}:${JSON.stringify(payload)}`)
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
@@ -143,12 +159,14 @@ describe('useElementPicker', () => {
     })
 
     const selection = {
+      input: 'textarea[placeholder="Ask"]',
+      button: 'button[aria-label="Send"]',
       inputFingerprint: { tag: 'textarea' },
       buttonFingerprint: { tag: 'button' }
     }
 
     await act(async () => {
-      fireConsoleMessage(`_aiPicker:result:${JSON.stringify(selection)}`)
+      fireSessionResult(selection)
     })
 
     expect(mockSaveAiConfigMutate).toHaveBeenCalledWith(
@@ -166,6 +184,30 @@ describe('useElementPicker', () => {
       })
     )
     expect(result.current.isPickerActive).toBe(false)
+  })
+
+  it('clears staged repair state when saving a manual pick', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    await act(async () => {
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
+    })
+
+    // A manual pick is a new baseline: dead staged recoveries must not
+    // survive (they would let stale evidence advance after the pick).
+    const savedConfig = mockSaveAiConfigMutate.mock.calls[0]?.[0]?.config as
+      | { repair?: unknown }
+      | undefined
+    expect(savedConfig).toMatchObject({ repair: null })
   })
 
   it('handles a cancellation emitted by the injected picker script', async () => {
@@ -191,11 +233,57 @@ describe('useElementPicker', () => {
     })
 
     await act(async () => {
-      fireConsoleMessage('_aiPicker:result:{}')
+      fireSessionResult({})
     })
 
     expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
     expect(result.current.isPickerActive).toBe(false)
+  })
+
+  it('ignores a stale result from a previous picker session', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    await act(async () => {
+      // A delayed emit from an older run carries another session id.
+      fireConsoleMessage(
+        `_aiPicker:result:stale-session:${JSON.stringify({
+          input: 'textarea',
+          button: 'button',
+          inputFingerprint: { tag: 'textarea' },
+          buttonFingerprint: { tag: 'button' }
+        })}`
+      )
+    })
+
+    expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+    // The current session is still waiting for its own result.
+    expect(result.current.isPickerActive).toBe(true)
+  })
+
+  it('aborts the save when the view navigated to another host mid-pick', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    mockContent.getURL.mockReturnValue('https://other-site.example/chat')
+
+    await act(async () => {
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
+    })
+
+    expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+    expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
   })
 
   it('reports save failures with picker_save_failed (not a PDF error toast)', async () => {
@@ -207,12 +295,12 @@ describe('useElementPicker', () => {
     })
 
     await act(async () => {
-      fireConsoleMessage(
-        `_aiPicker:result:${JSON.stringify({
-          inputFingerprint: { tag: 'textarea' },
-          buttonFingerprint: { tag: 'button' }
-        })}`
-      )
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
     })
 
     expect(mockToast.showError).toHaveBeenCalledWith(
@@ -345,12 +433,12 @@ describe('useElementPicker', () => {
     })
 
     await act(async () => {
-      fireConsoleMessage(
-        `_aiPicker:result:${JSON.stringify({
-          inputFingerprint: { tag: 'textarea' },
-          buttonFingerprint: { tag: 'button' }
-        })}`
-      )
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
     })
 
     expect(mockToast.showError).toHaveBeenCalledWith(

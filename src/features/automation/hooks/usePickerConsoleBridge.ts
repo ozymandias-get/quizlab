@@ -13,13 +13,13 @@ const PICKER_CANCELLED = '_aiPicker:cancelled'
 export interface UsePickerConsoleBridgeOptions {
   getContentController: () => AiContentController | null | undefined
   mountedRef: RefObject<boolean>
-  onResult: (data: unknown) => void | Promise<void>
+  onResult: (data: unknown, sessionId?: string | null) => void | Promise<void>
   onCancelled: () => void
   onError: (error: unknown) => void
 }
 
 export interface UsePickerConsoleBridgeResult {
-  startListening: (controller?: AiContentController | null) => void
+  startListening: (controller?: AiContentController | null, sessionId?: string | null) => void
   stopListening: () => void
 }
 
@@ -41,6 +41,12 @@ export function usePickerConsoleBridge({
   onError
 }: UsePickerConsoleBridgeOptions): UsePickerConsoleBridgeResult {
   const targetControllerRef = useRef<AiContentController | null>(null)
+  // Binds emitted results to the picker session that produced them. A delayed
+  // console emit from a previous session carries a different session id and
+  // is ignored instead of being saved as the new session's result (stale
+  // bridge result). Null means "no session bound": only legacy emits without
+  // any session prefix are accepted then, keeping old in-flight scripts alive.
+  const expectedSessionIdRef = useRef<string | null>(null)
   const getControllerRef = useRef(getContentController)
   const isListeningRef = useRef(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
@@ -66,6 +72,7 @@ export function usePickerConsoleBridge({
     unsubscribeRef.current?.()
     unsubscribeRef.current = null
     targetControllerRef.current = null
+    expectedSessionIdRef.current = null
   }, [])
 
   useEffect(() => {
@@ -93,11 +100,38 @@ export function usePickerConsoleBridge({
 
       if (!message.startsWith(PICKER_RESULT_PREFIX)) return
 
-      const payload = message.slice(PICKER_RESULT_PREFIX.length)
+      const rest = message.slice(PICKER_RESULT_PREFIX.length)
+      // Session-bound emits look like `sessionId:{json}`; legacy emits are
+      // bare `{json}`. Anything else is malformed.
+      let payload = rest
+      let messageSessionId: string | null = null
+      if (!rest.startsWith('{')) {
+        const separator = rest.indexOf(':')
+        if (separator <= 0) {
+          Logger.warn('[PickerConsoleBridge] Rejected malformed result prefix')
+          onErrorRef.current(new Error('Malformed picker result'))
+          return
+        }
+        messageSessionId = rest.slice(0, separator)
+        payload = rest.slice(separator + 1)
+      }
+
+      const expectedSessionId = expectedSessionIdRef.current
+      if (expectedSessionId) {
+        // A session is active: only its own emits are accepted. Stale emits
+        // from an older session (or legacy emits without any session) are
+        // dropped without even parsing the payload.
+        if (messageSessionId !== expectedSessionId) return
+      } else if (messageSessionId !== null) {
+        // No session is bound but the emit carries one: it belongs to a
+        // session we are no longer tracking.
+        return
+      }
+
       try {
         const data = JSON.parse(payload)
         stopListening()
-        onResultRef.current(data)
+        onResultRef.current(data, messageSessionId)
       } catch (error) {
         Logger.warn('[PickerConsoleBridge] Failed to parse result:', error)
         onErrorRef.current(error)
@@ -106,11 +140,12 @@ export function usePickerConsoleBridge({
   }, [mountedRef, stopListening])
 
   const startListening = useCallback(
-    (target?: AiContentController | null) => {
+    (target?: AiContentController | null, sessionId?: string | null) => {
       stopListening()
       const controller = target ?? getControllerRef.current()
       if (!controller?.subscribeEvent) return
       targetControllerRef.current = controller
+      expectedSessionIdRef.current = typeof sessionId === 'string' && sessionId ? sessionId : null
       isListeningRef.current = true
       unsubscribeRef.current = controller.subscribeEvent('console-message', (event) =>
         handleConsoleRef.current(event)

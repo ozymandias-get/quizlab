@@ -43,9 +43,14 @@ const electronApi: ElectronApi = {
           options
         )
       ),
-    generatePickerScript: (translations) =>
+    generatePickerScript: (translations, sessionId?) =>
       unwrapIpcResult(
-        typedInvoke(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS, 'generatePickerScript', translations)
+        typedInvoke(
+          IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
+          'generatePickerScript',
+          translations,
+          sessionId
+        )
       )
   },
 

@@ -97,7 +97,10 @@ export interface ElectronApi {
       config: AutomationConfig,
       options?: WaitForSubmitReadyOptions
     ) => Promise<string | null>
-    generatePickerScript: (translations: Record<string, string>) => Promise<string | null>
+    generatePickerScript: (
+      translations: Record<string, string>,
+      sessionId?: string
+    ) => Promise<string | null>
   }
   selectPdf: (options?: PdfSelectOptions) => Promise<PdfSelection | null>
   getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
