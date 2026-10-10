@@ -17,6 +17,7 @@ export const AUTOMATION_LOOKUP_STRATEGIES = [
   'candidate',
   'semantic',
   'provider',
+  'siteStrategy',
   'heuristic'
 ] as const satisfies readonly AutomationLookupStrategy[]
 
@@ -40,6 +41,7 @@ export const RECOVERY_LOOKUP_STRATEGIES = [
   'fingerprint',
   'semantic',
   'provider',
+  'siteStrategy',
   'heuristic'
 ] as const satisfies readonly AutomationLookupStrategy[]
 
@@ -60,6 +62,7 @@ export const REPAIR_STRATEGY_TRUST_ORDER = [
   'fingerprint',
   'semantic',
   'provider',
+  'siteStrategy',
   'heuristic'
 ] as const satisfies readonly AutomationLookupStrategy[]
 
@@ -96,7 +99,7 @@ export function isRecoveryStrategy(strategy: unknown): boolean {
  * fallback … hemen permanent selector'a çevrilmemeli").
  */
 export function isProviderDerivedStrategy(strategy: unknown): boolean {
-  return strategy === 'provider' || strategy === 'heuristic'
+  return strategy === 'provider' || strategy === 'siteStrategy' || strategy === 'heuristic'
 }
 
 export function getStrategyTrustRank(strategy: AutomationLookupStrategy): number {

@@ -241,6 +241,25 @@ export const selectorEngine =
         // cap.
         const fallbackResult = runFallbackPipeline(kind, config, diagnostics, fallbackDepth);
         if (fallbackResult && fallbackResult.element) {
+            // Target integrity: a recovery whose two best candidates scored
+            // too close cannot identify the picked element — acting on it
+            // would operate on an arbitrary twin (wrong composer, wrong send
+            // button). Fail safe instead: the error classifier turns this
+            // into a re-pick requirement, and a fresh pick mints a new
+            // localPath that disambiguates. Unambiguous recoveries (a lone
+            // candidate reports its full score as the gap) are unaffected, so
+            // single-composer drift recovery keeps working in every mode.
+            const minGap = (typeof REPAIR_MIN_AUTO_REPAIR_SCORE_GAP === 'number')
+                ? REPAIR_MIN_AUTO_REPAIR_SCORE_GAP
+                : 15;
+            if (typeof fallbackResult.scoreGap === 'number' && fallbackResult.scoreGap < minGap) {
+                diagnostics.strategy = 'none';
+                diagnostics.matchedSelector = null;
+                diagnostics.ambiguous = true;
+                diagnostics.repairEligible = false;
+                diagnostics.repairReason = 'ambiguous_candidates';
+                return { element: null, matchedSelector: null, strategy: 'none' };
+            }
             diagnostics.strategy = fallbackResult.strategy;
             diagnostics.matchedSelector = fallbackResult.matchedSelector;
             const fallbackEvidence = __annotateSelectorResolution(

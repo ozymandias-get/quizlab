@@ -79,7 +79,8 @@ describe('lookup strategy union', () => {
 
   it('rejects unknown strategy names', () => {
     expect(isLookupStrategy('telemetry')).toBe(false)
-    expect(isLookupStrategy('siteStrategy')).toBe(false)
+    // 'siteStrategy' is a known recovery strategy (silent hits were the bug).
+    expect(isLookupStrategy('siteStrategy')).toBe(true)
     expect(isLookupStrategy(42)).toBe(false)
     expect(normalizeLookupStrategy('direct')).toBe('direct')
     expect(normalizeLookupStrategy('nope')).toBeUndefined()
@@ -618,6 +619,7 @@ describe('evidence ranking', () => {
       'fingerprint',
       'semantic',
       'provider',
+      'siteStrategy',
       'heuristic'
     ])
   })

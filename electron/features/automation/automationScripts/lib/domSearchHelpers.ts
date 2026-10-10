@@ -92,6 +92,15 @@ export const domSearchHelpers =
     };
 
     /**
+     * Minimum gap between the best and the runner-up fingerprint scores.
+     *
+     * Mirrors MIN_AUTO_REPAIR_SCORE_GAP (15) from shared/selectorRepair — one
+     * policy, not two scoring systems. Two elements this close cannot be told
+     * apart, so the resolver must fail safe instead of trusting array order.
+     */
+    const __FINGERPRINT_MIN_GAP = 15;
+
+    /**
      * Checks how well an element matches a fingerprint's key attributes.
      * Higher score = better match.
      */
@@ -175,24 +184,38 @@ export const domSearchHelpers =
         if (fingerprint) {
             let bestCandidate = null;
             let bestScore = 0;
+            let runnerUpScore = 0;
             for (const candidate of allMatches) {
                 const score = __fingerprintMatchScore(candidate, fingerprint);
                 if (score > bestScore) {
+                    runnerUpScore = bestScore;
                     bestScore = score;
                     bestCandidate = candidate;
+                } else if (score > runnerUpScore) {
+                    runnerUpScore = score;
                 }
             }
-            if (bestCandidate && bestScore > 20) {
+            // Target integrity: a high score is not enough when the runner-up
+            // is nearly identical (duplicate ids, repeated test ids, twin
+            // composers). Below the gap the choice would be array order, so
+            // fall through to the safe paths instead of trusting the first.
+            if (bestCandidate && bestScore > 20 && (bestScore - runnerUpScore) >= __FINGERPRINT_MIN_GAP) {
                 const strategy = directMatches.includes(bestCandidate) ? 'direct' : 'recursive';
                 return {
                     element: bestCandidate,
                     matchedSelector: selector,
-                    strategy
+                    strategy,
+                    scoreGap: bestScore - runnerUpScore
                 };
             }
         }
 
-        if (AMBIGUOUS_SELECTOR_BEHAVIOR === 'pick') {
+        // Target integrity: the area-based pick is a legacy best-effort for
+        // lookups WITHOUT a fingerprint (old configs). When a fingerprint
+        // exists but could not distinguish the matches (gap failure above),
+        // picking the largest would override identity evidence with a guess —
+        // fall through to the visible-singleton check / safe failure instead.
+        if (AMBIGUOUS_SELECTOR_BEHAVIOR === 'pick' && !fingerprint) {
             const picked = pickPrimaryInputCandidate(allMatches);
             if (picked) {
                 const strategy = directMatches.includes(picked) ? 'direct' : 'recursive';
@@ -271,14 +294,19 @@ export const domSearchHelpers =
         if (matches.length > 1 && fingerprint) {
             let best = null;
             let bestScore = 0;
+            let runnerUpScore = 0;
             for (const m of matches) {
                 const score = __fingerprintMatchScore(m, fingerprint);
                 if (score > bestScore) {
+                    runnerUpScore = bestScore;
                     bestScore = score;
                     best = m;
+                } else if (score > runnerUpScore) {
+                    runnerUpScore = score;
                 }
             }
-            if (best && bestScore > 10) return best;
+            // Same gap policy as the selector path: near-tied twins fail safe.
+            if (best && bestScore > 10 && (bestScore - runnerUpScore) >= __FINGERPRINT_MIN_GAP) return best;
         }
         return null;
     };

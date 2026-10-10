@@ -115,6 +115,76 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
         diagnostics.repairReason = evidence.repairReason;
     };
 
+    /**
+     * Cheap per-hit functional validation for a connected cache entry.
+     * Returns false only on positive evidence of drift (selector no longer
+     * matches the node, or the node's tag disagrees with the fingerprint).
+     * Anything uncertain (marker selectors, unreadable attributes) returns
+     * true so availability is preserved.
+     */
+    const isCacheFunctionallyValid = (element, matchedSelector, fingerprint) => {
+        try {
+            if (matchedSelector && typeof matchedSelector === 'string' && element.matches) {
+                let matches = false;
+                try {
+                    matches = element.matches(matchedSelector);
+                } catch (_) {
+                    // Not real CSS (fingerprint:…, semantic:auto, …): skip.
+                    matches = true;
+                }
+                if (!matches) return false;
+            }
+        } catch (_) {
+            return true;
+        }
+        try {
+            const expectedTag = fingerprint && typeof fingerprint.tag === 'string'
+                ? fingerprint.tag.toLowerCase()
+                : null;
+            if (expectedTag && element.tagName) {
+                if (String(element.tagName).toLowerCase() !== expectedTag) return false;
+            }
+            // Function drift on the SAME node (same tag, same selector still
+            // matching, but the control now serves another purpose): compare
+            // the saved identity attributes. A single changed attribute is
+            // positive drift evidence — not uncertainty.
+            if (fingerprint && element.getAttribute) {
+                const pairs = [
+                    ['role', fingerprint.role],
+                    ['placeholder', fingerprint.placeholder],
+                    ['aria-label', fingerprint.ariaLabel],
+                    ['name', fingerprint.name],
+                    ['type', fingerprint.type]
+                ];
+                for (let i = 0; i < pairs.length; i++) {
+                    const attr = pairs[i][0];
+                    const expected = pairs[i][1];
+                    if (typeof expected === 'string' && expected) {
+                        let actual = null;
+                        try {
+                            actual = element.getAttribute(attr);
+                        } catch (_) {
+                            actual = null;
+                        }
+                        if (actual !== expected) return false;
+                    }
+                }
+                if (typeof fingerprint.dataTestId === 'string' && fingerprint.dataTestId) {
+                    let actualTid = null;
+                    try {
+                        actualTid = element.getAttribute('data-testid') || element.getAttribute('data-test-id');
+                    } catch (_) {
+                        actualTid = null;
+                    }
+                    if (actualTid !== fingerprint.dataTestId) return false;
+                }
+            }
+        } catch (_) {
+            return true;
+        }
+        return true;
+    };
+
     const getCachedElement = (kind, lookup, diagnostics) => {
         const entry = getCacheEntry(kind, lookup);
 
@@ -136,6 +206,25 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
             return null;
         }
 
+        // Target-integrity: a still-connected node may have drifted out from
+        // under its selector (SPA class/attribute swap) or changed function
+        // (the same selector now describes a different control). Two cheap,
+        // query-free checks run on EVERY hit:
+        //   1. the cached node must still match its own matchedSelector;
+        //   2. its tag must still agree with the saved fingerprint tag.
+        // Marker selectors (fingerprint:…, semantic:auto, …) are not CSS and
+        // are skipped — they never invalidate on uncertainty.
+        try {
+            const functional = isCacheFunctionallyValid(element, entry.matchedSelector, lookup && lookup.fingerprint);
+            if (!functional) {
+                invalidateCacheEntry(kind, lookup, diagnostics);
+                return null;
+            }
+        } catch (_) {
+            // A check failure must never break automation; the periodic
+            // recheck below remains the backstop.
+        }
+
         // Periyodik recheck: matchedSelector hâlâ aynı elemana mı işaret ediyor?
         const nowMs = Date.now();
         if (entry.matchedSelector && (nowMs - (entry.lastConnectedAt || 0)) > CACHE_CONNECTED_RECHECK_MS) {
@@ -149,14 +238,23 @@ export const cachingHelpers = `    const CACHE_TTL_MS = 86400000;
                     recheckRoots = [document];
                 }
                 let recheckFound = false;
+                let recheckAmbiguous = false;
                 for (const root of recheckRoots) {
                     const recheck = root.querySelectorAll(entry.matchedSelector);
+                    if (recheck.length > 1) {
+                        // The selector used to be unique but now matches
+                        // several elements (twin composer mounted, list
+                        // re-rendered). Keeping the warm entry would pin the
+                        // old twin while the resolver would fail safe.
+                        recheckAmbiguous = true;
+                        break;
+                    }
                     if (recheck.length > 0 && recheck[0] === element) {
                         recheckFound = true;
                         break;
                     }
                 }
-                if (!recheckFound) {
+                if (recheckAmbiguous || !recheckFound) {
                     invalidateCacheEntry(kind, lookup, diagnostics);
                     return null;
                 }
