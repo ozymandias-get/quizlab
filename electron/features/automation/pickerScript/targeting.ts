@@ -30,6 +30,20 @@ export function buildPickerTargetingBlock(): string {
             return a;
         };
 
+        const isButtonLikeNode = (node) => {
+            if (!node || node.nodeType !== 1) return false;
+            try {
+                var tag = (node.tagName || '').toLowerCase();
+                if (tag === 'button' || tag === 'a') return true;
+                if (tag === 'input') {
+                    var t = (node.getAttribute && node.getAttribute('type')) || '';
+                    if (t === 'submit' || t === 'button') return true;
+                }
+                if (node.getAttribute && node.getAttribute('role') === 'button') return true;
+            } catch (e) { /* attribute read failed: not button-like */ }
+            return false;
+        };
+
         const normalizeTarget = (rawTarget, optPath) => {
             if (!rawTarget) return null;
             if (rawTarget.nodeType !== 1) return null;
@@ -38,12 +52,22 @@ export function buildPickerTargetingBlock(): string {
             if (step === 'submit' || step === 'typing') {
                 var nodes = optPath && optPath.length ? optPath : ancestorChain(rawTarget);
                 var max = Math.min(nodes.length, 16);
+                // Target-integrity: a send-like WRAPPER (e.g. div.composer-send)
+                // must not shadow the real button inside it. Collect the
+                // innermost send-like node and the innermost button-like node;
+                // the interactable control wins so the persisted locator
+                // describes the element automation can actually click.
+                var sendLike = null;
+                var btnLike = null;
                 for (var j = 0; j < max; j++) {
                     var node = nodes[j];
-                    if (node && node.nodeType === 1 && inferSendLikeControl(node)) {
-                        return node;
-                    }
+                    if (!node || node.nodeType !== 1) continue;
+                    if (!sendLike && inferSendLikeControl(node)) sendLike = node;
+                    if (!btnLike && isButtonLikeNode(node)) btnLike = node;
+                    if (sendLike && btnLike) break;
                 }
+                if (btnLike) return btnLike;
+                if (sendLike) return sendLike;
                 var sendBtn = rawTarget.closest('button, [role="button"], a');
                 if (sendBtn) return sendBtn;
                 return rawTarget;

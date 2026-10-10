@@ -26,13 +26,17 @@ import { buildPickerUiBlock } from './pickerScript/ui.js'
  *
  * @returns {string} Enjekte edilecek JS kodu
  */
-export const generatePickerScript = (translations: TranslationMap = {}): string => {
+export const generatePickerScript = (
+  translations: TranslationMap = {},
+  pickerSessionId?: string | null
+): string => {
   const translationsJSON = JSON.stringify(translations)
   const head = buildPickerScriptHead(
     translationsJSON,
     buildInjectedPickerDomHelpers(),
     getStepHtml.toString(),
-    getHintHtml.toString()
+    getHintHtml.toString(),
+    pickerSessionId
   )
   const body = [
     buildPickerUiBlock(pickerStyles),

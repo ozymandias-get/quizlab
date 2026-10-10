@@ -347,7 +347,62 @@ export function buildCssCandidates(el: Element, kind: 'input' | 'button') {
     }
   }
 
+  // Last-resort candidate: the bare tag always describes the element itself,
+  // so a picked element with no stable attributes (e.g. a bare <button>)
+  // still yields a usable primary. It sorts last everywhere it matters
+  // (priority 0 / fallback), and resolution still disambiguates through the
+  // fingerprint or fails safe — it never silently claims uniqueness.
+  if (/^[a-zA-Z][a-zA-Z0-9-]*$/.test(tag)) {
+    pushCandidate(candidates, tag)
+  }
+
   return candidates.slice(0, 12)
+}
+
+/**
+ * Target-integrity verification for generated selectors.
+ *
+ * `buildCssCandidates` alone cannot know whether a strong-looking candidate
+ * (notably `#id` or `[data-testid]`) is shared by several elements — invalid
+ * pages do duplicate ids, and design systems repeat test ids. Blindly
+ * persisting `candidates[0]` then resolves to the WRONG twin at runtime.
+ *
+ * These helpers are pure and DOM-optional: `matches` works on detached nodes,
+ * and the document-uniqueness probe is skipped when no document is available
+ * (unit tests, SSR). They only run at pick time — never per hover or per
+ * automation run — so they cost nothing in the hot path.
+ */
+export function safeMatchesSelector(el: Element, selector: string): boolean {
+  try {
+    if (!el || typeof selector !== 'string' || !selector.trim()) return false
+    if (typeof el.matches !== 'function') return false
+    return el.matches(selector)
+  } catch {
+    return false
+  }
+}
+
+export function pickVerifiedPrimary(el: Element, candidates: string[]): string | null {
+  if (!el || !Array.isArray(candidates) || candidates.length === 0) return null
+  const verified = candidates.filter((c) => safeMatchesSelector(el, c))
+  if (verified.length === 0) return candidates[0] || null
+  // Prefer a candidate that uniquely identifies the element in the current
+  // document. Inside shadow roots / iframes the document probe sees zero
+  // matches (or the wrong scope) — those candidates stay in contention and
+  // the first verified one wins, exactly as before.
+  // NOTE: the document probe is intentionally inlined here instead of a
+  // helper call: this function is serialized into the injected picker script
+  // via fn.toString(), so every callee would have to be emitted alongside it.
+  for (const candidate of verified) {
+    try {
+      if (typeof document !== 'undefined' && document.querySelectorAll) {
+        if (document.querySelectorAll(candidate).length === 1) return candidate
+      }
+    } catch {
+      // Invalid selector in this document: keep it in contention.
+    }
+  }
+  return verified[0] || null
 }
 
 export function generateLocatorBundle(
@@ -384,7 +439,7 @@ export function generateLocatorBundle(
   }
 
   return {
-    primarySelector: candidates[0] || null,
+    primarySelector: pickVerifiedPrimary(el, candidates),
     candidates,
     fingerprint
   }

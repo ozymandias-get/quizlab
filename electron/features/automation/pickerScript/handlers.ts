@@ -101,6 +101,10 @@ export function buildPickerHandlersBlock(): string {
                 
                 const info = memoGetElementInfo(target);
                 
+                // Target-integrity invariant: green must mean "acceptable for
+                // THIS step". A high-confidence element of the wrong category
+                // (e.g. a send button while picking the input) must never be
+                // painted as a good choice — the user reads green as "correct".
                 const isGoodChoice = (step === 'input' && info.category === 'input') || 
                                     (step === 'submit' && info.category === 'button');
                 const isMediumChoice = (step === 'input' && target.isContentEditable) ||
@@ -108,7 +112,7 @@ export function buildPickerHandlersBlock(): string {
                 
                 let cls;
                 let labelBg;
-                if (isGoodChoice || info.confidence === 'high') {
+                if (isGoodChoice) {
                     cls = '_ai-picker-hover-good';
                     labelBg = '#22c55e';
                 } else if (isMediumChoice || info.confidence === 'medium') {
@@ -194,6 +198,25 @@ export function buildPickerHandlersBlock(): string {
                 }
             }
 
+            // Target-integrity gate: the click target must be functionally valid
+            // for the CURRENT step. Without this, a button clicked during the
+            // input step (or an input clicked during the submit step) was
+            // silently persisted as the wrong locator, and automation later
+            // acted on the wrong element. Detached nodes (React re-render /
+            // route change between hover and click) are rejected the same way.
+            // Icon-only but genuine send buttons still pass: normalizeTarget
+            // already elevates icon/span clicks to their button ancestor, and
+            // getElementInfo classifies real buttons as category 'button'
+            // regardless of their visible text.
+            var clickInfo = memoGetElementInfo(target);
+            var expectedCategory = step === 'input' ? 'input' : (step === 'submit' ? 'button' : null);
+            if (expectedCategory && (!clickInfo || clickInfo.category !== expectedCategory || target.isConnected === false)) {
+                try {
+                    flashTarget(target, 'all 0.2s ease', '0 0 25px #ef4444', 200);
+                } catch (err) { safePickerLog('click.wrongFlash', err); }
+                return;
+            }
+
             let locatorBundle = null;
             try {
                 locatorBundle = generateLocatorBundle(target, step === 'input' ? 'input' : 'button');
@@ -202,8 +225,11 @@ export function buildPickerHandlersBlock(): string {
                 return;
             }
 
-            if (!locatorBundle || !locatorBundle.fingerprint) {
+            if (!locatorBundle || !locatorBundle.fingerprint || !locatorBundle.primarySelector) {
                 safeConsole.error('Locator bundle generation returned empty result');
+                try {
+                    flashTarget(target, 'all 0.2s ease', '0 0 25px #ef4444', 200);
+                } catch (err) { safePickerLog('click.emptyFlash', err); }
                 return;
             }
 
@@ -270,10 +296,17 @@ export function buildPickerHandlersBlock(): string {
                         // a successful selection — root cause was this
                         // missing emit, not the timer race).
                         try {
+                            // Session-bound emit: the renderer bridge only
+                            // accepts results carrying the current session id,
+                            // so a delayed emit from an older session is
+                            // ignored instead of overwriting the new pick.
+                            var resultPrefix = __aiPickerSessionId
+                                ? '_aiPicker:result:' + __aiPickerSessionId + ':'
+                                : '_aiPicker:result:';
                             (window.console && window.console.log
                                 ? window.console.log.bind(window.console)
                                 : function () {}
-                            )('_aiPicker:result:' + resultJson);
+                            )(resultPrefix + resultJson);
                         } catch (e) { safePickerLog('submit.consoleEmit', e); }
 
                         // 300ms beat: let the "done" UI render, then the
