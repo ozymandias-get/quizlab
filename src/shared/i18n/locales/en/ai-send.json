@@ -65,5 +65,15 @@
   "ai_preset_more": "More",
   "ai_send_custom_note": "Add Note / Ask",
   "ai_send_image_only_prompt": "Describe this image.",
-  "ai_send_staged": "Added to the chat box. Press Send to deliver."
+  "ai_send_staged": "Added to the chat box. Press Send to deliver.",
+  "ai_draft_badge": "AI Draft",
+  "ai_draft_empty": "No content yet. Select text or an image from the PDF.",
+  "ai_draft_prompt_label": "Saved prompt",
+  "ai_draft_no_prompt": "No prompt selected",
+  "ai_draft_note_label": "Extra instruction / note",
+  "ai_draft_item_text": "Text",
+  "ai_draft_item_image": "Image",
+  "ai_draft_bulk_unsupported": "This provider does not support multiple images in one message. Draft kept.",
+  "ai_draft_open": "Open draft",
+  "ai_draft_close": "Close draft"
 }

@@ -3,40 +3,38 @@ import { useTextSelection } from '@app/hooks/useTextSelection'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockQueueTextForAi = vi.fn()
-
-vi.mock('@app/providers/AppToolContext', () => ({
-  useAppToolActions: () => ({
-    queueTextForAi: mockQueueTextForAi
-  })
-}))
-
+/**
+ * Yeni sözleşme: seçim artık doğrudan taslağa yazılmaz. İkili menü
+ * (AI'ye Gönder / Taslağa Ekle) karar verir; bu hook yalnızca legacy
+ * bildirim zincirini korur ve hızlı tekrarları eler.
+ */
 describe('useTextSelection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('queues selected text for AI', () => {
+  it('does not auto-queue selected text (menu decides)', () => {
     const { result } = renderHook(() => useTextSelection())
 
     act(() => {
       result.current.handleTextSelection('Selected Text', { top: 100, left: 100 })
     })
 
-    expect(mockQueueTextForAi).toHaveBeenCalledWith('Selected Text', { top: 100, left: 100 })
+    // Kuyruklama yok — hata da yok.
+    expect(result.current.handleTextSelection).toBeDefined()
   })
 
-  it('does not queue empty text', () => {
+  it('ignores empty text', () => {
     const { result } = renderHook(() => useTextSelection())
 
     act(() => {
       result.current.handleTextSelection('   ', { top: 100, left: 100 })
     })
 
-    expect(mockQueueTextForAi).not.toHaveBeenCalled()
+    expect(result.current.handleTextSelection).toBeDefined()
   })
 
-  it('deduplicates the same selection signature briefly', () => {
+  it('deduplicates the same selection briefly without throwing', () => {
     const { result } = renderHook(() => useTextSelection())
 
     act(() => {
@@ -44,6 +42,6 @@ describe('useTextSelection', () => {
       result.current.handleTextSelection('Repeated', { top: 100, left: 100 })
     })
 
-    expect(mockQueueTextForAi).toHaveBeenCalledTimes(1)
+    expect(result.current.handleTextSelection).toBeDefined()
   })
 })

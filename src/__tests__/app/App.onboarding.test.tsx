@@ -34,6 +34,7 @@ vi.mock('@app/providers/ai-context', () => ({
 vi.mock('@features/screenshot/tool', () => ({ ScreenshotTool: () => null }))
 vi.mock('@app/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
+vi.mock('@app/ui/AreaImageChoiceMenu', () => ({ default: () => null }))
 vi.mock('@app/hooks/useCacheThresholdWarning', () => ({
   useCacheThresholdWarning: () => {}
 }))

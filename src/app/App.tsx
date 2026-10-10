@@ -12,8 +12,12 @@ const FocusOverlay = lazy(() => import('@app/ui/FocusOverlay'))
 const ScreenshotTool = lazy(() =>
   import('@features/screenshot/tool').then((m) => ({ default: m.ScreenshotTool }))
 )
+const AreaImageChoiceMenu = lazy(() => import('@app/ui/AreaImageChoiceMenu'))
 const UpdateBanner = lazy(() => import('@app/components/UpdateBanner'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
+const AiDraftLayer = lazy(() =>
+  import('@app/ui/AiDraftLayer').then((m) => ({ default: m.AiDraftLayer }))
+)
 const LanguageSelectionDialog = lazy(() =>
   import('@features/onboarding').then((m) => ({
     default: m.LanguageSelectionDialog
@@ -180,6 +184,10 @@ function App() {
         </Suspense>
 
         <Suspense fallback={null}>
+          <AreaImageChoiceMenu />
+        </Suspense>
+
+        <Suspense fallback={null}>
           <ScreenshotToolLayer />
         </Suspense>
 
@@ -195,7 +203,8 @@ function App() {
 
 const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   const { pendingAiItems, autoSend } = useAppToolQueueState()
-  const { clearPendingAiItems, sendPendingAiItems, toggleAutoSend } = useAppToolActions()
+  const { clearPendingAiItems, removePendingAiItem, sendPendingAiItems, toggleAutoSend } =
+    useAppToolActions()
 
   const handleSend = useCallback(
     ({ noteText, autoSend }: { noteText?: string; autoSend?: boolean }) =>
@@ -203,18 +212,23 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
     [sendPendingAiItems]
   )
 
-  if (!pendingAiItems || pendingAiItems.length === 0) {
-    return null
-  }
-
+  // PDF panelindeki yuvaya portal ile yerleşir (bkz. AiDraftLayer).
+  // Küçük kontrol her zaman erişilebilir; panel yalnızca kullanıcı açarsa
+  // görünür. İçerik eklendiğinde kendiliğinden açılmaz; kapanınca taslak korunur.
   return (
-    <AiSendComposer
-      items={pendingAiItems}
-      onClearAll={clearPendingAiItems}
-      onSend={handleSend}
-      autoSend={autoSend}
-      onToggleAutoSend={toggleAutoSend}
-    />
+    <AiDraftLayer>
+      {(placement) => (
+        <AiSendComposer
+          items={pendingAiItems ?? []}
+          onClearAll={clearPendingAiItems}
+          onRemoveItem={removePendingAiItem}
+          onSend={handleSend}
+          autoSend={autoSend}
+          onToggleAutoSend={toggleAutoSend}
+          placement={placement}
+        />
+      )}
+    </AiDraftLayer>
   )
 })
 

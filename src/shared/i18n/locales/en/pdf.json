@@ -28,5 +28,8 @@
   "pdf_ai_quick_actions": "AI Actions",
   "pdf_quick_text_ai": "Add Text to AI",
   "pdf_quick_image_ai": "Send Image to AI",
-  "pdf_quick_area_ai": "Crop to AI"
+  "pdf_quick_area_ai": "Crop to AI",
+  "pdf_selection_menu_label": "Selection actions",
+  "pdf_add_to_draft": "Add to Draft",
+  "pdf_draft_added": "Added to draft · {{count}} items"
 }

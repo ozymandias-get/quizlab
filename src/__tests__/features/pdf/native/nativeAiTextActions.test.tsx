@@ -1,16 +1,12 @@
 /**
- * The AI text actions, end to end.
+ * The AI text actions, end to end — new binary menu contract.
  *
- * Both text actions do real work on the mounted viewer: the real
- * `PdfViewerDocument` → `usePdfViewerState` → `usePdfTextActions` →
- * `extractPageTextFromDom` → `normalizePdfText` path runs, on the real PDF.js
- * text-layer markup the viewer mounts. Only the leaves are faked:
- * `pdfjs-dist`, the Electron-facing toolbar actions, and the AI queue itself —
- * which is the thing under assertion.
- *
- * The selected-text flow is wired through the app's real `useTextSelection`
- * bridge, because that is the production wiring: `onTextSelection` →
- * `queueTextForAi(text, position)`.
+ * - Text drag shows the binary menu (AI'ye Gönder / Taslağa Ekle), it does NOT
+ *   auto-queue.
+ * - Taslağa Ekle queues with source metadata; AI'ye Gönder uses the direct
+ *   pipeline without touching the draft queue.
+ * - Full-page text stays discoverable via the right-click menu (toolbar AI
+ *   controls were removed with the new selection flow).
  */
 import { useTextSelection } from '@app/hooks/useTextSelection'
 import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
@@ -25,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
   initializeNativePdfWorker: vi.fn(),
   queueTextForAi: vi.fn(),
+  sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
   showSuccess: vi.fn(),
   showWarning: vi.fn(),
   handleFullPageScreenshot: vi.fn(),
@@ -49,8 +46,12 @@ vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: vi.fn(),
     queueImageForAi: vi.fn(),
-    queueTextForAi: mocks.queueTextForAi
-  })
+    queueTextForAi: mocks.queueTextForAi,
+    sendTextDirectToAi: mocks.sendTextDirectToAi,
+    sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
+  }),
+  useAppToolQueueState: () => ({ pendingAiItems: [], autoSend: false }),
+  useAppToolScreenshotState: () => ({ isScreenshotMode: false, pendingAreaCapture: null })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
@@ -68,8 +69,6 @@ vi.mock('@features/pdf/ui/components/usePdfViewerLayout', () => ({
   useLastNavigationTime: () => ({ current: 0 })
 }))
 
-// `usePdfTextActions` is deliberately NOT overridden: it is the production code
-// the whole feature depends on.
 vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@features/pdf/ui/hooks')>()
   return {
@@ -88,8 +87,6 @@ vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
   }
 })
 
-/* ------------------------------------------------------------- pdf doubles */
-
 const PAGE_TEXT = 'the native page text goes to the ai'
 
 function createDeferred<T>() {
@@ -102,7 +99,6 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
-/** The minimal `PDFPageProxy` the native engine and text layer actually use. */
 function createPage(pageNumber: number) {
   const renderDeferred = createDeferred<void>()
   const textContentDeferred = createDeferred<{
@@ -151,11 +147,6 @@ const pdfFile = {
   streamUrl: 'local-pdf://book'
 }
 
-/**
- * `PdfViewerDocument` reads the flag through `useTextSelection`'s sibling
- * `usePdfWorkspaceState` wiring, so the real app bridge is used here: whatever
- * the selection hook receives is what `queueTextForAi` receives.
- */
 function renderDocument() {
   function Harness() {
     const { handleTextSelection } = useTextSelection()
@@ -179,8 +170,6 @@ function renderDocument() {
   return render(<Harness />)
 }
 
-/* ----------------------------------------------------------------- helpers */
-
 let frameCallbacks: FrameRequestCallback[]
 
 async function settle(): Promise<void> {
@@ -197,13 +186,6 @@ function flushFrames(): void {
   })
 }
 
-/**
- * Run frames until the viewer stops producing them.
- *
- * The native fit scale commits on an animation frame, and a scale change rebuilds
- * the text layer. Draining until quiet is what makes the rendered spans stable
- * enough to build a selection from.
- */
 async function drainFrames(): Promise<void> {
   for (let i = 0; i < 12; i++) {
     await settle()
@@ -231,19 +213,10 @@ async function waitFor(check: () => void, timeoutMs = 2000): Promise<void> {
   }
 }
 
-/** Open the AI actions group in the real toolbar. */
-function openAiActions(): void {
-  fireEvent.click(screen.getByTestId('pdf-toolbar-mode-toggle'))
-}
-
-/* ------------------------------------------------------------------- tests */
-
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.sendTextDirectToAi.mockResolvedValue({ success: true })
   serveDocument()
-  // Frames are driven by the test: the native zoom channel and the shared fit
-  // both commit on one, and leaving them to the wall clock would make the
-  // rendered text layer move under the assertions.
   frameCallbacks = []
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     frameCallbacks.push(cb)
@@ -255,7 +228,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
-  document.body.innerHTML = ''
+  vi.restoreAllMocks()
 })
 
 describe('native viewer — AI text actions', () => {
@@ -269,25 +242,7 @@ describe('native viewer — AI text actions', () => {
     })
   })
 
-  it('sends the current native page text to the AI queue exactly once', async () => {
-    serveDocument()
-    renderDocument()
-
-    await waitFor(() =>
-      expect(
-        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
-      ).toBeGreaterThan(0)
-    )
-
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-text-ai'))
-
-    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
-    expect(mocks.queueTextForAi.mock.calls[0][0]).toBe(PAGE_TEXT)
-    expect(mocks.showSuccess).toHaveBeenCalledWith('pdf_text_added_to_ai')
-  })
-
-  it('sends a native text-layer selection to the AI queue exactly once', async () => {
+  it('shows the binary menu on selection without auto-queueing', async () => {
     renderDocument()
 
     await waitFor(() => {
@@ -295,8 +250,6 @@ describe('native viewer — AI text actions', () => {
         document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
       ).toBeGreaterThan(0)
     })
-    // Frames are drained, so the fit has committed and the layer is no longer
-    // being rebuilt underneath the selection.
     await drainFrames()
 
     const run = document.querySelector(
@@ -336,26 +289,136 @@ describe('native viewer — AI text actions', () => {
     })
     flushFrames()
 
-    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
-    expect(mocks.queueTextForAi.mock.calls[0][0]).toBe(PAGE_TEXT)
-    // The selection flow carries a position, so the AI bubble can be anchored.
-    expect(mocks.queueTextForAi.mock.calls[0][1]).toEqual(
-      expect.objectContaining({ top: expect.any(Number), left: expect.any(Number) })
-    )
+    // Menü doğrudan belirir; ekstra AI simgesi gerekmez.
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('pdf-selection-send')).toBeInTheDocument()
+    expect(screen.getByTestId('pdf-selection-draft')).toBeInTheDocument()
+    // Otomatik kuyruklama yok.
+    expect(mocks.queueTextForAi).not.toHaveBeenCalled()
   })
 
-  it('hands the capture buttons to the one capture pipeline, not to a dead end', async () => {
-    // The AI-text suite's own concern: capture is faked here, so what is asserted
-    // is that the real toolbar wires both rasterising buttons to the shared
-    // capture actions rather than disabling or dropping them.
+  it('queues with page metadata only after Taslağa Ekle', async () => {
     renderDocument()
-    await settle()
 
-    openAiActions()
-    fireEvent.click(screen.getByTestId('pdf-quick-image-ai'))
-    fireEvent.click(screen.getByTestId('pdf-quick-area-ai'))
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
+      ).toBeGreaterThan(0)
+    })
+    await drainFrames()
 
-    expect(mocks.handleFullPageScreenshot).toHaveBeenCalledTimes(1)
-    expect(mocks.handleAreaScreenshot).toHaveBeenCalledTimes(1)
+    const run = document.querySelector(
+      '[data-native-pdf-text-layer] span[role="presentation"]'
+    )?.firstChild
+    if (!run) throw new Error('text layer produced no run')
+
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => PAGE_TEXT,
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode: run,
+      focusNode: run,
+      getRangeAt: () => ({
+        commonAncestorContainer: run,
+        startContainer: run,
+        endContainer: run,
+        getBoundingClientRect: () => ({
+          left: 10,
+          top: 10,
+          right: 110,
+          bottom: 30,
+          width: 100,
+          height: 20,
+          x: 10,
+          y: 10,
+          toJSON: () => ({})
+        }),
+        getClientRects: () => []
+      })
+    } as unknown as Selection)
+
+    const container = document.querySelector('.pdf-viewer-container') as HTMLElement
+    act(() => {
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+    })
+    flushFrames()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('pdf-selection-draft'))
+
+    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
+    expect(mocks.queueTextForAi.mock.calls[0][0]).toBe(PAGE_TEXT)
+    // Taslağa Ekle gönderim tetiklemez.
+    expect(mocks.sendTextDirectToAi).not.toHaveBeenCalled()
+    // Sayfa metadata'sı snapshot'tan gelir.
+    const meta = mocks.queueTextForAi.mock.calls[0][2]
+    expect(meta?.source?.page).toBeGreaterThanOrEqual(1)
+  })
+
+  it('sends directly without touching the draft queue', async () => {
+    renderDocument()
+
+    await waitFor(() => {
+      expect(
+        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
+      ).toBeGreaterThan(0)
+    })
+    await drainFrames()
+
+    const run = document.querySelector(
+      '[data-native-pdf-text-layer] span[role="presentation"]'
+    )?.firstChild
+    if (!run) throw new Error('text layer produced no run')
+
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => PAGE_TEXT,
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode: run,
+      focusNode: run,
+      getRangeAt: () => ({
+        commonAncestorContainer: run,
+        startContainer: run,
+        endContainer: run,
+        getBoundingClientRect: () => ({
+          left: 10,
+          top: 10,
+          right: 110,
+          bottom: 30,
+          width: 100,
+          height: 20,
+          x: 10,
+          y: 10,
+          toJSON: () => ({})
+        }),
+        getClientRects: () => []
+      })
+    } as unknown as Selection)
+
+    const container = document.querySelector('.pdf-viewer-container') as HTMLElement
+    act(() => {
+      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+    })
+    flushFrames()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('pdf-selection-send'))
+    })
+
+    await waitFor(() => expect(mocks.sendTextDirectToAi).toHaveBeenCalledTimes(1))
+    expect(mocks.queueTextForAi).not.toHaveBeenCalled()
+    // Kaynak başlığı doğrudan gönderimde korunur.
+    expect(mocks.sendTextDirectToAi.mock.calls[0][0]).toContain('[PDF Kaynağı')
   })
 })

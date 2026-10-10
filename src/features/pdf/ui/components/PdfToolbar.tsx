@@ -3,27 +3,26 @@ import type { PdfFile } from '@shared-core/types'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Hand, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { Hand, RefreshCw } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { usePdfSearchStore } from '../hooks/usePdfSearchStore'
-import PdfAiQuickBar from './PdfAiQuickBar'
 import PdfPageNav from './PdfPageNav'
 import PdfSearchBar from './PdfSearchBar'
 import PdfZoomControls, { type CurrentScaleComponent, type ZoomComponent } from './PdfZoomControls'
 
-/* Toggle states for the two left-hand mode buttons. These used to be hardcoded
-   `sky-500` tints, which ignored the theme and did not match any other
-   selected control in the app. */
+/* Toggle states for the pan button. */
 const TOGGLE_ACTIVE = 'border-ring/50 bg-accent/30 text-foreground'
 const TOGGLE_IDLE =
   'border border-transparent text-muted-foreground hover:border-ring/30 hover:bg-accent/20 hover:text-foreground'
 
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
+  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
   onStartScreenshot?: () => void
+  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
   onFullPageScreenshot?: () => void
   autoSend?: boolean
   onToggleAutoSend?: () => void
@@ -39,14 +38,22 @@ interface PdfToolbarProps {
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
+  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
   onAddCurrentPageTextToAi?: () => void
   onReload?: () => void
 }
 
+/**
+ * Sade alt araç çubuğu: sayfa gezinme + zoom + arama + pan + reload.
+ *
+ * Yeni ikili seçim menüsü (AI'ye Gönder / Taslağa Ekle) ile işlevi tekrar eden
+ * AI gönderme ve alan/görsel seçme kontrolleri kaldırıldı. Bunlar artık seçim
+ * akışı ve sağ tık menüsü üzerinden yapılır. İş mantığı silinmedi — yalnızca
+ * gereksiz UI girişleri temizlendi; sağ tık menüsü ve bağımsız işlevler korunur.
+ * Tam sayfa metin/görsel keşfedilebilirliği sağ tık menüsündedir.
+ */
 function PdfToolbar({
   pdfFile,
-  onStartScreenshot,
-  onFullPageScreenshot,
   panMode,
   onTogglePanMode,
   currentPage,
@@ -59,12 +66,9 @@ function PdfToolbar({
   ZoomIn,
   ZoomOut,
   CurrentScale,
-  onAddCurrentPageTextToAi,
   onReload
 }: PdfToolbarProps) {
   const { t } = useTranslation()
-  // Shared store: the app-level Ctrl/Cmd+F shortcut opens the search bar
-  // through this store, so every mounted viewer instance reacts to it.
   const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
   const openSearch = usePdfSearchStore((s) => s.open)
   const closeSearch = usePdfSearchStore((s) => s.close)
@@ -77,10 +81,6 @@ function PdfToolbar({
   useEffect(() => {
     if (pdfFile?.path !== filePathRef.current) {
       filePathRef.current = pdfFile?.path
-      // A pending debounce carries a keyword typed for the *previous* file, so it
-      // has to go with the rest of that file's query state. Clearing only the
-      // overlay would let it fire 300 ms later and highlight the old document's
-      // term on the new document's page.
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current)
         searchDebounceRef.current = null
@@ -108,11 +108,6 @@ function PdfToolbar({
         if (keyword.trim()) {
           highlight(keyword)
         } else {
-          // The search bar's inline clear button empties the input through the same
-          // callback as typing, so without this the previous query's rectangles stay
-          // painted under an empty box. `highlight('')` would not do it: the search
-          // hook drops the query on an emptied keyword, so `clearHighlights()` is the
-          // one call that reaches the overlay.
           clearHighlights()
         }
       }, 300)
@@ -151,14 +146,6 @@ function PdfToolbar({
     [scheduleHighlight]
   )
 
-  // Çift mod: 'viewer' = mevcut çubuk (Resim 2), 'actions' = sağ-tık 4'lüsü.
-  // Sağ-tık menüsü ve mevcut viewer araçları aynen korunur, sadece ekleme.
-  const [mode, setMode] = useState<'viewer' | 'actions'>('viewer')
-  const isActionsMode = mode === 'actions'
-  const handleToggleMode = useCallback(() => {
-    setMode((m) => (m === 'viewer' ? 'actions' : 'viewer'))
-  }, [])
-
   return (
     <motion.div
       initial={{ y: 10, opacity: 0 }}
@@ -167,109 +154,62 @@ function PdfToolbar({
     >
       <div className="relative flex items-center gap-2">
         <ToolbarGroup>
-          {isActionsMode ? (
-            /* Actions modunda geri dönüş — viewer araçlarına dön */
-            <WithTooltip label={t('pdf_toolbar_show_viewer')}>
+          <WithTooltip label={t('pdf_pan_mode')}>
+            <IconButton
+              type="button"
+              variant={panMode ? 'secondary' : 'ghost'}
+              size="compact"
+              onClick={onTogglePanMode}
+              aria-label={t('pdf_pan_mode')}
+              aria-pressed={panMode}
+              className={cn(
+                'motion-normal transition-colors',
+                panMode ? TOGGLE_ACTIVE : TOGGLE_IDLE
+              )}
+              data-testid="pan-mode-button"
+            >
+              <Hand className="size-3.5" aria-hidden="true" />
+            </IconButton>
+          </WithTooltip>
+          {onReload && (
+            <WithTooltip label={`${t('ctx_reload')} (Ctrl+R)`}>
               <IconButton
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 size="compact"
-                onClick={handleToggleMode}
-                aria-label={t('pdf_toolbar_show_viewer')}
-                aria-pressed
-                className={cn(TOGGLE_ACTIVE, 'motion-normal transition-colors')}
-                data-testid="pdf-toolbar-mode-toggle"
+                onClick={onReload}
+                aria-label={t('ctx_reload')}
+                className={cn(TOGGLE_IDLE, 'motion-normal transition-colors')}
+                data-testid="pdf-toolbar-reload"
               >
-                <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                <RefreshCw className="size-3.5" aria-hidden="true" />
               </IconButton>
             </WithTooltip>
-          ) : (
-            <>
-              {/* Pan Mode — Kaydır */}
-              <WithTooltip label={t('pdf_pan_mode')}>
-                <IconButton
-                  type="button"
-                  variant={panMode ? 'secondary' : 'ghost'}
-                  size="compact"
-                  onClick={onTogglePanMode}
-                  aria-label={t('pdf_pan_mode')}
-                  aria-pressed={panMode}
-                  className={cn(
-                    'motion-normal transition-colors',
-                    panMode ? TOGGLE_ACTIVE : TOGGLE_IDLE
-                  )}
-                  data-testid="pan-mode-button"
-                >
-                  <Hand className="size-3.5" aria-hidden="true" />
-                </IconButton>
-              </WithTooltip>
-              {/* AI işlemleri moduna geçiş */}
-              <WithTooltip label={t('pdf_toolbar_show_ai_actions')}>
-                <IconButton
-                  type="button"
-                  variant="ghost"
-                  size="compact"
-                  onClick={handleToggleMode}
-                  aria-label={t('pdf_toolbar_show_ai_actions')}
-                  aria-pressed={false}
-                  className={cn(TOGGLE_IDLE, 'motion-normal transition-colors')}
-                  data-testid="pdf-toolbar-mode-toggle"
-                >
-                  <Sparkles className="size-3.5" aria-hidden="true" />
-                </IconButton>
-              </WithTooltip>
-            </>
           )}
         </ToolbarGroup>
       </div>
 
       <div className="mx-2 flex min-w-0 flex-1 items-center justify-center">
-        {isActionsMode ? (
-          <PdfAiQuickBar
-            onAddCurrentPageTextToAi={onAddCurrentPageTextToAi}
-            onSendPageAsImageToAi={onFullPageScreenshot}
-            onAreaScreenshot={onStartScreenshot}
-            onReload={onReload}
-          />
-        ) : (
-          <PdfSearchBar
-            isOpen={isSearchOpen}
-            onToggle={handleOpenSearch}
-            keyword={searchKeyword}
-            onKeywordChange={handleKeywordChange}
-            onSearch={handleSearch}
-            onClear={handleClearSearch}
-            fileName={pdfFile?.name}
-          />
-        )}
+        <PdfSearchBar
+          isOpen={isSearchOpen}
+          onToggle={handleOpenSearch}
+          keyword={searchKeyword}
+          onKeywordChange={handleKeywordChange}
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+          fileName={pdfFile?.name}
+        />
       </div>
 
       <div className="flex items-center gap-2">
-        {isActionsMode ? (
-          /* Yer kaplamayan salt-görünüm sayfa göstergesi */
-          <ToolbarGroup
-            className="px-2.5 py-1"
-            data-testid="pdf-actions-page-indicator"
-            role="status"
-            aria-label={`${currentPage} / ${totalPages}`}
-          >
-            <span className="text-ql-12 text-foreground font-medium tabular-nums">
-              {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
-              <span className="text-muted-foreground">{totalPages}</span>
-            </span>
-          </ToolbarGroup>
-        ) : (
-          <>
-            <PdfPageNav
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPreviousPage={onPreviousPage}
-              onNextPage={onNextPage}
-              onJumpToPage={onJumpToPage}
-            />
-            <PdfZoomControls ZoomIn={ZoomIn} ZoomOut={ZoomOut} CurrentScale={CurrentScale} />
-          </>
-        )}
+        <PdfPageNav
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPreviousPage={onPreviousPage}
+          onNextPage={onNextPage}
+          onJumpToPage={onJumpToPage}
+        />
+        <PdfZoomControls ZoomIn={ZoomIn} ZoomOut={ZoomOut} CurrentScale={CurrentScale} />
       </div>
     </motion.div>
   )

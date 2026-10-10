@@ -20,6 +20,8 @@ export interface Tab {
   pinned?: boolean
 }
 
+import type { PdfSourceMeta } from './pdfSource'
+
 export interface SelectionPosition {
   top: number
   left: number
@@ -32,6 +34,9 @@ interface AiDraftTextItem {
   type: 'text'
   text: string
   position?: SelectionPosition | null
+  /** Seçim anındaki gerçek PDF kökeni (sayfa/toplam/belge). */
+  source?: PdfSourceMeta | null
+  createdAt?: number
 }
 
 export interface AiDraftImageItem {
@@ -42,6 +47,9 @@ export interface AiDraftImageItem {
   blobUrl?: string
   page?: number
   captureKind?: 'full-page' | 'selection'
+  /** Yeni kaynak modeli (sayfa/toplam/belge). Eski alanlarla geriye uyumlu. */
+  source?: PdfSourceMeta | null
+  createdAt?: number
 }
 
 export type AiDraftItem = AiDraftTextItem | AiDraftImageItem
@@ -114,17 +122,18 @@ interface AiContextActions {
   reloadActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
+  sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
 }
 
 /** Content tabanlı gönderim; aktif sekme değişince güncellenir (dar abonelik: useAiMessagingActions). */
 export type AiMessagingActions = Pick<
   AiContextActions,
-  'sendTextToAI' | 'sendImageToAI' | 'cancelOngoing'
+  'sendTextToAI' | 'sendImageToAI' | 'sendBulkToAI' | 'cancelOngoing'
 >
 
 /** Sekme, model ve content kayıt aksiyonları (gönderimden bağımsız). */
-type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI'>
+type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI' | 'sendBulkToAI'>
 
 /** Content örneğine bağlı kayıt / yenileme (dar abonelik: useAiContentHostActions). */
 export type AiContentHostActions = Pick<
