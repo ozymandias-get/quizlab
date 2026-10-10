@@ -85,6 +85,7 @@ export type AutomationLookupStrategy =
   | 'candidate'
   | 'semantic'
   | 'provider'
+  | 'siteStrategy'
   | 'heuristic'
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'

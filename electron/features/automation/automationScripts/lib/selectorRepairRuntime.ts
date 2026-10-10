@@ -138,7 +138,7 @@ export const selectorRepairRuntime =
      * element forward, and their repair evidence is replayed from the cache
      * entry instead.
      */
-    const REPAIR_RECOVERY_STRATEGIES = ['candidate', 'fingerprint', 'semantic', 'provider', 'heuristic'];
+    const REPAIR_RECOVERY_STRATEGIES = ['candidate', 'fingerprint', 'semantic', 'provider', 'siteStrategy', 'heuristic'];
 
     /** True when a matched selector is a runtime marker instead of CSS. */
     const __isInternalMarkerSelector = (selector) => {
@@ -153,7 +153,7 @@ export const selectorRepairRuntime =
     };
 
     const __isProviderDerivedStrategy = (strategy) => {
-        return strategy === 'provider' || strategy === 'heuristic';
+        return strategy === 'provider' || strategy === 'siteStrategy' || strategy === 'heuristic';
     };
 
     /** Mirrors the CONFIDENCE_THRESHOLD_* pair in confidenceScoring. */

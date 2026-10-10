@@ -60,7 +60,12 @@ function buildHarness({
       const uniqueElements = (list) => Array.from(new Set(list));
       const uniqueStrings = (list) => Array.from(new Set(list));
       const CONFIDENCE_THRESHOLD_MEDIUM = 0.5;
-      const computeConfidenceScore = () => ({ level: 'high', score: 1 });
+      // Production-plausible confidence: the real trySemanticFallback refuses
+      // anything below the medium threshold, and the hardened pipeline treats
+      // a lone candidate scoring below the ambiguity gap as untrustworthy.
+      // A stub score of 1 would describe a state the production code cannot
+      // produce, so the stub reports a realistic high score here.
+      const computeConfidenceScore = () => ({ level: 'high', score: 85 });
       const __isLikelySendButton = () => true;
       const __listApplicableStrategies = () => [];
 

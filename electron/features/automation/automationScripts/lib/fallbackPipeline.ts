@@ -27,6 +27,15 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
                             matchedSelector: candidate.matchedSelector || strategy.name + ':auto',
                             strategy: strategy.name
                         };
+                        // Target integrity: preserve the runner-up gap when the
+                        // strategy reports one (semantic does). The pipeline
+                        // used to drop it here, which silently disabled BOTH
+                        // the fail-safe gate in queryElementWithPipeline AND
+                        // the ambiguity refusal in __annotateSelectorResolution —
+                        // near-tied twins were then acted on AND staged.
+                        if (candidate && typeof candidate.scoreGap === 'number') {
+                            resolved.scoreGap = candidate.scoreGap;
+                        }
                     }
                 }
             } catch {
