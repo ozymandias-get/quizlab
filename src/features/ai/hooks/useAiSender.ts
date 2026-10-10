@@ -228,5 +228,88 @@ export function useAiSender(
     ]
   )
 
-  return { sendTextToAI, sendImageToAI, cancelOngoing }
+  const sendBulkToAI = useCallback(
+    (imageDataUrls: string[], options: AiSendOptions = {}): Promise<SendImageResult> => {
+      const scheduledContent = contentRef.current
+      const requestStartedAt = nowMs()
+      const effectiveAutoSend = resolveAutoSend(autoSend, options)
+      const diagnostics = createSendDiagnostics({
+        pipeline: 'image',
+        currentAI,
+        activeTabId,
+        autoSend: effectiveAutoSend
+      })
+
+      if (!scheduledContent || imageDataUrls.length === 0) {
+        return Promise.resolve(
+          attachDiagnostics(
+            { success: false, error: 'invalid_input' },
+            diagnostics,
+            requestStartedAt
+          )
+        )
+      }
+
+      const execute = async (content: AiContentController): Promise<SendImageResult> => {
+        diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
+
+        try {
+          const { executeBulkSendPipeline } = await import('../lib/send/bulkSendPipeline')
+          return await executeBulkSendPipeline({
+            contentRef,
+            content,
+            scheduledContent,
+            aiRegistry,
+            currentAI,
+            queryClient,
+            configCache: configCache.current,
+            activePromptText,
+            promptText: options.promptText,
+            appendPromptAfterPaste: options.appendPromptAfterPaste,
+            imageDataUrls,
+            effectiveAutoSend,
+            textInputMode,
+            typingSpeed,
+            requestStartedAt,
+            diagnostics,
+            canUseContent,
+            copyImageToClipboard,
+            generateAutoSendScript,
+            generateFocusScript,
+            generateWaitForSubmitReadyScript,
+            generateClickSendScript
+          })
+        } catch (error) {
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Bulk pipeline')
+        }
+      }
+
+      return queueForContent(scheduledContent, async () => {
+        try {
+          return await execute(scheduledContent)
+        } catch (error) {
+          return handlePipelineError(error, diagnostics, requestStartedAt, 'Bulk queue')
+        }
+      })
+    },
+    [
+      activePromptText,
+      activeTabId,
+      aiRegistry,
+      autoSend,
+      canUseContent,
+      copyImageToClipboard,
+      currentAI,
+      generateAutoSendScript,
+      generateClickSendScript,
+      generateFocusScript,
+      generateWaitForSubmitReadyScript,
+      queryClient,
+      textInputMode,
+      typingSpeed,
+      contentRef
+    ]
+  )
+
+  return { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing }
 }

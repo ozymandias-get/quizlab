@@ -189,10 +189,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
       })
       expect(queueImageForAi).toHaveBeenCalledTimes(1)
       expect(queueImageForAi.mock.calls[0][0]).toMatch(/^data:image\//)
-      expect(queueImageForAi).toHaveBeenCalledWith(expect.any(String), {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
       // The intermediate blob url must not leak once the data url is queued.
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:rendered-page')
     })
@@ -210,10 +213,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
         await result.current.handleFullPageScreenshot()
       })
 
-      expect(queueImageForAi).toHaveBeenCalledWith('blob:rendered-page', {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        'blob:rendered-page',
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
       // The blob url now belongs to the AI queue, so it is not revoked.
       expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:rendered-page')
     })
@@ -239,10 +245,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
         await result.current.handleFullPageScreenshot()
       })
 
-      expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,ENCODED', {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        'data:image/png;base64,ENCODED',
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
     })
 
     it('falls through to the viewer canvas when the render throws', async () => {
@@ -270,10 +279,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
       })
 
       expect(createObjectURL).not.toHaveBeenCalled()
-      expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,ENCODED', {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        'data:image/png;base64,ENCODED',
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
     })
 
     it('asks for JPEG when the on-screen canvas exceeds the 12 MP guard', async () => {
@@ -316,10 +328,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
         await result.current.handleFullPageScreenshot()
       })
 
-      expect(queueImageForAi).toHaveBeenCalledWith('blob:canvas-blob', {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        'blob:canvas-blob',
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
     })
   })
 
@@ -347,10 +362,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
 
         // One initial lookup plus two retry misses before the canvas appeared.
         expect(mocks.findPageCanvas).toHaveBeenCalledTimes(3)
-        expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,ENCODED', {
-          page: 4,
-          captureKind: 'full-page'
-        })
+        expect(queueImageForAi).toHaveBeenCalledWith(
+          'data:image/png;base64,ENCODED',
+          expect.objectContaining({
+            page: 4,
+            captureKind: 'full-page'
+          })
+        )
       } finally {
         vi.useRealTimers()
       }
@@ -412,10 +430,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect(mocks.renderPageToImageFallback).toHaveBeenNthCalledWith(2, PDF_URL, 4, {
           scale: 2
         })
-        expect(queueImageForAi).toHaveBeenCalledWith('blob:last-resort', {
-          page: 4,
-          captureKind: 'full-page'
-        })
+        expect(queueImageForAi).toHaveBeenCalledWith(
+          'blob:last-resort',
+          expect.objectContaining({
+            page: 4,
+            captureKind: 'full-page'
+          })
+        )
         expect(mocks.showError).not.toHaveBeenCalled()
       } finally {
         vi.useRealTimers()
@@ -559,10 +580,13 @@ describe('usePdfCaptureActions fallback ladder', () => {
       })
 
       expect(mocks.findPageCanvas).toHaveBeenCalledTimes(2)
-      expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,ENCODED', {
-        page: 4,
-        captureKind: 'full-page'
-      })
+      expect(queueImageForAi).toHaveBeenCalledWith(
+        'data:image/png;base64,ENCODED',
+        expect.objectContaining({
+          page: 4,
+          captureKind: 'full-page'
+        })
+      )
     })
 
     it('shows the toast when the canvas stays zeroed', async () => {
@@ -595,7 +619,9 @@ describe('usePdfCaptureActions fallback ladder', () => {
       })
 
       expect(startScreenshot).toHaveBeenCalledTimes(1)
-      expect(startScreenshot).toHaveBeenCalledWith({ page: 7, captureKind: 'selection' })
+      expect(startScreenshot).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 7, captureKind: 'selection' })
+      )
       expect(queueImageForAi).not.toHaveBeenCalled()
     })
   })

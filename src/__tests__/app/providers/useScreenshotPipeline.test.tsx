@@ -1,9 +1,7 @@
 /**
- * `useScreenshotPipeline` is the seam between the screenshot overlay and the AI
- * queue. Its one job that the overlay does not do is thread the capture metadata
- * — page number and capture kind — from the moment the user starts the crop to
- * the moment the image is queued, and then drop it so the *next* capture cannot
- * inherit the previous page's number.
+ * `useScreenshotPipeline` — alan yakalama artık doğrudan kuyruğa yazmaz.
+ * Yakalama `pendingAreaCapture` olarak bekletilir; ikili menü
+ * (AI'ye Gönder / Taslağa Ekle) karar verene kadar kuyruğa yazılmaz.
  */
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,12 +14,10 @@ const overlay = {
 }
 
 vi.mock('@features/screenshot/hooks/useScreenshot', () => ({
-  useScreenshot: vi.fn((onCapture: (dataUrl: string) => void | Promise<void>) => ({
+  useScreenshot: vi.fn((onCapture: (dataUrl: string, rect?: unknown) => void | Promise<void>) => ({
     ...overlay,
-    // The real hook owns the overlay's capture callback; the pipeline's contract
-    // is what happens around it, so drive it the way the component would.
-    handleCapture: vi.fn(async (dataUrl: string) => {
-      await onCapture(dataUrl)
+    handleCapture: vi.fn(async (dataUrl: string, rect?: unknown) => {
+      await onCapture(dataUrl, rect)
     })
   }))
 }))
@@ -35,7 +31,7 @@ describe('useScreenshotPipeline', () => {
     vi.clearAllMocks()
   })
 
-  it('labels the queued image with the metadata the capture was started with', async () => {
+  it('stashes the capture as pending instead of queueing immediately', async () => {
     const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
 
     act(() => {
@@ -43,48 +39,78 @@ describe('useScreenshotPipeline', () => {
     })
     expect(overlay.startScreenshot).toHaveBeenCalledTimes(1)
     await act(async () => {
-      await result.current.handleCapture('data:image/png;base64,xyz')
+      await result.current.handleCapture('data:image/png;base64,xyz', {
+        left: 10,
+        top: 20,
+        width: 100,
+        height: 60
+      })
     })
 
+    // Doğrudan kuyruk yok — menü kararı bekler.
+    expect(queueImageForAi).not.toHaveBeenCalled()
+    expect(result.current.pendingAreaCapture).toMatchObject({
+      dataUrl: 'data:image/png;base64,xyz',
+      meta: { page: 4, captureKind: 'selection' }
+    })
+    expect(result.current.pendingAreaCapture?.rect).toMatchObject({ left: 10, top: 20 })
+  })
+
+  it('queues only when the pending capture is confirmed as draft', async () => {
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+    act(() => {
+      result.current.startScreenshot({ page: 4, captureKind: 'selection' })
+    })
+    await act(async () => {
+      await result.current.handleCapture('data:image/png;base64,xyz', null)
+    })
+    expect(queueImageForAi).not.toHaveBeenCalled()
+
+    let confirmed = false
+    act(() => {
+      confirmed = result.current.confirmPendingAreaAsDraft()
+    })
+    expect(confirmed).toBe(true)
     expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,xyz', {
       page: 4,
       captureKind: 'selection'
     })
+    expect(result.current.pendingAreaCapture).toBeNull()
   })
 
-  it('queues with no metadata when the capture was started bare', async () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
-
-    act(() => {
-      result.current.startScreenshot()
-    })
-    await act(async () => {
-      await result.current.handleCapture('data:image/png;base64,abc')
-    })
-
-    expect(queueImageForAi).toHaveBeenCalledWith('data:image/png;base64,abc', undefined)
-  })
-
-  // A stale page number on a queued image is worse than none: the AI would be
-  // asked about a page the reader is not looking at.
-  it("does not carry one capture's metadata into the next", async () => {
+  it('drops the pending capture on dismiss without queueing', async () => {
     const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 9, captureKind: 'selection' })
     })
     await act(async () => {
-      await result.current.handleCapture('first')
+      await result.current.handleCapture('first', null)
     })
+    act(() => {
+      result.current.dismissPendingArea()
+    })
+    expect(queueImageForAi).not.toHaveBeenCalled()
+    expect(result.current.pendingAreaCapture).toBeNull()
+  })
+
+  it('a new area selection supersedes the previous pending capture', async () => {
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+    act(() => {
+      result.current.startScreenshot({ page: 9, captureKind: 'selection' })
+    })
+    await act(async () => {
+      await result.current.handleCapture('first', null)
+    })
+    expect(result.current.pendingAreaCapture?.dataUrl).toBe('first')
 
     act(() => {
       result.current.startScreenshot()
     })
-    await act(async () => {
-      await result.current.handleCapture('second')
-    })
-
-    expect(queueImageForAi.mock.calls[1]).toEqual(['second', undefined])
+    // Yeni seçim eski bekleyeni geçersiz kılar.
+    expect(result.current.pendingAreaCapture).toBeNull()
   })
 
   it('tears the overlay down when the user cancels instead of capturing', () => {
@@ -97,8 +123,6 @@ describe('useScreenshotPipeline', () => {
       result.current.closeScreenshot()
     })
 
-    // Cancelling has to reach the overlay, or the drag region stays live over
-    // the whole workspace.
     expect(overlay.closeScreenshot).toHaveBeenCalledTimes(1)
     expect(queueImageForAi).not.toHaveBeenCalled()
   })
@@ -113,8 +137,6 @@ describe('useScreenshotPipeline', () => {
       result.current.clearScreenshotMeta()
     })
 
-    // Dismissing a pending capture must not tear down the overlay the reader
-    // is still looking at; only closeScreenshot does that.
     expect(overlay.closeScreenshot).not.toHaveBeenCalled()
     expect(queueImageForAi).not.toHaveBeenCalled()
   })

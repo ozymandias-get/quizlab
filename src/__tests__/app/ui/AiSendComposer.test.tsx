@@ -1,270 +1,156 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { createElement, forwardRef, type HTMLAttributes, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import AiSendComposer from '@app/ui/AiSendComposer'
-
-const appearanceState = { selectionColor: '#EAB308' }
-
-vi.mock('@app/providers', () => ({
-  useAppearance: <T,>(selector?: (s: typeof appearanceState) => T) =>
-    selector ? selector(appearanceState) : (appearanceState as unknown as T)
-}))
+import { TooltipProvider } from '@shared/ui/components/primitives'
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'ai_draft_badge' && opts?.count !== undefined)
+        return `ai_draft_badge · ${opts.count}`
+      return key
+    },
+    i18n: { language: 'en' }
+  })
 }))
 
 vi.mock('@shared/hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@shared/hooks')>()
-  const { useState } = require('react')
+  const { useState } = await import('react')
   return {
     ...actual,
     useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue),
     useConfirmDialog: () => ({
       confirm: vi.fn().mockResolvedValue(true),
-      props: {
-        isOpen: false,
-        onConfirm: vi.fn(),
-        onCancel: vi.fn(),
-        title: ''
-      }
+      props: { isOpen: false, onConfirm: vi.fn(), onCancel: vi.fn(), title: '' }
     })
   }
 })
 
-vi.mock('@app/ui/aiSendComposer/useAiSendComposerLayout', () => ({
-  useAiSendComposerLayout: () => ({
-    layout: { x: 0, y: 0, width: 420, height: 320 },
-    bodyHeight: 240,
-    panelRef: { current: null },
-    asideRef: { current: null },
-    handleDragStart: vi.fn(),
-    handleDragMove: vi.fn(),
-    handleDragEnd: vi.fn(),
-    handleDragLostCapture: vi.fn(),
-    handleResizeStart: vi.fn(),
-    handleResizeMove: vi.fn(),
-    handleResizeEnd: vi.fn(),
-    handleResizeLostCapture: vi.fn()
-  })
-}))
-
-vi.mock('@app/ui/aiSendComposer/AiSendComposerHeader', () => ({
-  default: ({
-    sendFeedback,
-    isExpanded
-  }: {
-    sendFeedback: 'idle' | 'sending' | 'success' | 'error'
-    isExpanded: boolean
-  }) => (
-    <div>
-      Composer Header
-      {sendFeedback === 'sending' && <span>sending_to_ai</span>}
-      {isExpanded && <span>expanded</span>}
-    </div>
-  )
-}))
-
-vi.mock('@app/ui/aiSendComposer/AiSendComposerToggle', () => ({
-  default: () => <div>Composer Toggle</div>
-}))
-
-vi.mock('@app/ui/aiSendComposer/AiSendComposerContent', () => ({
-  default: ({ onSubmit }: { onSubmit: (options?: { autoSend?: boolean }) => void }) => (
-    <button type="button" onClick={() => onSubmit()}>
-      Submit Draft
-    </button>
-  )
-}))
-
-vi.mock('motion/react', () => {
-  const createMock = (tag: 'aside' | 'div') => {
-    return forwardRef<HTMLElement, HTMLAttributes<HTMLElement>>(({ children, ...props }, ref) =>
-      createElement(tag, { ...props, ref }, children)
-    )
-  }
-
+vi.mock('@features/ai', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@features/ai')>()
   return {
-    AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
-    useReducedMotion: () => false,
-    motion: {
-      aside: createMock('aside'),
-      div: createMock('div')
+    ...actual,
+    usePrompts: () => ({
+      allPrompts: [],
+      activePromptText: null,
+      selectedPromptId: null,
+      addPrompt: vi.fn(),
+      deletePrompt: vi.fn(),
+      selectPrompt: vi.fn(),
+      clearSelection: vi.fn()
+    }),
+    useQuickAiPresets: () => ({ presets: [], primaryPresets: [], secondaryPresets: [] })
+  }
+})
+
+vi.mock('motion/react', () => ({
+  useReducedMotion: () => true,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  motion: {
+    aside: ({ children, ...props }: Record<string, unknown>) => {
+      const { children: _c, ...rest } = { children, ...props }
+      return (
+        <aside {...(rest as React.HTMLAttributes<HTMLElement>)}>
+          {children as React.ReactNode}
+        </aside>
+      )
+    },
+    div: ({ children, ...props }: Record<string, unknown>) => {
+      const { children: _c, ...rest } = { children, ...props }
+      return (
+        <div {...(rest as React.HTMLAttributes<HTMLElement>)}>{children as React.ReactNode}</div>
+      )
     }
   }
-})
+}))
 
-describe('AiSendComposer', () => {
-  it('shows sending state in header, then shows success', async () => {
-    vi.useFakeTimers()
-    let resolveSend: ((value: { success: boolean }) => void) | null = null
-    const onSend = vi.fn(
-      () =>
-        new Promise<{ success: boolean }>((resolve) => {
-          resolveSend = resolve
-        })
+function textItem(id: string, text: string) {
+  return { id, type: 'text' as const, text }
+}
+
+/** Uygulamada `AppProviders` global bir TooltipProvider sağlar; testte de öyle. */
+const renderComposer = (ui: React.ReactElement) =>
+  render(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
+
+describe('AiSendComposer (compact draft)', () => {
+  it('always renders the small badge control, even with items', () => {
+    renderComposer(
+      <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={vi.fn()} onSend={vi.fn()} />
     )
-
-    render(
-      <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
-        onClearAll={vi.fn()}
-        onSend={onSend}
-      />
-    )
-
-    expect(screen.getByText('Composer Header')).toBeInTheDocument()
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
-    })
-
-    expect(onSend).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
-
-    await act(async () => {
-      vi.advanceTimersByTime(320)
-    })
-
-    await act(async () => {
-      resolveSend?.({ success: true })
-    })
-
-    vi.useRealTimers()
+    expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
+    // Panel kendiliğinden açılmaz.
+    expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
   })
 
-  it('clears the queue when the reader clicks outside the composer', () => {
+  it('opens the panel on badge click without clearing the draft', () => {
     const onClearAll = vi.fn()
-    const onSend = vi.fn().mockResolvedValue({ success: true })
-
-    render(
-      <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
-        onClearAll={onClearAll}
-        onSend={onSend}
-      />
+    renderComposer(
+      <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={onClearAll} onSend={vi.fn()} />
     )
-
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
     expect(onClearAll).not.toHaveBeenCalled()
-
-    // Deliberate: a queued capture the reader no longer wants is dismissed by
-    // clicking away, and the queue is not a place to leave stale text.
-    fireEvent.mouseDown(document.body)
-
-    expect(onClearAll).toHaveBeenCalledTimes(1)
   })
 
-  it('does not clear the queue when the click lands inside the composer', () => {
-    const onClearAll = vi.fn()
-    const onSend = vi.fn().mockResolvedValue({ success: true })
-
-    render(
-      <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
-        onClearAll={onClearAll}
-        onSend={onSend}
-      />
+  it('keeps the draft when the panel is closed', () => {
+    renderComposer(
+      <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={vi.fn()} onSend={vi.fn()} />
     )
-
-    expect(onClearAll).not.toHaveBeenCalled()
-
-    fireEvent.mouseDown(screen.getByText('Composer Header'))
-
-    // The queued item is still there, which is the whole point of the guard.
-    expect(onClearAll).not.toHaveBeenCalled()
-    expect(screen.getByText('Composer Header')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
   })
 
-  it('keeps the sending state when a new item is queued mid-send', async () => {
-    let resolveSend: ((value: { success: boolean }) => void) | null = null
-    const onSend = vi.fn(
-      () =>
-        new Promise<{ success: boolean }>((resolve) => {
-          resolveSend = resolve
-        })
-    )
-
-    const { rerender } = render(
+  it('renders compact rows with page info and per-item remove (no gallery)', () => {
+    const onRemoveItem = vi.fn()
+    renderComposer(
       <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        items={[
+          {
+            id: 't1',
+            type: 'text',
+            text: 'hello',
+            source: {
+              docId: 'doc',
+              page: 13,
+              totalPages: 59,
+              captureKind: 'text-selection',
+              createdAt: 1
+            }
+          } as never
+        ]}
         onClearAll={vi.fn()}
-        onSend={onSend}
+        onRemoveItem={onRemoveItem}
+        onSend={vi.fn()}
       />
     )
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
-    })
-
-    expect(onSend).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
-
-    // Adding an image while the send is in flight must not flip the UI back
-    // to an idle/ready state (regression: it used to reset the feedback, so
-    // the user could trigger a second send and hit `send_in_progress`).
-    act(() => {
-      rerender(
-        <AiSendComposer
-          items={[
-            { id: 'text-1', type: 'text', text: 'Selected text' },
-            { id: 'image-1', type: 'image', blobUrl: 'blob:mock-url' }
-          ]}
-          onClearAll={vi.fn()}
-          onSend={onSend}
-        />
-      )
-    })
-
-    expect(screen.getByText('sending_to_ai')).toBeInTheDocument()
-
-    await act(async () => {
-      resolveSend?.({ success: true })
-    })
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.getByTestId('ai-draft-item')).toHaveTextContent('Sayfa 13/59')
+    expect(screen.queryByTestId('ai-send-attachment-strip')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('ai-send-attachment-preview')).not.toBeInTheDocument()
   })
 
-  it('passes autoSend: false when autoSend prop is false', async () => {
+  it('sends with the composer note and autoSend flag', async () => {
     const onSend = vi.fn().mockResolvedValue({ success: true })
-
-    render(
+    renderComposer(
       <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
+        items={[textItem('t1', 'hello')]}
         onClearAll={vi.fn()}
         onSend={onSend}
         autoSend={false}
       />
     )
-
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    const note = screen.getByLabelText('ai_draft_note_label')
+    fireEvent.change(note, { target: { value: 'explain' } })
+    const sendButtons = screen.getAllByRole('button', { name: 'send_to_ai' })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
+      fireEvent.click(sendButtons[0])
     })
-
     expect(onSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoSend: false
-      })
-    )
-  })
-
-  it('passes autoSend: true when autoSend prop is true', async () => {
-    const onSend = vi.fn().mockResolvedValue({ success: true })
-
-    render(
-      <AiSendComposer
-        items={[{ id: 'text-1', type: 'text', text: 'Selected text' }]}
-        onClearAll={vi.fn()}
-        onSend={onSend}
-        autoSend
-      />
-    )
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Submit Draft' }))
-    })
-
-    expect(onSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        autoSend: true
-      })
+      expect.objectContaining({ autoSend: false, noteText: 'explain' })
     )
   })
 })

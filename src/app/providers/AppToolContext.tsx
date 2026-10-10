@@ -4,6 +4,7 @@ import { useToastActions } from '@shared/stores/toastStore'
 
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
+import type { PdfSourceMeta } from './ai/pdfSource'
 import type { AiDraftItem, AiSendResult, SelectionPosition } from './ai/types'
 import {
   useAiContent,
@@ -15,6 +16,7 @@ import { type QueuedImageMeta, useAiDraftQueue } from './app-tool/useAiDraftQueu
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
 import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
 import { useGeminiSessionRefreshListeners } from './app-tool/useGeminiSessionRefreshListeners'
+import type { PendingAreaCapture } from './app-tool/useScreenshotPipeline'
 import { useScreenshotPipeline } from './app-tool/useScreenshotPipeline'
 
 interface AppToolQueueState {
@@ -24,6 +26,7 @@ interface AppToolQueueState {
 
 interface AppToolScreenshotState {
   isScreenshotMode: boolean
+  pendingAreaCapture: PendingAreaCapture | null
 }
 
 interface AppToolPickerState {
@@ -33,12 +36,25 @@ interface AppToolPickerState {
 interface AppToolActionsType {
   startScreenshot: (imageMeta?: QueuedImageMeta) => void
   closeScreenshot: () => void
-  handleCapture: (dataUrl: string) => Promise<void>
-  queueTextForAi: (text: string, position?: SelectionPosition | null) => void
+  handleCapture: (
+    dataUrl: string,
+    rect?: { left: number; top: number; width: number; height: number }
+  ) => Promise<void>
+  confirmPendingAreaAsDraft: () => boolean
+  dismissPendingArea: () => void
+  queueTextForAi: (
+    text: string,
+    position?: SelectionPosition | null,
+    meta?: { source?: PdfSourceMeta | null } | PdfSourceMeta | null
+  ) => void
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => void
   removePendingAiItem: (id: string) => void
   clearPendingAiItems: () => void
   sendPendingAiItems: (options?: AiSendOptions) => Promise<AiSendResult>
+  /** Doğrudan gönderim: taslak kuyruğuna dokunmadan mevcut AI pipeline'ına iletir. */
+  sendTextDirectToAi: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
+  sendImageDirectToAi: (dataUrl: string, options?: AiSendOptions) => Promise<AiSendResult>
+  sendBulkDirectToAi?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
   startPicker: () => void
@@ -58,7 +74,7 @@ const AppToolPickerContext = createContext<AppToolPickerState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function AppToolProvider({ children }: { children: ReactNode }) {
-  const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessagingActions()
+  const { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing } = useAiMessagingActions()
   const { setAutoSend, toggleAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
   const { showError } = useToastActions()
@@ -74,8 +90,16 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     clearPendingAiItems: clearPendingAiItemsRaw
   } = useAiDraftQueue(() => showError('draft_queue_full'))
 
-  const { isScreenshotMode, startScreenshot, closeScreenshot, handleCapture, clearScreenshotMeta } =
-    useScreenshotPipeline({ queueImageForAi })
+  const {
+    isScreenshotMode,
+    pendingAreaCapture,
+    startScreenshot,
+    closeScreenshot,
+    handleCapture,
+    confirmPendingAreaAsDraft,
+    dismissPendingArea,
+    clearScreenshotMeta
+  } = useScreenshotPipeline({ queueImageForAi })
 
   const clearPendingAiItems = useMemo(() => {
     return () => {
@@ -89,6 +113,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     autoSend,
     sendTextToAI,
     sendImageToAI,
+    sendBulkToAI,
     pendingAiItemsRef,
     setPendingAiItems
   })
@@ -104,8 +129,8 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   )
 
   const screenshotValue = useMemo<AppToolScreenshotState>(
-    () => ({ isScreenshotMode }),
-    [isScreenshotMode]
+    () => ({ isScreenshotMode, pendingAreaCapture }),
+    [isScreenshotMode, pendingAreaCapture]
   )
 
   const pickerValue = useMemo<AppToolPickerState>(() => ({ isPickerActive }), [isPickerActive])
@@ -115,11 +140,16 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       startScreenshot,
       closeScreenshot,
       handleCapture,
+      confirmPendingAreaAsDraft,
+      dismissPendingArea,
       queueTextForAi,
       queueImageForAi,
       removePendingAiItem,
       clearPendingAiItems,
       sendPendingAiItems,
+      sendTextDirectToAi: sendTextToAI,
+      sendImageDirectToAi: sendImageToAI,
+      sendBulkDirectToAi: sendBulkToAI,
       setAutoSend,
       toggleAutoSend,
       startPicker,
@@ -130,11 +160,16 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       startScreenshot,
       closeScreenshot,
       handleCapture,
+      confirmPendingAreaAsDraft,
+      dismissPendingArea,
       queueTextForAi,
       queueImageForAi,
       removePendingAiItem,
       clearPendingAiItems,
       sendPendingAiItems,
+      sendTextToAI,
+      sendImageToAI,
+      sendBulkToAI,
       setAutoSend,
       toggleAutoSend,
       startPicker,

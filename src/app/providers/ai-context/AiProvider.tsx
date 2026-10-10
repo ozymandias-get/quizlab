@@ -108,7 +108,7 @@ function AiProvider({ children }: { children: ReactNode }) {
     [activeTabId]
   )
 
-  const { sendTextToAI, sendImageToAI, cancelOngoing } = useAiMessaging({
+  const { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing } = useAiMessaging({
     getContentController,
     getActiveTab,
     currentAI,
@@ -170,6 +170,7 @@ function AiProvider({ children }: { children: ReactNode }) {
     reloadActiveContent,
     sendTextToAI,
     sendImageToAI,
+    sendBulkToAI,
     cancelOngoing
   })
 

@@ -78,6 +78,7 @@ export function useAiMessaging({
   const {
     sendTextToAI: rawSendText,
     sendImageToAI: rawSendImage,
+    sendBulkToAI: rawSendBulk,
     cancelOngoing
   } = useAiSender(contentRefProxy, currentAI, autoSend, aiRegistry, activeTabId)
 
@@ -269,9 +270,104 @@ export function useAiMessaging({
     ]
   )
 
+  /**
+   * Tek mesajlık toplu gönderim: metin gövdesi + N görsel eki, tek prompt,
+   * tek submit. Hedef sekme `ensureApiChatTab` ile gönderim başında sabitlenir
+   * ve flush da aynı sekmeye yapılır — gönderim sırasında aktif sekme değişse
+   * bile içerik yanlış sekmeye gitmez.
+   */
+  const sendBulkToAI = useCallback(
+    async (imageDataUrls: string[], options?: AiSendOptions) => {
+      if (currentAI === 'api-chat') {
+        const currentTabId = await ensureApiChatTab()
+        if (!currentTabId) {
+          return { success: false, error: 'webview_not_ready' }
+        }
+        for (const url of imageDataUrls) {
+          if (!url.startsWith('data:image/')) {
+            return { success: false, error: 'invalid_image_format' }
+          }
+        }
+        try {
+          const UiStore = await getChatUiStore()
+          const uiState = UiStore.getState()
+          // Sayfa yakalamaları 4x ölçekte gelir ve base64 ile şişer; api-chat
+          // gövde bütçesine sığması için tek tek küçültülür (tek görsel yoluyla
+          // aynı hazırlık).
+          for (const url of imageDataUrls) {
+            const prepared = await prepareImageForUpload(url)
+            uiState.addAttachment(currentTabId, prepared)
+          }
+          if (options?.promptText) {
+            const val = uiState.inputValueByTab[currentTabId] || ''
+            uiState.updateInput(
+              currentTabId,
+              val ? val + '\n' + options.promptText : options.promptText
+            )
+          } else if (!uiState.inputValueByTab[currentTabId]?.trim()) {
+            uiState.updateInput(currentTabId, t('ai_send_image_only_prompt'))
+          }
+          const effectiveAutoSend = resolveAutoSend(autoSend, options)
+          if (effectiveAutoSend) {
+            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
+            handleApiChatSendResult(result)
+            if (result.success) showSuccess('sent_successfully')
+            return result
+          }
+          showSuccess(t('ai_send_staged'))
+          return { success: true, mode: 'staged' }
+        } catch (err) {
+          return { success: false, error: ensureErrorMessage(err, 'send_failed') }
+        }
+      }
+
+      const content = getContentController()
+      if (!content) {
+        openAiWorkspace(currentAI)
+      }
+      const isReady = await waitForContentReady()
+      if (!isReady) {
+        reportSuppressedError('useAiMessaging.waitForContentBulk', {
+          cause: new Error('Content did not become ready in time for bulk send')
+        })
+        showWarning('error_webview_not_ready')
+        return { success: false, error: 'webview_not_ready' }
+      }
+      if (!rawSendBulk) {
+        return { success: false, error: 'bulk_not_supported' }
+      }
+      const result = (await rawSendBulk(imageDataUrls, options)) ?? {
+        success: false,
+        error: 'cancelled'
+      }
+      if (isDeliveredSendResult(result)) {
+        showSuccess('sent_successfully')
+      } else if (isStagedSendResult(result)) {
+        showSuccess(t('ai_send_staged'))
+      } else if ((result as { error?: string }).error !== 'cancelled') {
+        showWarning(toErrorToastKey((result as { error?: string }).error))
+      }
+      return result
+    },
+    [
+      currentAI,
+      autoSend,
+      ensureApiChatTab,
+      getContentController,
+      handleApiChatSendResult,
+      openAiWorkspace,
+      rawSendBulk,
+      showSuccess,
+      showWarning,
+      t,
+      waitForContentReady
+    ]
+  )
+
   return {
     sendTextToAI,
     sendImageToAI,
+    sendBulkToAI,
     cancelOngoing
   }
 }

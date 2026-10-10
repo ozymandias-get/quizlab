@@ -65,5 +65,15 @@
   "ai_preset_more": "Daha fazla",
   "ai_send_custom_note": "Not / Soru Yaz",
   "ai_send_image_only_prompt": "Bu g\u00f6rseli a\u00e7\u0131kla ve a\u00e7\u0131kla.",
-  "ai_send_staged": "Sohbet kutusuna eklendi. G\u00f6ndermek i\u00e7in G\u00f6nder'e bas\u0131n."
+  "ai_send_staged": "Sohbet kutusuna eklendi. G\u00f6ndermek i\u00e7in G\u00f6nder'e bas\u0131n.",
+  "ai_draft_badge": "AI Taslağı",
+  "ai_draft_empty": "Henüz içerik yok. PDF'den metin veya görsel seçin.",
+  "ai_draft_prompt_label": "Kayıtlı prompt",
+  "ai_draft_no_prompt": "Prompt seçilmedi",
+  "ai_draft_note_label": "Ek talimat / not",
+  "ai_draft_item_text": "Metin",
+  "ai_draft_item_image": "Görsel",
+  "ai_draft_bulk_unsupported": "Bu sağlayıcı çoklu görseli tek mesajda desteklemiyor. Taslak korundu.",
+  "ai_draft_open": "Taslağı aç",
+  "ai_draft_close": "Taslağı kapat"
 }
