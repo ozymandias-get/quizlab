@@ -121,19 +121,3 @@ export function decorateTextWithSource(
   if (!text) return header
   return `${header}\n${text}`
 }
-
-/** Eski `page` alanından yeni source'a geçiş için geriye uyumlu okuma. */
-export function readItemPageLabel(opts: {
-  source?: PdfSourceMeta | null
-  legacyPage?: number | null
-  legacyTotalPages?: number | null
-}): string | null {
-  if (opts.source) return formatSourcePageLabel(opts.source)
-  if (opts.legacyPage && Number.isFinite(opts.legacyPage)) {
-    if (opts.legacyTotalPages && opts.legacyTotalPages >= 1) {
-      return `Sayfa ${Math.floor(opts.legacyPage)}/${Math.floor(opts.legacyTotalPages)}`
-    }
-    return `Sayfa ${Math.floor(opts.legacyPage)}`
-  }
-  return null
-}

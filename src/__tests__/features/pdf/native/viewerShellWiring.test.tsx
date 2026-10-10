@@ -36,7 +36,7 @@ vi.mock('react-i18next', () => ({
 vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: vi.fn(),
-    queueImageForAi: vi.fn(),
+    onFullPageCapture: vi.fn(),
     queueTextForAi: vi.fn(),
     sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
     sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
@@ -126,10 +126,8 @@ function renderDocument() {
     pdfUrl: 'local-pdf://book',
     t: (key: string) => key,
     isInteractionBlocked: false,
-    autoSend: false,
-    onToggleAutoSend: vi.fn(),
     startScreenshot: vi.fn(),
-    queueImageForAi: vi.fn()
+    onFullPageCapture: vi.fn()
   }
   return render(<PdfViewerDocument {...props} />)
 }

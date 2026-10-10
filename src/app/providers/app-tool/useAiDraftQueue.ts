@@ -14,8 +14,8 @@ export interface QueuedTextMeta {
   source?: PdfSourceMeta | null
 }
 
-export const MAX_DRAFT_QUEUE_SIZE = 20
-const MAX_QUEUE_SIZE = MAX_DRAFT_QUEUE_SIZE
+/** Taslak kuyruğunun üst sınırı. Dolduğunda yeni öğe reddedilir, mevcut korunur. */
+const MAX_QUEUE_SIZE = 20
 
 function revokeDraftItemBlob(draft: AiDraftItem) {
   if (draft.type === 'image' && draft.blobUrl) {
@@ -29,15 +29,28 @@ function revokeDraftBlobUrls(items: AiDraftItem[]) {
   }
 }
 
-export function useAiDraftQueue(onDrop?: () => void) {
+/**
+ * Taslak kuyruğu — kapasite davranışı: sessiz silme YOK.
+ *
+ * Limit dolduğunda yeni öğe reddedilir; mevcut öğeler korunur. Kullanıcı
+ * `onReject` üzerinden açık uyarı alır ve mevcut öğeleri silerek devam
+ * edebilir. Boyut takibi `queueSizeRef` ile senkron yapılır; aynı tick
+ * içinde arka arkaya gelen eklemelerde de kapasite doğru sayılır.
+ */
+export function useAiDraftQueue(onReject?: () => void) {
   const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
   const pendingDraftIdsRef = useRef(new Set<string>())
+  const queueSizeRef = useRef(0)
+  // Gönderim orkestrasyonu dışarıdan setPendingAiItems çağırır; ref'i senkron tut.
+  useEffect(() => {
+    queueSizeRef.current = pendingAiItems.length
+  }, [pendingAiItems])
 
   const pendingAiItemsRef = useRef(pendingAiItems)
   pendingAiItemsRef.current = pendingAiItems
 
-  const onDropRef = useRef(onDrop)
-  onDropRef.current = onDrop
+  const onRejectRef = useRef(onReject)
+  onRejectRef.current = onReject
 
   useEffect(() => {
     const pendingDraftIds = pendingDraftIdsRef.current
@@ -52,10 +65,10 @@ export function useAiDraftQueue(onDrop?: () => void) {
       text: string,
       position?: SelectionPosition | null,
       meta?: QueuedTextMeta | PdfSourceMeta | null
-    ) => {
+    ): boolean => {
       const normalized = text.trim()
       if (!normalized) {
-        return
+        return false
       }
 
       // Üçüncü argüman hem { source } hem de doğrudan PdfSourceMeta olabilir.
@@ -63,6 +76,15 @@ export function useAiDraftQueue(onDrop?: () => void) {
         meta && typeof meta === 'object' && 'page' in meta && 'docId' in meta
           ? (meta as PdfSourceMeta)
           : ((meta as QueuedTextMeta | null)?.source ?? null)
+
+      // Kapasite dolu: yeni öğe reddedilir, mevcut öğeler sessizce silinmez.
+      if (queueSizeRef.current >= MAX_QUEUE_SIZE) {
+        Logger.warn(
+          `[DraftQueue] Queue full (${MAX_QUEUE_SIZE}); new text item rejected, existing items kept`
+        )
+        onRejectRef.current?.()
+        return false
+      }
 
       const draft: AiDraftItem = {
         id: buildPendingId('text'),
@@ -73,22 +95,24 @@ export function useAiDraftQueue(onDrop?: () => void) {
         createdAt: Date.now()
       }
 
-      setPendingAiItems((current) => {
-        if (current.length >= MAX_QUEUE_SIZE) {
-          const dropped = current[0]
-          pendingDraftIdsRef.current.delete(dropped.id)
-          revokeDraftItemBlob(dropped)
-          Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
-          onDropRef.current?.()
-          return [...current.slice(1), draft]
-        }
-        return [...current, draft]
-      })
+      queueSizeRef.current += 1
+      setPendingAiItems((current) => [...current, draft])
+      return true
     },
     []
   )
 
-  const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta) => {
+  const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta): boolean => {
+    // Kapasite kontrolü URL oluşturmadan ÖNCE: reddedilen öğenin blob URL'i
+    // oluşturulup sızmasın.
+    if (queueSizeRef.current >= MAX_QUEUE_SIZE) {
+      Logger.warn(
+        `[DraftQueue] Queue full (${MAX_QUEUE_SIZE}); new image item rejected, existing items kept`
+      )
+      onRejectRef.current?.()
+      return false
+    }
+
     const draftId = buildPendingId('image')
     pendingDraftIdsRef.current.add(draftId)
     let blobUrl = ''
@@ -130,6 +154,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
             })
             .then((url) => {
               if (!pendingDraftIdsRef.current.has(draftId)) {
+                // Öğe silinmiş: asenkron URL onu yeniden canlandırmasın.
                 URL.revokeObjectURL(url)
                 return
               }
@@ -151,43 +176,23 @@ export function useAiDraftQueue(onDrop?: () => void) {
       }
     } else {
       pendingDraftIdsRef.current.delete(draftId)
-      return
+      return false
     }
 
-    setPendingAiItems((current) => {
-      if (current.length >= MAX_QUEUE_SIZE) {
-        const dropped = current[0]
-        pendingDraftIdsRef.current.delete(dropped.id)
-        revokeDraftItemBlob(dropped)
-        Logger?.warn?.(`[DraftQueue] Queue full (${MAX_QUEUE_SIZE}), dropping oldest item`)
-        onDropRef.current?.()
-        const trimmed = current.slice(1)
-        return [
-          ...trimmed,
-          {
-            id: draftId,
-            type: 'image',
-            ...(dataUrl ? { dataUrl } : {}),
-            blobUrl,
-            ...imageMeta,
-            source: imageMeta?.source ?? null,
-            createdAt: Date.now()
-          }
-        ]
+    queueSizeRef.current += 1
+    setPendingAiItems((current) => [
+      ...current,
+      {
+        id: draftId,
+        type: 'image',
+        ...(dataUrl ? { dataUrl } : {}),
+        blobUrl,
+        ...imageMeta,
+        source: imageMeta?.source ?? null,
+        createdAt: Date.now()
       }
-      return [
-        ...current,
-        {
-          id: draftId,
-          type: 'image',
-          ...(dataUrl ? { dataUrl } : {}),
-          blobUrl,
-          ...imageMeta,
-          source: imageMeta?.source ?? null,
-          createdAt: Date.now()
-        }
-      ]
-    })
+    ])
+    return true
   }, [])
 
   const removePendingAiItem = useCallback((id: string) => {
@@ -199,6 +204,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
       }
       return current.filter((draft) => draft.id !== id)
     })
+    if (queueSizeRef.current > 0) queueSizeRef.current -= 1
   }, [])
 
   const clearPendingAiItems = useCallback(() => {
@@ -208,6 +214,7 @@ export function useAiDraftQueue(onDrop?: () => void) {
       pendingDraftIdsRef.current.clear()
       return []
     })
+    queueSizeRef.current = 0
   }, [])
 
   return {

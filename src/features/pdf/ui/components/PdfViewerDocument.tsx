@@ -35,15 +35,12 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     contextMenu,
     menuItems,
     handleCloseContextMenu,
-    handleAreaScreenshot,
-    handleFullPageScreenshot,
     handleTogglePanMode,
-    handleAddCurrentPageTextToAi,
     handleReload,
     selectionMenu
   } = usePdfViewerState(props)
 
-  const { pdfFile, autoSend, onToggleAutoSend } = props
+  const { pdfFile } = props
   const selectionMenuRef = useRef<HTMLDivElement | null>(null)
 
   // Menü dışına tıklanınca menü kapansın (taslak silinmez). Sağ tık menüsüyle
@@ -129,10 +126,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
 
       <PdfToolbar
         pdfFile={pdfFile}
-        onStartScreenshot={handleAreaScreenshot}
-        onFullPageScreenshot={handleFullPageScreenshot}
-        autoSend={autoSend}
-        onToggleAutoSend={onToggleAutoSend}
         panMode={isPanMode}
         onTogglePanMode={handleTogglePanMode}
         currentPage={nativeViewer.currentPage}
@@ -145,7 +138,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         ZoomIn={nativeViewer.zoomControls.ZoomIn}
         ZoomOut={nativeViewer.zoomControls.ZoomOut}
         CurrentScale={nativeViewer.zoomControls.CurrentScale}
-        onAddCurrentPageTextToAi={handleAddCurrentPageTextToAi}
         onReload={handleReload}
       />
     </div>

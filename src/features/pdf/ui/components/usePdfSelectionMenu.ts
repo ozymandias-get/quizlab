@@ -1,16 +1,23 @@
-import { buildPdfDocId, buildPdfSourceMeta, type PdfSourceMeta } from '@app/providers/ai/pdfSource'
+import type { SelectionPosition } from '@shared-core/types'
+
+import { isStagedSendResult } from '@features/ai'
+
+import { buildPdfSourceMeta, type PdfSourceMeta } from '@app/providers/ai/pdfSource'
 import { decorateTextWithSource } from '@app/providers/ai/pdfSource'
-import type { SelectionPosition } from '@app/providers/ai/types'
 import { useAppToolActions, useAppToolQueueState } from '@app/providers/AppToolContext'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { computeSelectionMenuAnchor, resolveSelectionPageRange } from '../../text/selectionPage'
+import {
+  computeSelectionMenuAnchor,
+  type MenuAnchor,
+  resolveSelectionPageRange
+} from '../../text/selectionPage'
 import type { SelectionMenuFeedback } from './PdfSelectionMenu'
 
 export interface TextSelectionSnapshot {
   text: string
-  position: SelectionPosition
+  position: MenuAnchor
   source: PdfSourceMeta | null
   requestId: number
 }
@@ -25,14 +32,42 @@ interface UsePdfSelectionMenuOptions {
   } | null
   currentPage: number
   totalPages: number
+  /**
+   * Zoom/ölçek belirteci. Değiştiğinde PDF.js metin katmanını yeniden kurar,
+   * seçim geometrisi geçersizlenir; menü yanlış yerde kalmaz, kapanır.
+   */
+  zoomToken?: number | string
   onTextSelection?: (text: string, position: SelectionPosition | null) => void
 }
 
+/**
+ * İkili seçim menüsünün durum ve konumlandırma akışı.
+ *
+ * ## Konumlandırma — tek karar
+ *
+ * Seçim bitişinin gerçek DOM Range geometrisi (`position.endRect`, viewport
+ * koordinatları) yakalanır; menü konumu `computeSelectionMenuAnchor` ile
+ * **bir kez** hesaplanır — gerçek bitiş rect'i + gerçek menü ölçüsü + PDF
+ * paneli/viewport sınırları. Seçim noktasından yapay dikdörtgen üretip ikinci
+ * bir tahmin dönüşümü uygulanmaz.
+ *
+ * Scroll ve resize sırasında menü canlı seçim geometrisinden yeniden
+ * hesaplanır (rAF ile, yalnızca konum gerçekten değiştiyse state güncellenir).
+ * Sayfa değişimi, belge değişimi veya zoom seçim geometrisini geçersizlediği
+ * için menüyü kapatır.
+ *
+ * ## Koordinat sistemi
+ *
+ * Tüm değerler viewport (client) koordinatıdır; menü `position: fixed` olarak
+ * `document.body`'ye portal'lanır, bu sayede katman ve transform bağlamından
+ * etkilenmez.
+ */
 export function usePdfSelectionMenu({
   containerRef,
   pdfFile,
   currentPage,
   totalPages,
+  zoomToken,
   onTextSelection
 }: UsePdfSelectionMenuOptions) {
   const { queueTextForAi, sendTextDirectToAi } = useAppToolActions()
@@ -42,6 +77,8 @@ export function usePdfSelectionMenu({
   const requestIdRef = useRef(0)
   const menuRef = useRef<TextSelectionSnapshot | null>(null)
   menuRef.current = menu
+  const feedbackRef = useRef(feedback)
+  feedbackRef.current = feedback
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingCountRef = useRef(pendingAiItems.length)
   pendingCountRef.current = pendingAiItems.length
@@ -62,6 +99,50 @@ export function usePdfSelectionMenu({
     setFeedback('idle')
     setMenu(null)
   }, [clearFeedbackTimer])
+
+  /**
+   * Canlı seçimin bitiş rect'i — scroll/resize sırasında menüyü takip ettirmek
+   * için. Seçim artık DOM'da yoksa (silinmiş, sayfa yeniden kurulmuş) null.
+   */
+  const readLiveEndRect = useCallback((): {
+    top: number
+    bottom: number
+    left: number
+    right: number
+  } | null => {
+    try {
+      const selection = typeof window !== 'undefined' ? window.getSelection() : null
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
+      const range = selection.getRangeAt(0)
+      if (!range.commonAncestorContainer?.isConnected) return null
+      const container = containerRef.current
+      if (container && !container.contains(range.commonAncestorContainer)) return null
+      const rects = typeof range.getClientRects === 'function' ? [...range.getClientRects()] : []
+      const end = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect()
+      if (end.width <= 0 && end.height <= 0) return null
+      return { top: end.top, bottom: end.bottom, left: end.left, right: end.right }
+    } catch {
+      return null
+    }
+  }, [containerRef])
+
+  const anchorFromEndRect = useCallback(
+    (endRect: { top: number; bottom: number; left: number; right: number }): MenuAnchor => {
+      const containerRect = containerRef.current?.getBoundingClientRect() ?? null
+      return computeSelectionMenuAnchor(
+        endRect,
+        containerRect
+          ? {
+              top: containerRect.top,
+              bottom: containerRect.bottom,
+              left: containerRect.left,
+              right: containerRect.right
+            }
+          : null
+      )
+    },
+    [containerRef]
+  )
 
   const handleSelection = useCallback(
     (text: string, position: SelectionPosition | null) => {
@@ -111,52 +192,16 @@ export function usePdfSelectionMenu({
         captureKind: 'text-selection'
       })
 
-      // Fare yönü / çok satır farkları: extractSelectedText bitiş rect'inden
-      // konum üretir; burada yalnızca PDF sınırlarına göre son bir kelepçe
-      // uygulanır (yeniden hesaplama yok).
-      let anchor = { top: position.top, left: position.left }
-      try {
-        const containerRect = containerRef.current?.getBoundingClientRect() ?? null
-        // position zaten kelepçeli; container dışına taşmayı son kez düzelt.
-        anchor = computeSelectionMenuAnchor(
-          {
-            top: position.top - 52,
-            bottom: position.top - 8,
-            left: position.left - 120,
-            right: position.left + 120
-          },
-          containerRect
-            ? {
-                top: containerRect.top,
-                bottom: containerRect.bottom,
-                left: containerRect.left,
-                right: containerRect.right
-              }
-            : null
-        )
-        // computeSelectionMenuAnchor bir bitiş rect'i bekler; elimizdeki
-        // position zaten menü konumudur — container taşması yoksa orijinali koru.
-        const insideContainer =
-          !containerRect ||
-          (anchor.top >= containerRect.top &&
-            anchor.top <= containerRect.bottom &&
-            anchor.left >= containerRect.left &&
-            anchor.left <= containerRect.right)
-        if (!insideContainer) {
-          // fallback: orijinal konum
-          anchor = { top: position.top, left: position.left }
-        } else if (
-          Math.abs(anchor.top - position.top) > 200 ||
-          Math.abs(anchor.left - position.left) > 200
-        ) {
-          anchor = { top: position.top, left: position.left }
-        }
-      } catch {
-        anchor = { top: position.top, left: position.left }
+      // Tek konumlandırma kararı: gerçek bitiş rect'i (extractSelectedText'in
+      // DOM Range'den ölçtüğü son satır) + PDF paneli sınırları. Yapay dikdörtgen
+      // ve ikinci tahmin dönüşü yok.
+      const endRect = position.endRect ?? {
+        top: position.top,
+        bottom: position.top,
+        left: position.left,
+        right: position.left
       }
-
-      // DocId tutarlılığı: docId seçim anında sabitlenir.
-      void buildPdfDocId
+      const anchor = anchorFromEndRect(endRect)
 
       const requestId = ++requestIdRef.current
       clearFeedbackTimer()
@@ -168,30 +213,65 @@ export function usePdfSelectionMenu({
         requestId
       })
     },
-    [clearFeedbackTimer, closeMenu, containerRef, currentPage, pdfFile, totalPages]
+    [anchorFromEndRect, clearFeedbackTimer, closeMenu, currentPage, pdfFile, totalPages]
   )
+
+  // Scroll/resize: menü canlı seçim geometrisini takip eder (rAF, tek ölçüm).
+  // Seçim DOM'dan kalktıysa menü kapanır — yanlış yerde yalnız kalmaz.
+  useEffect(() => {
+    if (!menu || feedback !== 'idle') return
+    let frame = 0
+    const schedule = () => {
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        const endRect = readLiveEndRect()
+        if (!endRect) {
+          closeMenu()
+          return
+        }
+        const next = anchorFromEndRect(endRect)
+        setMenu((prev) => {
+          if (!prev) return prev
+          if (prev.position.top === next.top && prev.position.left === next.left) return prev
+          return { ...prev, position: next }
+        })
+      })
+    }
+    const container = containerRef.current
+    container?.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      container?.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+    }
+  }, [menu, feedback, readLiveEndRect, anchorFromEndRect, closeMenu, containerRef])
 
   const handleAddToDraft = useCallback(() => {
     const snapshot = menuRef.current
     if (!snapshot || feedback === 'working') return
     // Taslağa Ekle hiçbir koşulda gönderim tetiklemez; global autoSend'e dokunmaz.
-    queueTextForAi(snapshot.text, snapshot.position, { source: snapshot.source })
-    const nextCount = pendingCountRef.current + 1
+    queueTextForAi(
+      snapshot.text,
+      { top: snapshot.position.top, left: snapshot.position.left },
+      {
+        source: snapshot.source
+      }
+    )
     setFeedback('added')
     clearFeedbackTimer()
     // Kısa bildirim: "Taslağa eklendi · N içerik". Taslağı zorla açmaz.
     feedbackTimerRef.current = setTimeout(() => {
       closeMenu()
-      // Seçimi koru? Menü kapandıktan sonra seçim kalabilir; ancak yeni
-      // seçimler menüyü yeniden açar. Snapshot kullanıldığı için boş içerik riski yok.
+      // Seçim korunur; yeni seçim menüyü yeniden açar. Snapshot kullanıldığı
+      // için boş içerik riski yok.
       try {
         window.getSelection()?.removeAllRanges()
       } catch {
         // best-effort
       }
     }, 1400)
-    // addedCount menüye prop olarak geçilir (render anındaki değer).
-    void nextCount
   }, [clearFeedbackTimer, closeMenu, feedback, queueTextForAi])
 
   const handleSendDirect = useCallback(async () => {
@@ -203,18 +283,25 @@ export function usePdfSelectionMenu({
       const decorated = decorateTextWithSource(snapshot.text, snapshot.source, 'text')
       const result = await sendTextDirectToAi(decorated, {})
       if (result && (result as { success?: boolean }).success) {
-        setFeedback('sent')
+        const staged = isStagedSendResult(result as { success: boolean; mode?: string })
+        // Hazırlanan (staged) sonuç "Gönderildi" demek değildir: kullanıcı
+        // AI kutusunda hâlâ göndermeyi onaylamalı.
+        setFeedback(staged ? 'staged' : 'sent')
         const id = snapshot.requestId
         // Hızlı arka arkaya seçimde eski async yenisini ezmesin.
-        setTimeout(() => {
-          if (menuRef.current?.requestId === id) closeMenu()
-        }, 300)
+        feedbackTimerRef.current = setTimeout(
+          () => {
+            if (menuRef.current?.requestId === id) closeMenu()
+          },
+          staged ? 1800 : 300
+        )
         try {
           window.getSelection()?.removeAllRanges()
         } catch {
           // best-effort
         }
       } else {
+        // Hata: menü aniden yok olmaz, eylemler geri gelir.
         setFeedback('idle')
       }
     } catch {
@@ -228,6 +315,14 @@ export function usePdfSelectionMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage])
 
+  // Zoom/ölçek değişimi metin katmanını yeniden kurar; seçim geometrisi
+  // geçersizdir. Menü takip etmeye çalışmaz, kapanır.
+  useEffect(() => {
+    if (zoomToken === undefined) return
+    if (menuRef.current) closeMenu()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoomToken])
+
   // PDF değiştiğinde eski metadata yanlış dosyaya bağlanmasın.
   const docKey = pdfFile ? `${pdfFile.path}::${pdfFile.streamUrl}::${pdfFile.name}` : 'none'
   useEffect(() => {
@@ -238,7 +333,10 @@ export function usePdfSelectionMenu({
   return {
     menu,
     feedback,
-    addedCount: pendingAiItems.length + (feedback === 'added' ? 1 : 0),
+    // Kuyruk güncellemesi aynı olayda senkron uygulanır; geri bildirim
+    // render'ında zaten dahildir. "+1" eklemek sayacı iki kez saydırıyordu
+    // (gerçek Electron'da "2 içerik" derken taslakta 1 öğe vardı).
+    addedCount: pendingAiItems.length,
     handleSelection,
     handleAddToDraft,
     handleSendDirect,

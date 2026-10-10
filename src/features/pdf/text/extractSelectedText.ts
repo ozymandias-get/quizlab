@@ -261,5 +261,20 @@ export function extractSelectedText(
     left = window.innerWidth - pillWidth / 2 - margin
   }
 
-  return { text, position: { top, left, width: selWidth, height: selHeight } }
+  return {
+    text,
+    position: {
+      top,
+      left,
+      width: selWidth,
+      height: selHeight,
+      // Gerçek bitiş geometrisi: menü konumlandırması bundan tek karar üretir.
+      endRect: {
+        top: endRect.top,
+        bottom: endRect.bottom,
+        left: endRect.left,
+        right: endRect.right
+      }
+    }
+  }
 }

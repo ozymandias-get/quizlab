@@ -131,7 +131,10 @@ export function useAiMessaging({
             handleApiChatSendResult(result)
             return result
           }
-          return { success: true }
+          // Auto-send off: the text sits in the api-chat composer and waits for
+          // the user. The staged mode keeps downstream callers from claiming a
+          // delivery that has not happened yet.
+          return { success: true, mode: 'staged' }
         } catch (err) {
           return { success: false, error: ensureErrorMessage(err, 'send_failed') }
         }

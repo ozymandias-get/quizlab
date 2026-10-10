@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { planSingleMessageSend } from '../../../../app/providers/ai/bulkSendPlan'
+import {
+  planSingleMessageSend,
+  supportsSingleMessageBulk
+} from '../../../../app/providers/ai/bulkSendPlan'
 import type { AiDraftItem } from '../../../../app/providers/ai/types'
 
 function textItem(id: string, text: string, page = 11): AiDraftItem {
@@ -83,5 +86,28 @@ describe('planSingleMessageSend', () => {
     const plan = planSingleMessageSend([textItem('t1', 'A', 11), textItem('t2', 'B', 12)])
     expect(plan?.combinedBody).toContain('Sayfa 11/59')
     expect(plan?.combinedBody).toContain('Sayfa 12/59')
+  })
+})
+
+describe('supportsSingleMessageBulk', () => {
+  it('treats a single image as always supported', () => {
+    expect(supportsSingleMessageBulk('anything', 1)).toBe(true)
+    expect(supportsSingleMessageBulk('anything', 0)).toBe(true)
+  })
+
+  it('supports multi-image for api-chat (attachment array by design)', () => {
+    expect(supportsSingleMessageBulk('api-chat', 5)).toBe(true)
+  })
+
+  it('supports multi-image for verified web providers', () => {
+    expect(supportsSingleMessageBulk('chatgpt', 3)).toBe(true)
+    expect(supportsSingleMessageBulk('gemini', 3)).toBe(true)
+    expect(supportsSingleMessageBulk('claude', 2)).toBe(true)
+  })
+
+  it('does not assume support for unknown or custom providers', () => {
+    expect(supportsSingleMessageBulk('', 2)).toBe(false)
+    expect(supportsSingleMessageBulk('my-custom-site', 2)).toBe(false)
+    expect(supportsSingleMessageBulk('unknown-provider', 4)).toBe(false)
   })
 })

@@ -92,8 +92,9 @@ describe('useComposerSendAction', () => {
   })
 
   // A staged outcome was accepted but never delivered, so the green badge
-  // would be a lie.
-  it('does not show the success badge for a staged result', async () => {
+  // would be a lie. It must not report "sent"; the prepared state is its own
+  // feedback, not the delivered one.
+  it('reports a staged result as staged, never as sent', async () => {
     const onSend = vi.fn(async () => ({ success: true, mode: 'staged' }) as unknown)
     const { result } = renderHook(() =>
       useComposerSendAction({
@@ -111,7 +112,7 @@ describe('useComposerSendAction', () => {
       await result.current.handleSend()
     })
 
-    expect(result.current.sendFeedback).toBe('idle')
+    expect(result.current.sendFeedback).toBe('staged')
   })
 
   it('shows the error state and re-expands for a failed result', async () => {

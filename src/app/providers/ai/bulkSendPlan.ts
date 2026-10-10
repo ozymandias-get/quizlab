@@ -1,12 +1,12 @@
 import { decorateTextWithSource } from './pdfSource'
 import type { AiDraftItem } from './types'
 
-export interface BulkTextEntry {
+interface BulkTextEntry {
   id: string
   text: string
 }
 
-export interface BulkImageEntry {
+interface BulkImageEntry {
   id: string
   dataUrl?: string
   blobUrl?: string
@@ -74,12 +74,34 @@ export function planSingleMessageSend(
 /**
  * Sağlayıcının çoklu görseli tek mesajda taşıyıp taşıyamayacağı.
  *
- * api-chat ek dizisini (`attachmentsByTab`) destekler; web içeriklerinde
- * çoklu yapıştırma + tek submit denenir. Bilinmeyen sağlayıcıda iyimser
- * `true` dönülür; başarısızlık sessizce bölünmez — hata olarak raporlanır
- * ve taslak korunur (caller sorumluluğunda).
+ * İyimser `true` yoktur: bilinmeyen veya kullanıcı tanımlı sağlayıcı
+ * desteklenmiyor sayılır. Yanlışlıkla "destekliyor" demek, kullanıcı tek mesaj
+ * isterken sessizce birden fazla AI mesajı oluşturma riskini açar; ters hata
+ * (gereksiz uyarı) ise güvenli taraftadır ve kullanıcıya açık bilgi verilir.
+ *
+ * - `api-chat`: depo tabanlı API sohbeti — `addAttachment` N ek alabilir,
+ *   gönderim tek mesaj dizisi olarak kurulur. Tasarım gereği destekler.
+ * - Web platformları: yapıştırma ile çoklu görsel desteklediği doğrulanmış
+ *   kayıtlı platformlar. Kayıt dışı / özel sağlayıcılar hedef liste dışıdır.
  */
-export function supportsSingleMessageBulk(_providerId: string, imageCount: number): boolean {
+const MULTI_IMAGE_WEB_PROVIDERS = new Set([
+  'chatgpt',
+  'gemini',
+  'aistudio',
+  'claude',
+  'deepseek',
+  'qwen',
+  'kimi',
+  'm365',
+  'copilot',
+  'grok',
+  'mistral',
+  'perplexity'
+])
+
+export function supportsSingleMessageBulk(providerId: string, imageCount: number): boolean {
+  // Tek görsel her zaman tek mesajdadır; yetenek sorusu doğmaz.
   if (imageCount <= 1) return true
-  return true
+  if (providerId === 'api-chat') return true
+  return MULTI_IMAGE_WEB_PROVIDERS.has(providerId)
 }

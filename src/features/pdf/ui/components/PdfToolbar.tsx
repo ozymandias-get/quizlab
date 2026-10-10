@@ -20,12 +20,6 @@ const TOGGLE_IDLE =
 
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
-  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
-  onStartScreenshot?: () => void
-  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
-  onFullPageScreenshot?: () => void
-  autoSend?: boolean
-  onToggleAutoSend?: () => void
   panMode: boolean
   onTogglePanMode: () => void
   currentPage: number
@@ -38,8 +32,6 @@ interface PdfToolbarProps {
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
-  /** @deprecated Yeni seçim menüsüyle yineleniyor; sağ tık menüsü giriş noktasıdır. */
-  onAddCurrentPageTextToAi?: () => void
   onReload?: () => void
 }
 

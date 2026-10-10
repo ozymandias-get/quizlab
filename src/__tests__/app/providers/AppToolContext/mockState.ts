@@ -19,6 +19,8 @@ export interface AppToolMockState {
   sendTextToAI: any
 
   sendImageToAI: any
+
+  sendBulkToAI: any
 }
 
 export const mockState: AppToolMockState = {
@@ -32,5 +34,6 @@ export const mockState: AppToolMockState = {
   autoSend: false,
   geminiLoginPending: false,
   sendTextToAI: vi.fn(),
-  sendImageToAI: vi.fn()
+  sendImageToAI: vi.fn(),
+  sendBulkToAI: vi.fn()
 }

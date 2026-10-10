@@ -53,5 +53,11 @@ export type {
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
 } from './native-messaging.js'
-export type { PdfFile, PdfSelection, PdfSelectOptions, PdfViewerZoomAction } from './pdf.js'
+export type {
+  PdfFile,
+  PdfSelection,
+  PdfSelectOptions,
+  PdfViewerZoomAction,
+  SelectionPosition
+} from './pdf.js'
 export type { UpdateCheckResult } from './system.js'

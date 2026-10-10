@@ -1,11 +1,13 @@
 import { DURATION } from '@shared/lib/motion'
 
-import { BookmarkPlus, Check, Loader2, Send } from 'lucide-react'
+import { BookmarkPlus, Check, Info, Loader2, Send } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { memo } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export type SelectionMenuFeedback = 'idle' | 'working' | 'added' | 'sent' | 'error'
+import { DEFAULT_SELECTION_MENU_SIZE } from '../../text/selectionPage'
+
+export type SelectionMenuFeedback = 'idle' | 'working' | 'added' | 'sent' | 'staged' | 'error'
 
 interface PdfSelectionMenuProps {
   top: number
@@ -17,16 +19,25 @@ interface PdfSelectionMenuProps {
   onAddToDraft: () => void
 }
 
+/** Viewport kenarına karşı tek seferlik DOM ölçümlü kelepçe (mount/konum değişimi). */
+const EDGE_MARGIN = 8
+
 /**
  * PDF seçiminde doğrudan beliren ikili eylem menüsü.
  *
- * Görsel dil `MenuSurface` ile aynı kütphaneden gelir (popover yüzeyi,
- * `shadow-ambient-lg`, `rounded-xl`, 1px kenarlık, hafif backdrop blur) ve
- * bağlam menüsünün yanında durduğunda ikisi de "aynı aileden" görünür.
+ * Görsel dil `MenuSurface` ile aynı kütleden: popover yüzeyi,
+ * `shadow-ambient-lg`, `rounded-xl`, 1px kenarlık, hafif backdrop blur.
  *
- * Hareket yalnızca kullanıcı eylemini anlamaya yardım eder: açılışta kısa bir
- * opaklık + 3px yukarı geçiş, konum sabit kalır (menü konumlanmış yerde
- * doğar, sürüklenmez). `prefers-reduced-motion` altında geçiş tamamen düşer.
+ * - İki eylem yan yana, dengeli genişlikte, ayrı ikonlu, kesintisiz metin.
+ * - Açık/koyu temada uyumlu; hover ve `focus-visible` halkası belirgin.
+ * - Hareket yalnızca açılışta kısa opaklık + 3px yukarı geçişi; konum
+ * sabit kalır. `prefers-reduced-motion` altında geçiş tamamen düşer.
+ * - Geri bildirim (eklendi / gönderildi / hazırlandı / hata) aynı yüzeyde
+ * satır içinde gösterilir; menü konumundan kaymaz.
+ *
+ * Ölçüler sabittir (`DEFAULT_SELECTION_MENU_SIZE`) ve konumlandırma bu
+ * ölçüyü kullanır; buna karşılık ilk yerleşimde gerçek DOM yüzeyi ölçülüp
+ * viewport taşmasına karşı tek kez düzeltme uygulanır (zamanlayıcı yok).
  */
 function PdfSelectionMenu({
   top,
@@ -40,9 +51,101 @@ function PdfSelectionMenu({
   const { t } = useTranslation()
   const prefersReducedMotion = useReducedMotion()
   const isBusy = feedback === 'working' || disabled
+  const surfaceRef = useRef<HTMLDivElement>(null)
+  const [nudge, setNudge] = useState<{ x: number; y: number } | null>(null)
+
+  // Gerçek DOM ölçüsü → tek konum düzeltmesi (her konum değişiminde bir kez).
+  useLayoutEffect(() => {
+    const el = surfaceRef.current
+    if (!el) return
+    setNudge(null)
+    const rect = el.getBoundingClientRect()
+    let dx = 0
+    let dy = 0
+    if (rect.right > window.innerWidth - EDGE_MARGIN) {
+      dx = window.innerWidth - EDGE_MARGIN - rect.right
+    }
+    if (rect.left < EDGE_MARGIN) dx = EDGE_MARGIN - rect.left
+    if (rect.bottom > window.innerHeight - EDGE_MARGIN) {
+      dy = window.innerHeight - EDGE_MARGIN - rect.bottom
+    }
+    if (rect.top < EDGE_MARGIN) dy = EDGE_MARGIN - rect.top
+    if (dx !== 0 || dy !== 0) setNudge({ x: dx, y: dy })
+  }, [top, left])
+
+  const feedbackNode = (): {
+    key: string
+    icon: React.ReactNode
+    text: string
+    tone: string
+  } | null => {
+    if (feedback === 'added') {
+      return {
+        key: 'added',
+        icon: (
+          <span
+            className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
+            aria-hidden
+          >
+            <Check className="size-4" strokeWidth={2.5} />
+          </span>
+        ),
+        text: t('pdf_draft_added', {
+          count: addedCount ?? 1,
+          defaultValue: `Taslağa eklendi · ${addedCount ?? 1} içerik`
+        }),
+        tone: 'text-foreground'
+      }
+    }
+    if (feedback === 'sent' || feedback === 'staged') {
+      const staged = feedback === 'staged'
+      return {
+        key: feedback,
+        icon: (
+          <span
+            className={[
+              'flex size-7 shrink-0 items-center justify-center rounded-lg',
+              staged
+                ? 'bg-primary/12 text-primary'
+                : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
+            ].join(' ')}
+            aria-hidden
+          >
+            {staged ? (
+              <Info className="size-4" strokeWidth={2} />
+            ) : (
+              <Check className="size-4" strokeWidth={2.5} />
+            )}
+          </span>
+        ),
+        // Hazırlanan mesaj "Gönderildi" demek değildir.
+        text: staged ? t('ai_send_staged') : t('ai_send_sent'),
+        tone: 'text-foreground'
+      }
+    }
+    if (feedback === 'error') {
+      return {
+        key: 'error',
+        icon: (
+          <span
+            className="bg-destructive/12 text-destructive flex size-7 shrink-0 items-center justify-center rounded-lg"
+            aria-hidden
+          >
+            <Info className="size-4" strokeWidth={2} />
+          </span>
+        ),
+        text: t('ai_send_error'),
+        tone: 'text-destructive'
+      }
+    }
+    return null
+  }
+
+  const feedbackContent = feedbackNode()
 
   return (
     <motion.div
+      ref={surfaceRef}
       role="menu"
       aria-label={t('pdf_selection_menu_label', { defaultValue: 'Seçim işlemleri' })}
       aria-busy={feedback === 'working'}
@@ -50,8 +153,13 @@ function PdfSelectionMenu({
       initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -3 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: DURATION.fast, ease: [0.2, 0.8, 0.2, 1] }}
-      style={{ top, left }}
-      className="border-border bg-popover/95 text-popover-foreground shadow-ambient-lg z-dropdown motion-normal fixed w-[252px] rounded-xl border p-1 backdrop-blur-md"
+      style={{
+        top,
+        left,
+        width: DEFAULT_SELECTION_MENU_SIZE.width,
+        transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
+      }}
+      className="border-border bg-popover/95 text-popover-foreground shadow-ambient-lg z-dropdown motion-normal fixed rounded-xl border p-1 backdrop-blur-md"
       onMouseDown={(e) => {
         // Menüye tıklanınca metin seçimi kaybolmasın: içerik zaten snapshot'ta,
         // ama seçim kaybı yeni bir selectionchange tetikleyip menüyü kapatırdı.
@@ -59,7 +167,7 @@ function PdfSelectionMenu({
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
-        {feedback === 'added' || feedback === 'sent' ? (
+        {feedbackContent ? (
           <motion.div
             key="feedback"
             data-testid="pdf-selection-menu-feedback"
@@ -70,19 +178,9 @@ function PdfSelectionMenu({
             transition={{ duration: DURATION.fast }}
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
           >
-            <span
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-              aria-hidden
-            >
-              <Check className="size-4" strokeWidth={2.5} />
-            </span>
-            <span className="text-ql-12 min-w-0 truncate font-medium">
-              {feedback === 'sent'
-                ? t('ai_send_sent')
-                : t('pdf_draft_added', {
-                    count: addedCount ?? 1,
-                    defaultValue: `Taslağa eklendi · ${addedCount ?? 1} içerik`
-                  })}
+            {feedbackContent.icon}
+            <span className={['text-ql-12 min-w-0 font-medium', feedbackContent.tone].join(' ')}>
+              {feedbackContent.text}
             </span>
           </motion.div>
         ) : (
@@ -100,7 +198,7 @@ function PdfSelectionMenu({
               data-testid="pdf-selection-send"
               disabled={isBusy}
               onClick={onSendToAi}
-              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               <span
                 className="bg-primary/12 text-primary group-hover:bg-primary/18 flex size-5 shrink-0 items-center justify-center rounded-md transition-colors"
@@ -123,7 +221,7 @@ function PdfSelectionMenu({
               data-testid="pdf-selection-draft"
               disabled={isBusy}
               onClick={onAddToDraft}
-              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               <span
                 className="bg-muted text-muted-foreground group-hover:bg-primary/12 group-hover:text-primary flex size-5 shrink-0 items-center justify-center rounded-md transition-colors"

@@ -5,15 +5,15 @@ import { Logger } from '@shared/lib/logger'
 
 import { type Dispatch, type SetStateAction, useCallback, useRef } from 'react'
 
-import { planSingleMessageSend } from '../ai/bulkSendPlan'
-import { planBulkAiSend } from '../ai/planBulkAiSend'
+import { planSingleMessageSend, supportsSingleMessageBulk } from '../ai/bulkSendPlan'
 import type { AiDraftItem, AiSendResult } from '../ai/types'
 import { blobUrlToDataUrl } from './appToolUtils'
 
 interface UseDraftSendOrchestrationProps {
   autoSend: boolean
+  /** Etkin sağlayıcı (model kimliği) — toplu görsel yetkisi burada sorulur. */
+  providerId?: string
   sendTextToAI: (payload: string, options?: AiSendOptions) => Promise<AiSendResult>
-  sendImageToAI: (dataUrl: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
   pendingAiItemsRef: { current: AiDraftItem[] }
   setPendingAiItems: Dispatch<SetStateAction<AiDraftItem[]>>
@@ -26,12 +26,13 @@ interface UseDraftSendOrchestrationProps {
  *   tüm görseller tek mesajın ekleri, prompt yalnızca bir kez, tek submit.
  * - Kayıtlı prompt pipeline içinde bir kez eklenir (activePromptText); burada
  *   tekrarlanmaz.
+ * - Sağlayıcı çoklu görseli tek mesajda taşıyamıyorsa sessizce parçalanmaz:
+ *   gönderim `bulk_not_supported` ile reddedilir, taslak korunur ve kullanıcıya
+ *   açık bilgi verilir (caller toast'ı).
  * - Başarısızlıkta taslak korunur; yalnızca gerçekten işlenen öğeler kuyruktan
  *   düşer. Kısmi hazırlama (blob→dataURL) ile kısmi gönderim ayrıştırılır.
  * - Çift gönderim `sendingRef` ile engellenir; sekme sabitliği alt katmanda
  *   (useAiMessaging) garanti edilir.
- * - `sendBulkToAI` yoksa (eski test/provider) segmented fallback çalışır; bu
- *   durumda da prompt ilk segmente bir kez eklenir (planBulkAiSend davranışı).
  */
 interface SegmentRun {
   result: AiSendResult
@@ -47,8 +48,8 @@ function mergeNoteWithBody(note: string | undefined, body: string): string | und
 
 export function useDraftSendOrchestration({
   autoSend,
+  providerId,
   sendTextToAI,
-  sendImageToAI,
   sendBulkToAI,
   pendingAiItemsRef,
   setPendingAiItems
@@ -91,10 +92,16 @@ export function useDraftSendOrchestration({
       }
 
       // Görsel(ler) var: tek mesaj + N ek + tek prompt + tek submit.
-      if (!sendBulkToAI) {
-        // Bulk desteği yoksa segmented fallback (legacy). Sessiz bölme değil:
-        // bu yol yalnızca bulk'un hiç sunulamadığı ortamlarda çalışır.
-        return executeSegmentedFallback(items, options, effectiveAutoSend)
+      // Sağlayıcı yetkisi gerçek uyumluluk modelinden sorulur; bilinmeyen
+      // sağlayıcı asla destekleniyor sayılmaz.
+      if (!supportsSingleMessageBulk(providerId ?? '', plan.images.length) || !sendBulkToAI) {
+        // Sessiz bölme YAPILMAZ: taslak korunur, kullanıcıya açık bilgi verilir.
+        // Onaylı alternatif, kullanıcı öğeleri tek tek çıkarmaya karar verdiğinde
+        // tek görsel yoluyla (yukarıdaki metin yolu gibi) sunulur.
+        Logger.warn(
+          `[DraftOrchestration] Bulk unsupported for provider "${providerId ?? ''}" with ${plan.images.length} images; draft kept`
+        )
+        return { result: { success: false, error: 'bulk_not_supported' }, sentItemIds: [] }
       }
 
       // Blob URL'leri data URL'e çevir (hazırlama aşaması; gönderimden ayrı).
@@ -130,46 +137,8 @@ export function useDraftSendOrchestration({
         result: { success: true, mode: (sendResult as { mode?: string }).mode },
         sentItemIds: plan.itemIds
       }
-
-      async function executeSegmentedFallback(
-        fallbackItems: AiDraftItem[],
-        fallbackOptions: AiSendOptions | undefined,
-        fallbackAutoSend: boolean
-      ): Promise<SegmentRun> {
-        const segments = planBulkAiSend(fallbackItems, fallbackOptions?.promptText)
-        if (segments.length === 0) {
-          return { result: { success: false, error: 'invalid_input' }, sentItemIds: [] }
-        }
-        const sentItemIds: string[] = []
-        for (const segment of segments) {
-          if (segment.kind === 'text') {
-            const sendResult = (await sendTextToAI(segment.payload, {
-              autoSend: fallbackAutoSend
-            })) ?? { success: false, error: 'cancelled' }
-            if (!sendResult.success) return { result: sendResult, sentItemIds }
-          } else {
-            let dataUrl = segment.dataUrl
-            if (!dataUrl && segment.blobUrl) {
-              try {
-                dataUrl = await blobUrlToDataUrl(segment.blobUrl)
-              } catch (err) {
-                Logger.error('[DraftOrchestration] Failed to convert blob URL:', err)
-                return { result: { success: false, error: 'invalid_image_format' }, sentItemIds }
-              }
-            }
-            if (!dataUrl) return { result: { success: false, error: 'invalid_input' }, sentItemIds }
-            const sendResult = (await sendImageToAI(dataUrl, {
-              autoSend: fallbackAutoSend,
-              promptText: segment.promptText
-            })) ?? { success: false, error: 'cancelled' }
-            if (!sendResult.success) return { result: sendResult, sentItemIds }
-          }
-          sentItemIds.push(...segment.itemIds)
-        }
-        return { result: { success: true }, sentItemIds }
-      }
     },
-    [sendBulkToAI, sendImageToAI, sendTextToAI]
+    [providerId, sendBulkToAI, sendTextToAI]
   )
 
   const sendPendingAiItems = useCallback(

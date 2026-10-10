@@ -19,6 +19,7 @@
   "error_empty_text": "Gönderilecek metin boş.",
   "error_invalid_name": "Geçersiz klasör ismi",
   "error_paste_failed": "Resim yapıştırılamadı",
+  "error_paste_ready_failed": "Görsel ekleri arasında AI alanı hazır hâle gelmedi. Biraz bekleyip tekrar deneyin.",
   "error_pdf_access": "Dosyaya erişilemiyor",
   "error_pdf_handler": "PDF İşleyicisi Hatası",
   "error_pdf_load": "PDF yüklenemedi. Lütfen tekrar deneyin.",
@@ -69,5 +70,6 @@
   "error_name_too_short": "İsim çok kısa",
   "error_url_required": "URL gerekli",
   "error_url_protocol": "Yalnızca http(s) adresleri desteklenir",
-  "error_url_invalid": "Geçersiz URL"
+  "error_url_invalid": "Geçersiz URL",
+  "error_bulk_not_supported": "Bu sağlayıcı çoklu görseli tek mesajda desteklemiyor. Taslak korundu; tek tek göndermek için öğeleri azaltın."
 }
