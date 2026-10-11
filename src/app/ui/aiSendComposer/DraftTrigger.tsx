@@ -41,7 +41,7 @@ function DraftTrigger({ itemCount, isOpen, isSending, onToggle }: DraftTriggerPr
       </span>
       <span className="text-ql-12 font-semibold whitespace-nowrap">{t('ai_draft_badge')}</span>
       {itemCount > 0 && (
-        <span className="bg-primary text-primary-foreground text-ql-11 min-w-5 rounded-full px-1.5 text-center font-semibold tabular-nums">
+        <span className="bg-primary/15 text-primary text-ql-11 min-w-5 rounded-full px-1.5 text-center font-semibold tabular-nums">
           {itemCount}
         </span>
       )}

@@ -37,7 +37,7 @@ function DraftPanel({ isOpen, placement, children }: DraftPanelProps) {
           exit={{ opacity: 0, y: prefersReducedMotion ? 0 : 4 }}
           transition={{ duration: DURATION.normal, ease: [0.2, 0.8, 0.2, 1] }}
           className={cn(
-            'border-border bg-card text-foreground shadow-ambient-xl pointer-events-auto flex w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border',
+            'border-border bg-card/95 text-foreground shadow-ambient-xl pointer-events-auto flex w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border backdrop-blur-md',
             // Yuva PDF panelinde: panel rozetten yukarı açılır, panelin içinde kalır.
             placement === 'inline' ? 'absolute right-0 bottom-full mb-2' : 'relative'
           )}
@@ -62,31 +62,33 @@ export function DraftPanelHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <header className="border-border/70 flex items-start gap-2.5 border-b px-3.5 py-3">
+    <header className="border-border/70 flex items-center gap-2.5 border-b px-3.5 py-2.5">
       <span
-        className="border-primary/15 bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-xl border"
+        className="border-primary/20 bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-lg border"
         aria-hidden
       >
-        <Send className="size-4" strokeWidth={2} />
+        <Send className="size-3.5" strokeWidth={2} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-ql-13 truncate leading-tight font-semibold">
-          {t('ai_send_panel_title')}
-        </p>
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          {textCount > 0 && (
-            <span className="bg-muted text-muted-foreground text-ql-11 flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium">
-              <Type className="size-3" aria-hidden />
-              {t('ai_draft_item_text')}
-              <span className="text-foreground tabular-nums">{textCount}</span>
-            </span>
-          )}
-          {imageCount > 0 && (
-            <span className="bg-muted text-muted-foreground text-ql-11 flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium">
-              <ImageIcon className="size-3" aria-hidden />
-              {t('ai_draft_item_image')}
-              <span className="text-foreground tabular-nums">{imageCount}</span>
-            </span>
+        <div className="flex items-center gap-2">
+          <p className="text-ql-13 truncate leading-none font-semibold">
+            {t('ai_send_panel_title')}
+          </p>
+          {(textCount > 0 || imageCount > 0) && (
+            <div className="flex items-center gap-1">
+              {textCount > 0 && (
+                <span className="bg-muted text-muted-foreground text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium">
+                  <Type className="size-2.5" aria-hidden />
+                  <span className="text-foreground tabular-nums">{textCount}</span>
+                </span>
+              )}
+              {imageCount > 0 && (
+                <span className="bg-muted text-muted-foreground text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium">
+                  <ImageIcon className="size-2.5" aria-hidden />
+                  <span className="text-foreground tabular-nums">{imageCount}</span>
+                </span>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -97,7 +99,7 @@ export function DraftPanelHeader({
         onClick={onClose}
         aria-label={t('ai_draft_close')}
         aria-expanded
-        className="text-muted-foreground hover:bg-muted hover:text-foreground -mt-0.5 shrink-0"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
       >
         <X className="size-4" aria-hidden />
       </IconButton>

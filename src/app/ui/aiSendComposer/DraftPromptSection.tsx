@@ -1,6 +1,13 @@
 import { usePrompts } from '@features/ai'
 
-import { ChevronDown } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@app/components/ui/select'
+
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -11,11 +18,20 @@ interface DraftPromptSectionProps {
   onPresetAppend: (preset: string) => void
 }
 
+/** Radix `Select` boş string değerini "seçim yok" sayar; ayrı bir sentinel kullanılır. */
+const NONE_VALUE = '__none__'
+
+/** Çok satırlı prompt metnini menüde tek satırlık, dengeli bir etikete indirger. */
+function toOptionLabel(text: string): string {
+  const flat = text.replaceAll(/\s+/g, ' ').trim()
+  return flat.length > 68 ? `${flat.slice(0, 68)}…` : flat
+}
+
 /**
  * Kayıtlı prompt seçimi + hazır komutlar.
  *
  * Seçim prompt deposundan okunur (`usePrompts`), gönderim anında pipeline
- * tarafından bir kez uygulanır; not alanına dokunmaz.
+ * tarafından bir kez uygulanır; not alanına dokunmuz.
  */
 function DraftPromptSection({ onPresetAppend }: DraftPromptSectionProps) {
   const { t } = useTranslation()
@@ -29,25 +45,31 @@ function DraftPromptSection({ onPresetAppend }: DraftPromptSectionProps) {
       >
         {t('ai_draft_prompt_label')}
       </label>
-      <div className="relative">
-        <select
-          id="ai-draft-prompt"
-          value={selectedPromptId ?? ''}
-          onChange={(e) => selectPrompt(e.target.value)}
-          className="border-border/80 bg-background/50 text-ql-12 focus-visible:ring-foreground/15 motion-normal h-8 w-full appearance-none rounded-lg border py-0 pr-8 pl-2.5 font-medium transition-colors outline-none focus-visible:border-neutral-400 focus-visible:ring-1 dark:focus-visible:border-neutral-500"
+      <Select
+        value={selectedPromptId ?? NONE_VALUE}
+        onValueChange={(value) => selectPrompt(value === NONE_VALUE ? '' : value)}
+      >
+        <SelectTrigger id="ai-draft-prompt" className="text-ql-12 h-8 w-full font-medium">
+          <SelectValue placeholder={t('ai_draft_no_prompt')} />
+        </SelectTrigger>
+        <SelectContent
+          position="popper"
+          align="start"
+          sideOffset={6}
+          className="w-(--radix-select-trigger-width) max-w-[min(26rem,90vw)] min-w-72"
         >
-          <option value="">{t('ai_draft_no_prompt')}</option>
+          <SelectItem value={NONE_VALUE} className="text-muted-foreground">
+            {t('ai_draft_no_prompt')}
+          </SelectItem>
           {allPrompts.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.text.slice(0, 60)}
-            </option>
+            <SelectItem key={p.id} value={p.id} className="text-ql-12">
+              <span className="line-clamp-2 break-words whitespace-normal">
+                {toOptionLabel(p.text)}
+              </span>
+            </SelectItem>
           ))}
-        </select>
-        <ChevronDown
-          className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2"
-          aria-hidden
-        />
-      </div>
+        </SelectContent>
+      </Select>
       <div className="mt-2">
         <PromptPresets onSelect={onPresetAppend} />
       </div>
