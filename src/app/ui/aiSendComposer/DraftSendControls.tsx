@@ -82,8 +82,19 @@ function DraftSendControls({
           ? 'text-foreground'
           : 'text-muted-foreground'
 
+  // Durum yüzeyi rengiyle de anlam taşır: `staged` nötr kalır, yalnızca gerçek
+  // teslim yeşile, hata destructive'a düşer.
+  const statusSurface =
+    feedback === 'success'
+      ? 'border-emerald-500/30 bg-emerald-500/10'
+      : feedback === 'error'
+        ? 'border-destructive/30 bg-destructive/10'
+        : feedback === 'sending'
+          ? 'border-border bg-background/70'
+          : 'border-border/70 bg-background/50'
+
   return (
-    <footer className="border-border/70 bg-muted/20 flex flex-col gap-2.5 border-t px-3.5 py-2.5">
+    <footer className="border-border/70 bg-muted/45 flex flex-col gap-2 border-t px-3.5 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -91,10 +102,10 @@ function DraftSendControls({
           aria-pressed={!!autoSend}
           aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
           className={cn(
-            'motion-normal focus-visible:ring-ring/40 text-ql-11 flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            'motion-normal focus-visible:ring-ring/40 text-ql-11 flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none',
             autoSend
-              ? 'border-primary/30 bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+              ? 'border-primary/40 bg-primary/10 text-primary shadow-2xs'
+              : 'border-border/70 bg-background/60 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
           )}
         >
           <Sparkles className="size-3.5 shrink-0" aria-hidden />
@@ -103,7 +114,7 @@ function DraftSendControls({
             aria-hidden
             className={cn(
               'size-1.5 rounded-full transition-colors',
-              autoSend ? 'bg-primary' : 'bg-muted-foreground/45'
+              autoSend ? 'bg-primary' : 'bg-muted-foreground/40'
             )}
           />
         </button>
@@ -123,8 +134,14 @@ function DraftSendControls({
         </WithTooltip>
       </div>
 
-      <div className="flex items-center justify-between gap-2 pt-0.5">
-        <div className="flex min-w-0 items-center gap-1.5" role="status">
+      <div className="flex items-center justify-between gap-2">
+        <div
+          className={cn(
+            'ring-border/40 flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1 ring-1 ring-inset',
+            statusSurface
+          )}
+          role="status"
+        >
           <StatusIcon
             className={cn(
               'size-3.5 shrink-0',
@@ -143,7 +160,7 @@ function DraftSendControls({
               variant="outline"
               size="sm"
               onClick={onRetry}
-              className="text-muted-foreground hover:bg-muted hover:text-foreground text-ql-11 h-8 gap-1 px-2.5"
+              className="border-border/70 bg-background/60 text-muted-foreground hover:bg-background hover:text-foreground text-ql-11 h-8 gap-1 px-2.5"
             >
               <RotateCcw className="size-3.5" aria-hidden />
               {t('ai_send_retry')}
@@ -156,9 +173,11 @@ function DraftSendControls({
             size="sm"
             className={cn(
               'text-ql-12 h-8 gap-1.5 px-3.5 font-semibold transition-all',
-              isSendDisabled
-                ? 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/40 opacity-50'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs'
+              isSending
+                ? 'bg-primary/90 text-primary-foreground disabled:hover:bg-primary/90 opacity-100 shadow-2xs disabled:opacity-90'
+                : isSendDisabled
+                  ? 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/40 disabled:hover:bg-muted/40 opacity-50'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs'
             )}
           >
             {isSending ? (
