@@ -1,7 +1,5 @@
 import { useQuickAiPresets } from '@features/ai'
 
-import { Button } from '@shared/ui/components/primitives'
-
 import { memo } from 'react'
 
 interface PromptPresetsProps {
@@ -12,18 +10,16 @@ function PromptPresets({ onSelect }: PromptPresetsProps) {
   const { presets } = useQuickAiPresets()
 
   return (
-    <div className="scrollbar-hidden flex flex-nowrap gap-1.5 overflow-x-auto">
+    <div className="scrollbar-hidden flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5">
       {presets.map((preset) => (
-        <Button
+        <button
           key={preset.key}
           type="button"
-          variant="outline"
-          size="xs"
           onClick={() => onSelect(preset.value)}
-          className="text-ql-10 border-border bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-foreground/20 rounded-md border font-medium antialiased"
+          className="border-border/70 bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground focus-visible:ring-ring/40 text-ql-10 motion-normal flex h-6 shrink-0 items-center rounded-md border px-2 font-medium whitespace-nowrap transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           {preset.label}
-        </Button>
+        </button>
       ))}
     </div>
   )

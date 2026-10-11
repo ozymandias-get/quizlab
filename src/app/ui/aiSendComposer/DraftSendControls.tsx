@@ -4,6 +4,7 @@ import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitive
 import {
   AlertCircle,
   CheckCircle2,
+  Inbox,
   Info,
   Loader2,
   RotateCcw,
@@ -47,6 +48,8 @@ function DraftSendControls({
 }: DraftSendControlsProps) {
   const { t } = useTranslation()
   const isSending = feedback === 'sending' || isSubmitting
+  const hasItems = totalItems > 0
+  const isSendDisabled = isSubmitting || !hasItems
 
   const statusLabel =
     feedback === 'sending'
@@ -57,9 +60,7 @@ function DraftSendControls({
           ? t('ai_send_staged')
           : feedback === 'error'
             ? (lastError ?? t('ai_send_error'))
-            : totalItems > 0
-              ? t('ai_send_ready')
-              : ''
+            : t('ai_send_item_count', { count: totalItems })
 
   const StatusIcon =
     feedback === 'sending'
@@ -70,10 +71,19 @@ function DraftSendControls({
           ? Info
           : feedback === 'error'
             ? AlertCircle
-            : null
+            : Inbox
+
+  const statusTone =
+    feedback === 'success'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : feedback === 'error'
+        ? 'text-destructive'
+        : feedback === 'sending' || feedback === 'staged'
+          ? 'text-foreground'
+          : 'text-muted-foreground'
 
   return (
-    <footer className="border-border/70 bg-muted/25 flex flex-col gap-2 border-t px-3.5 py-3">
+    <footer className="border-border/70 bg-muted/20 flex flex-col gap-2.5 border-t px-3.5 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -81,19 +91,19 @@ function DraftSendControls({
           aria-pressed={!!autoSend}
           aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
           className={cn(
-            'motion-normal focus-visible:ring-ring/40 text-ql-11 flex h-7 items-center gap-1.5 rounded-lg border px-2 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            'motion-normal focus-visible:ring-ring/40 text-ql-11 flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
             autoSend
-              ? 'border-ring/45 bg-accent text-foreground'
+              ? 'border-primary/30 bg-primary/10 text-primary'
               : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
         >
-          <Sparkles className="size-3.5" aria-hidden />
-          {t('ai_send_mode_auto')}
+          <Sparkles className="size-3.5 shrink-0" aria-hidden />
+          <span>{t('ai_send_mode_auto')}</span>
           <span
             aria-hidden
             className={cn(
               'size-1.5 rounded-full transition-colors',
-              autoSend ? 'bg-emerald-500' : 'bg-muted-foreground/45'
+              autoSend ? 'bg-primary' : 'bg-muted-foreground/45'
             )}
           />
         </button>
@@ -104,52 +114,36 @@ function DraftSendControls({
             variant="ghost"
             size="compact"
             onClick={onClearAll}
+            disabled={totalItems === 0 && !lastError}
             aria-label={t('ai_send_clear_all')}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive ml-auto disabled:pointer-events-none disabled:opacity-30"
           >
             <Trash2 className="size-4" aria-hidden />
           </IconButton>
         </WithTooltip>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 pt-0.5">
         <div className="flex min-w-0 items-center gap-1.5" role="status">
-          {StatusIcon && (
-            <StatusIcon
-              className={cn(
-                'size-3.5 shrink-0',
-                feedback === 'sending' && 'text-primary animate-spin',
-                feedback === 'success' && 'text-emerald-600 dark:text-emerald-400',
-                feedback === 'staged' && 'text-primary',
-                feedback === 'error' && 'text-destructive'
-              )}
-              aria-hidden
-            />
-          )}
-          <span
+          <StatusIcon
             className={cn(
-              'text-ql-11 truncate font-medium',
-              feedback === 'success'
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : feedback === 'error'
-                  ? 'text-destructive'
-                  : feedback === 'sending' || feedback === 'staged'
-                    ? 'text-primary'
-                    : 'text-muted-foreground'
+              'size-3.5 shrink-0',
+              feedback === 'sending' && 'animate-spin',
+              statusTone
             )}
-          >
-            {statusLabel}
-          </span>
+            aria-hidden
+          />
+          <span className={cn('text-ql-11 truncate font-medium', statusTone)}>{statusLabel}</span>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
           {feedback === 'error' && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={onRetry}
-              className="text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground text-ql-11 h-8 gap-1 px-2.5"
             >
               <RotateCcw className="size-3.5" aria-hidden />
               {t('ai_send_retry')}
@@ -158,8 +152,14 @@ function DraftSendControls({
           <Button
             type="button"
             onClick={onSend}
-            disabled={isSubmitting || totalItems === 0}
-            className="text-ql-12 h-8 gap-1.5 px-3 font-semibold"
+            disabled={isSendDisabled}
+            size="sm"
+            className={cn(
+              'text-ql-12 h-8 gap-1.5 px-3.5 font-semibold transition-all',
+              isSendDisabled
+                ? 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/40 opacity-50'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs'
+            )}
           >
             {isSending ? (
               <>

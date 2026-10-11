@@ -19,11 +19,7 @@ vi.mock('@shared/hooks', async (importOriginal) => {
   const { useState } = await import('react')
   return {
     ...actual,
-    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue),
-    useConfirmDialog: () => ({
-      confirm: vi.fn().mockResolvedValue(true),
-      props: { isOpen: false, onConfirm: vi.fn(), onCancel: vi.fn(), title: '' }
-    })
+    useLocalStorage: <T,>(_key: string, initialValue: T) => useState(initialValue)
   }
 })
 
@@ -152,5 +148,23 @@ describe('AiSendComposer (compact draft)', () => {
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({ autoSend: false, noteText: 'explain' })
     )
+  })
+
+  it('clears the draft in one click, without a confirmation dialog', () => {
+    const onClearAll = vi.fn()
+    renderComposer(
+      <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={onClearAll} onSend={vi.fn()} />
+    )
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    fireEvent.click(screen.getByRole('button', { name: 'ai_send_clear_all' }))
+    expect(onClearAll).toHaveBeenCalledTimes(1)
+    // Onay diyaloğu yok: tek tık yeterli, diyalog katmanı bir ekran daha açmıyor.
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+  })
+
+  it('disables the trash button when there is nothing to clear', () => {
+    renderComposer(<AiSendComposer items={[]} onClearAll={vi.fn()} onSend={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.getByRole('button', { name: 'ai_send_clear_all' })).toBeDisabled()
   })
 })

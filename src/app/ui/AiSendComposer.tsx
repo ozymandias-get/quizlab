@@ -1,9 +1,7 @@
-import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
-import { useConfirmDialog, useLocalStorage } from '@shared/hooks'
+import { useLocalStorage } from '@shared/hooks'
 import { cn } from '@shared/lib/uiUtils'
 
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import DraftItemList from './aiSendComposer/DraftItemList'
 import DraftNoteField from './aiSendComposer/DraftNoteField'
@@ -34,7 +32,7 @@ interface ExtendedComposerProps extends AiSendComposerProps {
  * - Görsel önizleme galerisi yok; kompakt satırlar (tür ikonu + sayfa bilgisi).
  * - Prompt seçimi (kayıtlı promptlar), ek talimat/not, otomatik gönderme anahtarı,
  *   Gönder / Temizle / öğe bazında kaldırma korunur.
- * - Panel kapanınca taslak kaybolmaz; açıkça temizlenmedikçe silinmez.
+ * - Panel kapanınca taslak kaybolmaz; çöp kutusuna basılınca tek tıkla temizlenir.
  * - Her içerik eklendiğinde kendiliğinden açılmaz.
  *
  * Sorumluluklar `aiSendComposer/` altındaki modüllere ayrılmıştır: DraftTrigger
@@ -51,15 +49,12 @@ function AiSendComposer({
   onToggleAutoSend,
   placement = 'inline'
 }: ExtendedComposerProps) {
-  const { t } = useTranslation()
   const [isStoredOpen, setStoredOpen] = useLocalStorage<boolean>(DRAFT_OPEN_PREF_KEY, false)
   const [isOpen, setIsOpen] = useState(isStoredOpen)
 
   const { noteText, setNoteText, isSubmitting, setIsSubmitting, clearNote } =
     useAiSendComposerState()
 
-  const itemsLengthRef = useRef(items.length)
-  itemsLengthRef.current = items.length
   const onClearAllRef = useRef(onClearAll)
   onClearAllRef.current = onClearAll
 
@@ -95,8 +90,6 @@ function AiSendComposer({
       }
     })
 
-  const { confirm, props: confirmProps } = useConfirmDialog()
-
   const handleToggleOpen = useCallback(() => {
     setIsOpen((prev) => {
       const next = !prev
@@ -105,15 +98,13 @@ function AiSendComposer({
     })
   }, [setStoredOpen])
 
-  const handleClearAll = useCallback(async () => {
-    if (itemsLengthRef.current > 1) {
-      if (!(await confirm({ title: t('ai_send_clear_confirm'), variant: 'destructive' }))) return
-    }
+  // Taslak tek tıkla temizlenir; onay diyaloğu bu akışta yalnızca yavaşlatıyor.
+  const handleClearAll = useCallback(() => {
     clearNote()
     setSendFeedback('idle')
     setLastError(null)
     onClearAllRef.current()
-  }, [clearNote, t, confirm, setSendFeedback, setLastError])
+  }, [clearNote, setSendFeedback, setLastError])
 
   // Hazır komutlar mevcut notun sonuna eklenir (mevcut prompt sistemi korunur).
   const handlePresetAppend = useCallback(
@@ -165,7 +156,7 @@ function AiSendComposer({
           <DraftSendControls
             autoSend={autoSend}
             onToggleAutoSend={() => onToggleAutoSend?.()}
-            onClearAll={() => void handleClearAll()}
+            onClearAll={handleClearAll}
             onSend={() => void handleSend()}
             onRetry={handleRetry}
             feedback={sendFeedback}
@@ -183,7 +174,6 @@ function AiSendComposer({
           onToggle={handleToggleOpen}
         />
       </div>
-      <ConfirmDialog {...confirmProps} />
     </>
   )
 }
