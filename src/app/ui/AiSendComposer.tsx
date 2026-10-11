@@ -124,8 +124,8 @@ function AiSendComposer({
         className={cn(
           'pointer-events-none flex gap-2',
           placement === 'inline'
-            ? 'flex-col items-end'
-            : 'z-modal fixed bottom-4 left-4 flex-col items-start'
+            ? 'max-w-full flex-col items-end'
+            : 'z-modal fixed bottom-4 left-4 max-w-[calc(100vw-2rem)] flex-col items-start'
         )}
         data-testid="ai-draft-root"
         data-placement={placement}

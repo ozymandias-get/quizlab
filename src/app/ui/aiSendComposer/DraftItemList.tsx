@@ -26,12 +26,12 @@ function DraftItemList({ items, onRemoveItem }: DraftItemListProps) {
       style={{ maxHeight: 208 }}
     >
       {items.length === 0 ? (
-        <div className="border-border/60 bg-muted/20 my-1 flex flex-col items-center justify-center rounded-xl border border-dashed px-4 py-4 text-center">
+        <div className="border-border/70 bg-muted/25 my-1 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center">
           <span
-            className="bg-muted/70 text-muted-foreground mb-1.5 flex size-7 items-center justify-center rounded-lg"
+            className="border-border/70 bg-background text-muted-foreground flex size-8 items-center justify-center rounded-lg border"
             aria-hidden
           >
-            <Sparkles className="size-3.5" />
+            <Sparkles className="size-4" />
           </span>
           <p className="text-muted-foreground text-ql-11 max-w-[240px] leading-relaxed">
             {t('ai_draft_empty')}

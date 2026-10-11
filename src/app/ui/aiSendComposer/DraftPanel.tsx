@@ -37,7 +37,7 @@ function DraftPanel({ isOpen, placement, children }: DraftPanelProps) {
           exit={{ opacity: 0, y: prefersReducedMotion ? 0 : 4 }}
           transition={{ duration: DURATION.normal, ease: [0.2, 0.8, 0.2, 1] }}
           className={cn(
-            'border-border bg-card/95 text-foreground shadow-ambient-xl pointer-events-auto flex w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border backdrop-blur-md',
+            'border-border/80 bg-card/95 dark:bg-card/90 text-foreground shadow-ambient-xl ring-foreground/5 pointer-events-auto flex w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border ring-1 backdrop-blur-md',
             // Yuva PDF panelinde: panel rozetten yukarı açılır, panelin içinde kalır.
             placement === 'inline' ? 'absolute right-0 bottom-full mb-2' : 'relative'
           )}
@@ -62,35 +62,31 @@ export function DraftPanelHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <header className="border-border/70 flex items-center gap-2.5 border-b px-3.5 py-2.5">
+    <header className="border-border/70 bg-muted/40 flex items-center gap-2.5 border-b px-3.5 py-2.5">
       <span
-        className="border-primary/20 bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-lg border"
+        className="bg-primary/10 text-primary ring-primary/15 flex size-7 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset"
         aria-hidden
       >
         <Send className="size-3.5" strokeWidth={2} />
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-ql-13 truncate leading-none font-semibold">
-            {t('ai_send_panel_title')}
-          </p>
-          {(textCount > 0 || imageCount > 0) && (
-            <div className="flex items-center gap-1">
-              {textCount > 0 && (
-                <span className="bg-muted text-muted-foreground text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium">
-                  <Type className="size-2.5" aria-hidden />
-                  <span className="text-foreground tabular-nums">{textCount}</span>
-                </span>
-              )}
-              {imageCount > 0 && (
-                <span className="bg-muted text-muted-foreground text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium">
-                  <ImageIcon className="size-2.5" aria-hidden />
-                  <span className="text-foreground tabular-nums">{imageCount}</span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <p className="text-ql-13 truncate leading-none font-semibold">{t('ai_send_panel_title')}</p>
+        {(textCount > 0 || imageCount > 0) && (
+          <div className="flex shrink-0 items-center gap-1">
+            {textCount > 0 && (
+              <span className="bg-background/70 text-muted-foreground ring-border/60 text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium ring-1 ring-inset">
+                <Type className="size-2.5" aria-hidden />
+                <span className="text-foreground tabular-nums">{textCount}</span>
+              </span>
+            )}
+            {imageCount > 0 && (
+              <span className="bg-background/70 text-muted-foreground ring-border/60 text-ql-10 flex items-center gap-1 rounded px-1.5 py-0.5 font-medium ring-1 ring-inset">
+                <ImageIcon className="size-2.5" aria-hidden />
+                <span className="text-foreground tabular-nums">{imageCount}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <IconButton
         type="button"
@@ -99,7 +95,7 @@ export function DraftPanelHeader({
         onClick={onClose}
         aria-label={t('ai_draft_close')}
         aria-expanded
-        className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+        className="text-muted-foreground hover:bg-background hover:text-foreground shrink-0"
       >
         <X className="size-4" aria-hidden />
       </IconButton>

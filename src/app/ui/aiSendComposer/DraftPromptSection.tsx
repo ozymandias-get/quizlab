@@ -38,7 +38,7 @@ function DraftPromptSection({ onPresetAppend }: DraftPromptSectionProps) {
   const { allPrompts, selectedPromptId, selectPrompt } = usePrompts()
 
   return (
-    <div className="border-border/70 border-t px-3.5 pt-3 pb-2">
+    <div className="border-border/70 bg-muted/15 border-t px-3.5 pt-3 pb-2.5">
       <label
         htmlFor="ai-draft-prompt"
         className="text-muted-foreground text-ql-10 tracking-ql-label mb-1.5 block font-semibold uppercase"
@@ -49,7 +49,10 @@ function DraftPromptSection({ onPresetAppend }: DraftPromptSectionProps) {
         value={selectedPromptId ?? NONE_VALUE}
         onValueChange={(value) => selectPrompt(value === NONE_VALUE ? '' : value)}
       >
-        <SelectTrigger id="ai-draft-prompt" className="text-ql-12 h-8 w-full font-medium">
+        <SelectTrigger
+          id="ai-draft-prompt"
+          className="bg-background/60 text-ql-12 h-8 w-full font-medium"
+        >
           <SelectValue placeholder={t('ai_draft_no_prompt')} />
         </SelectTrigger>
         <SelectContent
@@ -70,7 +73,7 @@ function DraftPromptSection({ onPresetAppend }: DraftPromptSectionProps) {
           ))}
         </SelectContent>
       </Select>
-      <div className="mt-2">
+      <div className="mt-2.5">
         <PromptPresets onSelect={onPresetAppend} />
       </div>
     </div>

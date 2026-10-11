@@ -16,7 +16,7 @@ function PromptPresets({ onSelect }: PromptPresetsProps) {
           key={preset.key}
           type="button"
           onClick={() => onSelect(preset.value)}
-          className="border-border/70 bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted/80 hover:text-foreground focus-visible:ring-ring/40 text-ql-10 motion-normal flex h-6 shrink-0 items-center rounded-md border px-2 font-medium whitespace-nowrap transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="border-border/70 bg-background/60 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground focus-visible:ring-ring/40 text-ql-10 motion-normal motion-ok:active:scale-[0.98] flex h-6 shrink-0 items-center rounded-md border px-2 font-medium whitespace-nowrap transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           {preset.label}
         </button>
