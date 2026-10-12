@@ -1,5 +1,13 @@
 import type { SelectionMenuFeedback } from '@features/pdf'
-import { computeSelectionMenuAnchor, findLastTextLineRect, PdfSelectionMenu } from '@features/pdf'
+import {
+  computeSelectionMenuAnchor,
+  DEFAULT_SELECTION_MENU_SIZE,
+  findLastTextLineRect,
+  hasUsableRect,
+  PdfSelectionMenu,
+  toMenuBounds,
+  viewportFallbackAnchor
+} from '@features/pdf'
 
 import { buildImageSourceHeader } from '@app/providers/ai/pdfSource'
 import {
@@ -18,11 +26,18 @@ import { createPortal } from 'react-dom'
  * - Görsel önizleme galerisi yok; kompakt menü yakalamanın yakınında belirir.
  * - Alan yakalaması: kırpma rect'i gerçek ekran koordinatıdır.
  * - Tam sayfa yakalaması: sayfanın son metin satırının gerçek DOM rect'i.
- * - Taslağa Ekle hiçbir gönderim tetiklemez; global autoSend'e dokunmaz.
+ * - Konum bulunamazsa sabit bir köşe noktası değil, **ölçülen viewport'tan
+ *   türetilmiş** bir yer kullanılır (bkz. `viewportFallbackAnchor`).
+ * - Taslağa Ekle hiçbir gönderim tetiklemez; global autoSend'e dokunmaz ve
+ *   kuyruğun sonucunu **kontrol eder**: reddedildiyse "eklendi" gösterilmez.
  * - Doğrudan gönderim taslağı tüketmez/silmez; hazırlanan (staged) sonuç
  *   "Gönderildi" diye raporlanmaz.
  * - Yeni bir yakalama eski bekleyeni geçersiz kılar; iptal edilen yakalama
  *   yeni işlemin üzerine yazılmaz (state bu katmanda tek sahipli).
+ * - Menü, metin seçim menüsünden **ayrı bir DOM yüzeyidir** ve kendi ref'i
+ *   üzerinden dış-tıklama kontrolü yapar. Aynı `data-testid` iki yüzeyde de
+ *   bulunduğunda `document.querySelector` ilk eşleşmeyi getirir ve iki menü
+ *   birbirinin tıklamasını tüketebilirdi.
  */
 function CaptureChoiceMenu() {
   const { pendingAreaCapture, pendingFullPageCapture } = useAppToolScreenshotState()
@@ -36,6 +51,8 @@ function CaptureChoiceMenu() {
   const { pendingAiItems } = useAppToolQueueState()
   const [feedback, setFeedback] = useState<SelectionMenuFeedback>('idle')
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Bu menünün kendi yüzeyi — dış-tıklama ve "menünün içi" kontrolü için. */
+  const surfaceRef = useRef<HTMLDivElement>(null)
   const pendingAreaRef = useRef(pendingAreaCapture)
   pendingAreaRef.current = pendingAreaCapture
   const pendingFullPageRef = useRef(pendingFullPageCapture)
@@ -59,63 +76,64 @@ function CaptureChoiceMenu() {
 
   const anchor = useMemo(() => {
     // Alan yakalaması: kırpma rect'i (gerçek ekran koordinatı).
-    if (pendingAreaCapture?.rect) {
-      const rect = pendingAreaCapture.rect
-      try {
-        return computeSelectionMenuAnchor({
-          top: rect.top,
-          bottom: rect.top + rect.height,
-          left: rect.left,
-          right: rect.left + rect.width
-        })
-      } catch {
-        return { top: rect.top + rect.height + 8, left: rect.left }
-      }
+    const cropRect = pendingAreaCapture?.rect
+    if (hasUsableRect(cropRect) && cropRect) {
+      return computeSelectionMenuAnchor(
+        toMenuBounds({
+          top: cropRect.top,
+          bottom: cropRect.top + cropRect.height,
+          left: cropRect.left,
+          right: cropRect.left + cropRect.width
+        }),
+        null,
+        DEFAULT_SELECTION_MENU_SIZE
+      )
     }
     // Tam sayfa yakalaması: seçim anındaki sayfanın son metin satırı.
     if (pendingFullPageCapture) {
       const page = pendingFullPageCapture.meta?.source?.page ?? pendingFullPageCapture.meta?.page
       const lineRect = page ? findLastTextLineRect(page) : null
-      if (lineRect) {
-        try {
-          return computeSelectionMenuAnchor({
-            top: lineRect.top,
-            bottom: lineRect.bottom,
-            left: lineRect.left,
-            right: lineRect.right
-          })
-        } catch {
-          return { top: lineRect.bottom + 8, left: lineRect.left }
-        }
+      if (hasUsableRect(lineRect) && lineRect) {
+        return computeSelectionMenuAnchor(toMenuBounds(lineRect), null, DEFAULT_SELECTION_MENU_SIZE)
       }
       const pageEl =
         page != null ? document.querySelector(`[data-native-pdf-page="${page}"]`) : null
-      if (pageEl) {
-        const pageRect = pageEl.getBoundingClientRect()
-        return computeSelectionMenuAnchor({
-          top: pageRect.top,
-          bottom: pageRect.bottom,
-          left: pageRect.left,
-          right: pageRect.right
-        })
+      const pageRect = pageEl?.getBoundingClientRect() ?? null
+      if (hasUsableRect(pageRect) && pageRect) {
+        return computeSelectionMenuAnchor(toMenuBounds(pageRect), null, DEFAULT_SELECTION_MENU_SIZE)
       }
-      return { top: 120, left: 120 }
     }
-    return { top: 120, left: 120 }
+    // Gerçek bir hedef yok: menüyü ekranın sol üst köşesine yapıştıran sabit
+    // bir nokta yerine, ölçülen viewport'tan türetilen makul bir konuma düş.
+    return viewportFallbackAnchor(DEFAULT_SELECTION_MENU_SIZE)
   }, [pendingAreaCapture, pendingFullPageCapture])
 
+  /**
+   * "Taslağa Ekle" — kuyruğun gerçek sonucunu kontrol eder.
+   *
+   * `confirmPending*AsDraft` yalnızca kuyruk kabul ederse `true` döner ve
+   * sahipliği devreder. Reddedildiğinde bekleyen yakalama **korunur**: menü
+   * "eklendi" göstermez, `error` durumuna geçer ve kaynak kaybolmaz.
+   */
   const handleAddToDraft = useCallback(() => {
     if (feedback === 'working') return
-    if (pendingAreaRef.current) {
-      confirmPendingAreaAsDraft()
-    } else if (pendingFullPageRef.current) {
-      confirmPendingFullPageAsDraft()
-    } else {
+    const accepted = pendingAreaRef.current
+      ? confirmPendingAreaAsDraft()
+      : pendingFullPageRef.current
+        ? confirmPendingFullPageAsDraft()
+        : false
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
+    if (!accepted) {
+      setFeedback('error')
+      feedbackTimerRef.current = setTimeout(() => {
+        feedbackTimerRef.current = null
+        setFeedback('idle')
+      }, 1800)
       return
     }
     setFeedback('added')
-    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     feedbackTimerRef.current = setTimeout(() => {
+      feedbackTimerRef.current = null
       setFeedback('idle')
       if (pendingAreaRef.current) dismissPendingArea()
       else dismissPendingFullPage()
@@ -166,8 +184,11 @@ function CaptureChoiceMenu() {
     }
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null
-      const menuEl = document.querySelector('[data-testid="pdf-selection-menu"]')
-      if (menuEl && target && menuEl.contains(target)) return
+      // Kendi yüzeyimiz üzerinden kontrol: `data-testid` sorgusu iki menü
+      // (metin seçim menüsü + bu menü) aynı anda açıkken yanlış yüzeyi
+      // bulur ve birinin tıklaması diğerini tüketirdi.
+      const surface = surfaceRef.current
+      if (surface && target && surface.contains(target)) return
       dismiss()
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -181,16 +202,18 @@ function CaptureChoiceMenu() {
   if (!hasPending || typeof document === 'undefined') return null
 
   return createPortal(
-    <PdfSelectionMenu
-      top={anchor.top}
-      left={anchor.left}
-      feedback={feedback}
-      // Kuyruğa ekleme senkron uygulandığı için sayaç zaten güncel; ek "+1"
-      // gerçekte olmayan ikinci bir öğe sayardı.
-      addedCount={pendingAiItems.length}
-      onSendToAi={handleSendDirect}
-      onAddToDraft={handleAddToDraft}
-    />,
+    <div ref={surfaceRef}>
+      <PdfSelectionMenu
+        top={anchor.top}
+        left={anchor.left}
+        feedback={feedback}
+        // Kuyruğa ekleme senkron uygulandığı için sayaç zaten güncel; ek "+1"
+        // gerçekte olmayan ikinci bir öğe sayardı.
+        addedCount={pendingAiItems.length}
+        onSendToAi={handleSendDirect}
+        onAddToDraft={handleAddToDraft}
+      />
+    </div>,
     document.body
   )
 }

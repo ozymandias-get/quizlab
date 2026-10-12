@@ -33,8 +33,20 @@ interface UseDraftSendOrchestrationProps {
  *   düşer. Kısmi hazırlama (blob→dataURL) ile kısmi gönderim ayrıştırılır.
  * - Çift gönderim `sendingRef` ile engellenir; sekme sabitliği alt katmanda
  *   (useAiMessaging) garanti edilir.
+ *
+ * ## Snapshot sınırı
+ *
+ * `pendingAiItemsRef` **gönderim başındaki anlık kuyruk dizisidir**. İşlem
+ * sürerken eklenen öğeler bu snapshot'a girmez, gönderilmez ve kuyrukta kalır;
+ * kaldırılan öğeler `sentIdSet` filtresiyle zaten yok sayılır. Sonuç olarak
+ * "başında kaç öğe vardı" ile "ekranda kaç öğe var" soruları birbirine karışmaz.
+ *
+ * Kuyruktan düşen öğelerin blob önizlemeleri `setPendingAiItems` üzerinden
+ * **kuyruğun kendi temizlik yolundan** geçer; burada ikinci bir iptal kaynağı
+ * tutulmaz (aynı URL'i iki katman sahiplenirse biri diğerinin önizlemesini
+ * öldürürdü).
  */
-interface SegmentRun {
+interface SendRun {
   result: AiSendResult
   sentItemIds: string[]
 }
@@ -59,7 +71,7 @@ export function useDraftSendOrchestration({
   autoSendRef.current = autoSend
 
   const executeSingleMessageSend = useCallback(
-    async (items: AiDraftItem[], options?: AiSendOptions): Promise<SegmentRun> => {
+    async (items: AiDraftItem[], options?: AiSendOptions): Promise<SendRun> => {
       if (items.length === 0) {
         return { result: { success: false, error: 'invalid_input' }, sentItemIds: [] }
       }
@@ -147,6 +159,8 @@ export function useDraftSendOrchestration({
         return { success: false, error: 'send_in_progress' }
       }
 
+      // Gönderim **anındaki** kuyruk snapshot'ıdır: işlem sürerken eklenen
+      // öğeler bu diziye girmez, bu yüzden onlar gönderilmez ve kuyrukta kalır.
       const items = pendingAiItemsRef.current
       if (items.length === 0) {
         return { success: false, error: 'invalid_input' }
@@ -156,21 +170,11 @@ export function useDraftSendOrchestration({
       try {
         const { result, sentItemIds } = await executeSingleMessageSend(items, options)
 
-        const sentIdSet = new Set(sentItemIds)
         if (sentItemIds.length > 0) {
-          setPendingAiItems((current) => {
-            const sentDrafts = current.filter((draft) => sentIdSet.has(draft.id))
-            for (const draft of sentDrafts) {
-              if (draft.type === 'image' && draft.blobUrl) {
-                try {
-                  URL.revokeObjectURL(draft.blobUrl)
-                } catch {
-                  // revoke best-effort
-                }
-              }
-            }
-            return current.filter((draft) => !sentIdSet.has(draft.id))
-          })
+          // Kuyruğun kendi yazma yolu: kaynak (blob) temizliği de onun kuralına
+          // uyar, burada ikinci bir iptal kaynağı tutulmaz.
+          const sentIdSet = new Set(sentItemIds)
+          setPendingAiItems((current) => current.filter((draft) => !sentIdSet.has(draft.id)))
         }
 
         if (!result.success && (result as { error?: string }).error !== 'webview_not_ready') {

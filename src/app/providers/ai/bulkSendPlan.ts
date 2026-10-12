@@ -79,10 +79,24 @@ export function planSingleMessageSend(
  * isterken sessizce birden fazla AI mesajı oluşturma riskini açar; ters hata
  * (gereksiz uyarı) ise güvenli taraftadır ve kullanıcıya açık bilgi verilir.
  *
- * - `api-chat`: depo tabanlı API sohbeti — `addAttachment` N ek alabilir,
- *   gönderim tek mesaj dizisi olarak kurulur. Tasarım gereği destekler.
- * - Web platformları: yapıştırma ile çoklu görsel desteklediği doğrulanmış
- *   kayıtlı platformlar. Kayıt dışı / özel sağlayıcılar hedef liste dışıdır.
+ * ## Bu liste ne kanıtlar, ne kanıtlamaz
+ *
+ * - **`api-chat`**: depoyu biz yönetiyoruz. `addAttachment` N ek alabilir ve
+ *   gönderim tek bir mesaj dizisi olarak kurulur — bu **tasarım gereği
+ *   doğrulanabilir** bir yetenektir.
+ * - **Web platformları**: liste bir **beyan**dır, çalışma zamanı kanıtı değil.
+ *   Kayıtlı platformların yapıştırma ile çoklu görsel kabul ettiği bilinen bir
+ *   gerçektir, ancak bu uygulamanın elinde her site için "üç ek de duruyor mu?"
+ *   diye bir doğrulama yüzeyi yoktur. Yanlış olumlu bir beyan, kullanıcının tek
+ *   mesaj isteğini sessizce bozar.
+ *
+ * Bu yüzden web platformlarında yetenek iddiası **teslim garantisi değildir**;
+ * `bulkSendPipeline` her yapıştırmadan sonra ve submit'ten önce gerçek DOM'u
+ * denetler (submit-ready doğrulaması) ve alan hazır değilse gönderimi durdurup
+ * taslağı korur. Yetenik kanıtı olmayan yeni bir platform listeye eklenmez.
+ *
+ * Kullanıcı bu ayrımı görebilsin diye `ai_draft_bulk_unsupported` mesajı,
+ * desteklenmeyen sağlayıcıda gönderim nedeninin kendisidir.
  */
 const MULTI_IMAGE_WEB_PROVIDERS = new Set([
   'chatgpt',

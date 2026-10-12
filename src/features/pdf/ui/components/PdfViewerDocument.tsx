@@ -51,8 +51,13 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       const target = event.target as Node | null
       // Menünün kendi mousedown'u preventDefault yapar; burada yalnızca dış
       // tıklamalar kapatır.
-      const menuEl = document.querySelector('[data-testid="pdf-selection-menu"]')
-      if (menuEl && target && menuEl.contains(target)) return
+      //
+      // "İçeride mi" kontrolü **kendi portal sarmalayıcımız** üzerinden yapılır.
+      // `data-testid` sorgusu, yakalama menüsüyle aynı anda açıkken ilk
+      // eşleşmeyi (yakalama menüsünü) getirir ve metin seçim menüsünün
+      // tıklamaları yanlış yüzeye yönlendirilirdi.
+      const surface = selectionMenuRef.current
+      if (surface && target && surface.contains(target)) return
       selectionMenu.closeMenu()
     }
     const handleKeyDown = (event: KeyboardEvent) => {

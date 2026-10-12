@@ -37,16 +37,38 @@ interface UseScreenshotPipelineProps {
  * "bekleyen yakalama" olarak tutulur ve kullanıcı ikili menüde (AI'ye Gönder |
  * Taslağa Ekle) karar verene kadar bekler. Kullanıcı vazgeçerse blob URL'i
  * geri alınır; yeni bir yakalama eski bekleyeni geçersiz kılar.
+ *
+ * ## Sahiplik
+ *
+ * Bekleyen yakalama, kaynak URL'inin sahibidir. `confirm*AsDraft` yalnızca
+ * kuyruk gerçekten kabul ettiğinde bu sahipliği devreder; reddedildiğinde
+ * bekleyen yakalama **korunur** (kullanıcı öğeleri azaltıp yeniden deneyebilir)
+ * ve kaynak ne iptal edilir ne de kaybolur.
+ *
+ * ## Sonucun yayılması
+ *
+ * `confirm*AsDraft`, `queueImageForAi`'nin gerçek boolean sonucunu döndürür.
+ * Çağıran bu sonucu kontrol etmezse, reddedilen bir ekleme kullanıcıya
+ * "Taslağa eklendi" diye gösterilir — bu yüzden dönüş anlamlıdır.
  */
 export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipelineProps) {
   const screenshotMetaRef = useRef<QueuedImageMeta | null>(null)
-  const [pendingAreaCapture, setPendingAreaCapture] = useState<PendingAreaCapture | null>(null)
+  const [areaCapture, setAreaCapture] = useState<PendingAreaCapture | null>(null)
+  // Ref render'da değil, **mutasyon anında** güncellenir: aynı olay içinde
+  // gelen iki yakalama birbirini göremez ve ilki sızmasın.
   const pendingAreaCaptureRef = useRef<PendingAreaCapture | null>(null)
-  pendingAreaCaptureRef.current = pendingAreaCapture
-  const [pendingFullPageCapture, setPendingFullPageCapture] =
-    useState<PendingFullPageCapture | null>(null)
+  const [fullPageCapture, setFullPageCapture] = useState<PendingFullPageCapture | null>(null)
   const pendingFullPageCaptureRef = useRef<PendingFullPageCapture | null>(null)
-  pendingFullPageCaptureRef.current = pendingFullPageCapture
+
+  const setPendingAreaCapture = useCallback((next: PendingAreaCapture | null) => {
+    pendingAreaCaptureRef.current = next
+    setAreaCapture(next)
+  }, [])
+
+  const setPendingFullPageCapture = useCallback((next: PendingFullPageCapture | null) => {
+    pendingFullPageCaptureRef.current = next
+    setFullPageCapture(next)
+  }, [])
 
   const handleScreenshotCapture = useCallback(
     async (dataUrl: string, rect?: PendingAreaCapture['rect']) => {
@@ -58,7 +80,7 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       if (prev) revokeIfBlobUrl(prev.dataUrl)
       setPendingAreaCapture({ dataUrl, meta, rect: rect ?? null })
     },
-    []
+    [setPendingAreaCapture]
   )
 
   const {
@@ -77,7 +99,7 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       screenshotMetaRef.current = imageMeta ?? null
       beginScreenshot()
     },
-    [beginScreenshot]
+    [beginScreenshot, setPendingAreaCapture]
   )
 
   const closeScreenshot = useCallback(() => {
@@ -102,40 +124,51 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
   const confirmPendingAreaAsDraft = useCallback(() => {
     const pending = pendingAreaCaptureRef.current
     if (!pending) return false
-    queueImageForAi(pending.dataUrl, pending.meta ?? undefined)
+    // Kuyruk sonucunu YAY: kabul edilirse sahiplik kuyruğa geçer ve bekleyen
+    // yakalama temizlenir. Reddedilirse (kuyruk dolu / geçersiz kaynak)
+    // bekleyen yakalama korunur — kullanıcı öğeleri azaltıp yeniden deneyebilir
+    // ve kaynak ne iptal edilir ne de sessizce kaybolur.
+    const accepted = queueImageForAi(pending.dataUrl, pending.meta ?? undefined)
+    if (!accepted) return false
     setPendingAreaCapture(null)
     return true
-  }, [queueImageForAi])
+  }, [queueImageForAi, setPendingAreaCapture])
 
   const dismissPendingArea = useCallback(() => {
     const prev = pendingAreaCaptureRef.current
     if (prev) revokeIfBlobUrl(prev.dataUrl)
     setPendingAreaCapture(null)
-  }, [])
+  }, [setPendingAreaCapture])
 
   /**
    * Tam sayfa yakalama tamamlandı: bekleyen yakalama olarak tut, kullanıcının
    * kararını bekle. Kendiliğinden taslağa eklenmez.
    */
-  const offerFullPageCapture = useCallback((dataUrl: string, meta?: QueuedImageMeta | null) => {
-    const prev = pendingFullPageCaptureRef.current
-    if (prev) revokeIfBlobUrl(prev.dataUrl)
-    setPendingFullPageCapture({ dataUrl, meta: meta ?? null })
-  }, [])
+  const offerFullPageCapture = useCallback(
+    (dataUrl: string, meta?: QueuedImageMeta | null) => {
+      const prev = pendingFullPageCaptureRef.current
+      if (prev) revokeIfBlobUrl(prev.dataUrl)
+      setPendingFullPageCapture({ dataUrl, meta: meta ?? null })
+    },
+    [setPendingFullPageCapture]
+  )
 
   const confirmPendingFullPageAsDraft = useCallback(() => {
     const pending = pendingFullPageCaptureRef.current
     if (!pending) return false
-    queueImageForAi(pending.dataUrl, pending.meta ?? undefined)
+    // Alan yakalamasıyla aynı sözleşme: kabul edilirse sahiplik devreder,
+    // reddedilirse bekleyen yakalama korunur.
+    const accepted = queueImageForAi(pending.dataUrl, pending.meta ?? undefined)
+    if (!accepted) return false
     setPendingFullPageCapture(null)
     return true
-  }, [queueImageForAi])
+  }, [queueImageForAi, setPendingFullPageCapture])
 
   const dismissPendingFullPage = useCallback(() => {
     const prev = pendingFullPageCaptureRef.current
     if (prev) revokeIfBlobUrl(prev.dataUrl)
     setPendingFullPageCapture(null)
-  }, [])
+  }, [setPendingFullPageCapture])
 
   const clearScreenshotMeta = useCallback(() => {
     screenshotMetaRef.current = null
@@ -143,8 +176,8 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
 
   return {
     isScreenshotMode,
-    pendingAreaCapture,
-    pendingFullPageCapture,
+    pendingAreaCapture: areaCapture,
+    pendingFullPageCapture: fullPageCapture,
     startScreenshot,
     closeScreenshot,
     handleCapture,

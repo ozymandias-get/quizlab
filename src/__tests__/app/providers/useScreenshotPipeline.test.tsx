@@ -25,10 +25,14 @@ vi.mock('@features/screenshot/hooks/useScreenshot', () => ({
 import { useScreenshotPipeline } from '@app/providers/app-tool/useScreenshotPipeline'
 
 describe('useScreenshotPipeline', () => {
-  const queueImageForAi = vi.fn()
+  // `queueImageForAi` artık gerçek boolean sonucunu döndürür. `undefined` dönen
+  // bir mock "reddedildi" anlamına gelir; kabul senaryoları için `true` verilir
+  // ve reddedilme senaryoları ayrıca açıkça test edilir.
+  const queueImageForAi = vi.fn((_dataUrl: string, _meta?: unknown) => true)
 
   beforeEach(() => {
     vi.clearAllMocks()
+    queueImageForAi.mockReturnValue(true)
   })
 
   it('stashes the capture as pending instead of queueing immediately', async () => {
@@ -139,5 +143,75 @@ describe('useScreenshotPipeline', () => {
 
     expect(overlay.closeScreenshot).not.toHaveBeenCalled()
     expect(queueImageForAi).not.toHaveBeenCalled()
+  })
+
+  // Regression: the confirmation used to ignore `queueImageForAi`'s result,
+  // clear the pending capture and report success even when the queue was full.
+  // That both lied to the user and leaked the blob URL.
+  describe('rejection by the queue', () => {
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    beforeEach(() => {
+      revokeObjectURL.mockClear()
+    })
+
+    async function stagePendingArea() {
+      const rendered = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      act(() => {
+        rendered.result.current.startScreenshot({ page: 4, captureKind: 'selection' })
+      })
+      await act(async () => {
+        await rendered.result.current.handleCapture('blob:pending-area', null)
+      })
+      return rendered
+    }
+
+    it('reports failure and keeps the pending area capture when the queue rejects', async () => {
+      const { result } = await stagePendingArea()
+      queueImageForAi.mockReturnValueOnce(false)
+
+      let confirmed = true
+      act(() => {
+        confirmed = result.current.confirmPendingAreaAsDraft()
+      })
+
+      expect(confirmed).toBe(false)
+      // Yakalama korunur: kullanıcı öğeleri azaltıp yeniden deneyebilir.
+      expect(result.current.pendingAreaCapture?.dataUrl).toBe('blob:pending-area')
+      // Kaynak iptal edilmez — sahiplik hâlâ yakalama hattında.
+      expect(revokeObjectURL).not.toHaveBeenCalled()
+    })
+
+    it('reports failure and keeps the pending full-page capture when the queue rejects', () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      act(() => {
+        result.current.offerFullPageCapture('blob:pending-full', { page: 7 })
+      })
+      queueImageForAi.mockReturnValueOnce(false)
+
+      let confirmed = true
+      act(() => {
+        confirmed = result.current.confirmPendingFullPageAsDraft()
+      })
+
+      expect(confirmed).toBe(false)
+      expect(result.current.pendingFullPageCapture?.dataUrl).toBe('blob:pending-full')
+      expect(revokeObjectURL).not.toHaveBeenCalled()
+    })
+
+    it('hands the blob over to the queue on success (no double ownership)', () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      act(() => {
+        result.current.offerFullPageCapture('blob:pending-full', { page: 7 })
+      })
+
+      act(() => {
+        result.current.confirmPendingFullPageAsDraft()
+      })
+
+      expect(result.current.pendingFullPageCapture).toBeNull()
+      // Kuyruk URL'i üstlendi; yakalama hattı onu iptal etmemeli.
+      expect(revokeObjectURL).not.toHaveBeenCalled()
+    })
   })
 })

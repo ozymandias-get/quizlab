@@ -42,18 +42,30 @@ interface AppToolActionsType {
     dataUrl: string,
     rect?: { left: number; top: number; width: number; height: number }
   ) => Promise<void>
+  /**
+   * Bekleyen yakalamayı taslağa taşır; **yalnızca kuyruk kabul ederse** `true`.
+   * `false` dönerse yakalama hâlâ bekler ve kaynağı korunur — çağıran bu sonucu
+   * kontrol etmezse reddedilen bir eklemeyi "başarılı" bildirir.
+   */
   confirmPendingAreaAsDraft: () => boolean
   dismissPendingArea: () => void
   /** Tam sayfa yakalaması menü kararına açılır (doğrudan kuyruğa yazılmaz). */
   offerFullPageCapture: (imageUri: string, meta?: QueuedImageMeta | null) => void
+  /** Alan yakalamasıyla aynı sözleşme: kabul `true`, ret `false`. */
   confirmPendingFullPageAsDraft: () => boolean
   dismissPendingFullPage: () => void
+  /**
+   * Kuyruğa ekleme **gerçek boolean sonucunu** döndürür: kabul `true`, ret
+   * `false`. `void` bir sözleşme, alt katmanın reddettiği bir eklemeyi tüketiciye
+   * "başarılı" taşır; kullanıcıya eklenmemiş bir içerik "eklendi" diye
+   * gösterilir. Bu yüzden tip bilinçli olarak boolean'dır.
+   */
   queueTextForAi: (
     text: string,
     position?: SelectionPosition | null,
     meta?: { source?: PdfSourceMeta | null } | PdfSourceMeta | null
-  ) => void
-  queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => void
+  ) => boolean
+  queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => boolean
   removePendingAiItem: (id: string) => void
   clearPendingAiItems: () => void
   sendPendingAiItems: (options?: AiSendOptions) => Promise<AiSendResult>

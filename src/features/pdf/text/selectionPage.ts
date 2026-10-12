@@ -175,3 +175,50 @@ export function computeSelectionMenuAnchor(
 
   return { top: Math.round(top), left: Math.round(left) }
 }
+
+/**
+ * Menü için gerçek bir konum bulunamadığında kullanılır.
+ *
+ * Sabit bir `top: 120, left: 120` noktası, PDF'in nereye konumlanmış olursa
+ * olsun menüyü ekranın sol üst köşesine yapıştırıyor ve kırpılmış/boş bir
+ * yakalamada kullanıcıyı yönlendirmiyordu. Bunun yerine konum **ölçülen**
+ * viewport'tan türetilir: yatayda ortalı, dikeyde alt kenara MARGIN kadar
+ * yakın. Yine de her zaman viewport'un içindedir.
+ */
+export function viewportFallbackAnchor(
+  menuSize: { width: number; height: number } = DEFAULT_SELECTION_MENU_SIZE
+): MenuAnchor {
+  const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024
+  const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768
+  const left = Math.max(MARGIN, Math.round((viewportW - menuSize.width) / 2))
+  const top = Math.max(MARGIN, Math.round(viewportH - menuSize.height - MARGIN))
+  return { top, left }
+}
+
+/** Bir `DOMRect`/`ClientRect` benzerini `MenuBounds` biçimine çevirir. */
+export function toMenuBounds(rect: {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}): MenuBounds {
+  return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }
+}
+
+/** Gerçek bir ölçüm alındı mı? (jsdom ve 0×0 kutular "ölçüm yok" sayılır.) */
+export function hasUsableRect(
+  rect:
+    | {
+        width?: number
+        height?: number
+      }
+    | null
+    | undefined
+): boolean {
+  if (!rect) return false
+  const { width, height } = rect
+  // `computeSelectionMenuAnchor` yalnızca top/bottom/left/right okur; bir
+  // DOMRect'te width/height her zaman vardır, düz nesnelerde olmayabilir.
+  if (width !== undefined && height !== undefined && (width <= 0 || height <= 0)) return false
+  return true
+}

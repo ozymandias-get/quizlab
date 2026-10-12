@@ -22,13 +22,18 @@ import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 const DRAFT_OPEN_PREF_KEY = 'aiDraftOpen'
 
 /**
- * Dock'un DOM'unun dışında ama ona ait sayılan yüzeyler.
+ * Dock'a ait, DOM'u dock'un dışında render edilen yüzeyler.
  *
  * Radix, açılır listeleri / ipuçlarını / diyalogları `<body>` altına portal
  * eder. Tıklama-dışı kapatma bunları "dışarı" saymasın diye tanımlanır.
+ *
+ * `data-draft-portal` yalnızca **bu dock'un** portalladığı yüzeylerde bulunur
+ * (bkz. `DraftPromptSection`, `DraftOverflowMenu`). Genel bir `role` seçicisi
+ * (`[role="dialog"]`) uygulamadaki **herhangi bir** diyaloğu — onboarding,
+ * dosya seçici, ayarlar — dock'a ait sayardı; o diyaloglardan birine tıklamak
+ * taslağın kapanmasını engellerdi. Bu yüzden kapsam bilinçli olarak daraltıldı.
  */
-const PORTAL_SURFACE_SELECTOR =
-  '[role="listbox"], [role="dialog"], [role="alertdialog"], [role="tooltip"], [role="menu"]'
+const PORTAL_SURFACE_SELECTOR = '[data-draft-portal]'
 
 interface ExtendedComposerProps extends AiSendComposerProps {
   onRemoveItem?: (id: string) => void
@@ -100,26 +105,34 @@ function AiSendComposer({
   }, [items])
   const totalItems = textCount + imageCount
 
-  const { sendFeedback, setSendFeedback, lastError, setLastError, handleSend, handleRetry } =
-    useComposerSendAction({
-      isSubmitting,
-      setIsSubmitting,
-      onSend,
-      noteText,
-      effectiveAutoSend: autoSend,
-      setIsExpanded: (v) => {
-        const next = typeof v === 'function' ? (v as (p: boolean) => boolean)(isOpen) : v
-        // Gönderim sırasında dock otomatik kapanmaz: ilerleme ve hata görünür
-        // kalmalı, yükseklik zıplamamalı. Yalnızca açık talebini uygula.
-        if (next === false) return
-        setIsOpen(next)
-        setStoredOpen(next)
-      },
-      setStoredExpanded: (v) => {
-        if (v === false) return
-        setStoredOpen(v)
-      }
-    })
+  const {
+    sendFeedback,
+    setSendFeedback,
+    lastError,
+    setLastError,
+    isResendSafe,
+    handleSend,
+    handleRetry,
+    dismissOutcome
+  } = useComposerSendAction({
+    isSubmitting,
+    setIsSubmitting,
+    onSend,
+    noteText,
+    effectiveAutoSend: autoSend,
+    setIsExpanded: (v) => {
+      const next = typeof v === 'function' ? (v as (p: boolean) => boolean)(isOpen) : v
+      // Gönderim sırasında dock otomatik kapanmaz: ilerleme ve hata görünür
+      // kalmalı, yükseklik zıplamamalı. Yalnızca açık talebini uygula.
+      if (next === false) return
+      setIsOpen(next)
+      setStoredOpen(next)
+    },
+    setStoredExpanded: (v) => {
+      if (v === false) return
+      setStoredOpen(v)
+    }
+  })
 
   const handleToggleOpen = useCallback(() => {
     setIsOpen((prev) => {
@@ -197,23 +210,29 @@ function AiSendComposer({
 
   const isSending = sendFeedback === 'sending' || isSubmitting
 
-  // Dock kapalıyken de görünür olması gereken kısa durum.
+  // Dock kapalıyken de görünür olması gereken kısa durum. Kısmi uygulama
+  // (`incomplete`) ayrı bir tonla ayrılır: içerik hedefe ulaştı ama teslim
+  // doğrulanamadı — "Gönderildi" ya da düz bir hata gibi okunamaz.
   const barStatus = isSending
     ? { label: t('sending_to_ai'), tone: 'neutral' as const }
     : sendFeedback === 'success'
       ? { label: t('ai_send_sent'), tone: 'success' as const }
       : sendFeedback === 'staged'
         ? { label: t('ai_send_staged'), tone: 'neutral' as const }
-        : sendFeedback === 'error'
-          ? { label: t('ai_send_error'), tone: 'error' as const }
-          : null
+        : sendFeedback === 'incomplete'
+          ? { label: t('ai_send_awaiting_submit'), tone: 'warning' as const }
+          : sendFeedback === 'error'
+            ? { label: t('ai_send_error'), tone: 'error' as const }
+            : null
 
   return (
     <div
       ref={dockRef}
       className={cn(
         'pointer-events-none flex w-full',
-        placement === 'inline' ? 'justify-center' : 'z-modal fixed bottom-4 left-4 w-[360px]'
+        placement === 'inline'
+          ? 'justify-center'
+          : 'z-modal fixed bottom-4 left-4 w-full max-w-[26.25rem]'
       )}
       data-testid="ai-draft-root"
       data-placement={placement}
@@ -223,7 +242,11 @@ function AiSendComposer({
           `@container` dar PDF panelinde alt kontrollerin kademeli sadeleşmesini
           sağlar (bkz. `DraftSendButton`). */}
       <div
-        className="@container pointer-events-auto flex w-full max-w-[46rem] flex-col"
+        // Genişlik, PDF panelinin **kullanılabilir alanına** göre belirlenir:
+        // hedef bant 390–440 px (`26.25rem`), dar panelde `w-full` ile küçülür.
+        // Sabit dev bir blok, sayfayı gereksiz yere örterdi; `max-w` sayesinde
+        // geniş PDF panelinde de dock kompakt kalır.
+        className="@container pointer-events-auto flex w-full max-w-[26.25rem] flex-col"
         data-testid="ai-draft-dock"
       >
         {!isOpen && (
@@ -243,16 +266,35 @@ function AiSendComposer({
         {isOpen && (
           <section
             id="ai-draft-dock-body"
-            aria-label={t('ai_draft_badge')}
+            aria-label={t('ai_send_panel_title')}
             data-testid="ai-draft-panel"
-            className="border-border/70 bg-popover/92 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(44vh,19rem)] min-h-0 flex-col rounded-2xl border backdrop-blur-xl"
+            // Dört katman: A başlık (sabit), B içerikler + talimat alanı
+            // (kaydırılabilir), C durum/eylem satırı (sabit). Başlık ve alt
+            // satır `shrink-0`; aradaki tek kaydırma yüzeyi büyür.
+            //
+            // Yükseklik: içerikle birlikte artar, ama `min(26rem, 100dvh - 8rem)`
+            // tavanı ile kullanılabilir viewport'u aşmaz. Eski sabit
+            // `min(44vh, 19rem)` kısa pencerelerde (ör. 700 px) ~304 px'de
+            // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
+            // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
+            // küçülür.
+            className="border-border/70 bg-popover/92 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border backdrop-blur-xl"
           >
-            {/* Başlık kendi satırını paylaşan bir "zemin" değil, kartın kimliğidir:
-                ikon rozeti + ad + sayı rozeti tek hizada okunur. `relative z-[2]`
-                açılan taşma menüsünü, alttaki kaydırılabilir gövdenin üstünde tutar. */}
-            <header className="border-border/50 relative z-[2] flex h-11 shrink-0 items-center gap-2 border-b px-3">
+            {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
+                `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
+                gövdenin üstünde tutar. */}
+            <header className="border-border/50 bg-popover/60 relative z-[2] flex h-11 shrink-0 items-center gap-2 rounded-t-2xl border-b px-3">
               <span
-                className="border-primary/20 bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full border"
+                className={cn(
+                  'flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors',
+                  sendFeedback === 'success'
+                    ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : sendFeedback === 'error'
+                      ? 'border-destructive/30 bg-destructive/12 text-destructive'
+                      : sendFeedback === 'incomplete'
+                        ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+                        : 'border-primary/20 bg-primary/10 text-primary'
+                )}
                 aria-hidden
               >
                 {isSending ? (
@@ -262,11 +304,9 @@ function AiSendComposer({
                 )}
               </span>
               <p className="text-ql-12 shrink-0 font-semibold">{t('ai_draft_badge')}</p>
-              {totalItems > 0 && (
-                <span className="bg-muted text-muted-foreground text-ql-10 shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
-                  {t('ai_draft_content_count', { count: totalItems })}
-                </span>
-              )}
+              <span className="bg-muted text-muted-foreground text-ql-10 shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
+                {t('ai_draft_content_count', { count: totalItems })}
+              </span>
               <span className="flex-1" />
               <DraftOverflowMenu onClearAll={handleClearAll} totalItems={totalItems} />
               <IconButton
@@ -276,25 +316,44 @@ function AiSendComposer({
                 onClick={handleToggleOpen}
                 aria-label={t('ai_draft_close')}
                 aria-expanded
+                aria-controls="ai-draft-dock-body"
                 className="text-muted-foreground hover:bg-muted hover:text-foreground size-6"
               >
                 <ChevronDown className="size-3.5" aria-hidden />
               </IconButton>
             </header>
 
+            {/* B — İçerikler + talimat alanı. Tek kaydırma yüzeyi. */}
             <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
               <DraftItemChips items={items} onRemoveItem={onRemoveItem} />
 
-              {sendFeedback === 'error' && lastError && (
-                <div className="border-destructive/25 bg-destructive/8 mx-3 mb-2 rounded-lg border px-2.5 py-1.5">
-                  <p className="text-destructive text-ql-11 leading-snug font-medium">
+              {(sendFeedback === 'error' || sendFeedback === 'incomplete') && lastError && (
+                <div
+                  role="alert"
+                  className={cn(
+                    'mx-3 mb-2 rounded-lg border px-2.5 py-1.5',
+                    sendFeedback === 'incomplete'
+                      ? 'border-amber-500/25 bg-amber-500/8'
+                      : 'border-destructive/25 bg-destructive/8'
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'text-ql-11 leading-snug font-medium',
+                      sendFeedback === 'incomplete'
+                        ? 'text-amber-700 dark:text-amber-400'
+                        : 'text-destructive'
+                    )}
+                  >
                     {lastError}
                   </p>
                 </div>
               )}
 
-              {/* Birleşik composer yüzeyi: tek ince sınır, iç içe kutu yok.
-                  Üstte ek talimat, altında araç satırı, sağda ana eylem. */}
+              {/* Talimat alanı — hızlı işlem, kayıtlı prompt ve kullanıcı notu
+                  ayrı veri türleridir; gönderimde `composeDraftInstruction`
+                  ile deterministik bir sırada birleşir, hiçbiri diğerinin
+                  yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
                 className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:bg-background @container mx-3 mb-2 overflow-hidden rounded-xl border transition-colors"
@@ -314,24 +373,30 @@ function AiSendComposer({
                     onQuickActionChange={selectQuickAction}
                   />
                   <span className="flex-1" />
-                  <DraftSendButton
-                    autoSend={autoSend}
-                    onSend={handleSubmit}
-                    feedback={sendFeedback}
-                    totalItems={totalItems}
-                    isSubmitting={isSubmitting}
-                  />
+                  <div className="ml-auto shrink-0">
+                    <DraftSendButton
+                      autoSend={autoSend}
+                      onSend={handleSubmit}
+                      feedback={sendFeedback}
+                      totalItems={totalItems}
+                      isSubmitting={isSubmitting}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* C — Durum ve ikincil ayarlar. Ana eylem değil; ana eylem
+                yukarıdaki araç satırındadır. */}
             <DraftSendControls
               autoSend={autoSend}
               onToggleAutoSend={() => onToggleAutoSend?.()}
               onRetry={handleRetry}
+              onDismiss={dismissOutcome}
               feedback={sendFeedback}
               lastError={lastError}
               isSubmitting={isSubmitting}
+              isResendSafe={isResendSafe}
             />
           </section>
         )}

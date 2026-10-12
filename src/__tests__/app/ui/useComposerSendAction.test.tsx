@@ -186,4 +186,235 @@ describe('useComposerSendAction', () => {
 
     expect(onSend).not.toHaveBeenCalled()
   })
+
+  /**
+   * Eşzamanlı gönderim kilidi render zamanlamasına bağlı değildir.
+   *
+   * `isSubmitting` bir sonraki render'da güncellenir; aynı olay içindeki ikinci
+   * tıklama eski `false` değerini görür ve gönderimi yeniden başlatırdı.
+   */
+  describe('same-tick double send', () => {
+    it('starts only one send when two triggers fire in the same event', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      const { result } = renderHook(() =>
+        useComposerSendAction({
+          isSubmitting: false,
+          setIsSubmitting: vi.fn(),
+          onSend,
+          noteText: '',
+          effectiveAutoSend: true,
+          setIsExpanded: vi.fn(),
+          setStoredExpanded: vi.fn()
+        })
+      )
+
+      // İki ayrı tetikleyici: paneldeki düğme ve Ctrl/Cmd+Enter.
+      let first!: Promise<void>
+      act(() => {
+        first = result.current.handleSend({ noteText: 'Explain' })
+        void result.current.handleSend({ noteText: 'Explain' })
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        release({ success: true })
+        await first
+      })
+    })
+
+    it('does not surface an error when the pipeline reports a concurrent send', async () => {
+      const onSend = vi.fn(async () => ({ success: false, error: 'send_in_progress' }) as unknown)
+      const { result } = renderHook(() =>
+        useComposerSendAction({
+          isSubmitting: false,
+          setIsSubmitting: vi.fn(),
+          onSend,
+          noteText: '',
+          effectiveAutoSend: true,
+          setIsExpanded: vi.fn(),
+          setStoredExpanded: vi.fn()
+        })
+      )
+
+      await act(async () => {
+        await result.current.handleSend()
+      })
+
+      // Eşzamanlılık bir hata değildir: süren gönderimin durumu bozulmaz.
+      expect(result.current.sendFeedback).not.toBe('error')
+      expect(result.current.lastError).toBeNull()
+    })
+  })
+
+  /**
+   * Geri bildirim zamanlayıcısı bir önceki gönderimin sonucunu ikinciyi
+   * etkilememeli. Aksi halde ikinci gönderim sürerken durum `idle`'a düşer ve
+   * kullanıcı "gönderim bitti" yanılgısına düşerdi.
+   */
+  describe('feedback timers', () => {
+    beforeEach(() => vi.useFakeTimers())
+
+    it('does not let a stale success timer reset a running send', async () => {
+      let releaseSecond!: (v: unknown) => void
+      let call = 0
+      const onSend = vi.fn(() => {
+        call += 1
+        if (call === 1) return Promise.resolve({ success: true })
+        return new Promise<unknown>((resolve) => {
+          releaseSecond = resolve
+        })
+      })
+      const { result } = renderHook(() =>
+        useComposerSendAction({
+          isSubmitting: false,
+          setIsSubmitting: vi.fn(),
+          onSend,
+          noteText: '',
+          effectiveAutoSend: true,
+          setIsExpanded: vi.fn(),
+          setStoredExpanded: vi.fn()
+        })
+      )
+
+      await act(async () => {
+        await result.current.handleSend()
+      })
+      expect(result.current.sendFeedback).toBe('success')
+
+      // İkinci gönderim başlar; ilk başarının sayacı hâlâ sırada.
+      let second!: Promise<void>
+      act(() => {
+        second = result.current.handleSend()
+      })
+      expect(result.current.sendFeedback).toBe('sending')
+
+      // 1500 ms'lik eski sayac dolar: gönderim hâlâ sürüyor, durum `idle` olmamalı.
+      await act(async () => {
+        vi.advanceTimersByTime(2000)
+      })
+      expect(result.current.sendFeedback).toBe('sending')
+
+      await act(async () => {
+        releaseSecond({ success: true })
+        await second
+      })
+      expect(result.current.sendFeedback).toBe('success')
+    })
+
+    it('clears the pending timer on unmount', async () => {
+      const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
+      const onSend = vi.fn(async () => ({ success: true }) as unknown)
+      const { result, unmount } = renderHook(() =>
+        useComposerSendAction({
+          isSubmitting: false,
+          setIsSubmitting: vi.fn(),
+          onSend,
+          noteText: '',
+          effectiveAutoSend: true,
+          setIsExpanded: vi.fn(),
+          setStoredExpanded: vi.fn()
+        })
+      )
+
+      await act(async () => {
+        await result.current.handleSend()
+      })
+      expect(result.current.sendFeedback).toBe('success')
+
+      clearSpy.mockClear()
+      unmount()
+      expect(clearSpy).toHaveBeenCalled()
+      clearSpy.mockRestore()
+    })
+  })
+
+  /**
+   * "Tekrar dene" düğmesinin etiketiyle yaptığı eylem aynı olmalı:
+   *  - güvenle tekrarlanabilir hata → son gönderim niyeti **yeniden yürütülür**;
+   *  - kısmen uygulanmış gönderim → **yeniden gönderilmez**; kullanıcı
+   *    bilgilendirilir ve durumu kapatabilir (mükerrer mesaj koruması).
+   */
+  describe('retry contract', () => {
+    function setupWith(onSend: (payload: Payload) => Promise<unknown>) {
+      return renderHook(() =>
+        useComposerSendAction({
+          isSubmitting: false,
+          setIsSubmitting: vi.fn(),
+          onSend,
+          noteText: '',
+          effectiveAutoSend: true,
+          setIsExpanded: vi.fn(),
+          setStoredExpanded: vi.fn()
+        })
+      )
+    }
+
+    it('re-runs the last send intent for a safely repeatable failure', async () => {
+      const onSend = vi
+        .fn<(payload: Payload) => Promise<unknown>>()
+        .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+        .mockResolvedValueOnce({ success: true })
+      const { result } = setupWith(onSend)
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'Explain this', autoSend: true })
+      })
+      expect(result.current.sendFeedback).toBe('error')
+
+      await act(async () => {
+        result.current.handleRetry()
+      })
+
+      expect(onSend).toHaveBeenCalledTimes(2)
+      // Aynı niyet, aynı içerik: veri kaybı yok.
+      expect(onSend.mock.calls[1][0]).toEqual(onSend.mock.calls[0][0])
+      expect(result.current.sendFeedback).toBe('success')
+    })
+
+    it('never auto-resends when the content already reached the target', async () => {
+      const onSend = vi
+        .fn<(payload: Payload) => Promise<unknown>>()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      const { result } = setupWith(onSend)
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'Explain this' })
+      })
+      expect(result.current.sendFeedback).toBe('incomplete')
+      expect(result.current.isResendSafe).toBe(false)
+
+      await act(async () => {
+        result.current.handleRetry()
+        result.current.handleRetry()
+      })
+
+      // "Tekrar dene" ikinci bir kopya bırakmaz: gönderim yeniden başlatılmaz.
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets the user dismiss an incomplete outcome without losing the draft', async () => {
+      const onSend = vi
+        .fn<(payload: Payload) => Promise<unknown>>()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      const { result } = setupWith(onSend)
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'Explain this' })
+      })
+      act(() => {
+        result.current.dismissOutcome()
+      })
+
+      expect(result.current.sendFeedback).toBe('idle')
+      expect(result.current.lastError).toBeNull()
+      // Not ve kuyruk bu hook'a bağlı değil; hiçbir temizleme çağrısı yapılmaz.
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+  })
 })

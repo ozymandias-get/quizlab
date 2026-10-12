@@ -5,7 +5,11 @@ import { ChevronUp, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DRAFT_SEND_INTENT_KEYS, resolveDraftSendIntent } from './draftSendIntent'
+import {
+  DRAFT_SEND_INTENT_KEYS,
+  isDraftSendIntentActionable,
+  resolveDraftSendIntent
+} from './draftSendIntent'
 import type { SendFeedback } from './types'
 
 interface DraftDockBarProps {
@@ -22,7 +26,7 @@ interface DraftDockBarProps {
    * Boş string ise gösterilmez; hapın içinde kısa bir rozet olarak durur.
    */
   statusLabel?: string
-  statusTone?: 'neutral' | 'success' | 'error'
+  statusTone?: 'neutral' | 'success' | 'warning' | 'error'
 }
 
 /**
@@ -34,9 +38,12 @@ interface DraftDockBarProps {
  *
  * **Kuyruk doluyken gönder düğmesi de burada durur.** Açmak, yazmak, göndermek
  * üç ayrı adımdı; "gönder" tek tık uzaktayken paneli açmak gereksiz bir ara
- * adımdı. Düğme yalnızca `itemCount > 0` iken görünür, panel açıldığında yoktur
+ * adımıydı. Düğme yalnızca `itemCount > 0` iken görünür, panel açıldığında yoktur
  * (aynı eylem orada zaten var) ve kapandığında da kaybolmaz — gönderim sırasında
  * yerini korur, genişlik zıplamaz.
+ *
+ * Hiyerarşi: **ad + sayı → tek belirgin eylem**. Durum rozeti ancak bir sonuç
+ * varken görünür ve `role="status"` ile duyurulur; renk tek başına anlam taşımaz.
  */
 function DraftDockBar({
   itemCount,
@@ -53,12 +60,26 @@ function DraftDockBar({
 
   const intent = resolveDraftSendIntent({ autoSend, feedback, isSubmitting: isSending })
   const sendLabel = t(DRAFT_SEND_INTENT_KEYS[intent])
-  const canSend = itemCount > 0
+  // Kısmi uygulama: içerik zaten hedefe ulaştı; yeniden göndermek mükerrer
+  // mesaj bırakır, bu yüzden hap üzerindeki düğme de devre dışıdır.
+  const canSend = itemCount > 0 && isDraftSendIntentActionable(intent)
 
   const SendIcon = intent === 'sending' ? Loader2 : intent === 'retry' ? RotateCcw : Send
 
+  const toneClasses =
+    statusTone === 'success'
+      ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+      : statusTone === 'error'
+        ? 'border-destructive/30 bg-destructive/12 text-destructive'
+        : statusTone === 'warning'
+          ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+          : 'border-primary/20 bg-primary/10 text-primary'
+
   return (
-    <div className="border-border/70 bg-popover/90 hover:border-ring/40 shadow-ambient-md hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center rounded-full border p-1 backdrop-blur-xl transition-[border-color,box-shadow]">
+    <div
+      data-testid="ai-draft-dock-bar"
+      className="border-border/70 bg-popover/90 hover:border-ring/40 shadow-ambient-md hover:shadow-ambient-lg motion-normal mx-auto flex h-11 max-w-full items-center gap-0.5 rounded-full border p-1 backdrop-blur-xl transition-[border-color,box-shadow]"
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -70,10 +91,8 @@ function DraftDockBar({
       >
         <span
           className={cn(
-            'border-primary/20 bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full border',
-            statusTone === 'success' &&
-              'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-            statusTone === 'error' && 'border-destructive/30 bg-destructive/12 text-destructive'
+            'flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors',
+            toneClasses
           )}
           aria-hidden
         >
@@ -92,10 +111,13 @@ function DraftDockBar({
 
         {statusLabel && (
           <span
+            role="status"
+            aria-live="polite"
             className={cn(
               'text-ql-11 max-w-[12rem] truncate font-medium @max-[24rem]:hidden',
               statusTone === 'success' && 'text-emerald-600 dark:text-emerald-400',
               statusTone === 'error' && 'text-destructive',
+              statusTone === 'warning' && 'text-amber-600 dark:text-amber-400',
               statusTone === 'neutral' && 'text-muted-foreground'
             )}
           >
@@ -108,20 +130,20 @@ function DraftDockBar({
 
       {/* İki düğme kardeş, iç içe değil: `<button>` içine `<button>` geçersiz HTML'dir
           ve ekran okuyucular tıklama hedefini kaybeder. */}
-      {canSend && (
+      {itemCount > 0 && (
         <>
           <span className="bg-border/70 mx-0.5 h-5 w-px shrink-0 rounded-full" aria-hidden />
           <WithTooltip label={sendLabel}>
             <Button
               type="button"
               onClick={onSend}
-              disabled={isSending}
+              disabled={!canSend}
               size="sm"
               aria-label={sendLabel}
               data-testid="ai-draft-pill-send"
               className={cn(
                 'text-ql-12 h-full shrink-0 gap-1.5 rounded-full px-3 font-semibold',
-                isSending && 'bg-muted text-muted-foreground hover:bg-muted opacity-100'
+                !canSend && 'bg-muted text-muted-foreground hover:bg-muted opacity-100'
               )}
             >
               <SendIcon

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ComposerPayload } from '@app/ui/aiSendComposer/types'
 import AiSendComposer from '@app/ui/AiSendComposer'
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
@@ -297,22 +298,36 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
     })
 
-    it('stays open for a click on a portalled surface (select listbox, dialog)', () => {
+    it('stays open for a click on a portalled surface it owns', () => {
       openPanel()
       // Radix bu yüzeyleri <body> altına portal eder; dock onları "dışarı" saymaz.
-      const listbox = document.createElement('div')
-      listbox.setAttribute('role', 'listbox')
-      const dialog = document.createElement('div')
-      dialog.setAttribute('role', 'alertdialog')
-      document.body.append(listbox, dialog)
+      // Kapsam bilinçli olarak dar: yalnızca bu dock'un portalladığı yüzeyler
+      // `data-draft-portal` taşır.
+      const selectList = document.createElement('div')
+      selectList.setAttribute('data-draft-portal', 'quick-action')
+      selectList.setAttribute('role', 'listbox')
+      document.body.append(selectList)
 
-      fireEvent.pointerDown(listbox)
-      expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
-      fireEvent.pointerDown(dialog)
+      fireEvent.pointerDown(selectList)
       expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
 
-      listbox.remove()
-      dialog.remove()
+      selectList.remove()
+    })
+
+    // Regression: the old selector matched ANY `[role="dialog"]` /
+    // `[role="listbox"]` / `[role="tooltip"]` in the document, so clicking an
+    // unrelated app dialog (onboarding, file picker, settings) silently kept
+    // the draft dock open.
+    it('still collapses for an unrelated dialog that the dock does not own', () => {
+      openPanel()
+      const unrelatedDialog = document.createElement('div')
+      unrelatedDialog.setAttribute('role', 'alertdialog')
+      document.body.append(unrelatedDialog)
+
+      fireEvent.pointerDown(unrelatedDialog)
+      expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
+
+      unrelatedDialog.remove()
     })
 
     it('does not attach the outside listener while collapsed', () => {
@@ -324,6 +339,248 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
       fireEvent.click(badge)
       expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
+    })
+  })
+
+  /**
+   * Durum görünürlüğü — düğme etiketi ile yaptığı eylem aynı olmalı.
+   */
+  describe('send outcome labelling', () => {
+    const openPanel = (onSend: (payload: ComposerPayload) => Promise<unknown>) => {
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+          autoSend
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    }
+
+    it('labels the action "send" when auto-send is on', () => {
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+          autoSend
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      expect(screen.getByTestId('ai-draft-send')).toHaveAccessibleName('send_to_ai')
+      // Panel açıkken aynı eylem iki yerde tekrarlanmaz.
+      expect(screen.queryByTestId('ai-draft-pill-send')).not.toBeInTheDocument()
+    })
+
+    it('labels the action "prepare" when auto-send is off', () => {
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+          autoSend={false}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      // "Gönder" gibi bir teslim iddiasında bulunmaz.
+      expect(screen.getByTestId('ai-draft-send')).toHaveAccessibleName('ai_send_prepare')
+    })
+
+    it('reports a staged send as staged, never as sent', async () => {
+      const onSend = vi.fn().mockResolvedValue({ success: true, mode: 'staged' })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      expect(screen.getByRole('status')).toHaveTextContent('ai_send_staged')
+    })
+
+    it('reports a delivered send as sent', async () => {
+      const onSend = vi.fn().mockResolvedValue({ success: true })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      expect(screen.getByRole('status')).toHaveTextContent('ai_send_sent')
+    })
+
+    // Regression: `handleRetry` used to only clear the error while the button
+    // said "retry send", and an `autosend_failed_draft_saved` outcome (the
+    // content already reached the site) re-sending would leave a duplicate there.
+    it('never offers "send again" when the content already reached the target', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      const send = screen.getByTestId('ai-draft-send')
+      expect(send).toHaveAccessibleName('ai_send_awaiting_submit')
+      expect(send).toBeDisabled()
+      // "Tekrar dene" yerine güvenli manuel devam: durumu kapat.
+      expect(screen.queryByRole('button', { name: 'ai_send_retry' })).not.toBeInTheDocument()
+      const dismiss = screen.getByRole('button', { name: 'ai_send_dismiss' })
+
+      await act(async () => {
+        fireEvent.click(dismiss)
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+
+    it('offers a retry that actually retries for a safely repeatable failure', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+        .mockResolvedValueOnce({ success: true })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+      // Çözülemeyen hata anahtarı ham koda düşer; boş bir mesaj gösterilmez.
+      expect(screen.getByRole('status')).toHaveTextContent('paste_failed')
+
+      const retry = screen.getByRole('button', { name: 'ai_send_retry' })
+      await act(async () => {
+        fireEvent.click(retry)
+      })
+
+      // Düğmenin etiketiyle yaptığı eylem aynı: ikinci deneme gerçekten çalıştı.
+      expect(onSend).toHaveBeenCalledTimes(2)
+      expect(onSend.mock.calls[1][0]).toEqual(onSend.mock.calls[0][0])
+    })
+
+    it('does not start a second send from two rapid clicks', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      openPanel(onSend)
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
+  })
+
+  describe('item hierarchy', () => {
+    it('shows the original order, kind and page for every item', () => {
+      renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 't1',
+                type: 'text',
+                text: 'hello',
+                source: {
+                  docId: 'doc',
+                  page: 13,
+                  totalPages: 59,
+                  captureKind: 'text-selection',
+                  createdAt: 1
+                }
+              },
+              {
+                id: 'i1',
+                type: 'image',
+                dataUrl: 'data:image/png;base64,AAA',
+                blobUrl: '',
+                source: {
+                  docId: 'doc',
+                  page: 14,
+                  totalPages: 59,
+                  captureKind: 'area-image',
+                  createdAt: 2
+                }
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+
+      const chips = screen.getAllByTestId('ai-draft-item')
+      expect(chips).toHaveLength(2)
+      // 1 · Metin · 13/59  /  2 · Görsel · 14/59
+      expect(chips[0]).toHaveTextContent('1')
+      expect(chips[0]).toHaveTextContent('ai_draft_item_text')
+      expect(chips[0]).toHaveTextContent('13/59')
+      expect(chips[1]).toHaveTextContent('2')
+      expect(chips[1]).toHaveTextContent('ai_draft_item_image')
+      expect(chips[1]).toHaveTextContent('14/59')
+    })
+
+    it('keeps a multi-page selection as a range', () => {
+      renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 't1',
+                type: 'text',
+                text: 'hello',
+                source: {
+                  docId: 'doc',
+                  page: 11,
+                  pageEnd: 13,
+                  totalPages: 59,
+                  captureKind: 'text-selection',
+                  createdAt: 1
+                }
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      expect(screen.getByTestId('ai-draft-item')).toHaveTextContent('11–13/59')
+    })
+
+    it('shows no image preview gallery', () => {
+      renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 'i1',
+                type: 'image',
+                dataUrl: 'data:image/png;base64,AAA',
+                blobUrl: '',
+                source: null,
+                createdAt: 1
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      // Görsel satırı var, önizleme galerisi yok.
+      expect(screen.getByTestId('ai-draft-item')).toBeInTheDocument()
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
   })
 })
