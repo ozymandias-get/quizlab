@@ -213,10 +213,10 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
   )
 
   // PDF panelindeki yuvaya portal ile yerleşir (bkz. AiDraftLayer).
-  // Küçük kontrol her zaman erişilebilir; panel yalnızca kullanıcı açarsa
-  // görünür. İçerik eklendiğinde kendiliğinden açılmaz; kapanınca taslak korunur.
+  // PDF açık değilken ve taslak boşken hiç render edilmez — PDF ekleme
+  // ekranında yüzen bir kontrol anlamsız. Taslak doluysa erişim korunur.
   return (
-    <AiDraftLayer>
+    <AiDraftLayer hasContent={(pendingAiItems?.length ?? 0) > 0}>
       {(placement) => (
         <AiSendComposer
           items={pendingAiItems ?? []}

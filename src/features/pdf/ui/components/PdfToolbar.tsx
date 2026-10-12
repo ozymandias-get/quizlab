@@ -142,7 +142,12 @@ function PdfToolbar({
     <motion.div
       initial={{ y: 10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="border-border/60 bg-card/60 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
+      // AI dock artık görüntüleme alanının üzerine binen yüzen bir kart; bu
+      // satır onun altında kendi bandı olarak kalır. Yüzey yine de kendi daha
+      // açık tonunu (`bg-card/60`) korur: iki yüzey bitişik olduğunda bile tek
+      // kart gibi okunmamalı, aralarında kalan hava ikisini ayırır. Araç çubuğunun
+      // içindeki kontrollerin görünümü değişmemiştir.
+      className="border-border bg-card/60 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
     >
       <div className="relative flex items-center gap-2">
         <ToolbarGroup>

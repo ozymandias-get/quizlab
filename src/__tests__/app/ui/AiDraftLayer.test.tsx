@@ -16,12 +16,25 @@ afterEach(() => {
 })
 
 describe('AiDraftLayer', () => {
-  it('floats in the app tree while no PDF panel slot exists', () => {
+  it('renders nothing when no PDF slot exists and the draft is empty', () => {
     render(
-      <AiDraftLayer>{(placement) => <span data-testid="draft">{placement}</span>}</AiDraftLayer>
+      <AiDraftLayer hasContent={false}>
+        {(placement) => <span data-testid="draft">{placement}</span>}
+      </AiDraftLayer>
     )
 
-    // PDF paneli yok: içerik yine de render edilir, taslak erişilebilir kalır.
+    // PDF ekleme ekranında yüzen bir "AI Taslağı" kutusu gösterilmez.
+    expect(screen.queryByTestId('draft')).not.toBeInTheDocument()
+  })
+
+  it('floats in the app tree when the PDF panel is gone but the draft has content', () => {
+    render(
+      <AiDraftLayer hasContent>
+        {(placement) => <span data-testid="draft">{placement}</span>}
+      </AiDraftLayer>
+    )
+
+    // PDF paneli yok ama içerik var: toplanan taslak erişilemez olmaz.
     expect(screen.getByTestId('draft')).toHaveTextContent('floating')
   })
 
@@ -30,7 +43,9 @@ describe('AiDraftLayer', () => {
     registerDomSlot(AI_DRAFT_SLOT_ID, slot)
 
     render(
-      <AiDraftLayer>{(placement) => <span data-testid="draft">{placement}</span>}</AiDraftLayer>
+      <AiDraftLayer hasContent={false}>
+        {(placement) => <span data-testid="draft">{placement}</span>}
+      </AiDraftLayer>
     )
 
     const draft = screen.getByTestId('draft')
@@ -39,20 +54,25 @@ describe('AiDraftLayer', () => {
     expect(slot.contains(draft)).toBe(true)
   })
 
-  it('moves back to the floating placement when the PDF panel unmounts', () => {
+  it('falls back to floating only for a non-empty draft when the PDF panel unmounts', () => {
     const slot = makeSlot()
     registerDomSlot(AI_DRAFT_SLOT_ID, slot)
 
-    const { rerender } = render(
-      <AiDraftLayer>{(placement) => <span data-testid="draft">{placement}</span>}</AiDraftLayer>
+    const view = (hasContent: boolean) => (
+      <AiDraftLayer hasContent={hasContent}>
+        {(placement) => <span data-testid="draft">{placement}</span>}
+      </AiDraftLayer>
     )
+
+    const { rerender } = render(view(true))
     expect(screen.getByTestId('draft')).toHaveTextContent('inline')
 
     unregisterDomSlot(AI_DRAFT_SLOT_ID, slot)
-    rerender(
-      <AiDraftLayer>{(placement) => <span data-testid="draft">{placement}</span>}</AiDraftLayer>
-    )
-
+    rerender(view(true))
     expect(screen.getByTestId('draft')).toHaveTextContent('floating')
+
+    // Taslak da boşalınca kontrol tamamen kaybolur.
+    rerender(view(false))
+    expect(screen.queryByTestId('draft')).not.toBeInTheDocument()
   })
 })

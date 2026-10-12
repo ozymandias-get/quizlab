@@ -6,38 +6,48 @@ import { useTranslation } from 'react-i18next'
 interface DraftNoteFieldProps {
   value: string
   onChange: (value: string) => void
-  /** Ctrl/Cmd+Enter ile gönderim. */
+  /** Ctrl/Cmd+Enter ile gönderim / AI kutusuna hazırlama. */
   onSubmit: () => void
+  disabled?: boolean
 }
 
-/** Ek talimat / not: sabit yükseklik, panel zıplamaz. */
-function DraftNoteField({ value, onChange, onSubmit }: DraftNoteFieldProps) {
+/**
+ * Ek talimat — composer yüzeyinin üst yarısı.
+ *
+ * Alan kendi sınırını taşımaz: sınır, etrafını saran tek composer
+ * container'ına aittir (iç içe kutu olmaz). Boşken tek satır yüksekliğinde
+ * kalır, yazdıkça kontrollü büyür ve ~4 satırda içinde kaydırılma başlar.
+ *
+ * Metin korunur: dock kapanınca, PDF sekmesi değişince veya içerik eklenince
+ * silinmez.
+ */
+function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldProps) {
   const { t } = useTranslation()
+
   return (
-    <div className="px-3.5 pt-1 pb-3">
-      <div className="border-border/70 bg-background/50 focus-within:border-border focus-within:ring-foreground/10 overflow-hidden rounded-lg border transition-[border-color,box-shadow] focus-within:ring-1">
-        <label
-          htmlFor="ai-draft-note"
-          className="border-border/60 text-muted-foreground text-ql-10 tracking-ql-label block border-b px-2.5 pt-1.5 pb-1 font-semibold uppercase"
-        >
-          {t('ai_draft_note_label')}
-        </label>
-        <Textarea
-          id="ai-draft-note"
-          rows={3}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault()
-              onSubmit()
-            }
-          }}
-          placeholder={t('ai_send_text_placeholder')}
-          className="text-ql-12 field-sizing-fixed h-[68px] max-h-[68px] min-h-[68px] resize-none rounded-none border-0 bg-transparent px-2.5 py-1.5 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
-        />
-      </div>
-    </div>
+    <>
+      {/* Görsel etiket yok; alan adı erişilebilirliği bu gizli etiketle korunur. */}
+      <label htmlFor="ai-draft-note" className="sr-only">
+        {t('ai_draft_note_label')}
+      </label>
+      <Textarea
+        id="ai-draft-note"
+        rows={1}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // IME bileşimi sürerken Enter, gönderimi tetiklememeli.
+          if (e.nativeEvent.isComposing) return
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            onSubmit()
+          }
+        }}
+        placeholder={t('ai_draft_note_placeholder')}
+        className="text-ql-12 field-sizing-content max-h-[4.75rem] min-h-[1.75rem] w-full resize-none rounded-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
+      />
+    </>
   )
 }
 

@@ -36,6 +36,29 @@ describe('cn (className utility)', () => {
   it('handles no arguments', () => {
     expect(cn()).toBe('')
   })
+
+  // The app's typography scale is `text-ql-*`. tailwind-merge did not know it,
+  // so it treated `text-ql-12` and `text-muted-foreground` as rivals and kept
+  // only the last one — silently, in both orders. That is how a `default`
+  // Button ended up with `bg-primary` and no `text-primary-foreground`: white
+  // text on a white button, in every theme.
+  it('keeps a ql text size alongside a text color', () => {
+    expect(cn('text-ql-12 text-muted-foreground')).toBe('text-ql-12 text-muted-foreground')
+    expect(cn('text-primary-foreground text-ql-12')).toBe('text-primary-foreground text-ql-12')
+    expect(cn('text-ql-11 text-destructive')).toBe('text-ql-11 text-destructive')
+  })
+
+  it('still resolves two text colors against each other', () => {
+    expect(cn('text-ql-12 text-muted-foreground', 'text-foreground')).toBe(
+      'text-ql-12 text-foreground'
+    )
+  })
+
+  it('still resolves two ql text sizes against each other (later wins)', () => {
+    expect(cn('text-ql-10', 'text-ql-14')).toBe('text-ql-14')
+    // The scale overrides a variant size, which is what `size="sm"` supplies.
+    expect(cn('text-xs text-ql-12')).toBe('text-ql-12')
+  })
 })
 
 describe('isValidHexColor', () => {

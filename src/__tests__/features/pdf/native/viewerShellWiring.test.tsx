@@ -253,19 +253,36 @@ describe('PdfViewerDocument renderer wiring', () => {
     // bottom of a short, centered page.
     expect(viewerArea).not.toBe(null)
     expect(viewerArea?.contains(toolbar)).toBe(false)
-    expect(toolbar.parentElement).toBe(viewerArea?.parentElement)
+    // The toolbar owns its own layout row in the shell column: it is a sibling of
+    // the viewer stage, never a child of it, so it cannot overlay the page bottom.
+    expect(viewerArea?.parentElement?.contains(toolbar)).toBe(false)
+    expect(toolbar.previousElementSibling).toBe(viewerArea?.parentElement)
   })
 
-  it('mounts the AI draft slot inside the viewer, not as a viewport overlay', () => {
+  it('mounts the AI draft dock slot as an overlay that takes no layout space', () => {
     renderDocument()
 
-    // Taslak, PDF'den toplanan içeriğin kontrolüdür: panelin içinde, sağ altta
-    // durur. Viewport'a sabitlenmiş bir yüzen katman olsaydı AI paneliyle ve alt
-    // dock ile çakışırdı.
+    // The dock floats *over* the PDF surface rather than sitting in the flow
+    // between viewer and toolbar. In-flow would be the obvious layout, and it is
+    // the wrong one: opening the panel would shrink `.pdf-viewer-container`, and
+    // a shrinking viewer is a reflow — pdf.js re-measures, the page recenters and
+    // the scroll position can jump. Absolute positioning inside the shared stage
+    // is what makes "the page does not move when the draft opens" true.
     const slot = screen.getByTestId('pdf-ai-draft-slot')
     const viewerArea = document.querySelector('.pdf-viewer-container')
-    expect(viewerArea?.contains(slot)).toBe(true)
+    const toolbar = screen.getByTestId('pdf-toolbar')
+
+    // Not inside the viewer area itself: the viewer owns its own stacking
+    // context and its own scroll/pan gestures.
+    expect(viewerArea?.contains(slot)).toBe(false)
     expect(slot.className).toContain('absolute')
     expect(slot.className).not.toContain('fixed')
+    // Transparent to pointer input so panning and text selection keep working
+    // everywhere on the page except on the dock card itself.
+    expect(slot.className).toContain('pointer-events-none')
+
+    // Sibling of the viewer area inside the stage; the toolbar stays outside it.
+    expect(slot.parentElement).toBe(viewerArea?.parentElement)
+    expect(slot.parentElement?.contains(toolbar)).toBe(false)
   })
 })
