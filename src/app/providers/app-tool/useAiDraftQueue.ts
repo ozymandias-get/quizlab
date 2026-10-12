@@ -1,6 +1,6 @@
 import { Logger, reportSuppressedError } from '@shared/lib/logger'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react'
 
 import type { PdfSourceMeta } from '../ai/pdfSource'
 import type { AiDraftImageItem, AiDraftItem, SelectionPosition } from '../ai/types'
@@ -15,50 +15,129 @@ export interface QueuedTextMeta {
 }
 
 /** Taslak kuyruğunun üst sınırı. Dolduğunda yeni öğe reddedilir, mevcut korunur. */
-const MAX_QUEUE_SIZE = 20
+export const MAX_QUEUE_SIZE = 20
 
-function revokeDraftItemBlob(draft: AiDraftItem) {
-  if (draft.type === 'image' && draft.blobUrl) {
-    URL.revokeObjectURL(draft.blobUrl)
+/** Bu boyutun altındaki base64 önizlemesi eşzamanlı üretilir; üstü asenkron. */
+const SYNC_BLOB_BASE64_LIMIT = 2_000_000
+
+/** Kuyruk yalnızca `blob:` önizlemeleri üretir; `data:` URL'ler yeniden üretilmez. */
+function revokeBlobUrl(url: string | null | undefined) {
+  if (!url || !url.startsWith('blob:')) return
+  try {
+    URL.revokeObjectURL(url)
+  } catch {
+    // best-effort: iptal başarısız olsa bellek temizliği kritik değildir
   }
 }
 
-function revokeDraftBlobUrls(items: AiDraftItem[]) {
-  for (const draft of items) {
-    revokeDraftItemBlob(draft)
+/** Öğenin kuyruğa ait tek kaynaklı blob önizlemesi (yoksa boş). */
+function itemBlobUrl(draft: AiDraftItem): string {
+  return draft.type === 'image' && draft.blobUrl ? draft.blobUrl : ''
+}
+
+/** "id::blobUrl" — aynı öğenin aynı kaynakla hayatta kalıp kalmadığını ayırt eder. */
+function resourceKey(draft: AiDraftItem): string {
+  return `${draft.id}::${itemBlobUrl(draft)}`
+}
+
+/** `data:image/...;base64,` → bayt dizisi + mime. Geçersizse null. */
+function decodeDataUrlToBytes(
+  dataUrl: string
+): { bytes: Uint8Array<ArrayBuffer>; mime: string } | null {
+  try {
+    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+    const mime = dataUrl.match(/^data:([^;,]+)[;,]/)?.[1] ?? 'image/png'
+    const binary = atob(base64)
+    const bytes = new Uint8Array(new ArrayBuffer(binary.length))
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return { bytes, mime }
+  } catch {
+    return null
   }
 }
 
 /**
- * Taslak kuyruğu — kapasite davranışı: sessiz silme YOK.
+ * Taslak kuyruğu — tek mutasyon yolu ve kapasite sözleşmesi.
  *
- * Limit dolduğunda yeni öğe reddedilir; mevcut öğeler korunur. Kullanıcı
- * `onReject` üzerinden açık uyarı alır ve mevcut öğeleri silerek devam
- * edebilir. Boyut takibi `queueSizeRef` ile senkron yapılır; aynı tick
- * içinde arka arkaya gelen eklemelerde de kapasite doğru sayılır.
+ * ## Sözleşme
+ *
+ * `queueTextForAi` / `queueImageForAi` **gerçek sonucu** döndürür: kabul
+ * edildiyse `true`, reddedildiyse `false`. Çağıran bu sonucu **kontrol etmek
+ * zorundadır**; `void` ile tüketmek, reddedilen bir eklemeyi kullanıcıya
+ * başarı diye göstermeye yol açar.
+ *
+ * Kapasite dolduğunda yeni öğe reddedilir; mevcut öğeler **korunur** (sessiz
+ * silme yok). Kullanıcı `onReject` üzerinden açık uyarı alır ve öğelerini
+ * çıkararak devam edebilir.
+ *
+ * ## Tek doğruluk kaynağı
+ *
+ * `itemsRef` React state'in **anlık** karşılığıdır. Kapasite, kaldırma ve
+ * kaynak yaşam döngüsü kararlarının hepsi buradan okunur. Ayrı bir sayaç ref'i
+ * (`queueSizeRef`) veya `useEffect` ile senkronizasyon kullanılsaydı, aynı olay
+ * içindeki ardışık ekleme/kaldırma kaydırma yaşatır ve geçersiz bir `id` ile
+ * kaldırma sayacı sessizce düşürürdü.
+ *
+ * ## Yan etki ve state ayrımı
+ *
+ * Tüm mutasyonlar `commit` üzerinden geçer. Blob URL iptali gibi **geri
+ * alınamaz** yan etkiler `setState` updater'ının içinde değil, çağrıdan sonra
+ * yapılır: React updater fonksiyonlarını StrictMode'da ve kesintiye uğrayan
+ * renderlarda yeniden çalıştırabilir; geri alınamaz bir etkiyi onun içine
+ * koymak, hâlâ kuyrukta olan öğelerin kaynağını iptal eder.
  */
 export function useAiDraftQueue(onReject?: () => void) {
-  const [pendingAiItems, setPendingAiItems] = useState<AiDraftItem[]>([])
-  const pendingDraftIdsRef = useRef(new Set<string>())
-  const queueSizeRef = useRef(0)
-  // Gönderim orkestrasyonu dışarıdan setPendingAiItems çağırır; ref'i senkron tut.
-  useEffect(() => {
-    queueSizeRef.current = pendingAiItems.length
-  }, [pendingAiItems])
+  const [queue, setQueue] = useState<AiDraftItem[]>([])
 
-  const pendingAiItemsRef = useRef(pendingAiItems)
-  pendingAiItemsRef.current = pendingAiItems
+  /** Tek doğruluk kaynağı — `useEffect` ile senkronlanmaz, tam tersi. */
+  const itemsRef = useRef<AiDraftItem[]>([])
 
   const onRejectRef = useRef(onReject)
   onRejectRef.current = onReject
 
   useEffect(() => {
-    const pendingDraftIds = pendingDraftIdsRef.current
+    // Unmount'ta kalan kaynakları iptal et. Kalan küme **temizleme anında**
+    // okunur: etki gövdesi mount'ta çalışır ve o an kuyruk daha boştur.
     return () => {
-      revokeDraftBlobUrls(pendingAiItemsRef.current)
-      pendingDraftIds.clear()
+      const remaining = itemsRef.current
+      itemsRef.current = []
+      for (const draft of remaining) revokeBlobUrl(itemBlobUrl(draft))
     }
   }, [])
+
+  /**
+   * Tek mutasyon yolu.
+   *
+   * - `itemsRef` **senkron** güncellenir → aynı olaydaki ardışık çağrılar
+   *   güncel sayıyı görür.
+   * - React'e **düz dizi** verilir; updater fonksiyonu hiç çalıştırılmaz,
+   *   dolayısıyla StrictMode'un çift çağırması yan etki üretmez.
+   * - Kuyruktan ayrılan kaynaklar burada, çağrıdan sonra iptal edilir.
+   */
+  const commit = useCallback((next: AiDraftItem[]) => {
+    const previous = itemsRef.current
+    itemsRef.current = next
+    setQueue(next)
+
+    if (previous.length === 0 && next.length === 0) return
+    const survivors = new Set(next.map(resourceKey))
+    for (const draft of previous) {
+      if (!survivors.has(resourceKey(draft))) revokeBlobUrl(itemBlobUrl(draft))
+    }
+  }, [])
+
+  /**
+   * Gönderim orkestrasyonu bu setter'ı doğrudan çağırır. Aynı yazma,
+   * iptal ve kaynak yaşam döngüsü kuralları geçerli olsun diye `commit`
+   * üzerinden yönlendirilir.
+   */
+  const setPendingAiItems = useCallback<Dispatch<SetStateAction<AiDraftItem[]>>>(
+    (action) => {
+      const previous = itemsRef.current
+      commit(typeof action === 'function' ? action(previous) : action)
+    },
+    [commit]
+  )
 
   const queueTextForAi = useCallback(
     (
@@ -67,9 +146,7 @@ export function useAiDraftQueue(onReject?: () => void) {
       meta?: QueuedTextMeta | PdfSourceMeta | null
     ): boolean => {
       const normalized = text.trim()
-      if (!normalized) {
-        return false
-      }
+      if (!normalized) return false
 
       // Üçüncü argüman hem { source } hem de doğrudan PdfSourceMeta olabilir.
       const source =
@@ -77,8 +154,9 @@ export function useAiDraftQueue(onReject?: () => void) {
           ? (meta as PdfSourceMeta)
           : ((meta as QueuedTextMeta | null)?.source ?? null)
 
-      // Kapasite dolu: yeni öğe reddedilir, mevcut öğeler sessizce silinmez.
-      if (queueSizeRef.current >= MAX_QUEUE_SIZE) {
+      // Kapasite kontrolü `itemsRef` üzerinden: aynı olayda ikinci bir ekleme
+      // zaten uygulanmış sayıyı görür. Mevcut öğeler sessizce silinmez.
+      if (itemsRef.current.length >= MAX_QUEUE_SIZE) {
         Logger.warn(
           `[DraftQueue] Queue full (${MAX_QUEUE_SIZE}); new text item rejected, existing items kept`
         )
@@ -95,131 +173,146 @@ export function useAiDraftQueue(onReject?: () => void) {
         createdAt: Date.now()
       }
 
-      queueSizeRef.current += 1
-      setPendingAiItems((current) => [...current, draft])
+      commit([...itemsRef.current, draft])
       return true
     },
-    []
+    [commit]
   )
 
-  const queueImageForAi = useCallback((imageUri: string, imageMeta?: QueuedImageMeta): boolean => {
-    // Kapasite kontrolü URL oluşturmadan ÖNCE: reddedilen öğenin blob URL'i
-    // oluşturulup sızmasın.
-    if (queueSizeRef.current >= MAX_QUEUE_SIZE) {
-      Logger.warn(
-        `[DraftQueue] Queue full (${MAX_QUEUE_SIZE}); new image item rejected, existing items kept`
-      )
-      onRejectRef.current?.()
-      return false
-    }
+  /**
+   * Büyük yakalamanın önizleme URL'ini asenkron üretir.
+   *
+   * Kuyruk, iş tamamlandığında öğenin hâlâ durduğunu **gerçek kuyruk
+   * durumundan** sorar (kimlik listesi gibi ikinci bir gerçek kaynağı tutmaz).
+   * Öğe bu arada kaldırıldıysa, temizlendiyse veya **başarıyla gönderildiyse**
+   * üretilen URL sahipsiz kalırdı; bu yüzden burada geri alınır.
+   */
+  const resolveLargePreview = useCallback(
+    (draftId: string, dataUrl: string) => {
+      void Promise.resolve()
+        .then(() => {
+          const decoded = decodeDataUrlToBytes(dataUrl)
+          return decoded
+            ? URL.createObjectURL(new Blob([decoded.bytes], { type: decoded.mime }))
+            : null
+        })
+        .then((url) => {
+          if (!url) return
+          const current = itemsRef.current
+          const index = current.findIndex((item) => item.id === draftId)
+          const item = index === -1 ? null : current[index]
+          if (!item || item.type !== 'image') {
+            // Öğe artık kuyrukta değil (kaldırıldı, temizlendi ya da **başarıyla
+            // gönderildi**): kullanılmayacak URL'i hemen geri al.
+            revokeBlobUrl(url)
+            return
+          }
+          const next = [...current]
+          next[index] = { ...item, blobUrl: url }
+          commit(next)
+        })
+        .catch((err) => {
+          // Composer, blobUrl çözülene kadar yer tutucu gösterir; bu yüzden
+          // hata yalnızca eksik bir önizlemeye dönüşür. Satır içi dataUrl yine
+          // gönderilebilir durumdadır; yutmayıp raporla.
+          reportSuppressedError('draftQueue.imageBlobUrlLarge', { cause: err })
+        })
+    },
+    [commit]
+  )
 
-    const draftId = buildPendingId('image')
-    pendingDraftIdsRef.current.add(draftId)
-    let blobUrl = ''
-    let dataUrl: string | undefined
+  const queueImageForAi = useCallback(
+    (imageUri: string, imageMeta?: QueuedImageMeta): boolean => {
+      // 1) Kaynak doğrulaması — ucuz, hiçbir kaynak üretmez.
+      const isBlobSource = imageUri.startsWith('blob:')
+      const isDataSource = imageUri.startsWith('data:image/')
+      if (!isBlobSource && !isDataSource) {
+        Logger.warn('[DraftQueue] Unsupported image source rejected')
+        return false
+      }
 
-    if (imageUri.startsWith('blob:')) {
-      blobUrl = imageUri
-      // Keep a dataUrl copy for direct send without fetch if possible — will be
-      // lazily resolved via blobUrlToDataUrl at send time if needed. For
-      // robustness we keep blobUrl as primary and let the send path fetch it.
-    } else if (imageUri.startsWith('data:image/')) {
-      // Keep original dataUrl for direct send; also create a lightweight
-      // blobUrl for preview rendering to avoid large base64 strings in the DOM.
-      dataUrl = imageUri
-      try {
-        const base64 = imageUri.split(',')[1] ?? ''
-        const mimeMatch = imageUri.match(/data:([^;]+);/)
-        const mime = mimeMatch?.[1] ?? 'image/png'
-        if (base64.length < 2_000_000) {
-          const binary = atob(base64)
-          const len = binary.length
-          const bytes = new Uint8Array(len)
-          for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i)
-          blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }))
-        } else {
-          // Large captures: decode locally instead of fetch(data:) — fetch is
-          // blocked by connect-src (no data: source) under Electron's CSP.
-          // Async via microtask to avoid blocking the queue update on huge images.
-          void Promise.resolve()
-            .then(() => {
-              const largeBase64 = imageUri.split(',')[1] ?? ''
-              const largeMimeMatch = imageUri.match(/data:([^;]+);/)
-              const largeMime = largeMimeMatch?.[1] ?? 'image/png'
-              const largeBinary = atob(largeBase64)
-              const largeLen = largeBinary.length
-              const largeBytes = new Uint8Array(largeLen)
-              for (let i = 0; i < largeLen; i++) largeBytes[i] = largeBinary.charCodeAt(i)
-              return URL.createObjectURL(new Blob([largeBytes], { type: largeMime }))
-            })
-            .then((url) => {
-              if (!pendingDraftIdsRef.current.has(draftId)) {
-                // Öğe silinmiş: asenkron URL onu yeniden canlandırmasın.
-                URL.revokeObjectURL(url)
-                return
-              }
-              setPendingAiItems((current) =>
-                current.map((item) => (item.id === draftId ? { ...item, blobUrl: url } : item))
-              )
-            })
-            .catch((err) => {
-              // The composer renders a placeholder until blobUrl resolves, so a
-              // failure here is only visible as a missing thumbnail. Report it
-              // instead of swallowing it; the inline dataUrl still sends fine.
-              reportSuppressedError('draftQueue.imageBlobUrlLarge', { cause: err })
-            })
+      // 2) Kapasite kontrolü, **hiçbir kaynak üretilmeden** yapılır. Reddedilen
+      //    bir öğe için base64 decode + Blob + createObjectURL + revoke
+      //    döngüsüne girilmez; çağıranın blob'u da onun sahipliğinde kalır.
+      if (itemsRef.current.length >= MAX_QUEUE_SIZE) {
+        Logger.warn(
+          `[DraftQueue] Queue full (${MAX_QUEUE_SIZE}); new image item rejected, existing items kept`
+        )
+        onRejectRef.current?.()
+        return false
+      }
+
+      const draftId = buildPendingId('image')
+      const dataUrl = isDataSource ? imageUri : undefined
+      let blobUrl = ''
+
+      if (isBlobSource) {
+        // Sahiplik devri: kabul edildiği için kuyruk bu URL'i üstlenir. Çağıran
+        // (yakalama hattı) artık onu iptal etmemelidir — iki katman aynı URL'i
+        // sahiplenirse biri diğerinin önizlemesini öldürür.
+        blobUrl = imageUri
+      } else {
+        const decoded = dataUrl ? decodeDataUrlToBytes(dataUrl) : null
+        if (decoded && (dataUrl?.length ?? 0) <= SYNC_BLOB_BASE64_LIMIT) {
+          try {
+            // Küçük yakalamalar: önizleme eşzamanlı üretilir, böylece bileşen
+            // ilk render'da hazır bir önizleme görür.
+            blobUrl = URL.createObjectURL(new Blob([decoded.bytes], { type: decoded.mime }))
+          } catch (err) {
+            reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
+            // dataUrl durur; gönderim yolu doğrudan onu kullanır.
+            blobUrl = ''
+          }
         }
-      } catch (err) {
-        reportSuppressedError('draftQueue.imageBlobUrl', { cause: err })
-        // Keep dataUrl, leave blobUrl empty — send path will use dataUrl directly
-        blobUrl = ''
+        // Büyük yakalamalar: base64 decode ana iş parçacığını kilitlemesin diye
+        // asenkron üretilir (fetch(data:) Electron CSP'sinde `connect-src`
+        // tarafından engellenir, bu yüzden yerel decode kullanılır).
       }
-    } else {
-      pendingDraftIdsRef.current.delete(draftId)
-      return false
-    }
 
-    queueSizeRef.current += 1
-    setPendingAiItems((current) => [
-      ...current,
-      {
-        id: draftId,
-        type: 'image',
-        ...(dataUrl ? { dataUrl } : {}),
-        blobUrl,
-        ...imageMeta,
-        source: imageMeta?.source ?? null,
-        createdAt: Date.now()
-      }
-    ])
-    return true
-  }, [])
+      commit([
+        ...itemsRef.current,
+        {
+          id: draftId,
+          type: 'image',
+          ...(dataUrl ? { dataUrl } : {}),
+          blobUrl,
+          ...imageMeta,
+          source: imageMeta?.source ?? null,
+          createdAt: Date.now()
+        }
+      ])
 
-  const removePendingAiItem = useCallback((id: string) => {
-    setPendingAiItems((current) => {
-      const removed = current.find((draft) => draft.id === id)
-      if (removed) {
-        pendingDraftIdsRef.current.delete(id)
-        revokeDraftItemBlob(removed)
+      if (dataUrl && !blobUrl) {
+        resolveLargePreview(draftId, dataUrl)
       }
-      return current.filter((draft) => draft.id !== id)
-    })
-    if (queueSizeRef.current > 0) queueSizeRef.current -= 1
-  }, [])
+
+      return true
+    },
+    [commit, resolveLargePreview]
+  )
+
+  const removePendingAiItem = useCallback(
+    (id: string) => {
+      const current = itemsRef.current
+      // Geçersiz ya da ikinci kez kaldırılan kimlik: kuyruk zaten değişmedi,
+      // dolayısıyla hiçbir sayaç da değişmemeli (ayrı sayaç tutulmadığı için
+      // "kaydırma" imkânı da ortadan kalkar).
+      if (!current.some((draft) => draft.id === id)) return
+      commit(current.filter((draft) => draft.id !== id))
+    },
+    [commit]
+  )
 
   const clearPendingAiItems = useCallback(() => {
     clearBrowserTextSelection()
-    setPendingAiItems((current) => {
-      revokeDraftBlobUrls(current)
-      pendingDraftIdsRef.current.clear()
-      return []
-    })
-    queueSizeRef.current = 0
-  }, [])
+    commit([])
+  }, [commit])
 
   return {
-    pendingAiItems,
-    pendingAiItemsRef,
+    pendingAiItems: queue,
+    // Orkestrasyon okuma erişimi için bu ref'i kullanır; `itemsRef` ile aynı
+    // nesnedir, dolayısıyla iki kopya ayrışamaz.
+    pendingAiItemsRef: itemsRef,
     setPendingAiItems,
     queueTextForAi,
     queueImageForAi,

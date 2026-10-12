@@ -1,8 +1,7 @@
-import { isStagedSendResult } from '@features/ai'
-
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { resolveSendOutcome, toErrorI18nKey } from './sendOutcome'
 import type { ComposerPayload, SendFeedback } from './types'
 
 interface UseComposerSendActionOptions {
@@ -16,8 +15,33 @@ interface UseComposerSendActionOptions {
 }
 
 /** Sonuç bildiriminin görünür kalma süreleri. */
-const FEEDBACK_TIMEOUT_MS = { success: 1500, staged: 2500 } as const
+const FEEDBACK_TIMEOUT_MS = { success: 1500, staged: 2500, error: 6000 } as const
 
+/**
+ * Composer'ın gönderim yaşam döngüsü.
+ *
+ * ## Durumlar ayrıdır
+ *
+ * `idle | sending | staged | success | incomplete | error` — hazırlanan içerik
+ * "gönderildi" sayılmaz, kısmen uygulanan gönderim "başarısız" sayılmaz.
+ * Ayrım `resolveSendOutcome` tarafından tek yerde yapılır.
+ *
+ * ## Zamanlayıcı
+ *
+ * **Her gönderim başlangıcında önceki geri bildirim zamanlayıcısı iptal
+ * edilir.** Aksi halde bir önceki başarının 1500 ms'lik sayacı, ikinci
+ * gönderim sürerken dolup durumu `idle`'a çeker ve kullanıcı gönderim
+ * sürerken "durdu" görürdü. Zamanlayıcı yalnızca kendi çağrısına aitse de
+ * sıfırlar (iptal edilmiş bir zamanlayıcının son işi yanlış duruma yol açmaz).
+ *
+ * ## Eşzamanlılık
+ *
+ * Gönderim kilidi React render zamanlamasına bırakılmaz: `sendingRef` **senkron**
+ * set edilir, böylece aynı olay içindeki iki tıklama (açık panel, kapalı dock,
+ * Ctrl+Enter, hızlı çift tık) yalnızca birini başlatır. Alt katmandaki
+ * orkestrasyon kilidi ise ikinci savunma hattıdır; `send_in_progress` sonucu
+ * hata olarak gösterilmez, mevcut durum korunur.
+ */
 export function useComposerSendAction({
   isSubmitting,
   setIsSubmitting,
@@ -30,10 +54,13 @@ export function useComposerSendAction({
   const { t } = useTranslation()
   const [sendFeedback, setSendFeedback] = useState<SendFeedback>('idle')
   const [lastError, setLastError] = useState<string | null>(null)
+  /** Son hatanın yeniden denenip denemeyeceği — "Tekrar dene" eyleminin sözleşmesi. */
+  const [isResendSafe, setIsResendSafe] = useState(true)
 
   // Tek zamanlayıcı, ref ile: üst üste gelen gönderimlerde eski zamanlayıcı
   // yeni bildirimi silemez; unmount'ta sızar.
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const feedbackResetIdRef = useRef(0)
   useEffect(() => {
     const timerRef = feedbackTimerRef
     return () => {
@@ -41,27 +68,61 @@ export function useComposerSendAction({
     }
   }, [])
 
-  const scheduleFeedbackReset = useCallback((afterMs: number) => {
-    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
-    feedbackTimerRef.current = setTimeout(() => {
+  const clearFeedbackTimer = useCallback(() => {
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current)
       feedbackTimerRef.current = null
-      setSendFeedback('idle')
-    }, afterMs)
+    }
+    // Geçersiz kıl: sıradaki asılı zamanlayıcı artık yanlış duruma yazamaz.
+    feedbackResetIdRef.current += 1
   }, [])
+
+  const scheduleFeedbackReset = useCallback(
+    (afterMs: number) => {
+      clearFeedbackTimer()
+      const token = feedbackResetIdRef.current
+      feedbackTimerRef.current = setTimeout(() => {
+        feedbackTimerRef.current = null
+        if (feedbackResetIdRef.current !== token) return
+        setSendFeedback('idle')
+      }, afterMs)
+    },
+    [clearFeedbackTimer]
+  )
 
   const noteTextRef = useRef(noteText)
   noteTextRef.current = noteText
   const effectiveAutoSendRef = useRef(effectiveAutoSend)
   effectiveAutoSendRef.current = effectiveAutoSend
 
+  /**
+   * Render zamanlamasından bağımsız gönderim kilidi.
+   *
+   * `isSubmitting` state'i bir sonraki render'da güncellenir; aynı olay
+   * içindeki ikinci tıklama eski değeri görür ve gönderimi yeniden başlatırdı.
+   */
+  const sendingRef = useRef(false)
+
+  /** Son gönderim niyeti — "Tekrar dene" bunu birebir yeniden yürütür. */
+  const lastIntentRef = useRef<ComposerPayload | undefined>(undefined)
+
   const handleSend = useCallback(
     async (options?: ComposerPayload) => {
-      if (isSubmitting) return
+      // İki katmanlı kilit: `sendingRef` aynı olaydaki ikinci tıklamayı yakalar,
+      // `isSubmitting` ise render'ı takip eden güvenlik ağıdır. Tek başına
+      // state'e güvenmek, aynı olay içindeki ikinci tıklamayı geçirirdi.
+      if (sendingRef.current || isSubmitting) return
+      sendingRef.current = true
       setIsSubmitting(true)
+      // Yeni gönderim başladı: önceki başarı/hazırlandı sayacı **önce** iptal
+      // edilir, yoksa süren gönderimi `idle` durumuna çekerdi.
+      clearFeedbackTimer()
       setSendFeedback('sending')
       setLastError(null)
+      setIsResendSafe(true)
       setIsExpanded(false)
       setStoredExpanded(false)
+      lastIntentRef.current = options
       try {
         const result = await onSend({
           noteText:
@@ -71,73 +132,97 @@ export function useComposerSendAction({
           autoSend:
             options?.autoSend !== undefined ? options.autoSend : effectiveAutoSendRef.current
         })
-        const succeeded =
-          result &&
-          typeof result === 'object' &&
-          'success' in result &&
-          (result as { success: boolean }).success === true
+        const outcome = resolveSendOutcome(result)
 
-        // Auto-send off means the content was staged (pasted into the site's
-        // composer, prompt filled) and the user still has to submit. Showing
-        // the green badge there would claim a delivery that did not happen.
-        const staged =
-          succeeded && isStagedSendResult(result as { success: boolean; mode?: string })
+        if (outcome.kind === 'busy') {
+          // Eşzamanlı çağrı reddedildi: süren gönderimin durumunu bozma.
+          setSendFeedback('sending')
+          return
+        }
 
-        if (succeeded && !staged) {
+        setIsResendSafe(outcome.resendSafe)
+
+        if (outcome.feedback === 'success') {
           setSendFeedback('success')
           scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.success)
-        } else if (staged) {
-          // Hazırlandı durumu: gönderilmedi; kısa bilgi sonra dinlenir.
+        } else if (outcome.feedback === 'staged') {
+          // Hazırlandı: gönderilmedi; kısa bilgi sonra dinlenir.
           setSendFeedback('staged')
           scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.staged)
-        } else {
-          if (feedbackTimerRef.current) {
-            clearTimeout(feedbackTimerRef.current)
-            feedbackTimerRef.current = null
-          }
-          setSendFeedback('error')
-          const rawError =
-            typeof result === 'object' && result && 'error' in result
-              ? String((result as { error?: string }).error)
-              : null
-          const errorKey = rawError ? `error_${rawError}` : 'unknown_error'
-          const localizedError = t(errorKey)
-          setLastError(localizedError === errorKey ? rawError : localizedError)
+        } else if (outcome.feedback === 'incomplete') {
+          // İş kısmen uygulandı. Otomatik tekrar YAPILMAZ: kullanıcı bilgilendirilir
+          // ve güvenli manuel devam yolu (onayı kapatma) sunulur.
+          clearFeedbackTimer()
+          setSendFeedback('incomplete')
+          const code = outcome.errorCode
+          const key = code ? toErrorI18nKey(code) : 'unknown_error'
+          const localized = t(key)
+          setLastError(localized === key && code ? code : localized)
           setIsExpanded(true)
           setStoredExpanded(true)
+        } else {
+          clearFeedbackTimer()
+          setSendFeedback('error')
+          const code = outcome.errorCode
+          const key = code ? toErrorI18nKey(code) : 'unknown_error'
+          const localized = t(key)
+          setLastError(localized === key && code ? code : localized)
+          // Hata panelde görünür olmalı: dock kapalıyken yalnızca kısa bir rozet
+          // kalır ve kullanıcı nedenini göremez.
+          setIsExpanded(true)
+          setStoredExpanded(true)
+          scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.error)
         }
       } catch {
-        if (feedbackTimerRef.current) {
-          clearTimeout(feedbackTimerRef.current)
-          feedbackTimerRef.current = null
-        }
+        clearFeedbackTimer()
         setSendFeedback('error')
+        setIsResendSafe(true)
         setLastError('unknown_error')
         setIsExpanded(true)
         setStoredExpanded(true)
       } finally {
+        sendingRef.current = false
         setIsSubmitting(false)
       }
     },
     [
-      onSend,
+      clearFeedbackTimer,
       isSubmitting,
-      setIsSubmitting,
+      onSend,
+      scheduleFeedbackReset,
       setIsExpanded,
       setStoredExpanded,
-      scheduleFeedbackReset,
+      setIsSubmitting,
       t
     ]
   )
 
+  /**
+   * "Tekrar dene" — **düğmenin etiketiyle yaptığı eylem aynıdır.**
+   *
+   * Güvenle tekrarlanabilen hatalarda son gönderim niyetini yeniden yürütür.
+   * İş kısmen uygulandıysa (`incomplete`) **yeniden göndermez**: bunun yerine
+   * durumu dinlenir ve kullanıcıya güvenli manuel devam yolu (paneli açık
+   * tutup siteye geçmek) bırakılır. `handleSend` zaten `incomplete` durumunda
+   * "sending"e düşmez; burada da koruma var.
+   */
   const handleRetry = useCallback(() => {
-    if (feedbackTimerRef.current) {
-      clearTimeout(feedbackTimerRef.current)
-      feedbackTimerRef.current = null
+    if (sendingRef.current) return
+    if (!isResendSafe || sendFeedback === 'incomplete') {
+      clearFeedbackTimer()
+      setSendFeedback('idle')
+      setLastError(null)
+      return
     }
+    void handleSend(lastIntentRef.current)
+  }, [clearFeedbackTimer, handleSend, isResendSafe, sendFeedback])
+
+  /** Yalnızca görünüm durumunu sıfırlar — kuyruğa veya not alanına dokunmaz. */
+  const dismissOutcome = useCallback(() => {
+    clearFeedbackTimer()
     setSendFeedback('idle')
     setLastError(null)
-  }, [])
+  }, [clearFeedbackTimer])
 
   // Every composer affordance — the panel's send button and the collapsed
   // pill's send button — goes through `handleSend`. With auto-send off that
@@ -149,7 +234,9 @@ export function useComposerSendAction({
     setSendFeedback,
     lastError,
     setLastError,
+    isResendSafe,
     handleSend,
-    handleRetry
+    handleRetry,
+    dismissOutcome
   }
 }

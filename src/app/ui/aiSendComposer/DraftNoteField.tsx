@@ -37,8 +37,10 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
-          // IME bileşimi sürerken Enter, gönderimi tetiklememeli.
-          if (e.nativeEvent.isComposing) return
+          // IME bileşimi sürerken Enter gönderimi tetiklememeli. `isComposing`
+          // Safari'de bileşimi tamamlayan Enter'da düşebildiği için eski
+          // `keyCode === 229` sinyali de kontrol edilir.
+          if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
             onSubmit()

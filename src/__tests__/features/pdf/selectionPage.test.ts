@@ -2,8 +2,60 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeSelectionMenuAnchor,
-  DEFAULT_SELECTION_MENU_SIZE
+  DEFAULT_SELECTION_MENU_SIZE,
+  hasUsableRect,
+  toMenuBounds,
+  viewportFallbackAnchor
 } from '../../../features/pdf/text/selectionPage'
+
+/**
+ * Yakalama menüsü gerçek bir hedef bulamadığında (sayfa DOM'da yok, kırpma rect'i
+ * ölçülemedi) eski kod sabit `top: 120, left: 120` noktasına düşüyordu. Menü,
+ * PDF nereede olursa olsun ekranın sol üst köşesine yapışıyordu.
+ */
+describe('viewportFallbackAnchor', () => {
+  it('derives the position from the measured viewport instead of a magic constant', () => {
+    const anchor = viewportFallbackAnchor(DEFAULT_SELECTION_MENU_SIZE)
+
+    expect(anchor.left).toBe(
+      Math.round((window.innerWidth - DEFAULT_SELECTION_MENU_SIZE.width) / 2)
+    )
+    expect(anchor.top).toBe(window.innerHeight - DEFAULT_SELECTION_MENU_SIZE.height - 8)
+    // Sabit bir sol-üst köşe noktası değil.
+    expect(anchor).not.toEqual({ top: 120, left: 120 })
+  })
+
+  it('keeps the whole menu inside the viewport', () => {
+    const anchor = viewportFallbackAnchor(DEFAULT_SELECTION_MENU_SIZE)
+    expect(anchor.left).toBeGreaterThanOrEqual(8)
+    expect(anchor.left + DEFAULT_SELECTION_MENU_SIZE.width).toBeLessThanOrEqual(window.innerWidth)
+    expect(anchor.top).toBeGreaterThanOrEqual(8)
+    expect(anchor.top + DEFAULT_SELECTION_MENU_SIZE.height).toBeLessThanOrEqual(window.innerHeight)
+  })
+})
+
+describe('rect helpers', () => {
+  it('treats a 0x0 rect as unusable', () => {
+    expect(hasUsableRect({ width: 0, height: 0 })).toBe(false)
+    expect(hasUsableRect(null)).toBe(false)
+    expect(hasUsableRect(undefined)).toBe(false)
+  })
+
+  it('accepts a measured rect', () => {
+    expect(hasUsableRect({ width: 100, height: 40 })).toBe(true)
+    // A width/height taşımayan düz nesne (yalnız dört kenar) de ölçümdür.
+    expect(hasUsableRect({ width: undefined, height: undefined })).toBe(true)
+  })
+
+  it('normalizes a rect into menu bounds', () => {
+    expect(toMenuBounds({ top: 1, bottom: 2, left: 3, right: 4 })).toEqual({
+      top: 1,
+      bottom: 2,
+      left: 3,
+      right: 4
+    })
+  })
+})
 
 describe('computeSelectionMenuAnchor', () => {
   it('places the menu below the selection end by default', () => {

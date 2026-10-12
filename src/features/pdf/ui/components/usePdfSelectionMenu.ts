@@ -248,24 +248,42 @@ export function usePdfSelectionMenu({
     }
   }, [menu, feedback, readLiveEndRect, anchorFromEndRect, closeMenu, containerRef])
 
+  /**
+   * "Taslağa Ekle" — ekleme sonucunu **kontrol ederek** bildirir.
+   *
+   * Kuyruk reddederse (limit dolu, içerik geçersiz) menü "eklendi" göstermez,
+   * `error` durumuna geçer ve **menü açık kalır**: seçim kaybolmaz, içerik
+   * kaybolmaz, kullanıcı öğelerini azaltıp aynı tıklamayı yeniden deneyebilir.
+   * Sahte bir başarı göstermek, kullanıcının içeriğinin kaybolduğunu sandığı
+   * ama kaybolmadığı bir durumu yaratırdı.
+   */
   const handleAddToDraft = useCallback(() => {
     const snapshot = menuRef.current
     if (!snapshot || feedback === 'working') return
     // Taslağa Ekle hiçbir koşulda gönderim tetiklemez; global autoSend'e dokunmaz.
-    queueTextForAi(
+    const accepted = queueTextForAi(
       snapshot.text,
       { top: snapshot.position.top, left: snapshot.position.left },
       {
         source: snapshot.source
       }
     )
-    setFeedback('added')
     clearFeedbackTimer()
+    if (!accepted) {
+      // Kısa bildirim, sonra menü eylemleriyle kalıcı olarak açık kalır.
+      setFeedback('error')
+      feedbackTimerRef.current = setTimeout(() => {
+        feedbackTimerRef.current = null
+        if (menuRef.current) setFeedback('idle')
+      }, 1800)
+      return
+    }
+    setFeedback('added')
     // Kısa bildirim: "Taslağa eklendi · N içerik". Taslağı zorla açmaz.
     feedbackTimerRef.current = setTimeout(() => {
       closeMenu()
-      // Seçim korunur; yeni seçim menüyü yeniden açar. Snapshot kullanıldığı
-      // için boş içerik riski yok.
+      // Seçim yalnızca **ekleme gerçekten gerçekleştiğinde** temizlenir; reddedilen
+      // eklemede seçili içerik kullanıcının elinde kalır.
       try {
         window.getSelection()?.removeAllRanges()
       } catch {

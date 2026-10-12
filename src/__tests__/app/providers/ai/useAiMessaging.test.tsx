@@ -129,7 +129,8 @@ describe('useAiMessaging — api-chat image branch', () => {
 
   // Regression: with no note the turn would carry an image and empty text.
   // A minimal instruction keeps the attachment meaningful for providers that
-  // reject an image-only content array.
+  // reject an image-only content array. The copy is count-aware (singular for
+  // one image, plural for a bulk send) and no longer repeats the same verb.
   it('seeds a default prompt when no note was provided', async () => {
     const { result } = renderMessaging()
 
@@ -137,7 +138,29 @@ describe('useAiMessaging — api-chat image branch', () => {
       await result.current.sendImageToAI(PNG)
     })
 
-    expect(mockChatUiState.updateInput).toHaveBeenCalledWith('tab-1', 'Describe this image.')
+    expect(mockChatUiState.updateInput).toHaveBeenCalledWith(
+      'tab-1',
+      'Describe and summarise this image.'
+    )
+  })
+
+  it('seeds the plural prompt for a multi-image turn', async () => {
+    mockUseAiSender.mockReturnValue({
+      sendTextToAI: mockSendText,
+      sendImageToAI: mockSendImage,
+      sendBulkToAI: vi.fn().mockResolvedValue({ success: true }),
+      cancelOngoing: vi.fn()
+    })
+    const { result } = renderMessaging()
+
+    await act(async () => {
+      await result.current.sendBulkToAI?.([PNG, PNG])
+    })
+
+    expect(mockChatUiState.updateInput).toHaveBeenCalledWith(
+      'tab-1',
+      'Describe and summarise these images.'
+    )
   })
 
   it('uses the caller prompt instead of the default when one is given', async () => {

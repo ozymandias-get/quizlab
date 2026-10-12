@@ -168,4 +168,129 @@ describe('bulk orchestration (single message)', () => {
     })
     expect(sendBulkToAI).toHaveBeenCalledTimes(1)
   })
+
+  /**
+   * Gönderim başındaki snapshot ile işlem sırasında eklenen öğeler birbirine
+   * karışmamalı: yeni öğe gönderilmez, kuyrukta kalır ve kullanıcının verisi
+   * kaybolmaz.
+   */
+  describe('snapshot boundary', () => {
+    function buildLiveHarness(initial: AiDraftItem[]) {
+      const sendTextToAI = vi.fn().mockResolvedValue({ success: true })
+      const sendBulkToAI = vi.fn().mockResolvedValue({ success: true })
+      const pendingAiItemsRef: { current: AiDraftItem[] } = { current: initial }
+      // Gerçek kuyruk davranışı: updater'ı anlık diziden hesapla.
+      const setPendingAiItems = vi.fn(
+        (action: AiDraftItem[] | ((prev: AiDraftItem[]) => AiDraftItem[])) => {
+          const next = typeof action === 'function' ? action(pendingAiItemsRef.current) : action
+          pendingAiItemsRef.current = next
+        }
+      )
+      const { result } = renderHook(() =>
+        useDraftSendOrchestration({
+          autoSend: true,
+          providerId: 'chatgpt',
+          sendTextToAI,
+          sendBulkToAI,
+          pendingAiItemsRef,
+          setPendingAiItems
+        })
+      )
+      return { result, sendTextToAI, sendBulkToAI, pendingAiItemsRef }
+    }
+
+    it('does not send an item added while the send is running', async () => {
+      const { result, pendingAiItemsRef, sendBulkToAI } = buildLiveHarness([imageItem('i1', 11)])
+
+      let release!: (v: { success: boolean }) => void
+      sendBulkToAI.mockImplementationOnce(
+        () => new Promise<{ success: boolean }>((resolve) => (release = resolve))
+      )
+
+      let send!: Promise<unknown>
+      act(() => {
+        send = result.current.sendPendingAiItems()
+      })
+      // Gönderim sürerken kullanıcı yeni bir içerik ekliyor.
+      act(() => {
+        pendingAiItemsRef.current = [...pendingAiItemsRef.current, imageItem('i2', 12)]
+      })
+
+      await act(async () => {
+        release({ success: true })
+        await send
+      })
+
+      // Gönderimde yalnızca başlangıçtaki tek görsel vardı.
+      expect(sendBulkToAI.mock.calls[0][0]).toHaveLength(1)
+      // Yeni öğe gönderilmedi ama kaybolmadı: kuyrukta duruyor.
+      expect(pendingAiItemsRef.current.map((i) => i.id)).toEqual(['i2'])
+    })
+
+    it('keeps items the user removed while the send was running', async () => {
+      const { result, pendingAiItemsRef, sendBulkToAI } = buildLiveHarness([
+        imageItem('i1', 11),
+        imageItem('i2', 12)
+      ])
+
+      let release!: (v: { success: boolean }) => void
+      sendBulkToAI.mockImplementationOnce(
+        () => new Promise<{ success: boolean }>((resolve) => (release = resolve))
+      )
+
+      let send!: Promise<unknown>
+      act(() => {
+        send = result.current.sendPendingAiItems()
+      })
+      // Kullanıcı gönderim sürerken 2. öğeyi kaldırdı.
+      act(() => {
+        pendingAiItemsRef.current = [pendingAiItemsRef.current[0]]
+      })
+
+      await act(async () => {
+        release({ success: true })
+        await send
+      })
+
+      // Kaldırılan öğe "başarıyla gönderildi" diye kuyruktan düşmez; kalan öğe
+      // gönderildiği için kuyruktan çıkar ve kuyruk boşalır.
+      expect(pendingAiItemsRef.current).toEqual([])
+    })
+
+    it('keeps the whole draft when preparation fails mid-way', async () => {
+      const { result, pendingAiItemsRef, sendBulkToAI } = buildLiveHarness([imageItem('i1', 11)])
+      sendBulkToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      expect(pendingAiItemsRef.current.map((i) => i.id)).toEqual(['i1'])
+    })
+
+    it('refuses to send while another send is still running', async () => {
+      const { result, sendBulkToAI } = buildLiveHarness([imageItem('i1', 11)])
+
+      let release!: (v: { success: boolean }) => void
+      sendBulkToAI.mockImplementationOnce(
+        () => new Promise<{ success: boolean }>((resolve) => (release = resolve))
+      )
+
+      let first!: Promise<unknown>
+      act(() => {
+        first = result.current.sendPendingAiItems()
+      })
+      let second: { success: boolean; error?: string } = { success: true }
+      await act(async () => {
+        second = (await result.current.sendPendingAiItems()) as typeof second
+      })
+      expect(second.error).toBe('send_in_progress')
+      expect(sendBulkToAI).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        release({ success: true })
+        await first
+      })
+    })
+  })
 })

@@ -27,11 +27,17 @@ const NONE_VALUE = '__none__'
  * İki seçicinin paylaştığı tek tetikleyici ölçüsü.
  *
  * `SelectTrigger` zaten `w-fit` + `whitespace-nowrap` + `line-clamp-1` ile
- * içeriğe göre boyutlanır; burada yalnızca `py` sıfırlanarak araç satırındaki
- * 32px yükseklikle hizalanır ve `max-w` ile dar panelde taşma engellenir.
+ * içeriğe göre boyutlanır; burada `py` sıfırlanarak araç satırındaki 32px
+ * yükseklikle hizalanır.
+ *
+ * `min-w-0` + `shrink` **zorunludur**: intrinsic genişlikleri korunan iki
+ * seçici dar PDF panelinde satır genişliğini aşıyor ve
+ * `[data-testid="ai-draft-composer"]` içindeki `overflow-hidden` onları
+ * kırpıyordu (gerçek Electron'da ölçüldü: 320px dock'ta "Prompt seçilmedi"
+ * rozetindeki chevron görünmüyordu). Esneme, metni `line-clamp-1` ile kısaltır.
  */
 const TRIGGER_CLASS =
-  'border-border/70 bg-transparent hover:bg-muted/50 h-8 max-w-full gap-1.5 rounded-lg px-2 text-ql-12 font-medium shadow-none'
+  'border-border/70 bg-transparent hover:bg-muted/50 h-8 min-w-0 max-w-full shrink gap-1.5 rounded-lg px-2 text-ql-12 font-medium shadow-none'
 
 /**
  * Kayıtlı prompt için kısa, güvenli bir görüntüleme etiketi.
@@ -73,10 +79,15 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
   // `usePrompts.selectPrompt` aynı id'yi tekrar seçmekte toggle uygular (seçimi
   // kaldırır). Kontrollü bir select'te bu, "zaten seçili olanı seç" davranışını
   // istemeden seçimi sildi. Bu yüzden seçim kaldırma açıkça `clearSelection`
-  // ile yapılır.
+  // ile yapılır **ve** aynı id yeniden gelirse hiçbir şey yapılmaz — kayıtlı
+  // prompt'un yanlışlıkla kaybolması, içeriğin kaybolmasından farksızdır.
   const handlePromptChange = (value: string) => {
-    if (value === NONE_VALUE) clearSelection()
-    else selectPrompt(value)
+    if (value === NONE_VALUE) {
+      clearSelection()
+      return
+    }
+    if (value === selectedPromptId) return
+    selectPrompt(value)
   }
 
   const selectedPreset = presets.find((preset) => preset.key === quickActionKey)
@@ -95,7 +106,7 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           size="sm"
           className={cn(
             TRIGGER_CLASS,
-            'max-w-[11rem]',
+            'max-w-[10rem]',
             quickActionKey ? 'text-foreground' : 'text-muted-foreground'
           )}
         >
@@ -110,6 +121,11 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           position="popper"
           align="start"
           sideOffset={4}
+          // Radix bu yüzeyi <body> altına portal eder. `data-draft-portal`
+          // dock'a ait olduğunu işaretler: dock'un tıklama-dışı kapatma
+          // denetimi bu yüzeyi "dışarı" saymaz, listeden komut seçerken dock
+          // kendi altından kapanmaz.
+          data-draft-portal="quick-action"
           className="max-w-[min(18rem,90vw)] min-w-[11rem]"
         >
           <SelectItem value={NONE_VALUE} className="text-ql-12 text-muted-foreground">
@@ -134,7 +150,7 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           id="ai-draft-prompt"
           aria-label={t('ai_draft_prompt_label')}
           size="sm"
-          className={cn(TRIGGER_CLASS, 'max-w-[13rem]', selectedPromptId && 'text-foreground')}
+          className={cn(TRIGGER_CLASS, 'max-w-[12rem]', selectedPromptId && 'text-foreground')}
         >
           <FileText className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
           <SelectValue placeholder={t('ai_draft_prompt_placeholder')} />
@@ -143,6 +159,7 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           position="popper"
           align="start"
           sideOffset={4}
+          data-draft-portal="prompt"
           className="max-h-[min(18rem,60vh)] w-[21rem] max-w-[min(24rem,92vw)]"
         >
           <SelectItem value={NONE_VALUE} className="text-ql-12 text-muted-foreground">

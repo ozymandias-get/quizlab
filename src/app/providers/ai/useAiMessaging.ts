@@ -20,6 +20,14 @@ import {
   scheduleApiChatSend,
   waitForApiChatTab
 } from './lib/apiChatSend'
+import {
+  type ApiChatStaging,
+  type ChatUiStateReader,
+  createApiChatStaging,
+  rollbackApiChatStaging,
+  stageApiChatAttachments,
+  stageApiChatInput
+} from './lib/apiChatStaging'
 
 let chatUiStoreModule: typeof AiFeatureModule | null = null
 
@@ -110,6 +118,67 @@ export function useAiMessaging({
     [showWarning]
   )
 
+  /**
+   * api-chat için hazırlama + teslim + **telafi**.
+   *
+   * api-chat deposu üzerinden çalıştığı için içerik önce kutuya/ek
+   * listesine **yazılır**, sonra istek atılır. Yazma ile istek arasında bir hata
+   * olursa (görsel hazırlanamadı, ağ hatası) yazılan içerik yerinde kalır ve
+   * "Tekrar gönder" aynı görselleri ikinci kez ekler — tek mesaj isteği sessizce
+   * iki mesaja dönüşür. Bu fonksiyon, hazırlanan parçaların **kendi kaydını**
+   * tutar ve yalnızca kesin başarısızlıkta onları geri alır.
+   *
+   * Görseller önce hazırlanıp sonra topluca eklenir: 3 görselin 2.'si
+   * hazırlanamazsa hiçbiri eklenmemiş olur, yarım ek bırakılmaz.
+   */
+  const runApiChatSend = useCallback(
+    async (
+      tabId: string,
+      prepare: (
+        read: ChatUiStateReader,
+        staging: ApiChatStaging
+      ) => Promise<{ error: string } | null>,
+      effectiveAutoSend: boolean
+    ) => {
+      let read: ChatUiStateReader | null = null
+      const staging = createApiChatStaging()
+      let staged = false
+      try {
+        const UiStore = await getChatUiStore()
+        read = () => UiStore.getState()
+        const rejected = await prepare(read, staging)
+        if (rejected) return { success: false, error: rejected.error }
+        staged = true
+
+        if (!effectiveAutoSend) {
+          // Auto-send kapalı: içerik hazırlandı, kullanıcı gönderir. "staged"
+          // bir teslim iddiası değildir; bu yüzden temizlik de yapılmaz.
+          showSuccess(t('ai_send_staged'))
+          return { success: true, mode: 'staged' }
+        }
+
+        const result = await scheduleApiChatSend(tabId, apiChatSendTimeoutRef)
+        if (!result.success && result.error !== 'cancelled') {
+          rollbackApiChatStaging(read, tabId, staging)
+          staged = false
+        }
+        handleApiChatSendResult(result)
+        if (result.success) showSuccess('sent_successfully')
+        return result
+      } catch (err) {
+        if (staged && read) rollbackApiChatStaging(read, tabId, staging)
+        return { success: false, error: ensureErrorMessage(err, 'send_failed') }
+      }
+    },
+    [handleApiChatSendResult, showSuccess, t]
+  )
+
+  /** Eklerin tek başına anlamsız kalmaması için kullanılan tohum talimat. */
+  const imageOnlySeed = useCallback(
+    (count: number) => t('ai_send_image_only_prompt', { count: Math.max(1, count) }),
+    [t]
+  )
+
   const sendTextToAI = useCallback(
     async (text: string, options?: AiSendOptions) => {
       if (currentAI === 'api-chat') {
@@ -119,25 +188,17 @@ export function useAiMessaging({
         if (!currentTabId) {
           return { success: false, error: 'webview_not_ready' }
         }
-        try {
-          const UiStore = await getChatUiStore()
-          const uiState = UiStore.getState()
-          const val = uiState.inputValueByTab[currentTabId] || ''
-          const newVal = val ? val + '\n' + text : text
-          uiState.updateInput(currentTabId, newVal)
-          const effectiveAutoSend = resolveAutoSend(autoSend, options)
-          if (effectiveAutoSend) {
-            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
-            handleApiChatSendResult(result)
-            return result
-          }
-          // Auto-send off: the text sits in the api-chat composer and waits for
-          // the user. The staged mode keeps downstream callers from claiming a
-          // delivery that has not happened yet.
-          return { success: true, mode: 'staged' }
-        } catch (err) {
-          return { success: false, error: ensureErrorMessage(err, 'send_failed') }
-        }
+        const effectiveAutoSend = resolveAutoSend(autoSend, options)
+        return runApiChatSend(
+          currentTabId,
+          async (read, staging) => {
+            // Metin kutuya **sona eklenir**; kullanıcının önceden yazdığı
+            // hiçbir şey ezilmez.
+            stageApiChatInput(staging, read, currentTabId, text)
+            return null
+          },
+          effectiveAutoSend
+        )
       }
 
       // For content-based models, ensure a content instance is available.
@@ -166,9 +227,9 @@ export function useAiMessaging({
       autoSend,
       ensureApiChatTab,
       getContentController,
-      handleApiChatSendResult,
       openAiWorkspace,
       rawSendText,
+      runApiChatSend,
       showWarning,
       waitForContentReady
     ]
@@ -182,51 +243,33 @@ export function useAiMessaging({
         if (!currentTabId) {
           return { success: false, error: 'webview_not_ready' }
         }
-        try {
-          // The api-chat branch stores the string verbatim as an
-          // `image_url.url`. A blob: or http(s): source cannot be resolved by
-          // the provider, so reject it here instead of failing the whole
-          // request later. Mirrors the guard in the content image pipeline.
-          if (!imageData.startsWith('data:image/')) {
-            reportSuppressedError('useAiMessaging.apiChatImage', {
-              cause: new Error('unsupported image source')
-            })
-            showWarning(toErrorToastKey('invalid_image_format'))
-            return { success: false, error: 'invalid_image_format' }
-          }
-          const UiStore = await getChatUiStore()
-          const uiState = UiStore.getState()
-          // Page captures arrive at 4x scale and routinely exceed the request
-          // body budget once base64-inflated; scale them down before storing.
-          const prepared = await prepareImageForUpload(imageData)
-          uiState.addAttachment(currentTabId, prepared)
-          if (options?.promptText) {
-            const val = uiState.inputValueByTab[currentTabId] || ''
-            uiState.updateInput(
-              currentTabId,
-              val ? val + '\n' + options.promptText : options.promptText
-            )
-          } else if (!uiState.inputValueByTab[currentTabId]?.trim()) {
-            // No note was written, so the turn would carry an image with empty
-            // text. Not every provider accepts an image-only content array, so
-            // seed a minimal instruction to keep the attachment meaningful.
-            uiState.updateInput(currentTabId, t('ai_send_image_only_prompt'))
-          }
-          const effectiveAutoSend = resolveAutoSend(autoSend, options)
-          if (effectiveAutoSend) {
-            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
-            handleApiChatSendResult(result)
-            if (result.success) showSuccess('sent_successfully')
-            return result
-          }
-          // Auto-send is off: the attachment is staged in the api-chat composer
-          // and waits for the user to press send. Reporting success here would
-          // claim a delivery that has not happened yet.
-          showSuccess(t('ai_send_staged'))
-          return { success: true, mode: 'staged' }
-        } catch (err) {
-          return { success: false, error: ensureErrorMessage(err, 'send_failed') }
+        // The api-chat branch stores the string verbatim as an
+        // `image_url.url`. A blob: or http(s): source cannot be resolved by
+        // the provider, so reject it here instead of failing the whole
+        // request later. Mirrors the guard in the content image pipeline.
+        if (!imageData.startsWith('data:image/')) {
+          reportSuppressedError('useAiMessaging.apiChatImage', {
+            cause: new Error('unsupported image source')
+          })
+          showWarning(toErrorToastKey('invalid_image_format'))
+          return { success: false, error: 'invalid_image_format' }
         }
+        const effectiveAutoSend = resolveAutoSend(autoSend, options)
+        return runApiChatSend(
+          currentTabId,
+          async (read, staging) => {
+            // Sayfa yakalamaları 4x ölçekte gelir ve base64 ile şişer; api-chat
+            // gövde bütçesine sığması için önce küçültülür. Hazırlama başarısız
+            // olursa hiçbir şey yazılmamış olur.
+            const prepared = await prepareImageForUpload(imageData)
+            stageApiChatAttachments(staging, read, currentTabId, [prepared])
+            // Not yoksa, eklerin tek başına anlamsız kalmaması için kısa bir
+            // tohum talimatı yazılır — yalnızca kutu boşsa.
+            stageApiChatInput(staging, read, currentTabId, options?.promptText, imageOnlySeed(1))
+            return null
+          },
+          effectiveAutoSend
+        )
       }
 
       // For content-based models, ensure a content instance is available
@@ -263,13 +306,14 @@ export function useAiMessaging({
       autoSend,
       ensureApiChatTab,
       getContentController,
-      handleApiChatSendResult,
       openAiWorkspace,
       rawSendImage,
+      runApiChatSend,
       showSuccess,
       showWarning,
       t,
-      waitForContentReady
+      waitForContentReady,
+      imageOnlySeed
     ]
   )
 
@@ -278,6 +322,11 @@ export function useAiMessaging({
    * tek submit. Hedef sekme `ensureApiChatTab` ile gönderim başında sabitlenir
    * ve flush da aynı sekmeye yapılır — gönderim sırasında aktif sekme değişse
    * bile içerik yanlış sekmeye gitmez.
+   *
+   * Bu, tek mesaj ilkesinin **yegane** uygulama noktasıdır: N ek, tek gövde,
+   * tek submit. Sağlayıcı tek mesajda çoklu eki taşıyamıyorsa çağıran bunu
+   * `bulk_not_supported` ile önceden reddeder (bkz. `bulkSendPlan`); burada
+   * sessizce birden fazla mesaja bölme yapılmaz.
    */
   const sendBulkToAI = useCallback(
     async (imageDataUrls: string[], options?: AiSendOptions) => {
@@ -291,37 +340,29 @@ export function useAiMessaging({
             return { success: false, error: 'invalid_image_format' }
           }
         }
-        try {
-          const UiStore = await getChatUiStore()
-          const uiState = UiStore.getState()
-          // Sayfa yakalamaları 4x ölçekte gelir ve base64 ile şişer; api-chat
-          // gövde bütçesine sığması için tek tek küçültülür (tek görsel yoluyla
-          // aynı hazırlık).
-          for (const url of imageDataUrls) {
-            const prepared = await prepareImageForUpload(url)
-            uiState.addAttachment(currentTabId, prepared)
-          }
-          if (options?.promptText) {
-            const val = uiState.inputValueByTab[currentTabId] || ''
-            uiState.updateInput(
+        const effectiveAutoSend = resolveAutoSend(autoSend, options)
+        return runApiChatSend(
+          currentTabId,
+          async (read, staging) => {
+            // **Önce** hepsini hazırla: 3. görsel hazırlanamazsa 1. ve 2.
+            // eklenmiş olmaz. Kısmi ek bırakmak, yeniden denemede mükerrer
+            // ek üretirdi.
+            const prepared: string[] = []
+            for (const url of imageDataUrls) {
+              prepared.push(await prepareImageForUpload(url))
+            }
+            stageApiChatAttachments(staging, read, currentTabId, prepared)
+            stageApiChatInput(
+              staging,
+              read,
               currentTabId,
-              val ? val + '\n' + options.promptText : options.promptText
+              options?.promptText,
+              imageOnlySeed(prepared.length)
             )
-          } else if (!uiState.inputValueByTab[currentTabId]?.trim()) {
-            uiState.updateInput(currentTabId, t('ai_send_image_only_prompt'))
-          }
-          const effectiveAutoSend = resolveAutoSend(autoSend, options)
-          if (effectiveAutoSend) {
-            const result = await scheduleApiChatSend(currentTabId, apiChatSendTimeoutRef)
-            handleApiChatSendResult(result)
-            if (result.success) showSuccess('sent_successfully')
-            return result
-          }
-          showSuccess(t('ai_send_staged'))
-          return { success: true, mode: 'staged' }
-        } catch (err) {
-          return { success: false, error: ensureErrorMessage(err, 'send_failed') }
-        }
+            return null
+          },
+          effectiveAutoSend
+        )
       }
 
       const content = getContentController()
@@ -357,13 +398,14 @@ export function useAiMessaging({
       autoSend,
       ensureApiChatTab,
       getContentController,
-      handleApiChatSendResult,
       openAiWorkspace,
       rawSendBulk,
+      runApiChatSend,
       showSuccess,
       showWarning,
       t,
-      waitForContentReady
+      waitForContentReady,
+      imageOnlySeed
     ]
   )
 

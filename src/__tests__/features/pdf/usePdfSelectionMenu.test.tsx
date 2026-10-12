@@ -6,7 +6,9 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  queueTextForAi: vi.fn(),
+  // `queueTextForAi` gerçek boolean sonucunu döndürür; `undefined` dönen bir mock
+  // reddi modeller, bu yüzden kabul senaryoları açıkça `true` verir.
+  queueTextForAi: vi.fn((_text: string, _position?: unknown, _meta?: unknown) => true),
   sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true, mode: 'auto_click' }),
   pendingAiItems: [] as unknown[]
 }))
@@ -186,6 +188,7 @@ describe('usePdfSelectionMenu — action contract', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.queueTextForAi.mockReturnValue(true)
     document.body.innerHTML = ''
     container = makeContainer()
   })
@@ -235,6 +238,34 @@ describe('usePdfSelectionMenu — action contract', () => {
     expect(result.current.feedback).toBe('added')
     // Sayaç kuyruk uzunluğudur — ekleme sonrası ortaya çıkan sahte +1 yok.
     expect(result.current.addedCount).toBe(mocks.pendingAiItems.length)
+  })
+
+  // Regression: "Taslağa Ekle" used to report `added` without looking at the
+  // queue's verdict, so a full queue produced a success badge for content that
+  // was never stored.
+  it('reports an error, keeps the menu open and keeps the selection when the queue rejects', () => {
+    mocks.queueTextForAi.mockReturnValueOnce(false)
+    const removeAllRanges = vi.fn()
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1,
+      isCollapsed: false,
+      removeAllRanges,
+      getRangeAt: () => ({ commonAncestorContainer: document.body })
+    } as unknown as Selection)
+
+    const { result } = setup()
+    act(() => {
+      result.current.handleSelection('will be rejected', position)
+    })
+    act(() => {
+      result.current.handleAddToDraft()
+    })
+
+    expect(result.current.feedback).toBe('error')
+    // Menü eylemleri yerinde: kullanıcı öğeleri azaltıp yeniden deneyebilir.
+    expect(result.current.menu).not.toBeNull()
+    // Seçili içerik kaybolmaz.
+    expect(removeAllRanges).not.toHaveBeenCalled()
   })
 
   it('reports a staged direct send as staged, not sent', async () => {
