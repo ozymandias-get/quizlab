@@ -33,14 +33,18 @@ describe('useComposerSendAction', () => {
     vi.useRealTimers()
   })
 
-  // Regression: an earlier change made these force a send, which overrode a
-  // setting the user had deliberately turned off. With auto-send off the
+  // Regression: an earlier change made the send affordances force a send, which
+  // overrode a setting the user had deliberately turned off. With auto-send off the
   // composer must only stage the content and let the user submit on the site.
-  it('does not force a send from the Send button when auto-send is off', async () => {
+  //
+  // Both send buttons — the one in the panel and the one on the collapsed pill —
+  // now go through `handleSend` alone (there is no separate "force" variant to get
+  // out of sync), so the invariant is asserted on that single path.
+  it('does not force a send when auto-send is off', async () => {
     const { result, onSend } = setup(false)
 
     await act(async () => {
-      result.current.handleForceSend()
+      await result.current.handleSend()
     })
 
     expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: false }))
@@ -48,11 +52,11 @@ describe('useComposerSendAction', () => {
     expect(sentPayloadKeys(onSend)).not.toContain('forceAutoSend')
   })
 
-  it('does not force a send from a preset when auto-send is off', async () => {
+  it('passes an explicit instruction through without touching auto-send', async () => {
     const { result, onSend } = setup(false)
 
     await act(async () => {
-      result.current.handleSendWithPreset('Explain this')
+      await result.current.handleSend({ noteText: 'Explain this' })
     })
 
     expect(onSend).toHaveBeenCalledWith(
@@ -65,7 +69,7 @@ describe('useComposerSendAction', () => {
     const { result, onSend } = setup(true)
 
     await act(async () => {
-      result.current.handleForceSend()
+      await result.current.handleSend()
     })
 
     expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: true }))

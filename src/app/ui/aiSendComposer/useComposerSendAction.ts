@@ -139,29 +139,17 @@ export function useComposerSendAction({
     setLastError(null)
   }, [])
 
-  // Every composer affordance — Send button and prompt presets — defers to the
-  // global auto-send preference. With auto-send off they stage the content
-  // (paste the image, fill the prompt) and the user submits on the site; there
-  // is no path that submits regardless, so a disabled setting is never bypassed.
-  const handleForceSend = useCallback(() => {
-    void handleSend()
-  }, [handleSend])
-
-  const handleSendWithPreset = useCallback(
-    (presetValue: string) => {
-      void handleSend({ noteText: presetValue })
-    },
-    [handleSend]
-  )
-
+  // Every composer affordance — the panel's send button and the collapsed
+  // pill's send button — goes through `handleSend`. With auto-send off that
+  // stages the content (paste the image, fill the prompt) and the user submits
+  // on the site; there is no path that submits regardless, so a disabled setting
+  // is never bypassed.
   return {
     sendFeedback,
     setSendFeedback,
     lastError,
     setLastError,
     handleSend,
-    handleRetry,
-    handleForceSend,
-    handleSendWithPreset
+    handleRetry
   }
 }

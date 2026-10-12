@@ -1,55 +1,43 @@
+import { Switch } from '@app/components/ui/switch'
 import { cn } from '@shared/lib/uiUtils'
-import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
+import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
-import {
-  AlertCircle,
-  CheckCircle2,
-  Inbox,
-  Info,
-  Loader2,
-  RotateCcw,
-  Send,
-  Sparkles,
-  Trash2
-} from 'lucide-react'
+import { AlertCircle, CheckCircle2, Info, Loader2, RotateCcw, Send } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { DRAFT_SEND_INTENT_KEYS, resolveDraftSendIntent } from './draftSendIntent'
 import type { SendFeedback } from './types'
 
 interface DraftSendControlsProps {
   autoSend: boolean
   onToggleAutoSend: () => void
-  onClearAll: () => void
-  onSend: () => void
   onRetry: () => void
   feedback: SendFeedback
   lastError: string | null
-  totalItems: number
   isSubmitting: boolean
 }
 
 /**
- * Alt bar: otomatik gönderme anahtarı + temizle + durum + gönder.
+ * Alt durum satırı — otomatik gönderim anahtarı + sonuç.
  *
- * Durum modeli: `staged` (AI kutusuna hazırlandı) bilinçli olarak `success`
- * (gönderildi) 'den ayrıdır — hazırlanan mesaj gönderilmiş gibi raporlanmaz.
+ * Ana eylem burada değildir; gönderim butonu composer'ın araç satırının sağ
+ * ucundadır. Bu satır yalnızca "hangi modda olduğumuz" ve "ne oldu" sorusunu
+ * yanıtlar, bu yüzden tek satırda kalır.
+ *
+ * Durum modeli bilinçli olarak ayrıdır:
+ *  - `success` → içerik gerçekten iletildi ("Gönderildi").
+ *  - `staged`  → içerik AI kutusuna hazırlandı, kullanıcı gönderacak.
  */
 function DraftSendControls({
   autoSend,
   onToggleAutoSend,
-  onClearAll,
-  onSend,
   onRetry,
   feedback,
   lastError,
-  totalItems,
   isSubmitting
 }: DraftSendControlsProps) {
   const { t } = useTranslation()
-  const isSending = feedback === 'sending' || isSubmitting
-  const hasItems = totalItems > 0
-  const isSendDisabled = isSubmitting || !hasItems
 
   const statusLabel =
     feedback === 'sending'
@@ -60,7 +48,7 @@ function DraftSendControls({
           ? t('ai_send_staged')
           : feedback === 'error'
             ? (lastError ?? t('ai_send_error'))
-            : t('ai_send_item_count', { count: totalItems })
+            : null
 
   const StatusIcon =
     feedback === 'sending'
@@ -71,7 +59,7 @@ function DraftSendControls({
           ? Info
           : feedback === 'error'
             ? AlertCircle
-            : Inbox
+            : null
 
   const statusTone =
     feedback === 'success'
@@ -82,124 +70,122 @@ function DraftSendControls({
           ? 'text-foreground'
           : 'text-muted-foreground'
 
-  // Durum yüzeyi rengiyle de anlam taşır: `staged` nötr kalır, yalnızca gerçek
-  // teslim yeşile, hata destructive'a düşer.
-  const statusSurface =
-    feedback === 'success'
-      ? 'border-emerald-500/30 bg-emerald-500/10'
-      : feedback === 'error'
-        ? 'border-destructive/30 bg-destructive/10'
-        : feedback === 'sending'
-          ? 'border-border bg-background/70'
-          : 'border-border/70 bg-background/50'
-
   return (
-    <footer className="border-border/70 bg-muted/45 flex flex-col gap-2 border-t px-3.5 py-2.5">
-      <div className="flex items-center justify-between gap-2">
+    <div className="border-border/50 bg-muted/20 flex h-8 shrink-0 items-center gap-2 border-t px-3">
+      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 select-none">
+        <Switch
+          size="sm"
+          checked={!!autoSend}
+          onCheckedChange={onToggleAutoSend}
+          // Erişilebilir ad açık/kapalı olmayı da söyler; görünen kısa etiket
+          // ekran okuyucu için tek başına yetersiz.
+          aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
+        />
+        <span className="text-ql-11 text-muted-foreground font-medium">
+          {t('ai_send_mode_auto')}
+        </span>
+        {/* Anahtar tek başına durumu söylemez; kısa metin hem "Açık/Kapalı"
+            hem de auto-send'in ne anlama geldiğini görünür kılar. */}
+        <span
+          className={cn(
+            'text-ql-10 shrink-0 font-medium',
+            autoSend ? 'text-primary' : 'text-muted-foreground/70'
+          )}
+        >
+          {autoSend ? t('ai_send_auto_on') : t('ai_send_auto_off')}
+        </span>
+      </label>
+
+      {feedback === 'error' && (
         <button
           type="button"
-          onClick={onToggleAutoSend}
-          aria-pressed={!!autoSend}
-          aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
-          className={cn(
-            'motion-normal focus-visible:ring-ring/40 text-ql-11 flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none',
-            autoSend
-              ? 'border-primary/40 bg-primary/10 text-primary shadow-2xs'
-              : 'border-border/70 bg-background/60 text-muted-foreground hover:border-border hover:bg-background hover:text-foreground'
-          )}
+          onClick={onRetry}
+          className="text-muted-foreground hover:bg-muted hover:text-foreground text-ql-11 flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors"
         >
-          <Sparkles className="size-3.5 shrink-0" aria-hidden />
-          <span>{t('ai_send_mode_auto')}</span>
-          <span
-            aria-hidden
-            className={cn(
-              'size-1.5 rounded-full transition-colors',
-              autoSend ? 'bg-primary' : 'bg-muted-foreground/40'
-            )}
-          />
+          <RotateCcw className="size-3 shrink-0" aria-hidden />
+          {t('ai_send_retry')}
         </button>
+      )}
 
-        <WithTooltip label={t('ai_send_clear_all')}>
-          <IconButton
-            type="button"
-            variant="ghost"
-            size="compact"
-            onClick={onClearAll}
-            disabled={totalItems === 0 && !lastError}
-            aria-label={t('ai_send_clear_all')}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive ml-auto disabled:pointer-events-none disabled:opacity-30"
-          >
-            <Trash2 className="size-4" aria-hidden />
-          </IconButton>
-        </WithTooltip>
-      </div>
+      <span className="flex-1" />
 
-      <div className="flex items-center justify-between gap-2">
-        <div
-          className={cn(
-            'ring-border/40 flex min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1 ring-1 ring-inset',
-            statusSurface
-          )}
-          role="status"
-        >
+      {/* Durum yalnızca anlamlı olduğunda yer alır; başlık zaten içerik sayısını
+          gösterdiği için boşta "0 öğe" tekrarı yoktur. */}
+      {statusLabel && StatusIcon && (
+        <div className="flex min-w-0 shrink items-center gap-1" role="status" aria-live="polite">
           <StatusIcon
             className={cn(
               'size-3.5 shrink-0',
-              feedback === 'sending' && 'animate-spin',
+              isSubmitting && feedback === 'sending' && 'animate-spin',
               statusTone
             )}
             aria-hidden
           />
           <span className={cn('text-ql-11 truncate font-medium', statusTone)}>{statusLabel}</span>
         </div>
+      )}
+    </div>
+  )
+}
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          {feedback === 'error' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onRetry}
-              className="border-border/70 bg-background/60 text-muted-foreground hover:bg-background hover:text-foreground text-ql-11 h-8 gap-1 px-2.5"
-            >
-              <RotateCcw className="size-3.5" aria-hidden />
-              {t('ai_send_retry')}
-            </Button>
-          )}
-          <Button
-            type="button"
-            onClick={onSend}
-            disabled={isSendDisabled}
-            size="sm"
-            className={cn(
-              'text-ql-12 h-8 gap-1.5 px-3.5 font-semibold transition-all',
-              isSending
-                ? 'bg-primary/90 text-primary-foreground disabled:hover:bg-primary/90 opacity-100 shadow-2xs disabled:opacity-90'
-                : isSendDisabled
-                  ? 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/40 disabled:hover:bg-muted/40 opacity-50'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs'
-            )}
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                {t('sending_to_ai')}
-              </>
-            ) : feedback === 'error' ? (
-              <>
-                <RotateCcw className="size-3.5" aria-hidden />
-                {t('ai_send_retry_send')}
-              </>
-            ) : (
-              <>
-                <Send className="size-3.5" aria-hidden />
-                {t('send_to_ai')}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    </footer>
+interface DraftSendButtonProps {
+  autoSend: boolean
+  onSend: () => void
+  feedback: SendFeedback
+  totalItems: number
+  isSubmitting: boolean
+}
+
+/**
+ * Ana gönderim eylemi — composer araç satırının sağ ucu.
+ *
+ * İkincil kontrollerden görünür biçimde ayrışır: etkinken primary dolgu, eylem
+ * adı metinle birlikte verilir. Auto-send kapalıyken etiket "hazırla" olur ve
+ * `staged` sonucu "gönderildi" diye raporlanmaz — davranış değişmez, yalnızca
+ * anlatım dürüst olur.
+ *
+ * Etiket ve ikon `resolveDraftSendIntent` üzerinden gelir; kapalı haptaki gönder
+ * düğmesi de aynı yardımcıyı kullanır, böylece iki düğme ayrışamaz.
+ */
+export function DraftSendButton({
+  autoSend,
+  onSend,
+  feedback,
+  totalItems,
+  isSubmitting
+}: DraftSendButtonProps) {
+  const { t } = useTranslation()
+  const intent = resolveDraftSendIntent({ autoSend, feedback, isSubmitting })
+  const label = t(DRAFT_SEND_INTENT_KEYS[intent])
+  const isDisabled = isSubmitting || totalItems === 0
+
+  const SendIcon = intent === 'sending' ? Loader2 : intent === 'retry' ? RotateCcw : Send
+
+  return (
+    // `@container` dar PDF panelinde metni gizleyip ikon butonuna iner;
+    // erişilebilir ad korunur, gönderim her genişlikte ulaşılabilir kalır.
+    <WithTooltip label={label}>
+      <Button
+        type="button"
+        onClick={onSend}
+        disabled={isDisabled}
+        size="sm"
+        // `@max-[380px]` etiketi gizlediğinde düğmenin erişilebilir adı metinden
+        // gelmezdi; `aria-label` adı her genişlikte korur.
+        aria-label={label}
+        data-testid="ai-draft-send"
+        className={cn(
+          'text-ql-12 h-8 shrink-0 gap-1.5 rounded-lg px-3 font-semibold @max-[380px]:px-2.5',
+          // Devre dışıyken yarı saydam birincil blok kalmaz: dolu bir `muted`
+          // yüzey + okunur metin. Tüm düğmeyi `opacity` ile soldurmak koyu temada
+          // ıslak gri bir leke gibi okunuyordu.
+          isDisabled && 'bg-muted text-muted-foreground hover:bg-muted opacity-100'
+        )}
+      >
+        <SendIcon className={cn('size-3.5', intent === 'sending' && 'animate-spin')} aria-hidden />
+        <span className="@max-[380px]:hidden">{label}</span>
+      </Button>
+    </WithTooltip>
   )
 }
 

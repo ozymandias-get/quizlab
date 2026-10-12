@@ -6,15 +6,23 @@ import { memo, useEffect, useRef } from 'react'
 export const AI_DRAFT_SLOT_ID = 'quizlab-ai-draft'
 
 /**
- * PDF paneli içindeki AI Taslağı yuvası.
+ * AI Draft Dock yuvası — PDF yüzeyinin **üzerine binen** yüzen katman alanı.
  *
- * Kontrolün panelin *sağ alt köşesinde*, araç çubuğunun hemen üstünde durması
- * doğru yer: içerik PDF'den toplanıyor, panel orada, ve sağ alttaki AI
- * paneliyle çakışma ya da viewport'a sabitlenmiş yüzen bir katman yok.
+ * Yuva, `relative` olan viewer sahnesinin içinde mutlak konumlanır; normal akışta
+ * bir satır kapmaz. Bu tek karar, dock'u açıp kapattığında PDF'in yeniden
+ * akmasını engeller: yüzeyin yüksekliği değişmediği için sayfa yeniden ölçülmez,
+ * zoom ve kaydırma konumu korunur, `pdf.js` yeniden refit tetiklemez.
  *
- * Yuva yalnızca konum ve yığın bağlamı sağlar; içeriği app katmanı portal ile
- * doldurur (`pointer-events-none`, böylece yuvanın boş kalanı altındaki PDF
- * metnini seçmeyi engellemez).
+ * Yuva `pointer-events: none` taşır ve kendisi saydam geçer; olayları yalnızca
+ * içine basılan dock kartı yakalar (`pointer-events-auto`). Böylece kartın dışında
+ * kalan PDF alanında pan sürükleme, metin seçimi ve kaydırma olduğu gibi çalışır.
+ *
+ * Portal (`AiDraftLayer`) bu düğümün içine render ettiği için gelen dock bileşeni
+ * de sahne içinde konumlanır; `bottom-full` gibi "yukarı aç" modeli kullanılmaz.
+ *
+ * Yuva yalnızca konum bağlamı sağlar; sahiplik app katmanındaki taslak
+ * kontrolündedir, yuva ise PDF özelliğine aittir — ikisi birbirini tanımak
+ * zorunda değildir.
  */
 function PdfDraftSlot() {
   const ref = useRef<HTMLDivElement>(null)
@@ -31,7 +39,7 @@ function PdfDraftSlot() {
       ref={ref}
       data-ai-draft-slot=""
       data-testid="pdf-ai-draft-slot"
-      className="pointer-events-none absolute right-3 bottom-3 z-20 flex flex-col items-end"
+      className="z-dropdown pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3 sm:p-4"
     />
   )
 }
