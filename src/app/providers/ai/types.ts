@@ -11,6 +11,29 @@ export type { AiSendResult }
 // @shared-core/types altında yaşar (bkz. shared/types/pdf.ts).
 export type { SelectionPosition }
 
+/**
+ * Gönderici bir sonuç döndürmediğinde kullanılan yedek sonuç.
+ *
+ * `sendTextToAI` / `sendImageToAI` / `sendBulkToAI` normalde her zaman bir
+ * sonuç döndürür; bu yedek yalnızca sözleşmenin ihlal edildiği (istisna
+ * yutulmuş bir katman, kırık bir mock) durumda devreye girer.
+ *
+ * Aşama **`uncertain`** seçilir çünkü elimizde **hiçbir bilgi** yoktur:
+ * pipeline gerçekten hiçbir şey yapmamış olabilir, hedefe yarım bir içerik
+ * bırakmış olabilir. Aşamasız bir iptal `resolveSendOutcome` tarafından zaten
+ * belirsiz sayılır; burada bunu açıkça yazmak, aynı kararın iki yerde ve
+ * farklı gerekçeyle alınmasını engeller.
+ *
+ * Güvenli olan taraf seçilmiştir: bu sonuç otomatik tekrarı kapatır, yani en
+ * kötü ihtimalde kullanıcı elle devam eder; tersi seçilseydi en kötü ihtimalde
+ * hedefte mükerrer mesaj oluşurdu.
+ */
+export const NO_SEND_RESULT: AiSendResult = {
+  success: false,
+  error: 'cancelled',
+  stage: 'uncertain'
+}
+
 import type { PdfSourceMeta } from './pdfSource'
 
 export interface PinnedTabStorage {

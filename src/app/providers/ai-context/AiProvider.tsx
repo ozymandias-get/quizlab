@@ -32,7 +32,7 @@ import {
 import { useAiProviderContexts } from './useAiProviderContexts'
 
 function AiProvider({ children }: { children: ReactNode }) {
-  const { showSuccess, showWarning } = useToastActions()
+  const { showWarning } = useToastActions()
   const { data: registryData, isLoading, isError } = useAiRegistry()
   const { data: geminiWebStatus } = useGeminiWebStatus()
   const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
@@ -115,7 +115,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     activeTabId,
     autoSend,
     aiRegistry,
-    showSuccess,
     showWarning,
     openAiWorkspace
   })

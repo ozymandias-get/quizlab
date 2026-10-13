@@ -184,4 +184,64 @@ describe('useDraftSendOrchestration', () => {
     expect(res.success).toBe(true)
     expect(res.mode).toBe('staged')
   })
+
+  /**
+   * Snapshot sınırı: gönderim **başındaki** kuyruk dizisini gönderir.
+   * İşlem sürerken eklenen öğeler gönderilmez ve — daha önemlisi — kuyruktan
+   * düşmez. "Gönderildi" dedikten sonra kullanıcının eklediği içerik kaybolursa
+   * bu sessiz veri kaybıdır.
+   */
+  describe('items added during a send', () => {
+    it('does not send an item queued after the send started', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, pendingAiItemsRef } = buildHarness(snapshot)
+      // Gönderim sürerken kullanıcı yeni bir öğe ekliyor.
+      sendTextToAI.mockImplementationOnce(async () => {
+        pendingAiItemsRef.current = [...snapshot, textItem('t2', 'second')]
+        return { success: true }
+      })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Gönderilen içerik yalnızca başlangıç anındaki öğe.
+      const sentText = sendTextToAI.mock.calls[0][0] as string
+      expect(sentText).toBe('first')
+      expect(sentText).not.toContain('second')
+    })
+
+    it('keeps the newly added item in the queue', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, pendingAiItemsRef, setPendingAiItems } = buildHarness(snapshot)
+      sendTextToAI.mockImplementationOnce(async () => {
+        pendingAiItemsRef.current = [...snapshot, textItem('t2', 'second')]
+        return { success: true }
+      })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Yalnızca gönderilen kimlik düşer; eklenen öğe korunur.
+      const updater = setPendingAiItems.mock.calls[0][0] as (
+        current: AiDraftItem[]
+      ) => AiDraftItem[]
+      const after = updater(pendingAiItemsRef.current)
+      expect(after.map((item) => item.id)).toEqual(['t2'])
+    })
+
+    it('keeps everything queued when the send fails', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, setPendingAiItems } = buildHarness(snapshot)
+      sendTextToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Başarısızlıkta hiçbir öğe düşmez.
+      expect(setPendingAiItems).not.toHaveBeenCalled()
+    })
+  })
 })

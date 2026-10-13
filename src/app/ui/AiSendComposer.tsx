@@ -210,20 +210,18 @@ function AiSendComposer({
 
   const isSending = sendFeedback === 'sending' || isSubmitting
 
-  // Dock kapalıyken de görünür olması gereken kısa durum. Kısmi uygulama
-  // (`incomplete`) ayrı bir tonla ayrılır: içerik hedefe ulaştı ama teslim
-  // doğrulanamadı — "Gönderildi" ya da düz bir hata gibi okunamaz.
+  // Dock kapalıyken de görünür olması gereken kısa durum. Yalnızca hata ve
+  // kısmi uygulama gösterilir: teslim edilen içerik sessizdir, çünkü kuyruk
+  // boşalarak sonucu zaten kendisi bildirir. Kısmi uygulama (`incomplete`)
+  // ayrı bir tonla ayrılır — içerik hedefe ulaştı ama teslim doğrulanamadı,
+  // "Gönderildi" gibi okunamaz.
   const barStatus = isSending
     ? { label: t('sending_to_ai'), tone: 'neutral' as const }
-    : sendFeedback === 'success'
-      ? { label: t('ai_send_sent'), tone: 'success' as const }
-      : sendFeedback === 'staged'
-        ? { label: t('ai_send_staged'), tone: 'neutral' as const }
-        : sendFeedback === 'incomplete'
-          ? { label: t('ai_send_awaiting_submit'), tone: 'warning' as const }
-          : sendFeedback === 'error'
-            ? { label: t('ai_send_error'), tone: 'error' as const }
-            : null
+    : sendFeedback === 'incomplete'
+      ? { label: t('ai_send_awaiting_submit'), tone: 'warning' as const }
+      : sendFeedback === 'error'
+        ? { label: t('ai_send_error'), tone: 'error' as const }
+        : null
 
   return (
     <div
@@ -287,13 +285,11 @@ function AiSendComposer({
               <span
                 className={cn(
                   'flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors',
-                  sendFeedback === 'success'
-                    ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                    : sendFeedback === 'error'
-                      ? 'border-destructive/30 bg-destructive/12 text-destructive'
-                      : sendFeedback === 'incomplete'
-                        ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
-                        : 'border-primary/20 bg-primary/10 text-primary'
+                  sendFeedback === 'error'
+                    ? 'border-destructive/30 bg-destructive/12 text-destructive'
+                    : sendFeedback === 'incomplete'
+                      ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+                      : 'border-primary/20 bg-primary/10 text-primary'
                 )}
                 aria-hidden
               >

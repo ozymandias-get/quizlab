@@ -104,6 +104,123 @@ describe('useAiDraftQueue', () => {
   })
 
   /**
+   * Aynı `blob:` URL'i iki öğe kullanabilir (aynı yakalamanın iki kez
+   * kuyruğa eklenmesi, ya da çağıranın tek bir kaynağı iki öğeye vermesi).
+   * "Öğe gitti" ile "kaynak serbest kaldı" aynı şey **değildir**: iptal
+   * edilirse ikinci öğenin önizlemesi ve — daha önemlisi — gönderim yolundaki
+   * `blobUrlToDataUrl` kırılır.
+   */
+  describe('shared blob ownership', () => {
+    it('keeps the source alive while another item still uses it', () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:shared')
+        result.current.queueImageForAi('blob:shared')
+      })
+      const [first, second] = result.current.pendingAiItems
+
+      act(() => {
+        result.current.removePendingAiItem(first.id)
+      })
+
+      // İlk öğe çıktı ama URL'i kullanan öğe duruyor → iptal YOK.
+      expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:shared')
+      expect(result.current.pendingAiItems).toHaveLength(1)
+      expect(blobOf(result.current.pendingAiItems[0])).toBe('blob:shared')
+      expect(blobOf(second)).toBe('blob:shared')
+    })
+
+    it('releases the source only after the last item using it is gone', () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:shared')
+        result.current.queueImageForAi('blob:shared')
+      })
+      const [first, second] = result.current.pendingAiItems
+
+      act(() => {
+        result.current.removePendingAiItem(first.id)
+      })
+      act(() => {
+        result.current.removePendingAiItem(second.id)
+      })
+
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:shared')
+      expect(mockRevokeObjectURL).toHaveBeenCalledTimes(1)
+    })
+
+    it('revokes each distinct source exactly once on clear', () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:a')
+        result.current.queueImageForAi('blob:a')
+        result.current.queueImageForAi('blob:b')
+      })
+
+      act(() => {
+        result.current.clearPendingAiItems()
+      })
+
+      // Paylaşılan 'a' iki kez sayılmaz; iki ayrı kaynak iki kez iptal edilir.
+      const revoked = mockRevokeObjectURL.mock.calls.map((c) => c[0])
+      expect(revoked.sort()).toEqual(['blob:a', 'blob:b'])
+    })
+
+    it('leaves no unreleased source behind after unmount', () => {
+      const { result, unmount } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:a')
+        result.current.queueImageForAi('blob:a')
+        result.current.queueImageForAi('blob:b')
+      })
+
+      unmount()
+
+      const revoked = mockRevokeObjectURL.mock.calls.map((c) => c[0])
+      expect(revoked.sort()).toEqual(['blob:a', 'blob:b'])
+    })
+  })
+
+  /**
+   * Büyük yakalamada decode **bir kez** yapılır.
+   *
+   * `atob` + bayt döngüsü ana iş parçacığında çalışır; önceki sıralamada
+   * büyük görsel önce burada decode ediliyor, sonra `resolveLargePreview`
+   * aynı işi yeniden yapıyordu. Boyut kontrolü decode'dan önce geldiği için
+   * artık tek geçiş vardır.
+   */
+  describe('large-image decode', () => {
+    it('decodes a large data URL exactly once', async () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+      const largeDataUrl = `data:image/png;base64,${'QUJD'.repeat(500001)}`
+      const atobSpy = vi.spyOn(globalThis, 'atob')
+
+      await act(async () => {
+        result.current.queueImageForAi(largeDataUrl)
+        await new Promise((r) => setTimeout(r, 100))
+      })
+
+      expect(atobSpy).toHaveBeenCalledTimes(1)
+      expect(mockCreateObjectURL).toHaveBeenCalledTimes(1)
+      atobSpy.mockRestore()
+    })
+
+    it('still produces a preview for a small data URL', () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('data:image/png;base64,aGVsbG8=')
+      })
+
+      expect(blobOf(result.current.pendingAiItems[0])).toBe('blob:preview')
+    })
+  })
+
+  /**
    * Kapasite sözleşmesi: sınır 20'de doludur, **mevcut öğeler korunur** ve
    * ekleme gerçekten reddedilir (boolean sonucu tüketicilere ulaşmalıdır).
    */

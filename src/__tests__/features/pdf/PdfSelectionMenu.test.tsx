@@ -79,19 +79,28 @@ describe('PdfSelectionMenu', () => {
     expect(onSendToAi).not.toHaveBeenCalled()
   })
 
-  it('shows inline added feedback with count and no gallery', () => {
+  it('shows inline error feedback and no gallery', () => {
     render(
       <PdfSelectionMenu
         top={100}
         left={100}
-        feedback="added"
-        addedCount={3}
+        feedback="error"
         onSendToAi={vi.fn()}
         onAddToDraft={vi.fn()}
       />
     )
     expect(screen.getByTestId('pdf-selection-menu-feedback')).toBeInTheDocument()
     expect(screen.queryByTestId('ai-send-attachment-strip')).not.toBeInTheDocument()
+  })
+
+  // Success is silent: no added/sent/staged state exists, so the menu can only
+  // ever show the two actions or an error. A confirmation row here would restate
+  // what the draft badge and the AI site already show.
+  it('never renders a success confirmation row', () => {
+    render(<PdfSelectionMenu top={100} left={100} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
+    expect(screen.queryByTestId('pdf-selection-menu-feedback')).not.toBeInTheDocument()
+    expect(screen.getByTestId('pdf-selection-send')).toBeInTheDocument()
+    expect(screen.getByTestId('pdf-selection-draft')).toBeInTheDocument()
   })
 
   it('is keyboard accessible (buttons focusable)', () => {

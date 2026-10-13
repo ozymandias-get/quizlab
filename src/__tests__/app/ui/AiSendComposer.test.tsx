@@ -387,7 +387,7 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.getByTestId('ai-draft-send')).toHaveAccessibleName('ai_send_prepare')
     })
 
-    it('reports a staged send as staged, never as sent', async () => {
+    it('shows no status at all after a staged send', async () => {
       const onSend = vi.fn().mockResolvedValue({ success: true, mode: 'staged' })
       openPanel(onSend)
 
@@ -395,10 +395,12 @@ describe('AiSendComposer (compact draft)', () => {
         fireEvent.click(screen.getByTestId('ai-draft-send'))
       })
 
-      expect(screen.getByRole('status')).toHaveTextContent('ai_send_staged')
+      // Staging is a success outcome, and success is silent. The prepared text
+      // is sitting in the site's composer for the user to see.
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
-    it('reports a delivered send as sent', async () => {
+    it('shows no status at all after a delivered send', async () => {
       const onSend = vi.fn().mockResolvedValue({ success: true })
       openPanel(onSend)
 
@@ -406,7 +408,7 @@ describe('AiSendComposer (compact draft)', () => {
         fireEvent.click(screen.getByTestId('ai-draft-send'))
       })
 
-      expect(screen.getByRole('status')).toHaveTextContent('ai_send_sent')
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
     })
 
     // Regression: `handleRetry` used to only clear the error while the button

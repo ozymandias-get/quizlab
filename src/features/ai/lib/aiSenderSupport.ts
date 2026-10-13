@@ -236,7 +236,12 @@ export function queueForContent<T>(
     .catch(() => undefined)
     .then(async () => {
       if ((contentVersions.get(content) ?? 0) !== myVersion) {
-        return { success: false, error: 'cancelled' } as unknown as T
+        // Bu görev **hiç çalışmadı**: sıraya girmeden önce sürümü ezildi.
+        // Hedefe bu yüzden dokunulmadığı kesin, dolayısıyla aşama açıkça
+        // bildirilir ve otomatik tekrar güvenli kalır. Aşamasız bir iptal
+        // "belirsiz" sayılıp tekrarı kapatacağı için burada atlansaydı
+        // güvenli bir durum gereksiz yere kullanıcı müdahalesine kalırdı.
+        return { success: false, error: 'cancelled', stage: 'not_started' } as unknown as T
       }
       contentRunningVersions.set(content, myVersion)
       try {

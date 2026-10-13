@@ -1,3 +1,4 @@
+import type { SendStage } from '@features/ai'
 import { sendApiChatMessage } from '@features/ai'
 
 import { queryClient } from '@app/providers/queryClient'
@@ -10,6 +11,20 @@ import type { AiSendResult } from '../types'
  * TanStack Query send mutation. Reads the store at fire time using the
  * tab id captured at request time, so a tab switch in between never
  * redirects the send to the wrong tab.
+ *
+ * ## Teslim belirsizliği kaybolmaz
+ *
+ * `sendApiChatMessage` kullanıcı mesajını **önce** oturuma yazar, kutuyu
+ * temizler, sonra isteği atar. Bu yüzden bir hata dönse bile hedefte bir
+ * kullanıcı mesajı duruyor olabilir: `errorReply` yazıldıysa mesaj
+ * transcript'e girdi, `cancelled` ise istek başlatıldıktan sonra durdu.
+ * İkisi de "güvenle tekrar gönderilebilir" **değildir** — tekrar aynı
+ * içeriği ikinci bir kullanıcı mesajına dönüştürür.
+ *
+ * Bu yüzden sonuç yalnızca `{success, error}` değildir; `stage` de taşır ve
+ * üst katmanın "otomatik tekrar" kararını besler. Ön uçuş hataları (boş
+ * mesaj, oturum yok, eşzamanlı gönderim) hiçbir şey yazmadan başarısız
+ * olur ve `not_started` döner.
  */
 export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
   const { useChatUiStore } = await import('@features/ai')
@@ -17,7 +32,7 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
   const text = uiState.inputValueByTab[tabId] || ''
   const images = uiState.attachmentsByTab[tabId] || []
   if (!text.trim() && images.length === 0) {
-    return { success: false, error: 'empty_message' }
+    return { success: false, error: 'empty_message', stage: 'not_started' }
   }
   try {
     const result = await sendApiChatMessage(queryClient, {
@@ -31,11 +46,20 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
       characterPrompt: uiState.characterPrompt
     })
     if (!result.success) {
-      return { success: false, error: ensureErrorMessage(result.error, 'send_failed') }
+      // `errorReply` yazıldı → kullanıcı mesajı transcript'e girdi; istek
+      // başlatıldıktan sonra iptal edildi → teslim belirsiz. İkisinde de
+      // otomatik tekrar mükerrer mesaj üretir.
+      const stage: SendStage = result.errorReply || result.cancelled ? 'uncertain' : 'not_started'
+      return {
+        success: false,
+        error: ensureErrorMessage(result.error, 'send_failed'),
+        stage
+      }
     }
-    return { success: true }
+    return { success: true, stage: 'applied' }
   } catch (err) {
-    return { success: false, error: ensureErrorMessage(err, 'send_failed') }
+    // Ön uçuş doğrulaması: istek hiç atılmadı, hedefe dokunulmadı.
+    return { success: false, error: ensureErrorMessage(err, 'send_failed'), stage: 'not_started' }
   }
 }
 
@@ -101,6 +125,16 @@ export function scheduleApiChatSend(
 /**
  * Cancels a pending debounced send (e.g. provider unmount) and settles every
  * awaiting caller so no async chain is left hanging forever.
+ *
+ * İptal **hiçbir istek atılmadan**, debounce penceresinde gerçekleşir: flush
+ * hiç çalışmadı, hazırlanan içerik hâlâ kutuda duruyor. Bu yüzden kod
+ * `cancelled_before_send`'dır ve `cancelled`'dan ayrılır:
+ *
+ * - `cancelled_before_send` → hedef değişmedi; telafi hem güvenli hem
+ *   **gereklidir** (yoksa hazırlanan görseller kullanıcı kutusunun içinde
+ *   kalır ve bir sonraki denemede ikinci kez eklenir).
+ * - `cancelled` → istek başlatıldıktan sonra durdu; teslim belirsiz, telafi
+ *   yapılmaz ve otomatik tekrar engellenir.
  */
 export function cancelScheduledApiChatSends(timeoutRef: SendTimeoutRef): void {
   if (timeoutRef.current) {
@@ -110,7 +144,7 @@ export function cancelScheduledApiChatSends(timeoutRef: SendTimeoutRef): void {
   const waiting = pendingSendsByRef.get(timeoutRef) ?? []
   pendingSendsByRef.set(timeoutRef, [])
   for (const waiter of waiting) {
-    waiter.resolve({ success: false, error: 'cancelled' })
+    waiter.resolve({ success: false, error: 'cancelled_before_send', stage: 'not_started' })
   }
 }
 

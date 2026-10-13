@@ -213,10 +213,15 @@ describe('usePdfSelectionMenu — action contract', () => {
     endRect: END_RECT
   }
 
-  it('"Taslağa Ekle" queues the snapshot and never triggers a send', () => {
-    // Kuyruk bu senaryoda tek öğe içeriyor: geri bildirim sayacı eklenen öğeyi
-    // BİR kez saymalı. "+1" eklemek "2 içerik" derken taslakta 1 öğe bırakır.
+  it('"Taslağa Ekle" queues the snapshot, closes the menu and never triggers a send', () => {
     mocks.pendingAiItems = [{ id: 'existing', type: 'text', text: 'x' }]
+    const removeAllRanges = vi.fn()
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      rangeCount: 1,
+      isCollapsed: false,
+      removeAllRanges,
+      getRangeAt: () => ({ commonAncestorContainer: document.body })
+    } as unknown as Selection)
     const { result } = setup()
 
     act(() => {
@@ -235,9 +240,11 @@ describe('usePdfSelectionMenu — action contract', () => {
     expect(meta?.source?.page).toBe(11)
     expect(meta?.source?.totalPages).toBe(59)
     expect(mocks.sendTextDirectToAi).not.toHaveBeenCalled()
-    expect(result.current.feedback).toBe('added')
-    // Sayaç kuyruk uzunluğudur — ekleme sonrası ortaya çıkan sahte +1 yok.
-    expect(result.current.addedCount).toBe(mocks.pendingAiItems.length)
+    // Ekleme sessizdir: ne "eklendi" rozeti ne de sayaç gösterilir. İçerik
+    // taslakta görünür olduğu için menü doğrudan kapanır.
+    expect(result.current.feedback).toBe('idle')
+    expect(result.current.menu).toBeNull()
+    expect(removeAllRanges).toHaveBeenCalled()
   })
 
   // Regression: "Taslağa Ekle" used to report `added` without looking at the
@@ -268,7 +275,7 @@ describe('usePdfSelectionMenu — action contract', () => {
     expect(removeAllRanges).not.toHaveBeenCalled()
   })
 
-  it('reports a staged direct send as staged, not sent', async () => {
+  it('closes silently after a staged direct send, never claiming delivery', async () => {
     mocks.sendTextDirectToAi.mockResolvedValueOnce({ success: true, mode: 'staged' })
     const { result } = setup()
 
@@ -280,7 +287,10 @@ describe('usePdfSelectionMenu — action contract', () => {
     })
 
     expect(mocks.sendTextDirectToAi).toHaveBeenCalledTimes(1)
-    expect(result.current.feedback).toBe('staged')
+    // "Hazırlandı" da bir başarı bildirimidir ve kaldırıldı: mesaj site
+    // kutusunda görünür, menü kapanır, hiçbir rozet gösterilmez.
+    expect(result.current.feedback).toBe('idle')
+    expect(result.current.menu).toBeNull()
   })
 
   it('keeps the menu open (no feedback loss) when a direct send fails', async () => {

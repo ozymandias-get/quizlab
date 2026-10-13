@@ -5,7 +5,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type { AiSendDiagnostics, SendTextResult } from '../../model/types'
+import type { AiSendDiagnostics, SendStage, SendTextResult } from '../../model/types'
 import type { ConfigCache } from '../aiSenderSupport'
 import { toAutomationConfig } from '../aiSenderSupport'
 import { buildPromptText, mergePromptText } from '../aiSenderSupport'
@@ -110,7 +110,15 @@ export async function executeTextSendPipeline(
   })
 
   if (!sendStep.success) {
-    return sendStep.error
+    // Metin gönderimi tek betikle yapar: betik girdi alanını bulur, metni yazar
+    // ve gönderir. Betik **çalıştıysa** ve yalnızca sonra başarısız olduysa
+    // hedefe dokunulmuştur; otomatik tekrar aynı metni ikinci kez yazar.
+    // Betik hiç çalışmadıysa (`scriptResult` yok) veya alan hiç bulunmadıysa
+    // hedef boştur ve tekrar güvenlidir.
+    const code = sendStep.error.error
+    const stage: SendStage =
+      sendStep.scriptResult && code !== 'input_not_found' ? 'partial' : 'not_started'
+    return { ...sendStep.error, stage }
   }
 
   // Self-healing: hand this send's diagnostics to the selector repair loop.
@@ -131,13 +139,18 @@ export async function executeTextSendPipeline(
   // açıkça bildirilir; auto-send açıkken script'in bildirdiği submit modu
   // korunur.
   if (!effectiveAutoSend) {
-    return attachDiagnostics({ success: true, mode: 'staged' }, diagnostics, requestStartedAt)
+    return attachDiagnostics(
+      { success: true, mode: 'staged', stage: 'applied' },
+      diagnostics,
+      requestStartedAt
+    )
   }
 
   return attachDiagnostics(
     {
       success: true,
-      mode: sendStep.scriptResult?.mode || resolved.aiConfig.submitMode
+      mode: sendStep.scriptResult?.mode || resolved.aiConfig.submitMode,
+      stage: 'applied'
     },
     diagnostics,
     requestStartedAt

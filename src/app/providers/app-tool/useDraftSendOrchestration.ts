@@ -1,4 +1,4 @@
-import type { AiSendOptions } from '@features/ai'
+import type { AiSendOptions, SendStage } from '@features/ai'
 import { resolveAutoSend } from '@features/ai'
 
 import { Logger } from '@shared/lib/logger'
@@ -7,6 +7,7 @@ import { type Dispatch, type SetStateAction, useCallback, useRef } from 'react'
 
 import { planSingleMessageSend, supportsSingleMessageBulk } from '../ai/bulkSendPlan'
 import type { AiDraftItem, AiSendResult } from '../ai/types'
+import { NO_SEND_RESULT } from '../ai/types'
 import { blobUrlToDataUrl } from './appToolUtils'
 
 interface UseDraftSendOrchestrationProps {
@@ -88,9 +89,10 @@ export function useDraftSendOrchestration({
 
       // Görsel yoksa tek metin gönderimi (tek submit, tek prompt).
       if (plan.images.length === 0) {
-        const sendResult = (await sendTextToAI(combinedPrompt ?? '', {
-          autoSend: effectiveAutoSend
-        })) ?? { success: false, error: 'cancelled' }
+        const sendResult =
+          (await sendTextToAI(combinedPrompt ?? '', {
+            autoSend: effectiveAutoSend
+          })) ?? NO_SEND_RESULT
         if (!sendResult.success) {
           if ((sendResult as { error?: string }).error !== 'webview_not_ready') {
             Logger.warn('[DraftOrchestration] Single-message text send failed', sendResult)
@@ -98,7 +100,11 @@ export function useDraftSendOrchestration({
           return { result: sendResult, sentItemIds: [] }
         }
         return {
-          result: { success: true, mode: (sendResult as { mode?: string }).mode },
+          result: {
+            success: true,
+            mode: (sendResult as { mode?: string }).mode,
+            stage: (sendResult as { stage?: SendStage }).stage
+          },
           sentItemIds: plan.itemIds
         }
       }
@@ -134,10 +140,11 @@ export function useDraftSendOrchestration({
         imageDataUrls.push(dataUrl)
       }
 
-      const sendResult = (await sendBulkToAI(imageDataUrls, {
-        autoSend: effectiveAutoSend,
-        promptText: combinedPrompt
-      })) ?? { success: false, error: 'cancelled' }
+      const sendResult =
+        (await sendBulkToAI(imageDataUrls, {
+          autoSend: effectiveAutoSend,
+          promptText: combinedPrompt
+        })) ?? NO_SEND_RESULT
 
       if (!sendResult.success) {
         if ((sendResult as { error?: string }).error !== 'webview_not_ready') {
@@ -146,7 +153,11 @@ export function useDraftSendOrchestration({
         return { result: sendResult, sentItemIds: [] }
       }
       return {
-        result: { success: true, mode: (sendResult as { mode?: string }).mode },
+        result: {
+          success: true,
+          mode: (sendResult as { mode?: string }).mode,
+          stage: (sendResult as { stage?: SendStage }).stage
+        },
         sentItemIds: plan.itemIds
       }
     },

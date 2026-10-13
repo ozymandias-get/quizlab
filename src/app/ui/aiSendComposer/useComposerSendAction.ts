@@ -14,24 +14,32 @@ interface UseComposerSendActionOptions {
   setStoredExpanded: (value: boolean) => void
 }
 
-/** Sonuç bildiriminin görünür kalma süreleri. */
-const FEEDBACK_TIMEOUT_MS = { success: 1500, staged: 2500, error: 6000 } as const
+/** Sonuç bildiriminin görünür kalma süreleri. Yalnızca hata kalıcıdır. */
+const FEEDBACK_TIMEOUT_MS = { error: 6000 } as const
 
 /**
  * Composer'ın gönderim yaşam döngüsü.
  *
  * ## Durumlar ayrıdır
  *
- * `idle | sending | staged | success | incomplete | error` — hazırlanan içerik
- * "gönderildi" sayılmaz, kısmen uygulanan gönderim "başarısız" sayılmaz.
- * Ayrım `resolveSendOutcome` tarafından tek yerde yapılır.
+ * `idle | sending | incomplete | error` — hazırlanan içerik "gönderildi"
+ * sayılmaz, kısmen uygulanan gönderim "başarısız" sayılmaz. Ayrım
+ * `resolveSendOutcome` tarafından tek yerde yapılır.
+ *
+ * ## Başarı sessizdir
+ *
+ * Teslim edilen veya hazırlanan içerik için hiçbir durum gösterilmez:
+ * gönderim `idle`a döner. Kuyruk boşaldığı ve panel kapandığı için sonuç
+ * zaten görünür; ayrıca bir "Gönderildi" yazısı aynı olayı ikinci kez
+ * anlatırdı. Yalnızca hata ve **kısmi uygulama** konuşur — çünkü ikisi de
+ * sessiz kalırsa kullanıcı içeriğinin nerede olduğunu bilemez.
  *
  * ## Zamanlayıcı
  *
  * **Her gönderim başlangıcında önceki geri bildirim zamanlayıcısı iptal
- * edilir.** Aksi halde bir önceki başarının 1500 ms'lik sayacı, ikinci
- * gönderim sürerken dolup durumu `idle`'a çeker ve kullanıcı gönderim
- * sürerken "durdu" görürdü. Zamanlayıcı yalnızca kendi çağrısına aitse de
+ * edilir.** Aksi halde bir önceki hatanın sayacı, ikinci gönderim sürerken
+ * dolup durumu `idle`'a çeker ve kullanıcı gönderim sürerken "durdu" görürdü.
+ * Zamanlayıcı yalnızca kendi çağrısına aitse de
  * sıfırlar (iptal edilmiş bir zamanlayıcının son işi yanlış duruma yol açmaz).
  *
  * ## Eşzamanlılık
@@ -142,14 +150,7 @@ export function useComposerSendAction({
 
         setIsResendSafe(outcome.resendSafe)
 
-        if (outcome.feedback === 'success') {
-          setSendFeedback('success')
-          scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.success)
-        } else if (outcome.feedback === 'staged') {
-          // Hazırlandı: gönderilmedi; kısa bilgi sonra dinlenir.
-          setSendFeedback('staged')
-          scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.staged)
-        } else if (outcome.feedback === 'incomplete') {
+        if (outcome.feedback === 'incomplete') {
           // İş kısmen uygulandı. Otomatik tekrar YAPILMAZ: kullanıcı bilgilendirilir
           // ve güvenli manuel devam yolu (onayı kapatma) sunulur.
           clearFeedbackTimer()
@@ -160,7 +161,7 @@ export function useComposerSendAction({
           setLastError(localized === key && code ? code : localized)
           setIsExpanded(true)
           setStoredExpanded(true)
-        } else {
+        } else if (outcome.feedback === 'error') {
           clearFeedbackTimer()
           setSendFeedback('error')
           const code = outcome.errorCode
@@ -172,6 +173,13 @@ export function useComposerSendAction({
           setIsExpanded(true)
           setStoredExpanded(true)
           scheduleFeedbackReset(FEEDBACK_TIMEOUT_MS.error)
+        } else {
+          // `idle` (teslim edildi / hazırlandı): sessiz. Durum **açıkça**
+          // sıfırlanır — `sending`'de kalırsa "Gönderiliyor…" göstergesi sonsuza
+          // dek ekranda kalır ve sonraki gönderimler kilitli görünür.
+          clearFeedbackTimer()
+          setSendFeedback('idle')
+          setLastError(null)
         }
       } catch {
         clearFeedbackTimer()

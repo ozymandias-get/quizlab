@@ -38,6 +38,15 @@ interface UseScreenshotPipelineProps {
  * Taslağa Ekle) karar verene kadar bekler. Kullanıcı vazgeçerse blob URL'i
  * geri alınır; yeni bir yakalama eski bekleyeni geçersiz kılar.
  *
+ * ## Tek sahiplik
+ *
+ * İki tür için ayrı state tutulur (dış API böyle), ama **aynı anda ikisi birden
+ * dolu olamaz**: yeni bir yakalama geldiğinde diğeri kaynağıyla birlikte
+ * düşürülür. Aksi halde "hangi yakalama ekleniyor / gönderiliyor / temizleniyor?"
+ * sorusunun tek ve deterministik bir yanıtı olmazdı — menü alan yakalamasını
+ * gösterirken tam sayfa yakalamasının kaynağı ekranda görünmeden yaşar ve
+ * sessizce sızardı.
+ *
  * ## Sahiplik
  *
  * Bekleyen yakalama, kaynak URL'inin sahibidir. `confirm*AsDraft` yalnızca
@@ -70,6 +79,17 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     setFullPageCapture(next)
   }, [])
 
+  /** Diğer türün bekleyen yakalamasını kaynağıyla birlikte düşürür. */
+  const dropOtherPendingCapture = useCallback(() => {
+    const otherFull = pendingFullPageCaptureRef.current
+    if (otherFull) {
+      revokeIfBlobUrl(otherFull.dataUrl)
+      // Ref + state birlikte düşer; sahiplik kaydı tek yerden yürütülür
+      // (doğrudan `setFullPageCapture` çağırmak ikinci bir yazma yoludur).
+      setPendingFullPageCapture(null)
+    }
+  }, [setPendingFullPageCapture])
+
   const handleScreenshotCapture = useCallback(
     async (dataUrl: string, rect?: PendingAreaCapture['rect']) => {
       // Alan seçimi tamamlandı: doğrudan kuyruğa yazma. İkili menü
@@ -78,9 +98,10 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       screenshotMetaRef.current = null
       const prev = pendingAreaCaptureRef.current
       if (prev) revokeIfBlobUrl(prev.dataUrl)
+      dropOtherPendingCapture()
       setPendingAreaCapture({ dataUrl, meta, rect: rect ?? null })
     },
-    [setPendingAreaCapture]
+    [dropOtherPendingCapture, setPendingAreaCapture]
   )
 
   const {
@@ -92,14 +113,16 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
 
   const startScreenshot = useCallback(
     (imageMeta?: QueuedImageMeta) => {
-      // Yeni alan seçimi eski bekleyeni geçersiz kılar (hızlı arka arkaya seçim).
+      // Yeni alan seçimi eski bekleyeni geçersiz kılar (hızlı arka arkaya seçim)
+      // ve tam sayfa yakalaması da aynı anda bekleyemez.
       const prev = pendingAreaCaptureRef.current
       if (prev) revokeIfBlobUrl(prev.dataUrl)
       setPendingAreaCapture(null)
+      dropOtherPendingCapture()
       screenshotMetaRef.current = imageMeta ?? null
       beginScreenshot()
     },
-    [beginScreenshot, setPendingAreaCapture]
+    [beginScreenshot, dropOtherPendingCapture, setPendingAreaCapture]
   )
 
   const closeScreenshot = useCallback(() => {
@@ -121,6 +144,12 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     [captureScreenshot]
   )
 
+  const dismissPendingArea = useCallback(() => {
+    const prev = pendingAreaCaptureRef.current
+    if (prev) revokeIfBlobUrl(prev.dataUrl)
+    setPendingAreaCapture(null)
+  }, [setPendingAreaCapture])
+
   const confirmPendingAreaAsDraft = useCallback(() => {
     const pending = pendingAreaCaptureRef.current
     if (!pending) return false
@@ -134,12 +163,6 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     return true
   }, [queueImageForAi, setPendingAreaCapture])
 
-  const dismissPendingArea = useCallback(() => {
-    const prev = pendingAreaCaptureRef.current
-    if (prev) revokeIfBlobUrl(prev.dataUrl)
-    setPendingAreaCapture(null)
-  }, [setPendingAreaCapture])
-
   /**
    * Tam sayfa yakalama tamamlandı: bekleyen yakalama olarak tut, kullanıcının
    * kararını bekle. Kendiliğinden taslağa eklenmez.
@@ -148,6 +171,13 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     (dataUrl: string, meta?: QueuedImageMeta | null) => {
       const prev = pendingFullPageCaptureRef.current
       if (prev) revokeIfBlobUrl(prev.dataUrl)
+      // Tek sahiplik: aynı anda bekleyen bir alan yakalaması varsa düşürülür.
+      const pendingArea = pendingAreaCaptureRef.current
+      if (pendingArea) {
+        revokeIfBlobUrl(pendingArea.dataUrl)
+        pendingAreaCaptureRef.current = null
+        setAreaCapture(null)
+      }
       setPendingFullPageCapture({ dataUrl, meta: meta ?? null })
     },
     [setPendingFullPageCapture]

@@ -1,19 +1,28 @@
 import { DURATION } from '@shared/lib/motion'
 
-import { BookmarkPlus, Check, Info, Loader2, Send } from 'lucide-react'
+import { BookmarkPlus, Info, Loader2, Send } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DEFAULT_SELECTION_MENU_SIZE } from '../../text/selectionPage'
 
-export type SelectionMenuFeedback = 'idle' | 'working' | 'added' | 'sent' | 'staged' | 'error'
+/**
+ * Yalnızca **çalışma** ve **hata** durumları vardır.
+ *
+ * `added` / `sent` / `staged` bilinçli olarak kaldırıldı. Menü bu eylemlerden
+ * sonra zaten kapanır ve içerik taslakta ya da AI kutusunda görünür duruma
+ * geçer; menünün kendi satırında tekrar "eklendi / gönderildi" yazması aynı
+ * olayı üçüncü kez söyleyip ekranı gereksiz meşgul ederdi. Hata ise kalır:
+ * kuyruk reddettiğinde içerik kullanıcının elinde **kalmaz**, bunu söylemek
+ * zorunludur.
+ */
+export type SelectionMenuFeedback = 'idle' | 'working' | 'error'
 
 interface PdfSelectionMenuProps {
   top: number
   left: number
   feedback?: SelectionMenuFeedback
-  addedCount?: number
   disabled?: boolean
   onSendToAi: () => void
   onAddToDraft: () => void
@@ -43,7 +52,6 @@ function PdfSelectionMenu({
   top,
   left,
   feedback = 'idle',
-  addedCount,
   disabled,
   onSendToAi,
   onAddToDraft
@@ -79,50 +87,6 @@ function PdfSelectionMenu({
     text: string
     tone: string
   } | null => {
-    if (feedback === 'added') {
-      return {
-        key: 'added',
-        icon: (
-          <span
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
-            aria-hidden
-          >
-            <Check className="size-4" strokeWidth={2.5} />
-          </span>
-        ),
-        text: t('pdf_draft_added', {
-          count: addedCount ?? 1,
-          defaultValue: `Taslağa eklendi · ${addedCount ?? 1} içerik`
-        }),
-        tone: 'text-foreground'
-      }
-    }
-    if (feedback === 'sent' || feedback === 'staged') {
-      const staged = feedback === 'staged'
-      return {
-        key: feedback,
-        icon: (
-          <span
-            className={[
-              'flex size-7 shrink-0 items-center justify-center rounded-lg',
-              staged
-                ? 'bg-primary/12 text-primary'
-                : 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400'
-            ].join(' ')}
-            aria-hidden
-          >
-            {staged ? (
-              <Info className="size-4" strokeWidth={2} />
-            ) : (
-              <Check className="size-4" strokeWidth={2.5} />
-            )}
-          </span>
-        ),
-        // Hazırlanan mesaj "Gönderildi" demek değildir.
-        text: staged ? t('ai_send_staged') : t('ai_send_sent'),
-        tone: 'text-foreground'
-      }
-    }
     if (feedback === 'error') {
       return {
         key: 'error',

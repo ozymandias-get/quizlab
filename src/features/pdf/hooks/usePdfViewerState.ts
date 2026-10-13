@@ -62,7 +62,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
   const [, startTransition] = useTransition()
   const { queueTextForAi } = useAppToolActions()
-  const { showSuccess, showWarning } = useToastActions()
+  const { showWarning } = useToastActions()
   const { t: tt } = useTranslation()
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
   const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
@@ -161,7 +161,8 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
           captureKind: 'full-page-text'
         })
       })
-      showSuccess(tt('pdf_text_added_to_ai'))
+      // Eklemenin sonucu zaten görünür: taslak sayacı bir artar. Ayrı bir
+      // "AI taslağına eklendi" balonu aynı olayı ikinci kez söylerdi.
     },
     onNoTextFound: () => {
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)

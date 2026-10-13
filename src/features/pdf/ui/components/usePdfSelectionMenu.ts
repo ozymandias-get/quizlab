@@ -1,10 +1,8 @@
 import type { SelectionPosition } from '@shared-core/types'
 
-import { isStagedSendResult } from '@features/ai'
-
 import { buildPdfSourceMeta, type PdfSourceMeta } from '@app/providers/ai/pdfSource'
 import { decorateTextWithSource } from '@app/providers/ai/pdfSource'
-import { useAppToolActions, useAppToolQueueState } from '@app/providers/AppToolContext'
+import { useAppToolActions } from '@app/providers/AppToolContext'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -71,7 +69,6 @@ export function usePdfSelectionMenu({
   onTextSelection
 }: UsePdfSelectionMenuOptions) {
   const { queueTextForAi, sendTextDirectToAi } = useAppToolActions()
-  const { pendingAiItems } = useAppToolQueueState()
   const [menu, setMenu] = useState<TextSelectionSnapshot | null>(null)
   const [feedback, setFeedback] = useState<SelectionMenuFeedback>('idle')
   const requestIdRef = useRef(0)
@@ -80,8 +77,6 @@ export function usePdfSelectionMenu({
   const feedbackRef = useRef(feedback)
   feedbackRef.current = feedback
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingCountRef = useRef(pendingAiItems.length)
-  pendingCountRef.current = pendingAiItems.length
   const onTextSelectionRef = useRef(onTextSelection)
   onTextSelectionRef.current = onTextSelection
 
@@ -251,11 +246,15 @@ export function usePdfSelectionMenu({
   /**
    * "Taslağa Ekle" — ekleme sonucunu **kontrol ederek** bildirir.
    *
-   * Kuyruk reddederse (limit dolu, içerik geçersiz) menü "eklendi" göstermez,
-   * `error` durumuna geçer ve **menü açık kalır**: seçim kaybolmaz, içerik
-   * kaybolmaz, kullanıcı öğelerini azaltıp aynı tıklamayı yeniden deneyebilir.
-   * Sahte bir başarı göstermek, kullanıcının içeriğinin kaybolduğunu sandığı
-   * ama kaybolmadığı bir durumu yaratırdı.
+   * Kuyruk reddederse (limit dolu, içerik geçersiz) menü `error` durumuna geçer
+   * ve **menü açık kalır**: seçim kaybolmaz, içerik kaybolmaz, kullanıcı öğelerini
+   * azaltıp aynı tıklamayı yeniden deneyebilir. Sahte bir başarı göstermek,
+   * kullanıcının içeriğinin kaybolduğunu sandığı ama kaybolmadığı bir durumu
+   * yaratırdı.
+   *
+   * Kabul edildiğinde ise **sessiz** kapanır: içerik taslakta görünür olup sayacı
+   * bir artar, yani sonuç zaten kendini gösterir. Menüde ayrıca "eklendi"
+   * yazması aynı olayı ikinci kez anlatırdı.
    */
   const handleAddToDraft = useCallback(() => {
     const snapshot = menuRef.current
@@ -278,18 +277,14 @@ export function usePdfSelectionMenu({
       }, 1800)
       return
     }
-    setFeedback('added')
-    // Kısa bildirim: "Taslağa eklendi · N içerik". Taslağı zorla açmaz.
-    feedbackTimerRef.current = setTimeout(() => {
-      closeMenu()
-      // Seçim yalnızca **ekleme gerçekten gerçekleştiğinde** temizlenir; reddedilen
-      // eklemede seçili içerik kullanıcının elinde kalır.
-      try {
-        window.getSelection()?.removeAllRanges()
-      } catch {
-        // best-effort
-      }
-    }, 1400)
+    closeMenu()
+    // Seçim yalnızca **ekleme gerçekten gerçekleştiğinde** temizlenir; reddedilen
+    // eklemede seçili içerik kullanıcının elinde kalır.
+    try {
+      window.getSelection()?.removeAllRanges()
+    } catch {
+      // best-effort
+    }
   }, [clearFeedbackTimer, closeMenu, feedback, queueTextForAi])
 
   const handleSendDirect = useCallback(async () => {
@@ -301,18 +296,13 @@ export function usePdfSelectionMenu({
       const decorated = decorateTextWithSource(snapshot.text, snapshot.source, 'text')
       const result = await sendTextDirectToAi(decorated, {})
       if (result && (result as { success?: boolean }).success) {
-        const staged = isStagedSendResult(result as { success: boolean; mode?: string })
-        // Hazırlanan (staged) sonuç "Gönderildi" demek değildir: kullanıcı
-        // AI kutusunda hâlâ göndermeyi onaylamalı.
-        setFeedback(staged ? 'staged' : 'sent')
-        const id = snapshot.requestId
-        // Hızlı arka arkaya seçimde eski async yenisini ezmesin.
-        feedbackTimerRef.current = setTimeout(
-          () => {
-            if (menuRef.current?.requestId === id) closeMenu()
-          },
-          staged ? 1800 : 300
-        )
+        // Hem teslim hem hazırlama sessizdir: mesaj site kutusunda belirir,
+        // menü kapanır. Hızlı arka arkaya seçimde yeni bir menü açıldıysa
+        // yeni menünün durumu elle sıfırlanmaz.
+        if (menuRef.current?.requestId === snapshot.requestId) {
+          closeMenu()
+          setFeedback('idle')
+        }
         try {
           window.getSelection()?.removeAllRanges()
         } catch {
@@ -351,10 +341,6 @@ export function usePdfSelectionMenu({
   return {
     menu,
     feedback,
-    // Kuyruk güncellemesi aynı olayda senkron uygulanır; geri bildirim
-    // render'ında zaten dahildir. "+1" eklemek sayacı iki kez saydırıyordu
-    // (gerçek Electron'da "2 içerik" derken taslakta 1 öğe vardı).
-    addedCount: pendingAiItems.length,
     handleSelection,
     handleAddToDraft,
     handleSendDirect,

@@ -1,11 +1,13 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
+import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
 import { executeBulkSendPipeline } from '@features/ai/lib/send/bulkSendPipeline'
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  resolveSendContext: vi.fn()
+  resolveSendContext: vi.fn(),
+  safeContentPaste: vi.fn()
 }))
 
 vi.mock('@features/ai/lib/send/resolveSendContext', async (importOriginal) => {
@@ -16,8 +18,13 @@ vi.mock('@features/ai/lib/send/resolveSendContext', async (importOriginal) => {
   }
 })
 
+// Yapıştırmanın **iki** yolu vardır: native `content.paste()` ve JS tabanlı
+// `safeContentPaste` fallback'i. "Yapıştırılamadı" senaryosunu modellemek için
+// ikisinin de başarısız olması gerekir; yalnızca `content.paste`'i kapatmak
+// fallback sayesinde yapıştırmayı **başarılı** kılar ve test yanlış şeyi
+// ölçmeye başlar.
 vi.mock('@shared/lib/aiContentUtils', () => ({
-  safeContentPaste: vi.fn().mockResolvedValue(true)
+  safeContentPaste: (...args: unknown[]) => mocks.safeContentPaste(...args)
 }))
 
 vi.mock('@features/ai/lib/selectorRepair/reportSelectorRepair', () => ({
@@ -26,7 +33,11 @@ vi.mock('@features/ai/lib/selectorRepair/reportSelectorRepair', () => ({
 
 function makeContent() {
   const scripts: string[] = []
-  const content = {
+  // Mock'lar ayrı bir nesnede tutulur: `AiContentController.paste` **isteğe
+  // bağlı** bir üyeye dönüştüğünde tipi `(() => Promise<boolean>) | undefined`
+  // olur ve üzerinden `.mockResolvedValue(...)` çağrılamaz. Senaryo kurulumu
+  // bu yüzden tipli mock yüzeyinden yapılır.
+  const mocks = {
     focus: vi.fn().mockResolvedValue(undefined),
     paste: vi.fn().mockResolvedValue(true),
     isDestroyed: vi.fn(() => false),
@@ -38,7 +49,8 @@ function makeContent() {
       return { success: true, action: 'submit_ready', mode: 'mixed', diagnostics: {} }
     })
   }
-  return { content: content as unknown as AiContentController, scripts }
+  const content = mocks as unknown as AiContentController
+  return { content, mocks, scripts }
 }
 
 function baseParams(content: AiContentController, scripts: string[]) {
@@ -79,6 +91,10 @@ describe('executeBulkSendPipeline — single-message contract', () => {
       aiConfig: { input: 'i', button: 'b', submitMode: 'mixed' },
       currentUrl: 'https://chatgpt.com/'
     })
+    // Varsayılan: yapıştırma fallback'i çalışır. "Yapıştırılamadı" diyen testler
+    // bunu **açıkça** kapatır; `clearAllMocks` uygulamayı sıfırlamadığı için
+    // varsayılan her `beforeEach`'te yeniden yazılmalıdır.
+    mocks.safeContentPaste.mockResolvedValue(true)
   })
 
   it('pastes every attachment, adds the prompt once, and clicks send once', async () => {
@@ -156,5 +172,212 @@ describe('executeBulkSendPipeline — single-message contract', () => {
 
     const clickScripts = scripts.filter((s) => s === '/*click*/')
     expect(clickScripts).toHaveLength(1)
+  })
+})
+
+/**
+ * ## Kısmi uygulama → güvensiz otomatik retry
+ *
+ * `paste_failed` kodu tek başına "hiçbir şey olmadı" demek değildir: üçüncü
+ * görselde döndüğünde ilk ikisi hedef kutunun içindedir. Bu dosya her senaryo
+ * için **iki şeyi** birlikte doğrular:
+ *
+ * 1. Pipeline gerçekte ne kadar ilerlediğini `stage` ile bildiriyor mu?
+ * 2. O aşama, `resolveSendOutcome`'un otomatik tekrarı kapatmasını sağlıyor mu?
+ *
+ * "İkinci kopya oluşmadığını" doğrulamak için `resolveSendOutcome` üzerinden
+ * gidilir: `resendSafe: false` geliyorsa composer "Tekrar dene"yi sunmaz.
+ */
+describe('executeBulkSendPipeline — partial application is never auto-resendable', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.resolveSendContext.mockResolvedValue({
+      aiConfig: { input: 'i', button: 'b', submitMode: 'mixed' },
+      currentUrl: 'https://chatgpt.com/'
+    })
+    // Varsayılan: yapıştırma fallback'i çalışır. "Yapıştırılamadı" diyen testler
+    // bunu **açıkça** kapatır; `clearAllMocks` uygulamayı sıfırlamadığı için
+    // varsayılan her `beforeEach`'te yeniden yazılmalıdır.
+    mocks.safeContentPaste.mockResolvedValue(true)
+  })
+
+  /** Pipeline sonucunu composer'ın gördüğü gönderim durumuna çevirir. */
+  const asOutcome = (result: Awaited<ReturnType<typeof executeBulkSendPipeline>>) =>
+    resolveSendOutcome(result)
+
+  it('reports not_started when the FIRST image cannot be pasted (retry is safe)', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    // Her iki yapıştırma yolu da başarısız: hedefe hiçbir şey girmedi.
+    contentMocks.paste.mockResolvedValue(false)
+    mocks.safeContentPaste.mockResolvedValue(false)
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('paste_failed')
+    expect(result.stage).toBe('not_started')
+
+    const outcome = asOutcome(result)
+    expect(outcome.kind).toBe('failed')
+    expect(outcome.resendSafe).toBe(true)
+  })
+
+  it('reports partial when the SECOND image fails after one landed', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    // İlk yapıştırma başarılı, ikincisi (ve fallback'i) başarısız.
+    contentMocks.paste.mockResolvedValueOnce(true).mockResolvedValue(false)
+    mocks.safeContentPaste.mockResolvedValue(false)
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.error).toBe('paste_failed')
+    expect(result.stage).toBe('partial')
+
+    const outcome = asOutcome(result)
+    // Otomatik tekrar kapalı: yoksa aynı görseller ikinci kez yapıştırılır.
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('reports partial when the THIRD image fails after two landed', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    contentMocks.paste
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValue(false)
+    mocks.safeContentPaste.mockResolvedValue(false)
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(content.paste).toHaveBeenCalledTimes(3)
+    expect(result.stage).toBe('partial')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('reports partial when the clipboard dies after earlier images landed', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    // İlk görsel kopyalanır, ikincinin kopyalanması başarısız olur.
+    ;(params.copyImageToClipboard as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValue(false)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.error).toBe('clipboard_failed')
+    expect(result.stage).toBe('partial')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('reports partial when every image landed but the prompt script fails', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    ;(params.generateAutoSendScript as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(content.paste).toHaveBeenCalledTimes(3)
+    expect(result.stage).toBe('partial')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('reports partial when images and prompt are ready but submit-ready fails', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    // 3 görsel → 2 **ara** hazır-olma doğrulaması + submit öncesi 1 doğrulama.
+    // Senaryo "görseller yapıştırıldı, prompt yazıldı, ancak submit-ready
+    // başarısız" olduğu için ara doğrulamalar **geçmeli**, yalnızca sonuncu
+    // üretilememeli. Hepsi birden başarısız olsaydı pipeline ikinci görselden
+    // önce durur ve bu senaryo hiç ölçülmezdi.
+    ;(params.generateWaitForSubmitReadyScript as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce('/*ready*/')
+      .mockResolvedValueOnce('/*ready*/')
+      .mockResolvedValue(null)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(content.paste).toHaveBeenCalledTimes(3)
+    // Pipeline dürüst bir aşama bildirir: hedefe **her şey** yazıldı
+    // (3 görsel + prompt), yalnızca submit tıklaması yapılmadı.
+    expect(result.stage).toBe('applied')
+
+    // ...ama başarısız bir sonuçta `applied` "güvenle tekrar gönderilebilir"
+    // demek **değildir**: kutu dolu, aynı içeriği tekrar yollamak ikinci bir
+    // kopya bırakır. Karar aşamadan tek başına değil, hata + aşama
+    // birleşiminden okunur.
+    const outcome = asOutcome(result)
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('reports partial when the webview closes after the second image', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    let pasteCalls = 0
+    // İki yapıştırmadan sonra webview yok edilmiş gibi davran.
+    params.canUseContent = (() => {
+      pasteCalls += 1
+      return pasteCalls <= 3
+    }) as unknown as typeof params.canUseContent
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.error).toBe('webview_destroyed')
+    expect(result.stage).toBe('partial')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('keeps autosend_failed_draft_saved incomplete (V3 contract preserved)', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    // Tıkla gönder betiği üretilemez → click adımı başarısız.
+    ;(params.generateClickSendScript as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.error).toBe('autosend_failed_draft_saved')
+    expect(asOutcome(result).kind).toBe('incomplete')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('reports applied for a delivered send so the composer can confirm it', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.stage).toBe('applied')
+    expect(asOutcome(result).kind).toBe('delivered')
+  })
+
+  it('reports applied for a staged send, never as delivered', async () => {
+    const { content, scripts } = makeContent()
+    const params = {
+      ...baseParams(content, scripts),
+      effectiveAutoSend: false
+    } as Parameters<typeof executeBulkSendPipeline>[0]
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.stage).toBe('applied')
+    // Auto-send kapalı: teslim iddiası yok, "hazırlandı" denir.
+    expect(asOutcome(result).kind).toBe('staged')
+  })
+
+  it('treats a non-data URL as not_started before anything is written', async () => {
+    const { content, scripts } = makeContent()
+    const params = {
+      ...baseParams(content, scripts),
+      imageDataUrls: ['data:image/png;base64,AAA', 'https://example.com/x.png']
+    } as Parameters<typeof executeBulkSendPipeline>[0]
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.error).toBe('invalid_image_format')
+    expect(content.paste).not.toHaveBeenCalled()
+    expect(asOutcome(result).resendSafe).toBe(true)
   })
 })
