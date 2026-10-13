@@ -7,7 +7,7 @@ import { Logger, reportSuppressedError } from '@shared/lib/logger'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type { AiSendDiagnostics, SendImageResult } from '../../model/types'
+import type { AiSendDiagnostics, SendImageResult, SendStage } from '../../model/types'
 import {
   type ConfigCache,
   IMAGE_SUBMIT_READY_SETTLE_DELAY,
@@ -147,6 +147,19 @@ export async function executeBulkSendPipeline(
   const submitReadyTimeoutMs = minimumReadyWaitMs + IMAGE_SUBMIT_READY_TIMEOUT_BUFFER
   let promptApplied = false
 
+  /**
+   * Hedefe **gerçekte ne bırakıldığı**, hatadan bağımsız olarak izlenir.
+   *
+   * `paste_failed` kodu ilk görselde dönerse hedef boştur (güvenli tekrar);
+   * üçüncü görselde dönerse ilk ikisi kutunun içindedir (tekrar mükerrer
+   * mesaj üretir). Aynı kod, iki farklı gerçeği anlattığı için karar hata
+   * kodundan değil **buradan** okunur.
+   */
+  let stage: SendStage = 'not_started'
+
+  /** Sonucu, o anki gerçek aşamayla birlikte döndürür. */
+  const finish = (result: SendImageResult): SendImageResult => ({ ...result, stage })
+
   const reportRepair = () => {
     void reportSelectorRepair({
       aiConfig: resolved.aiConfig,
@@ -180,17 +193,19 @@ export async function executeBulkSendPipeline(
       onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
       onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
     })
-    if (!focusStep.success) return focusStep.error
+    if (!focusStep.success) return finish(focusStep.error)
 
     // Tüm görseller sırayla yapıştırılır — ara submit yok.
     const pasteStartedAt = nowMs()
     for (let i = 0; i < imageDataUrls.length; i++) {
       const imageDataUrl = imageDataUrls[i]
       if (!canUseContent(content, scheduledContent)) {
-        return attachDiagnostics(
-          { success: false, error: 'webview_destroyed' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'webview_destroyed' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
       const copied = await copyImageToClipboardWithRetry({
@@ -199,10 +214,12 @@ export async function executeBulkSendPipeline(
         diagnostics
       })
       if (!copied) {
-        return attachDiagnostics(
-          { success: false, error: 'clipboard_failed' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'clipboard_failed' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
 
@@ -217,21 +234,29 @@ export async function executeBulkSendPipeline(
       }
       if (!pasteSuccess) {
         if (!canUseContent(content, scheduledContent)) {
-          return attachDiagnostics(
-            { success: false, error: 'webview_destroyed' },
-            diagnostics,
-            requestStartedAt
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'webview_destroyed' },
+              diagnostics,
+              requestStartedAt
+            )
           )
         }
         pasteSuccess = await safeContentPaste(content)
       }
       if (!pasteSuccess) {
-        return attachDiagnostics(
-          { success: false, error: 'paste_failed' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'paste_failed' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
+      // Bu görsel hedefe girdi. Bundan sonraki **her** hata "kısmi uygulama"
+      // anlamına gelir: aynı görselleri tekrar göndermek kutuda ikinci kopya
+      // bırakır, bu yüzden aşama burada bir kez ve yükseltilerek sabitlenir.
+      stage = 'partial'
       // Site asenkron işliyorsa bir sonraki yapıştırmadan önce gerçek hazır
       // olma doğrulaması: sabit milisaniye beklemiyoruz. Submit-ready betiği
       // giriş alanının/butonun etkileşime hazır olduğunu DOM üzerinden doğrular
@@ -268,7 +293,7 @@ export async function executeBulkSendPipeline(
         if (!betweenPasteStep.success) {
           // Yapıştırma sonrası alan hazır değil: kör bekleme yerine dur.
           // Taslak korunur (caller), sessizce devam edilmez.
-          return betweenPasteStep.error
+          return finish(betweenPasteStep.error)
         }
       }
     }
@@ -290,7 +315,7 @@ export async function executeBulkSendPipeline(
         onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
         onResult: (res) => (diagnostics.refocusScript = cloneScriptDiagnostics(res?.diagnostics))
       })
-      if (!refocusStep.success) return refocusStep.error
+      if (!refocusStep.success) return finish(refocusStep.error)
 
       await sleep(POST_PASTE_PROMPT_DELAY)
       diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
@@ -318,20 +343,27 @@ export async function executeBulkSendPipeline(
         onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
         onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
       })
-      if (!promptStep.success) return promptStep.error
+      if (!promptStep.success) return finish(promptStep.error)
 
       promptApplied = true
+      // Prompt da yazıldı: içerik hedefte tam olarak duruyor.
+      stage = 'applied'
       if (!effectiveAutoSend) {
         reportRepair()
-        return attachDiagnostics(
-          { success: true, mode: 'paste_and_prompt' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: true, mode: 'paste_and_prompt' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
     } else if (!effectiveAutoSend) {
       reportRepair()
-      return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+      stage = 'applied'
+      return finish(
+        attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+      )
     }
 
     if (effectiveAutoSend) {
@@ -375,13 +407,15 @@ export async function executeBulkSendPipeline(
           diagnostics
         })
         if (pasteIgnoredPage) {
-          return attachDiagnostics(
-            { success: false, error: 'paste_not_applied' },
-            diagnostics,
-            requestStartedAt
-          ) as SendImageResult
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'paste_not_applied' },
+              diagnostics,
+              requestStartedAt
+            ) as SendImageResult
+          )
         }
-        return submitReadyStep.error
+        return finish(submitReadyStep.error)
       }
 
       const clickStep = await executePipelineStep<SendImageResult>({
@@ -397,23 +431,31 @@ export async function executeBulkSendPipeline(
         onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
       })
       if (!clickStep.success) {
-        return attachDiagnostics(
-          { success: false, error: 'autosend_failed_draft_saved' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'autosend_failed_draft_saved' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
 
       reportRepair()
-      return attachDiagnostics(
-        { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
-        diagnostics,
-        requestStartedAt
+      stage = 'applied'
+      return finish(
+        attachDiagnostics(
+          { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
+          diagnostics,
+          requestStartedAt
+        )
       )
     }
 
     reportRepair()
-    return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+    stage = 'applied'
+    return finish(
+      attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+    )
   } finally {
     await clipboard.restore()
   }

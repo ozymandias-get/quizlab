@@ -128,7 +128,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
               top={selectionMenu.menu.position.top}
               left={selectionMenu.menu.position.left}
               feedback={selectionMenu.feedback}
-              addedCount={selectionMenu.addedCount}
               onSendToAi={selectionMenu.handleSendDirect}
               onAddToDraft={selectionMenu.handleAddToDraft}
             />

@@ -11,7 +11,6 @@
   "search_recent_placeholder": "Search...",
   "pdf_add_current_page_text_to_ai": "Add This Page's Text to AI",
   "pdf_no_text_found": "No selectable text found on this page",
-  "pdf_text_added_to_ai": "Text added to AI draft",
   "pdf_send_page_as_image": "Send Page as Image to AI",
   "gdrive_pdf_desc": "Access Drive with the same shared Google session from the PDF panel.",
   "open_google_drive": "Open Google Drive",
@@ -30,6 +29,5 @@
   "pdf_quick_image_ai": "Send Image to AI",
   "pdf_quick_area_ai": "Crop to AI",
   "pdf_selection_menu_label": "Selection actions",
-  "pdf_add_to_draft": "Add to Draft",
-  "pdf_draft_added": "Added to draft · {count} items"
+  "pdf_add_to_draft": "Add to Draft"
 }

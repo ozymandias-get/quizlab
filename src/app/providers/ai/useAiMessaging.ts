@@ -4,9 +4,10 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type * as AiFeatureModule from '@features/ai'
 import type { AiSendOptions } from '@features/ai'
 import { prepareImageForUpload, useAiSender } from '@features/ai'
-import { isDeliveredSendResult, isStagedSendResult, resolveAutoSend } from '@features/ai'
+import { resolveAutoSend } from '@features/ai'
 
-import type { Tab } from '@app/providers/ai/types'
+import type { AiSendResult, Tab } from '@app/providers/ai/types'
+import { NO_SEND_RESULT } from '@app/providers/ai/types'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
@@ -24,6 +25,7 @@ import {
   type ApiChatStaging,
   type ChatUiStateReader,
   createApiChatStaging,
+  hasStagedMutations,
   rollbackApiChatStaging,
   stageApiChatAttachments,
   stageApiChatInput
@@ -38,6 +40,32 @@ async function getChatUiStore() {
   return chatUiStoreModule.useChatUiStore
 }
 
+/**
+ * Telafiyi çalıştırır ve **sonucunu** gönderim sonucuna işler.
+ *
+ * Telafi `void` sayılırsa üst katman "hedef temizlendi" varsayar ve kısmen
+ * geri alınmış bir gönderimi yeniden ekler. Oysa:
+ *
+ * - Tam telafi → hedef eski halinde, `not_started`; otomatik tekrar güvenli.
+ * - Kısmi telafi / kullanıcı değişikliği → hedefte bizim içerikten bir şey
+ *   duruyor. Otomatik tekrar mükerrer mesaj üretir; sonuç `partial` olarak
+ *   işaretlenir ve üst katman kullanıcıyı bilgilendirir.
+ */
+function withRollback(
+  read: ChatUiStateReader | null,
+  tabId: string,
+  staging: ApiChatStaging,
+  result: AiSendResult
+): AiSendResult {
+  if (!read || !hasStagedMutations(staging)) return result
+  const rollback = rollbackApiChatStaging(read, tabId, staging)
+  if (rollback === 'fully_reverted') {
+    // Geri alma tamam: hedefe bizim bıraktığımız bir şey yok.
+    return { ...result, stage: 'not_started' }
+  }
+  return { ...result, stage: 'partial' }
+}
+
 interface UseAiMessagingParams {
   getContentController: (tabId?: string) => AiContentController | null
   /** Reads the active tab, or undefined when there is none. */
@@ -46,11 +74,19 @@ interface UseAiMessagingParams {
   activeTabId: string
   autoSend: boolean
   aiRegistry: Record<string, AiPlatform>
-  showSuccess: (message: string, title?: string) => void
   showWarning: (message: string, title?: string) => void
   openAiWorkspace: (modelId: string) => void
 }
 
+/**
+ * Başarılı gönderim **sessizdir**.
+ *
+ * İçerik hedefe ulaştığında kullanıcı zaten sonucu kendi gözüyle görür: site
+ * kutusunda mesaj belirir, taslak kuyruğu boşalır, panel kapanır. Ek bir
+ * "Gönderildi!" balonu aynı olayı ikinci kez anlatır ve gönderim sırasında
+ * ekranın köşesini kapatarak bir sonraki adımı gizler. Bu yüzden bu katman
+ * yalnızca **hatayı** konuşur; başarı sessizdir.
+ */
 export function useAiMessaging({
   getContentController,
   getActiveTab,
@@ -58,7 +94,6 @@ export function useAiMessaging({
   activeTabId,
   autoSend,
   aiRegistry,
-  showSuccess,
   showWarning,
   openAiWorkspace
 }: UseAiMessagingParams) {
@@ -130,6 +165,23 @@ export function useAiMessaging({
    *
    * Görseller önce hazırlanıp sonra topluca eklenir: 3 görselin 2.'si
    * hazırlanamazsa hiçbiri eklenmemiş olur, yarım ek bırakılmaz.
+   *
+   * ## Telafi ne zaman yapılır
+   *
+   * Karar bir "hazırlandı" bayrağıyla değil, **işlem günlüğünde kayıt
+   * olup olmamasıyla** verilir: `stageApiChat*` her mutasyonu uygulamadan
+   * önce kaydeder, bu yüzden hazırlama ortasında oluşan bir hata telafiyi
+   * atlamaz.
+   *
+   * İptal iki farklı gerçektir ve tek bir kodla temsil edilemez:
+   * debounce kuyruğunda iptal (`cancelled_before_send`) hiçbir istek atmadı —
+   * telafi hem güvenli hem gereklidir; istek atıldıktan sonra iptal
+   * (`cancelled`) teslimi belirsiz bırakır — telafi yapılmaz ve otomatik
+   * tekrar engellenir.
+   *
+   * Telafi sonucu **boş döndürülmez**: tam/kısmi/kullanıcı değişikliği
+   * nedeniyle geri alınamama bilgisi üst katmana taşınır, böylece kısmen
+   * geri alınmış bir gönderim yeniden eklenmez.
    */
   const runApiChatSend = useCallback(
     async (
@@ -139,38 +191,46 @@ export function useAiMessaging({
         staging: ApiChatStaging
       ) => Promise<{ error: string } | null>,
       effectiveAutoSend: boolean
-    ) => {
+    ): Promise<AiSendResult> => {
       let read: ChatUiStateReader | null = null
       const staging = createApiChatStaging()
-      let staged = false
       try {
         const UiStore = await getChatUiStore()
         read = () => UiStore.getState()
         const rejected = await prepare(read, staging)
-        if (rejected) return { success: false, error: rejected.error }
-        staged = true
+        if (rejected) {
+          // Hazırlama reddedildi ama kısmi mutasyon bırakmış olabilir.
+          return withRollback(read, tabId, staging, { success: false, error: rejected.error })
+        }
 
         if (!effectiveAutoSend) {
           // Auto-send kapalı: içerik hazırlandı, kullanıcı gönderir. "staged"
           // bir teslim iddiası değildir; bu yüzden temizlik de yapılmaz.
-          showSuccess(t('ai_send_staged'))
-          return { success: true, mode: 'staged' }
+          return { success: true, mode: 'staged', stage: 'applied' }
         }
 
         const result = await scheduleApiChatSend(tabId, apiChatSendTimeoutRef)
+        // `cancelled`: istek atıldıktan sonra durdu. İçerik zaten transcript'e
+        // yazılmış olabilir; geri almak ikinci bir kopya üretirdi. Otomatik
+        // tekrar da engellenir (`stage: 'uncertain'`).
         if (!result.success && result.error !== 'cancelled') {
-          rollbackApiChatStaging(read, tabId, staging)
-          staged = false
+          // Kesin başarısızlık: telafi çalıştırılır ve **sonucu** gönderim
+          // sonucuna işlenir. `handleApiChatSendResult` bilinçli olarak
+          // *önce* çağrılır: bu dönüş onu atlasa, API hatası hiçbir yerde
+          // konuşmaz (yalnızca `cancelled` ve başarı bu satıra ulaşırdı).
+          handleApiChatSendResult(result)
+          return withRollback(read, tabId, staging, result)
         }
         handleApiChatSendResult(result)
-        if (result.success) showSuccess('sent_successfully')
         return result
       } catch (err) {
-        if (staged && read) rollbackApiChatStaging(read, tabId, staging)
-        return { success: false, error: ensureErrorMessage(err, 'send_failed') }
+        return withRollback(read, tabId, staging, {
+          success: false,
+          error: ensureErrorMessage(err, 'send_failed')
+        })
       }
     },
-    [handleApiChatSendResult, showSuccess, t]
+    [handleApiChatSendResult]
   )
 
   /** Eklerin tek başına anlamsız kalmaması için kullanılan tohum talimat. */
@@ -216,7 +276,7 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = (await rawSendText(text, options)) ?? { success: false, error: 'cancelled' }
+      const result = (await rawSendText(text, options)) ?? NO_SEND_RESULT
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
@@ -286,17 +346,8 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = (await rawSendImage(imageData, options)) ?? {
-        success: false,
-        error: 'cancelled'
-      }
-      if (isDeliveredSendResult(result)) {
-        showSuccess('sent_successfully')
-      } else if (isStagedSendResult(result)) {
-        // Auto-send off: the image is now in the site's composer and the user
-        // submits there. Say so instead of claiming a delivery.
-        showSuccess(t('ai_send_staged'))
-      } else if (result.error !== 'cancelled') {
+      const result = (await rawSendImage(imageData, options)) ?? NO_SEND_RESULT
+      if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
       return result
@@ -309,9 +360,7 @@ export function useAiMessaging({
       openAiWorkspace,
       rawSendImage,
       runApiChatSend,
-      showSuccess,
       showWarning,
-      t,
       waitForContentReady,
       imageOnlySeed
     ]
@@ -380,15 +429,8 @@ export function useAiMessaging({
       if (!rawSendBulk) {
         return { success: false, error: 'bulk_not_supported' }
       }
-      const result = (await rawSendBulk(imageDataUrls, options)) ?? {
-        success: false,
-        error: 'cancelled'
-      }
-      if (isDeliveredSendResult(result)) {
-        showSuccess('sent_successfully')
-      } else if (isStagedSendResult(result)) {
-        showSuccess(t('ai_send_staged'))
-      } else if ((result as { error?: string }).error !== 'cancelled') {
+      const result = (await rawSendBulk(imageDataUrls, options)) ?? NO_SEND_RESULT
+      if (!result.success && (result as { error?: string }).error !== 'cancelled') {
         showWarning(toErrorToastKey((result as { error?: string }).error))
       }
       return result
@@ -401,9 +443,7 @@ export function useAiMessaging({
       openAiWorkspace,
       rawSendBulk,
       runApiChatSend,
-      showSuccess,
       showWarning,
-      t,
       waitForContentReady,
       imageOnlySeed
     ]

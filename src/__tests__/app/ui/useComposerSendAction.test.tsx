@@ -85,20 +85,22 @@ describe('useComposerSendAction', () => {
     expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: false }))
   })
 
-  it('shows the success badge for a delivered result', async () => {
+  it('returns to idle after a delivered result, with no success badge', async () => {
     const { result } = setup(true)
 
     await act(async () => {
       await result.current.handleSend()
     })
 
-    expect(result.current.sendFeedback).toBe('success')
+    // Delivery is silent: the queue empties and the panel closes, which is the
+    // confirmation. A "sent" badge would only restate it.
+    expect(result.current.sendFeedback).toBe('idle')
+    expect(result.current.lastError).toBeNull()
   })
 
-  // A staged outcome was accepted but never delivered, so the green badge
-  // would be a lie. It must not report "sent"; the prepared state is its own
-  // feedback, not the delivered one.
-  it('reports a staged result as staged, never as sent', async () => {
+  // A staged outcome was accepted but never delivered, so it must not report
+  // "sent" either. Success feedback is gone entirely, so it reports nothing.
+  it('returns to idle after a staged result, never claiming delivery', async () => {
     const onSend = vi.fn(async () => ({ success: true, mode: 'staged' }) as unknown)
     const { result } = renderHook(() =>
       useComposerSendAction({
@@ -116,7 +118,8 @@ describe('useComposerSendAction', () => {
       await result.current.handleSend()
     })
 
-    expect(result.current.sendFeedback).toBe('staged')
+    expect(result.current.sendFeedback).toBe('idle')
+    expect(result.current.lastError).toBeNull()
   })
 
   it('shows the error state and re-expands for a failed result', async () => {
@@ -260,12 +263,15 @@ describe('useComposerSendAction', () => {
   describe('feedback timers', () => {
     beforeEach(() => vi.useFakeTimers())
 
-    it('does not let a stale success timer reset a running send', async () => {
+    it('does not let a stale feedback timer reset a running send', async () => {
+      // Success no longer schedules anything — only an error does. The
+      // invariant is unchanged and still worth guarding: a timer left over from
+      // an earlier send must not pull a running send back to `idle`.
       let releaseSecond!: (v: unknown) => void
       let call = 0
       const onSend = vi.fn(() => {
         call += 1
-        if (call === 1) return Promise.resolve({ success: true })
+        if (call === 1) return Promise.resolve({ success: false, error: 'paste_failed' })
         return new Promise<unknown>((resolve) => {
           releaseSecond = resolve
         })
@@ -285,18 +291,18 @@ describe('useComposerSendAction', () => {
       await act(async () => {
         await result.current.handleSend()
       })
-      expect(result.current.sendFeedback).toBe('success')
+      expect(result.current.sendFeedback).toBe('error')
 
-      // İkinci gönderim başlar; ilk başarının sayacı hâlâ sırada.
+      // İkinci gönderim başlar; ilk hatanın 6000 ms'lik sayacı sırada.
       let second!: Promise<void>
       act(() => {
         second = result.current.handleSend()
       })
       expect(result.current.sendFeedback).toBe('sending')
 
-      // 1500 ms'lik eski sayac dolar: gönderim hâlâ sürüyor, durum `idle` olmamalı.
+      // Eski sayac dolar: gönderim hâlâ sürüyor, durum `idle` olmamalı.
       await act(async () => {
-        vi.advanceTimersByTime(2000)
+        vi.advanceTimersByTime(7000)
       })
       expect(result.current.sendFeedback).toBe('sending')
 
@@ -304,12 +310,12 @@ describe('useComposerSendAction', () => {
         releaseSecond({ success: true })
         await second
       })
-      expect(result.current.sendFeedback).toBe('success')
+      expect(result.current.sendFeedback).toBe('idle')
     })
 
     it('clears the pending timer on unmount', async () => {
       const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
-      const onSend = vi.fn(async () => ({ success: true }) as unknown)
+      const onSend = vi.fn(async () => ({ success: false, error: 'paste_failed' }) as unknown)
       const { result, unmount } = renderHook(() =>
         useComposerSendAction({
           isSubmitting: false,
@@ -325,7 +331,7 @@ describe('useComposerSendAction', () => {
       await act(async () => {
         await result.current.handleSend()
       })
-      expect(result.current.sendFeedback).toBe('success')
+      expect(result.current.sendFeedback).toBe('error')
 
       clearSpy.mockClear()
       unmount()
@@ -374,7 +380,9 @@ describe('useComposerSendAction', () => {
       expect(onSend).toHaveBeenCalledTimes(2)
       // Aynı niyet, aynı içerik: veri kaybı yok.
       expect(onSend.mock.calls[1][0]).toEqual(onSend.mock.calls[0][0])
-      expect(result.current.sendFeedback).toBe('success')
+      // The successful retry is silent, like any other successful send.
+      expect(result.current.sendFeedback).toBe('idle')
+      expect(result.current.lastError).toBeNull()
     })
 
     it('never auto-resends when the content already reached the target', async () => {

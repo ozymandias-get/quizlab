@@ -2,15 +2,7 @@ import { Switch } from '@app/components/ui/switch'
 import { cn } from '@shared/lib/uiUtils'
 import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
-import {
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  Loader2,
-  RotateCcw,
-  Send,
-  TriangleAlert
-} from 'lucide-react'
+import { AlertCircle, Loader2, RotateCcw, Send, TriangleAlert } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -42,11 +34,11 @@ interface DraftSendControlsProps {
  * yanıtlar, bu yüzden tek satırda kalır.
  *
  * Durum modeli bilinçli olarak ayrıdır:
- *  - `success`    → içerik gerçekten iletildi ("Gönderildi").
- *  - `staged`     → içerik AI kutusuna hazırlandı, kullanıcı gönderacak.
  *  - `incomplete` → içerik hedefe ulaştı, sonraki adım başarısız oldu. Otomatik
  *                   tekrar **yapılmaz**; kullanıcı bilgilendirilir ve durumu
  *                   kapatabilir. Mükerrer mesajın önü buradadır.
+ *  - teslim edilen / hazırlanan içerik → **görünmez**. Kuyruk boşaldığı için
+ *    sonuç zaten kendini gösterir; "Gönderildi" yazısı yalnızca tekrar olurdu.
  *
  * `role="status"` + `aria-live="polite"` sonuç metnini ekran okuyucuya da
  * duyurur; yalnızca renk/tooltip ile anlatmak yeterli değildir.
@@ -69,39 +61,21 @@ function DraftSendControls({
   const statusLabel =
     feedback === 'sending'
       ? t('sending_to_ai')
-      : feedback === 'success'
-        ? t('ai_send_sent')
-        : feedback === 'staged'
-          ? t('ai_send_staged')
-          : isIncomplete
-            ? (lastError ?? t('ai_send_incomplete'))
-            : feedback === 'error'
-              ? (lastError ?? t('ai_send_error'))
-              : null
-
-  const StatusIcon =
-    feedback === 'sending'
-      ? Loader2
-      : feedback === 'success'
-        ? CheckCircle2
-        : feedback === 'staged'
-          ? Info
-          : isIncomplete
-            ? TriangleAlert
-            : feedback === 'error'
-              ? AlertCircle
-              : null
-
-  const statusTone =
-    feedback === 'success'
-      ? 'text-emerald-600 dark:text-emerald-400'
       : isIncomplete
-        ? 'text-amber-600 dark:text-amber-400'
+        ? (lastError ?? t('ai_send_incomplete'))
         : feedback === 'error'
-          ? 'text-destructive'
-          : feedback === 'sending' || feedback === 'staged'
-            ? 'text-foreground'
-            : 'text-muted-foreground'
+          ? (lastError ?? t('ai_send_error'))
+          : null
+
+  const StatusIcon = feedback === 'sending' ? Loader2 : isIncomplete ? TriangleAlert : AlertCircle
+
+  const statusTone = isIncomplete
+    ? 'text-amber-600 dark:text-amber-400'
+    : feedback === 'error'
+      ? 'text-destructive'
+      : feedback === 'sending'
+        ? 'text-foreground'
+        : 'text-muted-foreground'
 
   return (
     <div className="border-border/50 bg-muted/20 flex min-h-8 shrink-0 items-center gap-2 border-t px-3 py-1">

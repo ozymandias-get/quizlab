@@ -26,7 +26,7 @@ interface DraftDockBarProps {
    * Boş string ise gösterilmez; hapın içinde kısa bir rozet olarak durur.
    */
   statusLabel?: string
-  statusTone?: 'neutral' | 'success' | 'warning' | 'error'
+  statusTone?: 'neutral' | 'warning' | 'error'
 }
 
 /**
@@ -67,13 +67,11 @@ function DraftDockBar({
   const SendIcon = intent === 'sending' ? Loader2 : intent === 'retry' ? RotateCcw : Send
 
   const toneClasses =
-    statusTone === 'success'
-      ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-      : statusTone === 'error'
-        ? 'border-destructive/30 bg-destructive/12 text-destructive'
-        : statusTone === 'warning'
-          ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
-          : 'border-primary/20 bg-primary/10 text-primary'
+    statusTone === 'error'
+      ? 'border-destructive/30 bg-destructive/12 text-destructive'
+      : statusTone === 'warning'
+        ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+        : 'border-primary/20 bg-primary/10 text-primary'
 
   return (
     <div
@@ -115,7 +113,6 @@ function DraftDockBar({
             aria-live="polite"
             className={cn(
               'text-ql-11 max-w-[12rem] truncate font-medium @max-[24rem]:hidden',
-              statusTone === 'success' && 'text-emerald-600 dark:text-emerald-400',
               statusTone === 'error' && 'text-destructive',
               statusTone === 'warning' && 'text-amber-600 dark:text-amber-400',
               statusTone === 'neutral' && 'text-muted-foreground'

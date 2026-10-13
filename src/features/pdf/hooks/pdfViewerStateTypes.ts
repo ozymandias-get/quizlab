@@ -49,8 +49,7 @@ interface SelectionMenuState {
     source: PdfSourceMeta | null
     requestId: number
   } | null
-  feedback: 'idle' | 'working' | 'added' | 'sent' | 'staged' | 'error'
-  addedCount: number
+  feedback: 'idle' | 'working' | 'error'
   handleAddToDraft: () => void
   handleSendDirect: () => void
   closeMenu: () => void

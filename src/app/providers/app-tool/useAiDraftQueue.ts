@@ -35,9 +35,23 @@ function itemBlobUrl(draft: AiDraftItem): string {
   return draft.type === 'image' && draft.blobUrl ? draft.blobUrl : ''
 }
 
-/** "id::blobUrl" — aynı öğenin aynı kaynakla hayatta kalıp kalmadığını ayırt eder. */
-function resourceKey(draft: AiDraftItem): string {
-  return `${draft.id}::${itemBlobUrl(draft)}`
+/**
+ * Kuyrukta **o an ayakta duran** blob URL'ler.
+ *
+ * Kaynak referans sayısıyla yönetilir: iki öğe aynı `blob:` URL'sini
+ * paylaşabilir (aynı yakalamanın iki kez kuyruğa eklenmesi ya da
+ * `resolveLargePreview`nin iki öğeye aynı URL'yi yazması). Bir öğe kaldırıldığında
+ * URL, hâlâ onu kullanan başka bir öğe varsa **iptal edilmez** — iptal edilirse
+ * diğer öğenin önizlemesi kırılır ve gönderim yolundaki `blobUrlToDataUrl` da
+ * başarısız olur. Yani "öğe gitti" ile "kaynak serbest kaldı" aynı şey değildir.
+ */
+function survivingBlobUrls(items: AiDraftItem[]): Set<string> {
+  const urls = new Set<string>()
+  for (const draft of items) {
+    const url = itemBlobUrl(draft)
+    if (url) urls.add(url)
+  }
+  return urls
 }
 
 /** `data:image/...;base64,` → bayt dizisi + mime. Geçersizse null. */
@@ -54,6 +68,25 @@ function decodeDataUrlToBytes(
   } catch {
     return null
   }
+}
+
+/**
+ * Pahalı işi **görüntülenebilir bir görev sınırından sonra** başlatır.
+ *
+ * `Promise.resolve().then(...)` bir mikro-görevdir: tarayıcı ondan önce boya
+ * yapamaz, yani "asenkron" etiketi yanıltıcı olur ve decode yine ana iş
+ * parçacığında, kullanıcının girdisine cevap vermeden başlar. `setTimeout(0)`
+ * ise gerçek bir görev sınırıdır: araya en az bir boyama fırsatı girer.
+ *
+ * Bu işi **başka bir iş parçacığına** taşımaz — projede genel amaçlı bir
+ * Worker/utility altyapısı yoktur ve sırf bu iş için yeni bir servis kurmak
+ * kapsam dışıdır. Taşınan şey, bloklamanın *zamanlamasıdır*: iptal edilen
+ * bir yakalamada iş başlamadan önce çıkış yolu açık kalır.
+ */
+function yieldToRendererTask(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0)
+  })
 }
 
 /**
@@ -101,7 +134,7 @@ export function useAiDraftQueue(onReject?: () => void) {
     return () => {
       const remaining = itemsRef.current
       itemsRef.current = []
-      for (const draft of remaining) revokeBlobUrl(itemBlobUrl(draft))
+      for (const url of survivingBlobUrls(remaining)) revokeBlobUrl(url)
     }
   }, [])
 
@@ -112,17 +145,19 @@ export function useAiDraftQueue(onReject?: () => void) {
    *   güncel sayıyı görür.
    * - React'e **düz dizi** verilir; updater fonksiyonu hiç çalıştırılmaz,
    *   dolayısıyla StrictMode'un çift çağırması yan etki üretmez.
-   * - Kuyruktan ayrılan kaynaklar burada, çağrıdan sonra iptal edilir.
+   * - Kuyruktan ayrılan kaynaklar burada, çağrıdan **sonra** iptal edilir ve
+   *   yalnızca artık hiçbir öğe tarafından kullanılmayanlar için.
    */
   const commit = useCallback((next: AiDraftItem[]) => {
     const previous = itemsRef.current
     itemsRef.current = next
     setQueue(next)
 
-    if (previous.length === 0 && next.length === 0) return
-    const survivors = new Set(next.map(resourceKey))
-    for (const draft of previous) {
-      if (!survivors.has(resourceKey(draft))) revokeBlobUrl(itemBlobUrl(draft))
+    const survivors = survivingBlobUrls(next)
+    // Paylaşılan URL: bir öğe çıktı ama başka bir öğe onu hâlâ kullanıyorsa
+    // iptal edilmez. Referans sayısı burada "kalan küme boş mu" sorusudur.
+    for (const url of survivingBlobUrls(previous)) {
+      if (!survivors.has(url)) revokeBlobUrl(url)
     }
   }, [])
 
@@ -189,7 +224,7 @@ export function useAiDraftQueue(onReject?: () => void) {
    */
   const resolveLargePreview = useCallback(
     (draftId: string, dataUrl: string) => {
-      void Promise.resolve()
+      void yieldToRendererTask()
         .then(() => {
           const decoded = decodeDataUrlToBytes(dataUrl)
           return decoded
@@ -251,9 +286,14 @@ export function useAiDraftQueue(onReject?: () => void) {
         // (yakalama hattı) artık onu iptal etmemelidir — iki katman aynı URL'i
         // sahiplenirse biri diğerinin önizlemesini öldürür.
         blobUrl = imageUri
-      } else {
+      } else if ((dataUrl?.length ?? 0) <= SYNC_BLOB_BASE64_LIMIT) {
+        // **Boyut kontrolü decode'dan önce gelir.** Önceki sıralamada decode
+        // koşulsuz çalışıyor, sonra uzunluk ölçülüyordu; büyük bir yakalamada
+        // megabaytlık base64'in `atob` + bayt döngüsü sonucu hemen çöpe
+        // atılıyor, sonra `resolveLargePreview` aynı işi **yeniden** yapıyordu.
+        // Yani büyük görsel iki kez decode ediliyordu; biri gereksizdi.
         const decoded = dataUrl ? decodeDataUrlToBytes(dataUrl) : null
-        if (decoded && (dataUrl?.length ?? 0) <= SYNC_BLOB_BASE64_LIMIT) {
+        if (decoded) {
           try {
             // Küçük yakalamalar: önizleme eşzamanlı üretilir, böylece bileşen
             // ilk render'da hazır bir önizleme görür.
@@ -264,10 +304,10 @@ export function useAiDraftQueue(onReject?: () => void) {
             blobUrl = ''
           }
         }
-        // Büyük yakalamalar: base64 decode ana iş parçacığını kilitlemesin diye
-        // asenkron üretilir (fetch(data:) Electron CSP'sinde `connect-src`
-        // tarafından engellenir, bu yüzden yerel decode kullanılır).
       }
+      // Büyük yakalamalar: önizleme görev sınırından sonra üretilir
+      // (`resolveLargePreview`). fetch(data:) Electron CSP'sinde `connect-src`
+      // tarafından engellenir, bu yüzden yerel decode kullanılır.
 
       commit([
         ...itemsRef.current,

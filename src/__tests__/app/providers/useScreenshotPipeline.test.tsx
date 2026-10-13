@@ -30,9 +30,19 @@ describe('useScreenshotPipeline', () => {
   // ve reddedilme senaryoları ayrıca açıkça test edilir.
   const queueImageForAi = vi.fn((_dataUrl: string, _meta?: unknown) => true)
 
+  // Kaynak yaşam döngüsü gözlemi: her blob kaynağının iptali sayılır.
+  // Kuyruğa devredilen (kabul edilen) kaynak **iptal edilmez**.
+  //
+  // Spy `beforeEach`'te kurulur: global `afterEach` içindeki
+  // `vi.restoreAllMocks()` ilk testten sonra özgün metodu geri yükler; tek
+  // seferlik bir spy ikinci testten itibaren gözlem yapmaz ve "çağrılmadı"
+  // iddiaları boşuna geçerdi.
+  let revokeObjectURL: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     vi.clearAllMocks()
     queueImageForAi.mockReturnValue(true)
+    revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   })
 
   it('stashes the capture as pending instead of queueing immediately', async () => {
@@ -149,8 +159,6 @@ describe('useScreenshotPipeline', () => {
   // clear the pending capture and report success even when the queue was full.
   // That both lied to the user and leaked the blob URL.
   describe('rejection by the queue', () => {
-    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-
     beforeEach(() => {
       revokeObjectURL.mockClear()
     })
@@ -212,6 +220,93 @@ describe('useScreenshotPipeline', () => {
       expect(result.current.pendingFullPageCapture).toBeNull()
       // Kuyruk URL'i üstlendi; yakalama hattı onu iptal etmemeli.
       expect(revokeObjectURL).not.toHaveBeenCalled()
+    })
+  })
+
+  /**
+   * Tek sahiplik: alan ve tam sayfa **aynı anda** bekleyemez.
+   *
+   * Aksi halde "hangi yakalama ekleniyor / gönderiliyor / temizleniyor?"
+   * sorusunun tek ve deterministik yanıtı olmazdı: menü alan yakalamasını
+   * gösterirken tam sayfa yakalamasının kaynağı ekranda görünmeden yaşar ve
+   * sessizce sızar.
+   */
+  describe('single pending capture', () => {
+    it('drops the area capture when a full-page capture arrives', async () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+      await act(async () => {
+        await result.current.handleCapture('blob:area', null)
+      })
+      expect(result.current.pendingAreaCapture?.dataUrl).toBe('blob:area')
+
+      act(() => {
+        result.current.offerFullPageCapture('blob:full', { page: 3 })
+      })
+
+      expect(result.current.pendingFullPageCapture?.dataUrl).toBe('blob:full')
+      expect(result.current.pendingAreaCapture).toBeNull()
+      // Düşürülen kaynak geri alınır: ekranda görünmeyen bir blob sızmaz.
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:area')
+    })
+
+    it('drops the full-page capture when a new area selection starts', async () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+      act(() => {
+        result.current.offerFullPageCapture('blob:full', { page: 3 })
+      })
+
+      act(() => {
+        result.current.startScreenshot({ page: 4 })
+      })
+
+      expect(result.current.pendingFullPageCapture).toBeNull()
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:full')
+    })
+
+    it('acts only on the surviving capture when the user confirms', async () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+      await act(async () => {
+        await result.current.handleCapture('blob:area', null)
+      })
+      act(() => {
+        result.current.offerFullPageCapture('blob:full', { page: 3 })
+      })
+
+      // Artık yalnızca tam sayfa yakalaması geçerli.
+      let confirmedArea: boolean | undefined
+      let confirmedFull: boolean | undefined
+      act(() => {
+        confirmedArea = result.current.confirmPendingAreaAsDraft()
+      })
+      act(() => {
+        confirmedFull = result.current.confirmPendingFullPageAsDraft()
+      })
+
+      expect(confirmedArea).toBe(false)
+      expect(confirmedFull).toBe(true)
+      // Kuyruğa yalnızca bir öğe, doğru kaynaktan yazılır.
+      expect(queueImageForAi).toHaveBeenCalledTimes(1)
+      expect(queueImageForAi).toHaveBeenCalledWith('blob:full', { page: 3 })
+    })
+
+    it('keeps at most one pending capture across several rounds', async () => {
+      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+
+      await act(async () => {
+        await result.current.handleCapture('blob:area-1', null)
+      })
+      act(() => {
+        result.current.offerFullPageCapture('blob:full-1', { page: 1 })
+      })
+      await act(async () => {
+        await result.current.handleCapture('blob:area-2', null)
+      })
+
+      expect(result.current.pendingFullPageCapture).toBeNull()
+      expect(result.current.pendingAreaCapture?.dataUrl).toBe('blob:area-2')
     })
   })
 })
