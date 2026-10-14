@@ -1,0 +1,207 @@
+/**
+ * `resolveSendOutcome` — gönderim sonucunun **tek yorumu**.
+ *
+ * Bu dosya, otomatik "tekrar dene" kararının neden hata metnine değil **aşama**
+ * bilgisine bağlı olduğunu sınar. Sınanan sözleşme tek cümlede:
+ *
+ * > Hedefe dokunulduğundan emin olunamıyorsa, otomatik tekrar yapılmaz.
+ *
+ * `error_cancelled` kullanıcıya "tekrar göndermek mükerrer mesaj oluşturur"
+ * diyor. Bu mesajın doğru olabilmesi için aşama bilgisi taşımayan bir
+ * iptalin de otomatik tekrarı kapatması gerekir — aksi halde uygulama
+ * kendi uyarısını kendi çözmesini imle eder.
+ */
+import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
+
+import { describe, expect, it } from 'vitest'
+
+describe('resolveSendOutcome — cancellation', () => {
+  it('blocks auto-retry for a cancellation that reports no stage', () => {
+    // Aşama bildirmeyen iptal: ne yapıldığı bilinmiyor. Bilinmeyen mutasyon
+    // "mutasyon yok" sayılamaz.
+    const outcome = resolveSendOutcome({ success: false, error: 'cancelled' })
+
+    expect(outcome.resendSafe).toBe(false)
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.errorCode).toBe('cancelled')
+  })
+
+  it('blocks auto-retry when the request had already started', () => {
+    const outcome = resolveSendOutcome({ success: false, error: 'cancelled', stage: 'uncertain' })
+
+    expect(outcome.resendSafe).toBe(false)
+    expect(outcome.kind).toBe('incomplete')
+  })
+
+  it('allows auto-retry when the send was cancelled before anything was written', () => {
+    const outcome = resolveSendOutcome({
+      success: false,
+      error: 'cancelled_before_send',
+      stage: 'not_started'
+    })
+
+    expect(outcome.resendSafe).toBe(true)
+    expect(outcome.kind).toBe('failed')
+    expect(outcome.errorCode).toBe('cancelled_before_send')
+  })
+
+  it('never lets an incomplete result fall back to a plain error', () => {
+    // `error` + `incomplete` ayrımı: ikisi de taslağı korur, ama yalnızca
+    // `incomplete` kullanıcıya nerede durduğunu söyler.
+    const outcome = resolveSendOutcome({ success: false, error: 'cancelled' })
+    expect(outcome.feedback).toBe('incomplete')
+  })
+})
+
+describe('resolveSendOutcome — stage, not error text, decides retry', () => {
+  it('resends safely when the first image never pasted', () => {
+    const outcome = resolveSendOutcome({
+      success: false,
+      error: 'paste_failed',
+      stage: 'not_started'
+    })
+
+    expect(outcome.kind).toBe('failed')
+    expect(outcome.resendSafe).toBe(true)
+  })
+
+  it('never resends the same code when an earlier image already landed', () => {
+    // Aynı hata kodu, hedef dolu olduğunda güvenli değildir.
+    const outcome = resolveSendOutcome({
+      success: false,
+      error: 'paste_failed',
+      stage: 'partial'
+    })
+
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('keeps autosend_failed_draft_saved incomplete', () => {
+    const outcome = resolveSendOutcome({ success: false, error: 'autosend_failed_draft_saved' })
+
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('never resends a fully written target that failed only at submit', () => {
+    // `applied` burada tuzak: başarıda "hazırlandı" der, başarısızlıkta ise
+    // "görseller + prompt kutuda, yalnızca tıklama yapılmadı" anlamına gelir.
+    // Hata + mutasyon birleşimi her zaman güvensizdir.
+    const outcome = resolveSendOutcome({
+      success: false,
+      error: 'submit_ready_script_failed',
+      stage: 'applied'
+    })
+
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('keeps a fully-reverted rollback safely retryable', () => {
+    // Telafi hedefi eski haline döndürdüyse `not_started` düşer ve tekrar
+    // açılır: hedefte bizim bıraktığımız bir şey yok.
+    const outcome = resolveSendOutcome({
+      success: false,
+      error: 'send_failed',
+      stage: 'not_started'
+    })
+
+    expect(outcome.kind).toBe('failed')
+    expect(outcome.resendSafe).toBe(true)
+  })
+
+  it('treats a busy rejection as not-an-error and leaves state untouched', () => {
+    const outcome = resolveSendOutcome({ success: false, error: 'send_in_progress' })
+
+    expect(outcome.kind).toBe('busy')
+    expect(outcome.feedback).toBe('idle')
+    expect(outcome.errorCode).toBeNull()
+  })
+
+  it('still resends a plain stage-less failure safely', () => {
+    // Mutasyon bilgisi taşımayan, hedefe hiçbir şey yazamayan hatalar
+    // (geçersiz girdi, hazır olmayan webview) güvenle tekrarlanabilir.
+    const outcome = resolveSendOutcome({ success: false, error: 'webview_not_ready' })
+
+    expect(outcome.kind).toBe('failed')
+    expect(outcome.resendSafe).toBe(true)
+  })
+})
+
+describe('resolveSendOutcome — success shapes', () => {
+  it.each([
+    ['auto_click', 'delivered'],
+    ['auto_click_with_prompt', 'delivered'],
+    ['paste_only', 'staged'],
+    ['paste_and_prompt', 'staged'],
+    ['staged', 'staged']
+  ] as const)('reads mode %s as %s and stays silent', (mode, expectedKind) => {
+    const outcome = resolveSendOutcome({ success: true, mode, stage: 'applied' })
+
+    expect(outcome.kind).toBe(expectedKind)
+    // Başarı sessizdir: kullanıcı sonucu site kutusunda kendi görür.
+    expect(outcome.feedback).toBe('idle')
+  })
+
+  // Bir sonucun **okunamaması** "hiçbir şey olmadı" demek değildir. Bilgi
+  // eksikliği, en kötü ihtimalde hedefin önceden değişmiş olabileceğini
+  // dışlamaz; bu yüzden güvenli taraf seçilir ve otomatik tekrar kapanır.
+  it('treats an unusable result as undecidable instead of safely repeatable', () => {
+    for (const unusable of [undefined, null, 'nope', 42, {}]) {
+      const outcome = resolveSendOutcome(unusable)
+
+      expect(outcome.kind).toBe('incomplete')
+      // Kanıt yok → "mutasyon yok" denemez; en kötü ihtimal mükerrer mesaj.
+      expect(outcome.resendSafe).toBe(false)
+      expect(outcome.feedback).toBe('incomplete')
+      expect(outcome.errorCode).toBe('unknown_error')
+    }
+  })
+
+  it('treats a failure that reports neither error nor stage as undecidable', () => {
+    // `{ success: false }`: ne tekrarlanabilir ne de başarısız olduğu bilinen
+    // bir durum. Güvenli taraf gerekir.
+    expect(resolveSendOutcome({ success: false })).toEqual({
+      kind: 'incomplete',
+      feedback: 'incomplete',
+      errorCode: 'unknown_error',
+      resendSafe: false
+    })
+  })
+})
+
+describe('resolveSendOutcome — a stage still decides retry without an error code', () => {
+  // `stage` mutasyonun **varlığını** bildirir; `error` yalnızca kullanıcıya
+  // gösterilecek metni seçer. Aşama bildiren bir üretici hata kodu taşımak
+  // zorunda değildir, bu yüzden karar `error`a değil `stage`e bağlı kalmalıdır.
+  //
+  // `{ success: false, stage: 'applied' }` bu boşluğun somut örneğidir: görseller
+  // yapıştırılmış, prompt yazılmış, yalnızca submit tıklaması yapılmamıştır.
+  // Hata kodu olmadığı için önceki akış bu sonucu güvenli tekrar sayar ve
+  // "Tekrar dene" ikinci bir kopya bırakır.
+  it.each([
+    ['not_started', 'failed', true],
+    ['partial', 'incomplete', false],
+    ['applied', 'incomplete', false],
+    ['uncertain', 'incomplete', false]
+  ] as const)(
+    'reads stage %s without an error code as %s (resendSafe=%s)',
+    (stage, expectedKind, expectedResendSafe) => {
+      const outcome = resolveSendOutcome({ success: false, stage })
+
+      expect(outcome.kind).toBe(expectedKind)
+      expect(outcome.resendSafe).toBe(expectedResendSafe)
+    }
+  )
+
+  it('never auto-resends a target that was already fully written', () => {
+    // Görevin işaret ettiği girdi: içerik hedefe uygulanmış, teslim edilmemiş.
+    const outcome = resolveSendOutcome({ success: false, stage: 'applied' })
+
+    expect(outcome.resendSafe).toBe(false)
+    expect(outcome.kind).toBe('incomplete')
+    // Kullanıcı "nerede durduğunu" bilmeli: hazırlandı, gönderilmedi.
+    expect(outcome.feedback).toBe('incomplete')
+  })
+})

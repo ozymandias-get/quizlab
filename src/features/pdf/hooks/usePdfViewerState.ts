@@ -1,3 +1,4 @@
+import { buildPdfSourceMeta } from '@app/providers/ai/pdfSource'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useToastActions } from '@shared/stores/toastStore'
 
@@ -5,6 +6,7 @@ import { useCallback, useMemo, useRef, useState, useTransition } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useNativePdfController } from '../native/useNativePdfController'
+import { usePdfSelectionMenu } from '../ui/components/usePdfSelectionMenu'
 import { useContainerSize, useLastNavigationTime } from '../ui/components/usePdfViewerLayout'
 import {
   useCanvasGpuCleanup,
@@ -50,7 +52,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     onReadingProgressChange,
     isInteractionBlocked,
     startScreenshot,
-    queueImageForAi,
+    onFullPageCapture,
     isPanelResizing = false
   } = props
 
@@ -60,7 +62,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
   const [, startTransition] = useTransition()
   const { queueTextForAi } = useAppToolActions()
-  const { showSuccess, showWarning } = useToastActions()
+  const { showWarning } = useToastActions()
   const { t: tt } = useTranslation()
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
   const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
@@ -115,10 +117,21 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   // canvas, so this one MutationObserver sees all page swaps and zoom re-renders.
   useCanvasGpuCleanup(containerRef)
 
+  const selectionMenu = usePdfSelectionMenu({
+    containerRef,
+    pdfFile,
+    currentPage,
+    totalPages: nativeViewer.totalPages,
+    zoomToken: nativeViewer.scale,
+    onTextSelection
+  })
+
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({
     currentPage,
+    totalPages: nativeViewer.totalPages,
+    pdfFile,
     capturePageRef: props.capturePageRef,
-    queueImageForAi,
+    onFullPageCapture,
     startScreenshot,
     pdfUrl
   })
@@ -128,10 +141,28 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { extractCurrentPageText } = usePdfTextActions({
     containerRef,
     currentPage,
-    onTextSelection,
+    onTextSelection: selectionMenu.handleSelection,
     onTextExtracted: (text) => {
-      queueTextForAi(text)
-      showSuccess(tt('pdf_text_added_to_ai'))
+      // Tam sayfa metni: seçim anındaki gerçek sayfa + toplam ile kaynakla.
+      const page = currentPageRef.current
+      const total = nativeViewer.totalPages >= 1 ? nativeViewer.totalPages : undefined
+      queueTextForAi(text, null, {
+        source: buildPdfSourceMeta({
+          file: pdfFile
+            ? {
+                path: pdfFile.path,
+                streamUrl: pdfFile.streamUrl,
+                name: pdfFile.name,
+                size: pdfFile.size
+              }
+            : null,
+          page,
+          totalPages: total,
+          captureKind: 'full-page-text'
+        })
+      })
+      // Eklemenin sonucu zaten görünür: taslak sayacı bir artar. Ayrı bir
+      // "AI taslağına eklendi" balonu aynı olayı ikinci kez söylerdi.
     },
     onNoTextFound: () => {
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
@@ -181,7 +212,8 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     menuItems,
     handleAddCurrentPageTextToAi,
     handleReload,
-    tt
+    tt,
+    selectionMenu
   }
 }
 

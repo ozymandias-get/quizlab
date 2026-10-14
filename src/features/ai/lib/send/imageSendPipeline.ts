@@ -7,7 +7,7 @@ import { Logger, reportSuppressedError } from '@shared/lib/logger'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type { AiSendDiagnostics, SendImageResult } from '../../model/types'
+import type { AiSendDiagnostics, SendImageResult, SendStage } from '../../model/types'
 import {
   type ConfigCache,
   IMAGE_SUBMIT_READY_SETTLE_DELAY,
@@ -127,6 +127,17 @@ export async function executeImageSendPipeline(
   let promptApplied = false
 
   /**
+   * Hedefe **gerçekte ne bırakıldığı** izlenir; karar hata kodundan değil
+   * bundan okunur. `paste_failed` tek görselde "hiç yapışmadı" demektir
+   * (güvenli tekrar), `paste_not_applied` ise "yapıştırma gönderildi ama
+   * sayfa uygulamış mı bilmiyoruz" demektir (belirsiz → tekrar yapılmaz).
+   */
+  let stage: SendStage = 'not_started'
+
+  /** Sonucu, o anki gerçek aşamayla birlikte döndürür. */
+  const finish = (result: SendImageResult): SendImageResult => ({ ...result, stage })
+
+  /**
    * Self-healing: the image pipeline runs several injected scripts, and only
    * the ones that actually used an element (`promptScript` inserted text,
    * `clickScript` submitted) may teach the selector repair loop anything.
@@ -148,10 +159,12 @@ export async function executeImageSendPipeline(
     diagnostics
   })
   if (!copied) {
-    return attachDiagnostics(
-      { success: false, error: 'clipboard_failed' },
-      diagnostics,
-      requestStartedAt
+    return finish(
+      attachDiagnostics(
+        { success: false, error: 'clipboard_failed' },
+        diagnostics,
+        requestStartedAt
+      )
     )
   }
 
@@ -179,7 +192,7 @@ export async function executeImageSendPipeline(
       onExecuteTiming: (ms) => (diagnostics.timings.focusExecuteJavaScriptMs = ms),
       onResult: (res) => (diagnostics.focusScript = cloneScriptDiagnostics(res?.diagnostics))
     })
-    if (!focusStep.success) return focusStep.error
+    if (!focusStep.success) return finish(focusStep.error)
 
     // 2. Paste Image
     let pasteSuccess = false
@@ -195,10 +208,12 @@ export async function executeImageSendPipeline(
 
     if (!pasteSuccess) {
       if (!canUseContent(content, scheduledContent)) {
-        return attachDiagnostics(
-          { success: false, error: 'webview_destroyed' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'webview_destroyed' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
       pasteSuccess = await safeContentPaste(content)
@@ -206,14 +221,15 @@ export async function executeImageSendPipeline(
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
 
     if (!pasteSuccess) {
-      return attachDiagnostics(
-        { success: false, error: 'paste_failed' },
-        diagnostics,
-        requestStartedAt
+      // Yapıştırma gerçekleşmedi → hedefe hiçbir şey bırakılmadı.
+      return finish(
+        attachDiagnostics({ success: false, error: 'paste_failed' }, diagnostics, requestStartedAt)
       )
     }
     clipboard.markPasteCompleted()
     await clipboard.restore()
+    // Görsel hedefe girdi; bundan sonraki her hata kısmi uygulamadır.
+    stage = 'partial'
 
     // 3. Optional Prompt
     if (effectivePromptText) {
@@ -229,7 +245,7 @@ export async function executeImageSendPipeline(
         onExecuteTiming: (ms) => (diagnostics.timings.refocusExecuteJavaScriptMs = ms),
         onResult: (res) => (diagnostics.refocusScript = cloneScriptDiagnostics(res?.diagnostics))
       })
-      if (!refocusStep.success) return refocusStep.error
+      if (!refocusStep.success) return finish(refocusStep.error)
 
       await sleep(POST_PASTE_PROMPT_DELAY)
       diagnostics.timings.postPastePromptDelayMs = POST_PASTE_PROMPT_DELAY
@@ -258,15 +274,18 @@ export async function executeImageSendPipeline(
         onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
       })
 
-      if (!promptStep.success) return promptStep.error
+      if (!promptStep.success) return finish(promptStep.error)
 
       promptApplied = true
+      stage = 'applied'
       if (!effectiveAutoSend) {
         reportRepair()
-        return attachDiagnostics(
-          { success: true, mode: 'paste_and_prompt' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: true, mode: 'paste_and_prompt' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
     }
@@ -318,13 +337,19 @@ export async function executeImageSendPipeline(
         })
 
         if (pasteIgnoredPage) {
-          return attachDiagnostics(
-            { success: false, error: 'paste_not_applied' },
-            diagnostics,
-            requestStartedAt
-          ) as SendImageResult
+          // Sayfa yapıştırırmayı yok saydı **diye** anladık; doğrulayamadık.
+          // Görsel gerçekten düşmüş olabilir, bu yüzden sonuç "belirsiz"dir ve
+          // otomatik tekrar yapılmaz.
+          stage = 'uncertain'
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'paste_not_applied' },
+              diagnostics,
+              requestStartedAt
+            ) as SendImageResult
+          )
         }
-        return submitReadyStep.error
+        return finish(submitReadyStep.error)
       }
 
       const clickStep = await executePipelineStep<SendImageResult>({
@@ -340,23 +365,31 @@ export async function executeImageSendPipeline(
         onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
       })
       if (!clickStep.success) {
-        return attachDiagnostics(
-          { success: false, error: 'autosend_failed_draft_saved' },
-          diagnostics,
-          requestStartedAt
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'autosend_failed_draft_saved' },
+            diagnostics,
+            requestStartedAt
+          )
         )
       }
 
       reportRepair()
-      return attachDiagnostics(
-        { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
-        diagnostics,
-        requestStartedAt
+      stage = 'applied'
+      return finish(
+        attachDiagnostics(
+          { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
+          diagnostics,
+          requestStartedAt
+        )
       )
     }
 
     reportRepair()
-    return attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+    stage = 'applied'
+    return finish(
+      attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+    )
   } finally {
     await clipboard.restore()
   }

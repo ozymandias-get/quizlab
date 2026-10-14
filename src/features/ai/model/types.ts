@@ -64,10 +64,34 @@ export interface AiSendDiagnostics {
   classification?: AiErrorClassification | null
 }
 
+/**
+ * Gönderimin hedef AI giriş alanında **ne kadar mutasyon bıraktığı**.
+ *
+ * Hata kodu tek başına bu soruya yetmez: `paste_failed` kodu, ilk görsel
+ * yapıştırıldıktan **sonra** da üçüncü görselde dönebilir. Aynı kod, hedefe
+ * hiçbir şey bırakmadan da dönebilir. Otomatik "tekrar dene" kararı yalnızca
+ * bu alandan okunur; hata metnine bakarak karar vermek hedefte ikinci bir
+ * kopya bırakır.
+ *
+ * | Aşama          | Anlamı                                                   |
+ * | -------------- | -------------------------------------------------------- |
+ * | `not_started`  | Hedefe hiç dokunulmadı; güvenle tekrarlanabilir.           |
+ * | `partial`      | En az bir ek yapıştırıldı/yazıldı, işlem tamamlanmadı.     |
+ * | `applied`      | İçerik tamamen hazırlandı (teslim edildi veya staged).     |
+ * | `uncertain`    | Yapıştırma gönderildi ama uygulanıp uygulanmadığı **kanıtlanamadı**. |
+ *
+ * `partial` ve `uncertain` için otomatik tekrar **güvenli değildir**: ikisinde
+ * de hedefe dokunulmuş olabilir. Kullanıcı bilgilendirilir, otomatik yeniden
+ * gönderme yapılmaz.
+ */
+export type SendStage = 'not_started' | 'partial' | 'applied' | 'uncertain'
+
 export interface SendTextResult {
   success: boolean
   error?: string
   mode?: string
+  /** Hedefe bırakılan mutasyonun aşaması (bkz. {@link SendStage}). */
+  stage?: SendStage
   actualUrl?: string
   diagnostics?: AiSendDiagnostics
 }
@@ -76,6 +100,8 @@ export interface SendImageResult {
   success: boolean
   error?: string
   mode?: string
+  /** Hedefe bırakılan mutasyonun aşaması (bkz. {@link SendStage}). */
+  stage?: SendStage
   actualUrl?: string
   diagnostics?: AiSendDiagnostics
 }

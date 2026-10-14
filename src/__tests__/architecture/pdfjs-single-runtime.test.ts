@@ -210,10 +210,29 @@ describe('single runtime: no legacy import survives in production code', () => {
 /* ---------------------------------------------------------------- the worker */
 
 describe('single runtime: one worker', () => {
-  it('the engine imports the 6.x ESM worker', () => {
-    expect(codeOf(repoPath('src/features/pdf/engine/pdfWorker.ts'))).toMatch(
-      /from 'pdfjs-dist\/build\/pdf\.worker\.min\.mjs\?url'/
-    )
+  it('the engine addresses the 6.x ESM worker, and never through the dev transform', () => {
+    const engine = codeOf(repoPath('src/features/pdf/engine/pdfWorker.ts'))
+
+    // The worker URL comes from `pdfWorkerUrl()`, which resolves against the
+    // staged `pdfjs/` output — never from a `?url` import. A `?url` specifier
+    // resolves to a `/@fs/` URL under the dev server, which Vite serves through
+    // its transform pipeline: the worker would be rewritten with an HMR client
+    // preamble that a `Worker` global cannot act on, and pdf.js would silently
+    // fall back to its main-thread fake worker.
+    expect(engine).toMatch(/from '\.\/pdfDocumentOptions'/)
+    expect(engine).not.toMatch(/pdf\.worker\.min\.mjs\?/)
+  })
+
+  it('the worker path is built from the same staged root as every other asset', () => {
+    const options = codeOf(repoPath('src/features/pdf/engine/pdfDocumentOptions.ts'))
+
+    // One directory, one source of truth. If this and `vite.config.mts`'s
+    // `PDFJS_WORKER_FILE` ever diverge the packaged app ships without a worker,
+    // which only shows up as a blank page at runtime.
+    expect(options).toMatch(/PDFJS_WORKER_RELATIVE_PATH = 'build\/pdf\.worker\.min\.mjs'/)
+
+    const config = codeOf(repoPath('vite.config.mts'))
+    expect(config).toMatch(/PDFJS_WORKER_FILE = 'build\/pdf\.worker\.min\.mjs'/)
   })
 
   it('nothing imports the 3.x worker file', () => {

@@ -42,7 +42,8 @@ describe('flushApiChatSend', () => {
       sessionId: 'session-1'
     })
 
-    await expect(flushApiChatSend('tab1')).resolves.toEqual({ success: true })
+    // `applied`: içerik hedefe tam olarak yerleşti.
+    await expect(flushApiChatSend('tab1')).resolves.toEqual({ success: true, stage: 'applied' })
     expect(sendApiChatMessageMock).toHaveBeenCalledTimes(1)
   })
 
@@ -59,9 +60,13 @@ describe('flushApiChatSend', () => {
       sessionId: 'session-1'
     })
 
+    // `uncertain`: `sendApiChatMessage` kullanıcı mesajını istekten **önce**
+    // transcript'e yazdığı için hedefte bizim içeriğimiz duruyor. Bu aşamada
+    // otomatik tekrar mükerrer mesaj üretir.
     await expect(flushApiChatSend('tab1')).resolves.toEqual({
       success: false,
-      error: 'API error: 500'
+      error: 'API error: 500',
+      stage: 'uncertain'
     })
   })
 
@@ -70,7 +75,8 @@ describe('flushApiChatSend', () => {
 
     await expect(flushApiChatSend('tab1')).resolves.toEqual({
       success: false,
-      error: 'empty_message'
+      error: 'empty_message',
+      stage: 'not_started'
     })
     expect(sendApiChatMessageMock).not.toHaveBeenCalled()
   })
@@ -78,9 +84,14 @@ describe('flushApiChatSend', () => {
   it('returns the thrown error when sendApiChatMessage rejects', async () => {
     sendApiChatMessageMock.mockRejectedValue(new Error('No active session'))
 
+    // `sendApiChatMessage` yalnızca **ön uçuş** hatalarında throw eder
+    // (boş mesaj / oturum yok / eşzamanlı gönderim); hepsi transcript'e
+    // yazılmadan önce oluşur. Bu yüzden `not_started` dürüst bir aşamadır ve
+    // otomatik tekrar güvenlidir.
     await expect(flushApiChatSend('tab1')).resolves.toEqual({
       success: false,
-      error: 'No active session'
+      error: 'No active session',
+      stage: 'not_started'
     })
   })
 })
@@ -102,7 +113,8 @@ describe('scheduleApiChatSend', () => {
 
     await expect(scheduleApiChatSend('tab1', timeoutRef)).resolves.toEqual({
       success: false,
-      error: 'API error: 429'
+      error: 'API error: 429',
+      stage: 'uncertain'
     })
   })
 
@@ -116,8 +128,10 @@ describe('scheduleApiChatSend', () => {
     const timeoutRef: { current: ReturnType<typeof setTimeout> | null } = { current: null }
 
     await expect(scheduleApiChatSend('tab1', timeoutRef, onResult)).resolves.toEqual({
-      success: true
+      success: true,
+      stage: 'applied'
     })
-    expect(onResult).toHaveBeenCalledWith({ success: true })
+    // Bekleyen her çağıran **kendi sekmesinin sonucunu** öğrenir; aşama taşınır.
+    expect(onResult).toHaveBeenCalledWith({ success: true, stage: 'applied' })
   })
 })

@@ -45,8 +45,12 @@ vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolActions: () => ({
     startScreenshot: vi.fn(),
     queueImageForAi: vi.fn(),
-    queueTextForAi: vi.fn()
-  })
+    queueTextForAi: vi.fn(),
+    sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
+    sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
+  }),
+  useAppToolQueueState: () => ({ pendingAiItems: [], autoSend: false }),
+  useAppToolScreenshotState: () => ({ isScreenshotMode: false, pendingAreaCapture: null })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({

@@ -106,6 +106,41 @@ export function pdfAssetUrl(subdir: PdfjsAssetSubdir, assetBaseUrl: string): str
 }
 
 /**
+ * Path of the PDF.js worker inside the package, relative to the asset root.
+ * Kept in sync with `PDFJS_WORKER_FILE` in `vite.config.mts`, which stages this
+ * exact file into `dist/pdfjs/`.
+ *
+ * Module-private on purpose: `pdfjs-single-runtime.test.ts` asserts both sides
+ * of this pairing by reading the two sources as text, so exporting it would only
+ * create a second place for the value to drift.
+ */
+const PDFJS_WORKER_RELATIVE_PATH = 'build/pdf.worker.min.mjs'
+
+/**
+ * Build the worker URL from the same staged directory as the other assets.
+ *
+ * The worker is deliberately *not* imported as `pdfjs-dist/build/pdf.worker.min.mjs?url`.
+ * Under the dev server that specifier resolves to a `/@fs/` URL served through
+ * Vite's transform pipeline, which rewrites the 1.2 MB module into ~6.8 MB of
+ * source-mapped output and prepends an `import ... from "/@vite/client"`. The
+ * worker then opens its own HMR socket and receives dev-server lifecycle
+ * messages (`full-reload`, `prune`, …) that a `Worker` global cannot act on, so
+ * any reload or dependency re-optimization while a document is loading kills the
+ * worker mid-flight. pdf.js swallows that failure, silently falls back to its
+ * main-thread "fake worker", and logs
+ * `Setting up fake worker failed: "Failed to fetch dynamically imported module: ..."`.
+ *
+ * Serving the bytes straight off disk also makes dev and the packaged app
+ * identical, so the worker really is the pinned build rather than a
+ * bundler-transformed variant of it — and the file is staged exactly once,
+ * instead of being both imported *and* copied.
+ */
+export function pdfWorkerUrl(assetBaseUrl: string = pdfAssetBaseUrl()): string {
+  const base = withTrailingSlash(assetBaseUrl)
+  return `${base}${PDFJS_ASSET_DIR}/${PDFJS_WORKER_RELATIVE_PATH}`
+}
+
+/**
  * The one place native PDF.js 6 document options are built.
  *
  * @param source Document source handed straight to `getDocument`.

@@ -29,8 +29,16 @@
  * its object URL revoked**, at each `await`. The stamp covers a document switch
  * (the URL must still match), a newer capture request, and unmount — so a render
  * that lands after the reader moved on cannot overwrite the current action state.
+ *
+ * ## The capture does not decide its destination
+ *
+ * A finished page capture is handed to `onFullPageCapture`, which parks it as a
+ * *pending* capture behind the binary choice menu (AI'ye Gönder | Taslağa
+ * Ekle). It is never written straight into the draft queue: the user decides,
+ * exactly like a text selection or an area crop.
  */
 import { useToastActions } from '@app/providers'
+import { buildPdfSourceMeta } from '@app/providers/ai/pdfSource'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 import { Logger } from '@shared/lib/logger'
 
@@ -39,8 +47,19 @@ import { useCallback, useEffect, useRef } from 'react'
 import { captureCanvasAsBlob } from './captureCanvasAsBlob'
 import { findPageCanvas } from './findPageCanvas'
 
+type CaptureMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'> & {
+  source?: AiDraftImageItem['source']
+}
+
 interface UsePdfCaptureActionsOptions {
   currentPage: number
+  totalPages?: number
+  pdfFile?: {
+    path?: string | null
+    name?: string | null
+    streamUrl?: string | null
+    size?: number | null
+  } | null
   /**
    * The page capture should actually read.
    *
@@ -54,28 +73,52 @@ interface UsePdfCaptureActionsOptions {
    * pressed the button and not with whatever is current when the render lands.
    */
   capturePageRef?: React.RefObject<number>
-  queueImageForAi: (
-    dataUrl: string,
-    imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>
-  ) => void
-  startScreenshot: (imageMeta?: Pick<AiDraftImageItem, 'page' | 'captureKind'>) => void
+  /**
+   * Tamamlanan tam sayfa yakalaması buraya iletilir; karar (gönder / taslak)
+   * kullanıcıya bırakılır. Yakalama sonucu doğrudan kuyruğa yazılmaz.
+   */
+  onFullPageCapture: (imageUri: string, meta: CaptureMeta) => void
+  startScreenshot: (imageMeta?: CaptureMeta) => void
   pdfUrl?: string | null
 }
 
 export function usePdfCaptureActions({
   currentPage,
+  totalPages,
+  pdfFile,
   capturePageRef,
-  queueImageForAi,
+  onFullPageCapture,
   startScreenshot,
   pdfUrl
 }: UsePdfCaptureActionsOptions) {
   const { showError } = useToastActions()
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = capturePageRef?.current ?? currentPage
+  const totalPagesRef = useRef(totalPages ?? 0)
+  totalPagesRef.current = totalPages ?? 0
+  const pdfFileRef = useRef(pdfFile ?? null)
+  pdfFileRef.current = pdfFile ?? null
   const pdfUrlRef = useRef(pdfUrl)
   pdfUrlRef.current = pdfUrl
   const mountedRef = useRef(true)
   const captureRequestIdRef = useRef(0)
+
+  const buildFullPageMeta = useCallback((pageAtCaptureTime: number): CaptureMeta => {
+    const total = totalPagesRef.current >= 1 ? totalPagesRef.current : undefined
+    const file = pdfFileRef.current
+    return {
+      page: pageAtCaptureTime,
+      captureKind: 'full-page',
+      source: buildPdfSourceMeta({
+        file: file
+          ? { path: file.path, streamUrl: file.streamUrl, name: file.name, size: file.size }
+          : null,
+        page: pageAtCaptureTime,
+        totalPages: total,
+        captureKind: 'full-page-image'
+      })
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -126,10 +169,7 @@ export function usePdfCaptureActions({
                 return
               }
               if (dataUrl.startsWith('data:image/')) {
-                queueImageForAi(dataUrl, {
-                  page: pageAtCaptureTime,
-                  captureKind: 'full-page'
-                })
+                onFullPageCapture(dataUrl, buildFullPageMeta(pageAtCaptureTime))
                 URL.revokeObjectURL(rendered.blobUrl)
                 return
               }
@@ -140,10 +180,7 @@ export function usePdfCaptureActions({
               URL.revokeObjectURL(rendered.blobUrl)
               return
             }
-            queueImageForAi(rendered.blobUrl, {
-              page: pageAtCaptureTime,
-              captureKind: 'full-page'
-            })
+            onFullPageCapture(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
             return
           } else {
             Logger.warn('[PdfCapture] renderPageToImageFallback returned null')
@@ -194,10 +231,7 @@ export function usePdfCaptureActions({
               return
             }
             if (rendered?.blobUrl) {
-              queueImageForAi(rendered.blobUrl, {
-                page: pageAtCaptureTime,
-                captureKind: 'full-page'
-              })
+              onFullPageCapture(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime))
               return
             }
           } catch {}
@@ -235,10 +269,7 @@ export function usePdfCaptureActions({
         const quality = isLarge ? 0.95 : undefined
         const dataUrl = targetCanvas.toDataURL(mime, quality as unknown as number)
         if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl !== 'data:,') {
-          queueImageForAi(dataUrl, {
-            page: pageAtCaptureTime,
-            captureKind: 'full-page'
-          })
+          onFullPageCapture(dataUrl, buildFullPageMeta(pageAtCaptureTime))
           queued = true
         }
       } catch {}
@@ -257,20 +288,28 @@ export function usePdfCaptureActions({
           URL.revokeObjectURL(result.blobUrl)
           return
         }
-        queueImageForAi(result.blobUrl, {
-          page: pageAtCaptureTime,
-          captureKind: 'full-page'
-        })
+        onFullPageCapture(result.blobUrl, buildFullPageMeta(pageAtCaptureTime))
       }
     } catch {
       if (isCurrentCapture()) showError('toast_capture_failed')
     }
-  }, [queueImageForAi, showError])
+  }, [onFullPageCapture, showError, buildFullPageMeta])
 
   const handleAreaScreenshot = useCallback(() => {
+    const page = currentPageRef.current
+    const total = totalPagesRef.current >= 1 ? totalPagesRef.current : undefined
+    const file = pdfFileRef.current
     startScreenshot({
-      page: currentPageRef.current,
-      captureKind: 'selection'
+      page,
+      captureKind: 'selection',
+      source: buildPdfSourceMeta({
+        file: file
+          ? { path: file.path, streamUrl: file.streamUrl, name: file.name, size: file.size }
+          : null,
+        page,
+        totalPages: total,
+        captureKind: 'area-image'
+      })
     })
   }, [startScreenshot])
 

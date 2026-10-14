@@ -1,5 +1,7 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
+import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
+
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -57,7 +59,6 @@ function renderMessaging(
   activeTab: ActiveTab = { id: 'tab-1', modelId: 'api-chat' }
 ) {
   const getContentController = vi.fn(() => null as AiContentController | null)
-  const showSuccess = vi.fn()
   const showWarning = vi.fn()
   const openAiWorkspace = vi.fn()
   let active = activeTab
@@ -71,14 +72,12 @@ function renderMessaging(
       activeTabId: active.id,
       autoSend: false,
       aiRegistry: {},
-      showSuccess,
       showWarning,
       openAiWorkspace
     })
   )
   return {
     result,
-    showSuccess,
     showWarning,
     openAiWorkspace,
     getContentController,
@@ -129,7 +128,8 @@ describe('useAiMessaging — api-chat image branch', () => {
 
   // Regression: with no note the turn would carry an image and empty text.
   // A minimal instruction keeps the attachment meaningful for providers that
-  // reject an image-only content array.
+  // reject an image-only content array. The copy is count-aware (singular for
+  // one image, plural for a bulk send) and no longer repeats the same verb.
   it('seeds a default prompt when no note was provided', async () => {
     const { result } = renderMessaging()
 
@@ -137,7 +137,29 @@ describe('useAiMessaging — api-chat image branch', () => {
       await result.current.sendImageToAI(PNG)
     })
 
-    expect(mockChatUiState.updateInput).toHaveBeenCalledWith('tab-1', 'Describe this image.')
+    expect(mockChatUiState.updateInput).toHaveBeenCalledWith(
+      'tab-1',
+      'Describe and summarise this image.'
+    )
+  })
+
+  it('seeds the plural prompt for a multi-image turn', async () => {
+    mockUseAiSender.mockReturnValue({
+      sendTextToAI: mockSendText,
+      sendImageToAI: mockSendImage,
+      sendBulkToAI: vi.fn().mockResolvedValue({ success: true }),
+      cancelOngoing: vi.fn()
+    })
+    const { result } = renderMessaging()
+
+    await act(async () => {
+      await result.current.sendBulkToAI?.([PNG, PNG])
+    })
+
+    expect(mockChatUiState.updateInput).toHaveBeenCalledWith(
+      'tab-1',
+      'Describe and summarise these images.'
+    )
   })
 
   it('uses the caller prompt instead of the default when one is given', async () => {
@@ -262,85 +284,133 @@ describe('useAiMessaging — delivery reporting', () => {
     mockPrepareImageForUpload.mockImplementation(async (url: string) => url)
   })
 
-  it('reports staging instead of delivery when auto-send is off', async () => {
-    const { result, showSuccess, showWarning } = renderMessaging()
+  it('stages silently when auto-send is off', async () => {
+    const { result, showWarning } = renderMessaging()
 
     let outcome: Awaited<ReturnType<typeof result.current.sendImageToAI>> | undefined
     await act(async () => {
       outcome = await result.current.sendImageToAI(PNG)
     })
 
-    expect(outcome).toEqual({ success: true, mode: 'staged' })
-    // Never "Sent successfully!" — nothing was delivered.
-    expect(showSuccess).not.toHaveBeenCalledWith('sent_successfully')
-    expect(showSuccess).toHaveBeenCalledWith('Added to the chat box. Press Send to deliver.')
+    expect(outcome).toMatchObject({ success: true, mode: 'staged' })
     expect(showWarning).not.toHaveBeenCalled()
   })
 
-  it('claims delivery when an auto-sent api-chat request succeeds', async () => {
-    const { result, showSuccess } = renderMessaging()
+  it('stays silent when an auto-sent api-chat request succeeds', async () => {
+    const { result, showWarning } = renderMessaging()
 
     await act(async () => {
       await result.current.sendImageToAI(PNG, { autoSend: true })
     })
 
-    expect(showSuccess).toHaveBeenCalledWith('sent_successfully')
+    // No success toast: `showSuccess` is no longer even wired into this hook, so
+    // a delivery cannot announce itself.
+    expect(showWarning).not.toHaveBeenCalled()
   })
 
   it.each(['auto_click', 'auto_click_with_prompt'])(
-    'claims delivery for the content mode %s',
+    'stays silent for the content mode %s',
     async (mode) => {
       mockSendImage.mockResolvedValue({ success: true, mode })
-      const { result, showSuccess } = renderMessaging('chatgpt')
+      const { result, showWarning } = renderMessaging('chatgpt')
 
       await act(async () => {
         await result.current.sendImageToAI(PNG, { autoSend: true })
       })
 
-      expect(showSuccess).toHaveBeenCalledWith('sent_successfully')
+      expect(showWarning).not.toHaveBeenCalled()
     }
   )
 
   // The image only landed in the site's input box; submitting is still pending.
+  // That distinction used to be reported with a success toast — it is now
+  // simply silent, because the user sees the image in the site's composer.
   it.each(['paste_only', 'paste_and_prompt'])(
-    'reports staging rather than delivery for the content mode %s',
+    'stays silent for the content mode %s',
     async (mode) => {
       mockSendImage.mockResolvedValue({ success: true, mode })
-      const { result, showSuccess, showWarning } = renderMessaging('chatgpt')
+      const { result, showWarning } = renderMessaging('chatgpt')
 
       await act(async () => {
         await result.current.sendImageToAI(PNG)
       })
 
-      expect(showSuccess).not.toHaveBeenCalledWith('sent_successfully')
-      // The user needs to know the image is sitting in the composer awaiting
-      // their submit, which is the whole point of auto-send being off.
-      expect(showSuccess).toHaveBeenCalledWith('Added to the chat box. Press Send to deliver.')
       expect(showWarning).not.toHaveBeenCalled()
     }
   )
 
-  it('does not claim delivery when the content send failed', async () => {
+  it('still warns when the content send failed', async () => {
     mockSendImage.mockResolvedValue({ success: false, error: 'paste_failed' })
-    const { result, showSuccess, showWarning } = renderMessaging('chatgpt')
+    const { result, showWarning } = renderMessaging('chatgpt')
 
     await act(async () => {
       await result.current.sendImageToAI(PNG)
     })
 
-    expect(showSuccess).not.toHaveBeenCalled()
     expect(showWarning).toHaveBeenCalled()
   })
 
-  it('treats a result without a mode as delivered', async () => {
+  /**
+   * Regresyon: telafi `withRollback` üzerinden döndüğü için bildirim
+   * çağrısı atlanıyordu. Sonuç, **yalnızca** iptal ve başarı toast
+   * üretirken gerçek bir API hatasının hiçbir yerde konuşmamasıydı.
+   */
+  it('still warns when an auto-sent api-chat request fails', async () => {
+    mockScheduleApiChatSend.mockResolvedValue({ success: false, error: 'send_failed' })
+    const { result, showWarning } = renderMessaging()
+
+    await act(async () => {
+      await result.current.sendImageToAI(PNG, { autoSend: true })
+    })
+
+    expect(showWarning).toHaveBeenCalledWith('error_send_failed')
+  })
+
+  it('warns about a throw that escaped the send pipeline', async () => {
+    mockScheduleApiChatSend.mockRejectedValue(new Error('boom'))
+    const { result } = renderMessaging()
+
+    let outcome: Awaited<ReturnType<typeof result.current.sendImageToAI>> | undefined
+    await act(async () => {
+      outcome = await result.current.sendImageToAI(PNG, { autoSend: true })
+    })
+
+    // Yakalanmamış hata mesajıyla normalize edilir; bu yol toast üretmez,
+    // hata composer'da `resolveSendOutcome` ile gösterilir.
+    expect(outcome).toMatchObject({ success: false, error: 'boom' })
+    // Telafi yine de koşar: hazırlanan ek hedefte bırakılmaz.
+    expect(mockChatUiState.addAttachment).toHaveBeenCalled()
+    expect(mockChatUiState.updateInput).toHaveBeenCalled()
+  })
+
+  it('reports an in-flight cancellation as uncertain so the retry is blocked', async () => {
+    // İptal belirsiz bir teslimdir. Sonuç `uncertain` taşıdığı için composer
+    // "Tekrar dene"yi sunmaz; mükerrer mesajın kapısı burada kapanır.
+    mockScheduleApiChatSend.mockResolvedValue({
+      success: false,
+      error: 'cancelled',
+      stage: 'uncertain'
+    })
+    const { result } = renderMessaging()
+
+    let outcome: Awaited<ReturnType<typeof result.current.sendImageToAI>> | undefined
+    await act(async () => {
+      outcome = await result.current.sendImageToAI(PNG, { autoSend: true })
+    })
+
+    expect(outcome).toMatchObject({ error: 'cancelled', stage: 'uncertain' })
+    expect(resolveSendOutcome(outcome).resendSafe).toBe(false)
+  })
+
+  it('stays silent for a result without a mode', async () => {
     mockSendImage.mockResolvedValue({ success: true })
-    const { result, showSuccess } = renderMessaging('chatgpt')
+    const { result, showWarning } = renderMessaging('chatgpt')
 
     await act(async () => {
       await result.current.sendImageToAI(PNG)
     })
 
-    expect(showSuccess).toHaveBeenCalledWith('sent_successfully')
+    expect(showWarning).not.toHaveBeenCalled()
   })
 })
 

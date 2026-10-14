@@ -54,6 +54,7 @@ interface UseAiProviderContextsParams {
   reloadActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
+  sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
   cancelOngoing: () => void
 }
 
@@ -86,6 +87,7 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     reloadActiveContent,
     sendTextToAI,
     sendImageToAI,
+    sendBulkToAI,
     cancelOngoing
   } = params
 
@@ -185,8 +187,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
   )
 
   const messagingActionsValue = useMemo<AiMessagingActions>(
-    () => ({ sendTextToAI, sendImageToAI, cancelOngoing }),
-    [sendTextToAI, sendImageToAI, cancelOngoing]
+    () => ({ sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing }),
+    [sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing]
   )
 
   return {

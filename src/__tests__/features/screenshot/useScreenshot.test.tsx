@@ -37,6 +37,8 @@ describe('useScreenshot', () => {
     })
 
     expect(result.current.isScreenshotMode).toBe(false)
-    expect(onSendToAI).toHaveBeenCalledWith('data:image/png;base64,...')
+    // Capture rect is forwarded so the choice menu can anchor near the crop;
+    // with no rect it is normalized to null.
+    expect(onSendToAI).toHaveBeenCalledWith('data:image/png;base64,...', null)
   })
 })

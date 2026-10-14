@@ -11,7 +11,6 @@
   "search_recent_placeholder": "Ara...",
   "pdf_add_current_page_text_to_ai": "Bu Sayfanın Metnini AI'ye Ekle",
   "pdf_no_text_found": "Bu sayfada seçilebilir metin bulunamadı",
-  "pdf_text_added_to_ai": "Metin AI taslağına eklendi",
   "pdf_send_page_as_image": "Sayfayı Görsel Olarak AI'ye Ekle",
   "gdrive_pdf_desc": "PDF panelinden aynı paylaşılan Google oturumuyla Drive'a erişin.",
   "open_google_drive": "Google Drive'ı Aç",
@@ -28,5 +27,7 @@
   "pdf_ai_quick_actions": "AI İşlemleri",
   "pdf_quick_text_ai": "Metni AI'ye Ekle",
   "pdf_quick_image_ai": "Görsel AI'ye Ekle",
-  "pdf_quick_area_ai": "Alan Seç AI'ye Ekle"
+  "pdf_quick_area_ai": "Alan Seç AI'ye Ekle",
+  "pdf_selection_menu_label": "Seçim işlemleri",
+  "pdf_add_to_draft": "Taslağa Ekle"
 }

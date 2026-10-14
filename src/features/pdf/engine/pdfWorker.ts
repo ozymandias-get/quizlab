@@ -12,6 +12,17 @@
  * `GlobalWorkerOptions.workerSrc`, which
  * `src/__tests__/architecture/pdfjs-single-runtime.test.ts` asserts.
  *
+ * ## Why the URL is built from `pdfjs/`, not imported with `?url`
+ *
+ * The worker is staged next to the other PDF.js runtime assets by
+ * `vite.config.mts` and addressed through `pdfWorkerUrl()`. Importing it as
+ * `pdfjs-dist/build/pdf.worker.min.mjs?url` instead makes the dev server serve
+ * the worker through Vite's *transform* pipeline, which injects an HMR client
+ * into a `Worker` global that cannot act on the lifecycle messages it then
+ * receives. pdf.js silently degrades to its main-thread "fake worker" and the
+ * document renders from the UI thread. See `pdfWorkerUrl()` for the full
+ * account; the short version is that the worker must be served as plain bytes.
+ *
  * ## workerSrc vs workerPort
  *
  * `workerSrc` is used deliberately.
@@ -30,13 +41,14 @@
  * guarantee observable.
  */
 import { GlobalWorkerOptions } from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
+import { pdfWorkerUrl } from './pdfDocumentOptions'
 
 /**
- * The worker asset URL as resolved by the bundler. Exported so tests can assert
+ * The staged worker asset URL. Exported so tests can assert
  * `GlobalWorkerOptions.workerSrc` points at the 6.x `.mjs` build.
  */
-export const nativeWorkerUrl: string = workerUrl
+export const nativeWorkerUrl: string = pdfWorkerUrl()
 
 let configured = false
 
