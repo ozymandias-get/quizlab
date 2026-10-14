@@ -57,5 +57,16 @@ export {
 } from './hooks/useReadingProgressPersistence'
 export { useShellOpenPdf } from './hooks/useShellOpenPdf'
 export { usePdfTabStore } from './store/usePdfTabStore'
+export {
+  computeSelectionMenuAnchor,
+  DEFAULT_SELECTION_MENU_SIZE,
+  findLastTextLineRect,
+  hasUsableRect,
+  toMenuBounds,
+  viewportFallbackAnchor
+} from './text/selectionPage'
 export type { ReadingProgressUpdate, ResumePdfResult } from './types'
+export { AI_DRAFT_SLOT_ID, default as PdfDraftSlot } from './ui/components/PdfDraftSlot'
+export type { SelectionMenuFeedback } from './ui/components/PdfSelectionMenu'
+export { default as PdfSelectionMenu } from './ui/components/PdfSelectionMenu'
 export { usePdfShortcuts } from './ui/hooks/usePdfShortcuts'

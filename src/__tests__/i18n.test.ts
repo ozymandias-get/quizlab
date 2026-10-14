@@ -87,6 +87,21 @@ describe('i18n bundles', () => {
     expect(placeholderMismatches(en, tr, 'en→tr')).toEqual([])
     expect(placeholderMismatches(tr, en, 'tr→en')).toEqual([])
   })
+
+  // A bare `"{count} items"` key renders "1 items"; i18next only pluralises when
+  // the key carries the `_one` / `_other` suffixes.
+  it.each([
+    ['ai_send_item_count_one', 'ai_send_item_count_other'],
+    ['ai_send_text_count_one', 'ai_send_text_count_other'],
+    ['ai_send_image_count_one', 'ai_send_image_count_other'],
+    ['ai_draft_content_count_one', 'ai_draft_content_count_other'],
+    ['ai_send_clear_all_confirm_one', 'ai_send_clear_all_confirm_other']
+  ])('%s has a plural sibling', (oneKey, otherKey) => {
+    for (const dict of [en, tr]) {
+      expect(typeof getNestedValue(dict, oneKey)).toBe('string')
+      expect(typeof getNestedValue(dict, otherKey)).toBe('string')
+    }
+  })
 })
 
 describe('i18n value quality', () => {

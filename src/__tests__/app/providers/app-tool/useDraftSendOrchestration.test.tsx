@@ -26,23 +26,24 @@ function imageItem(id: string, dataUrl: string): AiDraftItem {
 }
 
 describe('useDraftSendOrchestration', () => {
-  const buildHarness = (initial: AiDraftItem[] = []) => {
+  const buildHarness = (initial: AiDraftItem[] = [], providerId = 'chatgpt') => {
     const sendTextToAI = vi.fn().mockResolvedValue({ success: true })
-    const sendImageToAI = vi.fn().mockResolvedValue({ success: true })
+    const sendBulkToAI = vi.fn().mockResolvedValue({ success: true })
     const pendingAiItemsRef: { current: AiDraftItem[] } = { current: initial }
     const setPendingAiItems = vi.fn()
 
     const { result } = renderHook(() =>
       useDraftSendOrchestration({
         autoSend: true,
+        providerId,
         sendTextToAI,
-        sendImageToAI,
+        sendBulkToAI,
         pendingAiItemsRef,
         setPendingAiItems
       })
     )
 
-    return { result, sendTextToAI, sendImageToAI, pendingAiItemsRef, setPendingAiItems }
+    return { result, sendTextToAI, sendBulkToAI, pendingAiItemsRef, setPendingAiItems }
   }
 
   beforeEach(() => {
@@ -62,7 +63,7 @@ describe('useDraftSendOrchestration', () => {
     expect(setPendingAiItems).not.toHaveBeenCalled()
   })
 
-  it('dispatches text segments to sendTextToAI with merged prompt', async () => {
+  it('sends a text-only draft as a single message with the merged prompt', async () => {
     const { result, sendTextToAI, setPendingAiItems } = buildHarness([textItem('t1', 'a')])
 
     let res: any
@@ -75,8 +76,8 @@ describe('useDraftSendOrchestration', () => {
     expect(setPendingAiItems).toHaveBeenCalledWith(expect.any(Function))
   })
 
-  it('dispatches image segments to sendImageToAI', async () => {
-    const { result, sendImageToAI } = buildHarness([imageItem('i1', 'data:image/png;base64,xxx')])
+  it('sends an image draft through the single-message bulk path', async () => {
+    const { result, sendBulkToAI } = buildHarness([imageItem('i1', 'data:image/png;base64,xxx')])
 
     let res: any
     await act(async () => {
@@ -84,17 +85,17 @@ describe('useDraftSendOrchestration', () => {
     })
 
     expect(res.success).toBe(true)
-    expect(sendImageToAI).toHaveBeenCalledWith('data:image/png;base64,xxx', {
+    expect(sendBulkToAI).toHaveBeenCalledWith(['data:image/png;base64,xxx'], {
       autoSend: true,
       promptText: 'note'
     })
   })
 
-  it('stops at first failure and does not clear pending items', async () => {
-    const { result, sendImageToAI, setPendingAiItems } = buildHarness([
+  it('stops on failure and does not clear pending items', async () => {
+    const { result, sendBulkToAI, setPendingAiItems } = buildHarness([
       imageItem('i1', 'data:image/png;base64,xxx')
     ])
-    sendImageToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+    sendBulkToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
 
     let res: any
     await act(async () => {
@@ -148,34 +149,7 @@ describe('useDraftSendOrchestration', () => {
     expect(second.error).toBe('send_in_progress')
   })
 
-  it('clears only delivered segments on partial failure so a retry does not resend content', async () => {
-    // [text, image] merges the text into the image prompt; [image, text]
-    // produces two segments: image (with prompt) then text.
-    const { result, sendTextToAI, sendImageToAI, setPendingAiItems } = buildHarness([
-      imageItem('i2', 'data:image/png;base64,xxx'),
-      textItem('t3', 'world')
-    ])
-    sendImageToAI.mockResolvedValueOnce({ success: true })
-    sendTextToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
-
-    let res: any
-    await act(async () => {
-      res = await result.current.sendPendingAiItems()
-    })
-
-    expect(res).toEqual({ success: false, error: 'paste_failed' })
-    expect(sendImageToAI).toHaveBeenCalledTimes(1)
-    expect(sendTextToAI).toHaveBeenCalledTimes(1)
-
-    const updater = setPendingAiItems.mock.calls[0][0] as (current: AiDraftItem[]) => AiDraftItem[]
-    const remaining = updater([
-      imageItem('i2', 'data:image/png;base64,xxx'),
-      textItem('t3', 'world')
-    ])
-    expect(remaining.map((item) => item.id)).toEqual(['t3'])
-  })
-
-  it('keeps drafts queued when an api-chat send fails, then sends them on retry', async () => {
+  it('keeps drafts queued when a send fails, then clears them on retry', async () => {
     const { result, sendTextToAI, setPendingAiItems } = buildHarness([textItem('t1', 'first')])
     sendTextToAI.mockResolvedValueOnce({ success: false, error: 'API error: 500' })
 
@@ -196,5 +170,78 @@ describe('useDraftSendOrchestration', () => {
     expect(setPendingAiItems).toHaveBeenCalledTimes(1)
     const updater = setPendingAiItems.mock.calls[0][0] as (current: AiDraftItem[]) => AiDraftItem[]
     expect(updater([textItem('t1', 'first')])).toEqual([])
+  })
+
+  it('propagates a staged (auto-send off) result without claiming delivery', async () => {
+    const { result, sendTextToAI } = buildHarness([textItem('t1', 'hi')], 'chatgpt')
+    sendTextToAI.mockResolvedValueOnce({ success: true, mode: 'staged' })
+
+    let res: { success: boolean; mode?: string } = { success: false }
+    await act(async () => {
+      res = (await result.current.sendPendingAiItems({ autoSend: false })) as typeof res
+    })
+
+    expect(res.success).toBe(true)
+    expect(res.mode).toBe('staged')
+  })
+
+  /**
+   * Snapshot sınırı: gönderim **başındaki** kuyruk dizisini gönderir.
+   * İşlem sürerken eklenen öğeler gönderilmez ve — daha önemlisi — kuyruktan
+   * düşmez. "Gönderildi" dedikten sonra kullanıcının eklediği içerik kaybolursa
+   * bu sessiz veri kaybıdır.
+   */
+  describe('items added during a send', () => {
+    it('does not send an item queued after the send started', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, pendingAiItemsRef } = buildHarness(snapshot)
+      // Gönderim sürerken kullanıcı yeni bir öğe ekliyor.
+      sendTextToAI.mockImplementationOnce(async () => {
+        pendingAiItemsRef.current = [...snapshot, textItem('t2', 'second')]
+        return { success: true }
+      })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Gönderilen içerik yalnızca başlangıç anındaki öğe.
+      const sentText = sendTextToAI.mock.calls[0][0] as string
+      expect(sentText).toBe('first')
+      expect(sentText).not.toContain('second')
+    })
+
+    it('keeps the newly added item in the queue', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, pendingAiItemsRef, setPendingAiItems } = buildHarness(snapshot)
+      sendTextToAI.mockImplementationOnce(async () => {
+        pendingAiItemsRef.current = [...snapshot, textItem('t2', 'second')]
+        return { success: true }
+      })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Yalnızca gönderilen kimlik düşer; eklenen öğe korunur.
+      const updater = setPendingAiItems.mock.calls[0][0] as (
+        current: AiDraftItem[]
+      ) => AiDraftItem[]
+      const after = updater(pendingAiItemsRef.current)
+      expect(after.map((item) => item.id)).toEqual(['t2'])
+    })
+
+    it('keeps everything queued when the send fails', async () => {
+      const snapshot = [textItem('t1', 'first')]
+      const { result, sendTextToAI, setPendingAiItems } = buildHarness(snapshot)
+      sendTextToAI.mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+
+      await act(async () => {
+        await result.current.sendPendingAiItems()
+      })
+
+      // Başarısızlıkta hiçbir öğe düşmez.
+      expect(setPendingAiItems).not.toHaveBeenCalled()
+    })
   })
 })

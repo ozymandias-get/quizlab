@@ -6,6 +6,7 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiMessagingActions: () => ({
     sendTextToAI: (...args: any[]) => (mockState.sendTextToAI as any)(...args),
     sendImageToAI: (...args: any[]) => (mockState.sendImageToAI as any)(...args),
+    sendBulkToAI: (...args: any[]) => (mockState.sendBulkToAI as any)(...args),
     cancelOngoing: vi.fn()
   }),
   useAiSessionActions: () => ({ setAutoSend: vi.fn() }),
@@ -13,6 +14,7 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiSessionUiPrefsState: () => ({
     autoSend: mockState.autoSend
   }),
+  useAiTabFocus: () => ({ activeTabId: 'tab-1', currentAI: 'chatgpt' }),
   useAiContent: () => ({
     getContentController: () => mockState.contentController
   })
@@ -216,9 +218,9 @@ describe('AppToolContext - queue behavior', () => {
     )
   })
 
-  it('sends multiple images in order with note on the first image and autoSend on each', async () => {
+  it('sends multiple images as ONE bulk message with the note once', async () => {
     vi.useRealTimers()
-    mockState.sendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
+    mockState.sendBulkToAI.mockResolvedValue({ success: true })
     const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
@@ -232,36 +234,36 @@ describe('AppToolContext - queue behavior', () => {
       await result.current.sendPendingAiItems({ promptText: 'Summarize these', autoSend: true })
     })
 
-    expect(mockState.sendImageToAI).toHaveBeenNthCalledWith(
-      1,
-      expect.stringContaining('data:image/png;base64'),
-      {
-        autoSend: true,
-        promptText: 'Summarize these\n\nFirst excerpt\n\n---\n\nSecond excerpt'
-      }
-    )
-
-    expect(mockState.sendImageToAI).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('data:image/png;base64'),
-      {
-        autoSend: true,
-        promptText: undefined
-      }
-    )
-
+    // Tek mesaj sözleşmesi: tek bulk çağrısı, iki ek, prompt bir kez.
+    expect(mockState.sendBulkToAI).toHaveBeenCalledTimes(1)
+    expect(mockState.sendImageToAI).not.toHaveBeenCalled()
     expect(mockState.sendTextToAI).not.toHaveBeenCalled()
+    const [urls, opts] = mockState.sendBulkToAI.mock.calls[0]
+    expect(urls).toHaveLength(2)
+    expect(opts.autoSend).toBe(true)
+    expect(opts.promptText.match(/Summarize these/g)).toHaveLength(1)
+    expect(opts.promptText).toContain('First excerpt')
+    expect(opts.promptText).toContain('Second excerpt')
   })
 
-  it('sends text then image then trailing text with ordered segments', async () => {
+  it('sends text+image as one message (no per-image submit, no silent split)', async () => {
     vi.useRealTimers()
-    mockState.sendImageToAI.mockResolvedValue({ success: true, mode: 'paste_only' })
-    mockState.sendTextToAI.mockResolvedValue({ success: true, mode: 'mixed' })
+    mockState.sendBulkToAI.mockResolvedValue({ success: true })
     const { result } = renderHook(() => useQueueAndActions(), { wrapper })
 
     act(() => {
       result.current.queueTextForAi('Before shot')
-      result.current.queueImageForAi('blob:mock-url-one')
+      result.current.queueImageForAi('blob:mock-url-one', {
+        page: 12,
+        captureKind: 'selection',
+        source: {
+          docId: 'doc',
+          page: 12,
+          totalPages: 59,
+          captureKind: 'area-image',
+          createdAt: 1
+        }
+      })
       result.current.queueTextForAi('After shot')
     })
 
@@ -269,16 +271,19 @@ describe('AppToolContext - queue behavior', () => {
       await result.current.sendPendingAiItems({ promptText: 'Task', autoSend: false })
     })
 
-    expect(mockState.sendImageToAI).toHaveBeenCalledTimes(1)
-    expect(mockState.sendImageToAI).toHaveBeenCalledWith(
-      expect.stringContaining('data:image/png;base64'),
-      {
-        autoSend: false,
-        promptText: 'Task\n\nBefore shot'
-      }
+    expect(mockState.sendBulkToAI).toHaveBeenCalledTimes(1)
+    expect(mockState.sendImageToAI).not.toHaveBeenCalled()
+    expect(mockState.sendTextToAI).not.toHaveBeenCalled()
+    const [urls, opts] = mockState.sendBulkToAI.mock.calls[0]
+    expect(urls).toHaveLength(1)
+    expect(opts.autoSend).toBe(false)
+    // Sıra korunur: metin, görsel başlığı (Sayfa 12/59), metin aynı gövdede.
+    expect(opts.promptText).toContain('Before shot')
+    expect(opts.promptText).toContain('Sayfa 12/59')
+    expect(opts.promptText).toContain('After shot')
+    expect(opts.promptText.indexOf('Before shot')).toBeLessThan(
+      opts.promptText.indexOf('After shot')
     )
-
-    expect(mockState.sendTextToAI).toHaveBeenCalledWith('After shot', { autoSend: false })
   })
 
   it('sends text-only drafts as a single message', async () => {
@@ -297,6 +302,27 @@ describe('AppToolContext - queue behavior', () => {
     expect(mockState.sendTextToAI).toHaveBeenCalledWith('Explain this\n\nOnly excerpt', {
       autoSend: true
     })
+  })
+
+  it('keeps every item when the queue is full (no silent drop)', () => {
+    const { result } = renderHook(() => useQueueAndActions(), { wrapper })
+
+    act(() => {
+      for (let i = 0; i < 20; i++) {
+        result.current.queueTextForAi(`excerpt ${i}`)
+      }
+    })
+
+    expect(result.current.pendingAiItems).toHaveLength(20)
+
+    // Limit dolduğunda yeni öğe reddedilir, mevcut öğeler sessizce silinmez.
+    act(() => {
+      result.current.queueTextForAi('one too many')
+    })
+
+    expect(result.current.pendingAiItems).toHaveLength(20)
+    expect(result.current.pendingAiItems[0]).toEqual(expect.objectContaining({ text: 'excerpt 0' }))
+    expect(mockState.showError).toHaveBeenCalledWith('draft_queue_full')
   })
 
   it('clears DOM text selection when pending items are dismissed', () => {

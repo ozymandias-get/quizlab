@@ -3,11 +3,14 @@ import type { PdfFile } from '@shared-core/types'
 import type { PdfTab, ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
 
+import type { PdfSourceMeta } from '@app/providers/ai/pdfSource'
 import type { AiDraftImageItem } from '@app/providers/ai/types'
 
 import type { MenuItem } from '../ui/components/ContextMenu'
 
-type ScreenshotMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'>
+type ScreenshotMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'> & {
+  source?: PdfSourceMeta | null
+}
 
 export interface PdfViewerDocumentProps {
   pdfFile: PdfFile
@@ -18,10 +21,12 @@ export interface PdfViewerDocumentProps {
   initialPage?: number
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void
   isInteractionBlocked: boolean
-  autoSend: boolean
-  onToggleAutoSend: () => void
   startScreenshot: (imageMeta?: ScreenshotMeta) => void
-  queueImageForAi: (dataUrl: string, imageMeta?: ScreenshotMeta) => void
+  /**
+   * Tamamlanan tam sayfa yakalaması: doğrudan kuyruğa yazılmaz, menü
+   * kararına (AI'ye Gönder | Taslağa Ekle) iletilir.
+   */
+  onFullPageCapture: (imageUri: string, meta: ScreenshotMeta) => void
   isPanelResizing?: boolean
   /**
    * The live page number capture must read.
@@ -37,6 +42,19 @@ export interface PdfViewerDocumentProps {
  * layers, so there is no plugin array and no per-plugin zoom or highlight surface
  * to hand back separately.
  */
+interface SelectionMenuState {
+  menu: {
+    text: string
+    position: { top: number; left: number }
+    source: PdfSourceMeta | null
+    requestId: number
+  } | null
+  feedback: 'idle' | 'working' | 'error'
+  handleAddToDraft: () => void
+  handleSendDirect: () => void
+  closeMenu: () => void
+}
+
 export interface UsePdfViewerStateReturn {
   containerRef: React.RefObject<HTMLDivElement | null>
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -57,4 +75,5 @@ export interface UsePdfViewerStateReturn {
   handleAddCurrentPageTextToAi: () => void
   handleReload: () => void
   tt: (key: string) => string
+  selectionMenu: SelectionMenuState
 }

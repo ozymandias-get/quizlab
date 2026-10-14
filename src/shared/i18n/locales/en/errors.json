@@ -19,6 +19,7 @@
   "error_empty_text": "Text to send is empty.",
   "error_invalid_name": "Invalid folder name",
   "error_paste_failed": "Failed to paste image",
+  "error_paste_ready_script_failed": "The AI field did not become ready between image attachments. Wait a moment and try again.",
   "error_pdf_access": "Cannot access file",
   "error_pdf_handler": "PDF Processor Error",
   "error_pdf_load": "Failed to load PDF. Please try again.",
@@ -69,5 +70,12 @@
   "error_name_too_short": "Name is too short",
   "error_url_required": "URL is required",
   "error_url_protocol": "Only http(s) URLs are allowed",
-  "error_url_invalid": "Invalid URL"
+  "error_url_invalid": "Invalid URL",
+  "error_bulk_not_supported": "This provider does not support multiple images in one message. The draft was kept; remove items to send them one at a time.",
+  "error_cancelled": "The send was cancelled. We could not confirm delivery; sending again would create a duplicate message.",
+  "error_cancelled_before_send": "The send was cancelled before it started. The prepared content was rolled back; you can try again whenever you like.",
+  "error_image_conversion_failed": "The image could not be prepared for sending. Try removing it or recapturing the page.",
+  "error_webview_destroyed": "The AI tab closed during sending",
+  "error_clipboard_failed_partial": "Some images were added but the send did not finish. It was not resent automatically to avoid a duplicate message.",
+  "error_paste_not_applied": "Could not confirm whether the image was attached. Check the AI side; resending may create a duplicate attachment."
 }

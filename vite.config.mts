@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readFileSync, statSync } from 'fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, statSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -16,6 +16,31 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url))
  * native engine hands to `getDocument`.
  */
 const PDFJS_ASSET_SUBDIRS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'] as const
+
+/**
+ * Single file copied out of `node_modules/pdfjs-dist` the same way the asset
+ * directories above are: the PDF.js worker. Kept in sync with
+ * `PDFJS_WORKER_RELATIVE_PATH` in `src/features/pdf/engine/pdfDocumentOptions.ts`,
+ * which builds the URL handed to `GlobalWorkerOptions.workerSrc`.
+ *
+ * The worker is served from `<base>pdfjs/` rather than imported as
+ * `pdfjs-dist/build/pdf.worker.min.mjs?url` because the bundler only copies
+ * such an asset in a build. Under the dev server it resolves to a `/@fs/` URL
+ * that is served through Vite's *transform* pipeline, which rewrites the 1.2 MB
+ * module into ~6.8 MB of source-mapped output and — worse — prepends an
+ * `import ... from "/@vite/client"`. The worker then opens its own HMR socket
+ * and receives dev-server lifecycle messages (`full-reload`, `prune`, …) that
+ * a `Worker` global cannot act on, so any reload or re-optimization while a
+ * document is loading kills the worker mid-flight. pdf.js swallows that failure,
+ * silently falls back to its main-thread "fake worker", and reports
+ * `Setting up fake worker failed: "Failed to fetch dynamically imported module:
+ * .../pdf.worker.min.mjs"` — the symptom this route exists to remove.
+ *
+ * Serving the file straight off disk also makes the bytes identical in dev and
+ * in the packaged app, so the worker really is the pinned 6.4.299 build rather
+ * than a bundler-transformed variant of it.
+ */
+const PDFJS_WORKER_FILE = 'build/pdf.worker.min.mjs'
 
 /** Where the PDF.js package lives on disk. */
 const PDFJS_PACKAGE = 'node_modules/pdfjs-dist'
@@ -77,15 +102,30 @@ function pdfjsAssets(): Plugin {
         const to = path.join(outDir, 'pdfjs', subdir)
         cpSync(from, to, { recursive: true })
       }
+      // The worker is a single file, so it is copied by the same hook that stages
+      // the directories — otherwise `dist/` would ship without the one PDF.js
+      // asset the app cannot start without.
+      const workerTo = path.join(outDir, 'pdfjs', PDFJS_WORKER_FILE)
+      mkdirSync(path.dirname(workerTo), { recursive: true })
+      copyFileSync(path.resolve(assetRoot, PDFJS_WORKER_FILE), workerTo)
     }
   }
 }
 
+/**
+ * MIME types for the staged PDF.js assets.
+ *
+ * `.mjs` matters: a `Worker` constructed with `{ type: 'module' }` is fetched as
+ * a JavaScript module, and a response that is not a JavaScript MIME type is
+ * rejected outright. The default is deliberately `application/octet-stream`
+ * because most staged files *are* opaque binaries — `.bcmap`, `.wasm`, `.icc`,
+ * `.pfb` — and the worker file is the only JavaScript among them.
+ */
 function contentTypeFor(filePath: string): string {
   if (filePath.endsWith('.bcmap')) return 'application/octet-stream'
   if (filePath.endsWith('.wasm')) return 'application/wasm'
   if (filePath.endsWith('.icc')) return 'application/vnd.iccprofile'
-  if (filePath.endsWith('.js')) return 'text/javascript'
+  if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) return 'text/javascript'
   return 'application/octet-stream'
 }
 

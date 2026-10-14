@@ -4,6 +4,15 @@ interface ChatUiState {
   activeSessionIdByTab: Record<string, string>
   inputValueByTab: Record<string, string>
   attachmentsByTab: Record<string, string[]>
+  /**
+   * Eklenti listesinin mutasyon sayacı.
+   *
+   * Ekler kimliksiz `data:` URL'lerdir; "bu kopya kimin?" sorusu yalnızca
+   * sayım ve konumla yanıtlanamaz. Sayaç, bir katmanın "listeye yazdığım
+   * kopyalar hâlâ benim mi?" sorusuna tek sayıda yanıt verir ve telafinin
+   * kullanıcının ekiyle kendi ekini ayırt etmesini sağlar.
+   */
+  attachmentsRevisionByTab: Record<string, number>
   selectedModelByTab: Record<string, string>
   activeProviderByTab: Record<string, string>
   isStreamingByTab: Record<string, boolean>
@@ -35,10 +44,24 @@ interface ChatUiActions {
 
 type ChatUiStore = ChatUiState & ChatUiActions
 
+/** Her eklenti listesi mutasyonu sayacı ilerletir (bkz. `attachmentsRevisionByTab`). */
+function bumpAttachmentRevision(
+  s: ChatUiState,
+  tabId: string
+): Pick<ChatUiState, 'attachmentsRevisionByTab'> {
+  return {
+    attachmentsRevisionByTab: {
+      ...s.attachmentsRevisionByTab,
+      [tabId]: (s.attachmentsRevisionByTab[tabId] ?? 0) + 1
+    }
+  }
+}
+
 export const useChatUiStore = create<ChatUiStore>((set) => ({
   activeSessionIdByTab: {},
   inputValueByTab: {},
   attachmentsByTab: {},
+  attachmentsRevisionByTab: {},
   selectedModelByTab: {},
   activeProviderByTab: {},
   isStreamingByTab: {},
@@ -57,6 +80,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
 
   addAttachment: (tabId, data) =>
     set((s) => ({
+      ...bumpAttachmentRevision(s, tabId),
       attachmentsByTab: {
         ...s.attachmentsByTab,
         [tabId]: [...(s.attachmentsByTab[tabId] || []), data]
@@ -65,6 +89,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
 
   removeAttachment: (tabId, index) =>
     set((s) => ({
+      ...bumpAttachmentRevision(s, tabId),
       attachmentsByTab: {
         ...s.attachmentsByTab,
         [tabId]: (s.attachmentsByTab[tabId] || []).filter((_, i) => i !== index)
@@ -73,6 +98,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
 
   clearAttachments: (tabId) =>
     set((s) => ({
+      ...bumpAttachmentRevision(s, tabId),
       attachmentsByTab: { ...s.attachmentsByTab, [tabId]: [] }
     })),
 
@@ -116,6 +142,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
       const { [tabId]: _a, ...restSession } = s.activeSessionIdByTab
       const { [tabId]: _b, ...restInput } = s.inputValueByTab
       const { [tabId]: _c, ...restAttach } = s.attachmentsByTab
+      const { [tabId]: _r, ...restAttachRevision } = s.attachmentsRevisionByTab
       const { [tabId]: _d, ...restModel } = s.selectedModelByTab
       const { [tabId]: _e, ...restProvider } = s.activeProviderByTab
       const { [tabId]: _f, ...restStreaming } = s.isStreamingByTab
@@ -124,6 +151,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
         activeSessionIdByTab: restSession,
         inputValueByTab: restInput,
         attachmentsByTab: restAttach,
+        attachmentsRevisionByTab: restAttachRevision,
         selectedModelByTab: restModel,
         activeProviderByTab: restProvider,
         isStreamingByTab: restStreaming,
@@ -136,6 +164,7 @@ export const useChatUiStore = create<ChatUiStore>((set) => ({
       activeSessionIdByTab: {},
       inputValueByTab: {},
       attachmentsByTab: {},
+      attachmentsRevisionByTab: {},
       selectedModelByTab: {},
       activeProviderByTab: {},
       isStreamingByTab: {},
