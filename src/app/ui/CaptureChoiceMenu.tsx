@@ -18,7 +18,7 @@ import { createPortal } from 'react-dom'
 
 /**
  * Yakalama sonrası ikili menü — alan görseli ve tam sayfa görseli için aynı
- * szleşme: `AI'ye Gönder | Taslağa Ekle`.
+ * sözleşme: `AI'ye Gönder | Taslağa Ekle`.
  *
  * - Görsel önizleme galerisi yok; kompakt menü yakalamanın yakınında belirir.
  * - Alan yakalaması: kırpma rect'i gerçek ekran koordinatıdır.
@@ -109,11 +109,17 @@ function CaptureChoiceMenu() {
    * anahtardan okunur. Anahtar **kaynak URL değil**, yakalamanın `id`si
    * türetilir: iki yakalamanın aynı `data:` URL'ini taşıması bu iki işlemi
    * birbirine karıştırmaz.
+   *
+   * `id` zaten `area:<n>` / `full:<n>` biçimindedir (`nextCaptureId`), bu yüzden
+   * burada **yeniden ön eklenmez**: `setHiddenCaptureId(pendingKey)` ile
+   * saklanan değer, tamamlanan yakalamanın `captureId`si ile aynı olmalıdır.
+   * Aksi halde "gizlediğim yakalamayı geri göster" karşılaştırmaları hiç
+   * eşleşmez ve yakalama kalıcı olarak gizli kalır.
    */
   const pendingKey = pendingAreaCapture
-    ? `area:${pendingAreaCapture.id}`
+    ? pendingAreaCapture.id
     : pendingFullPageCapture
-      ? `full:${pendingFullPageCapture.id}`
+      ? pendingFullPageCapture.id
       : null
 
   /**

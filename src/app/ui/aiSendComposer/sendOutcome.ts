@@ -187,8 +187,33 @@ export function resolveSendOutcome(result: unknown): SendOutcome {
 
   const success = (result as { success?: unknown }).success === true
   if (!success) {
-    // Hatası da, aşaması da olmayan bir başarısız sonuç: ne tekrarlanabilir
-    // ne de başarısız olduğu **bilinen** bir durum. Güvenli taraf seçilir.
+    // Hatasız bir başarısız sonuç iki ayrı durum olabilir.
+    //
+    // **Aşama bildiren üretici.** `stage` mutasyonun varlığını bildirir, `error`
+    // yalnızca metin seçer; aşama bildiren bir üretici hata kodu taşımak
+    // zorunda değildir. Güvenli tekrarın koşulu "hiçbir şey değişmedi"dir:
+    // yalnızca `not_started` onu kanıtlar ve tekrarı açar. `applied` ise
+    // "içerik hazırlandı, yalnızca teslim edilmedi" demektir — hedefte kutu
+    // doludur ve tekrar göndermek **ikinci bir kopya** bırakır.
+    //
+    // Ölçüt `not_started` dışındaki **her** aşamayı kapatır: `partial` ve
+    // `uncertain` zaten yukarıda elendi, ama `SendStage`'a ileride eklenebilecek
+    // yeni bir aşama da varsayılan olarak güvenli tarafta kalsın.
+    if (stage) {
+      if (stage === 'not_started') {
+        return { kind: 'failed', feedback: 'error', errorCode: 'unknown_error', resendSafe: true }
+      }
+      return {
+        kind: 'incomplete',
+        feedback: 'incomplete',
+        errorCode: 'unknown_error',
+        resendSafe: false
+      }
+    }
+
+    // **Ne aşama ne hata bildiren sonuç.** Bu katmanın bir istisnayı yutmuş
+    // ya da kırık bir üretici olması, hedefin önceden değişmiş olabileceğini
+    // dışlamaz. Bilgi yoksa güvenli taraf seçilir.
     return undecidableOutcome()
   }
 
