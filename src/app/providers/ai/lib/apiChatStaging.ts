@@ -184,6 +184,20 @@ const NOOP_ROLLBACK: ApiChatRollbackResult = 'fully_reverted'
  * girdiğinde hiçbir şeye dokunulmaz. Dönüş değeri, üst katmanın "otomatik
  * tekrar güvenli mi?" kararını **void** bir çağrıdan beslemek yerine gerçek
  * bilgiyle verir.
+ *
+ * ## "Bulamadım" ile "sildim" aynı şey değildir
+ *
+ * Eklediğimiz metin kutuda **bulunamazsa** onu geri almış saymak yanlıştır.
+ * `sendApiChatMessage` kullanıcı mesajını transcript'e yazdıktan sonra kutuyu
+ * temizler (`updateInput(tabId, '')`); istek başarısız olduğunda metin tüketilmiş
+ * olur ve telafi aradığı şeyi bulamaz. "Temiz" görünen bu hedef, transcript'te
+ * kullanıcının mesajını zaten taşır.
+ *
+ * Bu yüzden `textReverted` yalnızca **kanıtla** geri alındığında doğru kalır.
+ * Bulunamadığı durumda `false` döner; sonuç `partially_reverted` olur ve üst
+ * katman `partial` işaretler — yani otomatik tekrar kapalı kalır. Aksi halde
+ * `not_started` üretilir, kullanıcı "tekrar dene" der ve transcript'e ikinci bir
+ * kopya yazılır.
  */
 export function rollbackApiChatStaging(
   read: ChatUiStateReader,
@@ -204,6 +218,8 @@ export function rollbackApiChatStaging(
         // kullanıcının verisini bozardı.
         textReverted = false
         textBlockedByUser = true
+      } else {
+        textReverted = false
       }
     } else {
       const tail = `${API_CHAT_INPUT_SEPARATOR}${staging.appendedText}`
@@ -212,6 +228,8 @@ export function rollbackApiChatStaging(
       } else if (current.includes(staging.appendedText)) {
         textReverted = false
         textBlockedByUser = true
+      } else {
+        textReverted = false
       }
     }
   }
