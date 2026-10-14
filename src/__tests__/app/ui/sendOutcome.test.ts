@@ -170,3 +170,38 @@ describe('resolveSendOutcome — success shapes', () => {
     })
   })
 })
+
+describe('resolveSendOutcome — a stage still decides retry without an error code', () => {
+  // `stage` mutasyonun **varlığını** bildirir; `error` yalnızca kullanıcıya
+  // gösterilecek metni seçer. Aşama bildiren bir üretici hata kodu taşımak
+  // zorunda değildir, bu yüzden karar `error`a değil `stage`e bağlı kalmalıdır.
+  //
+  // `{ success: false, stage: 'applied' }` bu boşluğun somut örneğidir: görseller
+  // yapıştırılmış, prompt yazılmış, yalnızca submit tıklaması yapılmamıştır.
+  // Hata kodu olmadığı için önceki akış bu sonucu güvenli tekrar sayar ve
+  // "Tekrar dene" ikinci bir kopya bırakır.
+  it.each([
+    ['not_started', 'failed', true],
+    ['partial', 'incomplete', false],
+    ['applied', 'incomplete', false],
+    ['uncertain', 'incomplete', false]
+  ] as const)(
+    'reads stage %s without an error code as %s (resendSafe=%s)',
+    (stage, expectedKind, expectedResendSafe) => {
+      const outcome = resolveSendOutcome({ success: false, stage })
+
+      expect(outcome.kind).toBe(expectedKind)
+      expect(outcome.resendSafe).toBe(expectedResendSafe)
+    }
+  )
+
+  it('never auto-resends a target that was already fully written', () => {
+    // Görevin işaret ettiği girdi: içerik hedefe uygulanmış, teslim edilmemiş.
+    const outcome = resolveSendOutcome({ success: false, stage: 'applied' })
+
+    expect(outcome.resendSafe).toBe(false)
+    expect(outcome.kind).toBe('incomplete')
+    // Kullanıcı "nerede durduğunu" bilmeli: hazırlandı, gönderilmedi.
+    expect(outcome.feedback).toBe('incomplete')
+  })
+})
