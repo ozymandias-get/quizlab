@@ -230,7 +230,7 @@ function AiSendComposer({
         'pointer-events-none flex w-full',
         placement === 'inline'
           ? 'justify-center'
-          : 'z-modal fixed bottom-4 left-4 w-full max-w-[26.25rem]'
+          : 'z-modal fixed bottom-4 left-4 w-full max-w-[38rem]'
       )}
       data-testid="ai-draft-root"
       data-placement={placement}
@@ -241,10 +241,10 @@ function AiSendComposer({
           sağlar (bkz. `DraftSendButton`). */}
       <div
         // Genişlik, PDF panelinin **kullanılabilir alanına** göre belirlenir:
-        // hedef bant 390–440 px (`26.25rem`), dar panelde `w-full` ile küçülür.
+        // hedef bant 540–608 px (`38rem`), dar panelde `w-full` ile küçülür.
         // Sabit dev bir blok, sayfayı gereksiz yere örterdi; `max-w` sayesinde
         // geniş PDF panelinde de dock kompakt kalır.
-        className="@container pointer-events-auto flex w-full max-w-[26.25rem] flex-col"
+        className="@container pointer-events-auto flex w-full max-w-[38rem] flex-col"
         data-testid="ai-draft-dock"
       >
         {!isOpen && (

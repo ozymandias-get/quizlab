@@ -18,7 +18,7 @@ import { createPortal } from 'react-dom'
 
 /**
  * Yakalama sonrası ikili menü — alan görseli ve tam sayfa görseli için aynı
- * s��zleşme: `AI'ye Gönder | Taslağa Ekle`.
+ * szleşme: `AI'ye Gönder | Taslağa Ekle`.
  *
  * - Görsel önizleme galerisi yok; kompakt menü yakalamanın yakınında belirir.
  * - Alan yakalaması: kırpma rect'i gerçek ekran koordinatıdır.
@@ -36,6 +36,22 @@ import { createPortal } from 'react-dom'
  *   bulunduğunda `document.querySelector` ilk eşleşmeyi getirir ve iki menü
  *   birbirinin tıklamasını tüketebilirdi.
  *
+ * ## Yakalama kimliği = kaynak değil
+ *
+ * Menü, "hangi yakalama üzerinde işlem yapıyoruz?" sorusunu `pendingKey` ile
+ * yanıtlar. Bu anahtar **kaynak URL metninden değil**, `useScreenshotPipeline`'ın
+ * ürettiği benzersiz yakalama `id`si türetilir.
+ *
+ * Kaynak metni kimlik olarak kullanılamaz: iki yakalama da aynı `data:` URL'ini
+ * verebilir. Böyle bir çakışmada ilk gönderimin tamamlanması ikinci yakalamanın
+ * menüsünü kapatır ve kaynağını siler — kullanıcının yeni yakalaması, eski bir
+ * işlemin geç kalıntısı olarak yok olur.
+ *
+ * Bu yüzden **her asenkron sonuç yalnızca kendi yakalamasına dokunur**:
+ * menü kapatma, kaynak serbest bırakma ve geri bildirim değişikliği
+ * `sendingRef`'in tuttuğu `captureId` ile doğrulanır. Yeni bir yakalama,
+ * önceki gönderimin tamamlanmasından **etkilenmez**.
+ *
  * ## Kaynak yaşam döngüsü (blob)
  *
  * Tam sayfa yakalamasının bazı yolları `blob:` URL'i döndürür (canvas'ın
@@ -44,18 +60,33 @@ import { createPortal } from 'react-dom'
  * yerde** yapılır; kaynak dönüşüm bitmeden iptal edilmez, dönüşümden sonra
  * da normal akışta (kabul / vazgeçme) serbest bırakılır.
  *
+ * Gönderim başlarken `retainCaptureSource` ile kaynak **tutulur**: bu
+ * andan itibaren kaynağın sahipliği yakalama hattında değil, süren
+ * gönderimdedir ve yeni bir yakalama onu düşürse bile iptal edilmez. İşlem
+ * biter bitmez `releaseCaptureSource` çağrılır; ertelenmiş bir iptal varsa
+ * **o anda** yapılır. Böylece ne kaynak erken ölür ne de hiç kullanılmadan
+ * sızıntılanır.
+ *
  * ## Gönderim sürerken kapatma
  *
  * Escape ve dış-tıklama `dismiss`'i çağırır. Gönderim asenkron sürerken
  * `dismiss` kaynağı **iptal edemez** (blob URL erken iptal edilirse gönderim
- * boş kaynakla karşılaşır); bu yüzden yalnızca görünümü kapatır. Kaynak,
- * gönderim bittiğinde kabul edilirse normal yoldan serbest bırakılır.
+ * boş kaynakla karşılaşır); bu yüzden yalnızca **o yakalamanın** görünümünü
+ * gizler. Gizleme bir boolean değil, **hangi yakalama** bilgisidir: yeni bir
+ * yakalama geldiğinde gizleme ona uygulanmaz, eski gizlemeden etkilenmez.
+ *
+ * Ref tek başına re-render tetiklemez. Bu yüzden süren gönderim hem senkron
+ * bir kilit (`sendingRef`) hem de **reaktif** bir state (`sendingCaptureId`)
+ * olarak tutulur: kilit aynı olaydaki ikinci tıklamayı, state ise gizli menünün
+ * "gönderim bitti mi?" sorusunu yanıtlayan effect'i besler.
  */
 function CaptureChoiceMenu() {
   const { pendingAreaCapture, pendingFullPageCapture } = useAppToolScreenshotState()
   const {
     confirmPendingAreaAsDraft,
     dismissPendingArea,
+    retainCaptureSource,
+    releaseCaptureSource,
     confirmPendingFullPageAsDraft,
     dismissPendingFullPage,
     sendImageDirectToAi
@@ -70,17 +101,19 @@ function CaptureChoiceMenu() {
   pendingFullPageRef.current = pendingFullPageCapture
 
   /**
-   * Aktif yakalamanın kimliği: `area:<url>` | `full:<url>` | null.
+   * Aktif yakalamanın kimliği: `area:<n>` | `full:<n>` | null.
    *
    * Hem menüyü konumlandırır hem de "hangi yakalama üzerinde işlem yapıyoruz"
    * sorusunun tek ve deterministik yanıtını verir — alan ve tam sayfa aynı
    * anda bekleyemez (bkz. `useScreenshotPipeline`), ama yine de karar tek bir
-   * anahtardan okunur.
+   * anahtardan okunur. Anahtar **kaynak URL değil**, yakalamanın `id`si
+   * türetilir: iki yakalamanın aynı `data:` URL'ini taşıması bu iki işlemi
+   * birbirine karıştırmaz.
    */
   const pendingKey = pendingAreaCapture
-    ? `area:${pendingAreaCapture.dataUrl}`
+    ? `area:${pendingAreaCapture.id}`
     : pendingFullPageCapture
-      ? `full:${pendingFullPageCapture.dataUrl}`
+      ? `full:${pendingFullPageCapture.id}`
       : null
 
   /**
@@ -107,15 +140,30 @@ function CaptureChoiceMenu() {
     }
   }, [])
 
-  /** Gönderim sürerken menüyü gizler ama kaynağı yaşatır. */
-  const [menuHidden, setMenuHidden] = useState(false)
-  /** Gönderimde olan yakalama: asenkron sonucun hangi yakalamaya ait olduğu. */
-  const sendingRef = useRef<{ key: string } | null>(null)
+  /**
+   * Gizlenen menü **hangi yakalama** için gizlendi?
+   *
+   * Boolean yerine kimlik tutulur: A'nın gönderimi sürerken B yakalanırsa
+   * `hiddenCaptureId` A'ya ait kalır ve `pendingKey` artık B olduğu için B'nin
+   * menüsü **açık** görünür. Gizleme yeni yakalamaya sızmaz.
+   */
+  const [hiddenCaptureId, setHiddenCaptureId] = useState<string | null>(null)
+  /**
+   * Gönderimde olan yakalama.
+   *
+   * `sendingRef` **senkron** kilittir (aynı olaydaki ikinci tıklamayı
+   * yakalar), `sendingCaptureId` ise aynı bilginin **reaktif** kopyasıdır:
+   * `ref` değişikliği tek başına render/effect tetiklemez, bu yüzden "gönderim
+   * bitti mi?" sorusu bir ref'e değil, state'e sorulur.
+   */
+  const sendingRef = useRef<string | null>(null)
+  const [sendingCaptureId, setSendingCaptureId] = useState<string | null>(null)
   useEffect(() => {
-    if (!menuHidden) return
-    // Gizli menü, ancak gönderim yoksa yeni bir yakalama onu geri getirir.
-    if (!sendingRef.current) setMenuHidden(false)
-  }, [menuHidden, pendingKey])
+    if (hiddenCaptureId === null) return
+    // Gizli menü, ancak **kendi gönderimi** bittiğinde geri gelir. Yeni bir
+    // yakalamanın kimliği farklı olduğu için eski gizleme onu etkilemez.
+    if (sendingCaptureId === null) setHiddenCaptureId(null)
+  }, [hiddenCaptureId, sendingCaptureId])
 
   const anchor = useMemo(() => {
     // Alan yakalaması: kırpma rect'i (gerçek ekran koordinatı).
@@ -183,7 +231,7 @@ function CaptureChoiceMenu() {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     feedbackTimerRef.current = null
     setFeedback('idle')
-    setMenuHidden(false)
+    setHiddenCaptureId(null)
     if (pendingAreaRef.current) dismissPendingArea()
     else dismissPendingFullPage()
   }, [
@@ -211,41 +259,82 @@ function CaptureChoiceMenu() {
   const handleSendDirect = useCallback(async () => {
     const area = pendingAreaRef.current
     const fullPage = pendingFullPageRef.current
-    const source = area?.dataUrl ?? fullPage?.dataUrl
+    const capture = area ?? fullPage
+    const source = capture?.dataUrl
     const meta = area?.meta ?? fullPage?.meta ?? null
-    const runKey = area ? `area:${area.dataUrl}` : fullPage ? `full:${fullPage.dataUrl}` : null
-    if (!source || !runKey || feedback === 'working') return
+    // Koşunun kimliği **kaynak değil, yakalama kimliğidir**. Aynı `data:` URL'ini
+    // taşıyan iki yakalama bu sayede ayrı koşu olarak izlenir.
+    const captureId = capture?.id ?? null
+    if (!source || captureId === null || feedback === 'working') return
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     setFeedback('working')
-    sendingRef.current = { key: runKey }
+    // Kaynak bu andan itibaren gönderimin sorumluluğunda: yeni bir yakalama
+    // gelip bu yakalamayı düşürse bile kaynak iptal edilmez.
+    retainCaptureSource(captureId)
+    sendingRef.current = captureId
+    setSendingCaptureId(captureId)
+    /** Bu koşunun artık geçerli olup olmadığı — tek ve deterministik yanıt. */
+    const isCurrentRun = () => sendingRef.current === captureId
+    /**
+     * Koşu bittiğinde **hangi** yakalamanın hâlâ beklediği.
+     *
+     * Ref yalnızca render'da güncellendiği için değer, gönderim bitene kadarki
+     * son durumu verir. Araya giren B, A'dan farklı bir kimlik taşıdığı için
+     * karşılaştırma A'yı geçersiz kılar — A'nın sonucu B'ye uygulanmaz.
+     */
+    const stillPending = () => {
+      const current = pendingAreaRef.current?.id ?? pendingFullPageRef.current?.id ?? null
+      return current === captureId
+    }
     try {
       // Kaynak dönüşüm bitmeden iptal edilmez: `blobUrlToDataUrl` aynı URL'i
       // okuyor, erken bir revoke burada hatayı tetiklerdi.
       const dataUrl = await toSendableDataUrl(source)
       const header = buildImageSourceHeader(meta?.source ?? null)
       const result = await sendImageDirectToAi(dataUrl, header ? { promptText: header } : {})
-      // Bu koşuda menü zaten kapanmış ya da başka bir yakalama gelmiş olabilir;
-      // eski bir sonuç yeni yakalamanın durumunu değiştirmemeli.
-      if (sendingRef.current?.key !== runKey) return
+      if (!isCurrentRun()) return
+      // Kaynağın gönderim üzerindeki müsahadeti biter: ertelenmiş bir iptal
+      // varsa burada ve şimdi yapılır (yoksa kaynak sızar).
+      releaseCaptureSource(captureId)
+      const ours = stillPending()
       if (result && (result as { success?: boolean }).success) {
-        // Kaynak artık gerekmiyor: normal kabul yolundan serbest bırakılır.
-        if (area) dismissPendingArea()
-        else dismissPendingFullPage()
-        setFeedback('idle')
-      } else {
+        if (ours) {
+          // Kaynak artık gerekmiyor: yalnızca **hâlâ bizimki olan** yakalama
+          // normal kabul yolundan serbest bırakılır.
+          if (area) dismissPendingArea()
+          else dismissPendingFullPage()
+          setHiddenCaptureId((hidden) => (hidden === captureId ? null : hidden))
+          setFeedback('idle')
+        }
+        // Başka bir yakalama bekliyorsa menüsüne, konumuna ya da geri
+        // bildirimine **hiç dokunulmaz**.
+      } else if (ours) {
         // Hata: menü geri gelir, kullanıcı tekrar deneyebilir veya vazgeçebilir.
+        // Otomatik tekrar **yok**: belirsiz bir teslimde aynı içeriği ikinci kez
+        // göndermek hedefte ikinci bir kopya bırakır.
+        setHiddenCaptureId((hidden) => (hidden === captureId ? null : hidden))
         showFeedbackFor('error', 2400)
       }
     } catch {
-      if (sendingRef.current?.key !== runKey) return
+      if (!isCurrentRun()) return
+      releaseCaptureSource(captureId)
+      if (!stillPending()) return
+      setHiddenCaptureId((hidden) => (hidden === captureId ? null : hidden))
       showFeedbackFor('error', 2400)
     } finally {
-      if (sendingRef.current?.key === runKey) sendingRef.current = null
+      if (isCurrentRun()) {
+        sendingRef.current = null
+        // Ref değişikliği tek başına render üretmez; efektin "gönderim bitti
+        // mi?" sorusunu sorabilmesi için aynı bilgi state'e de yazılır.
+        setSendingCaptureId(null)
+      }
     }
   }, [
     dismissPendingArea,
     dismissPendingFullPage,
     feedback,
+    releaseCaptureSource,
+    retainCaptureSource,
     sendImageDirectToAi,
     showFeedbackFor,
     toSendableDataUrl
@@ -255,19 +344,21 @@ function CaptureChoiceMenu() {
    * Kullanıcının kapatma eylemi.
    *
    * Gönderim sürerken bu yalnızca **görünümü** kapatır: kaynak, işlem bitmeden
-   * serbest bırakılamaz. `dismissPending*` yalnızca gönderim bittiğinde
-   * (kabul edildi) veya gönderim yokken çağrılır.
+   * serbest bırakılamaz (gönderim onu okuyor). `dismissPending*` yalnızca
+   * gönderim bittiğinde (kabul edildi) veya gönderim yokken çağrılır.
    */
   const dismiss = useCallback(() => {
     if (sendingRef.current) {
-      setMenuHidden(true)
+      // Gizleme kimliğe bağlıdır: yeni bir yakalama bu gizlemeyi devralmaz.
+      setHiddenCaptureId(pendingKey)
       return
     }
     if (pendingAreaRef.current) dismissPendingArea()
     else dismissPendingFullPage()
-  }, [dismissPendingArea, dismissPendingFullPage])
+  }, [dismissPendingArea, dismissPendingFullPage, pendingKey])
 
-  const hasPending = (!!pendingAreaCapture || !!pendingFullPageCapture) && !menuHidden
+  const hasPending =
+    (!!pendingAreaCapture || !!pendingFullPageCapture) && hiddenCaptureId !== pendingKey
 
   useEffect(() => {
     if (!hasPending) return

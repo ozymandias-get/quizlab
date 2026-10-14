@@ -25,6 +25,21 @@ import type { AiSendResult } from '../types'
  * üst katmanın "otomatik tekrar" kararını besler. Ön uçuş hataları (boş
  * mesaj, oturum yok, eşzamanlı gönderim) hiçbir şey yazmadan başarısız
  * olur ve `not_started` döner.
+ *
+ * ## Kanıt tek kaynaktan gelir
+ *
+ * "Transcript'e yazıldı mı?" sorusunun yanıtı `sendApiChatMessage`'ın
+ * `transcriptWritten` bayrağıdır; burada tahmin yapılmaz. Bu bayrak üç
+ * gerçeği tek tek kapsar ve hiçbiri `errorReply`/`cancelled` ile
+ * yakalanamazdı:
+ *
+ * 1. hata balonu yazıldı (`errorReply`),
+ * 2. istek atıldıktan sonra iptal edildi (`cancelled`),
+ * 3. mesaj yazıldıktan sonra **beklenmedik** bir istisna oluştu.
+ *
+ * (3) eskiden `catch` dalına düşüp `not_started` ile karşılanıyordu: kullanıcı
+ * mesajı transcript'te dururken otomatik tekrarın açılması, mükerrer mesajın
+ * en pahalı senaryosuydu.
  */
 export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
   const { useChatUiStore } = await import('@features/ai')
@@ -46,10 +61,21 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
       characterPrompt: uiState.characterPrompt
     })
     if (!result.success) {
-      // `errorReply` yazıldı → kullanıcı mesajı transcript'e girdi; istek
-      // başlatıldıktan sonra iptal edildi → teslim belirsiz. İkisinde de
-      // otomatik tekrar mükerrer mesaj üretir.
-      const stage: SendStage = result.errorReply || result.cancelled ? 'uncertain' : 'not_started'
+      // Transcript'e yazıldığını gösteren **her** kanıt tek yerde toplanır.
+      // `transcriptWritten` bunların tamamını kapsar; `errorReply`/`cancelled`
+      // ise yazmayı bildirmeyen bir üretici için geriye dönük güvenlik
+      // ağıdır. Sıralama "kanıt varsa belirsiz" yönündedir: eksik bilgi
+      // "mutasyon yok" sayılmaz.
+      //
+      // (3) yazma sonrası beklenmedik istisna eskiden `catch` dalına düşüp
+      // `not_started` ile karşılanıyordu: kullanıcı mesajı transcript'te
+      // dururken otomatik tekrarın açılması, mükerrer mesajın en pahalı
+      // senaryosuydu.
+      const wroteToTranscript =
+        result.transcriptWritten === true ||
+        result.errorReply !== undefined ||
+        result.cancelled === true
+      const stage: SendStage = wroteToTranscript ? 'uncertain' : 'not_started'
       return {
         success: false,
         error: ensureErrorMessage(result.error, 'send_failed'),
@@ -58,7 +84,14 @@ export async function flushApiChatSend(tabId: string): Promise<AiSendResult> {
     }
     return { success: true, stage: 'applied' }
   } catch (err) {
-    // Ön uçuş doğrulaması: istek hiç atılmadı, hedefe dokunulmadı.
+    // `sendApiChatMessage` yalnızca **ön uçuş** doğrulamalarında throw eder
+    // (boş mesaj / oturum yok / eşzamanlı gönderim); hepsi kilit alınmadan,
+    // transcript'e hiç dokunulmadan önce oluşur. Bu yüzden `not_started` burada
+    // dürüst bir aşamadır ve otomatik tekrar güvenlidir.
+    //
+    // Yine de bu dal bir **sözleşmeye** dayanır, bir tahmine değil: yazma
+    // başladıktan sonra oluşan her hata sonuç olarak döner ve bu satıra hiç
+    // uğramaz (bkz. `sendApiChatMessage`).
     return { success: false, error: ensureErrorMessage(err, 'send_failed'), stage: 'not_started' }
   }
 }

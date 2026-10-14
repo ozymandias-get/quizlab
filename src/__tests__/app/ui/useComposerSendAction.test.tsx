@@ -146,7 +146,12 @@ describe('useComposerSendAction', () => {
     expect(setIsExpanded).toHaveBeenCalledWith(true)
   })
 
-  it('shows the error state when the send throws', async () => {
+  // An exception is not proof that nothing happened. The send may have been
+  // partially applied (source conversion, a pasted image, a transcript write),
+  // so the outcome is `incomplete`: the user is told, and the automatic retry
+  // stays closed. Assuming otherwise is how a duplicate message reaches the
+  // target.
+  it('treats a thrown send as an undecidable, non-repeatable outcome', async () => {
     const onSend = vi.fn(async () => {
       throw new Error('boom')
     }) as unknown as (payload: Payload) => Promise<unknown>
@@ -166,7 +171,39 @@ describe('useComposerSendAction', () => {
       await result.current.handleSend()
     })
 
-    expect(result.current.sendFeedback).toBe('error')
+    expect(result.current.sendFeedback).toBe('incomplete')
+    expect(result.current.isResendSafe).toBe(false)
+    expect(result.current.lastError).not.toBeNull()
+  })
+
+  it('never re-runs the send intent after it threw', async () => {
+    const onSend = vi.fn(async () => {
+      throw new Error('boom')
+    }) as unknown as (payload: Payload) => Promise<unknown>
+    const { result } = renderHook(() =>
+      useComposerSendAction({
+        isSubmitting: false,
+        setIsSubmitting: vi.fn(),
+        onSend,
+        noteText: '',
+        effectiveAutoSend: true,
+        setIsExpanded: vi.fn(),
+        setStoredExpanded: vi.fn()
+      })
+    )
+
+    await act(async () => {
+      await result.current.handleSend({ noteText: 'Explain this' })
+    })
+
+    await act(async () => {
+      result.current.handleRetry()
+      result.current.handleRetry()
+    })
+
+    // İstisna, iş kısmen uygulandıktan sonra da oluşabilir: hedefe ikinci bir
+    // mesaj bırakmamak için "Tekrar dene" sessizce kapanır.
+    expect(onSend).toHaveBeenCalledTimes(1)
   })
 
   it('ignores a send while another one is submitting', async () => {

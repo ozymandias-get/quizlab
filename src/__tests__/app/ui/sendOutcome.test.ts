@@ -144,9 +144,29 @@ describe('resolveSendOutcome — success shapes', () => {
     expect(outcome.feedback).toBe('idle')
   })
 
-  it('falls back to failed for an unusable result', () => {
-    expect(resolveSendOutcome(undefined).kind).toBe('failed')
-    expect(resolveSendOutcome('nope').kind).toBe('failed')
-    expect(resolveSendOutcome({ success: false }).kind).toBe('failed')
+  // Bir sonucun **okunamaması** "hiçbir şey olmadı" demek değildir. Bilgi
+  // eksikliği, en kötü ihtimalde hedefin önceden değişmiş olabileceğini
+  // dışlamaz; bu yüzden güvenli taraf seçilir ve otomatik tekrar kapanır.
+  it('treats an unusable result as undecidable instead of safely repeatable', () => {
+    for (const unusable of [undefined, null, 'nope', 42, {}]) {
+      const outcome = resolveSendOutcome(unusable)
+
+      expect(outcome.kind).toBe('incomplete')
+      // Kanıt yok → "mutasyon yok" denemez; en kötü ihtimal mükerrer mesaj.
+      expect(outcome.resendSafe).toBe(false)
+      expect(outcome.feedback).toBe('incomplete')
+      expect(outcome.errorCode).toBe('unknown_error')
+    }
+  })
+
+  it('treats a failure that reports neither error nor stage as undecidable', () => {
+    // `{ success: false }`: ne tekrarlanabilir ne de başarısız olduğu bilinen
+    // bir durum. Güvenli taraf gerekir.
+    expect(resolveSendOutcome({ success: false })).toEqual({
+      kind: 'incomplete',
+      feedback: 'incomplete',
+      errorCode: 'unknown_error',
+      resendSafe: false
+    })
   })
 })

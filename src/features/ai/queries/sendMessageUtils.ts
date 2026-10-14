@@ -45,6 +45,20 @@ export interface SendMessageParams {
 /**
  * Outcome of an api-chat send. Writing an error bubble into the transcript
  * (`errorReply`) is NOT a success: callers must branch on `success`.
+ *
+ * ## `transcriptWritten`
+ *
+ * Kullanıcı mesajının oturuma **yazılıp yazılmadığı**. Bu alan teslim
+ * belirsizliğinin tek kanıtıdır: `true` iken hedefte kullanıcının mesajı
+ * duruyordur ve aynı içeriği otomatik tekrar etmek transcript'te **ikinci bir
+ * kullanıcı mesajı** üretir.
+ *
+ * `errorReply`'ın varlığı tek başına yeterli değildir: istek başlatıldıktan
+ * sonra iptal edilen bir gönderimde hata balonu yazılmaz, ama kullanıcı mesajı
+ * yine de transcript'tedir. Aynı şekilde transcript'e yazıldıktan sonra oluşan
+ * **beklenmedik** bir hata (depo temizliği, kalıcı yazma, prompt birleştirme)
+ * ne hata balonu ne de `cancelled` üretir — yalnızca bu bayrak o an "hedefe
+ * dokunuldu" gerçeğini korur.
  */
 export type SendApiChatResult =
   | {
@@ -58,6 +72,12 @@ export type SendApiChatResult =
       errorReply?: ApiChatMessage
       /** True when the send was cancelled by the user (no error bubble written). */
       cancelled?: boolean
+      /**
+       * Kullanıcı mesajı oturuma yazıldı mı? `undefined`/`false` → teslim
+       * belirsizliği **kanıtlanamaz**, güvenli tekrar açıktır; `true` →
+       * transcript'te mesaj duruyor, tekrar mükerrer mesaj üretir.
+       */
+      transcriptWritten?: boolean
       sessionId: string
     }
 

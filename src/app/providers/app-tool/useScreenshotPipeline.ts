@@ -4,15 +4,39 @@ import { useCallback, useRef, useState } from 'react'
 
 import type { QueuedImageMeta } from './useAiDraftQueue'
 
+/**
+ * Bir yakalamanın **kimliği**.
+ *
+ * `dataUrl` bir kimlik **değildir**: aynı bölge iki kez yakalanabilir, iki
+ * yakalama da `blob:` üretmeyen yollardan aynı `data:` URL'ini verebilir.
+ * Kimliğin kaynağa bağlanması, bir gönderim sürerken gelen ikinci bir
+ * yakalamanın "aynı yakalama" sanılmasına ve ilk gönderimin tamamlanırken
+ * onu silmesine yol açar. Bu yüzden kimlik, kaynaktan **tamamen ayrı** ve
+ * her yakalama için benzersizdir.
+ *
+ * `kind`, kaynağın türünü de taşır: `area:<n>` ve `full:<n>` aynı sayıyı
+ * paylaşsa bile farklı yakalamalardır.
+ */
+export type CaptureId = string
+
 export interface PendingAreaCapture {
+  id: CaptureId
   dataUrl: string
   meta: QueuedImageMeta | null
   rect: { left: number; top: number; width: number; height: number } | null
 }
 
 export interface PendingFullPageCapture {
+  id: CaptureId
   dataUrl: string
   meta: QueuedImageMeta | null
+}
+
+/** Uygulama yaşamı boyunca benzersiz yakalama kimlikleri. */
+let captureSeq = 0
+function nextCaptureId(kind: 'area' | 'full'): CaptureId {
+  captureSeq += 1
+  return `${kind}:${captureSeq}`
 }
 
 /** Blob URL ise geri al (kullanıcı menüde vazgeçerse sızmasın). */
@@ -47,12 +71,29 @@ interface UseScreenshotPipelineProps {
  * gösterirken tam sayfa yakalamasının kaynağı ekranda görünmeden yaşar ve
  * sessizce sızardı.
  *
- * ## Sahiplik
+ * Kimlik (`id`) kaynaktan ayrıdır; "hangi yakalama?" sorusunun yanıtıdır ve
+ * tek sahiplik kuralından **farklıdır**: aynı anda tek bekleyen yakalama
+ * olabilir, ama o sırada birden fazla gönderim kaynağı okuyor olabilir.
+ *
+ * ## Sahiplik ve kaynak yaşam döngüsü
  *
  * Bekleyen yakalama, kaynak URL'inin sahibidir. `confirm*AsDraft` yalnızca
  * kuyruk gerçekten kabul ettiğinde bu sahipliği devreder; reddedildiğinde
  * bekleyen yakalama **korunur** (kullanıcı öğeleri azaltıp yeniden deneyebilir)
  * ve kaynak ne iptal edilir ne de kaybolur.
+ *
+ * Üçüncü bir sahip vardır: **süren gönderim**. Gönderim, kaynağı okurken
+ * (`blob:` → `data:` dönüşümü) yeni bir yakalama gelirse kaynak erken geri
+ * alınırsa gönderim boş ya da okunamayan bir kaynakla karşılaşır. Bunun için
+ * `retainCaptureSource` / `releaseCaptureSource` ikilisi vardır:
+ *
+ * - `retain`: kaynağa **okunmakta olan bir işlem** var; düşürme anında iptal
+ *   edilmez, "sonra geri al" listesine alınır.
+ * - `release`: işlem bitti. Bekleyen bir iptal varsa **şimdi** geri alınır.
+ *
+ * Böylece "gönderim sürerken kaynak erken iptal edilmez" ve "gönderim
+ * bittikten sonra kullanılmayan kaynak kalmaz" aynı mekanizmayla sağlanır;
+ * genel bir kaynak yönetim sistemi yazılmaz.
  *
  * ## Sonucun yayılması
  *
@@ -69,6 +110,35 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
   const [fullPageCapture, setFullPageCapture] = useState<PendingFullPageCapture | null>(null)
   const pendingFullPageCaptureRef = useRef<PendingFullPageCapture | null>(null)
 
+  /** Kaynağını hâlâ okuyan (gönderimde olan) yakalamalar. */
+  const retainedSourceIdsRef = useRef<Set<CaptureId>>(new Set())
+  /** Gönderim bittiği için iptali ertelenen kaynaklar: `id → url`. */
+  const deferredRevocationsRef = useRef<Map<CaptureId, string>>(new Map())
+
+  /** Bu URL hâlâ canlı bir yakalamanın sorumluluğunda mı? */
+  const isUrlStillOwned = useCallback((url: string) => {
+    return (
+      pendingAreaCaptureRef.current?.dataUrl === url ||
+      pendingFullPageCaptureRef.current?.dataUrl === url
+    )
+  }, [])
+
+  /**
+   * Yakalamanın kaynağını bırakır (yakalama düşürülüyor).
+   *
+   * Kaynak bir gönderim tarafından okunuyorsa **ertelenir**: `revoke` erken
+   * yapılırsa süren gönderim kaynağı okuyamaz. Aksine hiçbir işlem tutmuyorsa
+   * hemen geri alınır — ekranda görülmeyen bir blob sızmaz.
+   */
+  const dropCaptureSource = useCallback((id: CaptureId, dataUrl: string) => {
+    if (!dataUrl.startsWith('blob:')) return
+    if (retainedSourceIdsRef.current.has(id)) {
+      deferredRevocationsRef.current.set(id, dataUrl)
+      return
+    }
+    revokeIfBlobUrl(dataUrl)
+  }, [])
+
   const setPendingAreaCapture = useCallback((next: PendingAreaCapture | null) => {
     pendingAreaCaptureRef.current = next
     setAreaCapture(next)
@@ -83,12 +153,12 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
   const dropOtherPendingCapture = useCallback(() => {
     const otherFull = pendingFullPageCaptureRef.current
     if (otherFull) {
-      revokeIfBlobUrl(otherFull.dataUrl)
+      dropCaptureSource(otherFull.id, otherFull.dataUrl)
       // Ref + state birlikte düşer; sahiplik kaydı tek yerden yürütülür
       // (doğrudan `setFullPageCapture` çağırmak ikinci bir yazma yoludur).
       setPendingFullPageCapture(null)
     }
-  }, [setPendingFullPageCapture])
+  }, [dropCaptureSource, setPendingFullPageCapture])
 
   const handleScreenshotCapture = useCallback(
     async (dataUrl: string, rect?: PendingAreaCapture['rect']) => {
@@ -97,11 +167,13 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       const meta = screenshotMetaRef.current
       screenshotMetaRef.current = null
       const prev = pendingAreaCaptureRef.current
-      if (prev) revokeIfBlobUrl(prev.dataUrl)
+      // Yeni yakalama eskiyi **kimliğiyle** geçersiz kılar; kaynak, üzerinde
+      // süren bir gönderim varsa ertelenir (bkz. `dropCaptureSource`).
+      if (prev) dropCaptureSource(prev.id, prev.dataUrl)
       dropOtherPendingCapture()
-      setPendingAreaCapture({ dataUrl, meta, rect: rect ?? null })
+      setPendingAreaCapture({ id: nextCaptureId('area'), dataUrl, meta, rect: rect ?? null })
     },
-    [dropOtherPendingCapture, setPendingAreaCapture]
+    [dropCaptureSource, dropOtherPendingCapture, setPendingAreaCapture]
   )
 
   const {
@@ -116,13 +188,13 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       // Yeni alan seçimi eski bekleyeni geçersiz kılar (hızlı arka arkaya seçim)
       // ve tam sayfa yakalaması da aynı anda bekleyemez.
       const prev = pendingAreaCaptureRef.current
-      if (prev) revokeIfBlobUrl(prev.dataUrl)
+      if (prev) dropCaptureSource(prev.id, prev.dataUrl)
       setPendingAreaCapture(null)
       dropOtherPendingCapture()
       screenshotMetaRef.current = imageMeta ?? null
       beginScreenshot()
     },
-    [beginScreenshot, dropOtherPendingCapture, setPendingAreaCapture]
+    [beginScreenshot, dropCaptureSource, dropOtherPendingCapture, setPendingAreaCapture]
   )
 
   const closeScreenshot = useCallback(() => {
@@ -146,9 +218,40 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
 
   const dismissPendingArea = useCallback(() => {
     const prev = pendingAreaCaptureRef.current
-    if (prev) revokeIfBlobUrl(prev.dataUrl)
+    if (prev) dropCaptureSource(prev.id, prev.dataUrl)
     setPendingAreaCapture(null)
-  }, [setPendingAreaCapture])
+  }, [dropCaptureSource, setPendingAreaCapture])
+
+  /**
+   * Bekleyen yakalamanın kaynağı, üzerinde süren bir gönderim olduğunu bildirir.
+   *
+   * Gönderim başlarken **senkron** çağrılır: kaynak daha sonra düşürülse bile
+   * iptal edilmez. Çağıran, işlem bitince `releaseCaptureSource` ile eşleştirir.
+   */
+  const retainCaptureSource = useCallback((id: CaptureId) => {
+    retainedSourceIdsRef.current.add(id)
+  }, [])
+
+  /**
+   * Gönderim bitti: kaynağın tutulmaktan çıkmasına izin ver.
+   *
+   * Düşme sırasında iptal edilemeyen kaynak **şimdi** geri alınır. Böylece
+   * "gönderim sürerken kaynak yaşar, gönderim bitince kullanılmayan kaynak
+   * kalmaz" kuralı tek yerde ve sızıntısız uygulanır.
+   */
+  const releaseCaptureSource = useCallback(
+    (id: CaptureId) => {
+      retainedSourceIdsRef.current.delete(id)
+      const url = deferredRevocationsRef.current.get(id)
+      if (url === undefined) return
+      deferredRevocationsRef.current.delete(id)
+      // Aynı URL'i kullanan **başka bir canlı yakalama** varsa iptal yapılmaz:
+      // kimlik başka, kaynak paylaşılan.
+      if (isUrlStillOwned(url)) return
+      revokeIfBlobUrl(url)
+    },
+    [isUrlStillOwned]
+  )
 
   const confirmPendingAreaAsDraft = useCallback(() => {
     const pending = pendingAreaCaptureRef.current
@@ -170,17 +273,17 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
   const offerFullPageCapture = useCallback(
     (dataUrl: string, meta?: QueuedImageMeta | null) => {
       const prev = pendingFullPageCaptureRef.current
-      if (prev) revokeIfBlobUrl(prev.dataUrl)
+      if (prev) dropCaptureSource(prev.id, prev.dataUrl)
       // Tek sahiplik: aynı anda bekleyen bir alan yakalaması varsa düşürülür.
       const pendingArea = pendingAreaCaptureRef.current
       if (pendingArea) {
-        revokeIfBlobUrl(pendingArea.dataUrl)
+        dropCaptureSource(pendingArea.id, pendingArea.dataUrl)
         pendingAreaCaptureRef.current = null
         setAreaCapture(null)
       }
-      setPendingFullPageCapture({ dataUrl, meta: meta ?? null })
+      setPendingFullPageCapture({ id: nextCaptureId('full'), dataUrl, meta: meta ?? null })
     },
-    [setPendingFullPageCapture]
+    [dropCaptureSource, setPendingFullPageCapture]
   )
 
   const confirmPendingFullPageAsDraft = useCallback(() => {
@@ -196,9 +299,9 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
 
   const dismissPendingFullPage = useCallback(() => {
     const prev = pendingFullPageCaptureRef.current
-    if (prev) revokeIfBlobUrl(prev.dataUrl)
+    if (prev) dropCaptureSource(prev.id, prev.dataUrl)
     setPendingFullPageCapture(null)
-  }, [setPendingFullPageCapture])
+  }, [dropCaptureSource, setPendingFullPageCapture])
 
   const clearScreenshotMeta = useCallback(() => {
     screenshotMetaRef.current = null
@@ -211,6 +314,8 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     startScreenshot,
     closeScreenshot,
     handleCapture,
+    retainCaptureSource,
+    releaseCaptureSource,
     confirmPendingAreaAsDraft,
     dismissPendingArea,
     offerFullPageCapture,

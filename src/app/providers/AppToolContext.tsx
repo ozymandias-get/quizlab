@@ -49,6 +49,17 @@ interface AppToolActionsType {
    */
   confirmPendingAreaAsDraft: () => boolean
   dismissPendingArea: () => void
+  /**
+   * Yakalamanın kaynağı, üzerinde süren bir gönderim olduğunu bildirir.
+   *
+   * Kaynak bu andan itibaren **gönderimin sorumluluğundadır**: yeni bir
+   * yakalama eski bekleyeni düşürse bile kaynak iptal edilmez, işlem bitince
+   * `releaseCaptureSource` ile geri alınır. Çağıran eşleştirmek üzere
+   * yakalamanın `id` değerini saklamak zorundadır.
+   */
+  retainCaptureSource: (id: string) => void
+  /** Süren gönderim bitti: ertelenen kaynak iptali (varsa) burada yapılır. */
+  releaseCaptureSource: (id: string) => void
   /** Tam sayfa yakalaması menü kararına açılır (doğrudan kuyruğa yazılmaz). */
   offerFullPageCapture: (imageUri: string, meta?: QueuedImageMeta | null) => void
   /** Alan yakalamasıyla aynı sözleşme: kabul `true`, ret `false`. */
@@ -117,6 +128,8 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     handleCapture,
     confirmPendingAreaAsDraft,
     dismissPendingArea,
+    retainCaptureSource,
+    releaseCaptureSource,
     offerFullPageCapture,
     confirmPendingFullPageAsDraft,
     dismissPendingFullPage,
@@ -164,6 +177,8 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       handleCapture,
       confirmPendingAreaAsDraft,
       dismissPendingArea,
+      retainCaptureSource,
+      releaseCaptureSource,
       offerFullPageCapture,
       confirmPendingFullPageAsDraft,
       dismissPendingFullPage,
@@ -187,6 +202,8 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       handleCapture,
       confirmPendingAreaAsDraft,
       dismissPendingArea,
+      retainCaptureSource,
+      releaseCaptureSource,
       offerFullPageCapture,
       confirmPendingFullPageAsDraft,
       dismissPendingFullPage,
