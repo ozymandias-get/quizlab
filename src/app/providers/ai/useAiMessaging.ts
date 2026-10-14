@@ -50,6 +50,25 @@ async function getChatUiStore() {
  * - Kısmi telafi / kullanıcı değişikliği → hedefte bizim içerikten bir şey
  *   duruyor. Otomatik tekrar mükerrer mesaj üretir; sonuç `partial` olarak
  *   işaretlenir ve üst katman kullanıcıyı bilgilendirir.
+ *
+ * ## Telafi teslim bilgisini taşıyamaz
+ *
+ * Bu fonksiyon **yalnızca composer'ı** telafi eder: girdi kutusuna yazdığı
+ * metni ve eklenti listesine eklediği kopyaları. Transcript'e yazılan kullanıcı
+ * mesajının telafisi **yoktur** — o mesaj kullanıcının kendi gönderimidir.
+ *
+ * Bu yüzden teslimin aşaması `uncertain` (belirsiz) ise, composer telafisi tam
+ * olsa bile sonuç `not_started`'a indirgenmez. Aksi halde şu akış yanlış
+ * karar verirdi:
+ *
+ * 1. metin yazıldı, kullanıcı mesajı transcript'e girdi, kutu temizlendi;
+ * 2. istek hata verdi → `uncertain`;
+ * 3. telafi kutuya "yazılan metin kalmadı" diye baktı, temiz buldu, tam telafi
+ *    dedi ve aşamayı `not_started` yaptı;
+ * 4. otomatik tekrar açıldı → transcript'te **ikinci** kullanıcı mesajı.
+ *
+ * Aşama hiçbir koşulda **daha güvenli** bir değere inemez; telafi yalnızca
+ * "kesin başarısızlık" ile "kısmi uygulama" arasındaki farkı kapatır.
  */
 function withRollback(
   read: ChatUiStateReader | null,
@@ -58,10 +77,16 @@ function withRollback(
   result: AiSendResult
 ): AiSendResult {
   if (!read || !hasStagedMutations(staging)) return result
+  const deliveryStage = result.stage ?? 'not_started'
+  // Belirsiz teslim, telafiyle belirsizliğe dönüşmez: transcript'te ne olduğunu
+  // bilmiyoruz ve composer'da neyin kaldığı bunu **kanıtlamaz**.
+  if (deliveryStage === 'uncertain') {
+    return { ...result, stage: 'uncertain' }
+  }
   const rollback = rollbackApiChatStaging(read, tabId, staging)
   if (rollback === 'fully_reverted') {
-    // Geri alma tamam: hedefe bizim bıraktığımız bir şey yok.
-    return { ...result, stage: 'not_started' }
+    // Geri alma tamam: composer hedefe bizim bıraktığımız bir şey taşımıyor.
+    return { ...result, stage: deliveryStage === 'not_started' ? 'not_started' : 'partial' }
   }
   return { ...result, stage: 'partial' }
 }

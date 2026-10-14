@@ -26,6 +26,12 @@ const store = {
   input: '' as string,
   attachments: [] as string[],
   /**
+   * Gerçek `chatUiStore` gibi eklenti listesi mutasyon sayacı. Telafi, "bizim
+   * eklediğimiz kopyalar hâlâ bizim mi?" sorusunu bu sayıya sorar; sayaç
+   * bildirmeyen bir depo o soruya güvenli tarafla (silmeden) yanıt verir.
+   */
+  revision: 0,
+  /**
    * Hata enjeksiyonu: `addAttachment` bu çağrı numarasında **önce yazar, sonra
    * patlar**. "Yazma başladı ama hata verdi" durumu mutasyon kaydının neden
    * uygulamadan önce yazıldığını gösteren tek senaryodur.
@@ -35,6 +41,7 @@ const store = {
   reset() {
     store.input = ''
     store.attachments = []
+    store.revision = 0
     store.failAddOnCall = 0
     store.addCalls = 0
   }
@@ -43,6 +50,7 @@ const store = {
 // Depo sözleşmesi: `removeAttachment(tabId, index)` — dizin **ikinci** argümandır.
 const removeAttachment = vi.fn((_tabId: string, index: number) => {
   store.attachments = store.attachments.filter((_, i) => i !== index)
+  store.revision += 1
 })
 
 const mockScheduleApiChatSend = vi.fn()
@@ -65,12 +73,14 @@ vi.mock('@features/ai', async (importOriginal) => ({
     getState: () => ({
       inputValueByTab: { [TAB]: store.input },
       attachmentsByTab: { [TAB]: store.attachments },
+      attachmentsRevisionByTab: { [TAB]: store.revision },
       updateInput: (_tabId: string, value: string) => {
         store.input = value
       },
       addAttachment: (_tabId: string, data: string) => {
         store.addCalls += 1
         store.attachments.push(data)
+        store.revision += 1
         if (store.failAddOnCall === store.addCalls) {
           throw new Error('store write failed after mutating')
         }

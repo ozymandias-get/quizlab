@@ -17,9 +17,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
+/**
+ * Yakalama kimligi, kaynaktan **ayri** bir seydir. Testler de gercek sozlesmeyi
+ * taklit eder: her yakalama benzersiz `id` tasir, boylece ayni `data:` URL'ini
+ * kullanan iki yakalama birbirine karismaz.
+ */
+let nextCaptureId = 0
+const areaCapture = (dataUrl: string) => ({
+  id: `area:${(nextCaptureId += 1)}`,
+  dataUrl,
+  meta: null,
+  rect: null
+})
+const fullPageCapture = (dataUrl: string) => ({
+  id: `full:${(nextCaptureId += 1)}`,
+  dataUrl,
+  meta: null
+})
+
 const state = {
-  pendingAreaCapture: null as { dataUrl: string; meta: null; rect: null } | null,
-  pendingFullPageCapture: null as { dataUrl: string; meta: null } | null
+  pendingAreaCapture: null as ReturnType<typeof areaCapture> | null,
+  pendingFullPageCapture: null as ReturnType<typeof fullPageCapture> | null
 }
 
 const actions = {
@@ -33,6 +51,10 @@ const actions = {
   dismissPendingFullPage: vi.fn(() => {
     state.pendingFullPageCapture = null
   }),
+  // Gonderim, kaynagi okurken pipeline'a "bu kaynak artik benim" der; iptal
+  // ancak `release` ile serbest birakilir. Testler bunu cagirilarla gozlemler.
+  retainCaptureSource: vi.fn(),
+  releaseCaptureSource: vi.fn(),
   sendImageDirectToAi: vi.fn(async (_dataUrl: string, _options?: unknown) => ({
     success: true
   }))
@@ -57,7 +79,12 @@ vi.mock('@features/pdf', async (importOriginal) => ({
 
 function setFullPage(dataUrl: string) {
   state.pendingAreaCapture = null
-  state.pendingFullPageCapture = { dataUrl, meta: null }
+  state.pendingFullPageCapture = fullPageCapture(dataUrl)
+}
+
+function setArea(dataUrl: string) {
+  state.pendingAreaCapture = areaCapture(dataUrl)
+  state.pendingFullPageCapture = null
 }
 
 describe('CaptureChoiceMenu', () => {
@@ -243,8 +270,7 @@ describe('CaptureChoiceMenu', () => {
 
   describe('single active capture', () => {
     it('acts on the area capture when it is the pending one', async () => {
-      state.pendingAreaCapture = { dataUrl: PNG, meta: null, rect: null }
-      state.pendingFullPageCapture = null
+      setArea(PNG)
 
       render(<CaptureChoiceMenu />)
       await act(async () => {
@@ -256,8 +282,7 @@ describe('CaptureChoiceMenu', () => {
     })
 
     it('acts on the full-page capture when that is the pending one', async () => {
-      state.pendingAreaCapture = null
-      state.pendingFullPageCapture = { dataUrl: PNG, meta: null }
+      setFullPage(PNG)
 
       render(<CaptureChoiceMenu />)
       await act(async () => {

@@ -14,7 +14,7 @@ import type { SendFeedback } from './types'
  * | `delivered`| İçerik AI'ya ulaştı.                                  |
  * | `staged`   | İçerik AI kutusuna yazıldı, kullanıcı gönderacak.     |
  * | `failed`   | İşlem yapılmadı; taslak korunur, güvenle tekrarlanır. |
- * | `incomplete`| İşlem **kısmen** uygulandı; otomatik tekrar güvenli değil. |
+ * | `incomplete`| İşlem **kısmen** uygulandı ya da **bilinmiyor**; otomatik tekrar güvenli değil. |
  * | `busy`     | Eşzamanlı ikinci gönderim reddedildi; bir hata değil.  |
  *
  * `delivered` ve `staged` **sessizdir**: ikisi de `idle` geri bildirimi döner.
@@ -25,6 +25,12 @@ import type { SendFeedback } from './types'
  * `incomplete` ayrı bir durum olarak tutulur: belirsiz bir sonucu `success`
  * ya da `error` içine sıkıştırmak ya hedefte mükerrer mesaj üretir ya da
  * kullanıcıyı gerçekleşmemiş bir teslimle kandırır.
+ *
+ * ## Bilgi yoksa güvenli taraf
+ *
+ * Sonucun okunamadığı her hal (`undefined`, ilkel değer, `success` alanı
+ * olmayan nesne) `incomplete`'tir: "bilmiyoruz" ile "hiçbir şey olmadı"
+ * arasındaki fark burada mükerrer mesajla kapanır.
  *
  * ## Neden hata kodu yetmez
  *
@@ -105,14 +111,35 @@ function readStage(result: object): SendStage | null {
   return null
 }
 
+/**
+ * Sonuç **hiç okunamıyorsa** güvenli taraf seçilir.
+ *
+ * `undefined`, `null`, bir ilkel değer ya da `success` alanı olmayan bir
+ * nesne, "mutasyon yapılmadı" anlamına **gelmez**; yalnızca "bilmiyoruz"
+ * anlamına gelir. Bu katmanın bir istisnayı yutmuş olması ya da kırık bir
+ * üretici olması, hedefin önceden değişmiş olabileceğini dışlamaz.
+ *
+ * Güvenli taraf burada `resendSafe: false`'tır: en kötü ihtimalde kullanıcı
+ * elle devam eder; tersi seçilseydi en kötü ihtimal hedefte mükerrer mesaj
+ * olurdu. `NO_SEND_RESULT` da tam olarak bu gerekçeyle `uncertain` taşır.
+ */
+function undecidableOutcome(): SendOutcome {
+  return {
+    kind: 'incomplete',
+    feedback: 'incomplete',
+    errorCode: 'unknown_error',
+    resendSafe: false
+  }
+}
+
 /** Ham gönderim sonucunu anlamlı bir gönderim durumuna çevirir. */
 export function resolveSendOutcome(result: unknown): SendOutcome {
   if (result === undefined || result === null) {
-    return { kind: 'failed', feedback: 'error', errorCode: 'unknown_error', resendSafe: true }
+    return undecidableOutcome()
   }
 
   if (typeof result !== 'object') {
-    return { kind: 'failed', feedback: 'error', errorCode: 'unknown_error', resendSafe: true }
+    return undecidableOutcome()
   }
 
   const errorCode = readStringProp(result, 'error')
@@ -160,7 +187,9 @@ export function resolveSendOutcome(result: unknown): SendOutcome {
 
   const success = (result as { success?: unknown }).success === true
   if (!success) {
-    return { kind: 'failed', feedback: 'error', errorCode: 'unknown_error', resendSafe: true }
+    // Hatası da, aşaması da olmayan bir başarısız sonuç: ne tekrarlanabilir
+    // ne de başarısız olduğu **bilinen** bir durum. Güvenli taraf seçilir.
+    return undecidableOutcome()
   }
 
   // `delivered` ve `staged` ikisi de **başarılı** teslimattır ve ikisi de

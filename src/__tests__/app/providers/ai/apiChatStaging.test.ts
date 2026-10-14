@@ -19,8 +19,14 @@ interface FakeTab {
   attachments: string[]
 }
 
-function makeStore(initial: Record<string, FakeTab> = {}) {
+/**
+ * Gerçek `chatUiStore` gibi davranan depo: her eklenti listesi mutasyonu
+ * `revision` sayacini ilerletir. Telafi "bizim ekledigimiz kopyalar hala
+ * bizim mi?" sorusunu bu sayaci sorar.
+ */
+function makeStore(initial: Record<string, FakeTab> = {}, withRevision = true) {
   const state = {
+    revision: 0,
     tabs: structuredClone(initial),
     read(tabId: string) {
       if (!state.tabs[tabId]) state.tabs[tabId] = { input: '', attachments: [] }
@@ -34,15 +40,20 @@ function makeStore(initial: Record<string, FakeTab> = {}) {
     attachmentsByTab: Object.fromEntries(
       Object.entries(state.tabs).map(([k, v]) => [k, v.attachments])
     ),
+    ...(withRevision
+      ? { attachmentsRevisionByTab: { [TAB]: state.revision } }
+      : { attachmentsRevisionByTab: undefined }),
     updateInput: vi.fn((tabId: string, value: string) => {
       state.read(tabId).input = value
     }),
     addAttachment: vi.fn((tabId: string, data: string) => {
       state.read(tabId).attachments.push(data)
+      state.revision += 1
     }),
     removeAttachment: vi.fn((tabId: string, index: number) => {
       const tab = state.read(tabId)
       tab.attachments = tab.attachments.filter((_, i) => i !== index)
+      state.revision += 1
     })
   })
   return { state, read }
@@ -198,6 +209,100 @@ describe('apiChatStaging', () => {
 
       expect(state.inputOf(TAB)).toBe('Existing')
       expect(state.attachmentsOf(TAB)).toEqual(['x'])
+    })
+  })
+
+  /**
+   * Ayni degerin kacinci kopyasi oldugu, **sahiplik kaniti degildir**.
+   *
+   * Zincir: kullanici A'yi ekler → otomasyon ayni A'yi ekler → kullanici
+   * onceki A'yi siler → kullanici A'yi yeniden ekler. Liste iki kez "iki A"
+   * olur ve konum sayimi "1. kopya" der. Artik listedeki ikinci A'nin
+   * hangisinin bizimki oldugu **gozlenemez**.
+   *
+   * Yanlis bir kullanici ekini silmek, hedefte bir kopya birakmaktan daha
+   kotudur: bu yuzden sahiplik kanitlanamazsa **silinmez** ve sonuc kismi
+   telafi olarak tasinir (otomatik tekrar oradan kapanir).
+   */
+  describe('ownership of an image the user already has', () => {
+    const A = 'data:image/png;base64,A'
+
+    it('does not delete the user copy when the list was re-arranged meanwhile', () => {
+      // 1) Kullanicinin A'si var.
+      const { state, read } = makeStore({ [TAB]: { input: '', attachments: [A] } })
+      const staging = createApiChatStaging()
+
+      // 2) Otomasyon ayni A'yi ekler.
+      stageApiChatAttachments(staging, read, TAB, [A])
+      expect(state.attachmentsOf(TAB)).toEqual([A, A])
+
+      // 3) Kullanici onceki A'sini siler, 4) A'yi yeniden ekler.
+      state.read(TAB).attachments.splice(0, 1)
+      state.read(TAB).attachments.push(A)
+      state.revision += 2
+      expect(state.attachmentsOf(TAB)).toEqual([A, A])
+
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      // Kullanicinin ekleme eylemi iptal edilmez. Bedeli: hedefte bir kopya
+      // kalir — bu, "tahmin edip yanlis kullanici ekini silmek"ten bilincli
+      // olarak tercih edilen taraftir.
+      expect(state.attachmentsOf(TAB)).toEqual([A, A])
+      // Sonuc "tam telafi" **degildir**: bir kopya kaldi ve nedeni belirsizdir.
+      expect(result).toBe('partially_reverted')
+    })
+
+    it('still removes our own copy when the user never touched the list', () => {
+      const { state, read } = makeStore({ [TAB]: { input: '', attachments: [A] } })
+      const staging = createApiChatStaging()
+      stageApiChatAttachments(staging, read, TAB, [A])
+
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      // Sayim kanitlari yerinde: kullaniciya ait kopya kalir, bizimki duser.
+      expect(state.attachmentsOf(TAB)).toEqual([A])
+      expect(result).toBe('fully_reverted')
+    })
+
+    it('does not delete anything when the store cannot prove ownership', () => {
+      // Sayaç bildirmeyen bir depo: "değişmedi" **kanıtlanamaz**.
+      const { state, read } = makeStore({ [TAB]: { input: '', attachments: [A] } }, false)
+      const staging = createApiChatStaging()
+      stageApiChatAttachments(staging, read, TAB, [A])
+
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      expect(state.attachmentsOf(TAB)).toEqual([A, A])
+      expect(result).toBe('partially_reverted')
+    })
+
+    it('treats two identical staged copies as ours, not as a shared value', () => {
+      // Bos listede ayni goruntuyu iki kez hazirlamak "paylasimli" degildir:
+      // onceki kopya bizim kendi ekimizdir ve konum sayimi kesindir.
+      const { state, read } = makeStore()
+      const staging = createApiChatStaging()
+
+      stageApiChatAttachments(staging, read, TAB, [A, A])
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      expect(state.attachmentsOf(TAB)).toEqual([])
+      expect(result).toBe('fully_reverted')
+    })
+
+    it('keeps a unique staged copy removable even when the user adds another one', () => {
+      // Tekil bir degerde konum sayimi kesindir: kullanicinin ekledigi baska
+      // bir ek, bizim kopyamizi kaydirmaz. Bu davranis korunur.
+      const { state, read } = makeStore()
+      const staging = createApiChatStaging()
+      stageApiChatAttachments(staging, read, TAB, [A])
+
+      state.read(TAB).attachments.push('data:image/png;base64,NEWER')
+      state.revision += 1
+
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      expect(state.attachmentsOf(TAB)).toEqual(['data:image/png;base64,NEWER'])
+      expect(result).toBe('fully_reverted')
     })
   })
 })

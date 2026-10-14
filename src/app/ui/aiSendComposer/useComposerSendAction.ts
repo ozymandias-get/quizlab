@@ -34,6 +34,14 @@ const FEEDBACK_TIMEOUT_MS = { error: 6000 } as const
  * anlatırdı. Yalnızca hata ve **kısmi uygulama** konuşur — çünkü ikisi de
  * sessiz kalırsa kullanıcı içeriğinin nerede olduğunu bilemez.
  *
+ * ## İstisna, başarısızlık kanıtı değildir
+ *
+ * `onSend` attığında elimizde hiçbir bilgi yoktur: işlem hiç başlamamış
+ * olabilir, ya da kısmen uygulanmış olabilir. Bu yüzden `catch` dalı
+ * güvenli tekrar **açmaz**; `incomplete` işaretler. `resolveSendOutcome`'un
+ * bilinmeyen sonuçlar için uyguladığı güvenli tarafla aynı karardır: bilgi
+ * eksikliği "mutasyon yok" değildir.
+ *
  * ## Zamanlayıcı
  *
  * **Her gönderim başlangıcında önceki geri bildirim zamanlayıcısı iptal
@@ -182,9 +190,18 @@ export function useComposerSendAction({
           setLastError(null)
         }
       } catch {
+        // `onSend` bir istisna fırlattı: hedefe **hiç dokunulmadığının kanıtı
+        // yok**. İstisna, iş kısmen uygulandıktan sonra da oluşabilir (kaynak
+        // dönüşümü, kısmi yapıştırma, transcript yazımı…), dolayısıyla güvenli
+        // varsayılamak yanlıştır: en kötü ihtimalde hedefte ikinci bir kopya.
+        //
+        // Bu yüzden sonuç `incomplete` olarak işaretlenir — kullanıcı
+        // bilgilendirilir, otomatik tekrar kapalıdır ve veri elde etmek için
+        // elle ilerleyebilir. Aynı belirsizlik `NO_SEND_RESULT`'ın taşıdığı
+        // `stage: 'uncertain'` ile aynı yönde durur.
         clearFeedbackTimer()
-        setSendFeedback('error')
-        setIsResendSafe(true)
+        setSendFeedback('incomplete')
+        setIsResendSafe(false)
         setLastError('unknown_error')
         setIsExpanded(true)
         setStoredExpanded(true)

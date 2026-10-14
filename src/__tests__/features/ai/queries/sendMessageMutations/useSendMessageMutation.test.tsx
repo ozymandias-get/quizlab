@@ -47,6 +47,7 @@ vi.mock('@features/ai/store/apiChatSessionUtils', async () => {
 import type { ApiChatMessage } from '@shared-core/types'
 
 import { useSendMessageMutation } from '@features/ai/queries/useSendMessageMutation'
+import type { SendApiChatResult } from '@features/ai/queries/sendMessageUtils'
 import type { ChatSession } from '@features/ai/store/apiChatSessionUtils'
 import { useChatUiStore } from '@features/ai/store/chatUiStore'
 
@@ -121,11 +122,20 @@ describe('useSendMessageMutation — send lock lifecycle', () => {
       wrapper: createWrapper(queryClient)
     })
 
+    const captured: { outcome?: SendApiChatResult } = {}
     await act(async () => {
-      await expect(
-        result.current.mutateAsync({ tabId: 'tab1', text: 'Hi', images: [] })
-      ).rejects.toThrow('persist boom')
+      captured.outcome = await result.current.mutateAsync({
+        tabId: 'tab1',
+        text: 'Hi',
+        images: []
+      })
     })
+
+    // Kalıcı yazma başladığında mesaj depoya yazılmış olabilir; bu yüzden
+    // sonuç fırlatılmak yerine döner ve "hiçbir şey olmadı" **demez**.
+    expect(captured.outcome?.success).toBe(false)
+    if (!captured.outcome || captured.outcome.success) throw new Error('expected a failure')
+    expect(captured.outcome.transcriptWritten).toBe(true)
 
     // Streaming was never turned on because the failure happened before it.
     expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBeFalsy()
@@ -151,11 +161,19 @@ describe('useSendMessageMutation — send lock lifecycle', () => {
       wrapper: createWrapper(queryClient)
     })
 
+    const captured: { outcome?: SendApiChatResult } = {}
     await act(async () => {
-      await expect(
-        result.current.mutateAsync({ tabId: 'tab1', text: 'Hi', images: [] })
-      ).rejects.toThrow('cache boom')
+      captured.outcome = await result.current.mutateAsync({
+        tabId: 'tab1',
+        text: 'Hi',
+        images: []
+      })
     })
+
+    // Önbelleğe yazma transcript'ten sonra olduğu için mesaj yazılmış sayılır.
+    expect(captured.outcome?.success).toBe(false)
+    if (!captured.outcome || captured.outcome.success) throw new Error('expected a failure')
+    expect(captured.outcome.transcriptWritten).toBe(true)
 
     setQueryDataSpy.mockRestore()
     expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBeFalsy()

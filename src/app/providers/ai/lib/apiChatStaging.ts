@@ -31,6 +31,30 @@
  * otomasyonun ekini bırakır — hem kullanıcı verisi kaybolur hem mükerrer
  * ek kalır.
  *
+ * ### Konum, kanıt değildir
+ *
+ * "Kaçıncı kopya" sayımı **yalnızca** o değerin önceden bize ait olmayan bir
+ * kopyası yoksa güvenlidir. Aynı görsel kullanıcının ekinde zaten varsa,
+ * konum sayımı bir kimlik vermez:
+ *
+ * 1. kullanıcı A'yı ekler → `[A]`
+ * 2. otomasyon A'yı ekler → `[A, A]`, kayıt "1. kopya" der
+ * 3. kullanıcı **önceki** A'yı siler → `[A]`
+ * 4. kullanıcı A'yı yeniden ekler → `[A, A]`
+ * 5. telafi "1. kopya"yı hedefler → **kullanıcının yeni ekini** siler
+ *
+ * Bu, içerik olarak doğru bir kopya bırakır ama **sahipliği yanlış** siler:
+ * kullanıcının ekleme eylemi iptal edilir. Daha kötüsü, hangi kopyanın
+ * silindiği gözlenemediği için aynı işlem ters yönde de sessizce veri kaybı
+ * üretir.
+ *
+ * Bu yüzden konum sayımı tek başına kullanılmaz. Eğer eklemeden **önce**
+ * bizim yazmadığımız bir kopya varsa (`shared`), sahiplik ancak liste
+ * hazırlamadan bu yana **değişmediği** kanıtlanabiliyorsa kullanılır; kanıt
+ * yoksa **silinmez** ve sonuç kısmi telafi olarak taşınır (telafinin sınırı
+ * bölümüne bakın). Depo sürüm bildirmiyorsa "değişmedi" **kanıtlanamaz** ve
+ * paylaşımlı kopyalar güvenli tarafta bırakılır.
+ *
  * ## Telafinin sınırı
  *
  * Geri alma **kendi eklediğimiz ve hâlâ yerinde duran** içeriği hedefler:
@@ -57,6 +81,18 @@ const API_CHAT_INPUT_SEPARATOR = '\n'
 interface ApiChatStagingPort {
   inputValueByTab: Record<string, string>
   attachmentsByTab: Record<string, string[]>
+  /**
+   * Eklenti listesinin mutasyon sayacı.
+   *
+   * Telafi, kendi eklediğimiz kopyanın **hâlâ bizimki olduğunu** kanıtlamak
+   * zorundadır; aynı değerin kullanıcıya ait bir kopyası varsa konum sayımı
+   * yetmez. Sayaç, "listeye hazırlamadan bu yana bizimkinden başka bir şey
+   * girdi mi?" sorusunu tek sayıyla yanıtlar.
+   *
+   * **İsteğe bağlıdır ve olmayışı güvenli taraftadır**: bildirilmediğinde
+   * paylaşımlı kopyalar için sahiplik kanıtlanamaz, o yüzden hiç silinmez.
+   */
+  attachmentsRevisionByTab?: Record<string, number>
   updateInput: (tabId: string, value: string) => void
   addAttachment: (tabId: string, data: string) => void
   removeAttachment: (tabId: string, index: number) => void
@@ -67,13 +103,19 @@ export type ChatUiStateReader = () => ApiChatStagingPort
 /**
  * Eklediğimiz tek bir ekin kimliği.
  *
- * `data` ekin içeriği, `occurrence` ise bu içeriğin listedeki **kaçıncı
- * kopyası** olduğu (0 tabanlı). Ekleme anında mevcut kopya sayısı kadar olan
- * bir kayıt, eklemeden sonra o kopyaya işaret eder.
+ * `data` ekin içeriği, `occurrence` ise bu içeriğin ekleme anındaki listede
+ * **kaçıncı kopyası** olduğu (0 tabanlı). Ekleme anında mevcut kopya sayısı
+ * kadar olan bir kayıt, eklemeden sonra o kopyaya işaret eder.
+ *
+ * `shared` bu konumun **kanıt olup olmadığını** söyler: `true` ise eklemeden
+ * önce listede bizim yazmadığımız bir kopya vardı, dolayısıyla konum sayımı
+ * tek başına "bu hâlâ bizimki" diyemez.
  */
 interface StagedAttachmentRef {
   data: string
   occurrence: number
+  /** Ekleme öncesi bu değerin **bize ait olmayan** bir kopyası var mıydı? */
+  shared: boolean
 }
 
 /**
@@ -87,10 +129,18 @@ export interface ApiChatStaging {
   addedAttachments: StagedAttachmentRef[]
   appendedText: string
   baseInput: string
+  /**
+   * İlk eklemeden **önce** okunan liste sürümü; `null` → depo bildirmiyor.
+   *
+   * Paylaşımlı (`shared`) kopyaların hâlâ bizimki olduğunu kanıtlamak için
+   * kullanılır: sonuç bu değerin tam olarak kendi eklediğimiz kadar artması
+   * değilse araya bir mutasyon girmiştir.
+   */
+  attachmentsRevision: number | null
 }
 
 export function createApiChatStaging(): ApiChatStaging {
-  return { addedAttachments: [], appendedText: '', baseInput: '' }
+  return { addedAttachments: [], appendedText: '', baseInput: '', attachmentsRevision: null }
 }
 
 /**
@@ -113,6 +163,21 @@ function countOccurrences(list: string[], data: string): number {
   return count
 }
 
+/**
+ * Bir değerin, **bu hazırlamada** eklediğimiz kopyalarını sayar.
+ *
+ * `occurrence` ile karşılaştırıldığında fark, ekleme öncesi listede duran ve
+ * bize ait olmayan kopyaların sayısını verir. Sıfırdan büyükse konum sayımı
+ * tek başına sahiplik kanıtı değildir.
+ */
+function countOwnCopies(staging: ApiChatStaging, data: string): number {
+  let count = 0
+  for (const ref of staging.addedAttachments) {
+    if (ref.data === data) count += 1
+  }
+  return count
+}
+
 /** Eklenti listesine kaynakları ekler ve kaydı doldurur. */
 export function stageApiChatAttachments(
   staging: ApiChatStaging,
@@ -120,12 +185,21 @@ export function stageApiChatAttachments(
   tabId: string,
   prepared: string[]
 ): void {
+  // Liste sürümü **kendi eklemelerimizden önce** okunur; telafi "kendi
+  // eklediğimiz kadar artmış mı?" sorusunu bu sayıya sorar.
+  if (staging.addedAttachments.length === 0) {
+    staging.attachmentsRevision = read().attachmentsRevisionByTab?.[tabId] ?? null
+  }
   for (const data of prepared) {
     if (typeof data !== 'string' || data.length === 0) continue
     // Kayıt önce yazılır: `addAttachment` patlarsa bile telafi bu kopyayı
     // hedefleyebilir (hatta kısmen eklendiğinde gerçekten kaldıracak).
     const occurrence = countOccurrences(read().attachmentsByTab[tabId] || [], data)
-    staging.addedAttachments.push({ data, occurrence })
+    // Kendi eklediğimiz kopyalar bu değerin bir parçasıdır; `occurrence`
+    // onları da sayar. Paylaşımlık yalnızca **bize ait olmayan** önceki
+    // kopyalar için söz konusudur.
+    const shared = occurrence - countOwnCopies(staging, data) > 0
+    staging.addedAttachments.push({ data, occurrence, shared })
     read().addAttachment(tabId, data)
   }
 }
@@ -178,6 +252,22 @@ export type ApiChatRollbackResult = 'fully_reverted' | 'partially_reverted' | 'u
 const NOOP_ROLLBACK: ApiChatRollbackResult = 'fully_reverted'
 
 /**
+ * Paylaşımlı kopyaların hâlâ bize ait olduğu **kanıtlanıyor mu?**
+ *
+ * Kanıt tek bir sayıdır: liste sürümü, hazırlamanın başındaki değerin tam
+ * olarak kendi eklediğimiz kadar artmış olmasıdır. Fazla artmış (kullanıcı
+ * ekledi/sildi) ya da hiç bildirilmemişse "bizimki" denemez.
+ *
+ * Karar telafinin **hiçbir mutasyonundan önce**, bir kez verilir: telafinin
+ * kendi `removeAttachment` çağrıları da sayacı ilerletir ve kanıtı bozardı.
+ */
+function provesSharedOwnership(read: ChatUiStateReader, tabId: string, staging: ApiChatStaging) {
+  const current = read().attachmentsRevisionByTab?.[tabId]
+  if (staging.attachmentsRevision === null || current === undefined) return false
+  return current === staging.attachmentsRevision + staging.addedAttachments.length
+}
+
+/**
  * Teslim gerçekleşmediyse yalnızca bu katmanın eklediği parçaları geri alır.
  *
  * Her iki adım da "hâlâ bizim yazdığımız hâlde mi?" diye sorar; kullanıcı araya
@@ -218,6 +308,10 @@ export function rollbackApiChatStaging(
 
   let attachmentsReverted = 0
   if (staging.addedAttachments.length > 0) {
+    // Karar **tek kez**, hiçbir mutasyondan önce verilir: kendi
+    // `removeAttachment` çağrılarımız da sayacı ilerletir ve kanıtı bozardi.
+    const sharedOwnershipProven = provesSharedOwnership(read, tabId, staging)
+
     // Her eklediğimiz kaynak **kendi kopyasıyla** bulunur ve düşürülür; kalan
     // hiçbir şeye (kullanıcının eki, araya giren yeni ek) dokunulmaz.
     //
@@ -226,8 +320,14 @@ export function rollbackApiChatStaging(
     // riski tam olarak ihtiyaç duyulan anda geri gelirdi. Yalnızca "ilk içerik
     // eşleşmesi" (`indexOf`) de yetmezdi: kullanıcının **aynı** görseli
     // eklemiş olması durumunda kullanıcının kopyasını silerdik.
+    //
+    // Paylaşımlı kopyalarda konum sayımı bir kimlik **vermez** (bkz. dosya
+    // başındaki "Konum, kanıt değildir"). Sahiplik kanıtlanamıyorsa kopya
+    // **silinmez**: yanlış bir kullanıcı ekinin gitmesi, hedefte bir kopya
+    // kalmasından daha kötüdür. Kalan kopya kısmi telafi olarak yukarı taşınır
+    // ve otomatik tekrar oradan kapanır.
     for (let i = staging.addedAttachments.length - 1; i >= 0; i--) {
-      const { data, occurrence } = staging.addedAttachments[i]
+      const { data, occurrence, shared } = staging.addedAttachments[i]
       const list = read().attachmentsByTab[tabId] || []
       const seen: number[] = []
       for (let index = 0; index < list.length; index++) {
@@ -235,6 +335,7 @@ export function rollbackApiChatStaging(
       }
       const target = seen[occurrence]
       if (target === undefined) continue
+      if (shared && !sharedOwnershipProven) continue
       read().removeAttachment(tabId, target)
       attachmentsReverted += 1
     }
