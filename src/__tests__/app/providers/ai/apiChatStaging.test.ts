@@ -101,6 +101,36 @@ describe('apiChatStaging', () => {
   })
 
   describe('rollback after a definite failure', () => {
+    it('does not claim a full revert when the send already consumed the text', () => {
+      // `sendApiChatMessage` kullanıcı mesajını transcript'e yazar, ardından
+      // kutuyu `updateInput(tabId, '')` ile temizler ve istek başarısız olur.
+      // Telafi bu noktada metni **bulamaz** — ama bulamamak "başarıyla geri
+      // aldık" demek değildir: metin tüketilmiştir ve transcript'te duruyor.
+      //
+      // Bu ayrım yanlış yapılırsa `withRollback` `not_started` üretir, üst katman
+      // "güvenle tekrar gönderilebilir" der ve kullanıcı transcript'e ikinci
+      // bir kopya yazar.
+      const { state, read } = makeStore({ [TAB]: { input: '', attachments: [] } })
+      const staging = createApiChatStaging()
+      stageApiChatInput(staging, read, TAB, undefined, 'Describe this.')
+      // Gönderim kutuyu tüketti: artık aranacak metin yok.
+      state.read(TAB).input = ''
+
+      const result = rollbackApiChatStaging(read, TAB, staging)
+
+      expect(result).not.toBe('fully_reverted')
+    })
+
+    it('still reports a full revert when the text was genuinely removed', () => {
+      // Karşıt durum: metin hâlâ bizim yazdığımız gibi duruyor, telafi onu
+      // gerçekten siliyor. `not_started` güvenle verilebilir.
+      const { read } = makeStore({ [TAB]: { input: '', attachments: [] } })
+      const staging = createApiChatStaging()
+      stageApiChatInput(staging, read, TAB, undefined, 'Describe this.')
+
+      expect(rollbackApiChatStaging(read, TAB, staging)).toBe('fully_reverted')
+    })
+
     it('removes only the attachments this layer added', () => {
       const { state, read } = makeStore({
         [TAB]: { input: '', attachments: ['data:image/png;base64,USER'] }

@@ -160,6 +160,28 @@ export function resolveSendOutcome(result: unknown): SendOutcome {
 
   const success = (result as { success?: unknown }).success === true
   if (!success) {
+    // Aşama kararı `error` kodu taşımak zorunda değildir: `stage`, mutasyonun
+    // varlığını bildiren alandır, `error` yalnızca metin seçer. Yukarıdaki
+    // `errorCode` bloğu bu yüzden yalnızca hatalı **ve** kodlu sonuçları
+    // kapsar; buraya hatasız bir `stage: 'applied'` ulaşırsa aşama
+    // yok sayılmasın diye aynı ölçüt burada da uygulanır.
+    //
+    // `applied` + başarısız = içerik hedefe yazıldı, yalnızca teslim edilmedi.
+    // Tekrar göndermek hedefte ikinci bir kopya bırakır.
+    //
+    // Ölçüt `not_started` dışındaki **her** aşamayı kapatır: `partial` ve
+    // `uncertain` zaten yukarıda elendi, ama `SendStage`'a ileride eklenebilecek
+    // yeni bir aşama da varsayılan olarak güvenli tarafta kalsın.
+    if (stage && stage !== 'not_started') {
+      return {
+        kind: 'incomplete',
+        feedback: 'incomplete',
+        errorCode: 'unknown_error',
+        resendSafe: false
+      }
+    }
+    // Aşamasız (ya da `not_started`) başarısızlık: hedefe hiçbir şey
+    // yazılamadığı kanıtlanıyor, taslak korunur ve tekrar güvenlidir.
     return { kind: 'failed', feedback: 'error', errorCode: 'unknown_error', resendSafe: true }
   }
 
