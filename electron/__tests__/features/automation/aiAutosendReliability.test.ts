@@ -443,6 +443,86 @@ describe('aiAutosendReliability', () => {
         Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
       }
     }, 20000)
+
+    it('rejects a replace that left the previous draft in place', async () => {
+      // Replace sözleşmesi: eski taslak KAYBOLDUR. Editör yeni metni ekleyip
+      // eskisini silmezse içerik kirlidir ve gönderilmemelidir. Katlanmış
+      // karşılaştırma bu durumu "eski taslak gitti" diye okursa yanlış
+      // pozitif üretir.
+      document.body.innerHTML = `
+        <textarea id="input">eski taslak metni</textarea>
+        <button id="send" type="button">Send</button>
+      `
+      const prompt = 'yeni ve tek gönderilecek metin'
+
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+        configurable: true,
+        get() {
+          return descriptor.get?.call(this)
+        },
+        set(next: string) {
+          // Editör yeni metni EKLER ama eski taslağı SİLMEZ.
+          descriptor.set?.call(this, `eski taslak metni ${next}`)
+        }
+      })
+
+      try {
+        const result = await window.eval(
+          generateAutoSendScript(
+            { input: '#input', button: '#send', submitMode: 'click' },
+            prompt,
+            false
+          )
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.diagnostics.textVerifyResult).not.toBe('verified')
+        expect(result.error).toBe('text_input_partial')
+      } finally {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
+      }
+    }, 20000)
+
+    it('rejects an append that dropped the previous draft', async () => {
+      // Append sözleşmesi: önceki içerik KORUNUR. Kaybolduysa doğrulama
+      // başarısız olmalıdır; noktalama katlaması bu korumayı gevşetmemelidir.
+      document.body.innerHTML = `
+        <textarea id="input">korunmasi gereken eski icerik</textarea>
+        <button id="send" type="button">Send</button>
+      `
+      const prompt = 'eklenecek yeni icerik '.repeat(5).trim()
+
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+        configurable: true,
+        get() {
+          return descriptor.get?.call(this)
+        },
+        set(next: string) {
+          // Editör YENİ metni alır ama ESKİ taslağı siler. Yeni metin
+          // eskisinden uzun olduğu için "kazanılan uzunluk" eşiği de aşılır:
+          // korumanın tek gerçek sınavı, kayıp eski içeriğin yakalanmasıdır.
+          descriptor.set?.call(this, next.replace('korunmasi gereken eski icerik', ''))
+        }
+      })
+
+      try {
+        const result = await window.eval(
+          generateAutoSendScript(
+            { input: '#input', button: '#send', submitMode: 'click' },
+            prompt,
+            false,
+            true
+          )
+        )
+
+        expect(result.success).toBe(false)
+        expect(result.diagnostics.textVerifyResult).not.toBe('verified')
+      } finally {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
+      }
+    }, 20000)
   })
 
   describe('9 — auto-send preference is never overridden', () => {
