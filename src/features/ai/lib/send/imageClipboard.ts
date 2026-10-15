@@ -25,32 +25,48 @@ const RESTORE_SETTLE_MS = 700
 export interface ClipboardRestore {
   /** Called once the paste actually reached the page, so the restore waits first. */
   markPasteCompleted(): void
-  /** Idempotent; safe to call from a success path and again from `finally`. */
+  /**
+   * Idempotent AND memoised: every call returns the same promise, so the
+   * restore IPC runs exactly once. Callers can start it without awaiting
+   * (off the critical path) and `await` it later from `finally`.
+   */
   restore(): Promise<void>
-  /** False once the real clipboard has been put back. */
+  /** True until the real clipboard has been put back. */
   readonly pending: boolean
 }
 
-export function createClipboardRestore(): ClipboardRestore {
+export function createClipboardRestore(diagnostics?: AiSendDiagnostics): ClipboardRestore {
   let pasteCompleted = false
-  let pending = true
+  let restored = false
+  let restorePromise: Promise<void> | null = null
+
+  const runRestore = async () => {
+    const startedAt = nowMs()
+    try {
+      if (pasteCompleted) await sleep(RESTORE_SETTLE_MS)
+      await getElectronApi()?.restoreClipboard?.()
+    } catch (restoreError) {
+      reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
+    } finally {
+      if (diagnostics) {
+        diagnostics.timings.clipboardRestoreMs = roundMs(nowMs() - startedAt)
+      }
+      restored = true
+    }
+  }
 
   return {
     markPasteCompleted() {
       pasteCompleted = true
     },
-    async restore() {
-      if (!pending) return
-      pending = false
-      try {
-        if (pasteCompleted) await sleep(RESTORE_SETTLE_MS)
-        await getElectronApi()?.restoreClipboard?.()
-      } catch (restoreError) {
-        reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
+    restore() {
+      if (!restorePromise) {
+        restorePromise = runRestore()
       }
+      return restorePromise
     },
     get pending() {
-      return pending
+      return !restored
     }
   }
 }

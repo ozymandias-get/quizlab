@@ -109,6 +109,44 @@ describe('createClipboardRestore', () => {
     expect(clipboard.pending).toBe(false)
   })
 
+  it('memoises the restore promise so concurrent and later calls share one IPC', async () => {
+    const clipboard = createClipboardRestore()
+
+    const first = clipboard.restore()
+    const second = clipboard.restore()
+
+    // Aynı promise: `void restore()` ile arka planda başlatılıp `finally`'de
+    // await edilse bile IPC ikinci kez çalışmaz.
+    expect(second).toBe(first)
+    await Promise.all([first, second])
+    await clipboard.restore()
+
+    expect(restoreClipboard).toHaveBeenCalledTimes(1)
+  })
+
+  it('records how long the restore took when diagnostics are provided', async () => {
+    const diagnostics = makeDiagnostics()
+    const clipboard = createClipboardRestore(diagnostics)
+    clipboard.markPasteCompleted()
+
+    await clipboard.restore()
+
+    // Ölçüm settle beklemesini de kapsar (RESTORE_SETTLE_MS = 700).
+    expect(typeof diagnostics.timings.clipboardRestoreMs).toBe('number')
+    expect(diagnostics.timings.clipboardRestoreMs).toBeGreaterThanOrEqual(700)
+  })
+
+  it('waits the settle period only when the paste actually completed', async () => {
+    const withoutPaste = createClipboardRestore()
+    const startedAt = Date.now()
+    await withoutPaste.restore()
+    const withoutPasteMs = Date.now() - startedAt
+
+    // Yapıştırma hiç olmadıysa beklenecek bir şey yok: restore hemen döner.
+    expect(withoutPasteMs).toBeLessThan(700)
+    expect(restoreClipboard).toHaveBeenCalledTimes(1)
+  })
+
   it('reports a swallowed restore failure without throwing', async () => {
     restoreClipboard.mockRejectedValueOnce(new Error('gone'))
     const clipboard = createClipboardRestore()

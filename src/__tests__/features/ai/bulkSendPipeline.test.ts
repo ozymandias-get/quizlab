@@ -31,6 +31,14 @@ vi.mock('@features/ai/lib/selectorRepair/reportSelectorRepair', () => ({
   reportSelectorRepair: vi.fn().mockResolvedValue(undefined)
 }))
 
+const electronApiMocks = vi.hoisted(() => ({
+  restoreClipboard: vi.fn()
+}))
+
+vi.mock('@shared/lib/electronApi', () => ({
+  getElectronApi: () => electronApiMocks
+}))
+
 function makeContent() {
   const scripts: string[] = []
   // Mock'lar ayrı bir nesnede tutulur: `AiContentController.paste` **isteğe
@@ -380,4 +388,56 @@ describe('executeBulkSendPipeline — partial application is never auto-resendab
     expect(content.paste).not.toHaveBeenCalled()
     expect(asOutcome(result).resendSafe).toBe(true)
   })
+})
+
+/**
+ * ## Pano geri yükleme yaşam döngüsü
+ *
+ * Görsel gönderimi kullanıcının panosunu ödünç alır ve **tam olarak bir kez**
+ * geri vermek zorundadır. Geri yükleme ayrıca kritik yoldan çıkarılmıştır:
+ * settle + IPC süresi prompt/submit adımlarını bekletmemelidir — aksi halde
+ * her görsel gönderimine sabit ~700ms gecikme eklerdi.
+ */
+describe('executeBulkSendPipeline — clipboard restore lifecycle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.resolveSendContext.mockResolvedValue({
+      aiConfig: { input: 'i', button: 'b', submitMode: 'mixed' },
+      currentUrl: 'https://chatgpt.com/'
+    })
+    mocks.safeContentPaste.mockResolvedValue(true)
+  })
+
+  it('restores the clipboard exactly once and off the prompt/submit critical path', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+
+    let lastPasteAt = 0
+    contentMocks.paste.mockImplementation(async () => {
+      lastPasteAt = Date.now()
+      return true
+    })
+
+    const focusGeneratedAt: number[] = []
+    ;(params.generateFocusScript as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      focusGeneratedAt.push(Date.now())
+      return '/*focus*/'
+    })
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(true)
+    // Tam olarak bir kez geri yükleme: `void restore()` ile arka planda
+    // başlatılan iş, `finally`'de aynı memoize edilmiş promise üzerinden
+    // beklenir.
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledTimes(1)
+    const timings = (params.diagnostics as unknown as { timings: Record<string, number> }).timings
+    expect(typeof timings.clipboardRestoreMs).toBe('number')
+
+    // Son yapıştırmadan sonraki refocus (prompt adımı), settle beklemesi
+    // bitmeden başlamış olmalı: kritik yolda 700ms'lik bekleme yok.
+    const refocusAt = focusGeneratedAt.find((ts) => ts >= lastPasteAt)
+    expect(refocusAt).toBeDefined()
+    expect((refocusAt as number) - lastPasteAt).toBeLessThan(700)
+  }, 20000)
 })

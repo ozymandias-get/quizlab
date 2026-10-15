@@ -3,7 +3,12 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type * as AiFeatureModule from '@features/ai'
 import type { AiSendOptions } from '@features/ai'
-import { prepareImageForUpload, useAiSender } from '@features/ai'
+import {
+  nowMs as diagNowMs,
+  prepareImageForUpload,
+  roundMs as diagRoundMs,
+  useAiSender
+} from '@features/ai'
 import { resolveAutoSend } from '@features/ai'
 
 import type { AiSendResult, Tab } from '@app/providers/ai/types'
@@ -91,6 +96,21 @@ function withRollback(
   return { ...result, stage: 'partial' }
 }
 
+/**
+ * İçerik denetleyicisinin hazır olması için geçen süreyi sonuca işler.
+ *
+ * Bu bekleme `useAiSender`'ın `requestStartedAt`'inden **önce** gerçekleşir;
+ * bu yüzden `totalMs`/`queueWaitMs` içinde görünmez ve ayrı bir metrik olarak
+ * taşınır. Sonuç bir diagnostics nesnesi getirmiyorsa (ör. yedek sonuç) hiçbir
+ * şey yapılmaz.
+ */
+function attachContentReadyTiming(result: AiSendResult, contentReadyMs: number): AiSendResult {
+  if (result.diagnostics) {
+    result.diagnostics.timings.contentReadyMs = contentReadyMs
+  }
+  return result
+}
+
 interface UseAiMessagingParams {
   getContentController: (tabId?: string) => AiContentController | null
   /** Reads the active tab, or undefined when there is none. */
@@ -154,6 +174,13 @@ export function useAiMessaging({
     (timeoutMs = 10_000) => waitForContentReadyForSend(getContentController, timeoutMs),
     [getContentController]
   )
+
+  /** `waitForContentReady` + ölçüm: ek IPC/log yok, yalnızca süre kaydı. */
+  const waitForContentReadyMeasured = useCallback(async () => {
+    const readyStartedAt = diagNowMs()
+    const ready = await waitForContentReady()
+    return { ready, contentReadyMs: diagRoundMs(diagNowMs() - readyStartedAt) }
+  }, [waitForContentReady])
 
   const ensureApiChatTab = useCallback(async () => {
     // The active tab is not necessarily an api-chat tab. Attaching to a PDF or
@@ -292,7 +319,7 @@ export function useAiMessaging({
       if (!content) {
         openAiWorkspace(currentAI)
       }
-      const isReady = await waitForContentReady()
+      const { ready: isReady, contentReadyMs } = await waitForContentReadyMeasured()
       if (!isReady) {
         reportSuppressedError('useAiMessaging.waitForContent', {
           cause: new Error('Content did not become ready in time')
@@ -301,7 +328,10 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = (await rawSendText(text, options)) ?? NO_SEND_RESULT
+      const result = attachContentReadyTiming(
+        (await rawSendText(text, options)) ?? NO_SEND_RESULT,
+        contentReadyMs
+      )
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
@@ -316,7 +346,7 @@ export function useAiMessaging({
       rawSendText,
       runApiChatSend,
       showWarning,
-      waitForContentReady
+      waitForContentReadyMeasured
     ]
   )
 
@@ -362,7 +392,7 @@ export function useAiMessaging({
       if (!content) {
         openAiWorkspace(currentAI)
       }
-      const isReady = await waitForContentReady()
+      const { ready: isReady, contentReadyMs } = await waitForContentReadyMeasured()
       if (!isReady) {
         reportSuppressedError('useAiMessaging.waitForContent', {
           cause: new Error('Content did not become ready in time for image send')
@@ -371,7 +401,10 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = (await rawSendImage(imageData, options)) ?? NO_SEND_RESULT
+      const result = attachContentReadyTiming(
+        (await rawSendImage(imageData, options)) ?? NO_SEND_RESULT,
+        contentReadyMs
+      )
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
@@ -386,7 +419,7 @@ export function useAiMessaging({
       rawSendImage,
       runApiChatSend,
       showWarning,
-      waitForContentReady,
+      waitForContentReadyMeasured,
       imageOnlySeed
     ]
   )
@@ -443,7 +476,7 @@ export function useAiMessaging({
       if (!content) {
         openAiWorkspace(currentAI)
       }
-      const isReady = await waitForContentReady()
+      const { ready: isReady, contentReadyMs } = await waitForContentReadyMeasured()
       if (!isReady) {
         reportSuppressedError('useAiMessaging.waitForContentBulk', {
           cause: new Error('Content did not become ready in time for bulk send')
@@ -454,7 +487,10 @@ export function useAiMessaging({
       if (!rawSendBulk) {
         return { success: false, error: 'bulk_not_supported' }
       }
-      const result = (await rawSendBulk(imageDataUrls, options)) ?? NO_SEND_RESULT
+      const result = attachContentReadyTiming(
+        (await rawSendBulk(imageDataUrls, options)) ?? NO_SEND_RESULT,
+        contentReadyMs
+      )
       if (!result.success && (result as { error?: string }).error !== 'cancelled') {
         showWarning(toErrorToastKey((result as { error?: string }).error))
       }
@@ -469,7 +505,7 @@ export function useAiMessaging({
       rawSendBulk,
       runApiChatSend,
       showWarning,
-      waitForContentReady,
+      waitForContentReadyMeasured,
       imageOnlySeed
     ]
   )

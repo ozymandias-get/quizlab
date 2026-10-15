@@ -73,6 +73,7 @@ export function normalizeExecutionResult(value: unknown): AutomationExecutionRes
     budgetMs: candidate.budgetMs,
     minimumWaitMs: candidate.minimumWaitMs,
     everReady: candidate.everReady,
+    firstReadyAtMs: candidate.firstReadyAtMs,
     mutationCount: candidate.mutationCount,
     sinceLastMutationMs: candidate.sinceLastMutationMs,
     checkIterations: candidate.checkIterations,
