@@ -137,12 +137,35 @@ export interface AiSendDiagnostics {
  */
 export type SendStage = 'not_started' | 'partial' | 'applied' | 'uncertain'
 
+/**
+ * Gönderim girişiminin ayrıntılı sonucu — `success` bayrağı tek başına
+ * yeterli değildir.
+ *
+ * | Değer                      | Anlamı                                                |
+ * | -------------------------- | ----------------------------------------------------- |
+ * | `observed`                 | Arayüzde beklenen etki görüldü.                       |
+ * | `delivery_unconfirmed`     | Gönderim tetiklendi ama hiçbir etki gözlemlenmedi.    |
+ * | `blocked`                  | Gönderim denenmedi; kontrol bulundu ama hazır değildi.|
+ * | `not_attempted`            | Gönderim yolu bulunamadı, hiç denenmedi.              |
+ *
+ * `delivery_unconfirmed`, teslimat **kanıtı olmayan** bir gönderim girişimidir:
+ * kullanıcıya "Gönderildi" denmemeli, otomatik tekrar yapılmamalıdır.
+ */
+export type SendSubmitOutcome =
+  | 'observed'
+  | 'delivery_unconfirmed'
+  | 'blocked'
+  | 'not_attempted'
+  | 'input_only'
+
 export interface SendTextResult {
   success: boolean
   error?: string
   mode?: string
   /** Hedefe bırakılan mutasyonun aşaması (bkz. {@link SendStage}). */
   stage?: SendStage
+  /** Gönderim girişiminin gözlenen sonucu (bkz. {@link SendSubmitOutcome}). */
+  submitOutcome?: SendSubmitOutcome
   actualUrl?: string
   diagnostics?: AiSendDiagnostics
 }
@@ -153,6 +176,8 @@ export interface SendImageResult {
   mode?: string
   /** Hedefe bırakılan mutasyonun aşaması (bkz. {@link SendStage}). */
   stage?: SendStage
+  /** Gönderim girişiminin gözlenen sonucu (bkz. {@link SendSubmitOutcome}). */
+  submitOutcome?: SendSubmitOutcome
   actualUrl?: string
   diagnostics?: AiSendDiagnostics
 }

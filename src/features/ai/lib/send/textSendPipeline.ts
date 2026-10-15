@@ -5,7 +5,12 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type { AiSendDiagnostics, SendStage, SendTextResult } from '../../model/types'
+import type {
+  AiSendDiagnostics,
+  SendStage,
+  SendSubmitOutcome,
+  SendTextResult
+} from '../../model/types'
 import type { ConfigCache } from '../aiSenderSupport'
 import { toAutomationConfig } from '../aiSenderSupport'
 import { buildPromptText, mergePromptText } from '../aiSenderSupport'
@@ -143,7 +148,26 @@ export async function executeTextSendPipeline(
   // korunur.
   if (!effectiveAutoSend) {
     return attachDiagnostics(
-      { success: true, mode: 'staged', stage: 'applied' },
+      { success: true, mode: 'staged', stage: 'applied', submitOutcome: 'input_only' },
+      diagnostics,
+      requestStartedAt
+    )
+  }
+
+  // `success` burada yalnızca "gönderim GİRİŞİMİ yapıldı" demektir.
+  // Teslimat doğrulandıysa `observed`, doğrulanamadıysa
+  // `delivery_unconfirmed` taşınır; üst katman bu ayrımla kullanıcıya hem
+  // "gönderildi" hem de "gönderildi ama teslimat doğrulanamadı" durumunu
+  // doğru gösterebilir. Sessiz başarı üretilmez.
+  const submitOutcome = resolveSubmitOutcome(sendStep.scriptResult)
+  if (submitOutcome === 'delivery_unconfirmed') {
+    return attachDiagnostics(
+      {
+        success: true,
+        mode: sendStep.scriptResult?.mode || resolved.aiConfig.submitMode,
+        stage: 'uncertain',
+        submitOutcome
+      },
       diagnostics,
       requestStartedAt
     )
@@ -153,9 +177,34 @@ export async function executeTextSendPipeline(
     {
       success: true,
       mode: sendStep.scriptResult?.mode || resolved.aiConfig.submitMode,
-      stage: 'applied'
+      stage: 'applied',
+      submitOutcome
     },
     diagnostics,
     requestStartedAt
   )
+}
+
+/**
+ * Betiğin gönderim sonucunu taşınabilir bir değere indirger.
+ *
+ * Betik alanı bildirmemişse (ör. enter_key yolunda etki gözlemlendi ama alan
+ * doldurulmadı) `observed` kabul edilir: `success: true` zaten gönderim
+ * girişiminin yapıldığını ifade eder ve gözlem alanı yalnızca belirsizliği
+ * taşır.
+ */
+function resolveSubmitOutcome(
+  scriptResult: { submitOutcome?: string | null } | null | undefined
+): SendSubmitOutcome {
+  const raw = scriptResult?.submitOutcome
+  if (
+    raw === 'observed' ||
+    raw === 'delivery_unconfirmed' ||
+    raw === 'blocked' ||
+    raw === 'not_attempted' ||
+    raw === 'input_only'
+  ) {
+    return raw
+  }
+  return 'observed'
 }

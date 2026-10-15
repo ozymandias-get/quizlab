@@ -200,6 +200,19 @@ export interface AutomationExecutionDiagnostics {
   textVerifyDelta?: number
   /** Submit öncesi sabit settle beklemesinin gerçekten uygulanan süresi. */
   preSubmitWaitMs?: number
+  /** Gönderim yolu: `button_click` | `enter_key` | null. */
+  submitMethod?: string | null
+  /**
+   * Gönderim tetiklendikten sonra arayüzde beklenen etki gözlemlendi mi?
+   * `true` = etki görüldü, `null` = gönderim denendi ama doğrulanamadı.
+   * Sunucu teslim kanıtı DEĞİLDİR.
+   */
+  submitObserved?: boolean | null
+  /**
+   * Gönderim sonucunun ayrıntılı sınıflandırması — `success` bayrağı tek
+   * başına teslimat anlamına gelmez; üst katman bu alanı okumalıdır.
+   */
+  submitOutcome?: string | null
   error: string | null
 }
 
@@ -234,5 +247,12 @@ export interface AutomationExecutionResult {
   mutationCount?: number
   sinceLastMutationMs?: number
   checkIterations?: number
+  /**
+   * Gönderim girişiminin yolu ve gözlenen etkisi. `success: true` yalnızca
+   * gönderim GİRİŞİMİ yapıldığında kullanılır; teslimat kanıtı değildir.
+   */
+  submitMethod?: string | null
+  submitObserved?: boolean | null
+  submitOutcome?: string | null
   diagnostics?: AutomationExecutionDiagnostics
 }

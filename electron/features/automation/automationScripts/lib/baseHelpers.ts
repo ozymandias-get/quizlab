@@ -12,10 +12,49 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
     // satır sonuna dönüşebilir, görünmez karakterler (zero-width) eklenebilir.
     // Ham includes() bu yüzden yanlış negatif üretir; karşılaştırmadan önce
     // iki taraf da bu fonksiyondan geçirilir.
-    const normalizeForCompare = (value) => String(value || '')
-        .replace(/[\\u200B-\\u200D\\uFEFF\\u2060]/g, '')
+    //
+    // NFC eklenmesi: bazı düzenleyiciler birleşik karakterleri (örn. "é" =
+    // e + U+0301) önceden birleştirilmiş hâle getirir. Karşılaştırma
+    // kod noktası düzeyinde yapıldığı için bu, Türkçe ve aksanlı metinlerde
+    // kozmetik bir dönüşüm olmasına rağmen doğrulamayı yanlışlıkla bozuyordu.
+    const __toNfc = (value) => {
+        const text = String(value == null ? '' : value);
+        try {
+            return typeof text.normalize === 'function' ? text.normalize('NFC') : text;
+        } catch (_) {
+            return text;
+        }
+    };
+
+    const __stripInvisible = (value) => String(value == null ? '' : value)
+        .replace(/[\\u200B-\\u200D\\uFEFF\\u2060]/g, '');
+
+    const __collapseSpace = (value) => String(value == null ? '' : value)
         .replace(/[\\s\\u00A0]+/g, ' ')
         .trim();
+
+    const normalizeForCompare = (value) => __collapseSpace(__toNfc(__stripInvisible(value)));
+
+    /**
+     * Editörün meşru biçim normalizasyonlarını katarlar (akıllı tırnak, üç
+     * nokta, tire, NBSP). Quill/ProseMirror/Lexical tabanlı composer'lar
+     * yapıştırılan metni bu karakterlere dönüştürebilir; ham karşılaştırma
+     * bu durumda doğru bir metni "eksik" sayar.
+     *
+     * Güvenlik sözleşmesi: bu katlama YALNIZCA kabul yönünde kullanılır. Sıkı
+     * karşılaştırma (normalizeForCompare) başarısız olduğunda ikinci bir
+     * deneme olarak devreye girer; hiçbir koşulda "kısmi metni tam sayma"
+     * davranışını zayıflatmaz — beklenen metin hâlâ TAM olarak bulunmalıdır.
+     */
+    const foldEditorPunctuation = (value) => String(value == null ? '' : value)
+        .replace(/[\\u2018\\u2019\\u201A\\u201B]/g, "'")
+        .replace(/[\\u201C\\u201D\\u201E\\u201F]/g, '"')
+        .replace(/\\u2026/g, '...')
+        .replace(/[\\u2010-\\u2015\\u2212]/g, '-')
+        .replace(/[\\u00A0\\u2007\\u202F]/g, ' ');
+
+    const normalizeForEditorFold = (value) =>
+        __collapseSpace(__toNfc(foldEditorPunctuation(__stripInvisible(value))));
 
     // ── Run abort registry ─────────────────────────────────────────────────
     // SPA navigation / new-chat transitions must cancel pending waits and
@@ -81,6 +120,15 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
         textInputStrategy: null,
         // Yapıştırma doğrulanamadığı için yazım fallback'i kullanıldıysa dolu.
         textInputFallback: null,
+        // Submit gönderim yolu: 'button_click' | 'enter_key' | null.
+        submitMethod: null,
+        // Gönderim tetiklendikten sonra arayüzde beklenen etki GÖZLEMLENDİ mi?
+        // true = etki görüldü, null = gönderim denendi ama doğrulanamadı
+        // (teslimat kanıtı değildir), false = hiç gönderim denenmedi.
+        submitObserved: null,
+        // Ayrıntılı sonuç: 'not_attempted' | 'observed' |
+        // 'delivery_unconfirmed' | 'blocked' | 'input_only'.
+        submitOutcome: null,
         // Submit öncesi sabit settle beklemesinin gerçekten uygulanan süresi.
         preSubmitWaitMs: 0,
         error: null

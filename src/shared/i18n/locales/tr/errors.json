@@ -79,5 +79,7 @@
   "error_clipboard_failed_partial": "Görsellerin bir kısmı eklendi, ancak gönderim tamamlanamadı. Mükerrer mesaj oluşturmamak için tekrar gönderilmedi.",
   "error_paste_not_applied": "Görselin eklenip eklenmediği doğrulanamadı. AI tarafını kontrol edin; tekrar göndermek mükerrer ek oluşturabilir.",
   "error_text_input_partial": "Metnin yalnızca bir kısmı sohbet kutusuna yerleşti. Mükerrer içerik oluşturmamak için otomatik gönderilmedi; içeriği kontrol edip gönderin.",
-  "error_text_input_unverified": "Metnin sohbet kutusuna yerleştiği doğrulanamadı. Otomatik gönderim yapılmadı; kutudaki içeriği kontrol edip elle gönderin."
+  "error_text_input_unverified": "Metnin sohbet kutusuna yerleştiği doğrulanamadı. Otomatik gönderim yapılmadı; kutudaki içeriği kontrol edip elle gönderin.",
+  "error_submit_unverified": "Gönderim tetiklendi ancak AI sayfasında herhangi bir tepki görülmedi; teslimat doğrulanamadı. Metin hâlâ kutuda — tekrar göndermeden önce konuşmayı kontrol edin.",
+  "error_submit_delivery_unconfirmed": "Gönder butonuna tıklandı ancak teslimat doğrulanamadı. Tekrar göndermek mükerrer mesaj oluşturabileceğinden önce konuşmayı kontrol edin."
 }

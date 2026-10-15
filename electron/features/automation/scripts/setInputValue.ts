@@ -16,10 +16,48 @@ export function buildSetInputValueScript(): string {
             // long payload is pushed through execCommand('insertText') in a
             // single synchronous call — their AST rebuild blocks the main
             // thread and Chromium hits the script timeout, dropping or
-            // corrupting characters. Above this threshold we switch to a
+            // corrupting characters. Above this threshold we first try a
             // synthetic paste event (the editor's native bulk-insert path),
             // which is designed to ingest large payloads in one pass.
             const LARGE_TEXT_THRESHOLD = 2000;
+            // Chunk size for the spread-out execCommand fallback. Long enough
+            // to keep the per-call overhead negligible, short enough that a
+            // single synchronous DOM/AST rebuild cannot trip the watchdog.
+            const LARGE_TEXT_CHUNK = 800;
+
+            /**
+             * "Metin DOM'da görünüyor" ile "editörün modeli metni aldı" AYNI
+             * şey değildir. ProseMirror/Lexical/Quill kendi AST'sini tutar;
+             * ham bir metin düğümü \`appendChild\` ile eklendiğinde ekranda
+             * görünür ama gönder butonu pasif kalır — Hata C'nin tam olarak
+             * tarif ettiği "metin ekranda var ama gönderilmiyor" durumu.
+             *
+             * Bu yüzden ham ekleme artık başarı sayılmaz; strateji adı
+             * \`dom_insert_unverified\` olarak raporlanır ve çağıran taraf
+             * bunu doğrulama katmanına bırakır.
+             */
+            const INSERT_UNVERIFIED = 'dom_insert_unverified';
+
+            /**
+             * Beklenen metnin alana girdiğini doğrular.
+             *
+             * ÖNEMLİ: \`textContent\` ve \`innerText\` birleştirilip tek bir
+             * dizge üzerinde \`includes\` aranmaz — iki okuma birbirinin
+             * devamı gibi görünebilir ve yanlış pozitif doğar. Her varyant
+             * KENDİ başına denenir.
+             */
+            const payloadHasLanded = (target, payload) => {
+                const normalizedPayload = normalizeForCompare(payload);
+                if (!normalizedPayload) return false;
+                const variants = [
+                    target.textContent || '',
+                    (function () { try { return target.innerText || ''; } catch (_) { return ''; } })()
+                ];
+                for (let i = 0; i < variants.length; i++) {
+                    if (normalizeForCompare(variants[i]).indexOf(normalizedPayload) !== -1) return true;
+                }
+                return false;
+            };
 
             const buildDataTransfer = (text) => {
                 try {
@@ -33,16 +71,58 @@ export function buildSetInputValueScript(): string {
             };
 
             const dispatchSyntheticPaste = (target, text) => {
-                const dt = buildDataTransfer(text);
-                const options = dt
-                    ? { bubbles: true, cancelable: true, composed: true, clipboardData: dt }
-                    : { bubbles: true, cancelable: true, composed: true };
-                const evt = new ClipboardEvent('paste', options);
-                // Marked so the app's clipboard protection (security.ts) lets
-                // this event through — the payload travels in clipboardData
-                // and never reads from the real system clipboard.
-                evt.__quizlabInternalPaste = true;
-                target.dispatchEvent(evt);
+                // Sentetik yapıştırma bir EN İYİ DENEMEDİR, zorunlu adım
+                // değildir: \`ClipboardEvent\` ya da \`DataTransfer\` bulunmayan
+                // bir motorda (bazı jsdom sürümleri, kısıtlı gömülü webview'lar)
+                // istisna fırlatmak tüm gönderimi çökertmemeli — çağıran taraf
+                // sıradaki gerçek düzenleme kanalına düşer.
+                try {
+                    const dt = buildDataTransfer(text);
+                    const options = dt
+                        ? { bubbles: true, cancelable: true, composed: true, clipboardData: dt }
+                        : { bubbles: true, cancelable: true, composed: true };
+                    const evt = new ClipboardEvent('paste', options);
+                    // Marked so the app's clipboard protection (security.ts) lets
+                    // this event through — the payload travels in clipboardData
+                    // and never reads from the real system clipboard.
+                    evt.__quizlabInternalPaste = true;
+                    target.dispatchEvent(evt);
+                    return true;
+                } catch (_) {
+                    return false;
+                }
+            };
+
+            /**
+             * \`execCommand('insertText')\` gerçek düzenleme kanalıdır:
+             * tarayıcı \`beforeinput\`/\`input\` olaylarını üretir ve
+             * ProseMirror/Lexical bunları GÖZLEMEYİ modele yazar. Uzun
+             * payload'da tek senkron çağrı ana iş parçacığını kilitlediği
+             * için parçalara bölünür; her parça arasında bir görev daha
+             * verilir (await wait(0)).
+             */
+            const insertViaExecCommand = async (target, text, chunked) => {
+                if (typeof document.execCommand !== 'function') return false;
+                if (!chunked) {
+                    try {
+                        return Boolean(document.execCommand('insertText', false, text));
+                    } catch (_) {
+                        return false;
+                    }
+                }
+                const chars = Array.from(text);
+                for (let offset = 0; offset < chars.length; offset += LARGE_TEXT_CHUNK) {
+                    if (typeof isAborted === 'function' && isAborted()) return false;
+                    const chunk = chars.slice(offset, offset + LARGE_TEXT_CHUNK).join('');
+                    let ok = false;
+                    try {
+                        ok = Boolean(document.execCommand('insertText', false, chunk));
+                    } catch (_) {
+                        return false;
+                    }
+                    if (!ok) return false;
+                    await wait(0);
+                }
                 return true;
             };
 
@@ -73,25 +153,31 @@ export function buildSetInputValueScript(): string {
                 // eklenebilir); iki taraf da normalize edilerek TAM içerik
                 // karşılaştırılır. Eski baş-40 örnek karşılaştırması yalnızca
                 // ilk parçanın girmesini "başarılı yapıştırma" sayıyordu.
-                const normalizedPayload = normalizeForCompare(payload);
-                // textContent blok sınırlarını kaybedebilir; innerText satır
-                // sonlarını korur → iki okuma birleştirilerek karşılaştırılır.
-                const readTarget = () => normalizeForCompare((target.textContent || '') + ' ' + (target.innerText || ''));
-                const applied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
-                if (applied) return 'synthetic_paste';
+                if (payloadHasLanded(target, payload)) return 'synthetic_paste';
+                // Sentetik paste reddedildi (editör \`isTrusted=false\` olayı
+                // yok sayıyor ya da kendi \`handlePaste\` implementasyonu metni
+                // almıyor). Sıradaki gerçek düzenleme kanalı \`execCommand\`:
+                // tarayıcı olayları kendi üretir, framework modeli güncellenir.
+                if (await insertViaExecCommand(target, payload, true)) {
+                    await wait(0);
+                    if (payloadHasLanded(target, payload)) return 'exec_command_chunked';
+                }
 
-                // Paste was not consumed (editor ignored the synthetic event).
-                // Fall back to a chunked beforeinput + DOM insertion so the
-                // work is spread across microtasks instead of one giant call.
+                // Son çare: sentetik \`beforeinput\`. Yalnızca OLUŞTURMAK
+                // içerik eklemez — tarayıcı \`beforeinput\`'ı kendi DOM
+                // mutasyonunu yapmadan gönderir. Etkisi ölçülür.
                 dispatchBeforeInput(payload);
                 await wait(0);
-                const reApplied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
-                if (reApplied) return 'beforeinput';
+                if (payloadHasLanded(target, payload)) return 'beforeinput';
 
                 try {
                     const node = document.createTextNode(payload);
                     target.appendChild(node);
-                    return 'dom_insert';
+                    // Ham DOM eklemesi bir "başarı" DEĞİLDİR: strateji
+                    // açıkça doğrulanmamış olarak raporlanır. Metin ekranda
+                    // görünebilir ama framework modelinde olmayabilir ve
+                    // gönder butonu pasif kalabilir.
+                    return INSERT_UNVERIFIED;
                 } catch (_) {
                     return null;
                 }
@@ -241,7 +327,7 @@ export function buildSetInputValueScript(): string {
                     }
                 } catch {
                 }
-                let strategy = 'dom_insert';
+                let strategy = INSERT_UNVERIFIED;
                 try {
                     collapseSelectionToEnd();
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
@@ -267,10 +353,7 @@ export function buildSetInputValueScript(): string {
                         data: payload
                     }));
                     await wait(0);
-                    const normalizedPayload = normalizeForCompare(payload);
-                    const applied = normalizedPayload.length > 0
-                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedPayload);
-                    if (applied) {
+                    if (payloadHasLanded(element, payload)) {
                         strategy = 'beforeinput';
                     } else {
                         insertTextAtCaret(element, payload);
@@ -289,7 +372,7 @@ export function buildSetInputValueScript(): string {
                 return;
             }
 
-            let strategy = 'dom_insert';
+            let strategy = INSERT_UNVERIFIED;
             if (isContentEditable) {
                 if (value.length > LARGE_TEXT_THRESHOLD) {
                     // Select everything first so the synthetic paste replaces the
@@ -354,10 +437,7 @@ export function buildSetInputValueScript(): string {
                         data: value
                     }));
                     await wait(0);
-                    const normalizedValue = normalizeForCompare(value);
-                    const applied = normalizedValue.length > 0
-                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedValue);
-                    if (applied) {
+                    if (payloadHasLanded(element, value)) {
                         strategy = 'beforeinput';
                     } else {
                         replaceContent(element, value);
