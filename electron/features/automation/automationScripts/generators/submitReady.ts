@@ -97,6 +97,7 @@ const generateWaitForSubmitReadyScript = (
                     success: true,
                     action: 'submit_ready',
                     mode: config.submitMode,
+                    firstReadyAtMs: result.firstReadyAtMs,
                     diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
                 };
             }
@@ -131,6 +132,7 @@ const generateWaitForSubmitReadyScript = (
                 // hiçbir ekleme yapmadı. everReady=true → buton sonradan
                 // kapanmış (bilinen stale salınımı).
                 everReady: result.everReady === true,
+                firstReadyAtMs: result.firstReadyAtMs,
                 mutationCount: result.mutationCount,
                 sinceLastMutationMs: result.sinceLastMutationMs,
                 checkIterations: result.iterations,

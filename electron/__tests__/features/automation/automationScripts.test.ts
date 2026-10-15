@@ -247,6 +247,9 @@ describe('automationScripts', () => {
     expect(result.success).toBe(true)
     expect(result.action).toBe('submit_ready')
     expect(result.diagnostics.submitMs).toBeGreaterThan(0)
+    // İlk hazır-olma anı da raporlanır: sabit settle beklemesinin ne kadarı
+    // gerçek hazırlık, ne kadarı emniyet payı, ölçülebilir olur.
+    expect(result.firstReadyAtMs).toBeGreaterThan(0)
   }, 10000)
 
   it('cancels a wait when the guest navigation aborts the run', async () => {
@@ -442,6 +445,10 @@ describe('automationScripts', () => {
       expect(result.error).toBe('submit_not_ready')
       // The stale-button flap is a different failure from "never enabled".
       expect(result.everReady).toBe(true)
+      // "Ne zaman ilk kez hazır oldu" bilgisi, sabit settle gecikmesinin
+      // gerçek hazırlık ihtiyacından ayrılabilmesi için ölçülür.
+      expect(result.firstReadyAtMs).toBeGreaterThan(0)
+      expect(result.firstReadyAtMs).toBeLessThanOrEqual(result.waitedMs)
     }, 10000)
 
     it('reports aria-disabled distinctly from the disabled property', async () => {
@@ -498,6 +505,169 @@ describe('automationScripts', () => {
       )
 
       expect(result.notReadyReason).toBe('zero_size')
+    }, 10000)
+  })
+
+  /**
+   * Yapıştırma doğrulaması ve topic sözleşmeleri.
+   *
+   * Gerçek editörler (ProseMirror/Lexical) içeriği kendi blok modeline göre
+   * okur: iki paragraf arasındaki `\n\n`, gözlemlenebilir metinde tek satır
+   * sonuna (bazen tamamen kaybolur) dönüşür. Ham `includes()` karşılaştırması
+   * bu yüzden **yanlış negatif** üretiyordu: yapıştırma gerçekte uygulanmış
+   * olsa bile doğrulama başarısız sayılıyor ve metin karakter karakter
+   * yazılıyordu (30ms/karakter → uzun promptlarda dakikalar + kuyruk kilidi).
+   */
+  describe('paste application verification', () => {
+    it('does not fall back to character typing when the editor rewrote block newlines', async () => {
+      document.body.innerHTML = `
+              <div role="textbox" contenteditable="true" id="composer">draft</div>
+              <button id="send" type="button">Send</button>
+          `
+      const composer = document.getElementById('composer') as HTMLDivElement
+
+      // Editör davranışını taklit et: blok sınırındaki çift satır sonu,
+      // okunan metinde tek satır sonu olarak görünür.
+      const rawTextContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')
+      Object.defineProperty(composer, 'textContent', {
+        configurable: true,
+        get() {
+          const raw = (rawTextContent?.get?.call(this) as string) || ''
+          return raw.replaceAll('\n\n', '\n')
+        },
+        set(value: string) {
+          rawTextContent?.set?.call(this, value)
+        }
+      })
+
+      const inputEvents: Event[] = []
+      composer.addEventListener('input', (event) => inputEvents.push(event))
+
+      const script = generateAutoSendScript(
+        { input: '#composer', button: '#send', submitMode: 'click' },
+        'Line one\n\nLine two',
+        false,
+        true // append: kullanıcının önceden yazdığı içerik korunur
+      )
+
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      // Karakter karakter yazım her karakter için bir `input` event üretir;
+      // onlarca event fallback'in çalıştığının doğrudan kanıtıdır.
+      expect(inputEvents.length).toBeLessThanOrEqual(3)
+      expect(result.diagnostics.textInputFallback).toBeFalsy()
+      expect(result.diagnostics.textInputStrategy).not.toBe('human_typing')
+    })
+
+    it('records the human-typing fallback and caps its speed when the paste is unverifiable', async () => {
+      document.body.innerHTML = `
+              <div role="textbox" contenteditable="true" id="composer"></div>
+              <button id="send" type="button">Send</button>
+          `
+      const composer = document.getElementById('composer') as HTMLDivElement
+
+      // Editör içeriği hiç gözlemlenebilir kılmıyor: doğrulama başarısız
+      // kalır ve güvenli taraf (yazım fallback'i) devreye girer.
+      const rawTextContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')
+      Object.defineProperty(composer, 'textContent', {
+        configurable: true,
+        get() {
+          return ''
+        },
+        set(value: string) {
+          rawTextContent?.set?.call(this, value)
+        }
+      })
+
+      const script = generateAutoSendScript(
+        { input: '#composer', button: '#send', submitMode: 'click' },
+        'hello',
+        false,
+        false,
+        'auto',
+        100
+      )
+
+      // typingSpeed 100 olsa bile fallback hızı 30ms ile sınırlıdır: yüzlerce
+      // karakterlik bir prompt'un fallback'te dakikalarca yazılması engellenir.
+      expect(script).toContain('humanType(inputElement, "hello", 30)')
+
+      const result = await window.eval(script)
+
+      expect(result.diagnostics.textInputFallback).toBe('human_typing')
+      expect(result.diagnostics.textInputStrategy).toBe('human_typing')
+    })
+
+    it('never touches the system clipboard during a synthetic paste', async () => {
+      document.body.innerHTML = `
+              <div role="textbox" contenteditable="true" id="composer"></div>
+              <button id="send" type="button">Send</button>
+          `
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText }
+      })
+
+      // jsdom ClipboardEvent/DataTransfer'i desteklemez; sentetik yapıştırma
+      // yolunun gerçek akışını çalıştırmak için minimal stub'lar kurulur.
+      class StubDataTransfer {
+        setData() {}
+      }
+      class StubClipboardEvent extends Event {
+        clipboardData: unknown
+        constructor(type: string, init?: EventInit & { clipboardData?: unknown }) {
+          super(type, init)
+          this.clipboardData = init?.clipboardData ?? null
+        }
+      }
+      const automationWindow = window as unknown as Record<string, unknown>
+      automationWindow.DataTransfer = StubDataTransfer
+      automationWindow.ClipboardEvent = StubClipboardEvent
+
+      try {
+        const script = generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'x'.repeat(2500),
+          false
+        )
+
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(true)
+        // Kullanıcının panosu ödünç alınmaz: payload ClipboardEvent
+        // üzerinden taşınır, sistem panosuna yazılmaz.
+        expect(writeText).not.toHaveBeenCalled()
+        expect(result.diagnostics.textInputStrategy).toBe('dom_insert')
+      } finally {
+        delete automationWindow.DataTransfer
+        delete automationWindow.ClipboardEvent
+        delete (navigator as unknown as Record<string, unknown>).clipboard
+      }
+    })
+
+    it('keeps the fixed settle only for enter_key submits', async () => {
+      document.body.innerHTML = `<textarea id="input"></textarea>`
+
+      const script = generateAutoSendScript(
+        { input: '#input', submitMode: 'enter_key' },
+        'hello',
+        true,
+        false,
+        'auto',
+        1
+      )
+
+      // Sabit settle, yalnızca etkileşim kapısı olmayan enter_key yolunda
+      // korunur; click/mixed yolunda submit zaten "buton etkileşime hazır"
+      // kapısından geçer.
+      expect(script).toContain("config.submitMode === 'enter_key'")
+
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.preSubmitWaitMs).toBe(500)
     }, 10000)
   })
 
