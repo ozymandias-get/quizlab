@@ -182,6 +182,15 @@ export interface AutomationExecutionDiagnostics {
   button?: AutomationSelectorDiagnostics
   setInputMs: number
   submitMs: number
+  /**
+   * Metnin alana hangi mekanizmayla girdiği. Ölçüm amaçlı strateji adıdır;
+   * içerik veya kullanıcı verisi taşımaz.
+   */
+  textInputStrategy?: string | null
+  /** Yapıştırma doğrulanamadığı için yazım fallback'i kullanıldıysa dolu. */
+  textInputFallback?: string | null
+  /** Submit öncesi sabit settle beklemesinin gerçekten uygulanan süresi. */
+  preSubmitWaitMs?: number
   error: string | null
 }
 
@@ -207,6 +216,12 @@ export interface AutomationExecutionResult {
    * alongside a low `mutationCount` means the paste likely attached nothing.
    */
   everReady?: boolean
+  /**
+   * İlk hazır-olma anı (wait başlangıcından itibaren ms). Sabit settle
+   * beklemesinin ne kadarının gerçek hazırlık, ne kadarının emniyet payı
+   * olduğunu ölçülebilir kılar.
+   */
+  firstReadyAtMs?: number | null
   mutationCount?: number
   sinceLastMutationMs?: number
   checkIterations?: number

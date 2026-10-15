@@ -62,6 +62,10 @@ export const eventDrivenWaitRuntime = `    /**
         // kısa bir süre açıp kapatıyorsa (bilinen "stale" salınımı)
         // everReady true döner ve farklı bir açıklama gerekir.
         let everReady = false;
+        // İlk hazır-olma anı: sabit settle gecikmesinin ne kadarı gerçek
+        // hazırlık ihtiyacı, ne kadarı emniyet payı — ölçülebilir hale gelir.
+        // Uygulama akışını değiştirmez; yalnızca zaman damgası tutar.
+        let firstReadyAtMs = null;
         let observer = null;
         let wakeResolve = null;
         let mutationPending = false;
@@ -101,9 +105,17 @@ export const eventDrivenWaitRuntime = `    /**
             const waitedMs = now() - start;
             const sinceLastMutation = now() - lastMutationAt;
             const candidate = check();
-            if (candidate) everReady = true;
+            if (candidate && !everReady) {
+                everReady = true;
+                firstReadyAtMs = waitedMs;
+            }
             if (candidate && waitedMs >= (minimumWaitMs || 0) && sinceLastMutation >= (settleMs || 0)) {
-                return { result: candidate, totalMs: roundMs(waitedMs), iterations };
+                return {
+                    result: candidate,
+                    totalMs: roundMs(waitedMs),
+                    iterations,
+                    firstReadyAtMs: firstReadyAtMs === null ? null : roundMs(firstReadyAtMs)
+                };
             }
             return null;
         };
@@ -159,6 +171,7 @@ export const eventDrivenWaitRuntime = `    /**
             iterations,
             mutationCount,
             everReady,
+            firstReadyAtMs: firstReadyAtMs === null ? null : roundMs(firstReadyAtMs),
             sinceLastMutationMs: roundMs(now() - lastMutationAt)
         };
     };

@@ -67,6 +67,7 @@ export function buildHumanTypingScript(): string {
             }
 
             triggerLifecycleEvents(element);
+            diagnostics.textInputStrategy = 'human_typing';
             diagnostics.setInputMs = roundMs(now() - start);
         };
   `

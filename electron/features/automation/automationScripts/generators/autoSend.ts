@@ -54,7 +54,17 @@ ${performSubmitScript}
                 };
             }
 
-            await wait(500);
+            if (config.submitMode === 'enter_key') {
+                // Enter yolunda buton etkileşim kapısı yoktur; editörün
+                // yapıştırmayı işlemesi için kısa sabit settle korunur.
+                diagnostics.preSubmitWaitMs = 500;
+                await wait(500);
+            } else {
+                // click/mixed zaten performSubmit içinde "buton etkileşime
+                // hazır" kapısından (waitForElement + isReadyForInteraction)
+                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
+                diagnostics.preSubmitWaitMs = 0;
+            }
             const submitResult = await performSubmit(inputElement);
             __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
@@ -94,11 +104,31 @@ ${buildHumanTypingScript()}
 
 ${performSubmitScript}
 
-        const validatePasteResult = (element, expected) => {
+        const validatePasteResult = async (element, expected) => {
             const isCE = element.isContentEditable || element.getAttribute('contenteditable') === 'true';
-            const actual = isCE ? (element.textContent || '') : String(element.value || '');
-            const sample = expected.substring(0, Math.min(20, expected.length));
-            return actual.includes(sample);
+            const read = () => isCE ? (element.textContent || '') : String(element.value || '');
+            const expectedNormalized = normalizeForCompare(expected);
+            if (!expectedNormalized) return false;
+            const sampleLength = Math.min(40, expectedNormalized.length);
+            const headSample = expectedNormalized.substring(0, sampleLength);
+            const tailSample = expectedNormalized.substring(expectedNormalized.length - sampleLength);
+            const matches = () => {
+                const actual = normalizeForCompare(read());
+                if (!actual) return false;
+                return actual.includes(headSample) || actual.includes(tailSample);
+            };
+            // Editörler (ProseMirror/Lexical) içeriği kendi blok modeline göre
+            // okur: blok sınırındaki çift satır sonu tek satır sonuna
+            // dönüşebilir, görünmez karakterler eklenebilir. Ham includes() bu
+            // yüzden yanlış negatif üretip gereksiz karakter karakter yazımı
+            // (dakikalar) tetikliyordu. Kısa retry yalnızca gerçekten
+            // uygulanmadıysa bekler; uygulandıysa ilk okuma anında döner
+            // (ek gecikme yok).
+            for (let attempt = 0; attempt < 3; attempt++) {
+                if (matches()) return true;
+                await wait(40);
+            }
+            return matches();
         };
 
         try {
@@ -114,9 +144,14 @@ ${performSubmitScript}
             }
 
             await setInputValue(inputElement, ${safeText});
-            const pasteSucceeded = validatePasteResult(inputElement, ${safeText});
+            const pasteSucceeded = await validatePasteResult(inputElement, ${safeText});
             if (!pasteSucceeded) {
-                await humanType(inputElement, ${safeText}, ${typingSpeed});
+                // Doğrulanamayan yapıştırma güvenli tarafta kalınarak yazımla
+                // tamamlanır; ama cap'li hızla: 100ms/karakter'lik bir ayar
+                // uzun promptta dakikalar sürer ve aynı görünümün kuyruğunu
+                // kilitler (bkz. humanTyping iptal notu).
+                diagnostics.textInputFallback = 'human_typing';
+                await humanType(inputElement, ${safeText}, ${Math.min(typingSpeed, 30)});
             }
 
             // Pasted or typed text is now verifiably inside the field: this is
@@ -131,7 +166,17 @@ ${performSubmitScript}
                 };
             }
 
-            await wait(500);
+            if (config.submitMode === 'enter_key') {
+                // Enter yolunda buton etkileşim kapısı yoktur; editörün
+                // yapıştırmayı işlemesi için kısa sabit settle korunur.
+                diagnostics.preSubmitWaitMs = 500;
+                await wait(500);
+            } else {
+                // click/mixed zaten performSubmit içinde "buton etkileşime
+                // hazır" kapısından (waitForElement + isReadyForInteraction)
+                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
+                diagnostics.preSubmitWaitMs = 0;
+            }
             const submitResult = await performSubmit(inputElement);
             __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
@@ -191,7 +236,17 @@ ${performSubmitScript}
                 };
             }
 
-            await wait(500);
+            if (config.submitMode === 'enter_key') {
+                // Enter yolunda buton etkileşim kapısı yoktur; editörün
+                // yapıştırmayı işlemesi için kısa sabit settle korunur.
+                diagnostics.preSubmitWaitMs = 500;
+                await wait(500);
+            } else {
+                // click/mixed zaten performSubmit içinde "buton etkileşime
+                // hazır" kapısından (waitForElement + isReadyForInteraction)
+                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
+                diagnostics.preSubmitWaitMs = 0;
+            }
             const submitResult = await performSubmit(inputElement);
             __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
             return {
