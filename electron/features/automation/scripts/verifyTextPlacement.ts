@@ -78,6 +78,27 @@ export function buildTextVerificationScript(): string {
 
         const placementStateRank = { unchanged: 0, ambiguous: 1, partial: 2, verified: 3 };
 
+        /**
+         * Editörün meşru biçim normalizasyonlarını tolere eden TAM içerik
+         * kontrolü.
+         *
+         * İki geçişlidir ve İKİNCİSİ YALNIZCA KABUL YÖNÜNDE çalışır:
+         *   1. Sıkı karşılaştırma (zero-width temizlenmiş, NFC, boşluk
+         *      sadeleştirilmiş) — asıl sözleşme.
+         *   2. Katlanmış karşılaştırma — editör akıllı tırnak/üç nokta/tire
+         *      dönüşümü yaptıysa aynı metni "kabul eder".
+         *
+         * Kısmi metin HİÇBİR geçişte kabul edilmez: beklenen içeriğin TAMAMI
+         * bulunmalıdır. Doğrulama başarısız olduğunda otomatik gönderim yapılmaz
+         * (yalnızca güvenli tamamlayıcı olan yazım fallback'i devreye girebilir).
+         */
+        const containsFullContent = (actual, expectedNormalized) => {
+            if (!expectedNormalized) return false;
+            if (actual.includes(expectedNormalized)) return true;
+            // Katlama YALNIZCA burada, sıkı geçiş tutmazsa denenir.
+            return normalizeForEditorFold(actual).includes(normalizeForEditorFold(expectedNormalized));
+        };
+
         const verifyTextPlacement = (element, expected, beforeVariants) => {
             const expectedNormalized = normalizeForCompare(expected);
             if (!expectedNormalized) {
@@ -88,7 +109,10 @@ export function buildTextVerificationScript(): string {
             for (let i = 0; i < actualVariants.length; i++) {
                 const before = normalizeForCompare((beforeVariants && beforeVariants[i]) || '');
                 const placement = classifyPlacement(actualVariants[i], before, expectedNormalized, APPEND_TEXT_MODE);
-                if (placement.applied) return placement;
+                const relaxed = placement.applied
+                    ? placement
+                    : relaxedPlacement(placement, actualVariants[i], before, expectedNormalized, APPEND_TEXT_MODE);
+                if (relaxed.applied) return relaxed;
                 if (placementStateRank[placement.state] > placementStateRank[result.state]) {
                     result = placement;
                 }
@@ -96,13 +120,47 @@ export function buildTextVerificationScript(): string {
             return result;
         };
 
+        /**
+         * Sıkı geçiş "doğrulandı" diyemediyse, biçim katlaması üzerinden ikinci
+         * bir TAM içerik denemesi yapılır. Katlanmış içerik de eksikse sıkı
+         * sonuç olduğu gibi döner — gevşetme asla "kısmi metni kabul" anlamına
+         * gelmez.
+         */
+        const relaxedPlacement = (strict, actual, before, expectedNormalized, appendMode) => {
+            if (strict.applied) return strict;
+            if (!containsFullContent(actual, expectedNormalized)) return strict;
+            const delta = actual.length - before.length;
+            const changed = actual !== before;
+            if (appendMode) {
+                const gained = delta >= Math.max(1, Math.floor(expectedNormalized.length * 0.5));
+                const preserved = !before
+                    || containsFullContent(actual, before)
+                    || containsFullContent(actual + ' ' + before, before);
+                if (gained && preserved) return { applied: true, state: 'verified', delta: delta };
+                return strict;
+            }
+            const previousGone = !before
+                || containsFullContent(actual, before)
+                || containsFullContent(expectedNormalized, before);
+            if (changed && previousGone) return { applied: true, state: 'verified', delta: delta };
+            if (!changed && actual === expectedNormalized) return { applied: true, state: 'verified', delta: delta };
+            return strict;
+        };
+
         const verifyTextPlacementWithRetries = async (element, expected, beforeVariants) => {
             let placement = verifyTextPlacement(element, expected, beforeVariants);
             // Yalnızca alan HİÇ değişmediyse kısa bir pencere taranır: geç
             // (asenkron) DOM güncellemeleri burada yakalanır. Bu sırada
             // alana içerik eklenmez.
-            for (let attempt = 0; attempt < 2 && !placement.applied && placement.state === 'unchanged'; attempt++) {
-                await wait(50);
+            //
+            // Pencere kademeli olarak genişler (50 → 120 → 250 ms). React/Vue
+            // state güncellemesi, Quill normalizasyonu ya da bir debounce
+            // 100 ms'yi aşabiliyor; önceki sabit 2×50 ms penceresi bu
+            // yüzden doğru bir metni "eklenmemiş" sayıp dakikalarca süren
+            // karakter karakter yazımına yol açıyordu.
+            const UNCHANGED_RETRY_DELAYS = [50, 120, 250];
+            for (let attempt = 0; attempt < UNCHANGED_RETRY_DELAYS.length && !placement.applied && placement.state === 'unchanged'; attempt++) {
+                await wait(UNCHANGED_RETRY_DELAYS[attempt]);
                 placement = verifyTextPlacement(element, expected, beforeVariants);
             }
             if (!placement.applied && placement.state === 'partial') {

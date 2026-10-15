@@ -205,3 +205,54 @@ describe('resolveSendOutcome — a stage still decides retry without an error co
     expect(outcome.feedback).toBe('incomplete')
   })
 })
+
+describe('resolveSendOutcome - submit delivery confirmation', () => {
+  it('never reports a confirmed send as silent success when delivery is unconfirmed', () => {
+    // Butona tıklandı, hiçbir etki gözlemlenmedi. Bu "başarılı teslimat"
+    // değildir: sessiz geçilirse kullanıcı gönderilmemiş bir mesajı
+    // gönderilmiş sanar.
+    const outcome = resolveSendOutcome({
+      success: true,
+      mode: 'click',
+      stage: 'uncertain',
+      submitOutcome: 'delivery_unconfirmed'
+    })
+
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.feedback).toBe('incomplete')
+    expect(outcome.errorCode).toBe('submit_delivery_unconfirmed')
+  })
+
+  it('closes auto-retry for an unconfirmed delivery to avoid a duplicate message', () => {
+    const outcome = resolveSendOutcome({
+      success: true,
+      mode: 'click',
+      submitOutcome: 'delivery_unconfirmed'
+    })
+
+    expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('keeps silent success for an observed submit', () => {
+    const outcome = resolveSendOutcome({
+      success: true,
+      mode: 'click',
+      submitOutcome: 'observed'
+    })
+
+    expect(outcome.kind).toBe('delivered')
+    expect(outcome.feedback).toBe('idle')
+    expect(outcome.resendSafe).toBe(true)
+  })
+
+  it('keeps staged mode silent when auto-send is off', () => {
+    const outcome = resolveSendOutcome({
+      success: true,
+      mode: 'staged',
+      submitOutcome: 'input_only'
+    })
+
+    expect(outcome.kind).toBe('staged')
+    expect(outcome.feedback).toBe('idle')
+  })
+})

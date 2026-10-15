@@ -130,6 +130,19 @@ const ERROR_TABLE: ReadonlyArray<{
     triggerFallback: true
   },
   {
+    // Gönderim tetiklendi ama mesajın editörden AYRILMADIĞI gözlemlendi:
+    // sentetik klavye olayı (`isTrusted=false`) site tarafından yok sayıldı.
+    // ÖNEMLİ: `retry: 'never'`. Metin hâlâ editörde durduğu için otomatik
+    // tekrar denemek mükerrer mesaj üretme riski taşır; üst katman sonucu
+    // `partial` işaretleyip taslağı korur.
+    match: /^submit_unverified$/,
+    category: 'submit',
+    retry: 'never',
+    toastKey: 'toast_submit_unverified',
+    description: 'Submit was triggered but no effect could be observed; delivery unconfirmed.',
+    isUserActionable: true
+  },
+  {
     match: /^autosend_failed_draft_saved$/,
     category: 'submit',
     retry: 'never',

@@ -16,6 +16,12 @@ ${performSubmitScript}
             const submitResult = await performSubmit();
             return {
                 success: submitResult.success,
+                // Gönderim durumu auto-send ile aynı sözleşmeyi paylaşır:
+                // \`success\` gönderim GİRİŞİMİDİR, teslimat kanıtı değildir.
+                submitMethod: diagnostics.submitMethod,
+                submitObserved: diagnostics.submitObserved,
+                submitOutcome: diagnostics.submitOutcome,
+                notReadyReason: submitResult.notReadyReason || null,
                 diagnostics: finalizeDiagnostics(
                     diagnostics,
                     scriptStartedAt,
