@@ -18,6 +18,7 @@ const buildSubmitBlock = (shouldSubmit: boolean) => `
                     success: true,
                     action: 'input_only',
                     mode: config.submitMode,
+                    submitOutcome: 'input_only',
                     diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
                 };
             }
@@ -33,6 +34,15 @@ const buildSubmitBlock = (shouldSubmit: boolean) => `
             return {
                 success: submitResult.success,
                 mode: config.submitMode,
+                // Gönderim durumu ayrı taşınır: "success" gönderim
+                // GİRİŞİMİNİ ifade eder, "submitOutcome" ise teslimatın
+                // doğrulanıp doğrulanmadığını. Üst katman bu ayrımla
+                // kullanıcıya hem "gönderilemedi" hem de "gönderildi ama
+                // teslimat doğrulanmadı" durumlarını doğru gösterebilir.
+                submitMethod: diagnostics.submitMethod,
+                submitObserved: diagnostics.submitObserved,
+                submitOutcome: diagnostics.submitOutcome,
+                notReadyReason: submitResult.notReadyReason || null,
                 diagnostics: finalizeDiagnostics(
                     diagnostics,
                     scriptStartedAt,

@@ -149,6 +149,24 @@ export function resolveSendOutcome(result: unknown): SendOutcome {
     return { kind: 'busy', feedback: 'idle', errorCode: null, resendSafe: true }
   }
 
+  // Gönderim tetiklendi ama hiçbir etki gözlemlenmedi. `success: true`
+  // olsa bile bu "başarılı teslimat" DEĞİLDİR: sessiz geçilirse kullanıcı
+  // gerçekleşmemiş bir gönderimi gönderilmiş sanar. Mesaj editörde duruyor
+  // olabileceği için otomatik tekrar da güvenli değildir.
+  //
+  // Aşama kontrolünden ÖNCE ele alınır: teslimat belirsizliği aşamadan daha
+  // güçlü bir bilgidir ve `uncertain`/`partial` gibi bir aşamanın taşıdığı
+  // belirsizlikten daha açıklayıcıdır.
+  const submitOutcome = readStringProp(result, 'submitOutcome')
+  if (submitOutcome === 'delivery_unconfirmed') {
+    return {
+      kind: 'incomplete',
+      feedback: 'incomplete',
+      errorCode: errorCode || 'submit_delivery_unconfirmed',
+      resendSafe: false
+    }
+  }
+
   const stage = readStage(result)
   // Aşama, mutasyonun varlığını bildirdiği için hata kodundan önce gelir:
   // `partial`/`uncertain` her koşulda otomatik tekrarı kapatır.
@@ -220,6 +238,8 @@ export function resolveSendOutcome(result: unknown): SendOutcome {
   // `delivered` ve `staged` ikisi de **başarılı** teslimattır ve ikisi de
   // sessizdir: kullanıcı sonucu site kutusunda kendi görür. Bu yüzden ikisi de
   // `idle` geri bildirimi döner; ayrım yalnızca `kind` üzerinde korunur.
+  // `delivery_unconfirmed` yukarıda elendi: teslimat doğrulanmayan bir
+  // gönderim sessiz başarı olamaz.
   const mode = readStringProp(result, 'mode')
   const kind: SendOutcomeKind = mode && STAGED_MODES.has(mode) ? 'staged' : 'delivered'
   return { kind, feedback: 'idle', errorCode: null, resendSafe: true }

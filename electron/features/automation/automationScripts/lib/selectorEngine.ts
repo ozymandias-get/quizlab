@@ -121,10 +121,30 @@ export const selectorEngine =
         });
     };
 
-    const resolveWithFallback = async (lookup, kind, diagnostics, config, timeout = 10000, mustBeInteractive = false) => {
+    /**
+     * \`mustBeInteractive\` beklerken bulunan ama etkileşime hazır olmayan
+     * \`stableBlockedExitMs\` parametresi, kapıdan erken çıkmayı sağlar.
+     *
+     * Arka plan: metin doğrulandıktan sonra gönder butonu "kararlı biçimde
+     * disabled" kalmaya devam ederse, sorun bekleme değildir — editörün iç
+     * modeli metni almamıştır (DOM'a eklenmiş olabilir). Böyle bir durumda
+     * 15 saniyeyi doldurmak yalnızca kullanıcıyı bekletir, sonucu değiştirmez.
+     *
+     * Varsayılan 0 = kapalıdır; yalnızca submit butonu beklemesi açıkça
+     * etkinleştirir. Bu sayede selectorEngine'ın tek başına test harness'leri
+     * (\`isReadyForInteraction\` stub'layan) davranış değişimi görmez.
+     *
+     * Başarısız dönüş artık \`blockedElement\` + \`notReadyReason\` taşır:
+     * çağıran taraf "bulunamadı" ile "bulundu ama pasif" ayrımını yapabilir
+     * ve kullanıcıya yanlış biçimde "selector'ını yeniden seç" demez.
+     */
+    const resolveWithFallback = async (lookup, kind, diagnostics, config, timeout = 10000, mustBeInteractive = false, stableBlockedExitMs = 0) => {
         const start = now();
         let attempts = 0;
         let fallbackAttempts = 0;
+        let blockedElement = null;
+        let blockedReason = null;
+        let stableBlockedSince = 0;
 
         while (now() - start < timeout) {
             if (typeof isAborted === 'function' && isAborted()) {
@@ -140,6 +160,21 @@ export const selectorEngine =
                 diagnostics.durationMs = roundMs(now() - start);
                 diagnostics.fallbackAttempts = fallbackAttempts;
                 return result;
+            }
+
+            if (element) {
+                // Bulundu ama etkileşime hazır değil: engeli kaydet.
+                blockedElement = element;
+                blockedReason = typeof describeNotReady === 'function' ? describeNotReady(element) : 'not_interactive';
+                if (stableBlockedExitMs > 0 && typeof isStableBlockedReason === 'function' && isStableBlockedReason(blockedReason)) {
+                    if (stableBlockedSince === 0) {
+                        stableBlockedSince = now();
+                    } else if (now() - stableBlockedSince >= stableBlockedExitMs) {
+                        break;
+                    }
+                } else {
+                    stableBlockedSince = 0;
+                }
             }
 
             if (result.element && !result.element.isConnected) {
@@ -160,7 +195,9 @@ export const selectorEngine =
         return {
             element: null,
             matchedSelector: null,
-            strategy: 'none'
+            strategy: 'none',
+            blockedElement: blockedElement,
+            notReadyReason: blockedReason
         };
     };
 

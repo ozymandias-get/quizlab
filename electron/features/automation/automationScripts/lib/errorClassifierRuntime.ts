@@ -47,6 +47,9 @@ export const errorClassifierRuntime = `    /**
         [/^ambiguous_match$/, 'after-repick', false, 'selector', 'toast_selectors_ambiguous'],
         [/^submit_not_ready$/, 'different-strategy', true, 'submit', 'toast_submit_not_ready'],
         [/^submit_failed$/, 'same-strategy', true, 'submit', 'toast_submit_failed'],
+        // Sentetik Enter'ın yok sayılması: gönderim denendi ama etki
+        // gözlemlenemedi. retry=never — mükerrer gönderim riski.
+        [/^submit_unverified$/, 'never', false, 'submit', 'toast_submit_unverified'],
         [/^autosend_failed_draft_saved$/, 'never', false, 'submit', 'toast_autosend_draft_saved'],
         [/^click_failed$/, 'same-strategy', false, 'submit', 'toast_click_failed'],
         [/^paste_failed$/, 'different-strategy', true, 'paste', 'toast_paste_failed'],
