@@ -9,8 +9,8 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
         return result;
     };
 
-    const waitForElement = async (lookup, kind, diagnostics, config, timeout = 10000, mustBeInteractive = false) => {
-        return resolveWithFallback(lookup, kind, diagnostics, config, timeout, mustBeInteractive);
+    const waitForElement = async (lookup, kind, diagnostics, config, timeout = 10000, mustBeInteractive = false, stableBlockedExitMs = 0) => {
+        return resolveWithFallback(lookup, kind, diagnostics, config, timeout, mustBeInteractive, stableBlockedExitMs);
     };
 
     const triggerLifecycleEvents = (element) => {
@@ -40,10 +40,82 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
     };
 
     /**
+     * Bir CSS sınıfı bir DURUM mudur, yoksa bir stil kuralı mı?
+     *
+     * Tailwind ve türevleri durumu bir "varyant" olarak adlandırır:
+     *   \`disabled:opacity-50\`, \`aria-disabled:opacity-50\`,
+     *   \`data-[state=open]:rotate\`, \`group-hover:bg-primary\`,
+     *   \`[&:not(:disabled)]:underline\`
+     * Bunlar butonun ŞU ANKİ halini değil, "disabled olduğunda ne olur"
+     * kuralını tanımlar. \`includes('disabled')\` ile taranırsa ETKİN bir
+     * gönder butonu "pasif" sayılır ve 15 saniyelik etkileşim kapısı
+     * \`submit_not_ready\` ile düşer — metin alanda dururken mesaj hiç
+     * gönderilmez. Varyant belirteçleri bu yüzden hiçbir zaman durum
+     * sayılmaz.
+     */
+    const __isStyleVariantToken = (token) => {
+        // \`group-hover:\`, \`aria-disabled:\`, \`peer-checked:\` …
+        if (String(token).indexOf(':') !== -1) return true;
+        // Tailwind arbitrary variant: \`[&:disabled]:*\`, \`[data-x="y"]\`
+        if (String(token).charCodeAt(0) === 91 /* '[' */) return true;
+        // CSS fonksiyonel pseudo sınıfı: \`:not(.disabled)\`, \`:is(.inactive)\`
+        if (String(token).indexOf('(') !== -1) return true;
+        return false;
+    };
+
+    /**
+     * Utility (Tailwind benzeri) bir sınıfın "durum" sözcüğü içerdiği hâlde
+     * yalnızca görsel olduğu durumlar. Bunlar durum sayılmaz.
+     */
+    const __UTILITY_PREFIXES = ['text-', 'bg-', 'border-', 'text_', 'bg_', 'border_', 'hover-', 'focus-', 'active-', 'ring-', 'shadow-'];
+
+    const __isDisabledStateToken = (token) => {
+        const normalized = String(token || '').toLowerCase();
+        if (!normalized || __isStyleVariantToken(normalized)) return false;
+        // Olumsuzlama: "not-disabled" / "no-disabled" bir durum DEĞİLDİR.
+        if (normalized.indexOf('not-disabled') !== -1 || normalized.indexOf('not_disabled') !== -1) return false;
+        if (normalized.indexOf('no-disabled') !== -1 || normalized.indexOf('no_disabled') !== -1) return false;
+        if (normalized.indexOf('can-') === 0 || normalized.indexOf('is-enabled') === 0) return false;
+        for (let i = 0; i < __UTILITY_PREFIXES.length; i++) {
+            if (normalized.indexOf(__UTILITY_PREFIXES[i]) === 0) return false;
+        }
+        // Çıplak durum belirteçleri.
+        if (normalized === 'disabled' || normalized === 'inactive') return true;
+        // Bileşik durum belirteçleri: btn-disabled, send_btn_inactive,
+        // is-disabled, mat-mdc-button-disabled, was_disabled …
+        // Yalnızca SONDaki ek olarak: "text-disabled-gray" gibi ortadan geçen
+        // utility adları yanlış pozitif üretmesin.
+        return /[-_](disabled|inactive)$/.test(normalized);
+    };
+
+    /**
+     * Bir düğmenin "pasif" olduğunu gösteren kalıcı (stable) göstergeler.
+     * Bunlar zamanla kendiliğinden düzelmez; beklemek çözüm değildir. CSS
+     * varyantı ve geçici UI salınımları bu kümede YER ALMAZ.
+     */
+    const __STABLE_BLOCKED_REASONS = [
+        'disabled_property',
+        'disabled_attribute',
+        'aria_disabled',
+        'data_disabled',
+        'disabled_fieldset',
+        'inert_ancestor'
+    ];
+
+    const isStableBlockedReason = (reason) =>
+        typeof reason === 'string'
+        && (__STABLE_BLOCKED_REASONS.indexOf(reason) !== -1 || reason.indexOf('disabled_class:') === 0);
+
+    /**
      * Explains why \`isReadyForInteraction\` would reject an element.
      * Returns null when the element is ready. Kept in lockstep with
      * \`isReadyForInteraction\` so a \`submit_not_ready\` timeout can report the
      * actual blocker instead of only "still processing".
+     *
+     * Güvenilirlik sözleşmesi: yalnızca GERÇEK durum göstergeleri kullanılır —
+     * \`disabled\` property/attribute, \`aria-disabled\`, \`data-disabled\`,
+     * \`disabled\` fieldset, \`inert\` kapsayıcı ve çıplak durum sınıfları.
+     * CSS varyant sınıfları (\`disabled:*\`) bilinçli olarak dışlanır.
      */
     const describeNotReady = (element) => {
         if (!element) {
@@ -60,7 +132,7 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
         if (style.display === 'none') {
             return 'display_none';
         }
-        if (element.disabled) {
+        if (element.disabled === true) {
             return 'disabled_property';
         }
         if (element.getAttribute('disabled') !== null) {
@@ -69,11 +141,28 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
         if (element.getAttribute('aria-disabled') === 'true') {
             return 'aria_disabled';
         }
+        if (element.getAttribute('data-disabled') === 'true') {
+            return 'data_disabled';
+        }
 
-        const disabledClass = Array.from(element.classList || []).find((className) => {
-            const normalized = String(className).toLowerCase();
-            return normalized.includes('disabled') || normalized.includes('inactive');
-        });
+        // HTML semantiği, sınıf adından bağımsız olarak düğmeyi geçersiz kılar:
+        // \`disabled\` bir fieldset altındaki tüm denetimleri devre dışı bırakır.
+        // Ebeveyn SINIF taraması yapılmaz: "inactive" gibi bir sınıf bir tab
+        // panelinde tamamen meşru olabilir ve altındaki etkin gönder butonunu
+        // yanlışlıkla pasif saymak, Hata A'nın aynı sınıf hatasını üst
+        // seviyeye taşır. Yalnızca standart/semantik öznitelikler okunur.
+        if (typeof element.closest === 'function') {
+            if (element.closest('fieldset[disabled]')) {
+                return 'disabled_fieldset';
+            }
+            if (element.closest('[inert]')) {
+                return 'inert_ancestor';
+            }
+        }
+
+        const disabledClass = Array.from(element.classList || []).find((className) =>
+            __isDisabledStateToken(className)
+        );
         if (disabledClass) {
             return 'disabled_class:' + String(disabledClass);
         }
@@ -120,6 +209,35 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
         }
 
         return null;
+    };
+
+    /**
+     * Editörün okunabilir içeriğini döndürür.
+     *
+     * Contenteditable alanlarda \`textContent\` blok ayırıcılarını (paragraf
+     * sonları) kaybeder; \`innerText\` satır sonlarını korur. Doğrulama tarafında
+     * iki varyant da okunduğu için burada tek bir "en iyi" okuma seçilir:
+     * önce \`value\` (textarea/input), sonra dolu \`innerText\`, son \`textContent\`.
+     */
+    const readComposerText = (element) => {
+        if (!element) return '';
+        try {
+            if (typeof element.value === 'string') return element.value;
+            const contentEditable = element.isContentEditable
+                || element.getAttribute('contenteditable') === 'true';
+            if (contentEditable) {
+                if (typeof element.innerText === 'string' && element.innerText.trim()) {
+                    return element.innerText;
+                }
+                return element.textContent || '';
+            }
+            if (typeof element.innerText === 'string' && element.innerText.trim()) {
+                return element.innerText;
+            }
+            return element.textContent || '';
+        } catch (_) {
+            return '';
+        }
     };
 
     const getComposerRoot = (inputElement, buttonElement) => {

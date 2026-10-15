@@ -30,6 +30,7 @@
   "toast_paste_not_applied": "Site görseli kabul etmedi. Sohbet kutusuna tıklayıp tekrar yapıştırmayı deneyin.",
   "toast_text_input_partial": "Metnin yalnızca bir kısmı sohbet kutusuna yerleşti. İçeriği kontrol edip göndermeyi elle tamamlayın.",
   "toast_text_input_unverified": "Metnin sohbet kutusuna yerleştiği doğrulanamadı; otomatik gönderim yapılmadı. Kutuyu kontrol edip gönderin.",
+  "toast_submit_unverified": "Gönderim tetiklendi ancak teslimat doğrulanamadı; mükerrer mesaj oluşmaması için otomatik tekrar denenmedi.",
   "toast_clipboard_failed": "Metin panoya kopyalanamadı",
   "toast_capture_failed": "Ekran görüntüsü alınamadı",
   "toast_screenshot_captured": "Ekran görüntüsü alındı",

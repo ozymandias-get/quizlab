@@ -214,8 +214,38 @@ describe('automationScripts', () => {
 
     const result = await window.eval(script)
 
-    expect(result.success).toBe(true)
+    // Enter gerçekten gönderiliyor (fallback korunuyor)…
     expect(keydownSpy).toHaveBeenCalled()
+    // …ama bu testte sayfa sentetik olaya tepki VERMİYOR: hiçbir dinleyici
+    // içeriği temizlemiyor. Bu yüzden gönderim "etki gözlemlenmedi" olarak
+    // raporlanır. Eski davranış (yalnızca dispatchEvent döndüğü için başarı)
+    // sessiz bir sahte başarıydı ve "metin yazıldı ama gitmedi" hatasının
+    // ikinci yarısını üretiyordu.
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('submit_unverified')
+    expect(result.submitOutcome).toBe('delivery_unconfirmed')
+  })
+
+  it('reports enter_key as observed once the composer actually releases the message', async () => {
+    const input = document.createElement('textarea')
+    document.body.appendChild(input)
+    input.value = 'merhaba'
+    input.addEventListener('keydown', (event) => {
+      // Gerçek bir AI sitesi Enter'ı yakalayıp composer'ı boşaltır.
+      if (event.key === 'Enter') input.value = ''
+    })
+
+    const script = generateClickSendScript({
+      input: 'textarea',
+      submitMode: 'enter_key'
+    })
+
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(true)
+    expect(result.submitMethod).toBe('enter_key')
+    expect(result.submitObserved).toBe(true)
+    expect(result.submitOutcome).toBe('observed')
   })
 
   it('waits for the send button to settle before reporting submit readiness', async () => {
@@ -641,7 +671,13 @@ describe('automationScripts', () => {
         // Kullanıcının panosu ödünç alınmaz: payload ClipboardEvent
         // üzerinden taşınır, sistem panosuna yazılmaz.
         expect(writeText).not.toHaveBeenCalled()
-        expect(result.diagnostics.textInputStrategy).toBe('dom_insert')
+        // Bu stub'lu ortamda hiçbir kanal (paste / execCommand / beforeinput)
+        // editör modelini kabul etmediği için düşülen yol ham DOM eklemesidir.
+        // Artık bu "başarılı uygulama" sayılmaz: strateji açıkça
+        // doğrulanmamış olarak raporlanır, doğrulama katmanı bunu görecek
+        // ve gönder butonu pasif kalırsa `submit_not_ready` bildirecek.
+        expect(result.diagnostics.textInputStrategy).toBe('dom_insert_unverified')
+        expect(result.diagnostics.textVerifyResult).toBe('verified')
       } finally {
         delete automationWindow.DataTransfer
         delete automationWindow.ClipboardEvent
@@ -651,6 +687,12 @@ describe('automationScripts', () => {
 
     it('keeps the fixed settle only for enter_key submits', async () => {
       document.body.innerHTML = `<textarea id="input"></textarea>`
+      const composer = document.getElementById('input') as HTMLTextAreaElement
+      // Enter'ı gerçekten karşılayan bir editör taklidi: composer boşalır,
+      // yani gönderim etkisi gözlemlenir.
+      composer.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') composer.value = ''
+      })
 
       const script = generateAutoSendScript(
         { input: '#input', submitMode: 'enter_key' },
@@ -669,6 +711,7 @@ describe('automationScripts', () => {
       const result = await window.eval(script)
 
       expect(result.success).toBe(true)
+      expect(result.submitObserved).toBe(true)
       expect(result.diagnostics.preSubmitWaitMs).toBe(500)
     }, 10000)
   })
