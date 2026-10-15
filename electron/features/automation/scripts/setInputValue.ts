@@ -70,10 +70,14 @@ export function buildSetInputValueScript(): string {
                 await wait(50);
                 // Editörler metni normalize eder (blok sınırındaki çift satır
                 // sonu tek satır sonuna dönüşebilir, görünmez karakterler
-                // eklenebilir); örnek normalize edilerek karşılaştırılır.
-                const sample = normalizeForCompare(payload).substring(0, 40);
+                // eklenebilir); iki taraf da normalize edilerek TAM içerik
+                // karşılaştırılır. Eski baş-40 örnek karşılaştırması yalnızca
+                // ilk parçanın girmesini "başarılı yapıştırma" sayıyordu.
+                const normalizedPayload = normalizeForCompare(payload);
+                // textContent blok sınırlarını kaybedebilir; innerText satır
+                // sonlarını korur → iki okuma birleştirilerek karşılaştırılır.
                 const readTarget = () => normalizeForCompare((target.textContent || '') + ' ' + (target.innerText || ''));
-                const applied = sample.length > 0 && readTarget().includes(sample);
+                const applied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
                 if (applied) return 'synthetic_paste';
 
                 // Paste was not consumed (editor ignored the synthetic event).
@@ -81,7 +85,7 @@ export function buildSetInputValueScript(): string {
                 // work is spread across microtasks instead of one giant call.
                 dispatchBeforeInput(payload);
                 await wait(0);
-                const reApplied = sample.length > 0 && normalizeForCompare(target.textContent || '').includes(sample);
+                const reApplied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
                 if (reApplied) return 'beforeinput';
 
                 try {
@@ -265,7 +269,7 @@ export function buildSetInputValueScript(): string {
                     await wait(0);
                     const normalizedPayload = normalizeForCompare(payload);
                     const applied = normalizedPayload.length > 0
-                        && normalizeForCompare(element.textContent || '').includes(normalizedPayload);
+                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedPayload);
                     if (applied) {
                         strategy = 'beforeinput';
                     } else {
@@ -352,7 +356,7 @@ export function buildSetInputValueScript(): string {
                     await wait(0);
                     const normalizedValue = normalizeForCompare(value);
                     const applied = normalizedValue.length > 0
-                        && normalizeForCompare(element.textContent || '').includes(normalizedValue);
+                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedValue);
                     if (applied) {
                         strategy = 'beforeinput';
                     } else {

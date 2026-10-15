@@ -24,6 +24,26 @@ interface AiSendStageTimings {
   clipboardMs?: number
   /** Görsel gönderiminde sistem panosunun geri yüklenmesi süresi. */
   clipboardRestoreMs?: number
+  /**
+   * Restore işinin `finally` içinde kritik yolda **bekletildiği** süre.
+   * Restore settle+IPC arka planda başlatıldığı için genelde ~0'dır; bu iki
+   * değerin farkı paralel çalıştırmanın gerçek kazancıdır.
+   */
+  clipboardRestoreWaitMs?: number
+  /**
+   * Kuyruk dışı pipeline süresi (dosya/script adımları + `finally`/restore
+   * dahil). `totalMs ≈ queueWaitMs + pipelineMs`.
+   */
+  pipelineMs?: number
+  /**
+   * Kullanıcı gönderim eyleminden (içerik hazırlığı dahil) sonuca kadar geçen
+   * toplam süre. `contentReadyMs` bu sürenin içindedir; ayrı ayrı toplanmaz.
+   */
+  endToEndMs?: number
+  /** Metin doğrulama sonucu: verified | partial | ambiguous | unchanged. */
+  textVerifyResult?: string | null
+  /** Doğrulamada gözlenen normalleştirilmiş karakter farkı. */
+  textVerifyDelta?: number
   focusScriptGenerationMs?: number
   focusExecuteJavaScriptMs?: number
   refocusScriptGenerationMs?: number
@@ -76,6 +96,11 @@ export interface AiSendDiagnostics {
   currentUrl?: string
   autoSend: boolean
   timings: AiSendStageTimings
+  /**
+   * Pano geri yükleme tamamlanamadı (kapsam için snapshot yok ya da yazma
+   * başarısız). Sonuç "geri yüklendi" gibi raporlanmaz; log'lanır.
+   */
+  clipboardRestoreFailed?: boolean
   script?: AutomationExecutionDiagnostics | null
   focusScript?: AutomationExecutionDiagnostics | null
   refocusScript?: AutomationExecutionDiagnostics | null

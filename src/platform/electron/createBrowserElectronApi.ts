@@ -145,7 +145,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     },
 
     captureScreen: stubReturn(null),
-    copyImageToClipboard: (dataUrl: string) => writeImageToClipboard(dataUrl),
+    // Tarayıcı modunda gerçek bir pano snapshot'ı yoktur; `scope` yalnızca
+    // sözleşme uyumu için kabul edilir ve yok sayılır.
+    copyImageToClipboard: (dataUrl: string, _scope?: string) => writeImageToClipboard(dataUrl),
     restoreClipboard: stubReturn(true),
     copyTextToClipboard: (text: string) => writeToClipboard(text),
     openExternal: async (url: string) => {

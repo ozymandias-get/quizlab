@@ -94,12 +94,19 @@ export interface IpcInvokeRequestMap {
   }
 
   [IPC_CHANNELS.COPY_IMAGE]: {
-    args: [dataUrl: string]
+    /**
+     * `scope` is the clipboard-ownership key of one send transaction. All
+     * copies of a multi-image send pass the same scope; the first copy pushes
+     * the snapshot and exactly one RESTORE_CLIPBOARD(scope) releases it.
+     * Omitted = legacy stack behaviour.
+     */
+    args: [dataUrl: string, scope?: string]
     result: IpcResult<boolean>
   }
 
   [IPC_CHANNELS.RESTORE_CLIPBOARD]: {
-    args: []
+    /** Releases the snapshot owned by `scope`; omitted = legacy pop-top. */
+    args: [scope?: string]
     result: IpcResult<boolean>
   }
 

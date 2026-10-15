@@ -53,6 +53,12 @@ export function recordScriptStageTimings(
   if (typeof script.preSubmitWaitMs === 'number' && script.preSubmitWaitMs > 0) {
     timings.preSubmitWaitMs = roundMs((timings.preSubmitWaitMs ?? 0) + script.preSubmitWaitMs)
   }
+  if (script.textVerifyResult) {
+    timings.textVerifyResult = script.textVerifyResult
+  }
+  if (typeof script.textVerifyDelta === 'number') {
+    timings.textVerifyDelta = script.textVerifyDelta
+  }
 }
 
 export function createSendDiagnostics({
@@ -74,8 +80,21 @@ export function createSendDiagnostics({
   }
 }
 
-function finalizeDiagnostics(diagnostics: AiSendDiagnostics, requestStartedAt: number) {
+/**
+ * `totalMs`'i istek başlangıcından **şimdiye** kadar yeniden hesaplar.
+ *
+ * Pipeline'lar sonucu `finally` bloğu tamamlanmadan (`attachDiagnostics`)
+ * döndürebiliyor; pano geri yükleme gibi `finally` işleri toplam sürenin
+ * dışında kalırsa süre olduğundan kısa görünür. `finally` sonunda bu fonksiyon
+ * çağrılarak aynı diagnostics nesnesi üzerindeki değer düzeltilir; sonuç
+ * nesnesi aynı referansı taşıdığı için tüketiciler doğru değeri görür.
+ */
+export function finalizeTotalMs(diagnostics: AiSendDiagnostics, requestStartedAt: number): void {
   diagnostics.timings.totalMs = roundMs(nowMs() - requestStartedAt)
+}
+
+function finalizeDiagnostics(diagnostics: AiSendDiagnostics, requestStartedAt: number) {
+  finalizeTotalMs(diagnostics, requestStartedAt)
   return diagnostics
 }
 

@@ -87,9 +87,26 @@ describe('useSystemApi', () => {
   it('useCopyImageToClipboard should copy data url', async () => {
     const { result } = renderHook(() => useCopyImageToClipboard(), { wrapper })
 
-    await result.current.mutateAsync('data:image/png;base64,123')
+    await result.current.mutateAsync({ dataUrl: 'data:image/png;base64,123' })
 
-    expect(mockElectronApi.copyImageToClipboard).toHaveBeenCalledWith('data:image/png;base64,123')
+    expect(mockElectronApi.copyImageToClipboard).toHaveBeenCalledWith(
+      'data:image/png;base64,123',
+      undefined
+    )
+  })
+
+  it('useCopyImageToClipboard should forward the send scope', async () => {
+    const { result } = renderHook(() => useCopyImageToClipboard(), { wrapper })
+
+    await result.current.mutateAsync({
+      dataUrl: 'data:image/png;base64,456',
+      scope: 'send-test-1'
+    })
+
+    expect(mockElectronApi.copyImageToClipboard).toHaveBeenCalledWith(
+      'data:image/png;base64,456',
+      'send-test-1'
+    )
   })
 
   it('useCaptureScreen should take screenshot and show success toast', async () => {

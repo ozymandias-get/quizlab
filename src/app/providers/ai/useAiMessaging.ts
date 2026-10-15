@@ -97,16 +97,24 @@ function withRollback(
 }
 
 /**
- * İçerik denetleyicisinin hazır olması için geçen süreyi sonuca işler.
+ * İçerik hazırlık ve uçtan uca süreleri sonuca işler.
  *
- * Bu bekleme `useAiSender`'ın `requestStartedAt`'inden **önce** gerçekleşir;
- * bu yüzden `totalMs`/`queueWaitMs` içinde görünmez ve ayrı bir metrik olarak
- * taşınır. Sonuç bir diagnostics nesnesi getirmiyorsa (ör. yedek sonuç) hiçbir
- * şey yapılmaz.
+ * `contentReadyMs` beklemesi `useAiSender`'ın `requestStartedAt`'inden **önce**
+ * gerçekleşir; bu yüzden `totalMs`/`queueWaitMs` içinde görünmez ve ayrı bir
+ * metrik olarak taşınır. `endToEndMs` ise kullanıcı gönderim eyleminin
+ * başlangıcından (bu hazırlık dahil) sonuca kadar geçen süredir;
+ * `contentReadyMs` onun içindedir ve ayrıca toplanmaz. Sonuç bir diagnostics
+ * nesnesi getirmiyorsa (ör. `NO_SEND_RESULT` yedek sonucu) hiçbir şey
+ * yapılmaz — paylaşılan sabit nesne mutate edilmez.
  */
-function attachContentReadyTiming(result: AiSendResult, contentReadyMs: number): AiSendResult {
+function attachWebSendTimings(
+  result: AiSendResult,
+  contentReadyMs: number,
+  endToEndMs: number
+): AiSendResult {
   if (result.diagnostics) {
     result.diagnostics.timings.contentReadyMs = contentReadyMs
+    result.diagnostics.timings.endToEndMs = endToEndMs
   }
   return result
 }
@@ -313,6 +321,10 @@ export function useAiMessaging({
         )
       }
 
+      // Uçtan uca ölçümün başlangıcı: içerik hazırlığı (`contentReadyMs`) bu
+      // sürenin parçasıdır ve ayrıca toplanmaz.
+      const endToEndStartedAt = diagNowMs()
+
       // For content-based models, ensure a content instance is available.
       // In normal split view, the user may not have an AI tab open yet.
       const content = getContentController()
@@ -328,9 +340,10 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = attachContentReadyTiming(
+      const result = attachWebSendTimings(
         (await rawSendText(text, options)) ?? NO_SEND_RESULT,
-        contentReadyMs
+        contentReadyMs,
+        diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
@@ -387,6 +400,9 @@ export function useAiMessaging({
         )
       }
 
+      // Uçtan uca ölçümün başlangıcı: içerik hazırlığı da bu sürenin parçası.
+      const endToEndStartedAt = diagNowMs()
+
       // For content-based models, ensure a content instance is available
       const content = getContentController()
       if (!content) {
@@ -401,9 +417,10 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
-      const result = attachContentReadyTiming(
+      const result = attachWebSendTimings(
         (await rawSendImage(imageData, options)) ?? NO_SEND_RESULT,
-        contentReadyMs
+        contentReadyMs,
+        diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
@@ -472,6 +489,9 @@ export function useAiMessaging({
         )
       }
 
+      // Uçtan uca ölçümün başlangıcı: içerik hazırlığı da bu sürenin parçası.
+      const endToEndStartedAt = diagNowMs()
+
       const content = getContentController()
       if (!content) {
         openAiWorkspace(currentAI)
@@ -487,9 +507,10 @@ export function useAiMessaging({
       if (!rawSendBulk) {
         return { success: false, error: 'bulk_not_supported' }
       }
-      const result = attachContentReadyTiming(
+      const result = attachWebSendTimings(
         (await rawSendBulk(imageDataUrls, options)) ?? NO_SEND_RESULT,
-        contentReadyMs
+        contentReadyMs,
+        diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
       if (!result.success && (result as { error?: string }).error !== 'cancelled') {
         showWarning(toErrorToastKey((result as { error?: string }).error))

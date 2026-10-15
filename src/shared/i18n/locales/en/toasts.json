@@ -28,6 +28,8 @@
   "toast_open_link_failed": "Failed to open external link",
   "toast_copy_failed": "Failed to copy image to clipboard",
   "toast_paste_not_applied": "The site did not accept the image. Try focusing the chat box and pasting again.",
+  "toast_text_input_partial": "Only part of the text landed in the composer. Review the content and send it manually.",
+  "toast_text_input_unverified": "Could not verify that the text landed in the composer, so nothing was sent automatically. Check the box and send it yourself.",
   "toast_clipboard_failed": "Failed to copy text to clipboard",
   "toast_capture_failed": "Failed to capture screen",
   "toast_screenshot_captured": "Screenshot captured",

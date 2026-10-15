@@ -24,7 +24,13 @@ import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmi
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
-import { attachDiagnostics, nowMs, recordScriptStageTimings, roundMs } from './sendDiagnostics'
+import {
+  attachDiagnostics,
+  finalizeTotalMs,
+  nowMs,
+  recordScriptStageTimings,
+  roundMs
+} from './sendDiagnostics'
 
 interface BulkSendPipelineParams {
   contentRef: RefObject<AiContentController | null>
@@ -46,7 +52,7 @@ interface BulkSendPipelineParams {
   requestStartedAt: number
   diagnostics: AiSendDiagnostics
   canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
-  copyImageToClipboard: (imageDataUrl: string) => Promise<boolean>
+  copyImageToClipboard: (imageDataUrl: string, scope?: string) => Promise<boolean>
   generateAutoSendScript: (params: {
     config: ReturnType<typeof toAutomationConfig>
     text: string
@@ -211,6 +217,9 @@ export async function executeBulkSendPipeline(
       const copied = await copyImageToClipboardWithRetry({
         copyImageToClipboard,
         imageDataUrl,
+        // Tek gönderim = tek snapshot: tüm görseller aynı kapsamı taşır,
+        // restore bir kez ve yalnızca bu gönderimin girdisini çözer.
+        scope: clipboard.scopeId,
         diagnostics
       })
       if (!copied) {
@@ -471,6 +480,14 @@ export async function executeBulkSendPipeline(
       attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
     )
   } finally {
+    // Restore'un kritik yolda gerçekten bloke ettiği süre ayrı ölçülür: settle
+    // ve IPC arka planda başlatıldığı için bu sayı genelde ~0'dır ve paralel
+    // kazancı (toplam restore süresi = clipboardRestoreMs) görünür kılar.
+    const restoreWaitStartedAt = nowMs()
     await clipboard.restore()
+    diagnostics.timings.clipboardRestoreWaitMs = roundMs(nowMs() - restoreWaitStartedAt)
+    // `attachDiagnostics` çıkış anında hesaplanan totalMs'i ez: `finally`
+    // (pano geri yükleme) pipeline'ın parçasıdır ve toplam süreye dahil olmalı.
+    finalizeTotalMs(diagnostics, requestStartedAt)
   }
 }

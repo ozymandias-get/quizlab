@@ -6,6 +6,12 @@
  * the send and must be given back — exactly once, and even when a step in the
  * middle throws. Both halves of that contract (the retrying write, the
  * idempotent restore) live here so the pipeline only has to sequence them.
+ *
+ * Ownership: every send gets a `scopeId`. All image copies of one send carry
+ * it, so the main process takes exactly ONE snapshot per send (a multi-image
+ * bulk send used to leave N−1 orphaned snapshots behind) and the matching
+ * `restore(scopeId)` releases exactly this send's snapshot — concurrent sends
+ * on other tabs cannot consume each other's.
  */
 import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
@@ -22,7 +28,17 @@ const CLIPBOARD_COPY_ATTEMPTS = 3
  */
 const RESTORE_SETTLE_MS = 700
 
+let clipboardScopeCounter = 0
+
+/** Unique, bounded ownership key (validated again in the main process). */
+function nextClipboardScopeId(): string {
+  clipboardScopeCounter = (clipboardScopeCounter + 1) % 1_000_000
+  return `send-${Date.now().toString(36)}-${clipboardScopeCounter.toString(36)}`
+}
+
 export interface ClipboardRestore {
+  /** Bu gönderime ait pano snapshot'ının sahiplik anahtarı. */
+  readonly scopeId: string
   /** Called once the paste actually reached the page, so the restore waits first. */
   markPasteCompleted(): void
   /**
@@ -36,17 +52,35 @@ export interface ClipboardRestore {
 }
 
 export function createClipboardRestore(diagnostics?: AiSendDiagnostics): ClipboardRestore {
+  const scopeId = nextClipboardScopeId()
   let pasteCompleted = false
   let restored = false
   let restorePromise: Promise<void> | null = null
+
+  const recordRestoreFailure = (cause: unknown) => {
+    if (diagnostics) {
+      diagnostics.clipboardRestoreFailed = true
+    }
+    reportSuppressedError('imageSend.clipboardRestore', { cause })
+  }
 
   const runRestore = async () => {
     const startedAt = nowMs()
     try {
       if (pasteCompleted) await sleep(RESTORE_SETTLE_MS)
-      await getElectronApi()?.restoreClipboard?.()
+      const api = getElectronApi()
+      if (api?.restoreClipboard) {
+        // `false` = bu kapsam için snapshot yok (bozuk/çalınmış sahiplik) —
+        // sessizce "geri yüklendi" sayılmaz.
+        const restoredOk = await api.restoreClipboard(scopeId)
+        if (restoredOk === false) {
+          recordRestoreFailure(
+            new Error('clipboard restore reported no snapshot for this send scope')
+          )
+        }
+      }
     } catch (restoreError) {
-      reportSuppressedError('imageSend.clipboardRestore', { cause: restoreError })
+      recordRestoreFailure(restoreError)
     } finally {
       if (diagnostics) {
         diagnostics.timings.clipboardRestoreMs = roundMs(nowMs() - startedAt)
@@ -56,6 +90,7 @@ export function createClipboardRestore(diagnostics?: AiSendDiagnostics): Clipboa
   }
 
   return {
+    scopeId,
     markPasteCompleted() {
       pasteCompleted = true
     },
@@ -75,19 +110,22 @@ export function createClipboardRestore(diagnostics?: AiSendDiagnostics): Clipboa
  * Writes the image to the clipboard, retrying a few times with a growing gap.
  * A provider page that is still attaching often drops the first write, so a
  * single refusal is not a failure.
+ *
+ * `scope` ties every copy of one send to the same clipboard snapshot.
  */
 export async function copyImageToClipboardWithRetry(params: {
-  copyImageToClipboard: (imageDataUrl: string) => Promise<boolean>
+  copyImageToClipboard: (imageDataUrl: string, scope?: string) => Promise<boolean>
   imageDataUrl: string
+  scope?: string
   diagnostics: AiSendDiagnostics
 }): Promise<boolean> {
-  const { copyImageToClipboard, imageDataUrl, diagnostics } = params
+  const { copyImageToClipboard, imageDataUrl, scope, diagnostics } = params
 
   const clipboardStartedAt = nowMs()
   let copied = false
   for (let attempt = 0; attempt < CLIPBOARD_COPY_ATTEMPTS; attempt++) {
     try {
-      copied = await copyImageToClipboard(imageDataUrl)
+      copied = await copyImageToClipboard(imageDataUrl, scope)
       if (copied) break
     } catch (clipboardError) {
       reportSuppressedError('imageSend.clipboardCopy', { cause: clipboardError })
@@ -96,7 +134,11 @@ export async function copyImageToClipboardWithRetry(params: {
       await sleep(100 * (attempt + 1))
     }
   }
-  diagnostics.timings.clipboardMs = roundMs(nowMs() - clipboardStartedAt)
+  // Biriken süre: çoklu görselde her kopya eklenir; kapsam başına tek satır
+  // tutmak son kopyanın süresini "toplam" gibi gösterme hatasına yol açardı.
+  diagnostics.timings.clipboardMs = roundMs(
+    (diagnostics.timings.clipboardMs ?? 0) + (nowMs() - clipboardStartedAt)
+  )
 
   return copied
 }

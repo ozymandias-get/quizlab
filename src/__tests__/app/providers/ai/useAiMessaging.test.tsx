@@ -526,6 +526,34 @@ describe('useAiMessaging — content readiness measurement', () => {
     const timings = outcomeWithTimings.diagnostics.timings
     expect(typeof timings.contentReadyMs).toBe('number')
     expect(timings.contentReadyMs).toBeGreaterThanOrEqual(0)
+    // Uçtan uca süre içerik hazırlığını da kapsar; toplanmaz, ikisi ayrı alandır.
+    expect(typeof timings.endToEndMs).toBe('number')
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(timings.contentReadyMs)
+  })
+
+  it('measures end-to-end time across readiness and the send result', async () => {
+    mockSendText.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+      return {
+        success: true,
+        diagnostics: { timings: { queueWaitMs: 0, configResolveMs: 0, totalMs: 1 } }
+      }
+    })
+    const { result } = renderMessaging('chatgpt')
+
+    let outcome: Awaited<ReturnType<typeof result.current.sendTextToAI>> | undefined
+    await act(async () => {
+      outcome = await result.current.sendTextToAI('hello')
+    })
+
+    const outcomeWithTimings = outcome as unknown as {
+      diagnostics: { timings: Record<string, number> }
+    }
+    const timings = outcomeWithTimings.diagnostics.timings
+    // Gönderim uydusu 40ms sürdü: uçtan uca süre bunu YANSITIR (içerik hazırlığı
+    // + gönderim; ikisi de bu pencerenin içinde).
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(30)
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(timings.contentReadyMs)
   })
 
   it('never mutates the shared fallback result when the sender returns nothing', async () => {

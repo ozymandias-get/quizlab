@@ -3,6 +3,7 @@ import type { AutomationExecutionDiagnostics } from '@shared-core/types'
 import {
   attachDiagnostics,
   createSendDiagnostics,
+  finalizeTotalMs,
   nowMs,
   recordScriptStageTimings,
   roundMs
@@ -220,5 +221,37 @@ describe('recordScriptStageTimings', () => {
 
     expect(diagnostics.timings.selectorLookupMs).toBeUndefined()
     expect(diagnostics.timings.textInputStrategy).toBeUndefined()
+  })
+
+  it('carries the verification outcome and delta without content', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'text',
+      currentAI: 'chatgpt',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(
+      diagnostics,
+      makeScript({ textVerifyResult: 'partial', textVerifyDelta: 40 })
+    )
+
+    expect(diagnostics.timings.textVerifyResult).toBe('partial')
+    expect(diagnostics.timings.textVerifyDelta).toBe(40)
+  })
+})
+
+describe('finalizeTotalMs', () => {
+  it('recomputes totalMs from the request start so finally work is included', async () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'image',
+      currentAI: 'claude',
+      autoSend: true
+    })
+    const startedAt = nowMs()
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    finalizeTotalMs(diagnostics, startedAt)
+
+    expect(diagnostics.timings.totalMs).toBeGreaterThanOrEqual(15)
   })
 })
