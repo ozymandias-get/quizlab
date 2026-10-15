@@ -27,6 +27,7 @@ import {
   mockGenerateClickSendScript,
   mockGenerateFocusScript,
   mockGenerateWaitForSubmitReadyScript,
+  mockRestoreClipboard,
   mockScriptDiagnostics,
   mockContent,
   mockContentRef
@@ -98,7 +99,11 @@ describe('useAiSender - image sending', () => {
     })
 
     expect(res.success).toBe(true)
-    expect(mockCopyImageToClipboard).toHaveBeenCalledWith(imageDataUrl)
+    // Kapsam sahipliği: kopya ve restore AYNI scope ile eşleşir.
+    const [copiedDataUrl, copyScope] = mockCopyImageToClipboard.mock.calls[0]
+    expect(copiedDataUrl).toBe(imageDataUrl)
+    expect(typeof copyScope).toBe('string')
+    expect(mockRestoreClipboard).toHaveBeenCalledWith(copyScope)
     expect(mockContent.paste).toHaveBeenCalled()
     expect(mockGenerateAutoSendScript).toHaveBeenCalledWith(
       expect.anything(),

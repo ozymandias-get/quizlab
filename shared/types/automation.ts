@@ -189,6 +189,15 @@ export interface AutomationExecutionDiagnostics {
   textInputStrategy?: string | null
   /** Yapıştırma doğrulanamadığı için yazım fallback'i kullanıldıysa dolu. */
   textInputFallback?: string | null
+  /**
+   * Metin yerleştirme doğrulamasının sonucu: `verified` (tam içerik doğrulandı),
+   * `partial` (alan değişti ama içerik eksik/bozuk), `ambiguous` (metin zaten
+   * içerikteydi; eklendiği kanıtlanamadı), `unchanged` (alan hiç değişmedi).
+   * İçerik/kullanıcı verisi taşımaz.
+   */
+  textVerifyResult?: string | null
+  /** Doğrulamada gözlenen normalleştirilmiş karakter farkı. */
+  textVerifyDelta?: number
   /** Submit öncesi sabit settle beklemesinin gerçekten uygulanan süresi. */
   preSubmitWaitMs?: number
   error: string | null

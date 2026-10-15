@@ -77,5 +77,7 @@
   "error_image_conversion_failed": "The image could not be prepared for sending. Try removing it or recapturing the page.",
   "error_webview_destroyed": "The AI tab closed during sending",
   "error_clipboard_failed_partial": "Some images were added but the send did not finish. It was not resent automatically to avoid a duplicate message.",
-  "error_paste_not_applied": "Could not confirm whether the image was attached. Check the AI side; resending may create a duplicate attachment."
+  "error_paste_not_applied": "Could not confirm whether the image was attached. Check the AI side; resending may create a duplicate attachment.",
+  "error_text_input_partial": "Only part of the text landed in the composer. It was not sent automatically to avoid duplicate content; review it and send.",
+  "error_text_input_unverified": "Could not verify that the text landed in the composer. Nothing was sent automatically; check the box and send it yourself."
 }

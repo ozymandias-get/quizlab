@@ -68,6 +68,8 @@ describe('error classifier parity (host vs guest runtime)', () => {
     'upload_failed',
     'upload_timed_out',
     'paste_not_applied',
+    'text_input_partial',
+    'text_input_unverified',
     'network_error',
     'timed_out',
     'webview_destroyed',
@@ -121,7 +123,14 @@ describe('error classifier parity (host vs guest runtime)', () => {
       ])
     )
     // Transient ama fallback gerektirmeyenler özellikle false kalmalı.
-    for (const code of ['clipboard_failed', 'upload_timed_out', 'network_error', 'timed_out']) {
+    for (const code of [
+      'clipboard_failed',
+      'upload_timed_out',
+      'network_error',
+      'timed_out',
+      'text_input_partial',
+      'text_input_unverified'
+    ]) {
       expect(guest(code).triggerFallback).toBe(false)
     }
   })

@@ -14,6 +14,7 @@ import { isPasteIgnoredByPage } from '@features/ai/lib/send/imageSendSubmitDiagn
 import type { AiSendDiagnostics } from '@features/ai/model/types'
 
 import { getElectronApi } from '@shared/lib/electronApi'
+import { reportSuppressedError } from '@shared/lib/logger'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -87,6 +88,52 @@ describe('copyImageToClipboardWithRetry', () => {
     ).resolves.toBe(true)
 
     expect(copy).toHaveBeenCalledTimes(2)
+  })
+
+  it('carries the send scope into every copy attempt', async () => {
+    const copy = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+
+    await expect(
+      copyImageToClipboardWithRetry({
+        copyImageToClipboard: copy,
+        imageDataUrl: 'data:image/png;base64,AA',
+        scope: 'send-scope-1',
+        diagnostics: makeDiagnostics()
+      })
+    ).resolves.toBe(true)
+
+    // Yeniden denemeler bile AYNI sahiplik anahtarını taşır: ana süreç bu
+    // kapsam için tek snapshot açar.
+    expect(copy).toHaveBeenNthCalledWith(1, 'data:image/png;base64,AA', 'send-scope-1')
+    expect(copy).toHaveBeenNthCalledWith(2, 'data:image/png;base64,AA', 'send-scope-1')
+  })
+
+  it('accumulates clipboardMs across the copies of a multi-image send', async () => {
+    const copy = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      return true
+    })
+    const diagnostics = makeDiagnostics()
+
+    await copyImageToClipboardWithRetry({
+      copyImageToClipboard: copy,
+      imageDataUrl: 'a',
+      scope: 's',
+      diagnostics
+    })
+    const afterFirst = diagnostics.timings.clipboardMs ?? 0
+
+    await copyImageToClipboardWithRetry({
+      copyImageToClipboard: copy,
+      imageDataUrl: 'b',
+      scope: 's',
+      diagnostics
+    })
+
+    // İlk kopyanın süresi korunur; ikinci kopya ÜZERİNE eklenir (son kopyanın
+    // süresini "toplam" gibi göstermek yanlış olurdu).
+    expect(afterFirst).toBeGreaterThanOrEqual(9)
+    expect(diagnostics.timings.clipboardMs ?? 0).toBeGreaterThanOrEqual(afterFirst + 9)
   })
 })
 
@@ -162,6 +209,43 @@ describe('createClipboardRestore', () => {
 
     await expect(clipboard.restore()).resolves.toBeUndefined()
     expect(clipboard.pending).toBe(false)
+  })
+
+  it("tags the restore with this send's ownership scope", async () => {
+    const first = createClipboardRestore()
+    const second = createClipboardRestore()
+
+    // Kapsamlar benzersiz: eşzamanlı gönderimler birbirinin snapshot'ını
+    // tüketemez.
+    expect(first.scopeId).not.toBe(second.scopeId)
+    expect(first.scopeId).toMatch(/^[A-Za-z0-9_-]{1,64}$/)
+
+    await first.restore()
+
+    expect(restoreClipboard).toHaveBeenCalledWith(first.scopeId)
+  })
+
+  it('records a restore failure when the main process reports no snapshot', async () => {
+    // `false`: bu kapsam için sahiplik bulunamadı — "geri yüklendi" sayılmaz.
+    restoreClipboard.mockResolvedValueOnce(false)
+    const diagnostics = makeDiagnostics()
+    const clipboard = createClipboardRestore(diagnostics)
+
+    await clipboard.restore()
+
+    expect(diagnostics.clipboardRestoreFailed).toBe(true)
+    expect(reportSuppressedError).toHaveBeenCalled()
+  })
+
+  it('does not mark a failure when the restore succeeds', async () => {
+    restoreClipboard.mockResolvedValueOnce(true)
+    const diagnostics = makeDiagnostics()
+    const clipboard = createClipboardRestore(diagnostics)
+
+    await clipboard.restore()
+
+    expect(diagnostics.clipboardRestoreFailed).toBeFalsy()
+    expect(reportSuppressedError).not.toHaveBeenCalled()
   })
 })
 

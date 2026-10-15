@@ -4,7 +4,42 @@ import { serializeAutomationConfig } from '../../scripts/config.js'
 import { buildHumanTypingScript } from '../../scripts/humanTyping.js'
 import { buildSetInputValueScript } from '../../scripts/setInputValue.js'
 import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { buildTextVerificationScript } from '../../scripts/verifyTextPlacement.js'
 import { createScriptPreamble } from '../preamble.js'
+
+/**
+ * Submit öncesi ortak blok. Enter yolunda buton etkileşim kapısı olmadığı için
+ * kısa sabit settle korunur; click/mixed zaten `performSubmit` içindeki
+ * "buton etkileşime hazır" kapısından geçer (ikinci 500ms yalnızca gecikme).
+ */
+const buildSubmitBlock = (shouldSubmit: boolean) => `
+            if (!${shouldSubmit}) {
+                return {
+                    success: true,
+                    action: 'input_only',
+                    mode: config.submitMode,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
+                };
+            }
+
+            if (config.submitMode === 'enter_key') {
+                diagnostics.preSubmitWaitMs = 500;
+                await wait(500);
+            } else {
+                diagnostics.preSubmitWaitMs = 0;
+            }
+            const submitResult = await performSubmit(inputElement);
+            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
+            return {
+                success: submitResult.success,
+                mode: config.submitMode,
+                diagnostics: finalizeDiagnostics(
+                    diagnostics,
+                    scriptStartedAt,
+                    submitResult.success ? null : (submitResult.error || 'submit_failed')
+                ),
+                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
+            };`
 
 const generateAutoSendScript = (
   config: AutomationConfig,
@@ -45,38 +80,7 @@ ${performSubmitScript}
             // ever see "element found", which is exactly the false positive the
             // staged promotion policy exists to prevent.
             __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
-                return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
-                };
-            }
-
-            if (config.submitMode === 'enter_key') {
-                // Enter yolunda buton etkileşim kapısı yoktur; editörün
-                // yapıştırmayı işlemesi için kısa sabit settle korunur.
-                diagnostics.preSubmitWaitMs = 500;
-                await wait(500);
-            } else {
-                // click/mixed zaten performSubmit içinde "buton etkileşime
-                // hazır" kapısından (waitForElement + isReadyForInteraction)
-                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
-                diagnostics.preSubmitWaitMs = 0;
-            }
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
@@ -102,34 +106,9 @@ ${buildSetInputValueScript()}
 
 ${buildHumanTypingScript()}
 
-${performSubmitScript}
+${buildTextVerificationScript()}
 
-        const validatePasteResult = async (element, expected) => {
-            const isCE = element.isContentEditable || element.getAttribute('contenteditable') === 'true';
-            const read = () => isCE ? (element.textContent || '') : String(element.value || '');
-            const expectedNormalized = normalizeForCompare(expected);
-            if (!expectedNormalized) return false;
-            const sampleLength = Math.min(40, expectedNormalized.length);
-            const headSample = expectedNormalized.substring(0, sampleLength);
-            const tailSample = expectedNormalized.substring(expectedNormalized.length - sampleLength);
-            const matches = () => {
-                const actual = normalizeForCompare(read());
-                if (!actual) return false;
-                return actual.includes(headSample) || actual.includes(tailSample);
-            };
-            // Editörler (ProseMirror/Lexical) içeriği kendi blok modeline göre
-            // okur: blok sınırındaki çift satır sonu tek satır sonuna
-            // dönüşebilir, görünmez karakterler eklenebilir. Ham includes() bu
-            // yüzden yanlış negatif üretip gereksiz karakter karakter yazımı
-            // (dakikalar) tetikliyordu. Kısa retry yalnızca gerçekten
-            // uygulanmadıysa bekler; uygulandıysa ilk okuma anında döner
-            // (ek gecikme yok).
-            for (let attempt = 0; attempt < 3; attempt++) {
-                if (matches()) return true;
-                await wait(40);
-            }
-            return matches();
-        };
+${performSubmitScript}
 
         try {
             const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
@@ -143,52 +122,51 @@ ${performSubmitScript}
                 };
             }
 
+            // Doğrulama başarıyı yalnızca GÖZLENEN değişiklikle ilişkilendirir:
+            // yerleştirme öncesi içerik yakalanmadan "metin zaten alandaydı"
+            // durumu kanıt sayılamaz (eski baş/son örnek kontrolü bu yüzden
+            // yanlış pozitif üretiyordu).
+            const beforeTextVariants = readFieldTextVariants(inputElement);
             await setInputValue(inputElement, ${safeText});
-            const pasteSucceeded = await validatePasteResult(inputElement, ${safeText});
-            if (!pasteSucceeded) {
+            let placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+
+            // Fallback yalnızca alan HİÇ değişmediyse: o durumda içerik
+            // eklenmemiştir, yazım güvenli bir tamamlayıcıdır. Kısmi
+            // yerleştirmede yeniden yazmak mükerrer içerik üretir; metin zaten
+            // mevcutsa (ambiguous) yapıştırmanın etkisi kanıtlanamaz.
+            if (!placement.applied && placement.state === 'unchanged') {
                 // Doğrulanamayan yapıştırma güvenli tarafta kalınarak yazımla
                 // tamamlanır; ama cap'li hızla: 100ms/karakter'lik bir ayar
                 // uzun promptta dakikalar sürer ve aynı görünümün kuyruğunu
-                // kilitler (bkz. humanTyping iptal notu).
+                // kilitler (bkz. humanTyping iptal notu). Append modunda
+                // önceki içerik korunur.
                 diagnostics.textInputFallback = 'human_typing';
-                await humanType(inputElement, ${safeText}, ${Math.min(typingSpeed, 30)});
+                await humanType(inputElement, ${safeText}, ${Math.min(typingSpeed, 30)}, ${appendMode ? 'true' : 'false'});
+                placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+            }
+
+            diagnostics.textVerifyResult = placement.applied ? 'verified' : placement.state;
+            diagnostics.textVerifyDelta = placement.delta;
+
+            if (!placement.applied) {
+                // İçerik uygulanmış gibi davranıp göndermek yerine aşamayı
+                // açıkça bildir: submit edilmez, kullanıcı içeriği korunur.
+                // Kısmi yerleştirme ayrı kod taşır (mükerrer risk; otomatik
+                // retry yok). Selector onarımı "operation_failed" işaretlenir:
+                // seçici bulundu ama metin gerçekten girmedi.
+                const verifyError = placement.state === 'partial' ? 'text_input_partial' : 'text_input_unverified';
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
+                return {
+                    success: false,
+                    error: verifyError,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, verifyError)
+                };
             }
 
             // Pasted or typed text is now verifiably inside the field: this is
             // the "real usage" signal the self-healing loop counts.
             __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
-                return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
-                };
-            }
-
-            if (config.submitMode === 'enter_key') {
-                // Enter yolunda buton etkileşim kapısı yoktur; editörün
-                // yapıştırmayı işlemesi için kısa sabit settle korunur.
-                diagnostics.preSubmitWaitMs = 500;
-                await wait(500);
-            } else {
-                // click/mixed zaten performSubmit içinde "buton etkileşime
-                // hazır" kapısından (waitForElement + isReadyForInteraction)
-                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
-                diagnostics.preSubmitWaitMs = 0;
-            }
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
@@ -211,6 +189,8 @@ ${performSubmitScript}
 
 ${buildSetInputValueScript()}
 
+${buildTextVerificationScript()}
+
 ${performSubmitScript}
 
         try {
@@ -225,40 +205,28 @@ ${performSubmitScript}
                 };
             }
 
+            // "paste" modu kullanıcının açık tercihi: yazım fallback'i yoktur.
+            // Yine de doğrulamasız submit edilmez — metin gerçekten girmediyse
+            // sessizce boş gönderim yapmak yerine hata döndürülür.
+            const beforeTextVariants = readFieldTextVariants(inputElement);
             await setInputValue(inputElement, ${safeText});
-            __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
+            const placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+
+            diagnostics.textVerifyResult = placement.applied ? 'verified' : placement.state;
+            diagnostics.textVerifyDelta = placement.delta;
+
+            if (!placement.applied) {
+                const verifyError = placement.state === 'partial' ? 'text_input_partial' : 'text_input_unverified';
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
                 return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
+                    success: false,
+                    error: verifyError,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, verifyError)
                 };
             }
 
-            if (config.submitMode === 'enter_key') {
-                // Enter yolunda buton etkileşim kapısı yoktur; editörün
-                // yapıştırmayı işlemesi için kısa sabit settle korunur.
-                diagnostics.preSubmitWaitMs = 500;
-                await wait(500);
-            } else {
-                // click/mixed zaten performSubmit içinde "buton etkileşime
-                // hazır" kapısından (waitForElement + isReadyForInteraction)
-                // geçer; ikinci bir sabit 500ms bekleme yalnızca gecikme ekler.
-                diagnostics.preSubmitWaitMs = 0;
-            }
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+            __finalizeSelectorRepair(diagnostics.input, 'input', true);
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {

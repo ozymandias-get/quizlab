@@ -591,7 +591,9 @@ describe('automationScripts', () => {
 
       // typingSpeed 100 olsa bile fallback hızı 30ms ile sınırlıdır: yüzlerce
       // karakterlik bir prompt'un fallback'te dakikalarca yazılması engellenir.
-      expect(script).toContain('humanType(inputElement, "hello", 30)')
+      // Append modu fallback'e de taşınır (yerleştirme sırasında kullanıcı
+      // taslağı korunur).
+      expect(script).toContain('humanType(inputElement, "hello", 30, false)')
 
       const result = await window.eval(script)
 
@@ -669,6 +671,341 @@ describe('automationScripts', () => {
       expect(result.success).toBe(true)
       expect(result.diagnostics.preSubmitWaitMs).toBe(500)
     }, 10000)
+  })
+
+  /**
+   * Metin yerleştirme doğruluk bataryası.
+   *
+   * Eski doğrulama ("baş/son 40 karakterinden biri içerikte var mı?")
+   * yanlış pozitife açıktı: metnin yalnızca ilk 40 (ya da son 40) karakteri
+   * girse bile "başarılı" sayılıyor ve bozuk içerik gönderilebiliyordu. Bu
+   * batarya doğrulamayı yazım mekanizmasından bağımsız senaryolarla sabitler:
+   * tam başarı (append/replace), kısmi yerleştirme varyantları, yinelenen
+   * metin, yok sayılan yazım, geç güncelleme ve büyük/Unicode içerik.
+   */
+  describe('text placement verification battery', () => {
+    /** Gönder butonuna tıklanıp tıklanmadığını sayar (sessiz submit yok). */
+    const countSendClicks = () => {
+      const clicks = vi.fn()
+      const button = document.getElementById('send')
+      button?.addEventListener('click', clicks)
+      return clicks
+    }
+
+    /** Textarea yazımlarını dönüştürerek editör davranışını taklit eder. */
+    function installTextareaWriteTransform(
+      transform: (next: string, previous: string) => string
+    ): () => void {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+        configurable: true,
+        get() {
+          return descriptor.get?.call(this)
+        },
+        set(next: string) {
+          const previous = (descriptor.get?.call(this) as string) || ''
+          descriptor.set?.call(this, transform(String(next), previous))
+        }
+      })
+      return () => {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
+      }
+    }
+
+    /** Editörün içeriği gecikmeli "göstermesini" taklit eder. */
+    function installDelayedTextareaReads(delayMs: number): () => void {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+      let lastWriteAt = 0
+      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+        configurable: true,
+        get() {
+          const raw = descriptor.get?.call(this) as string
+          if (lastWriteAt === 0) return raw
+          return Date.now() >= lastWriteAt + delayMs ? raw : ''
+        },
+        set(next: string) {
+          lastWriteAt = Date.now()
+          descriptor.set?.call(this, next)
+        }
+      })
+      return () => {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
+      }
+    }
+
+    const config = { input: '#input', button: '#send', submitMode: 'click' as const }
+    const PARTIAL_PROMPT = 'The quick brown fox jumps over the lazy dog. '.repeat(5).trim()
+
+    it('verifies a full append and preserves the previous draft', async () => {
+      document.body.innerHTML = `
+              <textarea id="input">draft</textarea>
+              <button id="send" type="button">Send</button>
+          `
+
+      const script = generateAutoSendScript(config, 'hello', false, true)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.action).toBe('input_only')
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      expect(textarea.value).toBe('draft\n\nhello')
+      expect(result.diagnostics.textVerifyResult).toBe('verified')
+      expect(typeof result.diagnostics.textVerifyDelta).toBe('number')
+      expect(result.diagnostics.input.operationSucceeded).toBe(true)
+    })
+
+    it('verifies a replace and removes the old draft', async () => {
+      document.body.innerHTML = `
+              <textarea id="input">old draft</textarea>
+              <button id="send" type="button">Send</button>
+          `
+
+      const script = generateAutoSendScript(config, 'fresh text', false, false)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      expect(textarea.value).toBe('fresh text')
+      expect(result.diagnostics.textVerifyResult).toBe('verified')
+    })
+
+    it('keeps Unicode/emoji and Turkish characters intact', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const prompt = 'Merhaba dünya 🌍 ğüşiöçİı — Привет 👩‍💻'
+
+      const script = generateAutoSendScript(config, prompt, false, true)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      expect(textarea.value).toBe(prompt)
+      expect(result.diagnostics.textVerifyResult).toBe('verified')
+    })
+
+    it('verifies a 10k+ character prompt without a typing fallback', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const prompt = 'uzun satır içeriği\n'.repeat(800) + 'SON'
+      expect(prompt.length).toBeGreaterThan(10000)
+
+      const script = generateAutoSendScript(config, prompt, false, true)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.setInputMs).toBeTypeOf('number')
+      expect(result.diagnostics.textInputStrategy).toBe('value_setter')
+      expect(result.diagnostics.textVerifyResult).toBe('verified')
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      expect(textarea.value).toBe(prompt)
+    }, 15000)
+
+    it('accepts editor line-ending normalization without a typing fallback', async () => {
+      document.body.innerHTML = `
+              <div contenteditable="true" id="composer"></div>
+              <button id="send" type="button">Send</button>
+          `
+      const composer = document.getElementById('composer') as HTMLDivElement
+      const rawTextContent = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')
+      Object.defineProperty(composer, 'textContent', {
+        configurable: true,
+        get() {
+          const raw = (rawTextContent?.get?.call(this) as string) || ''
+          return raw.replaceAll('\r\n', '\n')
+        },
+        set(value: string) {
+          rawTextContent?.set?.call(this, value)
+        }
+      })
+      const inputEvents: Event[] = []
+      composer.addEventListener('input', (event) => inputEvents.push(event))
+
+      const prompt = 'ilk satır\r\nikinci satır\n\nüçüncü'
+      const script = generateAutoSendScript(
+        { input: '#composer', button: '#send', submitMode: 'click' },
+        prompt,
+        false,
+        true
+      )
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.textVerifyResult).toBe('verified')
+      expect(result.diagnostics.textInputFallback).toBeFalsy()
+      expect(inputEvents.length).toBeLessThanOrEqual(3)
+    })
+
+    it('catches a late DOM update within the retry window without typing', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const restore = installDelayedTextareaReads(60)
+      try {
+        const script = generateAutoSendScript(config, 'gecikmeli metin', false)
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(true)
+        expect(result.diagnostics.textVerifyResult).toBe('verified')
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+      } finally {
+        restore()
+      }
+    })
+
+    it('rejects a paste that only inserted the first 40 characters', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      const restore = installTextareaWriteTransform((next) =>
+        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(0, 40))
+      )
+      try {
+        const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_partial')
+        expect(result.diagnostics.textVerifyResult).toBe('partial')
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+        expect(result.diagnostics.input.operationSucceeded).toBe(false)
+        expect(clicks).not.toHaveBeenCalled()
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        // Kısmi içerik kullanıcıya bırakılır; hiçbir fallback mükerrer ekleme
+        // yapmaz (uzunluk yalnızca ilk parça kadar).
+        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(0, 40))
+      } finally {
+        restore()
+      }
+    })
+
+    it('rejects a paste that only inserted the last 40 characters', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      const restore = installTextareaWriteTransform((next) =>
+        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(-40))
+      )
+      try {
+        const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_partial')
+        expect(result.diagnostics.textVerifyResult).toBe('partial')
+        expect(clicks).not.toHaveBeenCalled()
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(-40))
+      } finally {
+        restore()
+      }
+    })
+
+    it('rejects content whose middle is missing even when head and tail match', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      // Eski baş/son-40 kontrolünün yanlış pozitifi: ilk 40 ve son 40
+      // karakter mevcut ama orta kısım hiç girmemiş.
+      const restore = installTextareaWriteTransform((next) =>
+        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(0, 40) + PARTIAL_PROMPT.slice(-40))
+      )
+      try {
+        const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_partial')
+        expect(result.diagnostics.textVerifyResult).toBe('partial')
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+        expect(clicks).not.toHaveBeenCalled()
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(0, 40) + PARTIAL_PROMPT.slice(-40))
+      } finally {
+        restore()
+      }
+    })
+
+    it('never reports success when nothing was placed, even after the typing fallback', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      const restore = installTextareaWriteTransform(() => '')
+      try {
+        const script = generateAutoSendScript(
+          { input: '#input', button: '#send', submitMode: 'click' },
+          'hello',
+          true
+        )
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_unverified')
+        expect(result.diagnostics.textInputFallback).toBe('human_typing')
+        expect(result.diagnostics.textVerifyResult).toBe('unchanged')
+        expect(clicks).not.toHaveBeenCalled()
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        expect(textarea.value).toBe('')
+      } finally {
+        restore()
+      }
+    })
+
+    it('does not duplicate or submit when the composer already holds the prompt and the write is ignored', async () => {
+      document.body.innerHTML = `
+              <textarea id="input">hello</textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      const restore = installTextareaWriteTransform((_next, previous) => previous)
+      try {
+        const script = generateAutoSendScript(config, 'hello', true, true)
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_unverified')
+        expect(result.diagnostics.textVerifyResult).toBe('ambiguous')
+        // Metin zaten alanda: fallback çalıştırmak mükerrer ekleme üretirdi.
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+        expect(clicks).not.toHaveBeenCalled()
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        expect(textarea.value).toBe('hello')
+      } finally {
+        restore()
+      }
+    })
+
+    it('returns an explicit error in paste-only mode instead of submitting blind', async () => {
+      document.body.innerHTML = `
+              <textarea id="input"></textarea>
+              <button id="send" type="button">Send</button>
+          `
+      const clicks = countSendClicks()
+      const restore = installTextareaWriteTransform((_next, previous) => previous)
+      try {
+        const script = generateAutoSendScript(config, 'hello', true, false, 'paste')
+        const result = await window.eval(script)
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('text_input_unverified')
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+        expect(clicks).not.toHaveBeenCalled()
+      } finally {
+        restore()
+      }
+    })
   })
 
   describe('generated script structure', () => {

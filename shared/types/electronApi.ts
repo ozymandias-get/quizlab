@@ -123,9 +123,17 @@ export interface ElectronApi {
     width: number
     height: number
   }) => Promise<string | null>
-  copyImageToClipboard: (dataUrl: string) => Promise<boolean>
-  /** Restore the clipboard contents that were replaced by copyImageToClipboard. */
-  restoreClipboard: () => Promise<boolean>
+  copyImageToClipboard: (dataUrl: string, scope?: string) => Promise<boolean>
+  /**
+   * Releases the clipboard snapshot taken by `copyImageToClipboard`.
+   *
+   * `scope` names the owning send transaction, so concurrent sends (two AI
+   * tabs) unwind their own snapshot instead of consuming each other's. Returns
+   * `false` when no snapshot existed for that scope — the caller reports the
+   * failure instead of claiming the clipboard was restored. Omitted scope =
+   * legacy stack behaviour.
+   */
+  restoreClipboard: (scope?: string) => Promise<boolean>
   copyTextToClipboard: (text: string) => Promise<boolean>
   openExternal: (url: string) => Promise<boolean>
   showPdfContextMenu: (labels: Partial<Record<string, string>>) => void
