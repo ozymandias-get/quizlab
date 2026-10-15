@@ -17,18 +17,23 @@
  * For a full-viewport shell that's 1.5+ million pixels of compositing work
  * on startup, visible as a stutter on the first paint.
  *
- * Replaced with a translate+scale+opacity blend (all GPU-only transforms).
- * Visual difference is negligible on a dark UI shell.
+ * Replaced with an opacity fade. A translate+scale blend came in between and had
+ * to go again: this element is an ancestor of every `WebContentsView` host
+ * placeholder, and a transform moves where `getBoundingClientRect()` reports a
+ * box without changing the layout box — so `ResizeObserver`, the only thing that
+ * notices a geometry change, stayed silent for the whole animation. The first
+ * rectangle the AI panels published was therefore measured mid-animation and
+ * kept its offset for good, because the host dedupes identical messages and
+ * nothing else ever moves those hosts. Opacity alone leaves the layout box and
+ * the reported box in agreement on every frame.
  */
 @keyframes appEnter {
   0% {
     opacity: 0;
-    transform: scale(0.985) translateY(8px);
   }
 
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
   }
 }
 

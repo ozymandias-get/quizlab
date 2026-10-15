@@ -240,7 +240,7 @@ function attachResolved(
         window.contentView.addChildView(existing.view)
       }
     }
-    existing.hostToken = null
+    releaseHostClaims(existing)
     return { ...snapshotOf(existing) }
   }
   if (existing) destroyEntry(viewId)
@@ -335,6 +335,25 @@ export function attachAiView(request: AiViewAttachRequest): Promise<AiViewAttach
 }
 
 /**
+ * Drops every claim a host placeholder made on a view.
+ *
+ * Factored out of `detachAiViewHost` because a re-attach has to do exactly the
+ * same thing, and skipping it there is what let a view get stranded. The claims
+ * are a mirror of a renderer that may already be gone: the token belongs to
+ * whichever host published last, and the rectangle is the one that host measured.
+ * Keeping either one means the next host's first message is judged against a
+ * previous owner (and can be dropped for that), while keeping `shown` means a
+ * message that *is* dropped leaves the previous rectangle painted with nothing
+ * left that could correct it.
+ */
+function releaseHostClaims(entry: ManagedAiView): void {
+  entry.hostToken = null
+  entry.visible = false
+  entry.bounds = null
+  applyVisibility(entry)
+}
+
+/**
  * Releases a host placeholder's claim without destroying the view.
  *
  * This is what makes a focus-mode switch (or any surface swap) a pure
@@ -346,11 +365,29 @@ export function detachAiViewHost(viewId: string, hostToken: string): boolean {
   if (!entry) return false
   if (entry.hostToken !== null && entry.hostToken !== hostToken) return false
 
-  entry.hostToken = null
-  entry.visible = false
-  entry.bounds = null
-  applyVisibility(entry)
+  releaseHostClaims(entry)
   return true
+}
+
+/**
+ * Drops the host claim on every managed view.
+ *
+ * A renderer reload — a Vite full reload in development, a crash recovery in a
+ * packaged build — tears the React tree down without running a single cleanup,
+ * so no `detach` ever reaches this process and the mirror goes on describing a
+ * renderer that no longer exists. The next renderer starts its host tokens from
+ * zero again, so its first geometry message can be rejected against a token
+ * belonging to the dead one; and because the sync channel is fire-and-forget it
+ * never learns that it lost, which leaves the view painting its old rectangle
+ * until something unrelated resizes it.
+ *
+ * A main-frame navigation is the only moment this process can observe a renderer
+ * it did not create going away, so it is treated as "everybody let go". Nothing
+ * is destroyed: the guests keep running and the next host re-attaches onto them
+ * with the URL and scroll position they had.
+ */
+export function releaseAllAiViewHosts(): void {
+  for (const entry of views.values()) releaseHostClaims(entry)
 }
 
 /**

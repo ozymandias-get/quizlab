@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const ipcHandle = vi.fn()
 const ipcOn = vi.fn()
 
+// Hoisted: the manager mock factory pulls in the real module, which imports
+// `electron` before the plain consts above are initialised.
+const appOn = vi.hoisted(() => vi.fn())
+const releaseAllAiViewHosts = vi.hoisted(() => vi.fn())
+
 vi.mock('electron', () => ({
+  // The reload watcher subscribes through `app.on('browser-window-created')`.
+  app: { on: appOn },
   ipcMain: { handle: ipcHandle, on: ipcOn },
   WebContentsView: class {},
   shell: { openExternal: vi.fn(async () => undefined) }
@@ -14,12 +21,29 @@ vi.mock('../../../core/ipcSecurity.js', () => ({
   requireTrustedIpcSender: (event: unknown) => requireTrustedIpcSender(event)
 }))
 
-vi.mock('../../../app/windowManager.js', () => ({
-  getMainWindow: () => ({
+/**
+ * Stable window identity, because the reload watcher compares the window a
+ * navigation came from against the main window. A factory returning a fresh
+ * object per call would make every navigation look like a foreign one.
+ */
+const mainWindow = vi.hoisted(() => {
+  const listeners = new Map<string, (...args: unknown[]) => void>()
+  return {
+    listeners,
     isDestroyed: () => false,
     contentView: { addChildView: vi.fn(), removeChildView: vi.fn() },
-    webContents: { isDestroyed: () => false, send: vi.fn() }
-  })
+    webContents: {
+      on: (event: string, listener: (...args: unknown[]) => void) => {
+        listeners.set(event, listener)
+      },
+      isDestroyed: () => false,
+      send: vi.fn()
+    }
+  }
+})
+
+vi.mock('../../../app/windowManager.js', () => ({
+  getMainWindow: () => mainWindow
 }))
 
 vi.mock('../../../app/window/permissionPolicy.js', () => ({
@@ -81,7 +105,8 @@ vi.mock('../../../features/ai-view/aiWebContentsViewManager.js', async () => {
     navigateAiView: vi.fn(() => true),
     loadAiViewUrl: vi.fn(() => true),
     getAiViewUrl: vi.fn(() => 'https://chatgpt.com/'),
-    syncAiViewHost: vi.fn(() => true)
+    syncAiViewHost: vi.fn(() => true),
+    releaseAllAiViewHosts: releaseAllAiViewHosts
   }
 })
 
@@ -111,6 +136,16 @@ const attackerEvent = { sender: { id: 'evil' } }
 // The module guards registration, so capture the tables once instead of relying
 // on a re-register call after every mock reset.
 registerAiViewHandlers()
+
+/**
+ * The `browser-window-created` subscription the module performed at import.
+ *
+ * Captured at collection time because later suites clear the mock's call log,
+ * and re-running the subscription would not exercise the real wiring anyway.
+ */
+const onBrowserWindowCreated = (appOn as unknown as ReturnType<typeof vi.fn>).mock.calls.find(
+  ([event]) => event === 'browser-window-created'
+)?.[1] as ((_event: unknown, window: unknown) => void) | undefined
 const HANDLERS = new Map<string, (event: unknown, ...args: unknown[]) => Promise<unknown>>(
   ipcHandle.mock.calls.map(([channel, handler]) => [
     channel as string,
@@ -349,5 +384,80 @@ describe('ai view IPC - shutdown', () => {
     await disposeAiViewHandlers()
     expect(manager.setAiViewEventSink).toHaveBeenLastCalledWith(null)
     expect(manager.destroyAllAiViews).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('ai view IPC - renderer reload', () => {
+  // The managed views live in the main process, so they outlive the renderer
+  // that positions them. A reload replaces that renderer without a single
+  // cleanup running, which used to leave every host token naming a host that no
+  // longer existed — and since the geometry channel is fire-and-forget, the next
+  // renderer's first rectangle was then dropped against that stale owner for
+  // good, leaving the view painting its previous rectangle over the DOM.
+  interface NavigationSource {
+    listeners: Map<string, (...args: unknown[]) => void>
+    webContents: { on: (event: string, listener: (...args: unknown[]) => void) => void }
+  }
+
+  function createWindow(): NavigationSource {
+    const listeners = new Map<string, (...args: unknown[]) => void>()
+    return {
+      listeners,
+      webContents: {
+        on: (event, listener) => {
+          listeners.set(event, listener)
+        }
+      }
+    }
+  }
+
+  function navigate(
+    source: NavigationSource,
+    url: string,
+    isInPlace: boolean,
+    isMainFrame: boolean
+  ) {
+    source.listeners.get('did-start-navigation')?.({}, url, isInPlace, isMainFrame)
+  }
+
+  beforeEach(() => {
+    releaseAllAiViewHosts.mockClear()
+  })
+
+  it('releases every host claim when the main frame navigates', () => {
+    onBrowserWindowCreated?.({}, mainWindow)
+
+    navigate(mainWindow, 'http://localhost:5173/', false, true)
+
+    expect(releaseAllAiViewHosts).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves the claims alone for an in-place navigation', () => {
+    // A `#hash` change keeps the same document, so the React tree and its hosts
+    // survive it — releasing here would blank every visible panel.
+    onBrowserWindowCreated?.({}, mainWindow)
+
+    navigate(mainWindow, 'http://localhost:5173/#tab', true, true)
+
+    expect(releaseAllAiViewHosts).not.toHaveBeenCalled()
+  })
+
+  it('leaves the claims alone for a subframe navigation', () => {
+    onBrowserWindowCreated?.({}, mainWindow)
+
+    navigate(mainWindow, 'http://localhost:5173/frame', false, false)
+
+    expect(releaseAllAiViewHosts).not.toHaveBeenCalled()
+  })
+
+  it('ignores a window that is not the main window', () => {
+    // Picker windows share the BrowserWindow class and raise the same event, but
+    // only the main window owns the AI panels.
+    const picker = createWindow()
+    onBrowserWindowCreated?.({}, picker)
+
+    navigate(picker, 'http://localhost:5173/', false, true)
+
+    expect(releaseAllAiViewHosts).not.toHaveBeenCalled()
   })
 })

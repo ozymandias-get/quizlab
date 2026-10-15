@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import type { AiViewAttachRequest, AiViewEvent } from '../../../shared/types/aiView.js'
@@ -30,6 +30,7 @@ import {
   loadAiViewUrl,
   navigateAiView,
   pasteAiView,
+  releaseAllAiViewHosts,
   reloadAiView,
   sendAiViewInputEvent,
   setAiViewEventSink,
@@ -213,6 +214,41 @@ export function registerAiViewHandlers(): void {
     const parsed = parseHostSyncRequest(request)
     if (!parsed) return
     syncAiViewHost(parsed.viewId, parsed.hostToken, parsed.bounds, parsed.visible)
+  })
+
+  watchForRendererReloads()
+}
+
+/**
+ * Treats a main-frame navigation of the main window as "every host let go".
+ *
+ * The managed views live in this process, so they outlive the renderer that
+ * positions them. A reload (Vite in development, a crash recovery in a packaged
+ * build) replaces that renderer without running one of its cleanups, which
+ * leaves `hostToken` pointing at a host that no longer exists — and since
+ * `AI_VIEW_SYNC_HOST` is fire-and-forget with no acknowledgement, the new
+ * renderer's first rectangle is dropped against that stale owner and nothing
+ * ever re-sends it. The view then keeps painting the previous rectangle, which
+ * is invisible to the DOM underneath it and therefore also unfixable by hand:
+ * it covers the divider, so no event can reach the code that would move it.
+ *
+ * Bound per window rather than per main-window reference so a recreated window
+ * is watched too; the identity check filters out the picker windows, which share
+ * the `BrowserWindow` class and would otherwise be treated as the renderer that
+ * owns the AI panels.
+ */
+function watchForRendererReloads(): void {
+  app.on('browser-window-created', (_event, window) => {
+    window.webContents.on('did-start-navigation', (_navigation, _url, isInPlace, isMainFrame) => {
+      // In-place navigations (`#hash` changes) keep the same document, so the
+      // React tree and its hosts survive them.
+      if (!isMainFrame || isInPlace) return
+      // `browser-window-created` fires from inside the constructor, before
+      // `createWindow` has published the instance — but by the time anything
+      // navigates it has, so this comparison is only meaningful here.
+      if (getMainWindow() !== window) return
+      releaseAllAiViewHosts()
+    })
   })
 }
 
