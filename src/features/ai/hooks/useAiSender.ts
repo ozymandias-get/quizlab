@@ -48,7 +48,16 @@ export function useAiSender(
   const { mutateAsync: generateFocusScript } = useGenerateFocusScript()
   const { mutateAsync: generateClickSendScript } = useGenerateClickSendScript()
   const { mutateAsync: generateWaitForSubmitReadyScript } = useGenerateWaitForSubmitReadyScript()
-  const { mutateAsync: copyImageToClipboard } = useCopyImageToClipboard()
+  const { mutateAsync: copyImageToClipboardMutation } = useCopyImageToClipboard()
+  /**
+   * Panoya kopyalama sarmalı: her kopya bir `scope` taşır ki çoklu görsel
+   * gönderiminin tüm kopyaları tek bir snapshot sahipliğinde birleşsin.
+   */
+  const copyImageToClipboard = useCallback(
+    (imageDataUrl: string, scope?: string) =>
+      copyImageToClipboardMutation({ dataUrl: imageDataUrl, scope }),
+    [copyImageToClipboardMutation]
+  )
   const configCache = useRef<ConfigCache>({ key: null, cache: null })
 
   const canUseContent = useCallback(
@@ -95,6 +104,7 @@ export function useAiSender(
 
       const execute = async (content: AiContentController): Promise<SendTextResult> => {
         diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
+        const pipelineStartedAt = nowMs()
 
         try {
           const { executeTextSendPipeline } = await import('../lib/send/textSendPipeline')
@@ -119,6 +129,11 @@ export function useAiSender(
           })
         } catch (error) {
           return handlePipelineError(error, diagnostics, requestStartedAt, 'Text pipeline')
+        } finally {
+          // Kuyruk dışı pipeline süresi imzası: `totalMs ≈ queueWaitMs +
+          // pipelineMs`. Ölçüm pipeline promise'i (finally/restore dahil)
+          // çözüldükten sonra tamamlanır.
+          diagnostics.timings.pipelineMs = roundMs(nowMs() - pipelineStartedAt)
         }
       }
 
@@ -169,6 +184,7 @@ export function useAiSender(
 
       const execute = async (content: AiContentController): Promise<SendImageResult> => {
         diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
+        const pipelineStartedAt = nowMs()
 
         try {
           const { executeImageSendPipeline } = await import('../lib/send/imageSendPipeline')
@@ -198,6 +214,8 @@ export function useAiSender(
           })
         } catch (error) {
           return handlePipelineError(error, diagnostics, requestStartedAt, 'Image pipeline')
+        } finally {
+          diagnostics.timings.pipelineMs = roundMs(nowMs() - pipelineStartedAt)
         }
       }
 
@@ -252,6 +270,7 @@ export function useAiSender(
 
       const execute = async (content: AiContentController): Promise<SendImageResult> => {
         diagnostics.timings.queueWaitMs = roundMs(nowMs() - requestStartedAt)
+        const pipelineStartedAt = nowMs()
 
         try {
           const { executeBulkSendPipeline } = await import('../lib/send/bulkSendPipeline')
@@ -281,6 +300,8 @@ export function useAiSender(
           })
         } catch (error) {
           return handlePipelineError(error, diagnostics, requestStartedAt, 'Bulk pipeline')
+        } finally {
+          diagnostics.timings.pipelineMs = roundMs(nowMs() - pipelineStartedAt)
         }
       }
 

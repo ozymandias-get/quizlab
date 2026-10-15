@@ -69,8 +69,9 @@ const electronApi: ElectronApi = {
   },
 
   captureScreen: (rect?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CAPTURE_SCREEN, rect)),
-  copyImageToClipboard: (dataUrl) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_IMAGE, dataUrl)),
-  restoreClipboard: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.RESTORE_CLIPBOARD)),
+  copyImageToClipboard: (dataUrl, scope) =>
+    unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_IMAGE, dataUrl, scope)),
+  restoreClipboard: (scope) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.RESTORE_CLIPBOARD, scope)),
   copyTextToClipboard: (text) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.COPY_TEXT, text)),
   openExternal: (url) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.OPEN_EXTERNAL, url)),
   showPdfContextMenu: (labels) => ipcRenderer.send(IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU, labels),

@@ -7,6 +7,16 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
     const roundMs = (ms) => Math.round(ms * 100) / 100;
     const normalizeText = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
 
+    // Karşılaştırma normalizasyonu: editörler (ProseMirror/Lexical) içeriği
+    // kendi blok modeline göre okur — blok sınırındaki çift satır sonu tek
+    // satır sonuna dönüşebilir, görünmez karakterler (zero-width) eklenebilir.
+    // Ham includes() bu yüzden yanlış negatif üretir; karşılaştırmadan önce
+    // iki taraf da bu fonksiyondan geçirilir.
+    const normalizeForCompare = (value) => String(value || '')
+        .replace(/[\\u200B-\\u200D\\uFEFF\\u2060]/g, '')
+        .replace(/[\\s\\u00A0]+/g, ' ')
+        .trim();
+
     // ── Run abort registry ─────────────────────────────────────────────────
     // SPA navigation / new-chat transitions must cancel pending waits and
     // MutationObservers immediately instead of letting them run until their
@@ -64,6 +74,15 @@ export const getBaseHelpers = (ambiguousSelectorBehavior: 'pick' | 'reject') => 
         button: options.includeButton ? createSelectorDiagnostics(options.buttonSelector || '', true) : undefined,
         setInputMs: 0,
         submitMs: 0,
+        // Metnin alana hangi mekanizmayla girdiği (native_paste /
+        // synthetic_paste / exec_command / beforeinput / dom_insert /
+        // value_setter / human_typing). Ölçüm alanı: içerik veya kullanıcı
+        // verisi taşımaz, yalnızca strateji adıdır.
+        textInputStrategy: null,
+        // Yapıştırma doğrulanamadığı için yazım fallback'i kullanıldıysa dolu.
+        textInputFallback: null,
+        // Submit öncesi sabit settle beklemesinin gerçekten uygulanan süresi.
+        preSubmitWaitMs: 0,
         error: null
     });
 

@@ -2,6 +2,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
 import { executeBulkSendPipeline } from '@features/ai/lib/send/bulkSendPipeline'
+import { nowMs } from '@features/ai/lib/send/sendDiagnostics'
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
@@ -29,6 +30,14 @@ vi.mock('@shared/lib/aiContentUtils', () => ({
 
 vi.mock('@features/ai/lib/selectorRepair/reportSelectorRepair', () => ({
   reportSelectorRepair: vi.fn().mockResolvedValue(undefined)
+}))
+
+const electronApiMocks = vi.hoisted(() => ({
+  restoreClipboard: vi.fn()
+}))
+
+vi.mock('@shared/lib/electronApi', () => ({
+  getElectronApi: () => electronApiMocks
 }))
 
 function makeContent() {
@@ -380,4 +389,131 @@ describe('executeBulkSendPipeline — partial application is never auto-resendab
     expect(content.paste).not.toHaveBeenCalled()
     expect(asOutcome(result).resendSafe).toBe(true)
   })
+})
+
+/**
+ * ## Pano geri yükleme yaşam döngüsü
+ *
+ * Görsel gönderimi kullanıcının panosunu ödünç alır ve **tam olarak bir kez**
+ * geri vermek zorundadır. Geri yükleme ayrıca kritik yoldan çıkarılmıştır:
+ * settle + IPC süresi prompt/submit adımlarını bekletmemelidir — aksi halde
+ * her görsel gönderimine sabit ~700ms gecikme eklerdi.
+ */
+describe('executeBulkSendPipeline — clipboard restore lifecycle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.resolveSendContext.mockResolvedValue({
+      aiConfig: { input: 'i', button: 'b', submitMode: 'mixed' },
+      currentUrl: 'https://chatgpt.com/'
+    })
+    mocks.safeContentPaste.mockResolvedValue(true)
+  })
+
+  it('restores the clipboard exactly once and off the prompt/submit critical path', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+
+    let lastPasteAt = 0
+    contentMocks.paste.mockImplementation(async () => {
+      lastPasteAt = Date.now()
+      return true
+    })
+
+    const focusGeneratedAt: number[] = []
+    ;(params.generateFocusScript as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      focusGeneratedAt.push(Date.now())
+      return '/*focus*/'
+    })
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(true)
+    // Tam olarak bir kez geri yükleme: `void restore()` ile arka planda
+    // başlatılan iş, `finally`'de aynı memoize edilmiş promise üzerinden
+    // beklenir.
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledTimes(1)
+    const timings = (params.diagnostics as unknown as { timings: Record<string, number> }).timings
+    expect(typeof timings.clipboardRestoreMs).toBe('number')
+
+    // Son yapıştırmadan sonraki refocus (prompt adımı), settle beklemesi
+    // bitmeden başlamış olmalı: kritik yolda 700ms'lik bekleme yok.
+    const refocusAt = focusGeneratedAt.find((ts) => ts >= lastPasteAt)
+    expect(refocusAt).toBeDefined()
+    expect((refocusAt as number) - lastPasteAt).toBeLessThan(700)
+  }, 20000)
+
+  it('restores the clipboard even when the tab dies right after the first paste', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    // İlk görsel yapıştırıldıktan sonra sekme ölür: ara hazırlık betiği
+    // webview_destroyed döner ve akış yarıda kesilir.
+    // Mock yüzeyi genişletilir: ara adımlar webview_destroyed döndürür.
+    ;(contentMocks.executeJavaScript as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ success: true, action: 'focus', mode: 'mixed', diagnostics: {} })
+      .mockResolvedValue({
+        success: false,
+        action: 'submit_ready',
+        mode: 'mixed',
+        diagnostics: {},
+        error: 'webview_destroyed'
+      })
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(false)
+    // Yarım kalan gönderim bile panoyu geri vermek zorunda: `finally` çalışır
+    // ve restore TAM olarak kopyanın sahiplik kapsamıyla eşleşir.
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledTimes(1)
+    const copyCalls = (params.copyImageToClipboard as ReturnType<typeof vi.fn>).mock.calls
+    expect(copyCalls.length).toBeGreaterThanOrEqual(1)
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledWith(copyCalls[0][1])
+  }, 20000)
+
+  it('uses one ownership scope for every image copy and restores with that exact scope', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(true)
+    const copyCalls = (params.copyImageToClipboard as ReturnType<typeof vi.fn>).mock.calls
+    expect(copyCalls).toHaveLength(3)
+    // Üç görsel TEK sahiplik kapsamı paylaşır: ana süreç gönderim başına tek
+    // snapshot açar (eski davranışta N−1 yetim snapshot kalıyordu).
+    const scopes = new Set(copyCalls.map(([, scope]) => scope))
+    expect(scopes.size).toBe(1)
+    const [scope] = [...scopes]
+    expect(typeof scope).toBe('string')
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledTimes(1)
+    expect(electronApiMocks.restoreClipboard).toHaveBeenCalledWith(scope)
+  }, 20000)
+
+  it('finalizes totalMs after the finally and records the real restore wait', async () => {
+    const { content, scripts } = makeContent()
+    // Prompt'suz yol: restore başladıktan sonra pipeline'da BAŞKA bekleme
+    // yoktur; `finally`'nin beklediği gerçek süre ölçülebilir olur.
+    const params = {
+      ...baseParams(content, scripts),
+      effectiveAutoSend: false,
+      promptText: undefined,
+      // Üretimde olduğu gibi performans tabanlı başlangıç: `totalMs`
+      // `nowMs() - requestStartedAt` olarak hesaplanır.
+      requestStartedAt: nowMs()
+    } as Parameters<typeof executeBulkSendPipeline>[0]
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(true)
+    expect(result.mode).toBe('paste_only')
+    const timings = (params.diagnostics as unknown as { timings: Record<string, number> }).timings
+    // Paste adımları neredeyse anlık (mock); totalMs'in tamamına yakını
+    // `finally`'deki settle beklemesidir.
+    expect(timings.pasteMs ?? 0).toBeLessThan(700)
+    expect(typeof timings.clipboardRestoreWaitMs).toBe('number')
+    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(600)
+    expect(timings.totalMs).toBeGreaterThanOrEqual(700)
+    expect(timings.totalMs).toBeGreaterThanOrEqual(timings.clipboardRestoreWaitMs)
+    // Sonuç, `finally` sonrası hesaplanan AYNI diagnostics nesnesini taşır.
+    expect(result.diagnostics?.timings.totalMs).toBe(timings.totalMs)
+  }, 20000)
 })

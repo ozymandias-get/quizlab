@@ -9,6 +9,7 @@
 
 import { executeImageSendPipeline } from '@features/ai/lib/send/imageSendPipeline'
 import { normalizeExecutionResult } from '@features/ai/lib/send/scriptExecution'
+import { nowMs } from '@features/ai/lib/send/sendDiagnostics'
 import type { AiSendDiagnostics } from '@features/ai/model/types'
 
 import { Logger } from '@shared/lib/logger'
@@ -251,4 +252,52 @@ describe('normalizeExecutionResult', () => {
     const result = normalizeExecutionResult(true)
     expect(result).toEqual({ success: true })
   })
+})
+
+/**
+ * ## Pano geri yükleme muhasebesi
+ *
+ * Restore'un beklemesi (`finally`) pipeline'ın parçasıdır: `totalMs` ondan
+ * SONRA hesaplanır ve bekleme ayrıca `clipboardRestoreWaitMs` olarak raporlanır
+ * (settle+IPC süresinin tamamı `clipboardRestoreMs`). Aksi halde süre olduğundan
+ * kısa görünür ve "restore kritik yolu ne kadar bloke etti?" sorusu ölçülemez.
+ */
+describe('clipboard restore accounting', () => {
+  beforeEach(() => {
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {})
+  })
+
+  it('includes the finally restore wait in totalMs and reports it separately', async () => {
+    const content = createContent()
+    content.executeJavaScript = vi
+      .fn()
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValue({ success: false, action: 'submit_ready', error: 'submit_not_ready' })
+
+    const params = baseParams({
+      content,
+      contentRef: { current: content },
+      scheduledContent: content,
+      generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('return true;'),
+      // Üretimde olduğu gibi performans tabanlı başlangıç.
+      requestStartedAt: nowMs()
+    })
+
+    const result = await executeImageSendPipeline(params as never)
+    const timings = (params.diagnostics as unknown as { timings: Record<string, number> }).timings
+
+    // Gönderim submit-ready'de durdu; pano restore'u `finally`'de beklenir.
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('submit_not_ready')
+    // Yapıştırma adımları anlık (mock): totalMs'in tamamına yakını restore.
+    expect(timings.pasteMs ?? 0).toBeLessThan(700)
+    expect(typeof timings.clipboardRestoreWaitMs).toBe('number')
+    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(600)
+    expect(timings.totalMs).toBeGreaterThanOrEqual(700)
+    expect(timings.clipboardRestoreWaitMs).toBeLessThanOrEqual(timings.totalMs)
+    // Settle + IPC süresi toplam restore olarak ayrıca görünür.
+    expect(timings.clipboardRestoreMs ?? 0).toBeGreaterThanOrEqual(700)
+    // Sonuç, `finally` sonrası güncellenen AYNI diagnostics nesnesini taşır.
+    expect(result.diagnostics?.timings.totalMs).toBe(timings.totalMs)
+  }, 20000)
 })

@@ -42,6 +42,7 @@ vi.mock('@app/providers/ai/aiContentSendReadiness', () => ({
 }))
 
 import { useAiMessaging } from '@app/providers/ai/useAiMessaging'
+import { NO_SEND_RESULT } from '@app/providers/ai/types'
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
@@ -484,5 +485,88 @@ describe('useAiMessaging — api-chat tab targeting', () => {
 
     expect(outcome).toEqual({ success: false, error: 'webview_not_ready' })
     expect(mockChatUiState.addAttachment).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * ## İçerik hazırlığı ölçümü
+ *
+ * `waitForContentReady` beklemesi `useAiSender`'ın `requestStartedAt`'inden
+ * önce bittiği için `queueWaitMs` ve `totalMs` içinde görünmüyordu: webview'in
+ * açılması/yüklenmesi için geçen gerçek süre ölçümsüz kalıyordu. Artık ayrı bir
+ * metrik olarak sonuca işlenir (ek IPC/log veya içerik verisi yok).
+ */
+describe('useAiMessaging — content readiness measurement', () => {
+  beforeEach(() => {
+    mockUseAiSender.mockReturnValue({
+      sendTextToAI: mockSendText,
+      sendImageToAI: mockSendImage,
+      sendBulkToAI: vi.fn(),
+      cancelOngoing: vi.fn()
+    })
+    mockSendText.mockReset()
+    mockSendImage.mockReset()
+  })
+
+  it('records how long the content took to become ready', async () => {
+    mockSendText.mockResolvedValue({
+      success: true,
+      diagnostics: { timings: { queueWaitMs: 0, configResolveMs: 0, totalMs: 1 } }
+    })
+    const { result } = renderMessaging('chatgpt')
+
+    let outcome: Awaited<ReturnType<typeof result.current.sendTextToAI>> | undefined
+    await act(async () => {
+      outcome = await result.current.sendTextToAI('hello')
+    })
+
+    const outcomeWithTimings = outcome as unknown as {
+      diagnostics: { timings: Record<string, number> }
+    }
+    const timings = outcomeWithTimings.diagnostics.timings
+    expect(typeof timings.contentReadyMs).toBe('number')
+    expect(timings.contentReadyMs).toBeGreaterThanOrEqual(0)
+    // Uçtan uca süre içerik hazırlığını da kapsar; toplanmaz, ikisi ayrı alandır.
+    expect(typeof timings.endToEndMs).toBe('number')
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(timings.contentReadyMs)
+  })
+
+  it('measures end-to-end time across readiness and the send result', async () => {
+    mockSendText.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+      return {
+        success: true,
+        diagnostics: { timings: { queueWaitMs: 0, configResolveMs: 0, totalMs: 1 } }
+      }
+    })
+    const { result } = renderMessaging('chatgpt')
+
+    let outcome: Awaited<ReturnType<typeof result.current.sendTextToAI>> | undefined
+    await act(async () => {
+      outcome = await result.current.sendTextToAI('hello')
+    })
+
+    const outcomeWithTimings = outcome as unknown as {
+      diagnostics: { timings: Record<string, number> }
+    }
+    const timings = outcomeWithTimings.diagnostics.timings
+    // Gönderim uydusu 40ms sürdü: uçtan uca süre bunu YANSITIR (içerik hazırlığı
+    // + gönderim; ikisi de bu pencerenin içinde).
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(30)
+    expect(timings.endToEndMs).toBeGreaterThanOrEqual(timings.contentReadyMs)
+  })
+
+  it('never mutates the shared fallback result when the sender returns nothing', async () => {
+    mockSendText.mockResolvedValue(undefined)
+    const { result } = renderMessaging('chatgpt')
+
+    let outcome: unknown
+    await act(async () => {
+      outcome = await result.current.sendTextToAI('hello')
+    })
+
+    expect(outcome).toBe(NO_SEND_RESULT)
+    // Paylaşılan sabit nesneye metrik eklenmez (diğer çağrılara sızardı).
+    expect((NO_SEND_RESULT as { diagnostics?: unknown }).diagnostics).toBeUndefined()
   })
 })

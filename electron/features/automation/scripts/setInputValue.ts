@@ -4,6 +4,13 @@ export function buildSetInputValueScript(): string {
             const start = now();
             const doubleLinebreak = String.fromCharCode(10) + String.fromCharCode(10);
 
+            // Metnin alana hangi mekanizmayla girdiği ve ne kadar sürdüğü tek
+            // noktadan işlenir; her başarılı strateji çağırır.
+            const finishInput = (strategy) => {
+                diagnostics.textInputStrategy = strategy;
+                diagnostics.setInputMs = roundMs(now() - start);
+            };
+
             // ── Large-text threshold ────────────────────────────────────────
             // ProseMirror/Lexical editors (Claude/ChatGPT) lock up when a very
             // long payload is pushed through execCommand('insertText') in a
@@ -41,15 +48,6 @@ export function buildSetInputValueScript(): string {
 
             const pasteLargeText = async (target, text, prefix) => {
                 const payload = (prefix || '') + text;
-                // Best-effort: also put the text on the real clipboard as the
-                // issue recommends, so editors that read from navigator.
-                // clipboard as a fallback still get the full payload. Failures
-                // are non-fatal (the synthetic event carries the data anyway).
-                try {
-                    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-                        navigator.clipboard.writeText(payload).catch(() => {});
-                    }
-                } catch (_) {}
 
                 const dispatchBeforeInput = (data) => {
                     try {
@@ -63,26 +61,39 @@ export function buildSetInputValueScript(): string {
                     } catch (_) {}
                 };
 
+                // System clipboard is deliberately NOT touched here: the
+                // payload travels in ClipboardEvent.clipboardData and the
+                // user's clipboard must not be silently overwritten by a
+                // fire-and-forget write (it could even land after the image
+                // restore and leave the wrong content behind).
                 dispatchSyntheticPaste(target, payload);
                 await wait(50);
-                const sample = payload.substring(0, Math.min(40, payload.length));
-                const applied = (target.textContent || '').includes(sample) || (target.innerText || '').includes(sample);
-                if (applied) return true;
+                // Editörler metni normalize eder (blok sınırındaki çift satır
+                // sonu tek satır sonuna dönüşebilir, görünmez karakterler
+                // eklenebilir); iki taraf da normalize edilerek TAM içerik
+                // karşılaştırılır. Eski baş-40 örnek karşılaştırması yalnızca
+                // ilk parçanın girmesini "başarılı yapıştırma" sayıyordu.
+                const normalizedPayload = normalizeForCompare(payload);
+                // textContent blok sınırlarını kaybedebilir; innerText satır
+                // sonlarını korur → iki okuma birleştirilerek karşılaştırılır.
+                const readTarget = () => normalizeForCompare((target.textContent || '') + ' ' + (target.innerText || ''));
+                const applied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
+                if (applied) return 'synthetic_paste';
 
                 // Paste was not consumed (editor ignored the synthetic event).
                 // Fall back to a chunked beforeinput + DOM insertion so the
                 // work is spread across microtasks instead of one giant call.
                 dispatchBeforeInput(payload);
                 await wait(0);
-                const reApplied = (target.textContent || '').includes(sample);
-                if (reApplied) return true;
+                const reApplied = normalizedPayload.length > 0 && readTarget().includes(normalizedPayload);
+                if (reApplied) return 'beforeinput';
 
                 try {
                     const node = document.createTextNode(payload);
                     target.appendChild(node);
-                    return true;
+                    return 'dom_insert';
                 } catch (_) {
-                    return false;
+                    return null;
                 }
             };
 
@@ -188,7 +199,7 @@ export function buildSetInputValueScript(): string {
                     element.value = next;
                 }
                 triggerLifecycleEvents(element);
-                diagnostics.setInputMs = roundMs(now() - start);
+                finishInput('value_setter');
                 return;
             }
 
@@ -198,17 +209,17 @@ export function buildSetInputValueScript(): string {
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
                     const prefix = hasContent ? doubleLinebreak : '';
                     if (value.length > LARGE_TEXT_THRESHOLD) {
-                        const ok = await pasteLargeText(element, value, prefix);
-                        if (ok) {
+                        const pastedAs = await pasteLargeText(element, value, prefix);
+                        if (pastedAs) {
                             triggerLifecycleEvents(element);
-                            diagnostics.setInputMs = roundMs(now() - start);
+                            finishInput(pastedAs);
                             return;
                         }
                     }
                     const payload = prefix + value;
                     if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, payload)) {
                         triggerLifecycleEvents(element);
-                        diagnostics.setInputMs = roundMs(now() - start);
+                        finishInput('exec_command');
                         return;
                     }
                 } catch {
@@ -216,29 +227,30 @@ export function buildSetInputValueScript(): string {
                 try {
                     collapseSelectionToEnd();
                     if (value.length > LARGE_TEXT_THRESHOLD) {
-                        const ok = await pasteLargeText(element, value, '');
-                        if (ok) {
+                        const pastedAs = await pasteLargeText(element, value, '');
+                        if (pastedAs) {
                             triggerLifecycleEvents(element);
-                            diagnostics.setInputMs = roundMs(now() - start);
+                            finishInput(pastedAs);
                             return;
                         }
                     }
                     if (typeof document.execCommand === 'function' && document.execCommand('insertText', false, value)) {
                         triggerLifecycleEvents(element);
-                        diagnostics.setInputMs = roundMs(now() - start);
+                        finishInput('exec_command');
                         return;
                     }
                 } catch {
                 }
+                let strategy = 'dom_insert';
                 try {
                     collapseSelectionToEnd();
                     const hasContent = element.textContent && element.textContent.trim().length > 0;
                     const prefix = hasContent ? doubleLinebreak : '';
                     if (value.length > LARGE_TEXT_THRESHOLD) {
-                        const ok = await pasteLargeText(element, value, prefix);
-                        if (ok) {
+                        const pastedAs = await pasteLargeText(element, value, prefix);
+                        if (pastedAs) {
                             triggerLifecycleEvents(element);
-                            diagnostics.setInputMs = roundMs(now() - start);
+                            finishInput(pastedAs);
                             return;
                         }
                     }
@@ -255,8 +267,12 @@ export function buildSetInputValueScript(): string {
                         data: payload
                     }));
                     await wait(0);
-                    const applied = (element.textContent || '').includes(payload);
-                    if (!applied) {
+                    const normalizedPayload = normalizeForCompare(payload);
+                    const applied = normalizedPayload.length > 0
+                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedPayload);
+                    if (applied) {
+                        strategy = 'beforeinput';
+                    } else {
                         insertTextAtCaret(element, payload);
                     }
                     element.dispatchEvent(new InputEvent('input', {
@@ -269,10 +285,11 @@ export function buildSetInputValueScript(): string {
                     insertTextAtCaret(element, (element.textContent && element.textContent.trim().length > 0 ? doubleLinebreak : '') + value);
                 }
                 triggerLifecycleEvents(element);
-                diagnostics.setInputMs = roundMs(now() - start);
+                finishInput(strategy);
                 return;
             }
 
+            let strategy = 'dom_insert';
             if (isContentEditable) {
                 if (value.length > LARGE_TEXT_THRESHOLD) {
                     // Select everything first so the synthetic paste replaces the
@@ -284,10 +301,10 @@ export function buildSetInputValueScript(): string {
                         r.selectNodeContents(element);
                         sel && sel.addRange && sel.addRange(r);
                     } catch (_) {}
-                    const ok = await pasteLargeText(element, value, '');
-                    if (ok) {
+                    const pastedAs = await pasteLargeText(element, value, '');
+                    if (pastedAs) {
                         triggerLifecycleEvents(element);
-                        diagnostics.setInputMs = roundMs(now() - start);
+                        finishInput(pastedAs);
                         return;
                     }
                 }
@@ -296,7 +313,7 @@ export function buildSetInputValueScript(): string {
                         document.execCommand('selectAll', false, null);
                         if (document.execCommand('insertText', false, value)) {
                             triggerLifecycleEvents(element);
-                            diagnostics.setInputMs = roundMs(now() - start);
+                            finishInput('exec_command');
                             return;
                         }
                     }
@@ -316,7 +333,7 @@ export function buildSetInputValueScript(): string {
 
                     if (inserted) {
                         triggerLifecycleEvents(element);
-                        diagnostics.setInputMs = roundMs(now() - start);
+                        finishInput('exec_command');
                         return;
                     }
                 } catch {
@@ -337,8 +354,12 @@ export function buildSetInputValueScript(): string {
                         data: value
                     }));
                     await wait(0);
-                    const applied = (element.textContent || '').includes(value);
-                    if (!applied) {
+                    const normalizedValue = normalizeForCompare(value);
+                    const applied = normalizedValue.length > 0
+                        && normalizeForCompare((element.textContent || '') + ' ' + (element.innerText || '')).includes(normalizedValue);
+                    if (applied) {
+                        strategy = 'beforeinput';
+                    } else {
                         replaceContent(element, value);
                     }
                     element.dispatchEvent(new InputEvent('input', {
@@ -351,6 +372,7 @@ export function buildSetInputValueScript(): string {
                     replaceContent(element, value);
                 }
             } else {
+                strategy = 'value_setter';
                 const valueSetter = resolveValueSetter();
                 dispatchBeforeInput(value);
                 if (valueSetter) {
@@ -361,7 +383,7 @@ export function buildSetInputValueScript(): string {
             }
 
             triggerLifecycleEvents(element);
-            diagnostics.setInputMs = roundMs(now() - start);
+            finishInput(strategy);
         };
 `
 }

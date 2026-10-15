@@ -285,6 +285,191 @@ describe('screenshotHandlers', () => {
     expect(writeText).toHaveBeenCalledWith('previous user text')
   })
 
+  /**
+   * Pano snapshot sahipliği (kapsamlı akış).
+   *
+   * Çoklu görsel gönderimi N kopya yapar; her kopya için ayrı snapshot almak
+   * yığını doldurup kullanıcının panosunu kalıcı olarak bozuyordu. Yeni
+   * sözleşme: gönderim başına TEK snapshot, sahiplik anahtarıyla (scope)
+   * eşleşen TEK restore, ve eşzamanlı gönderimler birbirinin snapshot'ına
+   * dokunmaz.
+   */
+  describe('scoped clipboard ownership', () => {
+    const SCOPE_A = 'send-aaa-1'
+    const SCOPE_B = 'send-bbb-2'
+    const IMAGE = 'data:image/png;base64,abc'
+
+    it('takes a single snapshot for a multi-image send and restores it once', async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      readText.mockReturnValue('orijinal metin')
+      createFromDataURL.mockReturnValue({ isEmpty: () => false })
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      for (let i = 0; i < 5; i++) {
+        await expect(copyHandler?.({ sender: {} }, IMAGE + i, SCOPE_A)).resolves.toEqual({
+          ok: true,
+          data: true
+        })
+      }
+      expect(writeImage).toHaveBeenCalledTimes(5)
+      // Beş kopya tek snapshot okur: sahiplik kapsam başına bir kez kurulur.
+      expect(readText).toHaveBeenCalledTimes(1)
+      expect(readHTML).toHaveBeenCalledTimes(1)
+      expect(readImage).toHaveBeenCalledTimes(1)
+
+      expect(await restoreHandler?.({ sender: {} }, SCOPE_A)).toEqual({ ok: true, data: true })
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(writeText).toHaveBeenCalledWith('orijinal metin')
+
+      // Sahiplik tükendi: aynı kapsam için ikinci restore no-op.
+      expect(await restoreHandler?.({ sender: {} }, SCOPE_A)).toEqual({ ok: true, data: false })
+    })
+
+    it('defers the write until the last scope unwinds (concurrent sends keep their clipboard image)', async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      readText.mockReturnValue('orijinal metin')
+      createFromDataURL.mockReturnValue({ isEmpty: () => false })
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      await copyHandler?.({ sender: {} }, IMAGE + 'a', SCOPE_A)
+      await copyHandler?.({ sender: {} }, IMAGE + 'b', SCOPE_B)
+      // İkinci kapsam pano okumaz: aktif pano geçici bir uygulama görselidir,
+      // en eski girdi (kullanıcının gerçek içeriği) referans alınır.
+      expect(readText).toHaveBeenCalledTimes(1)
+
+      // A çözülürken B hâlâ aktif: pano yazılmaz ki B'nin yapıştırması
+      // kullanıcının içeriğini okumasın.
+      expect(await restoreHandler?.({ sender: {} }, SCOPE_A)).toEqual({ ok: true, data: true })
+      expect(writeText).not.toHaveBeenCalled()
+
+      // B aktifken yapılan yeni kopya yine mevcut sahipliği paylaşır.
+      await copyHandler?.({ sender: {} }, IMAGE + 'b2', SCOPE_B)
+      expect(readText).toHaveBeenCalledTimes(1)
+
+      // Son unwind: kullanıcının içeriği BİR kez geri yazılır.
+      expect(await restoreHandler?.({ sender: {} }, SCOPE_B)).toEqual({ ok: true, data: true })
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(writeText).toHaveBeenCalledWith('orijinal metin')
+      expect(writeImage).toHaveBeenCalledTimes(3)
+    })
+
+    it('does not consume the send snapshot when a later copy fails', async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      readText.mockReturnValue('orijinal metin')
+      createFromDataURL.mockReturnValue({ isEmpty: () => false })
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      await expect(copyHandler?.({ sender: {} }, IMAGE + '1', SCOPE_A)).resolves.toEqual({
+        ok: true,
+        data: true
+      })
+
+      // İkinci görselin yazımı tüm denemelerde başarısız olur.
+      writeImage.mockImplementation(() => {
+        throw new Error('clipboard locked')
+      })
+      await expect(copyHandler?.({ sender: {} }, IMAGE + '2', SCOPE_A)).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+
+      // Başarısız kopya ne kendi sahipliğini ne de panoyu bozar: gönderim
+      // iptal edilse bile restore kullanıcının içeriğini geri yazar.
+      writeImage.mockImplementation(() => undefined)
+      expect(await restoreHandler?.({ sender: {} }, SCOPE_A)).toEqual({ ok: true, data: true })
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(writeText).toHaveBeenCalledWith('orijinal metin')
+    })
+
+    it('rejects unknown or malformed scopes without touching the clipboard', async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      createFromDataURL.mockReturnValue({ isEmpty: () => false })
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      // Geçersiz kapsam: pano ezilmez, görsel çözümlenmez.
+      await expect(copyHandler?.({ sender: {} }, IMAGE, 'bad scope!!')).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+      expect(createFromDataURL).not.toHaveBeenCalled()
+
+      // Bilinmeyen kapsam: restore başarısız bildirir, panoya yazılmaz.
+      await expect(restoreHandler?.({ sender: {} }, 'send-unknown-9')).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+      await expect(restoreHandler?.({ sender: {} }, 'bad scope!!')).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+      expect(writeText).not.toHaveBeenCalled()
+      consoleWarn.mockRestore()
+    })
+
+    it('returns the ledger to its baseline so later sends capture fresh state', async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      readText.mockReturnValue('orijinal metin')
+      createFromDataURL.mockReturnValue({ isEmpty: () => false })
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      // İlk kopya hiç yazılamaz: kapsamlı akışta sahiplik kapanmak zorunda.
+      writeImage.mockImplementation(() => {
+        throw new Error('clipboard locked')
+      })
+      await expect(copyHandler?.({ sender: {} }, IMAGE, 'send-fail-9')).resolves.toEqual({
+        ok: true,
+        data: false
+      })
+      writeImage.mockImplementation(() => undefined)
+      expect(await restoreHandler?.({ sender: {} }, 'send-fail-9')).toEqual({
+        ok: true,
+        data: true
+      })
+
+      // Yığın taban çizgisine döndü: sonraki kopya panoyu YENİDEN okur
+      // (yığın dolu olsaydı eski girdiye referans verir, okuma yapmazdı).
+      writeText.mockClear()
+      readText.mockClear()
+      await expect(copyHandler?.({ sender: {} }, IMAGE + 'next', 'send-next-9')).resolves.toEqual({
+        ok: true,
+        data: true
+      })
+      expect(readText).toHaveBeenCalledTimes(1)
+      expect(await restoreHandler?.({ sender: {} }, 'send-next-9')).toEqual({
+        ok: true,
+        data: true
+      })
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(writeText).toHaveBeenCalledWith('orijinal metin')
+    })
+  })
+
   it('captures the whole page when sender is trusted and window exists', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
     const capturePage = vi.fn().mockResolvedValue({ toDataURL: () => 'data:image/png;base64,page' })

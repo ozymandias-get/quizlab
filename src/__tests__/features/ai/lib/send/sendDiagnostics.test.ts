@@ -1,7 +1,11 @@
+import type { AutomationExecutionDiagnostics } from '@shared-core/types'
+
 import {
   attachDiagnostics,
   createSendDiagnostics,
+  finalizeTotalMs,
   nowMs,
+  recordScriptStageTimings,
   roundMs
 } from '@features/ai/lib/send/sendDiagnostics'
 
@@ -138,5 +142,116 @@ describe('attachDiagnostics', () => {
 
     attachDiagnostics(result, diagnostics, performance.now())
     expect((result as any).diagnostics).toBeUndefined()
+  })
+})
+
+describe('recordScriptStageTimings', () => {
+  const makeScript = (
+    overrides: Partial<AutomationExecutionDiagnostics> = {}
+  ): AutomationExecutionDiagnostics => ({
+    kind: 'auto_send',
+    pageUrl: 'https://chatgpt.com/',
+    totalMs: 10,
+    input: { durationMs: 4 } as AutomationExecutionDiagnostics['input'],
+    setInputMs: 6,
+    submitMs: 3,
+    error: null,
+    ...overrides
+  })
+
+  it('maps script timings into stage metrics', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'text',
+      currentAI: 'chatgpt',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(diagnostics, makeScript())
+
+    expect(diagnostics.timings.selectorLookupMs).toBe(4)
+    expect(diagnostics.timings.textInsertionMs).toBe(6)
+    expect(diagnostics.timings.submitTriggerMs).toBe(3)
+  })
+
+  it('accumulates across several scripts of one send', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'image',
+      currentAI: 'claude',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(diagnostics, makeScript({ setInputMs: 5, submitMs: 0 }))
+    recordScriptStageTimings(diagnostics, makeScript({ setInputMs: 0, submitMs: 2 }))
+
+    expect(diagnostics.timings.textInsertionMs).toBe(5)
+    expect(diagnostics.timings.submitTriggerMs).toBe(2)
+    expect(diagnostics.timings.selectorLookupMs).toBe(8)
+  })
+
+  it('carries only strategy markers, never content', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'text',
+      currentAI: 'gemini',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(
+      diagnostics,
+      makeScript({
+        textInputStrategy: 'synthetic_paste',
+        textInputFallback: 'human_typing',
+        preSubmitWaitMs: 500
+      })
+    )
+
+    expect(diagnostics.timings.textInputStrategy).toBe('synthetic_paste')
+    expect(diagnostics.timings.textInputFallback).toBe('human_typing')
+    expect(diagnostics.timings.preSubmitWaitMs).toBe(500)
+  })
+
+  it('ignores missing diagnostics', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'text',
+      currentAI: 'chatgpt',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(diagnostics, null)
+    recordScriptStageTimings(diagnostics, undefined)
+
+    expect(diagnostics.timings.selectorLookupMs).toBeUndefined()
+    expect(diagnostics.timings.textInputStrategy).toBeUndefined()
+  })
+
+  it('carries the verification outcome and delta without content', () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'text',
+      currentAI: 'chatgpt',
+      autoSend: true
+    })
+
+    recordScriptStageTimings(
+      diagnostics,
+      makeScript({ textVerifyResult: 'partial', textVerifyDelta: 40 })
+    )
+
+    expect(diagnostics.timings.textVerifyResult).toBe('partial')
+    expect(diagnostics.timings.textVerifyDelta).toBe(40)
+  })
+})
+
+describe('finalizeTotalMs', () => {
+  it('recomputes totalMs from the request start so finally work is included', async () => {
+    const diagnostics = createSendDiagnostics({
+      pipeline: 'image',
+      currentAI: 'claude',
+      autoSend: true
+    })
+    const startedAt = nowMs()
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    finalizeTotalMs(diagnostics, startedAt)
+
+    expect(diagnostics.timings.totalMs).toBeGreaterThanOrEqual(15)
   })
 })

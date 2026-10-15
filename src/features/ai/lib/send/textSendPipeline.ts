@@ -13,7 +13,7 @@ import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
-import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
+import { attachDiagnostics, nowMs, recordScriptStageTimings, roundMs } from './sendDiagnostics'
 
 interface TextSendPipelineParams {
   contentRef: RefObject<AiContentController | null>
@@ -106,7 +106,10 @@ export async function executeTextSendPipeline(
       }),
     onTiming: (ms) => (diagnostics.timings.scriptGenerationMs = ms),
     onExecuteTiming: (ms) => (diagnostics.timings.executeJavaScriptMs = ms),
-    onResult: (res) => (diagnostics.script = cloneScriptDiagnostics(res?.diagnostics))
+    onResult: (res) => {
+      diagnostics.script = cloneScriptDiagnostics(res?.diagnostics)
+      recordScriptStageTimings(diagnostics, diagnostics.script)
+    }
   })
 
   if (!sendStep.success) {
