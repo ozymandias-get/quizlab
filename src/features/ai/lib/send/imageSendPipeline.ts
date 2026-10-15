@@ -24,7 +24,7 @@ import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmi
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
-import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
+import { attachDiagnostics, nowMs, recordScriptStageTimings, roundMs } from './sendDiagnostics'
 
 interface ImageSendPipelineParams {
   contentRef: RefObject<AiContentController | null>
@@ -168,7 +168,7 @@ export async function executeImageSendPipeline(
     )
   }
 
-  const clipboard = createClipboardRestore()
+  const clipboard = createClipboardRestore(diagnostics)
 
   try {
     try {
@@ -227,7 +227,10 @@ export async function executeImageSendPipeline(
       )
     }
     clipboard.markPasteCompleted()
-    await clipboard.restore()
+    // Restore arka planda başlatılır (settle + IPC); kritik yolda beklenmez.
+    // `finally` aynı promise'i await eder, yani pano her koşulda ve en fazla
+    // bir kez geri yüklenir; prompt/submit adımları bu süreyi beklemez.
+    void clipboard.restore()
     // Görsel hedefe girdi; bundan sonraki her hata kısmi uygulamadır.
     stage = 'partial'
 
@@ -271,7 +274,10 @@ export async function executeImageSendPipeline(
           }),
         onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.promptScript)
+        }
       })
 
       if (!promptStep.success) return finish(promptStep.error)
@@ -317,6 +323,11 @@ export async function executeImageSendPipeline(
               diagnostics.timings.submitReadyExecuteJavaScriptMs ??
               minimumReadyWaitMs
           )
+          // Submit-ready beklemesi ayrı ölçülür: süre + ilk hazır-olma anı.
+          if (res?.diagnostics) {
+            diagnostics.timings.submitReadyMs = roundMs(res.diagnostics.submitMs)
+          }
+          diagnostics.timings.submitReadyFirstReadyMs = res?.firstReadyAtMs ?? null
         }
       })
       if (!submitReadyStep.success) {
@@ -362,7 +373,10 @@ export async function executeImageSendPipeline(
         generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
         onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.clickScript)
+        }
       })
       if (!clickStep.success) {
         return finish(

@@ -2,10 +2,28 @@ import type { AutomationExecutionDiagnostics } from '@shared-core/types'
 
 interface AiSendStageTimings {
   queueWaitMs: number
+  /**
+   * İçerik denetleyicisinin gönderime hazır hale gelmesi için beklenen süre
+   * (webview açılışı/yeniden yükleme dahil). `queueWaitMs`'ten önce gerçekleşir.
+   */
+  contentReadyMs?: number
   configResolveMs: number
   scriptGenerationMs?: number
   executeJavaScriptMs?: number
+  /**
+   * Betik içinde element arama/çözümleme için harcanan toplam süre
+   * (selectorEngine `durationMs` toplamı).
+   */
+  selectorLookupMs?: number
+  /** Metnin giriş alanına yazılması/yapıştırılması süresi (betik `setInputMs`). */
+  textInsertionMs?: number
+  /** Metnin alana girdiği mekanizma: synthetic_paste / exec_command / ... */
+  textInputStrategy?: string | null
+  /** Yapıştırma doğrulanamadığı için yazım fallback'i kullanıldıysa dolu. */
+  textInputFallback?: string | null
   clipboardMs?: number
+  /** Görsel gönderiminde sistem panosunun geri yüklenmesi süresi. */
+  clipboardRestoreMs?: number
   focusScriptGenerationMs?: number
   focusExecuteJavaScriptMs?: number
   refocusScriptGenerationMs?: number
@@ -15,10 +33,18 @@ interface AiSendStageTimings {
   promptExecuteJavaScriptMs?: number
   postPastePromptDelayMs?: number
   imageUploadWaitMs?: number
+  /** Submit-ready beklemesinin süresi (event-driven wait). */
+  submitReadyMs?: number
+  /** Submit hedefinin ilk "hazır" olduğu an; sabit settle payını ayırır. */
+  submitReadyFirstReadyMs?: number | null
   submitReadyScriptGenerationMs?: number
   submitReadyExecuteJavaScriptMs?: number
   clickScriptGenerationMs?: number
   clickExecuteJavaScriptMs?: number
+  /** Submit tetikleme adımının süresi (betik `submitMs`). */
+  submitTriggerMs?: number
+  /** Submit öncesi uygulanan sabit settle beklemesi (yalnızca enter_key). */
+  preSubmitWaitMs?: number
   totalMs: number
 }
 

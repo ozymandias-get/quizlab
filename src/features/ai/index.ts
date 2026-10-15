@@ -25,6 +25,12 @@ export { TYPING_SPEED_OPTIONS, useTextInputMode } from './hooks/useTextInputMode
 export { isVisionCapable } from './lib/apiChatUtils'
 export { prepareImageForUpload } from './lib/imageDownscale'
 export { normalizeExecutionResult } from './lib/send/scriptExecution'
+/**
+ * The app-layer messaging provider measures `contentReadyMs` with the same
+ * clock and rounding helpers that the send pipelines use for their own
+ * diagnostics, so the recorded stages stay comparable.
+ */
+export { nowMs, roundMs } from './lib/send/sendDiagnostics'
 export { isDeliveredSendResult, isStagedSendResult, resolveAutoSend } from './lib/sendUtils'
 export type { AiSendOptions, AiSendResult, SendStage } from './model/types'
 export type { SendApiChatResult } from './queries/useSendMessageMutation'
