@@ -9,6 +9,8 @@ import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'
 import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
+import { useDockTooltipAlign } from './DockTooltipPlacement'
+
 const DOCK_ICON_BASE = 32
 const DOCK_ICON_HOVER = 34
 
@@ -33,6 +35,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   const ref = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
   const isMountedRef = useRef(true)
+  const tooltipAlign = useDockTooltipAlign()
 
   const handleMouseEnter = useCallback(() => {
     if (isMountedRef.current) setIsHovered(true)
@@ -88,7 +91,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
             </div>
           </motion.div>
         </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={12}>
+        <TooltipContent side="top" sideOffset={12} align={tooltipAlign}>
           {title}
         </TooltipContent>
       </Tooltip>
