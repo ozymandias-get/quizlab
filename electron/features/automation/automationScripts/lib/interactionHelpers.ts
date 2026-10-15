@@ -72,16 +72,7 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
 
         const disabledClass = Array.from(element.classList || []).find((className) => {
             const normalized = String(className).toLowerCase();
-            // Tailwind's disabled:* / aria-disabled:* classes describe a style
-            // variant, NOT the current state. Treating them as disabled makes
-            // enabled ChatGPT/Gemini send buttons time out for 15 seconds.
-            if (normalized.includes(':')) return false;
-            return normalized === 'disabled'
-                || normalized === 'inactive'
-                || normalized.endsWith('-disabled')
-                || normalized.endsWith('_disabled')
-                || normalized.endsWith('-inactive')
-                || normalized.endsWith('_inactive');
+            return normalized.includes('disabled') || normalized.includes('inactive');
         });
         if (disabledClass) {
             return 'disabled_class:' + String(disabledClass);
