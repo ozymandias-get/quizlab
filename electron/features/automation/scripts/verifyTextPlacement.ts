@@ -133,14 +133,21 @@ export function buildTextVerificationScript(): string {
             const changed = actual !== before;
             if (appendMode) {
                 const gained = delta >= Math.max(1, Math.floor(expectedNormalized.length * 0.5));
-                const preserved = !before
-                    || containsFullContent(actual, before)
-                    || containsFullContent(actual + ' ' + before, before);
+                // Append sözleşmesi: önceki içerik KORUNMALIDIR. Katlanmış
+                // karşılaştırma sıkı hâlin birebir karşılığıdır; ek bir
+                // "ya da" maddesi eklenmez — aksi halde koşul her zaman doğru
+                // olur ve "önceki içerik korundu" koruması sessizce düşer.
+                const preserved = !before || containsFullContent(actual, before);
                 if (gained && preserved) return { applied: true, state: 'verified', delta: delta };
                 return strict;
             }
+            // Replace sözleşmesi: önceki içerik KAYBOLDUR. Sıkı hâldeki
+            // \`!actual.includes(before)\` koşulunun katlanmış karşılığı DEĞİLDİR,
+            // negatifi olmak ZORUNDADIR: artı hâli kullanmak "eski taslak hâlâ
+            // duruyor" durumunu "eski taslak gitti" diye okur ve kirli içerik
+            // doğrulanmış sayılır.
             const previousGone = !before
-                || containsFullContent(actual, before)
+                || !containsFullContent(actual, before)
                 || containsFullContent(expectedNormalized, before);
             if (changed && previousGone) return { applied: true, state: 'verified', delta: delta };
             if (!changed && actual === expectedNormalized) return { applied: true, state: 'verified', delta: delta };

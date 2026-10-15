@@ -51,6 +51,24 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                 }
 `
 
+  /**
+   * Enter yolunun input locator'ına verdiği kredi.
+   *
+   * Self-healing sözleşmesi: kredi yalnızca YUKARI taşınır, aşağı değil.
+   * auto_send betiğinde metin yerleştirme zaten doğrulanıp ödüllendirilir.
+   * Site sentetik Enter'ı yok sayıp gönderimi doğrulamazsa, çalışan bir
+   * locator'ı "başarısız" sayıp operation_failed ile onarım dışı bırakmak,
+   * Magic Picker'ın tam da bu durumda toparlanmasını engeller.
+   *
+   * Kredisi henüz olmayan durumda (click_send betiği) davranış eskisiyle
+   * aynıdır: gönderim gözlemlendiyse ödüllendirilir, aksi halde ödüllendirilmez.
+   */
+  const inputRepairCredit = (
+    indent: string
+  ) => `${indent}if (diagnostics.input.operationSucceeded !== true) {
+${indent}    __finalizeSelectorRepair(diagnostics.input, 'input', success);
+${indent}}`
+
   const inputLookup = options.includeInputLookupForEnter
     ? `
                 const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
@@ -73,7 +91,7 @@ ${enterDispatch('inputElement')}                    const enterObserved = await 
                         // değildir; yalnızca arayüz etkisi gözlemlendi.
                         diagnostics.submitOutcome = 'observed';
                     }
-                    __finalizeSelectorRepair(diagnostics.input, 'input', success);
+${inputRepairCredit('                    ')}
                 } else {
                     error = resolveLookupError(config.input, 'input_not_found', config.health);
                     diagnostics.submitOutcome = 'not_attempted';
@@ -93,8 +111,7 @@ ${enterDispatch('inputElement')}                const enterObserved = await __ob
                 } else {
                     diagnostics.submitOutcome = 'observed';
                 }
-                __finalizeSelectorRepair(diagnostics.input, 'input', success);
-`
+${inputRepairCredit('                ')}`
 
   return `
         // ── Gönderim gözlemi ────────────────────────────────────────────────
