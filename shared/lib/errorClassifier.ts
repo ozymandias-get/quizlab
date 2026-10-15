@@ -186,6 +186,25 @@ const ERROR_TABLE: ReadonlyArray<{
     description: 'Paste produced no change in the page composer.',
     triggerFallback: true
   },
+  {
+    // Alan değişti ama beklenen metin tam olarak yerleşmedi (ör. yalnızca ilk
+    // parça geldi). Otomatik yeniden yazım mükerrer içerik üretir; kullanıcı
+    // içeriği korunur ve submit edilmez.
+    match: /^text_input_partial$/,
+    category: 'paste',
+    retry: 'never',
+    toastKey: 'toast_text_input_partial',
+    description: 'Prompt text landed only partially in the composer.'
+  },
+  {
+    // Yerleştirme doğrulanamadı: alan hiç değişmedi ya da metin zaten alanda
+    // bulunduğu için etkisi kanıtlanamadı. Sessiz otomatik submit yapılmaz.
+    match: /^text_input_unverified$/,
+    category: 'paste',
+    retry: 'never',
+    toastKey: 'toast_text_input_unverified',
+    description: 'Prompt text placement could not be verified.'
+  },
   // ── Network / timeout ───────────────────────────────────────────────
   {
     match: /^network_error$/,

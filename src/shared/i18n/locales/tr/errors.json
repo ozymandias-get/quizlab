@@ -77,5 +77,7 @@
   "error_image_conversion_failed": "Görsel gönderim için hazırlanamadı. Görseli silmeyi deneyin veya sayfadan yeniden yakalayın.",
   "error_webview_destroyed": "AI sekmesi gönderim sırasında kapandı",
   "error_clipboard_failed_partial": "Görsellerin bir kısmı eklendi, ancak gönderim tamamlanamadı. Mükerrer mesaj oluşturmamak için tekrar gönderilmedi.",
-  "error_paste_not_applied": "Görselin eklenip eklenmediği doğrulanamadı. AI tarafını kontrol edin; tekrar göndermek mükerrer ek oluşturabilir."
+  "error_paste_not_applied": "Görselin eklenip eklenmediği doğrulanamadı. AI tarafını kontrol edin; tekrar göndermek mükerrer ek oluşturabilir.",
+  "error_text_input_partial": "Metnin yalnızca bir kısmı sohbet kutusuna yerleşti. Mükerrer içerik oluşturmamak için otomatik gönderilmedi; içeriği kontrol edip gönderin.",
+  "error_text_input_unverified": "Metnin sohbet kutusuna yerleştiği doğrulanamadı. Otomatik gönderim yapılmadı; kutudaki içeriği kontrol edip elle gönderin."
 }

@@ -24,7 +24,13 @@ import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmi
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
-import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
+import {
+  attachDiagnostics,
+  finalizeTotalMs,
+  nowMs,
+  recordScriptStageTimings,
+  roundMs
+} from './sendDiagnostics'
 
 interface ImageSendPipelineParams {
   contentRef: RefObject<AiContentController | null>
@@ -44,7 +50,7 @@ interface ImageSendPipelineParams {
   requestStartedAt: number
   diagnostics: AiSendDiagnostics
   canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
-  copyImageToClipboard: (imageDataUrl: string) => Promise<boolean>
+  copyImageToClipboard: (imageDataUrl: string, scope?: string) => Promise<boolean>
   generateAutoSendScript: (params: {
     config: ReturnType<typeof toAutomationConfig>
     text: string
@@ -153,24 +159,27 @@ export async function executeImageSendPipeline(
     })
   }
 
-  const copied = await copyImageToClipboardWithRetry({
-    copyImageToClipboard,
-    imageDataUrl,
-    diagnostics
-  })
-  if (!copied) {
-    return finish(
-      attachDiagnostics(
-        { success: false, error: 'clipboard_failed' },
-        diagnostics,
-        requestStartedAt
-      )
-    )
-  }
-
-  const clipboard = createClipboardRestore()
+  // Snapshot sahipliği kopyalamadan ÖNCE açılır: tüm kopyalar aynı scope'u
+  // taşır ve kopyalama başarısız olsa bile defter `finally`de kapanır.
+  const clipboard = createClipboardRestore(diagnostics)
 
   try {
+    const copied = await copyImageToClipboardWithRetry({
+      copyImageToClipboard,
+      imageDataUrl,
+      scope: clipboard.scopeId,
+      diagnostics
+    })
+    if (!copied) {
+      return finish(
+        attachDiagnostics(
+          { success: false, error: 'clipboard_failed' },
+          diagnostics,
+          requestStartedAt
+        )
+      )
+    }
+
     try {
       if (content.isDestroyed?.() !== true && typeof content.focus === 'function') {
         await content.focus()
@@ -227,7 +236,10 @@ export async function executeImageSendPipeline(
       )
     }
     clipboard.markPasteCompleted()
-    await clipboard.restore()
+    // Restore arka planda başlatılır (settle + IPC); kritik yolda beklenmez.
+    // `finally` aynı promise'i await eder, yani pano her koşulda ve en fazla
+    // bir kez geri yüklenir; prompt/submit adımları bu süreyi beklemez.
+    void clipboard.restore()
     // Görsel hedefe girdi; bundan sonraki her hata kısmi uygulamadır.
     stage = 'partial'
 
@@ -271,7 +283,10 @@ export async function executeImageSendPipeline(
           }),
         onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.promptScript)
+        }
       })
 
       if (!promptStep.success) return finish(promptStep.error)
@@ -317,6 +332,11 @@ export async function executeImageSendPipeline(
               diagnostics.timings.submitReadyExecuteJavaScriptMs ??
               minimumReadyWaitMs
           )
+          // Submit-ready beklemesi ayrı ölçülür: süre + ilk hazır-olma anı.
+          if (res?.diagnostics) {
+            diagnostics.timings.submitReadyMs = roundMs(res.diagnostics.submitMs)
+          }
+          diagnostics.timings.submitReadyFirstReadyMs = res?.firstReadyAtMs ?? null
         }
       })
       if (!submitReadyStep.success) {
@@ -362,7 +382,10 @@ export async function executeImageSendPipeline(
         generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
         onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.clickScript)
+        }
       })
       if (!clickStep.success) {
         return finish(
@@ -391,6 +414,14 @@ export async function executeImageSendPipeline(
       attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
     )
   } finally {
+    // Restore'un kritik yolda gerçekten bloke ettiği süre ayrı ölçülür: settle
+    // ve IPC arka planda başlatıldığı için bu sayı genelde ~0'dır ve paralel
+    // kazancı (toplam restore süresi = clipboardRestoreMs) görünür kılar.
+    const restoreWaitStartedAt = nowMs()
     await clipboard.restore()
+    diagnostics.timings.clipboardRestoreWaitMs = roundMs(nowMs() - restoreWaitStartedAt)
+    // `attachDiagnostics` çıkış anında hesaplanan totalMs'i ez: `finally`
+    // (pano geri yükleme) pipeline'ın parçasıdır ve toplam süreye dahil olmalı.
+    finalizeTotalMs(diagnostics, requestStartedAt)
   }
 }

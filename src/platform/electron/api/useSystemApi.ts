@@ -34,17 +34,25 @@ export function useOpenExternal() {
 
 /**
  * Copy Image To Clipboard Mutation
+ *
+ * `scope` panodaki snapshot'ın sahibini işaretler: çoklu görsel gönderiminin
+ * tüm kopyaları aynı kapsamı taşır ve tek bir `restoreClipboard(scope)` çağrısı
+ * kullanıcının panosunu geri getirir. Eşzamanlı gönderimler birbirinin
+ * snapshot'ını tüketmez.
  */
 export function useCopyImageToClipboard() {
   const { t } = useTranslation()
-  return useElectronMutation<boolean, string>((api, dataUrl) => api.copyImageToClipboard(dataUrl), {
-    errorMessage: t('toast_copy_failed'),
-    // Pipeline (imageSendPipeline) kendi hata yönetimini yapıp
-    // error_clipboard_failed toast'ını gösteriyor.
-    // showErrorToast:false ile mutation'ın ayrı bir toast
-    // göstermesi engellenerek çift toast önleniyor.
-    showErrorToast: false
-  })
+  return useElectronMutation<boolean, { dataUrl: string; scope?: string }>(
+    (api, input) => api.copyImageToClipboard(input.dataUrl, input.scope),
+    {
+      errorMessage: t('toast_copy_failed'),
+      // Pipeline (imageSendPipeline) kendi hata yönetimini yapıp
+      // error_clipboard_failed toast'ını gösteriyor.
+      // showErrorToast:false ile mutation'ın ayrı bir toast
+      // göstermesi engellenerek çift toast önleniyor.
+      showErrorToast: false
+    }
+  )
 }
 
 /**

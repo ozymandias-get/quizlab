@@ -1,3 +1,5 @@
+import type { AutomationExecutionDiagnostics } from '@shared-core/types'
+
 import type { AiSendDiagnostics, SendImageResult, SendTextResult } from '../../model/types'
 
 interface SendDiagnosticsOptions {
@@ -15,6 +17,48 @@ export function nowMs() {
 
 export function roundMs(ms: number) {
   return Math.round(ms * 100) / 100
+}
+
+/**
+ * Betik diagnostics'inden aşama metriklerini çıkarır.
+ *
+ * Yalnızca adlandırılmış strateji/süre alanları taşınır; prompt metni, kullanıcı
+ * içeriği veya sayfa verisi asla kopyalanmaz. Submit-ready betiği için
+ * çağrılmaz: oradaki `submitMs` bekleme süresidir, submit tetikleme süresi
+ * değildir (o alan ayrıca işlenir).
+ */
+export function recordScriptStageTimings(
+  diagnostics: AiSendDiagnostics,
+  script: AutomationExecutionDiagnostics | null | undefined
+): void {
+  if (!script) return
+  const timings = diagnostics.timings
+
+  const lookupMs = (script.input?.durationMs ?? 0) + (script.button?.durationMs ?? 0)
+  if (lookupMs > 0) {
+    timings.selectorLookupMs = roundMs((timings.selectorLookupMs ?? 0) + lookupMs)
+  }
+  if (script.setInputMs > 0) {
+    timings.textInsertionMs = roundMs((timings.textInsertionMs ?? 0) + script.setInputMs)
+  }
+  if (script.submitMs > 0) {
+    timings.submitTriggerMs = roundMs((timings.submitTriggerMs ?? 0) + script.submitMs)
+  }
+  if (script.textInputStrategy) {
+    timings.textInputStrategy = script.textInputStrategy
+  }
+  if (script.textInputFallback) {
+    timings.textInputFallback = script.textInputFallback
+  }
+  if (typeof script.preSubmitWaitMs === 'number' && script.preSubmitWaitMs > 0) {
+    timings.preSubmitWaitMs = roundMs((timings.preSubmitWaitMs ?? 0) + script.preSubmitWaitMs)
+  }
+  if (script.textVerifyResult) {
+    timings.textVerifyResult = script.textVerifyResult
+  }
+  if (typeof script.textVerifyDelta === 'number') {
+    timings.textVerifyDelta = script.textVerifyDelta
+  }
 }
 
 export function createSendDiagnostics({
@@ -36,8 +80,21 @@ export function createSendDiagnostics({
   }
 }
 
-function finalizeDiagnostics(diagnostics: AiSendDiagnostics, requestStartedAt: number) {
+/**
+ * `totalMs`'i istek başlangıcından **şimdiye** kadar yeniden hesaplar.
+ *
+ * Pipeline'lar sonucu `finally` bloğu tamamlanmadan (`attachDiagnostics`)
+ * döndürebiliyor; pano geri yükleme gibi `finally` işleri toplam sürenin
+ * dışında kalırsa süre olduğundan kısa görünür. `finally` sonunda bu fonksiyon
+ * çağrılarak aynı diagnostics nesnesi üzerindeki değer düzeltilir; sonuç
+ * nesnesi aynı referansı taşıdığı için tüketiciler doğru değeri görür.
+ */
+export function finalizeTotalMs(diagnostics: AiSendDiagnostics, requestStartedAt: number): void {
   diagnostics.timings.totalMs = roundMs(nowMs() - requestStartedAt)
+}
+
+function finalizeDiagnostics(diagnostics: AiSendDiagnostics, requestStartedAt: number) {
+  finalizeTotalMs(diagnostics, requestStartedAt)
   return diagnostics
 }
 

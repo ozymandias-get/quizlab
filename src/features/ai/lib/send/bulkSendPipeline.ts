@@ -24,7 +24,13 @@ import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmi
 import { executePipelineStep } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
-import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
+import {
+  attachDiagnostics,
+  finalizeTotalMs,
+  nowMs,
+  recordScriptStageTimings,
+  roundMs
+} from './sendDiagnostics'
 
 interface BulkSendPipelineParams {
   contentRef: RefObject<AiContentController | null>
@@ -46,7 +52,7 @@ interface BulkSendPipelineParams {
   requestStartedAt: number
   diagnostics: AiSendDiagnostics
   canUseContent: (content: AiContentController, expected?: AiContentController | null) => boolean
-  copyImageToClipboard: (imageDataUrl: string) => Promise<boolean>
+  copyImageToClipboard: (imageDataUrl: string, scope?: string) => Promise<boolean>
   generateAutoSendScript: (params: {
     config: ReturnType<typeof toAutomationConfig>
     text: string
@@ -170,7 +176,7 @@ export async function executeBulkSendPipeline(
     })
   }
 
-  const clipboard = createClipboardRestore()
+  const clipboard = createClipboardRestore(diagnostics)
 
   try {
     try {
@@ -211,6 +217,9 @@ export async function executeBulkSendPipeline(
       const copied = await copyImageToClipboardWithRetry({
         copyImageToClipboard,
         imageDataUrl,
+        // Tek gönderim = tek snapshot: tüm görseller aynı kapsamı taşır,
+        // restore bir kez ve yalnızca bu gönderimin girdisini çözer.
+        scope: clipboard.scopeId,
         diagnostics
       })
       if (!copied) {
@@ -299,7 +308,10 @@ export async function executeBulkSendPipeline(
     }
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
     clipboard.markPasteCompleted()
-    await clipboard.restore()
+    // Restore arka planda başlatılır; kritik yolda beklenmez. `finally` aynı
+    // (memoize edilmiş) promise'i await eder: pano en fazla bir kez geri
+    // yüklenir ve ilk hata yolunda bile garanti edilir.
+    void clipboard.restore()
 
     // Prompt yalnızca bir kez.
     if (effectivePromptText) {
@@ -341,7 +353,10 @@ export async function executeBulkSendPipeline(
           }),
         onTiming: (ms) => (diagnostics.timings.promptScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.promptExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.promptScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.promptScript)
+        }
       })
       if (!promptStep.success) return finish(promptStep.error)
 
@@ -392,6 +407,11 @@ export async function executeBulkSendPipeline(
               diagnostics.timings.submitReadyExecuteJavaScriptMs ??
               minimumReadyWaitMs
           )
+          // Submit-ready beklemesi ayrı ölçülür: süre + ilk hazır-olma anı.
+          if (res?.diagnostics) {
+            diagnostics.timings.submitReadyMs = roundMs(res.diagnostics.submitMs)
+          }
+          diagnostics.timings.submitReadyFirstReadyMs = res?.firstReadyAtMs ?? null
         }
       })
       if (!submitReadyStep.success) {
@@ -428,7 +448,10 @@ export async function executeBulkSendPipeline(
         generateScript: () => generateClickSendScript(toAutomationConfig(resolved.aiConfig)),
         onTiming: (ms) => (diagnostics.timings.clickScriptGenerationMs = ms),
         onExecuteTiming: (ms) => (diagnostics.timings.clickExecuteJavaScriptMs = ms),
-        onResult: (res) => (diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics))
+        onResult: (res) => {
+          diagnostics.clickScript = cloneScriptDiagnostics(res?.diagnostics)
+          recordScriptStageTimings(diagnostics, diagnostics.clickScript)
+        }
       })
       if (!clickStep.success) {
         return finish(
@@ -457,6 +480,14 @@ export async function executeBulkSendPipeline(
       attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
     )
   } finally {
+    // Restore'un kritik yolda gerçekten bloke ettiği süre ayrı ölçülür: settle
+    // ve IPC arka planda başlatıldığı için bu sayı genelde ~0'dır ve paralel
+    // kazancı (toplam restore süresi = clipboardRestoreMs) görünür kılar.
+    const restoreWaitStartedAt = nowMs()
     await clipboard.restore()
+    diagnostics.timings.clipboardRestoreWaitMs = roundMs(nowMs() - restoreWaitStartedAt)
+    // `attachDiagnostics` çıkış anında hesaplanan totalMs'i ez: `finally`
+    // (pano geri yükleme) pipeline'ın parçasıdır ve toplam süreye dahil olmalı.
+    finalizeTotalMs(diagnostics, requestStartedAt)
   }
 }

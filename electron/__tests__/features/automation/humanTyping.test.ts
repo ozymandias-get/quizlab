@@ -91,4 +91,70 @@ describe('humanType cancellation', () => {
     const textarea = document.getElementById('input') as HTMLTextAreaElement
     expect(textarea.value).toBe(prompt)
   })
+
+  /**
+   * Fallback yazımının append/replace sözleşmesi.
+   *
+   * İlk yazım (yapıştırma denemesi) yok sayılır, sonraki yazımlar (yazım
+   * fallback'i) kabul edilir — gerçek editör davranışının (paste event'ini
+   * yutup klavye girdisini işlemek) minik bir taklidi.
+   */
+  function installFirstWriteLossTransform(): () => void {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+    let writes = 0
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+      configurable: true,
+      get() {
+        return descriptor.get?.call(this)
+      },
+      set(next: string) {
+        writes += 1
+        const previous = (descriptor.get?.call(this) as string) || ''
+        descriptor.set?.call(this, writes === 1 ? previous : String(next))
+      }
+    })
+    return () => {
+      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
+    }
+  }
+
+  it('appends after the existing draft when the paste is ignored (append fallback)', async () => {
+    document.body.innerHTML = `
+      <textarea id="input">draft</textarea>
+      <button id="send" type="button">Send</button>
+    `
+    const restore = installFirstWriteLossTransform()
+    try {
+      const script = generateAutoSendScript(makeConfig(), 'hello', false, true, 'auto', 1)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.textInputFallback).toBe('human_typing')
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      // Kullanıcının taslağı korunur ve ayırıcı ile yeni metin eklenir.
+      expect(textarea.value).toBe('draft\n\nhello')
+    } finally {
+      restore()
+    }
+  })
+
+  it('replaces the old draft when the paste is ignored (replace fallback)', async () => {
+    document.body.innerHTML = `
+      <textarea id="input">old draft</textarea>
+      <button id="send" type="button">Send</button>
+    `
+    const restore = installFirstWriteLossTransform()
+    try {
+      const script = generateAutoSendScript(makeConfig(), 'hello', false, false, 'auto', 1)
+      const result = await window.eval(script)
+
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.textInputFallback).toBe('human_typing')
+      const textarea = document.getElementById('input') as HTMLTextAreaElement
+      // Replace sözleşmesi: eski taslak yeni metne dönüşür, sonuna eklenmez.
+      expect(textarea.value).toBe('hello')
+    } finally {
+      restore()
+    }
+  })
 })

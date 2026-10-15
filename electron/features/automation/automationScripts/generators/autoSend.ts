@@ -4,7 +4,42 @@ import { serializeAutomationConfig } from '../../scripts/config.js'
 import { buildHumanTypingScript } from '../../scripts/humanTyping.js'
 import { buildSetInputValueScript } from '../../scripts/setInputValue.js'
 import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { buildTextVerificationScript } from '../../scripts/verifyTextPlacement.js'
 import { createScriptPreamble } from '../preamble.js'
+
+/**
+ * Submit öncesi ortak blok. Enter yolunda buton etkileşim kapısı olmadığı için
+ * kısa sabit settle korunur; click/mixed zaten `performSubmit` içindeki
+ * "buton etkileşime hazır" kapısından geçer (ikinci 500ms yalnızca gecikme).
+ */
+const buildSubmitBlock = (shouldSubmit: boolean) => `
+            if (!${shouldSubmit}) {
+                return {
+                    success: true,
+                    action: 'input_only',
+                    mode: config.submitMode,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
+                };
+            }
+
+            if (config.submitMode === 'enter_key') {
+                diagnostics.preSubmitWaitMs = 500;
+                await wait(500);
+            } else {
+                diagnostics.preSubmitWaitMs = 0;
+            }
+            const submitResult = await performSubmit(inputElement);
+            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
+            return {
+                success: submitResult.success,
+                mode: config.submitMode,
+                diagnostics: finalizeDiagnostics(
+                    diagnostics,
+                    scriptStartedAt,
+                    submitResult.success ? null : (submitResult.error || 'submit_failed')
+                ),
+                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
+            };`
 
 const generateAutoSendScript = (
   config: AutomationConfig,
@@ -45,28 +80,7 @@ ${performSubmitScript}
             // ever see "element found", which is exactly the false positive the
             // staged promotion policy exists to prevent.
             __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
-                return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
-                };
-            }
-
-            await wait(500);
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
@@ -92,14 +106,9 @@ ${buildSetInputValueScript()}
 
 ${buildHumanTypingScript()}
 
-${performSubmitScript}
+${buildTextVerificationScript()}
 
-        const validatePasteResult = (element, expected) => {
-            const isCE = element.isContentEditable || element.getAttribute('contenteditable') === 'true';
-            const actual = isCE ? (element.textContent || '') : String(element.value || '');
-            const sample = expected.substring(0, Math.min(20, expected.length));
-            return actual.includes(sample);
-        };
+${performSubmitScript}
 
         try {
             const inputResult = await waitForElement(config.input, 'input', diagnostics.input, config, 10000, false);
@@ -113,37 +122,51 @@ ${performSubmitScript}
                 };
             }
 
+            // Doğrulama başarıyı yalnızca GÖZLENEN değişiklikle ilişkilendirir:
+            // yerleştirme öncesi içerik yakalanmadan "metin zaten alandaydı"
+            // durumu kanıt sayılamaz (eski baş/son örnek kontrolü bu yüzden
+            // yanlış pozitif üretiyordu).
+            const beforeTextVariants = readFieldTextVariants(inputElement);
             await setInputValue(inputElement, ${safeText});
-            const pasteSucceeded = validatePasteResult(inputElement, ${safeText});
-            if (!pasteSucceeded) {
-                await humanType(inputElement, ${safeText}, ${typingSpeed});
+            let placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+
+            // Fallback yalnızca alan HİÇ değişmediyse: o durumda içerik
+            // eklenmemiştir, yazım güvenli bir tamamlayıcıdır. Kısmi
+            // yerleştirmede yeniden yazmak mükerrer içerik üretir; metin zaten
+            // mevcutsa (ambiguous) yapıştırmanın etkisi kanıtlanamaz.
+            if (!placement.applied && placement.state === 'unchanged') {
+                // Doğrulanamayan yapıştırma güvenli tarafta kalınarak yazımla
+                // tamamlanır; ama cap'li hızla: 100ms/karakter'lik bir ayar
+                // uzun promptta dakikalar sürer ve aynı görünümün kuyruğunu
+                // kilitler (bkz. humanTyping iptal notu). Append modunda
+                // önceki içerik korunur.
+                diagnostics.textInputFallback = 'human_typing';
+                await humanType(inputElement, ${safeText}, ${Math.min(typingSpeed, 30)}, ${appendMode ? 'true' : 'false'});
+                placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+            }
+
+            diagnostics.textVerifyResult = placement.applied ? 'verified' : placement.state;
+            diagnostics.textVerifyDelta = placement.delta;
+
+            if (!placement.applied) {
+                // İçerik uygulanmış gibi davranıp göndermek yerine aşamayı
+                // açıkça bildir: submit edilmez, kullanıcı içeriği korunur.
+                // Kısmi yerleştirme ayrı kod taşır (mükerrer risk; otomatik
+                // retry yok). Selector onarımı "operation_failed" işaretlenir:
+                // seçici bulundu ama metin gerçekten girmedi.
+                const verifyError = placement.state === 'partial' ? 'text_input_partial' : 'text_input_unverified';
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
+                return {
+                    success: false,
+                    error: verifyError,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, verifyError)
+                };
             }
 
             // Pasted or typed text is now verifiably inside the field: this is
             // the "real usage" signal the self-healing loop counts.
             __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
-                return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
-                };
-            }
-
-            await wait(500);
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
@@ -166,6 +189,8 @@ ${performSubmitScript}
 
 ${buildSetInputValueScript()}
 
+${buildTextVerificationScript()}
+
 ${performSubmitScript}
 
         try {
@@ -180,30 +205,28 @@ ${performSubmitScript}
                 };
             }
 
+            // "paste" modu kullanıcının açık tercihi: yazım fallback'i yoktur.
+            // Yine de doğrulamasız submit edilmez — metin gerçekten girmediyse
+            // sessizce boş gönderim yapmak yerine hata döndürülür.
+            const beforeTextVariants = readFieldTextVariants(inputElement);
             await setInputValue(inputElement, ${safeText});
-            __finalizeSelectorRepair(diagnostics.input, 'input', true);
-            if (!${shouldSubmit}) {
+            const placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+
+            diagnostics.textVerifyResult = placement.applied ? 'verified' : placement.state;
+            diagnostics.textVerifyDelta = placement.delta;
+
+            if (!placement.applied) {
+                const verifyError = placement.state === 'partial' ? 'text_input_partial' : 'text_input_unverified';
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
                 return {
-                    success: true,
-                    action: 'input_only',
-                    mode: config.submitMode,
-                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt)
+                    success: false,
+                    error: verifyError,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, verifyError)
                 };
             }
 
-            await wait(500);
-            const submitResult = await performSubmit(inputElement);
-            __finalizeSelectorRepair(diagnostics.button, 'button', submitResult.success);
-            return {
-                success: submitResult.success,
-                mode: config.submitMode,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    submitResult.success ? null : (submitResult.error || 'submit_failed')
-                ),
-                ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
-            };
+            __finalizeSelectorRepair(diagnostics.input, 'input', true);
+${buildSubmitBlock(shouldSubmit)}
         } catch (error) {
             __finalizeSelectorRepair(diagnostics.input, 'input', false);
             return {
