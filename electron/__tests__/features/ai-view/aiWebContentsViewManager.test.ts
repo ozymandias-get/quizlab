@@ -1060,3 +1060,77 @@ describe('AiWebContentsViewManager - state snapshot', () => {
     expect(entry.hostToken).toBe('host-token-new')
   })
 })
+
+describe('AiWebContentsViewManager - renderer reload', () => {
+  // A reload replaces the renderer without running any of its cleanups, so the
+  // `hostToken` mirror goes on naming a host that no longer exists. The sync
+  // channel is fire-and-forget, so a geometry message the manager rejects is
+  // gone for good — which used to leave the view painting its previous
+  // rectangle with nothing able to correct it, over a DOM it also covered.
+  const RECT = { x: 10, y: 20, width: 300, height: 400 }
+
+  it('drops every claim on reload so the next renderer can claim the view', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(manager.syncAiViewHost('tab-1', 'host-token-old', RECT, true)).toBe(true)
+    const entry = manager.getManagedAiView('tab-1')!
+    expect(entry.visible).toBe(true)
+    expect(entry.bounds).not.toBeNull()
+
+    manager.releaseAllAiViewHosts()
+
+    expect(entry.hostToken).toBeNull()
+    expect(entry.bounds).toBeNull()
+    expect(entry.visible).toBe(false)
+    expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(false)
+  })
+
+  it('keeps the guests running across a reload', async () => {
+    await reset()
+    const first = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    manager.syncAiViewHost('tab-1', 'host-token-old', RECT, true)
+
+    manager.releaseAllAiViewHosts()
+
+    // Not destroyed: the conversation, the login and the scroll position all
+    // survive, and the next host re-attaches onto the same WebContents.
+    expect(manager.getManagedAiView('tab-1')).not.toBeNull()
+    const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    expect(second.generation).toBe(first.generation)
+    expect(second.currentUrl).toBe(first.currentUrl)
+    expect(FakeWebContentsView.closedViews).toEqual([])
+  })
+
+  it('releases the claim of every view, not just the first', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    await manager.attachAiView({ viewId: 'tab-2', source: GROK })
+    manager.syncAiViewHost('tab-1', 'host-a', RECT, true)
+    manager.syncAiViewHost('tab-2', 'host-b', RECT, true)
+
+    manager.releaseAllAiViewHosts()
+
+    expect(manager.getManagedAiView('tab-1')!.hostToken).toBeNull()
+    expect(manager.getManagedAiView('tab-2')!.hostToken).toBeNull()
+    expect(manager.syncAiViewHost('tab-1', 'host-new', RECT, true)).toBe(true)
+    expect(manager.syncAiViewHost('tab-2', 'host-new', RECT, true)).toBe(true)
+  })
+
+  it('drops the previous rectangle on re-attach, not just the token', async () => {
+    // A token reset alone was not enough: the verdict that came with it was the
+    // one the *previous* host published, so a message rejected in the window
+    // before the re-attach resolved left the old rectangle on screen.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    manager.syncAiViewHost('tab-1', 'host-token-old', RECT, true)
+    const entry = manager.getManagedAiView('tab-1')!
+    expect(entry.bounds).toMatchObject(RECT)
+
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+    expect(entry.hostToken).toBeNull()
+    expect(entry.bounds).toBeNull()
+    expect(entry.visible).toBe(false)
+    expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(false)
+  })
+})

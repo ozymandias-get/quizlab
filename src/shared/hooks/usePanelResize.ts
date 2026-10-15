@@ -259,6 +259,40 @@ export function usePanelResize({
     }
   }, [])
 
+  /**
+   * Window-level safety net for a drag React never got to hear about.
+   *
+   * `endResize` is otherwise only reachable from React's `onPointerUp` /
+   * `onLostPointerCapture` on the drag area, and neither is guaranteed: a
+   * pointer cancelled by the browser (a competing drag, a context menu, a
+   * devtools gesture), released while focus sat in another window, or lost
+   * because the captured element went away mid-drag all end the gesture without
+   * a React event. A missed end is not cosmetic — it leaves `isResizing` true,
+   * which is what pins `pointer-events: none` onto the AI panel and keeps
+   * `cursor: col-resize` / `user-select: none` on the body.
+   *
+   * Window-level rather than on the drag area on purpose: the panel it resizes
+   * is, during the drag, being covered by a `WebContentsView` composited above
+   * the DOM, and a native view swallows the pointer events aimed at anything
+   * beneath it. These listeners are also idempotent against the React ones —
+   * `endResize` returns immediately once `isResizingRef` is false.
+   */
+  useEffect(() => {
+    const endIfResizing = () => {
+      if (isResizingRef.current) endResizeRef.current()
+    }
+
+    window.addEventListener('pointerup', endIfResizing)
+    window.addEventListener('pointercancel', endIfResizing)
+    window.addEventListener('blur', endIfResizing)
+
+    return () => {
+      window.removeEventListener('pointerup', endIfResizing)
+      window.removeEventListener('pointercancel', endIfResizing)
+      window.removeEventListener('blur', endIfResizing)
+    }
+  }, [])
+
   return useMemo(
     () => ({
       leftPanelWidth: clampedPercentage,

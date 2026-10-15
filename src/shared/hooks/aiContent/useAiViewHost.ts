@@ -37,14 +37,15 @@ export interface UseAiViewHostResult {
   flush: () => void
   /**
    * Pushes the current rectangle on the next animation frame even when it is
-   * identical to the last one that was sent.
+   * identical to the last one that was sent, re-asserting it over the next
+   * {@link REASSERT_FRAMES} frames.
    *
    * Geometry is fire-and-forget and the host dedupes its own sends, which is what
    * keeps a re-render from producing traffic — but it also means the host cannot
    * learn that the main process *dropped* a message: `syncAiViewHost` rejects one
-   * naming a view it does not own yet. Re-sending unconditionally is therefore the
-   * only way to guarantee the main process holds a rectangle from this host once it
-   * starts owning the view.
+   * naming a view it does not own yet, or one whose token belongs to a host that
+   * is gone. Re-sending unconditionally is therefore the only way to guarantee the
+   * main process holds a rectangle from this host once it starts owning the view.
    *
    * Deferred by a frame so React has committed whatever state prompted the call,
    * and it reads its inputs at send time, so it can only ever be newer than what
@@ -67,6 +68,21 @@ const cancelFrame = (handle: number): void => {
   if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(handle)
   else window.clearTimeout(handle)
 }
+
+/**
+ * Frames a re-assertion spans.
+ *
+ * The main process drops a sync naming a view it does not own yet and never
+ * acknowledges the ones it keeps, so a re-assertion gets exactly one chance per
+ * frame and no way to learn whether the message landed. A single frame was
+ * enough whenever the attach that would have made it deliverable had already
+ * resolved — and not otherwise: attach awaits its target resolution first, so
+ * the very first rectangle a host publishes is also the one most likely to be
+ * judged against a view that does not exist yet, or against a token left behind
+ * by a renderer that no longer does. Spreading the re-assertion over a few
+ * frames costs a handful of no-op messages per attach and closes that window.
+ */
+const REASSERT_FRAMES = 3
 
 function toBounds(rect: DOMRect, borderRadius: number): AiViewBounds {
   return {
@@ -138,6 +154,7 @@ export function useAiViewHost({
   const [element, setElement] = useState<HTMLDivElement | null>(null)
   const lastSentRef = useRef<HostSnapshot | null>(null)
   const frameRef = useRef<number | null>(null)
+  const reassertFramesRef = useRef(0)
   const isHostOwnerRef = useRef(isHostOwner)
   const visibleRef = useRef(visible)
   isHostOwnerRef.current = isHostOwner
@@ -148,23 +165,37 @@ export function useAiViewHost({
     return toBounds(element.getBoundingClientRect(), resolveClipRadius(element))
   }, [element])
 
-  const publish = useCallback(() => {
-    if (!isHostOwnerRef.current) return
-    const client = getAiViewClient()
-    if (!client) return
-    const bounds = measure()
-    if (!bounds) return
-    const snapshot: HostSnapshot = { bounds, visible: visibleRef.current }
-    if (snapshotEqual(lastSentRef.current, snapshot)) return
-    lastSentRef.current = snapshot
-    client.syncHost({ viewId, hostToken, bounds, visible: snapshot.visible })
-  }, [hostToken, measure, viewId])
+  const publish = useCallback(
+    (force: boolean): boolean => {
+      if (!isHostOwnerRef.current) return false
+      const client = getAiViewClient()
+      if (!client) return true
+      const bounds = measure()
+      // Nothing to measure means the placeholder is gone; no number of further
+      // frames will produce a rectangle.
+      if (!bounds) return false
+      const snapshot: HostSnapshot = { bounds, visible: visibleRef.current }
+      if (!force && snapshotEqual(lastSentRef.current, snapshot)) return false
+      lastSentRef.current = snapshot
+      client.syncHost({ viewId, hostToken, bounds, visible: snapshot.visible })
+      return true
+    },
+    [hostToken, measure, viewId]
+  )
 
   const schedule = useCallback(() => {
     if (frameRef.current !== null) return
     frameRef.current = requestFrame(() => {
       frameRef.current = null
-      publish()
+      if (reassertFramesRef.current <= 0) {
+        publish(false)
+        return
+      }
+      reassertFramesRef.current -= 1
+      // Re-arm only while frames remain and there is still something to measure,
+      // so a re-assertion costs exactly `REASSERT_FRAMES` frames and an unmount
+      // mid-flight ends it instead of looping.
+      if (publish(true) && reassertFramesRef.current > 0) schedule()
     })
   }, [publish])
 
@@ -173,14 +204,11 @@ export function useAiViewHost({
       cancelFrame(frameRef.current)
       frameRef.current = null
     }
-    publish()
+    publish(false)
   }, [publish])
 
   const republish = useCallback(() => {
-    // Forget what was sent: the dedup memory is what would swallow this message,
-    // and its whole purpose is to spare traffic that would be identical — not a
-    // first rectangle the main process may never have received.
-    lastSentRef.current = null
+    reassertFramesRef.current = REASSERT_FRAMES
     schedule()
   }, [schedule])
 
@@ -204,6 +232,7 @@ export function useAiViewHost({
       observer?.disconnect()
       window.removeEventListener('resize', schedule)
       window.removeEventListener('scroll', schedule, true)
+      reassertFramesRef.current = 0
       if (frameRef.current !== null) {
         cancelFrame(frameRef.current)
         frameRef.current = null

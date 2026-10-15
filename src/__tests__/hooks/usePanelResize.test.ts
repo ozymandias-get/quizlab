@@ -128,6 +128,58 @@ describe('usePanelResize', () => {
     expect(document.body.style.cursor).toBe('')
   })
 
+  // A drag React never hears about leaves `isResizing` true, which is what pins
+  // `pointer-events: none` onto the AI panel and keeps `col-resize` /
+  // `user-select: none` on the body — the whole shell reads as frozen.
+  it.each([
+    ['pointerup', new Event('pointerup')],
+    ['pointercancel', new Event('pointercancel')],
+    ['blur', new Event('blur')]
+  ])('should end resizing on a window-level %s', (_label, event) => {
+    const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    act(() => {
+      result.current.handlePointerDown(makePointerEvent())
+    })
+    expect(result.current.isResizing).toBe(true)
+
+    act(() => {
+      window.dispatchEvent(event)
+    })
+
+    expect(result.current.isResizing).toBe(false)
+    expect(document.body.classList.contains('panel-resizing')).toBe(false)
+    expect(document.body.style.cursor).toBe('')
+    expect(document.body.style.userSelect).toBe('')
+  })
+
+  it('should not touch resize state for a window event with no drag in flight', () => {
+    const { result } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    act(() => {
+      window.dispatchEvent(new Event('pointerup'))
+      window.dispatchEvent(new Event('pointercancel'))
+      window.dispatchEvent(new Event('blur'))
+    })
+
+    expect(result.current.isResizing).toBe(false)
+    expect(document.body.classList.contains('panel-resizing')).toBe(false)
+  })
+
+  it('should stop listening for window events on unmount', () => {
+    const removeEventListener = vi.spyOn(window, 'removeEventListener')
+    const { result, unmount } = renderHook(() => usePanelResize({ storageKey: 'test-panel' }))
+
+    act(() => {
+      result.current.handlePointerDown(makePointerEvent())
+    })
+    unmount()
+
+    const removed = removeEventListener.mock.calls.map(([type]) => type)
+    expect(removed).toContain('pointercancel')
+    expect(removed).toContain('blur')
+  })
+
   it('should respect min limits', () => {
     const { result } = renderHook(() =>
       usePanelResize({

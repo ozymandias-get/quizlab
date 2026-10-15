@@ -200,42 +200,122 @@ describe('useAiViewHost - corner radius', () => {
 
     expect(syncHost).not.toHaveBeenCalled()
   })
+})
 
-  it('re-sends an unchanged snapshot on demand, once per call', async () => {
-    // The main process drops a sync naming a view it does not own yet and never
-    // acknowledges the ones it keeps, so the host cannot tell a delivered message
-    // from a lost one. `republish` is how it re-asserts a rectangle it already
-    // believes main has, without waiting for something to change.
-    const rect = { x: 4, y: 6, width: 500, height: 400 }
-    const { host } = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
-    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+/**
+ * `republish` re-asserts a rectangle the main process may never have received.
+ *
+ * The sync channel is fire-and-forget with no acknowledgement, and the manager
+ * rejects a message naming a view it does not own — which is exactly the state
+ * the first rectangle after an attach is in, since attach resolves its target
+ * asynchronously and can still be in the air. A single frame was therefore one
+ * chance, and losing it stranded the view on its previous rectangle.
+ */
+describe('useAiViewHost - re-assertion', () => {
+  let frames: Map<number, FrameRequestCallback>
+  let nextHandle: number
+
+  beforeEach(() => {
+    syncHost.mockClear()
+    document.body.innerHTML = ''
+    frames = new Map()
+    nextHandle = 0
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      nextHandle += 1
+      frames.set(nextHandle, callback)
+      return nextHandle
+    })
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
+      frames.delete(handle)
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.body.innerHTML = ''
+  })
+
+  /** Runs queued frames, including the ones a callback queues in turn. */
+  function flushFrames(count: number): void {
+    for (let index = 0; index < count; index += 1) {
+      const queued = [...frames.values()]
+      frames.clear()
+      for (const callback of queued) callback(0)
+    }
+  }
+
+  function mountHost() {
+    const { host } = createRoundedHost(
+      { x: 4, y: 6, width: 500, height: 400 },
+      { radius: '16px', borderWidth: '1px' }
+    )
+    const rendered = renderHook(() => useAiViewHost(defaultOptions))
+    act(() => {
+      rendered.result.current.setHostElement(host)
+    })
+    syncHost.mockClear()
+    return rendered
+  }
+
+  it('re-sends an unchanged snapshot instead of trusting a single frame', () => {
+    const { result } = mountHost()
 
     act(() => {
-      result.current.setHostElement(host)
+      result.current.republish()
+      flushFrames(20)
     })
-    expect(syncHost).toHaveBeenCalledTimes(1)
+
+    expect(syncHost.mock.calls.length).toBeGreaterThan(1)
+    for (const [payload] of syncHost.mock.calls) {
+      expect(payload.bounds).toEqual({
+        x: 4,
+        y: 6,
+        width: 500,
+        height: 400,
+        borderRadius: 15
+      })
+    }
+  })
+
+  it('stops after a bounded number of frames rather than looping forever', () => {
+    const { result } = mountHost()
+
+    act(() => {
+      result.current.republish()
+      flushFrames(60)
+    })
+
+    // The budget is deliberately small; what matters is that it is finite.
+    expect(syncHost).toHaveBeenCalledTimes(3)
+  })
+
+  it('coalesces repeat calls in one frame into the same budget', () => {
+    const { result } = mountHost()
+
+    act(() => {
+      result.current.republish()
+      result.current.republish()
+      result.current.republish()
+      flushFrames(60)
+    })
+
+    expect(syncHost).toHaveBeenCalledTimes(3)
+  })
+
+  it('gives up when there is no placeholder left to measure', () => {
+    const { result, unmount } = mountHost()
+
+    act(() => {
+      result.current.republish()
+    })
+    unmount()
     syncHost.mockClear()
 
-    await act(async () => {
-      result.current.republish()
-      await new Promise((resolve) => setTimeout(resolve, 32))
-    })
-    expect(syncHost).toHaveBeenCalledTimes(1)
-    expect(syncHost.mock.calls[0][0].bounds).toEqual({
-      x: 4,
-      y: 6,
-      width: 500,
-      height: 400,
-      borderRadius: 15
+    act(() => {
+      flushFrames(20)
     })
 
-    // Two calls in the same frame coalesce into one send, exactly like a resize.
-    await act(async () => {
-      result.current.republish()
-      result.current.republish()
-      await new Promise((resolve) => setTimeout(resolve, 32))
-    })
-    expect(syncHost).toHaveBeenCalledTimes(2)
+    expect(syncHost).not.toHaveBeenCalled()
   })
 })
 
