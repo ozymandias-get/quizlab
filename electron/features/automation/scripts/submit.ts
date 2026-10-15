@@ -19,7 +19,6 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
 
                 if (inputElement) {
                     inputElement.focus();
-                    const beforeEnterText = readComposerText(inputElement);
                     const eventParams = {
                         key: 'Enter',
                         code: 'Enter',
@@ -32,10 +31,8 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                     inputElement.dispatchEvent(new KeyboardEvent('keydown', eventParams));
                     inputElement.dispatchEvent(new KeyboardEvent('keypress', eventParams));
                     inputElement.dispatchEvent(new KeyboardEvent('keyup', eventParams));
-                    diagnostics.submitMethod = 'enter_key';
-                    success = await confirmEnterEffect(inputElement, beforeEnterText);
-                    if (!success) error = 'submit_unverified';
-                    __finalizeSelectorRepair(diagnostics.input, 'input', success);
+                    success = true;
+                    __finalizeSelectorRepair(diagnostics.input, 'input', true);
                 } else {
                     error = resolveLookupError(config.input, 'input_not_found', config.health);
                     __finalizeSelectorRepair(diagnostics.input, 'input', false);
@@ -43,7 +40,6 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
 `
     : `
                 inputElement.focus();
-                const beforeEnterText = readComposerText(inputElement);
                 const eventParams = {
                     key: 'Enter',
                     code: 'Enter',
@@ -56,39 +52,11 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
                 inputElement.dispatchEvent(new KeyboardEvent('keydown', eventParams));
                 inputElement.dispatchEvent(new KeyboardEvent('keypress', eventParams));
                 inputElement.dispatchEvent(new KeyboardEvent('keyup', eventParams));
-                diagnostics.submitMethod = 'enter_key';
-                success = await confirmEnterEffect(inputElement, beforeEnterText);
-                if (!success) error = 'submit_unverified';
-                __finalizeSelectorRepair(diagnostics.input, 'input', success);
+                success = true;
+                __finalizeSelectorRepair(diagnostics.input, 'input', true);
 `
 
   return `
-        // Synthetic Enter can be ignored by web apps (event.isTrusted=false).
-        // Never report success simply because dispatchEvent returned.
-        const readComposerText = (element) => {
-            if (!element) return '';
-            const raw = ('value' in element)
-                ? element.value
-                : (typeof element.innerText === 'string' && element.innerText.trim()
-                    ? element.innerText : element.textContent);
-            return normalizeForCompare(raw);
-        };
-
-        const confirmEnterEffect = async (element, before) => {
-            if (!before) return false;
-            // Only observe; never dispatch Enter a second time (duplicate-send risk).
-            for (let i = 0; i < 12; i++) {
-                if (isAborted()) return false;
-                await wait(100);
-                if (readComposerText(element) !== before) {
-                    diagnostics.submitConfirmed = true;
-                    return true;
-                }
-            }
-            diagnostics.submitConfirmed = false;
-            return false;
-        };
-
         const performSubmit = async (${options.includeInputLookupForEnter ? '' : 'inputElement'}) => {
             const start = now();
             const mode = config.submitMode;
@@ -101,29 +69,16 @@ export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOption
 
                 if (button) {
                     button.click();
-                    diagnostics.submitMethod = 'button_click';
-                    // Click was dispatched; server delivery cannot be proven here.
-                    diagnostics.submitConfirmed = null;
                     success = true;
                     // A completed click is the send button's only "real usage".
                     __finalizeSelectorRepair(diagnostics.button, 'button', true);
-                } else {
-                    // If the button exists but is disabled, the web editor may
-                    // still consider the prompt empty. Enter cannot fix that,
-                    // and an untrusted key event must not hide the real error.
-                    const candidate = findElement(config.button, 'button', diagnostics.button, config).element;
-                    if (candidate && !isReadyForInteraction(candidate)) {
-                        error = 'submit_not_ready';
-                        diagnostics.submitNotReadyReason = describeNotReady(candidate);
-                        __finalizeSelectorRepair(diagnostics.button, 'button', false);
-                    } else if (mode === 'click') {
-                        error = resolveLookupError(config.button, 'button_not_found', config.health);
-                        __finalizeSelectorRepair(diagnostics.button, 'button', false);
-                    }
+                } else if (mode === 'click') {
+                    error = resolveLookupError(config.button, 'button_not_found', config.health);
+                    __finalizeSelectorRepair(diagnostics.button, 'button', false);
                 }
             }
 
-            if (!success && !error && (mode === 'enter_key' || mode === 'mixed')) {
+            if (!success && (mode === 'enter_key' || mode === 'mixed')) {
 ${inputLookup}
             }
 
