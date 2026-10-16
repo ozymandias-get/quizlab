@@ -35,8 +35,8 @@ function wheel(init: WheelEventInit & { modifiers?: number } = {}) {
   const event = new WheelEvent('wheel', {
     bubbles: true,
     cancelable: true,
-    ctrlKey: init.modifiers !== undefined ? (init.modifiers & 1) === 1 : false,
-    metaKey: init.modifiers !== undefined ? (init.modifiers & 2) === 2 : false,
+    ctrlKey: init.modifiers !== undefined && (init.modifiers & 1) === 1,
+    metaKey: init.modifiers !== undefined && (init.modifiers & 2) === 2,
     deltaY: init.deltaY ?? -1
   })
   return event

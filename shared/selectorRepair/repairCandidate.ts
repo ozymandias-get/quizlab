@@ -103,7 +103,7 @@ export function advanceRepairCandidate(params: {
   const { previous, candidateId, selector, strategy, confidenceScore, confidenceLevel, now } =
     params
   const sourceFingerprint = params.sourceFingerprint ?? null
-  const identityChanged = previous ? !isSameRepairCandidate(previous, candidateId) : true
+  const identityChanged = !previous || !isSameRepairCandidate(previous, candidateId)
 
   if (!previous || identityChanged) {
     return {
