@@ -148,6 +148,17 @@ describe('systemHandlers/clipboardApi', () => {
       expect(Object.keys(writtenPayloads()[0])).toEqual(['text/html', 'text/plain'])
     })
 
+    it('prefers image over html and text', async () => {
+      await writeClipboardSnapshot({
+        image: { mimeType: 'image/png', bytes: Buffer.from('img') },
+        html: '<b>hi</b>',
+        text: 'hi'
+      })
+
+      expect(write).toHaveBeenCalledTimes(1)
+      expect(Object.keys(writtenPayloads()[0])).toEqual(['image/png'])
+    })
+
     it('derives a text/plain flavour from html when text is missing', async () => {
       await writeClipboardSnapshot({ html: '<b>hi</b>' })
 
@@ -202,6 +213,33 @@ describe('systemHandlers/clipboardApi', () => {
 
       expect(write).toHaveBeenCalledTimes(2)
       expect(await blobText(writtenPayloads()[1]['text/plain'])).toBe('b')
+    })
+
+    it('does not start a second write until the first has settled', async () => {
+      let releaseFirst = (): void => {}
+      write.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirst = resolve
+          })
+      )
+
+      const first = writeClipboardText('a')
+      const second = writeClipboardText('b')
+
+      // The second write must still be queued behind the first, which is only
+      // observable because `clipboard.write` is still pending.
+      await Promise.resolve()
+      expect(write).toHaveBeenCalledTimes(1)
+
+      releaseFirst()
+      await Promise.all([first, second])
+
+      expect(write).toHaveBeenCalledTimes(2)
+      const written = await Promise.all(
+        writtenPayloads().map((payload) => blobText(payload['text/plain']))
+      )
+      expect(written).toEqual(['a', 'b'])
     })
   })
 })
