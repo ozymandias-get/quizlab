@@ -1,4 +1,21 @@
-export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, diagnostics, depth) => {
+export const fallbackPipeline = `    /**
+     * Composer kabuğundaki data-composer-submit düğmesine verilen ek puan.
+     * Sayfa genelinde toplanan submit düğmeleri arasında bu, "bu sohbetin gönder
+     * düğmesi" demektir: 2026-10-17 ölçümünde sayfada 7 adet
+     * button[type="submit"] vardı (6'sı diyalogların "Kapat" düğmesi) ve
+     * puanları eşit olduğu için sıralama ilk bulduğunu seçiyordu.
+     */
+    const SEMANTIC_COMPOSER_SUBMIT_BONUS = 30;
+
+    const __semanticConfidenceLevel = (score, baseLevel) => {
+        // Bütünleşik runtime'da __toConfidenceLevel mevcuttur (selectorRepairRuntime
+        // bu template'ten önce enjekte edilir). Yalnız-izole harness'lar
+        // computeConfidenceScore'un döndürdüğü seviyeye düşer.
+        if (typeof __toConfidenceLevel === 'function') return __toConfidenceLevel(score);
+        return baseLevel;
+    };
+
+    const runFallbackPipeline = (kind, config, diagnostics, depth) => {
         const strategies = [
             { name: 'semantic', fn: trySemanticFallback },
             { name: 'provider', fn: tryProviderStrategy },
@@ -88,6 +105,9 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
     const trySemanticFallback = (kind, config) => {
         const roots = getSearchRoots();
         const candidates = [];
+        // Diktasyon kabuğu yalnızca butun dalında lazım; input dalında hiç
+        // çağrılmaz (sitenin gönder düğmesiyle ilgisi yok).
+        const composerContainer = kind === 'button' ? __findComposerContainer() : null;
 
         if (kind === 'input') {
             for (const root of roots) {
@@ -102,14 +122,21 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
             // Blocklist knocks out nav/utility buttons before scoring. The rule
             // itself lives in selectorRepairRuntime (SEND_LABEL_BLOCKLIST) so
             // runtime selection and persisted auto-repair cannot disagree.
+            // Diktasyon (mikrofon) düğmeleri ayrıca ve önceden elenir: etiketleri
+            // dile bağlı olduğu için blocklist onları her dilde yakalayamıyor, ve
+            // composer boşken gönder düğmesi gizliyken tek görünür düğme onlar.
             const buttonLookup = config ? config.button : null;
             for (const root of roots) {
                 try {
-                    root.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(el => candidates.push(el));
+                    root.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(el => {
+                        if (!__isDictationControl(el)) candidates.push(el);
+                    });
                 } catch {}
                 try {
                     root.querySelectorAll('[role="button"], button').forEach(el => {
-                        if (candidates.indexOf(el) === -1 && __isLikelySendButton(el, buttonLookup)) {
+                        if (candidates.indexOf(el) === -1
+                            && !__isDictationControl(el)
+                            && __isLikelySendButton(el, buttonLookup)) {
                             candidates.push(el);
                         }
                     });
@@ -120,12 +147,20 @@ export const fallbackPipeline = `    const runFallbackPipeline = (kind, config, 
         const unique = uniqueElements(candidates);
         if (unique.length === 0) return null;
 
-        const scored = unique.map(el => ({
-            element: el,
-            matchedSelector: el.tagName.toLowerCase(),
-            strategy: 'semantic',
-            ...computeConfidenceScore({ element: el }, kind, config)
-        }));
+        const scored = unique.map(el => {
+            const base = computeConfidenceScore({ element: el }, kind, config);
+            const entry = {
+                element: el,
+                matchedSelector: el.tagName.toLowerCase(),
+                strategy: 'semantic',
+                score: base.score,
+                level: base.level
+            };
+            if (kind !== 'button' || !__isComposerSubmitControl(el, composerContainer)) return entry;
+            entry.score = base.score + SEMANTIC_COMPOSER_SUBMIT_BONUS;
+            entry.level = __semanticConfidenceLevel(entry.score, base.level);
+            return entry;
+        });
 
         scored.sort((a, b) => b.score - a.score);
 
