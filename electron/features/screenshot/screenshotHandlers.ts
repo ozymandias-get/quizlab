@@ -77,6 +77,10 @@ interface SnapshotReservation {
 async function reserveClipboardSnapshot(scope?: string): Promise<SnapshotReservation> {
   try {
     if (scope) {
+      // Checked before the await below on purpose: copies of one send arrive
+      // sequentially from `bulkSendPipeline.ts` (`await` per image in the paste
+      // loop) and all carry the same scope, so a second copy of the same scope
+      // cannot be racing this lookup. Concurrent copies would need a real lock.
       const existing = clipboardSnapshots.find((snapshot) => snapshot.scope === scope)
       if (existing) return { pushed: false, entry: existing }
     }
@@ -156,6 +160,10 @@ async function restoreClipboard(scope?: string): Promise<boolean> {
 
     return await writeClipboardSnapshot(snapshot)
   } catch (error) {
+    // A clipboard refusal is logged and reported as `false` by the adapter
+    // itself, so this only catches an unexpected throw — but dropping it would
+    // turn a broken restore into a generic IPC failure the renderer does not
+    // recognise as a restore failure.
     Logger.error('[Clipboard] Failed to restore clipboard:', error)
     return false
   }
