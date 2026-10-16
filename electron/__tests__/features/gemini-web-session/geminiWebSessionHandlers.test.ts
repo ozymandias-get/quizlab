@@ -142,6 +142,36 @@ describe('gemini web session handlers', () => {
     expect(openOptions.defaultPath).toBe('/home/u/Documents')
   })
 
+  it('reopens each dialog where the other one last was', async () => {
+    showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: '/home/u/Pictures/gemini-session.enc'
+    })
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/home/u/Documents/gemini-session.enc']
+    })
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const exportHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
+    const importHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+    await exportHandler?.(trustedEvent)
+    await importHandler?.(trustedEvent)
+    await importHandler?.(trustedEvent)
+
+    // One tracked directory is shared across features, exactly as the single OS
+    // dialog behaved before Electron 43: the export pick decides where the
+    // import picker opens, and the import pick decides where the next picker
+    // opens. Both rememberDialogDirectory calls are load-bearing here.
+    const firstOpenOptions = showOpenDialog.mock.calls[0]?.[0]
+    expect(firstOpenOptions.defaultPath).toBe('/home/u/Pictures')
+
+    const secondOpenOptions = showOpenDialog.mock.calls[1]?.[0]
+    expect(secondOpenOptions.defaultPath).toBe('/home/u/Documents')
+  })
+
   it('blocks untrusted sender requests', async () => {
     const { registerGeminiWebSessionHandlers } =
       await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
