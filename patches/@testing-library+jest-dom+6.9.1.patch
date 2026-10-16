@@ -1,0 +1,21 @@
+diff --git a/node_modules/@testing-library/jest-dom/types/vitest.d.ts b/node_modules/@testing-library/jest-dom/types/vitest.d.ts
+index 3ee9eb2..2104e9e 100644
+--- a/node_modules/@testing-library/jest-dom/types/vitest.d.ts
++++ b/node_modules/@testing-library/jest-dom/types/vitest.d.ts
+@@ -2,14 +2,6 @@ import 'vitest'
+ import {type TestingLibraryMatchers} from './matchers'
+ 
+ declare module 'vitest' {
+-  interface Assertion<T = any>
+-    extends TestingLibraryMatchers<
+-      any,
+-      T
+-    > {}
+-  interface AsymmetricMatchersContaining
+-    extends TestingLibraryMatchers<
+-      any,
+-      any
+-    > {}
++  interface Matchers<R, T> extends TestingLibraryMatchers<T, R> {}
++  interface AsymmetricMatchersContaining extends TestingLibraryMatchers<any, any> {}
+ }

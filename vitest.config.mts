@@ -9,6 +9,13 @@ export default defineConfig({
     environment: 'jsdom',
     pool: 'threads',
     maxWorkers: 4,
+    // Vitest 5 flips this default to true. Suites such as
+    // electron/__tests__/features/ai/apiChatHandlers/*.test.ts rely on the IPC
+    // handler registrations recorded during the first test of the file, so
+    // clearing the history before every test would make the later ones look up
+    // an unregistered channel. The Vitest 5 migration guide documents setting
+    // this back to false as the way to keep the previous behaviour.
+    clearMocks: false,
     setupFiles: './src/__tests__/setup.ts',
     include: [
       'src/__tests__/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
