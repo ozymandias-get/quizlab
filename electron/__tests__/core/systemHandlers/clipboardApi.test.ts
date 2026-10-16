@@ -102,6 +102,22 @@ describe('systemHandlers/clipboardApi', () => {
       expect(result.html).toBeUndefined()
     })
 
+    it('treats an empty text/plain value as absent', async () => {
+      read.mockResolvedValue([fakeItem(['text/plain'], { 'text/plain': '' })])
+
+      const result = await readClipboardSnapshot()
+
+      expect(result.text).toBeUndefined()
+    })
+
+    it('treats a zero-length image as absent', async () => {
+      read.mockResolvedValue([fakeItem(['image/png'], { 'image/png': '' })])
+
+      const result = await readClipboardSnapshot()
+
+      expect(result.image).toBeUndefined()
+    })
+
     it('returns an empty snapshot when read rejects', async () => {
       read.mockRejectedValue(new Error('clipboard unavailable'))
 
@@ -164,6 +180,20 @@ describe('systemHandlers/clipboardApi', () => {
 
       const [payload] = writtenPayloads()
       expect(await blobText(payload['text/plain'])).toBe('hi')
+    })
+
+    it('keeps block boundaries as newlines in the derived text/plain flavour', async () => {
+      await writeClipboardSnapshot({ html: '<p>a</p><p>b</p>' })
+
+      const [payload] = writtenPayloads()
+      expect(await blobText(payload['text/plain'])).toBe('a\nb')
+    })
+
+    it('decodes entities in the derived text/plain flavour without double-decoding', async () => {
+      await writeClipboardSnapshot({ html: '<p>a &amp;lt; b &amp;amp; c<br>d</p>' })
+
+      const [payload] = writtenPayloads()
+      expect(await blobText(payload['text/plain'])).toBe('a &lt; b &amp; c\nd')
     })
 
     it('writes text without an html flavour', async () => {

@@ -20,6 +20,8 @@
  */
 import { clipboard, ClipboardItem } from 'electron'
 
+import { Logger } from '../logger.js'
+
 const TEXT_PLAIN = 'text/plain'
 const TEXT_HTML = 'text/html'
 const IMAGE_PREFIX = 'image/'
@@ -55,6 +57,9 @@ function enqueueWrite<T>(task: () => Promise<T>): Promise<T> {
 function stripHtmlToText(html: string): string {
   return (
     html
+      // Block boundaries become newlines *before* the tags go, otherwise the tag
+      // strip welds adjacent blocks together (`<p>a</p><p>b</p>` pastes as `ab`).
+      .replaceAll(/<(br|\/p|\/div|\/li|\/tr|\/h[1-6])[^>]*>/gi, '\n')
       .replaceAll(/<[^>]*>/g, '')
       .replaceAll('&nbsp;', ' ')
       .replaceAll('&quot;', '"')
@@ -63,6 +68,9 @@ function stripHtmlToText(html: string): string {
       .replaceAll('&gt;', '>')
       // `&amp;` last, so `&amp;lt;` decodes to `&lt;` instead of double-decoding.
       .replaceAll('&amp;', '&')
+      // Only the newlines the block boundaries above introduced; whatever the
+      // source text had at its edges is kept.
+      .replaceAll(/^\n+|\n+$/g, '')
   )
 }
 
@@ -150,7 +158,9 @@ export async function writeClipboardImage(image: {
  * existing contract with the copy-and-send flow, not a preference.
  *
  * Resolves `false` when the write fails, so a caller can tell "restored" from
- * "clipboard refused it" without a thrown error.
+ * "clipboard refused it" without a thrown error. The refusal itself is logged
+ * here: the caller only receives `false` across the IPC bridge, so this is the
+ * one place that still knows whether the clipboard was locked by another app.
  */
 export async function writeClipboardSnapshot(data: ClipboardSnapshotData): Promise<boolean> {
   return enqueueWrite(async () => {
@@ -172,7 +182,8 @@ export async function writeClipboardSnapshot(data: ClipboardSnapshotData): Promi
         clipboard.clear()
       }
       return true
-    } catch {
+    } catch (error) {
+      Logger.error('[Clipboard] Failed to restore clipboard:', error)
       return false
     }
   })
