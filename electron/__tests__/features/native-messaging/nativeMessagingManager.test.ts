@@ -16,7 +16,19 @@ const mockApp = {
   getPath: mockAppGetPath
 }
 
-const mockClipboard = { writeText: vi.fn() }
+// Only `electron` is mocked — the clipboard adapter the installer calls is the
+// real one. Hoisted with the mock factory so `FakeClipboardItem` is initialized
+// before the adapter's `electron` import is resolved.
+const { mockClipboardWrite, FakeClipboardItem } = vi.hoisted(() => {
+  class FakeClipboardItem {
+    constructor(public readonly items: Record<string, string>) {}
+  }
+
+  return {
+    mockClipboardWrite: vi.fn((_items: FakeClipboardItem[]) => Promise.resolve()),
+    FakeClipboardItem
+  }
+})
 
 const mockServerListen = vi.hoisted(() =>
   vi.fn((_port: number, _host: string, cb: () => void) => {
@@ -64,7 +76,8 @@ const mockExecFile = vi.hoisted(() =>
 
 vi.mock('electron', () => ({
   app: mockApp,
-  clipboard: mockClipboard,
+  clipboard: { write: mockClipboardWrite },
+  ClipboardItem: FakeClipboardItem,
   session: { fromPartition: vi.fn(() => ({ cookies: { set: vi.fn() } })) },
   BrowserWindow: { getAllWindows: vi.fn(() => []) }
 }))
@@ -264,10 +277,24 @@ describe('NativeMessagingManager', () => {
         expectedBridgeInfo(51999),
         'utf-8'
       )
-      expect(mockClipboard.writeText).toHaveBeenCalledWith(
-        expect.stringMatching(/quizlab-session-extension$/)
-      )
+      expect(mockClipboardWrite).toHaveBeenCalledTimes(1)
+      expect(mockClipboardWrite.mock.calls[0][0]).toEqual([
+        { items: { 'text/plain': expect.stringMatching(/quizlab-session-extension$/) } }
+      ])
       expect(manager.getExtensionInfo().installed).toBe(true)
+    })
+
+    it('still reports success when only the clipboard copy fails', async () => {
+      // The extension files, the bridge info and the native host manifest are
+      // already written and the host is registered by this point, so a
+      // clipboard failure must not turn a finished install into a failure.
+      mockClipboardWrite.mockRejectedValueOnce(new Error('clipboard locked'))
+
+      const result = await manager.installExtension()
+
+      expect(result.success).toBe(true)
+      expect(result.installedPath).toMatch(/quizlab-session-extension$/)
+      expect(mockClipboardWrite).toHaveBeenCalledTimes(1)
     })
 
     it('writes the native host manifest with a forward-slash path (no JSON backslash escaping)', async () => {
@@ -325,7 +352,7 @@ describe('NativeMessagingManager', () => {
       expect(result.success).toBe(false)
       expect(result.error).toContain('Extension not found at')
       expect(mockFsWriteFile).not.toHaveBeenCalled()
-      expect(mockClipboard.writeText).not.toHaveBeenCalled()
+      expect(mockClipboardWrite).not.toHaveBeenCalled()
     })
 
     it('returns error when fs operation fails', async () => {

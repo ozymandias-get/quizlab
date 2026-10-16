@@ -5,7 +5,6 @@ import { APP_CONFIG } from '../../app/constants.js'
 const ipcHandle = vi.fn()
 const appQuit = vi.fn()
 const shellOpenExternal = vi.fn()
-const clipboardWriteText = vi.fn()
 const defaultSessionClearCache = vi.fn()
 const partitionClearCache = vi.fn()
 const partitionClearStorageData = vi.fn()
@@ -15,6 +14,25 @@ const fromPartition = vi.fn(() => ({
 }))
 const fromId = vi.fn()
 const getMainWindow = vi.fn()
+
+// Only `electron` is mocked here — the clipboard adapter under the handlers is
+// the real one, so a write really travels through `ClipboardItem` and the
+// adapter's FIFO queue. Hoisted with the mock factory so `FakeClipboardItem`
+// is initialized before the adapter's `electron` import is resolved.
+//
+// `writeText` is the helper Electron 44 removed. It stays mocked only as a
+// tripwire: nothing may write to the clipboard except the adapter.
+const { clipboardWrite, clipboardWriteText, FakeClipboardItem } = vi.hoisted(() => {
+  class FakeClipboardItem {
+    constructor(public readonly items: Record<string, string>) {}
+  }
+
+  return {
+    clipboardWrite: vi.fn((_items: FakeClipboardItem[]) => Promise.resolve()),
+    clipboardWriteText: vi.fn((_text: string) => Promise.resolve()),
+    FakeClipboardItem
+  }
+})
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -38,8 +56,10 @@ vi.mock('electron', () => ({
     fromPartition
   },
   clipboard: {
+    write: clipboardWrite,
     writeText: clipboardWriteText
-  }
+  },
+  ClipboardItem: FakeClipboardItem
 }))
 
 vi.mock('../../features/ai/aiManager', () => ({
@@ -70,6 +90,8 @@ describe('systemHandlers', () => {
     ipcHandle.mockReset()
     appQuit.mockReset()
     shellOpenExternal.mockReset()
+    clipboardWrite.mockReset()
+    clipboardWrite.mockResolvedValue(undefined)
     clipboardWriteText.mockReset()
     defaultSessionClearCache.mockReset()
     partitionClearCache.mockReset()
@@ -194,5 +216,46 @@ describe('systemHandlers', () => {
     ).resolves.toEqual({ ok: true, data: false })
 
     expect(fromPartition).not.toHaveBeenCalled()
+  })
+
+  it('copies sanitized text through the clipboard adapter', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({
+      isDestroyed: vi.fn(() => false),
+      webContents: trustedSender
+    })
+
+    registerSystemHandlers()
+    const copyTextHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.COPY_TEXT
+    )?.[1]
+
+    // sanitizeClipboardText strips the escape sequence before the write.
+    await expect(copyTextHandler?.({ sender: trustedSender }, 'he\x1b[31mllo')).resolves.toEqual({
+      ok: true,
+      data: true
+    })
+
+    expect(clipboardWriteText).not.toHaveBeenCalled()
+    expect(clipboardWrite.mock.calls[0][0]).toEqual([{ items: { 'text/plain': 'hello' } }])
+  })
+
+  it('reports failure when the clipboard write rejects', async () => {
+    clipboardWrite.mockRejectedValue(new Error('clipboard locked'))
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({
+      isDestroyed: vi.fn(() => false),
+      webContents: trustedSender
+    })
+
+    registerSystemHandlers()
+    const copyTextHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.COPY_TEXT
+    )?.[1]
+
+    await expect(copyTextHandler?.({ sender: trustedSender }, 'hello')).resolves.toEqual({
+      ok: true,
+      data: false
+    })
   })
 })

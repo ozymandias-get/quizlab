@@ -1,10 +1,11 @@
 import { execFile } from 'child_process'
-import { app, clipboard } from 'electron'
+import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { promisify } from 'util'
 
 import { Logger } from '../../core/logger.js'
+import { writeClipboardText } from '../../core/systemHandlers/clipboardApi.js'
 import { deriveExtensionIdFromKey } from './nativeMessagingOrigin.js'
 import { EXTENSION_SOURCE_DIR, NATIVE_HOST_MANIFEST_NAME } from './nativeMessagingTypes.js'
 
@@ -118,7 +119,16 @@ export class NativeMessagingInstaller {
       )
       await this.registerNativeHostInRegistry(nativeHostManifestPath)
 
-      clipboard.writeText(destPath)
+      // The manifest is on disk and the native host is registered with the OS
+      // registry by this point, so the install has already succeeded. The
+      // clipboard copy is a convenience; failing the whole install over it would
+      // undo a completed install, which the old synchronous write could not do.
+      // Keep this catch: it is what makes a clipboard failure non-fatal.
+      try {
+        await writeClipboardText(destPath)
+      } catch (error) {
+        Logger.warn('[NativeMessaging] Failed to copy install path to clipboard:', error)
+      }
 
       return { success: true, installedPath: destPath }
     } catch (error) {
