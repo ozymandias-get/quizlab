@@ -170,10 +170,59 @@ export function getSafeId(el: Element) {
   return id
 }
 
+/**
+ * Class tokens are only kept when they can plausibly survive a redeploy, i.e.
+ * when they carry meaning. Three shapes are rejected:
+ *
+ *   1. Malformed / custom-property style names already covered by
+ *      `GENERATED_TOKEN_REGEX` (`--tw-…`, 5+ digit runs, 15+ char alnum runs,
+ *      `word_12345`). This filter previously consulted `SAFE_CLASS_TOKEN_REGEX`
+ *      alone, so `abcdefghijklmnop` and `block_12345` slipped through.
+ *   2. Hashed utility classes — the dominant shape on modern AI frontends.
+ *      ChatGPT's composer build-hashes its utilities and rotates them on every
+ *      frontend deploy; measured live, the send button is
+ *      `<button class="x16qrm4 xxyica1 x1cpjm7i x1au5me5 x1w4defg xgkqi7n …">`.
+ *      Every one of those passes `SAFE_CLASS_TOKEN_REGEX`, so all three stored
+ *      "safe" tokens were build hashes: worthless as identity evidence (they
+ *      break on the next deploy) and actively harmful, because the runtime
+ *      scores class-token overlap and would prefer a WRONG element that happens
+ *      to share a stale hash.
+ *   3. Nothing else. When every token is rejected the result is an empty array,
+ *      which callers already treat as "no class evidence".
+ */
 export function getSafeClassTokens(el: Element) {
+  // Declared INSIDE the function deliberately: this helper is serialized with
+  // fn.toString() into the injected picker script and into the self-healing
+  // selector helper, and only the function body travels with it. A module-level
+  // const would be an undefined reference inside the guest page.
+  // (`GENERATED_TOKEN_REGEX` / `SAFE_CLASS_TOKEN_REGEX` are safe to reference
+  // because `injectedPickerDom.ts` mirrors them into the emitted prefix.)
+  //
+  // Hashed-utility rule: a SHORT (≤12), SINGLE-SEGMENT, lowercase alphanumeric
+  // token containing at least one digit — `x16qrm4`, `x1cpjm7i`, `xgkqi7n`.
+  // Two details make it precise:
+  //   - The digit is NOT anchored right after the first letter. A `^[a-z]\d`
+  //     rule misses `xxyica1`, whose letter/digit split sits in the middle
+  //     (`x|xyica|1`) — the real production token from the bug report.
+  //   - Segmented names are exempt. Ordinary utilities put the value behind a
+  //     hyphen (`px-2`, `text-2xl`, `col-2`, `mt-4`) and semantic/BEM names do
+  //     too (`send-btn`, `ProseMirror-focused`, `composer-send`). Only digits
+  //     INSIDE one unsplit segment read as a hash. `[a-z0-9]` also excludes
+  //     `_`, leaving the word_digit shapes to `GENERATED_TOKEN_REGEX`.
+  //   - Lowercase-only start keeps CamelCase semantic names (`Heading2`,
+  //     `Avatar40`) even though they mix cases with digits; these hashers are
+  //     always lowercase, so the tighter rule costs no real recall.
+  const HASHED_UTILITY_CLASS_REGEX = /^(?=[a-z0-9]*\d)[a-z0-9]{1,12}$/
+
   return [...el.classList]
     .map((token) => token.trim())
-    .filter((token) => token && SAFE_CLASS_TOKEN_REGEX.test(token))
+    .filter(
+      (token) =>
+        token &&
+        SAFE_CLASS_TOKEN_REGEX.test(token) &&
+        !GENERATED_TOKEN_REGEX.test(token) &&
+        !HASHED_UTILITY_CLASS_REGEX.test(token)
+    )
     .slice(0, 3)
 }
 
@@ -303,6 +352,19 @@ export function buildCssCandidates(el: Element, kind: 'input' | 'button') {
 
   if (placeholder && placeholder.length < 256) {
     pushCandidate(candidates, `${tag}[placeholder="${escapeCssStringValue(placeholder)}"]`)
+  }
+
+  if (kind === 'button' && el.hasAttribute('data-composer-submit')) {
+    // Composer gönder düğmesi kancası (2026-10-17 canlı chatgpt.com ölçümü).
+    // aria-label ÇEViriye bağlıdır ("Mesaj gönder" / "Send message"): ondan
+    // üretilen locator kullanıcı dilini ya da sitenin metnini değiştirince
+    // ölür. Bu öznitelik dile bağlı değildir ve yalnız gönder düğmesinde
+    // bulunduğu için aria-label adayından ÖNCE gelmelidir.
+    //
+    // Bilerek yeni bir modül-seviyesi sabiti kullanılmadı: bu fonksiyon
+    // `injectedPickerDom` tarafından `fn.toString()` ile yeniden üretiliyor ve
+    // orada yalnızca GENERATED_TOKEN_REGEX/SAFE_CLASS_TOKEN_REGEX kopyalanıyor.
+    pushCandidate(candidates, '[data-composer-submit]')
   }
 
   if (ariaLabel && ariaLabel.length < 256) {

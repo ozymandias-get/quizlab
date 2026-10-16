@@ -194,6 +194,18 @@ describe('siteStrategyRegistry', () => {
         }) as DOMRect
     }
 
+    /** Same, for every element inside a subtree written via innerHTML. */
+    function mockAllRects(root: ParentNode, width = 40, height = 40) {
+      root.querySelectorAll('*').forEach((el) => mockRect(el, width, height))
+    }
+
+    /** The composer-scoped button lookup is exposed through builtin:* strategies. */
+    function produceButton(strategyId = 'builtin:chatgpt', hostname = 'chatgpt.com') {
+      const matches = listApplicableStrategies(hostname)
+      const strategy = matches.find((s) => s.id === strategyId)!
+      return strategy.produce('button')
+    }
+
     it('tryGenericInputFallback finds a visible textarea', () => {
       listApplicableStrategies('claude.ai')
       const textarea = document.createElement('textarea')
@@ -274,6 +286,133 @@ describe('siteStrategyRegistry', () => {
       expect(r2).not.toBeNull()
       expect(r1!.element).toBe(ta)
       expect(r2!.element).toBe(ta)
+    })
+
+    // ── 2026-10-17 ölçümü (canlı chatgpt.com): yeni composer'da send butonu
+    // data-composer-submit taşıyor ve data-testid taşımıyor. data-testid kuralı
+    // ölü; aria-label ise çevrili ("Mesaj gönder" / "Send message").
+    it('ranks [data-composer-submit] above every other button rule', () => {
+      document.body.innerHTML = `
+        <form>
+          <textarea></textarea>
+          <button id="dialog-submit" type="submit" aria-label="Kapat">Kapat</button>
+          <button id="composer-submit" data-composer-submit type="submit"
+                  aria-label="Mesaj gönder">→</button>
+        </form>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).not.toBeNull()
+      expect(result!.element).toBe(document.getElementById('composer-submit'))
+    })
+
+    it('does not let the unscoped [aria-label*=Send] rule outrank button[aria-label*=Send]', () => {
+      // aria-label her elemanda geçerli: bir <span aria-label="Send feedback">
+      // gerçek gönder butonundan önce geldiğinde kapsamsız kural onu seçerdi.
+      document.body.innerHTML = `
+        <div class="composer">
+          <span id="not-a-button" aria-label="Send feedback"></span>
+          <textarea></textarea>
+          <button id="real-send" aria-label="Send message">→</button>
+        </div>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).not.toBeNull()
+      expect(result!.element).toBe(document.getElementById('real-send'))
+    })
+
+    it('looks for the send button inside the composer before searching the whole page', () => {
+      // Aynı kuralı karşılayan iki buton: sayfa genelindeki arama (querySelector)
+      // DOM sırasına göre header'dakini seçerdi; composer kapsaması içerideki seçer.
+      document.body.innerHTML = `
+        <header>
+          <button id="header-send" aria-label="Send message">→</button>
+        </header>
+        <form class="composer-form">
+          <textarea></textarea>
+          <button id="composer-send" aria-label="Send message">→</button>
+        </form>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).not.toBeNull()
+      expect(result!.element).toBe(document.getElementById('composer-send'))
+    })
+
+    it('falls back to the page-wide search when the composer holds no button', () => {
+      document.body.innerHTML = `
+        <header>
+          <button id="header-send" aria-label="Send message">→</button>
+        </header>
+        <form class="composer-form">
+          <textarea></textarea>
+        </form>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).not.toBeNull()
+      expect(result!.element).toBe(document.getElementById('header-send'))
+    })
+
+    it('never returns a dictation (microphone) control as the send button', () => {
+      // Canlı chatgpt.com'da composer boşken görünür tek yuvarlak ikon düğmesi
+      // dikte (mic) düğmesidir; bu düğmeye basmak mesajı göndermez.
+      for (const attribute of [
+        'data-start-dictation',
+        'data-cancel-dictation',
+        'data-submit-dictation'
+      ]) {
+        document.body.innerHTML = `
+          <form>
+            <textarea></textarea>
+            <button id="mic" type="submit" ${attribute}
+                    aria-label="Dikteyi başlatma">🎙</button>
+          </form>
+        `
+        mockAllRects(document.body)
+
+        const result = produceButton()
+        expect(result, `${attribute} must not be resolved as the send button`).toBeNull()
+      }
+    })
+
+    it('skips the dictation control and returns the real send button next to it', () => {
+      document.body.innerHTML = `
+        <form>
+          <textarea></textarea>
+          <button id="mic" type="button" data-start-dictation
+                  aria-label="Dikteyi başlatma">🎙</button>
+          <button id="send" data-composer-submit type="submit"
+                  aria-label="Mesaj gönder">→</button>
+        </form>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).not.toBeNull()
+      expect(result!.element).toBe(document.getElementById('send'))
+    })
+
+    it('does not resolve a send button that is still hidden (empty composer state)', () => {
+      // ChatGPT gönder düğmesini composer boşken `hidden` bırakır ve o anda görünür
+      // tek yuvarlak düğme dikte düğmesidir. `hidden`, tarayıcının varsayılan stil
+      // sayfasında display:none'a dönüştüğü için computed-style kontrolü yeterlidir.
+      document.body.innerHTML = `
+        <form>
+          <textarea></textarea>
+          <button id="hidden-send" type="submit" hidden
+                  aria-label="Mesaj gönder">→</button>
+        </form>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).toBeNull()
     })
   })
 })

@@ -15,6 +15,7 @@ import {
   buildCssCandidates,
   generateLocatorBundle
 } from '@electron/features/automation/lib/dom/pickerDomRuntime'
+import { buildInjectedPickerDomHelpers } from '@electron/features/automation/lib/injectedPickerDom'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -206,5 +207,67 @@ describe('picker target integrity', () => {
     expect(bundle).not.toBeNull()
     expect(bundle!.fingerprint.placeholder).toBe('Search messages')
     expect(document.querySelector(bundle!.primarySelector as string)).toBe(second)
+  })
+
+  /**
+   * T08 — hashed utility classes must not become fingerprint identity evidence.
+   *
+   * ChatGPT's composer rotates its `x…` build hashes on every frontend deploy,
+   * so persisting them yields selectors that break within days and, worse, a
+   * class-overlap score that prefers a wrong element sharing a stale hash.
+   */
+  it('T08: hashed utility classes never reach the persisted fingerprint or the CSS candidates', () => {
+    const el = document.createElement('button')
+    el.setAttribute('aria-label', 'Send message')
+    el.setAttribute('data-testid', 'send-button')
+    el.setAttribute('class', 'x16qrm4 xxyica1 x1cpjm7i x1au5me5 xgkqi7n')
+    document.body.appendChild(el)
+
+    const bundle = generateLocatorBundle(el, 'button')
+    expect(bundle!.fingerprint.classTokens).toBeUndefined()
+    expect(bundle!.candidates).not.toContain('button.x16qrm4.xxyica1.x1cpjm7i')
+    for (const candidate of bundle!.candidates) {
+      expect(candidate).not.toMatch(/\.x(?:16qrm4|xyica1|1cpjm7i|1au5me5|gkqi7n)\b/)
+    }
+    // Redeploy-proof evidence is still preferred.
+    expect(bundle!.primarySelector).toBe('button[data-testid="send-button"]')
+  })
+
+  it('T09: semantic classes beside hashes still reach the fingerprint', () => {
+    const el = document.createElement('div')
+    el.setAttribute('contenteditable', 'true')
+    el.setAttribute('class', 'x16qrm4 xxyica1 ProseMirror composer-send')
+    document.body.appendChild(el)
+
+    const bundle = generateLocatorBundle(el, 'input')
+    expect(bundle!.fingerprint.classTokens).toEqual(['ProseMirror', 'composer-send'])
+  })
+
+  /**
+   * Injection contract: `buildInjectedPickerDomHelpers` re-emits every helper
+   * with `fn.toString()` and only mirrors GENERATED_TOKEN_REGEX /
+   * SAFE_CLASS_TOKEN_REGEX into the emitted prefix. Any NEW regex the hash
+   * filter needs therefore has to travel inside the function body — a
+   * module-level const would be an undefined reference in the guest page and
+   * would throw at click time, silently breaking the whole picker.
+   */
+  it('T10: the hash filter survives fn.toString() injection', () => {
+    const injected = buildInjectedPickerDomHelpers()
+    expect(injected).toContain('HASHED_UTILITY_CLASS_REGEX')
+
+    // And the emitted source must actually evaluate and behave.
+    const scope = new Function(
+      `${injected}\nreturn typeof getSafeClassTokens === 'function' ? getSafeClassTokens : null;`
+    )
+    const injectedGetSafeClassTokens = scope() as ((el: Element) => string[]) | null
+    expect(injectedGetSafeClassTokens).toBeTypeOf('function')
+
+    const hashed = document.createElement('button')
+    hashed.setAttribute('class', 'x16qrm4 xxyica1')
+    expect(injectedGetSafeClassTokens!(hashed)).toEqual([])
+
+    const semantic = document.createElement('button')
+    semantic.setAttribute('class', 'x16qrm4 ProseMirror send-btn')
+    expect(injectedGetSafeClassTokens!(semantic)).toEqual(['ProseMirror', 'send-btn'])
   })
 })
