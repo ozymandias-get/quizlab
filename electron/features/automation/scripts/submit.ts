@@ -27,6 +27,25 @@ const STABLE_BLOCKED_EXIT_MS = 2000
  *   - `submit_observed`    → arayüzde beklenen etki GÖZLEMLENDİ
  *   - `delivery_unconfirmed` → gönderim denendi ama etki doğrulanamadı
  *
+ * `submit_attempted` tek başına SONUÇ DEĞİLDİR: `success` yalnızca
+ * `submit_observed` karşılığı geldiğinde `true` olur. Click ve Enter yolu bu
+ * sözleşmeyi paylaşır — etkisi görülmeyen bir tıklama, yanlış öğeye düşen
+ * bir locator'ın sahte başarısıdır. Canlı chatgpt.com ölçümünde
+ * `button[type="submit"]` sorgusu composer boşken gizli olan gönder butonu
+ * yerine görünür MİKROFON butonuna düşüyor, tıklama dikteyi başlatıyor ve
+ * mesaj hiç gönderilmiyordu.
+ *
+ * Bir gönderim girişimi `delivery_unconfirmed` ile bittiğinde buton onarımına
+ * KREDİ VERİLMEZ (`__finalizeSelectorRepair(..., false)`): hiçbir etki
+ * üretmeyen bir tıklama locator'ın doğru olduğunun kanıtı değildir.
+ * `submitWrongControl` teşhisi (tıklanan öğenin bir dikte/kayıt kontrolü
+ * olduğu) günlüğü "teslimat doğrulanamadı" genel mesajından daha aksiyona
+ * dönük kılar.
+ *
+ * Bu aynı zamanda `mixed` modda Enter yoluna sessiz geçişi kapatır: tıklamadan
+ * sonra mesajın GİTMİŞ olma ihtimali vardır ve üst üste ikinci bir gönderim
+ * mükerrer mesaj üretir.
+ *
  * Sentetik `KeyboardEvent` için `dispatchEvent()` dönüşü BAŞARI sayılmaz:
  * birçok web uygulaması `isTrusted === false` olayları yok sayar ve mesaj
  * hiç gönderilmez. Bu yüzden Enter yolu gönderimden sonra editörü ve konuşma
@@ -152,6 +171,25 @@ ${inputRepairCredit('                ')}`
             return false;
         };
 
+        // ── Gönderim hedefi doğruluğu ──────────────────────────────────────
+        // Etkileşime hazır bir düğme "gönder butonu" olduğu anlamına gelmez.
+        // Canlı chatgpt.com ölçümünde composer boşken gerçek gönder butonu
+        // GİZLİ, dikte (mikrofon) butonu görünür durumdadır; geniş bir
+        // \`button\` sorgusu ikincisine düşer. Tıklamak mesajı değil dikteyi
+        // başlatır. Bu, teslimatın doğrulanamamasının en sık nedenidir ve
+        // kesin olarak "yanlış kontrol seçildi" demektir; teşhis olarak
+        // kaydedilir.
+        const __submitWrongControl = (buttonElement) => {
+            if (!buttonElement || typeof buttonElement.hasAttribute !== 'function') return null;
+            const controls = ['data-start-dictation', 'data-cancel-dictation', 'data-submit-dictation'];
+            for (let i = 0; i < controls.length; i++) {
+                try {
+                    if (buttonElement.hasAttribute(controls[i])) return controls[i];
+                } catch (_) {}
+            }
+            return null;
+        };
+
         const performSubmit = async (${options.includeInputLookupForEnter ? '' : 'inputElement'}) => {
             const start = now();
             const mode = config.submitMode;
@@ -190,17 +228,35 @@ ${inputRepairCredit('                ')}`
                     const beforeClick = __submitFingerprint(submitInput, button);
                     button.click();
                     diagnostics.submitMethod = 'button_click';
-                    // Click üzerinde de gözlem yapılır ama SERT BAŞARISIZLIK
-                    // üretilmez: etkin bir gönder butonuna tıklamak gerçek bir
-                    // gönderim girişimidir. Teslimat kanıtı olmadığı açıkça
-                    // işaretlenir (\`delivery_unconfirmed\`) ki üst katman
-                    // kullanıcıya "gönderildi" ile "teslim doğrulanmadı" ayrımını
-                    // yapabilsin.
+                    // Click üzerinde de Enter ile AYNI dürüstlük sözleşmesi
+                    // geçerli: tetiklemek gönderim girişimidir, teslimat
+                    // ancak arayüzde beklenen etki GÖZLEMLENDİĞİDE kanıttır.
+                    // Etkisiz bir tıklama (en sık nedeni yanlış öğe: gönder
+                    // butonu gizliyken bulunan mikrofon) başarı diye
+                    // raporlanırsa kullanıcı hiç gitmemiş bir mesaj için
+                    // "gönderildi" görür.
                     diagnostics.submitObserved = await __observeSubmitEffect(submitInput, button, beforeClick);
-                    diagnostics.submitOutcome = diagnostics.submitObserved ? 'observed' : 'delivery_unconfirmed';
-                    success = true;
-                    // A completed click is the send button's only "real usage".
-                    __finalizeSelectorRepair(diagnostics.button, 'button', true);
+                    success = diagnostics.submitObserved === true;
+                    if (success) {
+                        diagnostics.submitOutcome = 'observed';
+                        diagnostics.submitWrongControl = null;
+                        // Gözlenen bir etki, butonun gerçek kullanımıdır:
+                        // onarım kredisi yalnızca burada verilir.
+                        __finalizeSelectorRepair(diagnostics.button, 'button', true);
+                    } else {
+                        diagnostics.submitOutcome = 'delivery_unconfirmed';
+                        // Tıklanan öğenin bir dikte/kayıt kontrolü olması
+                        // yanlış butonun seçildiğinin kesin kanıtıdır; günlükte
+                        // hangi kontrolün hedef olduğunu adıyla yazar.
+                        diagnostics.submitWrongControl = __submitWrongControl(button);
+                        // Metin editörde durduğu için taslak kaybolmaz, ama
+                        // mükerrer gönderim riski nedeniyle sınıflandırıcı bu
+                        // hatada otomatik tekrarı yasaklar (\`retry: 'never'\`).
+                        error = 'submit_unverified';
+                        // Hiçbir etki üretmeyen bir tıklama locator'ın doğru
+                        // olduğunu KANITLAMAZ: onarım kredisi verilmez.
+                        __finalizeSelectorRepair(diagnostics.button, 'button', false);
+                    }
                 } else {
                     notReadyReason = buttonResult.notReadyReason || null;
                     const blocked = buttonResult.blockedElement || null;

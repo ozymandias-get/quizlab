@@ -234,22 +234,37 @@ describe('selector self-healing evidence', () => {
 
     const diagnostics = result.diagnostics.button as LocatorDiagnostics
     expect(diagnostics.recovered).toBe(true)
+    // Yükseltme reddedilir: stable selector üretilmez.
     expect(diagnostics.repairEligible).toBe(false)
-    expect(diagnostics.repairReason).toBe('blocked_send_control')
     expect(diagnostics.stableSelector ?? null).toBeNull()
+    // "Stop generating" butonuna tıklamak hiçbir arayüz etkisi üretmez,
+    // dolayısıyla onarım kredisi de verilmez. Raporlanan neden
+    // `operation_failed` olur: kanonik `classifyRepairEligibility` de
+    // `operationSucceeded` kontrolünü `blockedSendControl`'den ÖNCE yapar
+    // (bkz. shared/selectorRepair/repairEvidence.ts), yani enjekte edilen
+    // runtime artık host'un kendi kararıyla aynı şeyi söylüyor. Nihai hüküm
+    // (reddedildi) her iki sırada da aynıdır.
+    expect(diagnostics.operationSucceeded).toBe(false)
+    expect(diagnostics.repairReason).toBe('operation_failed')
   })
 
   it('only marks a send button as used after the click actually happened', async () => {
     document.body.innerHTML = `
       <form role="form">
-        <textarea data-testid="ask" aria-label="Message"></textarea>
+        <textarea data-testid="ask" aria-label="Message">merhaba</textarea>
         <button data-testid="send" aria-label="Send message">Send</button>
       </form>
     `
-    const input = document.querySelector('textarea')
+    const input = document.querySelector('textarea') as HTMLTextAreaElement
     if (input) setElementBox(input, 420, 60)
     const send = document.querySelector('button')
     if (send) setElementBox(send, 40, 40)
+    // Gerçek bir gönder butonu mesajı editörden AYRILIR. Tıklamanın
+    // başarı sayılması bu gözleme dayandığı için sahte buton "tıklandı ama
+    // hiçbir şey olmadı" taklidi yapmamalıdır.
+    send?.addEventListener('click', () => {
+      input.value = ''
+    })
 
     const result = await window.eval(
       generateClickSendScript({

@@ -6,6 +6,8 @@
  * indistinguishable from "the page never rendered the button".
  */
 import { selectorEngine } from '@electron/features/automation/automationScripts/lib/selectorEngine'
+import { selectorRepairRuntime } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
+import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRegistry'
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -161,5 +163,111 @@ describe('injected fallback pipeline', () => {
     expect(result.viaResolveElementId).toBe('stub-target')
     // Depth saturates after three 250ms retries.
     expect(result.fallbackAttempts).toBe(3)
+  })
+})
+
+/**
+ * 2026-10-17 ölçümü (canlı chatgpt.com): yeni composer'da
+ *   - gönder düğmesi `data-composer-submit` taşıyor (data-testid yok),
+ *   - composer boşken gönder düğmesi `hidden`, görünür tek yuvarlak düğme
+ *     dikte (mic) düğmesi,
+ *   - sayfada 7 adet `button[type="submit"]` var (6'sı diyalog "Kapat").
+ *
+ * trySemanticFallback, site stratejisinden ÖNCE çalışır ve bütün submit
+ * düğmelerini toplayıp puanladığı için hem mikrofonu hem de bir diyaloğun
+ * "Kapat" düğmesini gönder düğmesi seçebiliyordu.
+ */
+describe('trySemanticFallback button scoping', () => {
+  type SemanticHarness = {
+    trySemanticFallback: (
+      kind: string,
+      config?: unknown
+    ) => { element: Element | null; matchedSelector?: string; strategy?: string } | null
+  }
+
+  /**
+   * `buildCommonHelpers` sırasının aynısı: composer yardımcıları
+   * siteStrategyRuntime'da, self-healing bloğu selectorRepairRuntime'da,
+   * pipeline selectorEngine'in içinde. computeConfidenceScore sabit puan
+   * verir, böylece hangi adayın seçildiği yalnızca pipeline'ın kendi
+   * önceliklendirmesinden anlaşılır.
+   */
+  const buildHarness = () => `() => {
+    const uniqueStrings = (arr) => Array.from(new Set((arr || []).filter(Boolean)));
+    const uniqueElements = (arr) => Array.from(new Set(arr));
+    const now = () => Date.now();
+    const roundMs = (v) => Math.round(v);
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const CONFIDENCE_THRESHOLD_MEDIUM = 40;
+    const CONFIDENCE_THRESHOLD_HIGH = 70;
+    const getSearchRoots = () => [document];
+    const getAutomationCache = () => ({ elements: {}, pageUrl: location.href });
+    const isReadyForInteraction = (el) => !!el && el.isConnected;
+    const computeConfidenceScore = () => ({ score: 50, level: 'medium' });
+    const findUniqueSelectorMatch = () => ({ element: null, matchedSelector: null, strategy: 'none' });
+    const findElementByFingerprint = () => null;
+    const cacheElement = () => {};
+    const getCachedElement = () => null;
+    const invalidateCacheEntry = () => {};
+    const tryChatGptComposerFallback = () => null;
+    const tryGeminiComposerFallback = () => null;
+    const tryGeminiButtonFallback = () => null;
+    ${selectorRepairRuntime}
+    ${siteStrategyRuntime}
+    ${selectorEngine}
+    return { trySemanticFallback }
+  }`
+
+  // Kayıtlı bir config olmadan __isLikelySendButton ikon-only düğmeleri
+  // reddeder; gerçek üretimde pipeline yalnızca bir lookup ile çalıştığı için
+  // hostChain'li bir config verilir.
+  const config = {
+    input: { selectors: ['#composer-input'], fingerprint: null },
+    button: { selectors: ['#composer-submit'], fingerprint: { hostChain: ['#app-root'] } }
+  }
+
+  const getHarness = () => (window.eval(buildHarness()) as () => unknown)() as SemanticHarness
+
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('never returns a dictation (microphone) control as the send button', () => {
+    for (const attribute of [
+      'data-start-dictation',
+      'data-cancel-dictation',
+      'data-submit-dictation'
+    ]) {
+      document.body.innerHTML = `
+        <form class="composer-form">
+          <textarea></textarea>
+          <button id="mic" type="submit" ${attribute} aria-label="Mikrofon">🎙</button>
+          <button id="send" type="button" aria-label="Gönder">→</button>
+        </form>
+      `
+      const result = getHarness().trySemanticFallback('button', config)
+      expect(result, `${attribute} must not be resolved as the send button`).not.toBeNull()
+      expect(result?.element, `${attribute} must not be resolved as the send button`).toBe(
+        document.getElementById('send')
+      )
+    }
+  })
+
+  it('prefers the composer submit control over a page-wide submit button', () => {
+    // Diyaloğun "Onayla" düğmesi DOM'da daha önce geliyor ve her iki aday da
+    // aynı puanı alıyor; kapsamsız toplama ilk bulduğunu seçerdi.
+    document.body.innerHTML = `
+      <div role="dialog">
+        <button id="dialog-submit" type="submit" aria-label="Onayla">Onayla</button>
+      </div>
+      <form class="composer-form">
+        <textarea></textarea>
+        <button id="composer-submit" type="submit" data-composer-submit
+                aria-label="Mesaj gönder">→</button>
+      </form>
+    `
+    const result = getHarness().trySemanticFallback('button', config)
+    expect(result).not.toBeNull()
+    expect(result?.element).toBe(document.getElementById('composer-submit'))
   })
 })
