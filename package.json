@@ -248,10 +248,10 @@
   },
   "overrides": {
     "eslint-plugin-jsx-a11y": {
-      "eslint": "10.5.0"
+      "eslint": "^10.5.0"
     },
     "eslint-plugin-react": {
-      "eslint": "10.5.0"
+      "eslint": "^10.5.0"
     },
     "tar": ">=7.5.21"
   },
