@@ -256,7 +256,7 @@
     "tar": ">=7.5.21"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,json,md,css}": "prettier --write",
+    "!(package-lock).{ts,tsx,js,jsx,json,md,css}": "prettier --write",
     "*.{ts,tsx,js,jsx}": "eslint --fix"
   }
 }
