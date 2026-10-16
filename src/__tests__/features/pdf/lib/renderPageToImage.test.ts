@@ -61,12 +61,10 @@ interface RenderParams {
 function makePage(pointWidth: number, pointHeight: number) {
   const renderTask = { promise: Promise.resolve(), cancel: vi.fn() }
   const render = vi.fn((_params: RenderParams) => renderTask)
-  const getViewport = vi.fn(
-    ({ scale }: { scale: number }): Viewport => ({
-      width: Math.round(pointWidth * scale),
-      height: Math.round(pointHeight * scale)
-    })
-  )
+  const getViewport = vi.fn(({ scale }: { scale: number }): Viewport => ({
+    width: Math.round(pointWidth * scale),
+    height: Math.round(pointHeight * scale)
+  }))
   return { getViewport, render, renderTask }
 }
 

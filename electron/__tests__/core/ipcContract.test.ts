@@ -42,8 +42,7 @@ function assertEventArgs<_C extends IpcEventChannel>(
 // because `never` is absorbed into any union it is joined to.
 type UncoveredIpcChannels = {
   [K in keyof typeof IPC_CHANNELS]: (typeof IPC_CHANNELS)[K] extends
-    | IpcInvokeChannel
-    | IpcEventChannel
+    IpcInvokeChannel | IpcEventChannel
     ? never
     : (typeof IPC_CHANNELS)[K]
 }[keyof typeof IPC_CHANNELS]

@@ -16,14 +16,7 @@ import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export type QuickPresetKey =
-  | 'explain'
-  | 'summarize'
-  | 'quiz'
-  | 'flashcard'
-  | 'terms'
-  | 'mechanism'
-  | 'clinical'
-  | 'review'
+  'explain' | 'summarize' | 'quiz' | 'flashcard' | 'terms' | 'mechanism' | 'clinical' | 'review'
 
 interface QuickPresetConfig {
   key: QuickPresetKey

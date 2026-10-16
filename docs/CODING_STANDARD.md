@@ -232,34 +232,37 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 Proje, Tailwind v4 `@theme` ile tanımlanmış merkezi bir token sistemine sahiptir.
 
 **Z-index tokenları** (`src/shared/styles/index.css`):
-| Token | Değer | Kullanım |
-|-------|-------|----------|
-| `--z-negative-10` | -10 | Ambient arkaplan katmanı |
-| `--z-negative-2` / `--z-negative-1` | -2 / -1 | Glow / panel gölge katmanları |
-| `--z-resizer-hub` | 40 | Panel resizer hub |
-| `--z-dropdown` → `--z-max` | 100 → 2147483647 | Standart z-index skalası |
+
+| Token                               | Değer            | Kullanım                      |
+| ----------------------------------- | ---------------- | ----------------------------- |
+| `--z-negative-10`                   | -10              | Ambient arkaplan katmanı      |
+| `--z-negative-2` / `--z-negative-1` | -2 / -1          | Glow / panel gölge katmanları |
+| `--z-resizer-hub`                   | 40               | Panel resizer hub             |
+| `--z-dropdown` → `--z-max`          | 100 → 2147483647 | Standart z-index skalası      |
 
 `@utility` sınıfları: `z-negative-10`, `z-negative-2`, `z-negative-1`, `z-resizer-hub`, `z-dropdown`, `z-overlay`, `z-modal`, `z-toast`, `z-tooltip`, `z-top`, `z-max`
 
 **Transition süre tokenları:**
-| Token | Süre | Kullanım |
-|-------|------|----------|
-| `--duration-instant` | 0ms | Anlık |
-| `--duration-fast` | 100ms | Çok hızlı geçişler |
-| `--duration-normal` | 150ms | Standart hover/geçiş |
-| `--duration-slow` | 200ms | Panel açılışları |
-| `--duration-slower` | 300ms | Opacity geçişleri |
+
+| Token                   | Süre  | Kullanım              |
+| ----------------------- | ----- | --------------------- |
+| `--duration-instant`    | 0ms   | Anlık                 |
+| `--duration-fast`       | 100ms | Çok hızlı geçişler    |
+| `--duration-normal`     | 150ms | Standart hover/geçiş  |
+| `--duration-slow`       | 200ms | Panel açılışları      |
+| `--duration-slower`     | 300ms | Opacity geçişleri     |
 | `--duration-deliberate` | 500ms | Belirgin animasyonlar |
-| `--duration-slowest` | 900ms | Uzun animasyonlar |
+| `--duration-slowest`    | 900ms | Uzun animasyonlar     |
 
 `@utility` sınıfları: `motion-instant`, `motion-fast`, `motion-normal`, `motion-slow`, `motion-slower`, `motion-deliberate`, `motion-slowest`
 
 **Gölge sistemi:**
-| Token | CSS değeri |
-|-------|-----------|
-| `--shadow-glass-sm` | `rgba(0, 0, 0, 0.4)` |
-| `--shadow-glass-md` | `rgba(0, 0, 0, 0.75)` |
-| `--shadow-ambient-sm` | `0 1px 2px var(--shadow-glass-sm)` |
+
+| Token                 | CSS değeri                                                                   |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `--shadow-glass-sm`   | `rgba(0, 0, 0, 0.4)`                                                         |
+| `--shadow-glass-md`   | `rgba(0, 0, 0, 0.75)`                                                        |
+| `--shadow-ambient-sm` | `0 1px 2px var(--shadow-glass-sm)`                                           |
 | `--shadow-ambient-md` | `0 1px 2px var(--shadow-glass-sm), 0 24px 48px -12px var(--shadow-glass-md)` |
 
 `@utility` sınıfları: `shadow-ambient-sm`, `shadow-ambient-md`, `shadow-ambient-lg`, `shadow-ambient-xl`
