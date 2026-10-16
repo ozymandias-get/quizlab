@@ -50,6 +50,22 @@ describe('aiAutosendReliability', () => {
     }
   }
 
+  /**
+   * Gerçek bir gönder butonu mesajı editörden AYRILIR. Tıklamanın bir
+   * teslimat kanıtı sayılması bu gözleme dayanır, bu yüzden "etkileşime
+   * hazır butona tıklandı" kapılarını sınayan sahte sayfalarda butonun
+   * gerçekten bir gönderim yapması sağlanır. Aksi halde `success` beklenen
+   * testler, bu regresyonun tam da ortaya çıkardığı sahte başarıya
+   * dayanırdı.
+   */
+  function makeSendButtonDeliver(send: HTMLElement, composer: HTMLElement): () => void {
+    const listener = () => {
+      composer.textContent = ''
+    }
+    send.addEventListener('click', listener)
+    return () => send.removeEventListener('click', listener)
+  }
+
   describe('A — enabled button misclassified as disabled', () => {
     it('clicks an enabled send button that only carries a Tailwind disabled variant', async () => {
       document.body.innerHTML = `
@@ -57,7 +73,9 @@ describe('aiAutosendReliability', () => {
         <button id="send" class="disabled:opacity-50 hover:bg-primary" type="button">Send</button>
       `
       const clicks = vi.fn()
-      document.getElementById('send')?.addEventListener('click', clicks)
+      const send = document.getElementById('send') as HTMLButtonElement
+      send.addEventListener('click', clicks)
+      makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
 
       const startedAt = Date.now()
       const script = generateAutoSendScript(
@@ -80,7 +98,9 @@ describe('aiAutosendReliability', () => {
         <button id="send" class="aria-disabled:opacity-50 aria-disabled:cursor-not-allowed" type="button">Send</button>
       `
       const clicks = vi.fn()
-      document.getElementById('send')?.addEventListener('click', clicks)
+      const send = document.getElementById('send') as HTMLButtonElement
+      send.addEventListener('click', clicks)
+      makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
 
       const startedAt = Date.now()
       const result = await window.eval(
@@ -263,9 +283,14 @@ describe('aiAutosendReliability', () => {
      * günceller (`insertText` ve `insertFromPaste`), modele göre DOM'u yeniden
      * çizer ve gönder butonunu modele göre açar. Ham `appendChild` modele
      * dokunmaz — bu, gerçek framework davranışının özüdür.
+     *
+     * Gönder butonu da gerçek davranır: modeli boşaltır ve yeniden çizer.
+     * Tıklamanın teslimat kanıtı sayılması bu gözleme dayandığı için,
+     * sahte sayfanın "tıklandı ama hiçbir şey olmadı" taklidi yapmaması
+     * gerekir.
      */
     function installFrameworkComposer(composer: HTMLElement, send: HTMLElement) {
-      const state = { model: '', events: [] as string[] }
+      const state = { model: '', modelAtSend: '', events: [] as string[] }
       const render = () => {
         composer.textContent = state.model
         send.toggleAttribute('disabled', state.model.trim().length === 0)
@@ -277,6 +302,13 @@ describe('aiAutosendReliability', () => {
         if (!isText && !isPaste) return
         state.model += event.data as string
         event.preventDefault()
+        render()
+      })
+      send.addEventListener('click', () => {
+        // Gönder anındaki model, uzun metnin framework'e girdiğinin kanıtıdır:
+        // gönder sonrası model zaten boşalır.
+        state.modelAtSend = state.model
+        state.model = ''
         render()
       })
       send.toggleAttribute('disabled', true)
@@ -308,7 +340,7 @@ describe('aiAutosendReliability', () => {
       // jsdom execCommand uygulamaz; bu yüzden kanıt, ham DOM'a değil
       // framework MODELİNE giren içeriktir. Metin DOM'da görünse de model
       // boş kalsaydı buton açılmaz ve gönderim yapılmazdı.
-      expect(state.model.length).toBeGreaterThan(10000)
+      expect(state.modelAtSend.length).toBeGreaterThan(10000)
       expect(result.diagnostics.textVerifyResult).toBe('verified')
       expect(result.success).toBe(true)
       expect(clicks).toHaveBeenCalledTimes(1)
@@ -523,6 +555,150 @@ describe('aiAutosendReliability', () => {
         Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
       }
     }, 20000)
+  })
+
+  /**
+   * Click yolu Enter yoluyla aynı dürüstlüğe sahip olmalı.
+   *
+   * Gerçek hatada (chatgpt.com ölçümü) `button[type="submit"]` geniş bir
+   * sorgu gönder butonu yerine MİKROFON butonuna düşüyordu. `button.click()`
+   * dikteyi başlatıyor, `__observeSubmitEffect` hiçbir etki görmüyor, ama
+   * `success` yine de `true` idi: kullanıcı "gönderildi" görüyordu ve
+   * selector onarımı bozuk locator'ı ödüllendiriyordu.
+   *
+   * Buradaki sahte sayfa gönder butonuna TIKLANAMAZ bir davranış verir —
+   * tıklanır ama hiçbir arayüz etkisi üretmez. Bu tam olarak "yanlış öğe
+   * tıklandı" durumudur.
+   */
+  describe('E — a click that changes nothing must not report a delivery', () => {
+    it('reports submit_unverified when the clicked button produced no observable effect', async () => {
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button id="send" type="button">Send</button>
+      `
+      const clicks = vi.fn()
+      document.getElementById('send')?.addEventListener('click', clicks)
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      // Tıklama gerçekten denendi — bu bir "butona hiç ulaşılamadı" hatası değil.
+      expect(clicks).toHaveBeenCalledTimes(1)
+      expect(result.submitMethod).toBe('button_click')
+      // …ama hiçbir etki gözlemlenmediği için teslimat BAŞARILI SAYILAMAZ.
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('submit_unverified')
+      expect(result.submitObserved).toBe(false)
+      expect(result.submitOutcome).toBe('delivery_unconfirmed')
+    }, 30000)
+
+    it('does not credit the button selector repair for a click with no observable effect', async () => {
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button id="send" type="button">Send</button>
+      `
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      // `operationSucceeded` host tarafındaki tek "gerçek kullanım" sinyalidir
+      // (logicalSendEvidence / evaluateRepairEvidence). Etkisiz bir tıklama
+      // locator'ın DOĞRU olduğunun kanıtı değildir: ödüllendirilirse bozuk
+      // selector onarım zincirinde yukarı taşınır.
+      expect(result.diagnostics.button.operationSucceeded).toBe(false)
+    }, 30000)
+
+    it('names the dictation control when the send lookup landed on the microphone', async () => {
+      // Canlı chatgpt.com ölçümü: composer boşken gönder butonu GİZLİ,
+      // mikrofon butonu görünür. Geniş bir `button` sorgusu mikrofona düşer,
+      // tıklama dikteyi başlatır ve mesaj hiç gönderilmez.
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button data-composer-submit aria-label="Mesaj gönder" type="submit" style="display:none">Mesaj gönder</button>
+        <button data-start-dictation aria-label="Dikteyi başlatma" type="submit">Mikrofon</button>
+      `
+      const dictation = vi.fn()
+      document.querySelector('[data-start-dictation]')?.addEventListener('click', dictation)
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '[data-start-dictation]', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      expect(dictation).toHaveBeenCalledTimes(1)
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('submit_unverified')
+      expect(result.submitOutcome).toBe('delivery_unconfirmed')
+      // Dikte butonuna tıklamak YANLIŞ butonun seçildiğinin kesin kanıtıdır:
+      // bu, "teslimat doğrulanamadı" genel mesajından daha aksiyona
+      // dönük bir teşhistir ve günlükte hangi kontrolün hedef olduğunu
+      // söyler.
+      expect(result.diagnostics.submitWrongControl).toBe('data-start-dictation')
+      expect(result.diagnostics.button.operationSucceeded).toBe(false)
+    }, 30000)
+
+    it('never follows an unobserved click with an Enter fallback in mixed mode', async () => {
+      // `mixed` modda buton BULUNAMAZSA Enter yoluna düşmek güvenlidir. But
+      // buton bulundu ve tıklandıysa mesajın GİTMİŞ olma ihtimali vardır;
+      // üst üste ikinci gönderim mükerrer mesaj üretir. Bu yüzden
+      // `submit_unverified` sınıflandırıcıda `retry: 'never'` taşır ve
+      // Enter yalnızca gönderim HİÇ denenmediğinde denenmelidir.
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button id="send" type="button">Send</button>
+      `
+      const enterKeys = vi.fn()
+      document.getElementById('composer')?.addEventListener('keydown', enterKeys)
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'mixed' },
+          'merhaba',
+          true
+        )
+      )
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('submit_unverified')
+      expect(enterKeys).not.toHaveBeenCalled()
+    }, 30000)
+
+    it('keeps reporting success when the click really empties the composer', async () => {
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button id="send" type="button">Send</button>
+      `
+      const composer = document.getElementById('composer') as HTMLDivElement
+      // Gerçek bir AI sitesi: gönder butonu mesajı editörden AYRILIR.
+      document.getElementById('send')?.addEventListener('click', () => {
+        composer.textContent = ''
+      })
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      expect(result.success).toBe(true)
+      expect(result.submitObserved).toBe(true)
+      expect(result.submitOutcome).toBe('observed')
+    }, 30000)
   })
 
   describe('9 — auto-send preference is never overridden', () => {
