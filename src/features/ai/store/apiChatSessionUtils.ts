@@ -35,11 +35,9 @@ export function isDefaultSessionTitle(title: string): boolean {
     const cur = i18next.t('api_chat_new_chat')
     if (title === cur) return true
     const enBundle = i18next.getResourceBundle('en', 'translation') as
-      | Record<string, string>
-      | undefined
+      Record<string, string> | undefined
     const trBundle = i18next.getResourceBundle('tr', 'translation') as
-      | Record<string, string>
-      | undefined
+      Record<string, string> | undefined
     if (enBundle?.['api_chat_new_chat'] === title) return true
     if (trBundle?.['api_chat_new_chat'] === title) return true
   } catch {

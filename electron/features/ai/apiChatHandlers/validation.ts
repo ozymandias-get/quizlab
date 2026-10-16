@@ -18,8 +18,7 @@ const MAX_SINGLE_IMAGE_BYTES = 10 * 1024 * 1024
 const IMAGE_DATA_URL = /^data:image\/[a-z0-9.+-]+(?:;[^,]*)?,/i
 
 type ChatContentItem =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } }
+  { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
 
 interface ChatCompletionBody {
   model: string

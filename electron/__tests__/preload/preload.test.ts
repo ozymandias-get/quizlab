@@ -116,8 +116,7 @@ describe('preload electronAPI', () => {
     expect(on).toHaveBeenCalledWith(IPC_CHANNELS.TRIGGER_SCREENSHOT, expect.any(Function))
 
     const handler = on.mock.calls[0]?.[1] as
-      | ((event: unknown, type: 'selection') => void)
-      | undefined
+      ((event: unknown, type: 'selection') => void) | undefined
     handler?.({}, 'selection')
     expect(callback).toHaveBeenCalledWith('selection')
 

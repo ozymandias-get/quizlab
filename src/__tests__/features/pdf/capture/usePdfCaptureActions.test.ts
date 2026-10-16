@@ -36,8 +36,7 @@ describe('usePdfCaptureActions', () => {
 
   it('drops and revokes a render that finishes after the PDF changes', async () => {
     let resolveRender:
-      | ((value: { blob: Blob; blobUrl: string; width: number; height: number }) => void)
-      | undefined
+      ((value: { blob: Blob; blobUrl: string; width: number; height: number }) => void) | undefined
     renderPageToImageFallback.mockReturnValue(
       new Promise((resolve) => {
         resolveRender = resolve

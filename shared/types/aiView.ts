@@ -121,8 +121,7 @@ export type AiViewEventOf<K extends AiViewEventKind> = Extract<AiViewEvent, { ki
  * mint a partition or an origin.
  */
 export type AiViewSource =
-  | { kind: 'ai-platform'; modelId: string }
-  | { kind: 'google-web-app'; appId: string }
+  { kind: 'ai-platform'; modelId: string } | { kind: 'google-web-app'; appId: string }
 
 export interface AiViewAttachRequest {
   viewId: string

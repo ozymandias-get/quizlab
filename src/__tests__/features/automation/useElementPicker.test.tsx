@@ -73,8 +73,7 @@ describe('useElementPicker', () => {
   // hook generated so the test speaks the current bridge protocol.
   const activeSessionId = (): string => {
     const call = mockGeneratePickerScriptMutate.mock.calls[0]?.[0] as
-      | { sessionId?: string }
-      | undefined
+      { sessionId?: string } | undefined
     if (!call?.sessionId) {
       throw new Error('picker session was not generated')
     }
@@ -205,8 +204,7 @@ describe('useElementPicker', () => {
     // A manual pick is a new baseline: dead staged recoveries must not
     // survive (they would let stale evidence advance after the pick).
     const savedConfig = mockSaveAiConfigMutate.mock.calls[0]?.[0]?.config as
-      | { repair?: unknown }
-      | undefined
+      { repair?: unknown } | undefined
     expect(savedConfig).toMatchObject({ repair: null })
   })
 
