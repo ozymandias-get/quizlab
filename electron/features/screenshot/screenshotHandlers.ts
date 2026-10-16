@@ -71,9 +71,8 @@ interface SnapshotReservation {
  * - While any entry exists the clipboard may hold an app-written temporary
  *   image; reading it would snapshot garbage. New entries reference the
  *   oldest entry's content instead — the one true pre-overwrite state.
- * - When no snapshot can be taken (stack full / read failure) the caller must
- *   refuse the copy: overwriting the clipboard without a way back loses the
- *   user's content.
+ * - When the stack is full the caller must refuse the copy: overwriting the
+ *   clipboard without a way back loses the user's content.
  */
 async function reserveClipboardSnapshot(scope?: string): Promise<SnapshotReservation> {
   try {
@@ -93,6 +92,12 @@ async function reserveClipboardSnapshot(scope?: string): Promise<SnapshotReserva
       snapshot = { text: source.text, html: source.html, image: source.image }
     } else {
       snapshot = await readClipboardSnapshot()
+      // The read is asynchronous, so a concurrent handler may have pushed an
+      // entry — and overwritten the clipboard — while it was in flight. The
+      // entry holds the one true pre-overwrite state; this read may have
+      // landed after that write and captured the temporary image instead.
+      const raced = clipboardSnapshots[0]
+      if (raced) snapshot = { text: raced.text, html: raced.html, image: raced.image }
     }
 
     const entry: ClipboardSnapshot = {

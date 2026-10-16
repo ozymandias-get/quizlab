@@ -53,6 +53,11 @@ function fakeImage(bytes = 'image-bytes') {
   return { isEmpty: () => false, toPNG: () => Buffer.from(bytes) }
 }
 
+/** Yields to the event loop so every pending microtask chain settles. */
+function flushMacrotasks(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve))
+}
+
 /** The `items` records the Nth clipboard.write() call carried. */
 function writtenPayloads(callIndex = 0): Record<string, Blob | string>[] {
   const items = (write.mock.calls[callIndex]?.[0] ?? []) as FakeClipboardItemLike[]
@@ -182,7 +187,7 @@ describe('screenshotHandlers', () => {
     expect(writtenTypes(0)).toEqual(['image/png'])
   })
 
-  it('retries writeImage on transient clipboard failure', async () => {
+  it('retries the clipboard write on a transient failure', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
     createFromDataURL.mockReturnValue(fakeImage())
     write.mockRejectedValueOnce(new Error('Clipboard locked'))
@@ -508,6 +513,56 @@ describe('screenshotHandlers', () => {
       expect(write).toHaveBeenCalledTimes(2)
       expect(await writtenText('text/plain', 1)).toBe('orijinal metin')
     })
+
+    it("references the first send's snapshot when two copies race from an empty stack", async () => {
+      requireTrustedIpcSender.mockReturnValue(true)
+      createFromDataURL.mockReturnValue(fakeImage())
+      read
+        .mockResolvedValueOnce([fakeItem(['text/plain'], { 'text/plain': 'previous user text' })])
+        // The read that is already in flight when the first copy writes resolves
+        // after that write, so it observes the app's temporary image instead of
+        // the user's content — the garbage the ledger exists to filter out.
+        .mockResolvedValue([fakeItem(['image/png'], { 'image/png': 'temporary app image' })])
+
+      const { registerScreenshotHandlers } =
+        await import('../../../features/screenshot/screenshotHandlers.js')
+      registerScreenshotHandlers()
+
+      const copyHandler = getHandler(APP_CONFIG.IPC_CHANNELS.COPY_IMAGE)
+      const restoreHandler = getHandler(APP_CONFIG.IPC_CHANNELS.RESTORE_CLIPBOARD)
+
+      // Both reservations start before either one pushes, so both read the
+      // clipboard; only the first read's content may reach the ledger.
+      await Promise.all([
+        expect(copyHandler?.({ sender: {} }, IMAGE + 'a', 'send-race-a')).resolves.toEqual({
+          ok: true,
+          data: true
+        }),
+        expect(copyHandler?.({ sender: {} }, IMAGE + 'b', 'send-race-b')).resolves.toEqual({
+          ok: true,
+          data: true
+        })
+      ])
+      expect(read).toHaveBeenCalledTimes(2)
+
+      // The first send unwinds while the second still owns the stack, so
+      // nothing is written yet.
+      expect(await restoreHandler?.({ sender: {} }, 'send-race-a')).toEqual({
+        ok: true,
+        data: true
+      })
+      expect(write).toHaveBeenCalledTimes(2)
+
+      // The last unwind writes the user's text back, never the temporary image
+      // the raced read saw.
+      expect(await restoreHandler?.({ sender: {} }, 'send-race-b')).toEqual({
+        ok: true,
+        data: true
+      })
+      expect(write).toHaveBeenCalledTimes(3)
+      expect(writtenTypes(2)).toEqual(['text/plain'])
+      expect(await writtenText('text/plain', 2)).toBe('previous user text')
+    })
   })
 
   it('does not let a copy issued during an in-flight restore clobber the clipboard', async () => {
@@ -539,11 +594,11 @@ describe('screenshotHandlers', () => {
       data: true
     })
     const restore = restoreHandler?.({ sender: {} })
-    await Promise.resolve()
+    await flushMacrotasks()
 
     // The copy overlaps the pending restore; its own write must stay queued.
     const copy = copyHandler?.({ sender: {} }, 'data:image/png;base64,during-restore')
-    await Promise.resolve()
+    await flushMacrotasks()
     expect(write).toHaveBeenCalledTimes(2)
 
     releaseRestore()
