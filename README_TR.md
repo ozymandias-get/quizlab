@@ -125,7 +125,7 @@ ve tanılama araçları:
 
 | Alan                    | Seçim                                                                                     |
 | ----------------------- | ----------------------------------------------------------------------------------------- |
-| Masaüstü çalışma zamanı | Electron 42                                                                               |
+| Masaüstü çalışma zamanı | Electron 44                                                                               |
 | Arayüz                  | React 19; yönlendirici yok (özel durum tabanlı çalışma alanı)                             |
 | Dil                     | TypeScript 5.9                                                                            |
 | Derleme                 | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (paketleme)           |
@@ -148,7 +148,9 @@ ve tanılama araçları:
   paketidir. Gezgin sağ tık menüsü girdisi ve Chrome eklenti köprüsü yalnızca
   Windows'ta çalışır.
 - macOS — `dmg`/`zip` hedefleri yapılandırılmıştır ancak sürüm iş akışı macOS
-  derlemesi yapmaz; `npm run build:mac` ile yerelde üretin.
+  derlemesi yapmaz; `npm run build:mac` ile yerelde üretin. Electron 44,
+  Chromium'un macOS 12 desteğini kaldırması nedeniyle macOS 13 (Ventura) veya
+  üzerini gerektirir.
 - Linux — AppImage ve `deb` CI tarafından derlenir.
 - Yapay zeka özellikleri için ağ bağlantısı gerekir. PDF okumak için başka hiçbir
   şey gerekmez.
