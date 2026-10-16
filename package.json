@@ -179,7 +179,7 @@
     "@welldone-software/why-did-you-render": "^10.0.1",
     "cspell": "^10.0.1",
     "dependency-cruiser": "^17.4.3",
-    "electron": "^42.5.1",
+    "electron": "^44.8.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.1",
     "eslint": "^10.5.0",
