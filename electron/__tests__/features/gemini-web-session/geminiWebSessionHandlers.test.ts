@@ -1,3 +1,4 @@
+import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
@@ -11,14 +12,27 @@ const resetProfile = vi.fn()
 const setEnabled = vi.fn()
 const setEnabledApps = vi.fn()
 const dispose = vi.fn()
+const exportSession = vi.fn()
+const importSession = vi.fn()
+const showSaveDialog = vi.fn()
+const showOpenDialog = vi.fn()
 
 vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getPath: vi.fn(() => '/tmp/quizlab-test')
+    getPath: vi.fn((name: string) =>
+      name === 'documents' ? '/home/u/Documents' : '/tmp/quizlab-test'
+    )
   },
   ipcMain: {
     handle: ipcHandle
+  },
+  safeStorage: {
+    isEncryptionAvailable: vi.fn(() => true)
+  },
+  dialog: {
+    showSaveDialog,
+    showOpenDialog
   },
   BrowserWindow: {
     getAllWindows: vi.fn(() => []),
@@ -33,7 +47,9 @@ vi.mock('../../../features/gemini-web-session/sessionManager', () => ({
     resetProfile,
     setEnabled,
     setEnabledApps,
-    dispose
+    dispose,
+    exportSession,
+    importSession
   }
 }))
 
@@ -57,6 +73,16 @@ describe('gemini web session handlers', () => {
     setEnabled.mockReset().mockResolvedValue({ success: true })
     setEnabledApps.mockReset().mockResolvedValue({ success: true })
     dispose.mockReset().mockResolvedValue(undefined)
+    exportSession.mockReset().mockResolvedValue({ success: true })
+    importSession.mockReset().mockResolvedValue({ success: true })
+    showSaveDialog.mockReset().mockResolvedValue({
+      canceled: false,
+      filePath: '/home/u/Documents/gemini-session.enc'
+    })
+    showOpenDialog.mockReset().mockResolvedValue({
+      canceled: false,
+      filePaths: ['/home/u/Documents/gemini-session.enc']
+    })
   })
 
   it('registers handlers and validates enabledAppIds payload', async () => {
@@ -88,6 +114,32 @@ describe('gemini web session handlers', () => {
     expect(setEnabled).toHaveBeenNthCalledWith(1, true)
     expect(setEnabled).toHaveBeenNthCalledWith(2, false)
     expect(setEnabled).toHaveBeenNthCalledWith(3, false)
+  })
+
+  it('saves into an absolute default path under the dialog directory', async () => {
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const exportHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
+    await exportHandler?.(trustedEvent)
+
+    const saveOptions = showSaveDialog.mock.calls[0]?.[0]
+    // A bare 'gemini-session.enc' would be resolved against Downloads.
+    expect(path.isAbsolute(saveOptions.defaultPath)).toBe(true)
+    expect(saveOptions.defaultPath).toBe(path.join('/home/u/Documents', 'gemini-session.enc'))
+  })
+
+  it('imports from the dialog directory', async () => {
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const importHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+    await importHandler?.(trustedEvent)
+
+    const openOptions = showOpenDialog.mock.calls[0]?.[0]
+    expect(openOptions.defaultPath).toBe('/home/u/Documents')
   })
 
   it('blocks untrusted sender requests', async () => {

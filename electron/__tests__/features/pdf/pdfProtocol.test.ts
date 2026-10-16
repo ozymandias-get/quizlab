@@ -62,7 +62,11 @@ describe('pdfProtocol handlers', () => {
     vi.resetModules()
     ipcHandle.mockReset()
     showOpenDialog.mockReset()
-    getPath.mockReset().mockReturnValue('/app/userData')
+    getPath
+      .mockReset()
+      .mockImplementation((name: string) =>
+        name === 'documents' ? '/home/u/Documents' : '/app/userData'
+      )
     setItem.mockReset().mockResolvedValue(undefined)
     read.mockReset().mockResolvedValue({})
     existsSync.mockReset().mockReturnValue(true)
@@ -110,6 +114,28 @@ describe('pdfProtocol handlers', () => {
     expect(setItem).toHaveBeenCalledWith(path.normalize('/outside/document.pdf'), true)
     expect(result?.data.path).toBe('/outside/document.pdf')
     expect(result?.data.streamUrl).toContain('local-pdf://')
+  })
+
+  it('opens the picker in the documents directory, then in the last used one', async () => {
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/home/u/Pictures/a.pdf']
+    })
+    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
+    registerPdfProtocolHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.SELECT_PDF)
+    await handler?.({ sender: {} }, {})
+
+    expect(showOpenDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultPath: '/home/u/Documents' })
+    )
+
+    await handler?.({ sender: {} }, {})
+
+    expect(showOpenDialog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ defaultPath: '/home/u/Pictures' })
+    )
   })
 
   it('returns null for untrusted IPC senders', async () => {

@@ -106,7 +106,11 @@ describe('local-pdf:// protocol handler', () => {
     protocolHandleMock.mockReset()
     ipcHandleMock.mockReset()
     showOpenDialogMock.mockReset()
-    getPathMock.mockReset().mockReturnValue('/app/userData')
+    getPathMock
+      .mockReset()
+      .mockImplementation((name: string) =>
+        name === 'documents' ? '/home/u/Documents' : '/app/userData'
+      )
     setItemMock.mockReset().mockResolvedValue(undefined)
     readMock.mockReset().mockResolvedValue({})
     existsSyncMock.mockReset().mockReturnValue(true)
@@ -128,6 +132,23 @@ describe('local-pdf:// protocol handler', () => {
       expect(createReadStreamMock).toHaveBeenCalledWith(
         normalized,
         expect.objectContaining({ highWaterMark: 1024 * 1024 })
+      )
+    })
+  })
+
+  describe('dialog directory', () => {
+    it('starts in the documents directory and reopens the last used one', async () => {
+      await loadAndRegister()
+      await registerTestPdf('/home/u/Pictures/a.pdf')
+
+      expect(showOpenDialogMock).toHaveBeenCalledWith(
+        expect.objectContaining({ defaultPath: '/home/u/Documents' })
+      )
+
+      await registerTestPdf('/home/u/Pictures/b.pdf')
+
+      expect(showOpenDialogMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ defaultPath: '/home/u/Pictures' })
       )
     })
   })
