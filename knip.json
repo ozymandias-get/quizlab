@@ -14,5 +14,6 @@
     "shared/**/*.ts",
     "scripts/**/*.{mjs,mts}"
   ],
-  "ignoreDependencies": ["@doyensec/electronegativity"]
+  "ignoreDependencies": ["@doyensec/electronegativity"],
+  "ignoreBinaries": ["taskkill"]
 }
