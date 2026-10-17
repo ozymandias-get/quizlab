@@ -6,7 +6,7 @@
     "electron/preload/index.ts",
     "electron/preload/displayMediaPickerPreload.ts",
     "scripts/{dev,build-electron,check-repo-hygiene,check-version-consistency}.mjs",
-    "scripts/{check-audit,check-electron-security}.d.mts"
+    "scripts/{check-audit,check-declaration-consistency,check-electron-security}.d.mts"
   ],
   "project": [
     "src/**/*.{ts,tsx,css}",
