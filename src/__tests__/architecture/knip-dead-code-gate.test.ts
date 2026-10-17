@@ -6,13 +6,13 @@
  *
  *  - **knip could not see `scripts/**`.** A script that nothing referenced was
  *    therefore not "unused", it was simply outside the analysis: knip only
- *    reached the nine `scripts/*.mjs` files because package.json happens to name
- *    them in `scripts`, and the two hand-written `.d.mts` declarations were not
- *    in scope at all. Putting `scripts/**` in `project` without listing those
- *    declarations as entries swaps the blind spot for two guaranteed false
- *    positives, because the declarations are consumed through the `.mjs`
- *    specifier (`../../../scripts/check-audit.mjs`) and knip does not map a
- *    declaration file back to the module it describes.
+ *    reached the `scripts/*.mjs` files because package.json happens to name
+ *    them in `scripts`, and the hand-written `.d.mts` declarations were not in
+ *    scope at all. Putting `scripts/**` in `project` without listing those
+ *    declarations as entries swaps the blind spot for a guaranteed false
+ *    positive per declaration, because the declarations are consumed through
+ *    the `.mjs` specifier (`../../../scripts/check-audit.mjs`) and knip does not
+ *    map a declaration file back to the module it describes.
  *  - **`@doyensec/electronegativity` was reported as an unused devDependency.**
  *    It is not unused. `scripts/check-electron-security.mjs` reads the
  *    package's own `package.json` to find its bin path and `spawnSync`s that
@@ -60,11 +60,19 @@ const DEV_SCRIPT = read('scripts', 'dev.mjs')
 const FILE_SIZE_GATE = read('scripts', 'check-file-sizes.mjs')
 
 /**
- * The two gate scripts whose validation logic is unit tested, and so need a
+ * The gate scripts whose validation logic is unit tested, and so need a
  * declaration beside them. Their type surface is part of what is under test:
- * dropping either would break `tsc -b` rather than a test.
+ * dropping one would break `tsc -b` rather than a test.
+ *
+ * Hand-maintained, and it has to stay that way in step with `scripts/`: a
+ * declaration missing from this list is a rule that has silently stopped being
+ * checked, with no failure anywhere to say so.
  */
-const GATE_DECLARATIONS = ['check-audit.d.mts', 'check-electron-security.d.mts']
+const GATE_DECLARATIONS = [
+  'check-audit.d.mts',
+  'check-declaration-consistency.d.mts',
+  'check-electron-security.d.mts'
+]
 
 /**
  * Expands `{a,b}` alternations so an entry glob can be compared with a literal
@@ -133,10 +141,14 @@ describe('knip scope: the gate scripts are analysed, not merely present', () => 
 
   it('reaches every scripts/*.mjs through a package.json script or an entry', () => {
     const commands = Object.values(scripts)
+    // Hand-maintained, so a script added without adding its name here leaves
+    // the rule not covering it — green, and one gate less guarded. Every file
+    // in `scripts/` belongs in this list.
     const unreached = [
       'dev',
       'build-electron',
       'check-audit',
+      'check-declaration-consistency',
       'check-electron-security',
       'check-file-sizes',
       'check-repo-hygiene',
