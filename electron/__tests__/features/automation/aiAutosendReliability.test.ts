@@ -597,6 +597,65 @@ describe('aiAutosendReliability', () => {
       expect(result.submitOutcome).toBe('delivery_unconfirmed')
     }, 30000)
 
+    it('observes a real delivery when the conversation grows outside the composer shell', async () => {
+      // 2026-10-17 ölçümü (canlı chatgpt.com konuşma sayfası): gönderim
+      // parmakizinin kökü composer kabuğuna ([data-composer-body],
+      // 768×52, içinde 0 konuşma düğümü) çözülüyordu; konuşma ise <main>
+      // içindeydi. Sayacın kalıcı 0'a düşmesi teslimat tespitini tek başına
+      // "metin kutudan silindi" sinyaline bağlıyordu ve gönderim YİNE DE
+      // "teslimat doğrulanamadı" diye raporlanıyordu.
+      //
+      // Buradaki yapı bilinçli olarak ölçülendir: composer bir <form> içinde
+      // (closest('main, …, form') form'u seçerdi — 0 düğüm), konuşma onun
+      // DIŞINDA. Doğru genişleme "içinde konuşma düğümü bulunan ilk atastır".
+      document.body.innerHTML = `
+        <main id="thread">
+          <div data-message-author-role="user">önceki mesaj</div>
+          <form id="composer-form">
+            <div role="textbox" contenteditable="true" id="composer"></div>
+            <button id="send" type="submit">Gönder</button>
+          </form>
+        </main>
+      `
+      document.getElementById('send')?.addEventListener('click', () => {
+        // Gerçek davranış: mesaj konuşmaya eklenir ve React composer düğümünü
+        // YENİLER. Parmakizin tuttuğu `inputElement` referansı eski ( kopmuş )
+        // düğümde kalır ve içindeki metin DONAR — yani "metin değişti" sinyali
+        // hiç üretilemez. Teslimatı yalnızca konuşma düğümü sayacı algılayabilir;
+        // bu yüzden testin metni temizlemesi kasıtlıdır.
+        const msg = document.createElement('div')
+        msg.setAttribute('data-message-author-role', 'user')
+        msg.textContent = 'merhaba'
+        document
+          .getElementById('thread')
+          ?.insertBefore(msg, document.getElementById('composer-form'))
+
+        const old = document.getElementById('composer')
+        if (old) {
+          const fresh = document.createElement('div')
+          fresh.id = 'composer'
+          fresh.setAttribute('role', 'textbox')
+          fresh.setAttribute('contenteditable', 'true')
+          old.parentNode?.replaceChild(fresh, old)
+        }
+      })
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      expect(result.submitMethod).toBe('button_click')
+      // Mesaj GİTTİ ve bu algılanmalı: kullanıcı "gönderdim" görmeli,
+      // "teslimat doğrulanamadı" görmemeli.
+      expect(result.submitObserved).toBe(true)
+      expect(result.success).toBe(true)
+      expect(result.submitOutcome).toBe('observed')
+    }, 30000)
+
     it('does not credit the button selector repair for a click with no observable effect', async () => {
       document.body.innerHTML = `
         <div role="textbox" contenteditable="true" id="composer"></div>
@@ -618,10 +677,18 @@ describe('aiAutosendReliability', () => {
       expect(result.diagnostics.button.operationSucceeded).toBe(false)
     }, 30000)
 
-    it('names the dictation control when the send lookup landed on the microphone', async () => {
-      // Canlı chatgpt.com ölçümü: composer boşken gönder butonu GİZLİ,
-      // mikrofon butonu görünür. Geniş bir `button` sorgusu mikrofona düşer,
-      // tıklama dikteyi başlatır ve mesaj hiç gönderilmez.
+    it('refuses to click a dictation control and names it instead', async () => {
+      // 2026-10-17 KÖK NEDEN (uygulama günlüğü, canlı chatgpt.com proje sayfası):
+      //   matchedSelector = "button.cursor-interaction.size-token-button-composer.flex"
+      //   submitWrongControl = "voice_control:Sesli iletişim yükleniyor"
+      //   durationMs = 4.5, waitIterations = 1
+      // Metin editöre girer girmez arama 4.5ms'de ilk eşleşmeye duruyordu ve o
+      // eşleşme SESLİ SOHBET düğmesiydi — gönder düğmesiyle aynı class ailesi.
+      // Tıklamak mesajı değil sesi başlatıyor, metin kutuda kalıyordu.
+      //
+      // Sesli/dikte kontrolü artık bir "eşleşme" değil: bulunduğunda önbellekten
+      // düşürülür, gerçek gönder düğmesi için beklemeye devam edilir ve
+      // TIKLANMAZ. Sözdiziminin güçlendirilmiş hâli.
       document.body.innerHTML = `
         <div role="textbox" contenteditable="true" id="composer"></div>
         <button data-composer-submit aria-label="Mesaj gönder" type="submit" style="display:none">Mesaj gönder</button>
@@ -638,16 +705,49 @@ describe('aiAutosendReliability', () => {
         )
       )
 
-      expect(dictation).toHaveBeenCalledTimes(1)
+      // Tıklanmaz: mikrofonu başlatmak mesajı göndermek değildir.
+      expect(dictation).not.toHaveBeenCalled()
       expect(result.success).toBe(false)
-      expect(result.error).toBe('submit_unverified')
-      expect(result.submitOutcome).toBe('delivery_unconfirmed')
-      // Dikte butonuna tıklamak YANLIŞ butonun seçildiğinin kesin kanıtıdır:
-      // bu, "teslimat doğrulanamadı" genel mesajından daha aksiyona
-      // dönük bir teşhistir ve günlükte hangi kontrolün hedef olduğunu
-      // söyler.
+      // Gerçek bir gönder düğmesi hiç bulunamadı (tek submit düğmesi gizli),
+      // bu yüzden "teslimat doğrulanamadı" değil "gönder düğmesi bulunamadı".
+      expect(result.error).toBe('button_not_found')
+      expect(result.submitOutcome).toBe('not_attempted')
+      // Görünür bir gönder düğmesi olmadığı ortaya çıktığında hangi kontrolün
+      // hedef olduğu yine de yazılır — teşhis kaybolmaz.
       expect(result.diagnostics.submitWrongControl).toBe('data-start-dictation')
       expect(result.diagnostics.button.operationSucceeded).toBe(false)
+    }, 30000)
+
+    it('waits out a dictation control and clicks the real send button that appears after it', async () => {
+      // Aynı kök nedenin ikinci yarısı: gönder düğmesi geç çizilir. Arama
+      // ilk eşleşmede durmamalı, sesli kontrolü reddedip gerçek düğmeyi
+      // beklemeli ve ONU tıklamalı.
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button data-start-dictation aria-label="Dikte et" type="button">🎙</button>
+      `
+      const dictation = vi.fn()
+      document.querySelector('[data-start-dictation]')?.addEventListener('click', dictation)
+      const realSend = vi.fn()
+      const realButton = document.createElement('button')
+      realButton.type = 'submit'
+      realButton.id = 'real-send'
+      realButton.addEventListener('click', realSend)
+      document.body.appendChild(realButton)
+      // Gerçek gönder düğmesi geç çizilir (React'in yeniden çizimini taklit eder)
+      setTimeout(() => realButton.removeAttribute('data-pending'), 0)
+
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: 'button[type="submit"]', submitMode: 'click' },
+          'merhaba',
+          true
+        )
+      )
+
+      expect(dictation).not.toHaveBeenCalled()
+      expect(realSend).toHaveBeenCalledTimes(1)
+      expect(result.diagnostics.submitWrongControl).toBeNull()
     }, 30000)
 
     it('never follows an unobserved click with an Enter fallback in mixed mode', async () => {

@@ -288,23 +288,84 @@ describe('siteStrategyRegistry', () => {
       expect(r2!.element).toBe(ta)
     })
 
-    // ── 2026-10-17 ölçümü (canlı chatgpt.com): yeni composer'da send butonu
-    // data-composer-submit taşıyor ve data-testid taşımıyor. data-testid kuralı
-    // ölü; aria-label ise çevrili ("Mesaj gönder" / "Send message").
-    it('ranks [data-composer-submit] above every other button rule', () => {
+    // ── 2026-10-17 ölçümü (canlı chatgpt.com, gerçek DOM kopyası):
+    // data-composer-submit özniteliği sayfada YOK — bu ölçümde
+    // `querySelectorAll('[data-composer-submit]').length === 0` (composer boşken
+    // de, metin yazılıyken de). Tek kararlı kanca `type="submit"`.
+    // Aşağıdaki test bu ölçülmüş yapıyı birebir modeller.
+    it('picks the composer submit button on the measured chatgpt.com shape', () => {
       document.body.innerHTML = `
-        <form>
-          <textarea></textarea>
-          <button id="dialog-submit" type="submit" aria-label="Kapat">Kapat</button>
-          <button id="composer-submit" data-composer-submit type="submit"
-                  aria-label="Mesaj gönder">→</button>
-        </form>
+        <div data-composer-layout="single-line">
+          <div class="ComposerLayoutBody" data-composer-body>
+            <div data-rich-text-layout="single-line">
+              <div contenteditable="true" role="textbox" class="ProseMirror"
+                   data-composer-markdown="" aria-label="ChatGPT'ye sor"></div>
+            </div>
+            <button type="button" aria-label="Dosyaları ve daha fazlasını ekle"
+                    data-composer-navigation-target="add-context"></button>
+            <button type="button" aria-label="Dikte et" aria-busy="false"></button>
+            <button type="button" aria-label="Sesli iletişimi başlat"></button>
+            <button type="submit" aria-label="Gönder" class="size-token-button-composer"></button>
+          </div>
+        </div>
       `
       mockAllRects(document.body)
 
       const result = produceButton()
       expect(result).not.toBeNull()
-      expect(result!.element).toBe(document.getElementById('composer-submit'))
+      expect(result!.element!.getAttribute('aria-label')).toBe('Gönder')
+    })
+
+    it('never resolves the ChatGPT dictation button, which carries no data attribute', () => {
+      // Ölçülen tam öznitelik listesi: type="button", class, aria-busy,
+      // aria-label="Dikte et". data-start-dictation YOK — eski koruma bu
+      // düğmeye karşı sessizce geçiyordu.
+      document.body.innerHTML = `
+        <div data-composer-body>
+          <div contenteditable="true" role="textbox" class="ProseMirror"></div>
+          <button id="dictate" type="button" aria-label="Dikte et" aria-busy="false"></button>
+        </div>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).toBeNull()
+    })
+
+    it('never resolves the ChatGPT voice-chat button ("Sesli iletişimi başlat")', () => {
+      document.body.innerHTML = `
+        <div data-composer-body>
+          <div contenteditable="true" role="textbox" class="ProseMirror"></div>
+          <button id="voice" type="button" aria-label="Sesli iletişimi başlat"></button>
+        </div>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result).toBeNull()
+    })
+
+    it('scopes the send search to the composer instead of the whole page', () => {
+      // Kapsam çözümü regresyonu: composer girdisinin en yakın sarmalayıcısının
+      // class'ında "composer" alt dizesi geçiyordu ve o sarmalayıcı butonsuzdu
+      // (ölçüm: 540x36, 0 buton). Arama bu yüzden sayfa geneline kaçıyordu.
+      document.body.innerHTML = `
+        <header>
+          <button id="header-send" aria-label="Send message"></button>
+        </header>
+        <div data-composer-body>
+          <div class="text-size-chat in-[[data-composer-body]:has([data-composer-expand-toggle])]">
+            <div contenteditable="true" role="textbox" class="ProseMirror"
+                 data-composer-markdown=""></div>
+          </div>
+          <button id="composer-send" type="submit" aria-label="Gönder"></button>
+        </div>
+      `
+      mockAllRects(document.body)
+
+      const result = produceButton()
+      expect(result!.element).toBe(document.getElementById('composer-send'))
+      expect(result!.matchedSelector).toBe('generic:button:composer:submit')
     })
 
     it('does not let the unscoped [aria-label*=Send] rule outrank button[aria-label*=Send]', () => {

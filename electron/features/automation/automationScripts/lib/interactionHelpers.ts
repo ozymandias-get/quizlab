@@ -241,15 +241,49 @@ export const interactionHelpers = `    const queryElement = (lookup, kind, diagn
     };
 
     const getComposerRoot = (inputElement, buttonElement) => {
-        const scopedSelector = 'form, [role="form"], [data-testid*="composer" i], [data-testid*="prompt" i], [class*="composer" i], [class*="prompt" i]';
+        // 2026-10-17 canlı chatgpt.com ölçümü: bu kök, gönder etkisinin
+        // gözlenip gözlenmediğine karar veren konuşma düğümü sayımının tabanı.
+        // [class*="composer"] tek başına butonsuz bir sarmalayıcıda durup kökü
+        // 540x36 bir kutuya sabitlediği için gerçek kabuk kancaları öne alındı
+        // ve buton tarafında en geniş kapsam tercih edildi: konuşma düğümleri
+        // ancak kabuk dışındadır.
+        const candidates = buttonElement && inputElement
+            ? [
+                  '[data-composer-body]',
+                  '[data-composer-input]',
+                  '[data-composer-layout]',
+                  '[data-composer-footer]',
+                  '[data-testid*="composer" i]',
+                  '[data-testid*="prompt" i]',
+                  'form',
+                  '[role="form"]',
+                  '[class*="composer" i]',
+                  '[class*="prompt" i]'
+              ]
+            : [
+                  'form',
+                  '[role="form"]',
+                  '[data-testid*="composer" i]',
+                  '[data-testid*="prompt" i]',
+                  '[class*="composer" i]',
+                  '[class*="prompt" i]'
+              ];
         if (buttonElement && typeof buttonElement.closest === 'function') {
-            const root = buttonElement.closest(scopedSelector);
-            if (root) return root;
+            for (const selector of candidates) {
+                try {
+                    const root = buttonElement.closest(selector);
+                    if (root) return root;
+                } catch (_) {}
+            }
         }
 
         if (inputElement && typeof inputElement.closest === 'function') {
-            const root = inputElement.closest(scopedSelector);
-            if (root) return root;
+            for (const selector of candidates) {
+                try {
+                    const root = inputElement.closest(selector);
+                    if (root) return root;
+                } catch (_) {}
+            }
         }
 
         return findCommonAncestor(inputElement, buttonElement) || document.body;

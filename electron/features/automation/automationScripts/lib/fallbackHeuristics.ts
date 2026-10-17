@@ -164,8 +164,14 @@ export const fallbackHeuristics = `    const isChatGptHost = () => {
         }
 
         try {
+            // 2026-10-17 canlı chatgpt.com ölçümü (TR): #prompt-textarea YOK.
+            // Composer girdisi artık:
+            //   div.ProseMirror[role="textbox"][data-composer-markdown]
+            // ve [data-composer-body] kabuğunun içinde duruyor. Eski liste bu
+            // sayfada hiçbir şeye uymadığı için hızlı yol her seferinde
+            // boşa düşüyor, aşağıdaki pahalı tarama devreye giriyordu.
             const quick = document.querySelector(
-                '#prompt-textarea, textarea[placeholder*="Message" i], textarea[placeholder*="Ask" i], [data-testid="composer-input"]'
+                '[data-composer-body] [role="textbox"], div.ProseMirror[role="textbox"][data-composer-markdown], #prompt-textarea, textarea[placeholder*="Message" i], textarea[placeholder*="Ask" i], [data-testid="composer-input"]'
             );
             if (quick && quick.isConnected) {
                 const r = quick.getBoundingClientRect();
