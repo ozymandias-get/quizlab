@@ -6,6 +6,8 @@ import { nowMs } from '@features/ai/lib/send/sendDiagnostics'
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { RESTORE_SETTLE_FLOOR_MS } from './lib/send/sharedTestHelpers'
+
 const mocks = vi.hoisted(() => ({
   resolveSendContext: vi.fn(),
   safeContentPaste: vi.fn()
@@ -508,10 +510,13 @@ describe('executeBulkSendPipeline — clipboard restore lifecycle', () => {
     const timings = (params.diagnostics as unknown as { timings: Record<string, number> }).timings
     // Paste adımları neredeyse anlık (mock); totalMs'in tamamına yakını
     // `finally`'deki settle beklemesidir.
-    expect(timings.pasteMs ?? 0).toBeLessThan(700)
+    expect(timings.pasteMs ?? 0).toBeLessThan(RESTORE_SETTLE_FLOOR_MS)
     expect(typeof timings.clipboardRestoreWaitMs).toBe('number')
-    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(600)
-    expect(timings.totalMs).toBeGreaterThanOrEqual(700)
+    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
+    // `>= RESTORE_SETTLE_MS` DEĞİL: setTimeout tabanlı bekleme, `performance.now()`
+    // farkı olarak birebir kendi süresini garanti etmez (bkz. TIMER_TOLERANCE_MS).
+    // Değişmez olan sıralamadır: toplam süre restore beklemesini kapsar.
+    expect(timings.totalMs).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
     expect(timings.totalMs).toBeGreaterThanOrEqual(timings.clipboardRestoreWaitMs)
     // Sonuç, `finally` sonrası hesaplanan AYNI diagnostics nesnesini taşır.
     expect(result.diagnostics?.timings.totalMs).toBe(timings.totalMs)

@@ -17,6 +17,8 @@ import { Logger } from '@shared/lib/logger'
 import type { AiContentController } from '@shared-core/types/aiContent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { RESTORE_SETTLE_FLOOR_MS } from './sharedTestHelpers'
+
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
 function createContent(): AiContentController {
@@ -290,13 +292,15 @@ describe('clipboard restore accounting', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe('submit_not_ready')
     // Yapıştırma adımları anlık (mock): totalMs'in tamamına yakını restore.
-    expect(timings.pasteMs ?? 0).toBeLessThan(700)
+    expect(timings.pasteMs ?? 0).toBeLessThan(RESTORE_SETTLE_FLOOR_MS)
     expect(typeof timings.clipboardRestoreWaitMs).toBe('number')
-    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(600)
-    expect(timings.totalMs).toBeGreaterThanOrEqual(700)
+    expect(timings.clipboardRestoreWaitMs).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
+    // `>= RESTORE_SETTLE_MS` DEĞİL: setTimeout tabanlı bekleme, `performance.now()`
+    // farkı olarak birebir kendi süresini garanti etmez (bkz. TIMER_TOLERANCE_MS).
+    expect(timings.totalMs).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
     expect(timings.clipboardRestoreWaitMs).toBeLessThanOrEqual(timings.totalMs)
     // Settle + IPC süresi toplam restore olarak ayrıca görünür.
-    expect(timings.clipboardRestoreMs ?? 0).toBeGreaterThanOrEqual(700)
+    expect(timings.clipboardRestoreMs ?? 0).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
     // Sonuç, `finally` sonrası güncellenen AYNI diagnostics nesnesini taşır.
     expect(result.diagnostics?.timings.totalMs).toBe(timings.totalMs)
   }, 20000)
