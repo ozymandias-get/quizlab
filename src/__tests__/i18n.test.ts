@@ -6,6 +6,10 @@
  */
 import '@shared/i18n/i18next'
 
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import i18next from 'i18next'
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -127,5 +131,56 @@ describe('i18n value quality', () => {
       .map(([key]) => key)
     // A handful of proper nouns are legitimately identical to their key.
     expect(untranslated.length).toBeLessThanOrEqual(5)
+  })
+})
+
+/**
+ * The bundles cannot know about an error code until someone adds it, so this
+ * walks the send pipelines for machine codes and requires each one to resolve.
+ * toErrorToastKey maps anything it cannot find to error_unknown_error, which
+ * keeps the toast readable but silently downgrades a specific message to a
+ * generic one -- a failure worth failing a build over.
+ */
+describe('machine error codes', () => {
+  const srcRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+  function sourceFiles(dir: string): string[] {
+    const out: string[] = []
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) {
+        out.push(...sourceFiles(full))
+      } else if (/\.(ts|tsx)$/.test(entry) && !/\.(test|spec)\.tsx?$/.test(entry)) {
+        out.push(full)
+      }
+    }
+    return out
+  }
+
+  /** `error: '<machine_code>'` -- the shape AiSendResult carries. */
+  function machineCodes(): string[] {
+    const found = new Set<string>()
+    for (const file of sourceFiles(srcRoot)) {
+      const src = readFileSync(file, 'utf8')
+      for (const [, code] of src.matchAll(/\berror:\s*'([a-z][a-z0-9_]*)'/g)) {
+        found.add(code)
+      }
+    }
+    return [...found].sort()
+  }
+
+  it('finds the send pipeline codes to check', () => {
+    // Guards the scan itself: if this drops to zero the gate below is vacuous.
+    expect(machineCodes().length).toBeGreaterThan(10)
+  })
+
+  it('has a translation for every machine error code in both languages', () => {
+    const missing = machineCodes()
+      .map((code) => `error_${code}`)
+      .filter(
+        (key) =>
+          typeof getNestedValue(en, key) !== 'string' || typeof getNestedValue(tr, key) !== 'string'
+      )
+    expect(missing).toEqual([])
   })
 })

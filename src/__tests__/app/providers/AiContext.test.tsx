@@ -252,11 +252,14 @@ describe('AiContext', () => {
     expect(mockSendText).toHaveBeenCalledWith('hello', undefined)
     expect(mockShowSuccess).not.toHaveBeenCalled()
 
-    mockSendText.mockResolvedValue({ success: false, error: 'fail' })
+    // A real pipeline code: toErrorToastKey maps codes the bundles do not know
+    // to error_unknown_error, and the key mapping has its own tests. What this
+    // test pins is that a failed send reaches the toast layer at all.
+    mockSendText.mockResolvedValue({ success: false, error: 'send_failed' })
     await act(async () => {
       await result.current.sendTextToAI('fail')
     })
-    expect(mockShowWarning).toHaveBeenCalledWith('error_fail')
+    expect(mockShowWarning).toHaveBeenCalledWith('error_send_failed')
   })
 
   it('wraps sending image with toast notifications', async () => {
