@@ -122,10 +122,35 @@ const entryPaths = new Set((knip.entry ?? []).flatMap(expandBraces))
 const stepBlocks = (): string[] =>
   workflow.split(/\n(?=\s*- name:)/).filter((block) => block.includes('- name:'))
 
-const stepNames = (): string[] =>
-  stepBlocks()
-    .map((block) => /- name: (.+)/.exec(block)?.[1]?.trim())
-    .filter((name): name is string => Boolean(name))
+/**
+ * The `quality` job's text, from its key to the next job.
+ *
+ * `stepBlocks` covers the whole workflow, so it also sees the `build` and
+ * `release` jobs. Only `quality` holds the gates, and scoping is what lets
+ * `names every blocking step in the quality job` below make a claim about
+ * exactly one job instead of all three.
+ */
+const qualityJobText = (): string => {
+  const lines = workflow.split('\n')
+  const start = lines.findIndex((line) => /^ {2}quality:\s*$/.test(line))
+  const end = lines.findIndex((line, index) => index > start && /^ {2}[\w-]+:\s*$/.test(line))
+  return lines.slice(start, end === -1 ? undefined : end).join('\n')
+}
+
+const qualityStepBlocks = (): string[] =>
+  qualityJobText()
+    .split(/\n(?=\s*- name:)/)
+    .filter((block) => block.includes('- name:'))
+
+const stepNameOf = (block: string): string => /- name: (.+)/.exec(block)?.[1]?.trim() ?? ''
+
+/** The quality-job steps that report success whatever they find. */
+const blockingQualitySteps = (): string[] =>
+  qualityStepBlocks()
+    .filter((block) => !block.includes('continue-on-error'))
+    .map(stepNameOf)
+
+const stepNames = (): string[] => stepBlocks().map(stepNameOf).filter(Boolean)
 
 /**
  * Every bare (non-relative) module specifier a script imports.
@@ -350,15 +375,27 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   const KNIP_STEP = 'Dead Code (knip)'
 
   /**
-   * The quality-job steps whose findings must fail the build.
+   * Every blocking step in the `quality` job, in workflow order.
    *
    * Not derivable from the filesystem: these are step *names* in
    * `.github/workflows/build.yml`. Kept as an explicit list because a step's
-   * blocking status is a decision, not a property of any file — `File Size
-   * Check` and `Spell Check (non-blocking)` are steps too, and they are
-   * advisory on purpose.
+   * blocking status is a decision, not a property of any file.
+   *
+   * Deliberately excluded, being advisory by decision, and listed here so
+   * nobody "fixes" the gap by adding them: `File Size Check` (a pre-existing
+   * size-limit debt) and `Spell Check (non-blocking)`.
+   *
+   * The provisioning steps are here too, not only the gates. `Setup Node.js`
+   * is the sharpest case: ubuntu-latest ships a preinstalled Node, so softening
+   * that step leaves CI running on whatever the image has, silently below the
+   * `24.15.0` floor that `Declaration consistency` exists to protect.
    */
   const BLOCKING_STEPS = [
+    'Checkout code',
+    'Setup Node.js',
+    'Install dependencies',
+    'Repository hygiene guard',
+    'Version consistency',
     'Declaration consistency',
     'Lint',
     'Format Check',
@@ -370,6 +407,9 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
     'Type Coverage (guard)',
     'Duplicate Code Detection',
     'Circular Dependency Check',
+    'Build (renderer + backend)',
+    'Setup Python (Semgrep)',
+    'Install Semgrep',
     'Semgrep (production sources)',
     'Production Dependency Audit',
     'Electron Hardening (Electronegativity)'
@@ -432,11 +472,23 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   it('keeps the existing gates blocking', () => {
     // Making one of these advisory would be a silent weakening, which is the
     // failure mode these assertions exist to prevent.
-    //
-    // Hand-maintained and not derivable: these are step names in
-    // `.github/workflows/build.yml`, not files on disk, so a gate added to the
-    // workflow without a name here leaves its blocking status unguarded.
     expect(softenedSteps(BLOCKING_STEPS)).toEqual([])
+  })
+
+  it('names every blocking step in the quality job, and only the blocking ones', () => {
+    // The list is hand-maintained because these are step names, not files, so
+    // its completeness is a claim someone has to keep true. Asserting it is
+    // what stops this being the fourth round of finding a name missing:
+    // `Repository hygiene guard`, `Version consistency` and
+    // `Build (renderer + backend)` were blocking the whole time and none of
+    // them was listed, so nothing would have caught softening any of them.
+    //
+    // Asserted in both directions. A blocking step missing from the list leaves
+    // its status unguarded; an advisory step wrongly listed would pin a
+    // deliberate decision into a permanent red.
+    const blocking = blockingQualitySteps()
+    expect(blocking.filter((name) => !BLOCKING_STEPS.includes(name))).toEqual([])
+    expect(BLOCKING_STEPS.filter((name) => !blocking.includes(name))).toEqual([])
   })
 
   it('the blocking rule reports a step that is missing or has been softened', () => {
