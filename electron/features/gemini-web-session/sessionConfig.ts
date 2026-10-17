@@ -60,7 +60,7 @@ export const FEATURE_ENABLED = true
 
 export const DEFAULT_USER_ENABLED = (() => {
   const raw = process.env.GEMINI_WEB_SESSION_DEFAULT_ENABLED?.trim().toLowerCase()
-  return raw ? !['0', 'false', 'off', 'no'].includes(raw) : true
+  return !raw || !['0', 'false', 'off', 'no'].includes(raw)
 })()
 
 export const DEFAULT_CONFIG: Omit<GeminiWebSessionConfig, 'profileDir'> = {

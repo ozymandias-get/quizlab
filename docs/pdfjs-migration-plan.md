@@ -150,21 +150,21 @@ classes, 26 rule blocks). The remaining 39 are in `pdfViewerDom.ts` (5),
 
 ### A — Provided by `@react-pdf-viewer` (must be re-implemented natively)
 
-| Capability                                    | How it is provided today                                                                         | Native equivalent                                   |
+| Capability | How it is provided today | Native equivalent |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ---------------------------------- | -------------------------- |
-| Canvas page rendering                         | `<Viewer>` + `ViewMode.SinglePage`                                                               | `PDFPageProxy.render()` onto a canvas               |
-| Page virtualization / lazy rasterization      | internal                                                                                         | manual intersection-observer page mounting          |
-| Text layer                                    | viewer's own, `rpv-core__text-layer` spans                                                       | `TextLayer` class exported by pdfjs 6               |
-| Annotation layer                              | viewer's own, `rpv-core__annotation-layer`                                                       | `AnnotationLayer` class exported by pdfjs 6         |
-| Link handling / `LinkService`                 | viewer internal — **no JS in this repo references annotations or links at all** (`rg "annotation | linkService                                         | getAnnotations"` returns only CSS) | `LinkService` from pdfjs 6 |
-| Search (find + highlight geometry)            | `searchPlugin` + `safeRenderHighlights`                                                          | manual `getTextContent()` scan + overlay divs       |
-| Zoom (`zoomTo`, `ZoomIn/Out`, `CurrentScale`) | `zoomPlugin`                                                                                     | `page.getViewport({ scale })` + our own state       |
-| Page jump                                     | `pageNavigationPlugin().jumpToPage`                                                              | scroll container + `scrollTo`                       |
-| `onPageChange` / `onDocumentLoad` / `onZoom`  | `<Viewer>` props                                                                                 | `page.render` completion + scroll observer          |
-| `renderLoader` / `renderError`                | `<Viewer>` props                                                                                 | ours (both already rendered by us inside the slots) |
-| Scroll mode / view mode enums                 | `ScrollMode.Page`, `ViewMode.SinglePage`                                                         | ours                                                |
-| Dark theme default                            | `theme={{ theme: 'dark' }}` + plugin CSS                                                         | ours                                                |
-| Viewer stylesheet                             | 4 imported `index.css` files                                                                     | native `pdf_viewer` CSS we author ourselves         |
+| Canvas page rendering | `<Viewer>` + `ViewMode.SinglePage` | `PDFPageProxy.render()` onto a canvas |
+| Page virtualization / lazy rasterization | internal | manual intersection-observer page mounting |
+| Text layer | viewer's own, `rpv-core__text-layer` spans | `TextLayer` class exported by pdfjs 6 |
+| Annotation layer | viewer's own, `rpv-core__annotation-layer` | `AnnotationLayer` class exported by pdfjs 6 |
+| Link handling / `LinkService` | viewer internal — **no JS in this repo references annotations or links at all** (`rg "annotation | linkService                                         | getAnnotations"` returns only CSS) | `LinkService` from pdfjs 6 |
+| Search (find + highlight geometry) | `searchPlugin` + `safeRenderHighlights` | manual `getTextContent()` scan + overlay divs |
+| Zoom (`zoomTo`, `ZoomIn/Out`, `CurrentScale`) | `zoomPlugin` | `page.getViewport({ scale })` + our own state |
+| Page jump | `pageNavigationPlugin().jumpToPage` | scroll container + `scrollTo` |
+| `onPageChange` / `onDocumentLoad` / `onZoom` | `<Viewer>` props | `page.render` completion + scroll observer |
+| `renderLoader` / `renderError` | `<Viewer>` props | ours (both already rendered by us inside the slots) |
+| Scroll mode / view mode enums | `ScrollMode.Page`, `ViewMode.SinglePage` | ours |
+| Dark theme default | `theme={{ theme: 'dark' }}` + plugin CSS | ours |
+| Viewer stylesheet | 4 imported `index.css` files | native `pdf_viewer` CSS we author ourselves |
 
 ### B — QuizLab's own code on top of the viewer
 

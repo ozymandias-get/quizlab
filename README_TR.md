@@ -125,9 +125,9 @@ ve tanılama araçları:
 
 | Alan                    | Seçim                                                                                     |
 | ----------------------- | ----------------------------------------------------------------------------------------- |
-| Masaüstü çalışma zamanı | Electron 42                                                                               |
+| Masaüstü çalışma zamanı | Electron 44                                                                               |
 | Arayüz                  | React 19; yönlendirici yok (özel durum tabanlı çalışma alanı)                             |
-| Dil                     | TypeScript 5.9                                                                            |
+| Dil                     | TypeScript 6                                                                              |
 | Derleme                 | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (paketleme)           |
 | PDF motoru              | `pdfjs-dist@6.4.299` + uygulamaya ait native görüntüleyici, worker `pdf.worker.min.mjs`   |
 | Stil                    | Tailwind CSS 4 (`@theme` token'ları) ve az sayıda CSS modülü                              |
@@ -135,7 +135,7 @@ ve tanılama araçları:
 | Arayüz primitifleri     | Radix UI, Headless UI, shadcn/ui, Lucide ikonlar                                          |
 | Animasyon / efekt       | Motion, tsParticles, Inter Variable (Fontsource)                                          |
 | i18n                    | i18next + react-i18next                                                                   |
-| Test                    | Vitest 4 + Testing Library                                                                |
+| Test                    | Vitest 5 + Testing Library                                                                |
 | Lint / biçimlendirme    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                                |
 | Güvenlik araçları       | Electronegativity, Semgrep, `npm audit`                                                   |
 | Paketleme               | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)               |
@@ -148,7 +148,9 @@ ve tanılama araçları:
   paketidir. Gezgin sağ tık menüsü girdisi ve Chrome eklenti köprüsü yalnızca
   Windows'ta çalışır.
 - macOS — `dmg`/`zip` hedefleri yapılandırılmıştır ancak sürüm iş akışı macOS
-  derlemesi yapmaz; `npm run build:mac` ile yerelde üretin.
+  derlemesi yapmaz; `npm run build:mac` ile yerelde üretin. Electron 44,
+  Chromium'un macOS 12 desteğini kaldırması nedeniyle macOS 13 (Ventura) veya
+  üzerini gerektirir.
 - Linux — AppImage ve `deb` CI tarafından derlenir.
 - Yapay zeka özellikleri için ağ bağlantısı gerekir. PDF okumak için başka hiçbir
   şey gerekmez.

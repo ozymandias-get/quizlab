@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog } from 'electron'
+import path from 'path'
 
 import {
   GOOGLE_WEB_SESSION_APPS,
@@ -6,6 +7,7 @@ import {
 } from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
+import { getDefaultDialogDirectory, rememberDialogDirectory } from '../../core/dialogDirectory.js'
 import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
@@ -93,7 +95,9 @@ export function registerGeminiWebSessionHandlers(): void {
         const win = BrowserWindow.fromWebContents(event.sender)
         const saveOptions = {
           title: 'Export Gemini Session',
-          defaultPath: 'gemini-session.enc',
+          // Electron 43 resolves a bare filename against Downloads; keep the
+          // dialog where the user last worked instead.
+          defaultPath: path.join(getDefaultDialogDirectory(), 'gemini-session.enc'),
           // Every file this dialog can produce is encrypted with the OS
           // keystore; the previous code could write plaintext here while
           // still advertising the file as encrypted.
@@ -104,6 +108,7 @@ export function registerGeminiWebSessionHandlers(): void {
           : await dialog.showSaveDialog(saveOptions)
 
         if (canceled || !filePath) return success({ success: false, error: 'canceled' })
+        rememberDialogDirectory(filePath)
         return success(await geminiWebSessionManager.exportSession(filePath))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
@@ -128,13 +133,15 @@ export function registerGeminiWebSessionHandlers(): void {
             { name: 'Encrypted Session', extensions: ['enc'] },
             { name: 'All files', extensions: ['*'] }
           ],
-          properties: ['openFile' as const]
+          properties: ['openFile' as const],
+          defaultPath: getDefaultDialogDirectory()
         }
         const { canceled, filePaths } = win
           ? await dialog.showOpenDialog(win, openOptions)
           : await dialog.showOpenDialog(openOptions)
 
         if (canceled || !filePaths?.length) return success({ success: false, error: 'canceled' })
+        rememberDialogDirectory(filePaths[0])
         return success(await geminiWebSessionManager.importSession(filePaths[0]))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)

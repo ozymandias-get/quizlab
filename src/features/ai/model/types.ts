@@ -152,11 +152,7 @@ export type SendStage = 'not_started' | 'partial' | 'applied' | 'uncertain'
  * kullanıcıya "Gönderildi" denmemeli, otomatik tekrar yapılmamalıdır.
  */
 export type SendSubmitOutcome =
-  | 'observed'
-  | 'delivery_unconfirmed'
-  | 'blocked'
-  | 'not_attempted'
-  | 'input_only'
+  'observed' | 'delivery_unconfirmed' | 'blocked' | 'not_attempted' | 'input_only'
 
 export interface SendTextResult {
   success: boolean

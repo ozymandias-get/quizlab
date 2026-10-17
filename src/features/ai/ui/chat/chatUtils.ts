@@ -55,8 +55,7 @@ export function formatDate(
 }
 
 type MessageGroupEntry =
-  | { kind: 'date'; timestamp: number }
-  | { kind: 'messages'; messages: ApiChatMessage[] }
+  { kind: 'date'; timestamp: number } | { kind: 'messages'; messages: ApiChatMessage[] }
 
 export type MessageGroupsResult = {
   groups: MessageGroupEntry[]

@@ -36,7 +36,7 @@ import { vi } from 'vitest'
  * Ölçümün ASIL değişmezi sıralamadır (`totalMs >= clipboardRestoreWaitMs` ve
  * `pasteMs < taban`); mutlak eşik yalnızca tabanı destekler.
  */
-export const TIMER_TOLERANCE_MS = 100
+const TIMER_TOLERANCE_MS = 100
 
 /**
  * Restore beklemesinin "gerçekten beklenmiş sayılacağı" taban süre.

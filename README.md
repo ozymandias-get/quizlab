@@ -122,9 +122,9 @@ diagnostics:
 
 | Area             | Choice                                                                             |
 | ---------------- | ---------------------------------------------------------------------------------- |
-| Desktop runtime  | Electron 42                                                                        |
+| Desktop runtime  | Electron 44                                                                        |
 | UI               | React 19, no router (custom state-driven workspace)                                |
-| Language         | TypeScript 5.9                                                                     |
+| Language         | TypeScript 6                                                                       |
 | Build            | Vite 8 (renderer), `tsc` + esbuild (main/preload), electron-builder (packaging)    |
 | PDF engine       | `pdfjs-dist@6.4.299` with QuizLab's own native viewer, worker `pdf.worker.min.mjs` |
 | Styling          | Tailwind CSS 4 (`@theme` tokens), plus a small number of CSS modules               |
@@ -132,7 +132,7 @@ diagnostics:
 | UI primitives    | Radix UI, Headless UI, shadcn/ui, Lucide icons                                     |
 | Motion / effects | Motion, tsParticles, Inter Variable (Fontsource)                                   |
 | i18n             | i18next + react-i18next                                                            |
-| Tests            | Vitest 4 + Testing Library                                                         |
+| Tests            | Vitest 5 + Testing Library                                                         |
 | Lint / format    | ESLint 10, Prettier, Stylelint, cspell, dependency-cruiser                         |
 | Security tooling | Electronegativity, Semgrep, `npm audit`                                            |
 | Packaging        | electron-builder 26 — NSIS (Windows), dmg/zip (macOS), AppImage/deb (Linux)        |
@@ -144,7 +144,8 @@ diagnostics:
 - Windows 10/11 (x64) — the published installer is a per-user NSIS package. The
   Explorer right-click entry and the Chrome extension bridge are Windows-only.
 - macOS — `dmg`/`zip` targets are configured, but the release workflow does not
-  build macOS; produce it locally with `npm run build:mac`.
+  build macOS; produce it locally with `npm run build:mac`. Electron 44 requires
+  macOS 13 (Ventura) or newer, because its Chromium dropped macOS 12.
 - Linux — AppImage and `deb` are built in CI.
 - A network connection is required for AI features. Nothing else is needed to
   read PDFs.

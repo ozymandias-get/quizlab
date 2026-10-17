@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 import '@shared/i18n/i18next'
 
 import { vi } from 'vitest'
