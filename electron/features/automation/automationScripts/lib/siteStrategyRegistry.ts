@@ -655,6 +655,87 @@ export const siteStrategyRuntime = `    const __DICTATION_ATTRIBUTES = ['data-st
         }
     };
 
+    const __SELECTOR_INPUT_RULES = ${JSON.stringify(SELECTOR_INPUT_RULES)};
+    const __SELECTOR_BUTTON_RULES = ${JSON.stringify(SELECTOR_BUTTON_RULES)};
+
+    const __findVisibleBySelector = (root, selector, minWidth, minHeight) => {
+        if (!root || typeof root.querySelectorAll !== 'function') return null;
+        let matches;
+        try {
+            matches = root.querySelectorAll(selector);
+        } catch (e) {
+            return null;
+        }
+        for (let i = 0; i < matches.length; i++) {
+            if (__isVisibleCandidate(matches[i], minWidth, minHeight)) return matches[i];
+        }
+        return null;
+    };
+
+    const __tryGenericInputFallback = () => {
+        for (let i = 0; i < __SELECTOR_INPUT_RULES.length; i++) {
+            const rule = __SELECTOR_INPUT_RULES[i];
+            const el = __findVisibleBySelector(document, rule.selector, rule.minWidth, rule.minHeight);
+            if (el) {
+                return {
+                    element: el,
+                    matchedSelector: 'generic:input:' + rule.selector,
+                    strategy: 'provider'
+                };
+            }
+        }
+        return null;
+    };
+
+    const __findButtonInRoot = (root) => {
+        if (!root || typeof root.querySelectorAll !== 'function') return null;
+        for (let i = 0; i < __SELECTOR_BUTTON_RULES.length; i++) {
+            const selector = __SELECTOR_BUTTON_RULES[i];
+            let matches;
+            try {
+                matches = root.querySelectorAll(selector);
+            } catch (e) {
+                continue;
+            }
+            for (let j = 0; j < matches.length; j++) {
+                const el = matches[j];
+                if (__isDictationControl(el)) continue;
+                if (__isVisibleCandidate(el, 8, 8)) return { element: el, selector: selector };
+            }
+        }
+        return null;
+    };
+
+    const __tryGenericButtonFallback = () => {
+        const composer = __findComposerContainer(true);
+        if (composer) {
+            const decisive = __findComposerSubmit(composer);
+            if (decisive) {
+                return {
+                    element: decisive,
+                    matchedSelector: 'generic:button:composer:submit',
+                    strategy: 'provider'
+                };
+            }
+        }
+        const roots = composer ? [composer, document] : [document];
+        for (let i = 0; i < roots.length; i++) {
+            const found = __findButtonInRoot(roots[i]);
+            if (found) {
+                return {
+                    element: found.element,
+                    matchedSelector: 'generic:button:' + found.selector,
+                    strategy: 'provider'
+                };
+            }
+        }
+        return null;
+    };
+
+    const __tryGenericByKind = (kind) => {
+        return kind === 'input' ? __tryGenericInputFallback() : __tryGenericButtonFallback();
+    };
+
     const __SITE_STRATEGIES = [];
     const __registerSiteStrategy = (strategy) => {
         if (!strategy || typeof strategy.id !== 'string') return;
@@ -664,6 +745,35 @@ export const siteStrategyRuntime = `    const __DICTATION_ATTRIBUTES = ['data-st
         } else {
             __SITE_STRATEGIES.push(strategy);
         }
+    };
+    let __builtinsRegistered = false;
+    const __ensureBuiltinSiteStrategiesRegistered = () => {
+        if (__builtinsRegistered) return;
+        __builtinsRegistered = true;
+        const specs = [
+            ['builtin:claude', ['claude.ai']],
+            ['builtin:deepseek', ['deepseek.com']],
+            ['builtin:qwen', ['qwen']],
+            ['builtin:kimi', ['kimi']],
+            ['builtin:chatgpt', ['chatgpt.com']],
+            ['builtin:gemini', ['gemini.google.com']],
+            ['builtin:aistudio', ['aistudio.google.com']],
+            ['builtin:m365', ['copilot.microsoft.com']],
+            ['builtin:youtube', ['youtube.com']],
+            ['builtin:api-chat', ['api-chat']]
+        ];
+        for (let i = 0; i < specs.length; i++) {
+            __registerSiteStrategy({
+                id: specs[i][0],
+                match: { hostPatterns: specs[i][1] },
+                produce: __tryGenericByKind
+            });
+        }
+        __registerSiteStrategy({
+            id: 'builtin:generic',
+            match: { hostPatterns: [''], priority: -100 },
+            produce: __tryGenericByKind
+        });
     };
     const __listApplicableStrategies = (hostname) => {
         const lower = String(hostname || '').toLowerCase();

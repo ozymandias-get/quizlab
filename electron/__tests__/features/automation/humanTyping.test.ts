@@ -157,4 +157,38 @@ describe('humanType cancellation', () => {
       restore()
     }
   })
+
+  it('preserves existing draft when typing mode is called with appendMode=true', async () => {
+    document.body.innerHTML = `
+      <textarea id="input">existing attachment context</textarea>
+      <button id="send" type="button">Send</button>
+    `
+    const script = generateAutoSendScript(makeConfig(), 'follow-up', false, true, 'typing', 1)
+    const result = await window.eval(script)
+
+    expect(result.success).toBe(true)
+    expect(result.diagnostics.textVerifyResult).toBe('verified')
+    const textarea = document.getElementById('input') as HTMLTextAreaElement
+    expect(textarea.value).toBe('existing attachment context\n\nfollow-up')
+  })
+
+  it('does not submit partial text when typing mode is aborted mid-flight with shouldSubmit=true', async () => {
+    const controller = new AbortController()
+    ;(window as unknown as Record<string, unknown>)[ABORT_FLAG] = controller
+
+    const sendButton = document.getElementById('send') as HTMLButtonElement
+    const clickSpy = vi.spyOn(sendButton, 'click')
+
+    const prompt = 'y'.repeat(80)
+    const script = generateAutoSendScript(makeConfig(), prompt, true, false, 'typing', 500)
+    const execution = window.eval(script)
+
+    setTimeout(() => controller.abort(), 50)
+    const result = await execution
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('cancelled')
+    expect(result.submitOutcome).toBe('not_attempted')
+    expect(clickSpy).not.toHaveBeenCalled()
+  })
 })

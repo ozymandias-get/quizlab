@@ -475,5 +475,39 @@ describe('siteStrategyRegistry', () => {
       const result = produceButton()
       expect(result).toBeNull()
     })
+
+    it('injected siteStrategyRuntime registers built-in strategies and resolves composer controls', async () => {
+      const { siteStrategyRuntime } =
+        await import('@electron/features/automation/automationScripts/lib/siteStrategyRegistry')
+      document.body.innerHTML = `
+        <div data-composer-body>
+          <textarea id="composer-input"></textarea>
+          <button id="dictate" type="button" aria-label="Dikte et"></button>
+          <button id="composer-submit" type="submit" aria-label="Gönder"></button>
+        </div>
+      `
+      mockAllRects(document.body, 120, 40)
+
+      const runner = new Function(`
+        ${siteStrategyRuntime}
+        __ensureBuiltinSiteStrategiesRegistered();
+        return {
+          strategies: __listApplicableStrategies('chatgpt.com').map(s => s.id),
+          inputHit: __runSiteStrategy('chatgpt.com', 'input'),
+          buttonHit: __runSiteStrategy('chatgpt.com', 'button')
+        };
+      `) as () => {
+        strategies: string[]
+        inputHit: { element: Element; matchedSelector: string; strategyId: string } | null
+        buttonHit: { element: Element; matchedSelector: string; strategyId: string } | null
+      }
+
+      const out = runner()
+      expect(out.strategies).toContain('builtin:chatgpt')
+      expect(out.strategies).toContain('builtin:generic')
+      expect(out.inputHit?.element).toBe(document.getElementById('composer-input'))
+      expect(out.buttonHit?.element).toBe(document.getElementById('composer-submit'))
+      expect(out.buttonHit?.matchedSelector).toBe('generic:button:composer:submit')
+    })
   })
 })

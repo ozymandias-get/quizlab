@@ -5,7 +5,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import { useSaveAiConfig } from '@platform/electron/api/useAiApi'
 import { useGeneratePickerScript } from '@platform/electron/api/useAutomationApi'
 
-import { enqueueSelectorRepair } from '@features/ai'
+import { enqueueSelectorRepair, invalidateAllConfigCaches } from '@features/ai'
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { Logger } from '@shared/lib/logger'
@@ -160,6 +160,7 @@ export function useElementPicker(
             }
           })
         )
+        invalidateAllConfigCaches()
         Logger.info(`[Picker] savePickerResult: saved for ${normalizedHostname}`)
       } catch (err) {
         const message = ensureErrorMessage(err, t('error_unknown_error'))
@@ -259,6 +260,12 @@ export function useElementPicker(
         return
       }
 
+      if (activePickerContentRef.current && activePickerContentRef.current !== content) {
+        stopListening()
+        await resetPickerArtifacts(activePickerContentRef.current)
+        activePickerContentRef.current = null
+      }
+
       const sessionId = createPickerSessionId()
       const script = await generatePickerScript({ translations: pickerTranslations, sessionId })
       if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
@@ -276,23 +283,29 @@ export function useElementPicker(
 
       await resetPickerArtifacts(content)
       await content.executeJavaScript(PICKER_SCRIPTS.RESET)
-      await content.executeJavaScript(script)
-      if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
-        await resetPickerArtifacts(content)
-        return
-      }
       activePickerContentRef.current = content
       pickerSessionRef.current = sessionId
       pickerStartUrlRef.current = readContentUrl(content)
+      startListening(content, sessionId)
+      await content.executeJavaScript(script)
+      if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
+        stopListening()
+        activePickerContentRef.current = null
+        pickerSessionRef.current = null
+        pickerStartUrlRef.current = null
+        await resetPickerArtifacts(content)
+        return
+      }
       Logger.info('[Picker] startPicker: script injected into content, setting isPickerActive=true')
 
       setIsPickerActive(true)
       showInfo('picker_started_hint')
-      startListening(content, sessionId)
     } catch (err) {
       Logger.error('[Picker] startPicker: error', err)
       showError('picker_init_failed')
       activePickerContentRef.current = null
+      pickerSessionRef.current = null
+      pickerStartUrlRef.current = null
       setIsPickerActive(false)
       stopListening()
     } finally {
@@ -326,12 +339,28 @@ export function useElementPicker(
   }, [showInfo, stopListening])
 
   const togglePicker = useCallback(async () => {
-    if (isPickerActive) {
+    const currentContent = getContentRef.current()
+    if (
+      isPickerActive &&
+      (!activePickerContentRef.current || activePickerContentRef.current === currentContent)
+    ) {
       await stopPicker()
     } else {
+      if (
+        isPickerActive &&
+        activePickerContentRef.current &&
+        activePickerContentRef.current !== currentContent
+      ) {
+        stopListening()
+        await resetPickerArtifacts(activePickerContentRef.current)
+        activePickerContentRef.current = null
+        pickerSessionRef.current = null
+        pickerStartUrlRef.current = null
+        setIsPickerActive(false)
+      }
       await startPicker()
     }
-  }, [isPickerActive, startPicker, stopPicker])
+  }, [isPickerActive, startPicker, stopListening, stopPicker])
 
   return {
     isPickerActive,
