@@ -1,6 +1,5 @@
 import type { AiViewSurfaceState } from '@features/ai/viewState'
 
-import AuroraBackground from '@app/components/ui/aurora-background'
 import BottomBar from '@app/ui/BottomBar'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import LeftPanel from '@ui/layout/LeftPanel'
@@ -41,7 +40,6 @@ interface MainWorkspaceProps {
   leftPanelProps: ComponentProps<typeof LeftPanel>
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
-  bgMode: 'ambient' | 'solid'
   /** Which AI surface this workspace represents; only the active one positions native views. */
   isAiSurfaceActive: boolean
   aiViewSurfaceState: AiViewSurfaceState
@@ -69,7 +67,6 @@ function MainWorkspace({
   leftPanelProps,
   isInteractionBlocked,
   isPanelResizing,
-  bgMode,
   isAiSurfaceActive,
   aiViewSurfaceState
 }: MainWorkspaceProps) {
@@ -82,8 +79,6 @@ function MainWorkspace({
       variants={containerVariants}
       className={`relative flex h-screen w-screen px-2 py-2 sm:px-3 sm:py-3 md:px-4 md:py-4 lg:px-5 lg:py-5 ${isLayoutSwapped ? 'flex-row-reverse' : 'flex-row'}`}
     >
-      {bgMode === 'ambient' && <AuroraBackground className="rounded-[var(--radius-2xl)]" />}
-
       <motion.div
         ref={leftPanelRef}
         variants={leftPanelVariants}

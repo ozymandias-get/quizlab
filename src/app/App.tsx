@@ -1,7 +1,5 @@
 import ToastContainer from '@app/components/Toast/ToastContainer'
-import AppBackground from '@app/ui/AppBackground'
 import MainWorkspace from '@app/ui/MainWorkspace'
-import { useAppearance } from '@shared/stores/appearanceStore'
 import { useLanguage } from '@shared/stores/languageStore'
 
 import { AnimatePresence, LayoutGroup } from 'motion/react'
@@ -49,8 +47,6 @@ function App() {
     updateBanner,
     focus
   } = useAppShellState()
-
-  const bgMode = useAppearance((state) => state.bgMode)
 
   const {
     t,
@@ -118,8 +114,6 @@ function App() {
         className="animate-app-enter relative h-screen w-screen overflow-hidden"
         {...rootDragHandlers}
       >
-        <AppBackground />
-
         <ToastContainer />
 
         <Suspense fallback={null}>
@@ -156,7 +150,6 @@ function App() {
               leftPanelProps={combinedLeftPanelProps}
               isInteractionBlocked={isInteractionBlocked}
               isPanelResizing={isPanelResizing}
-              bgMode={bgMode}
               isAiSurfaceActive={!isAiFocusSurface}
               aiViewSurfaceState={aiViewSurfaceState}
             />

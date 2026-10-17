@@ -28,7 +28,6 @@ export {
   InfoIcon,
   KeyboardIcon,
   LanguageIcon,
-  PaletteIcon,
   SelectionIcon,
   SelectorIcon,
   SettingsIcon,

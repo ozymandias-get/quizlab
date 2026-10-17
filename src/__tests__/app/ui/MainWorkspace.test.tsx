@@ -45,7 +45,6 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
       isResizing={false}
       onBarHoverChange={vi.fn()}
       leftPanelProps={{} as never}
-      bgMode="solid"
       isAiSurfaceActive
       aiViewSurfaceState={{
         aliveTabIds: [],

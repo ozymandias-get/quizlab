@@ -2,7 +2,7 @@
  * Tests for src/shared/stores/appearanceStore.ts
  *
  * Zustand store with persist middleware. Controls UI appearance:
- * bottom bar, background, focus mode, tool/model visibility.
+ * bottom bar, selection colour, focus mode, tool/model visibility.
  */
 import { useAppearance } from '@shared/stores/appearanceStore'
 
@@ -13,8 +13,6 @@ beforeEach(() => {
   useAppearance.setState({
     bottomBarOpacity: 0.7,
     bottomBarScale: 1.0,
-    bgMode: 'ambient',
-    bgSolidColor: '#000000',
     selectionColor: '#EAB308',
     isLayoutSwapped: false,
     focusMode: null,
@@ -50,25 +48,7 @@ describe('appearanceStore', () => {
     })
   })
 
-  describe('background settings', () => {
-    it('defaults to ambient mode', () => {
-      expect(useAppearance.getState().bgMode).toBe('ambient')
-    })
-
-    it('switches to solid mode', () => {
-      useAppearance.getState().setBgMode('solid')
-      expect(useAppearance.getState().bgMode).toBe('solid')
-    })
-
-    it('has default solid color of #000000', () => {
-      expect(useAppearance.getState().bgSolidColor).toBe('#000000')
-    })
-
-    it('updates solid color', () => {
-      useAppearance.getState().setBgSolidColor('#ffffff')
-      expect(useAppearance.getState().bgSolidColor).toBe('#ffffff')
-    })
-
+  describe('selection color', () => {
     it('has default selection color of #EAB308', () => {
       expect(useAppearance.getState().selectionColor).toBe('#EAB308')
     })

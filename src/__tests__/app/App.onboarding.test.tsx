@@ -23,7 +23,7 @@ vi.mock('@shared/stores/languageStore', () => ({
 }))
 
 vi.mock('@shared/stores/appearanceStore', () => ({
-  useAppearance: () => ({ bgMode: 'light', bottomBarOpacity: 1, bottomBarScale: 1 })
+  useAppearance: () => ({ bottomBarOpacity: 1, bottomBarScale: 1 })
 }))
 
 vi.mock('@app/ui/FocusOverlay', () => ({ default: () => null }))
@@ -64,14 +64,14 @@ vi.mock('@app/hooks/useAppShellState', () => ({
 }))
 vi.mock('@app/hooks/usePdfWorkspaceState', () => ({ usePdfWorkspaceState: () => ({}) }))
 vi.mock('@app/providers', () => ({
-  useAppearance: () => ({ bgMode: 'light', bottomBarOpacity: 1, bottomBarScale: 1 }),
+  useAppearance: () => ({ bottomBarOpacity: 1, bottomBarScale: 1 }),
   useAppToolActions: () => ({}),
   useAppToolPickerState: () => ({ isPickerActive: false }),
   useAppToolQueueState: () => ({}),
   useAppToolScreenshotState: () => ({})
 }))
 vi.mock('@app/components/Toast/ToastContainer', () => ({ default: () => null }))
-vi.mock('@app/ui/AppBackground', () => ({ default: () => null }))
+
 vi.mock('@app/ui/BottomBar', () => ({ default: () => null }))
 
 // Imported after the mocks, as `vi.mock` is hoisted above every import anyway.
