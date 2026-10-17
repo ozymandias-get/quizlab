@@ -29,6 +29,8 @@ describe('useScreenshotPipeline', () => {
   // bir mock "reddedildi" anlamına gelir; kabul senaryoları için `true` verilir
   // ve reddedilme senaryoları ayrıca açıkça test edilir.
   const queueImageForAi = vi.fn((_dataUrl: string, _meta?: unknown) => true)
+  // Metin de aynı sözleşmede: gerçek boolean sonucu (kabul / ret).
+  const queueTextForAi = vi.fn((_text: string, _position?: unknown, _meta?: unknown) => true)
 
   // Kaynak yaşam döngüsü gözlemi: her blob kaynağının iptali sayılır.
   // Kuyruğa devredilen (kabul edilen) kaynak **iptal edilmez**.
@@ -42,11 +44,12 @@ describe('useScreenshotPipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queueImageForAi.mockReturnValue(true)
+    queueTextForAi.mockReturnValue(true)
     revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   })
 
   it('stashes the capture as pending instead of queueing immediately', async () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 4, captureKind: 'selection' })
@@ -71,7 +74,7 @@ describe('useScreenshotPipeline', () => {
   })
 
   it('queues only when the pending capture is confirmed as draft', async () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 4, captureKind: 'selection' })
@@ -94,7 +97,7 @@ describe('useScreenshotPipeline', () => {
   })
 
   it('drops the pending capture on dismiss without queueing', async () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 9, captureKind: 'selection' })
@@ -110,7 +113,7 @@ describe('useScreenshotPipeline', () => {
   })
 
   it('a new area selection supersedes the previous pending capture', async () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 9, captureKind: 'selection' })
@@ -128,7 +131,7 @@ describe('useScreenshotPipeline', () => {
   })
 
   it('tears the overlay down when the user cancels instead of capturing', () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 3, captureKind: 'selection' })
@@ -142,7 +145,7 @@ describe('useScreenshotPipeline', () => {
   })
 
   it('clears the metadata without leaving screenshot mode', () => {
-    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+    const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
 
     act(() => {
       result.current.startScreenshot({ page: 3, captureKind: 'selection' })
@@ -164,7 +167,7 @@ describe('useScreenshotPipeline', () => {
     })
 
     async function stagePendingArea() {
-      const rendered = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const rendered = renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
       act(() => {
         rendered.result.current.startScreenshot({ page: 4, captureKind: 'selection' })
       })
@@ -191,7 +194,9 @@ describe('useScreenshotPipeline', () => {
     })
 
     it('reports failure and keeps the pending full-page capture when the queue rejects', () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
       act(() => {
         result.current.offerFullPageCapture('blob:pending-full', { page: 7 })
       })
@@ -208,7 +213,9 @@ describe('useScreenshotPipeline', () => {
     })
 
     it('hands the blob over to the queue on success (no double ownership)', () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
       act(() => {
         result.current.offerFullPageCapture('blob:pending-full', { page: 7 })
       })
@@ -233,7 +240,9 @@ describe('useScreenshotPipeline', () => {
    */
   describe('single pending capture', () => {
     it('drops the area capture when a full-page capture arrives', async () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
 
       await act(async () => {
         await result.current.handleCapture('blob:area', null)
@@ -251,7 +260,9 @@ describe('useScreenshotPipeline', () => {
     })
 
     it('drops the full-page capture when a new area selection starts', async () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
 
       act(() => {
         result.current.offerFullPageCapture('blob:full', { page: 3 })
@@ -266,7 +277,9 @@ describe('useScreenshotPipeline', () => {
     })
 
     it('acts only on the surviving capture when the user confirms', async () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
 
       await act(async () => {
         await result.current.handleCapture('blob:area', null)
@@ -293,7 +306,9 @@ describe('useScreenshotPipeline', () => {
     })
 
     it('keeps at most one pending capture across several rounds', async () => {
-      const { result } = renderHook(() => useScreenshotPipeline({ queueImageForAi }))
+      const { result } = renderHook(() =>
+        useScreenshotPipeline({ queueImageForAi, queueTextForAi })
+      )
 
       await act(async () => {
         await result.current.handleCapture('blob:area-1', null)
