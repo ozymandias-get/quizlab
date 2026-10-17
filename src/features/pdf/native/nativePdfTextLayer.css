@@ -105,10 +105,9 @@
  * to the right of the last glyph on a line.
  *
  * Chromium resolves a caret position from a mouse coordinate against the boxes it
- * can find. Measured in Chromium 142 (the engine Electron 42 ships) against
- * PDF.js 6.4.299's own `TextLayer`, with `document.caretPositionFromPoint` over the
- * first line of a real paragraph (line box `left 76 → right 357.7`,
- * `top 89.45 → bottom 98.25`):
+ * can find. Measured in the app's current Chromium against PDF.js 6.4.299's own
+ * `TextLayer`, with `document.caretPositionFromPoint` over the first line of a
+ * real paragraph (line box `left 76 → right 357.7`, `top 89.45 → bottom 98.25`):
  *
  * ```
  *   x = 355.7 (inside the run)        -> run#1@1     a position inside the text
@@ -218,8 +217,8 @@
  *    blue; only the opacity is ours. `color-mix` is used rather than another
  *    pre-baked rgba token because the alpha has to be *this surface's* decision,
  *    and `color-mix(in srgb, <colour>, transparent N%)` is the only form that
- *    takes an arbitrary user colour and applies one alpha to it. Electron 42
- *    ships Chromium 142, so it is long-supported; the plain `rgb()` fallback
+ *    takes an arbitrary user colour and applies one alpha to it. The app's own
+ *    Chromium has supported it for many releases; the plain `rgb()` fallback
  *    covers any engine that ever lacks it.
  *
  * `color: transparent` is unchanged and load-bearing: the run text is invisible
@@ -228,9 +227,9 @@
  *
  * ── Why the runs clip their own paint (`overflow-x: clip`) ─────────────
  *
- * This is the double-paint fix, and it is not a guess. Measured in Chromium 142
- * (the engine Electron 42 ships) against PDF.js 6.4.299's own `TextLayer`, with
- * the real DOM it emits for a bullet list:
+ * This is the double-paint fix, and it is not a guess. Measured in the app's
+ * current Chromium against PDF.js 6.4.299's own `TextLayer`, with the real DOM it
+ * emits for a bullet list:
  *
  * ```
  * <span role="presentation">•</span>          <- bullet glyph, own run

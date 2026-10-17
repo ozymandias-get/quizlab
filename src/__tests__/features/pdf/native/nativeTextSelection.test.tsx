@@ -615,8 +615,9 @@ describe('native text layer — reading order', () => {
  * character reported the whole line, and that over-reported text is what reached
  * `onTextSelection`, the quick action and the AI queue.
  *
- * Measured in Chromium 142 over PDF.js 6.4.299's real text layer, on a drag that
- * moved 6px: the browser held 1 character and `extractSelectedText` returned 72.
+ * Measured in the app's current Chromium over PDF.js 6.4.299's real text layer, on
+ * a drag that moved 6px: the browser held 1 character and `extractSelectedText`
+ * returned 72.
  * Across a 35-scenario sweep, extraction reported more text than the browser in 32.
  *
  * jsdom has no layout, so each run is stamped with a box and the range is a real
