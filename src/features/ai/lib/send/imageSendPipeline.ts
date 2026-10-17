@@ -21,7 +21,7 @@ import { mergePromptText } from '../aiSenderSupport'
 import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { copyImageToClipboardWithRetry, createClipboardRestore } from './imageClipboard'
 import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmitDiagnosis'
-import { executePipelineStep } from './pipelineUtils'
+import { executePipelineStep, resolveSubmitOutcome } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
 import {
@@ -297,7 +297,7 @@ export async function executeImageSendPipeline(
         reportRepair()
         return finish(
           attachDiagnostics(
-            { success: true, mode: 'paste_and_prompt' },
+            { success: true, mode: 'paste_and_prompt', submitOutcome: 'input_only' },
             diagnostics,
             requestStartedAt
           )
@@ -398,10 +398,15 @@ export async function executeImageSendPipeline(
       }
 
       reportRepair()
-      stage = 'applied'
+      const submitOutcome = resolveSubmitOutcome(clickStep.scriptResult)
+      stage = submitOutcome === 'delivery_unconfirmed' ? 'uncertain' : 'applied'
       return finish(
         attachDiagnostics(
-          { success: true, mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click' },
+          {
+            success: true,
+            mode: promptApplied ? 'auto_click_with_prompt' : 'auto_click',
+            submitOutcome
+          },
           diagnostics,
           requestStartedAt
         )
@@ -411,7 +416,11 @@ export async function executeImageSendPipeline(
     reportRepair()
     stage = 'applied'
     return finish(
-      attachDiagnostics({ success: true, mode: 'paste_only' }, diagnostics, requestStartedAt)
+      attachDiagnostics(
+        { success: true, mode: 'paste_only', submitOutcome: 'input_only' },
+        diagnostics,
+        requestStartedAt
+      )
     )
   } finally {
     // Restore'un kritik yolda gerçekten bloke ettiği süre ayrı ölçülür: settle

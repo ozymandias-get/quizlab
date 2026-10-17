@@ -521,4 +521,35 @@ describe('executeBulkSendPipeline — clipboard restore lifecycle', () => {
     // Sonuç, `finally` sonrası hesaplanan AYNI diagnostics nesnesini taşır.
     expect(result.diagnostics?.timings.totalMs).toBe(timings.totalMs)
   }, 20000)
+
+  it('preserves submitOutcome from scriptExecution and marks stage as uncertain when delivery is unconfirmed', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    ;(contentMocks.executeJavaScript as ReturnType<typeof vi.fn>).mockImplementation(
+      async (script: string) => {
+        scripts.push(script)
+        if (script === '/*click*/') {
+          return {
+            success: true,
+            mode: 'click',
+            submitMethod: 'button_click',
+            submitObserved: false,
+            submitOutcome: 'delivery_unconfirmed',
+            diagnostics: {}
+          }
+        }
+        return { success: true, action: 'submit_ready', mode: 'mixed', diagnostics: {} }
+      }
+    )
+    const params = baseParams(content, scripts)
+
+    const result = await executeBulkSendPipeline(params)
+
+    expect(result.success).toBe(true)
+    expect(result.submitOutcome).toBe('delivery_unconfirmed')
+    expect(result.stage).toBe('uncertain')
+
+    const outcome = resolveSendOutcome(result)
+    expect(outcome.kind).toBe('incomplete')
+    expect(outcome.resendSafe).toBe(false)
+  }, 20000)
 })
