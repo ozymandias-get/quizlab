@@ -4,12 +4,13 @@
 # reviewable diff beats a wall of single-package PRs.
 #
 # Majors are deliberately left UNGROUPED so that each major dependency gets its
-# own PR and one blocked major cannot stall the rest. TypeScript is the live
+# own PR and one blocked major cannot stall the rest. TypeScript was the live
 # example -- it is held at 6.x on purpose because `@typescript-eslint/parser`
-# still declares `typescript: ">=4.8.4 <6.1.0"` on every published channel, so a
-# TS 7 PR stays red until typescript-eslint widens (see the typescript block in
-# `.npmrc` for the gate-by-gate measurements). Grouped, that one stuck PR would
-# hold back every other major; ungrouped it blocks only itself.
+# still declares `typescript: ">=4.8.4 <6.1.0"` on every published channel (see
+# the typescript block in `.npmrc` for the gate-by-gate measurements). Grouped,
+# that one stuck PR would hold back every other major; ungrouped it blocks only
+# itself. TypeScript majors are then ignored outright, below: an upgrade that
+# always needs human evaluation is not something an automated PR can carry.
 #
 # `open-pull-requests-limit` is 15 rather than the default 10 because ungrouped
 # majors pile up as separate PRs, and the limit is per-ecosystem -- set too low,
@@ -34,6 +35,15 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Deliberately held. `typescript@7` ships per-platform native binaries and
+      # no JavaScript API, so `npm run lint` exits 2 and `npm run analyze:types`
+      # exits 1 on it. Reconsider when `@typescript-eslint/parser`'s `typescript`
+      # peer range widens past `<6.1.0`; Dependabot proposing
+      # `@typescript-eslint` itself is the signal to re-check this.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: 'chore(deps)'
     labels:
