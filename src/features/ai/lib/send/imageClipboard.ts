@@ -25,8 +25,13 @@ const CLIPBOARD_COPY_ATTEMPTS = 3
  * Grace period between the paste and the restore: the page reads the clipboard
  * asynchronously, so restoring immediately can blank the attachment the send
  * just produced.
+ *
+ * Dışa açıktır çünkü testler bu süreyi kendi ölçüm tabanları olarak kullanır;
+ * sayıyı testlerde kopyalamak, settle değiştiğinde ölçümün sessizce
+ * anlamsızlaşmasına yol açar. (Ölçülemez olduğu için `>= RESTORE_SETTLE_MS`
+ * DEĞİL, tolerans düşülmüş taban kullanılır — bkz. `TIMER_TOLERANCE_MS`.)
  */
-const RESTORE_SETTLE_MS = 700
+export const RESTORE_SETTLE_MS = 700
 
 let clipboardScopeCounter = 0
 
