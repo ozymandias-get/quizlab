@@ -34,10 +34,17 @@ const fullPageCapture = (dataUrl: string) => ({
   dataUrl,
   meta: null
 })
+/** Tam sayfa metni: görsellerle aynı karar yüzeyi, kaynak yerine düz metin. */
+const fullPageTextCapture = (text: string) => ({
+  id: `text:${(nextCaptureId += 1)}`,
+  text,
+  meta: null
+})
 
 const state = {
   pendingAreaCapture: null as ReturnType<typeof areaCapture> | null,
-  pendingFullPageCapture: null as ReturnType<typeof fullPageCapture> | null
+  pendingFullPageCapture: null as ReturnType<typeof fullPageCapture> | null,
+  pendingFullPageTextCapture: null as ReturnType<typeof fullPageTextCapture> | null
 }
 
 const actions = {
@@ -51,10 +58,15 @@ const actions = {
   dismissPendingFullPage: vi.fn(() => {
     state.pendingFullPageCapture = null
   }),
+  confirmPendingFullPageTextAsDraft: vi.fn(() => true),
+  dismissPendingFullPageText: vi.fn(() => {
+    state.pendingFullPageTextCapture = null
+  }),
   // Gonderim, kaynagi okurken pipeline'a "bu kaynak artik benim" der; iptal
   // ancak `release` ile serbest birakilir. Testler bunu cagirilarla gozlemler.
   retainCaptureSource: vi.fn(),
   releaseCaptureSource: vi.fn(),
+  sendTextDirectToAi: vi.fn(async (_text: string, _options?: unknown) => ({ success: true })),
   sendImageDirectToAi: vi.fn(async (_dataUrl: string, _options?: unknown) => ({
     success: true
   }))
@@ -80,11 +92,19 @@ vi.mock('@features/pdf', async (importOriginal) => ({
 function setFullPage(dataUrl: string) {
   state.pendingAreaCapture = null
   state.pendingFullPageCapture = fullPageCapture(dataUrl)
+  state.pendingFullPageTextCapture = null
 }
 
 function setArea(dataUrl: string) {
   state.pendingAreaCapture = areaCapture(dataUrl)
   state.pendingFullPageCapture = null
+  state.pendingFullPageTextCapture = null
+}
+
+function setFullPageText(text: string) {
+  state.pendingAreaCapture = null
+  state.pendingFullPageCapture = null
+  state.pendingFullPageTextCapture = fullPageTextCapture(text)
 }
 
 describe('CaptureChoiceMenu', () => {
@@ -92,8 +112,11 @@ describe('CaptureChoiceMenu', () => {
     vi.clearAllMocks()
     state.pendingAreaCapture = null
     state.pendingFullPageCapture = null
+    state.pendingFullPageTextCapture = null
     actions.confirmPendingAreaAsDraft.mockReturnValue(true)
     actions.confirmPendingFullPageAsDraft.mockReturnValue(true)
+    actions.confirmPendingFullPageTextAsDraft.mockReturnValue(true)
+    actions.sendTextDirectToAi.mockResolvedValue({ success: true })
     actions.sendImageDirectToAi.mockResolvedValue({ success: true })
     mockBlobUrlToDataUrl.mockImplementation(async (url: string) => `${PNG}#from-${url}`)
   })
@@ -101,6 +124,82 @@ describe('CaptureChoiceMenu', () => {
   it('renders nothing when there is no pending capture', () => {
     render(<CaptureChoiceMenu />)
     expect(screen.queryByTestId('pdf-selection-menu')).toBeNull()
+  })
+
+  // ── Tam sayfa metni: görsellerle aynı ikili menü ───────────────────────
+  describe('page text', () => {
+    it('offers the same binary choice as the image paths', () => {
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+
+      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
+      expect(screen.getByTestId('pdf-selection-send')).toBeTruthy()
+      expect(screen.getByTestId('pdf-selection-draft')).toBeTruthy()
+    })
+
+    it('sends the text through the TEXT pipeline, never the image one', async () => {
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+      await act(async () => {
+        screen.getByTestId('pdf-selection-send').click()
+      })
+
+      expect(actions.sendTextDirectToAi).toHaveBeenCalledWith('sayfa metni', expect.anything())
+      expect(actions.sendImageDirectToAi).not.toHaveBeenCalled()
+    })
+
+    it('does not run the blob conversion path — page text has no data URL', async () => {
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+      await act(async () => {
+        screen.getByTestId('pdf-selection-send').click()
+      })
+
+      expect(mockBlobUrlToDataUrl).not.toHaveBeenCalled()
+    })
+
+    it('confirms the text into the draft only through "Taslağa Ekle"', async () => {
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+      await act(async () => {
+        screen.getByTestId('pdf-selection-draft').click()
+      })
+
+      expect(actions.confirmPendingFullPageTextAsDraft).toHaveBeenCalledTimes(1)
+      expect(actions.confirmPendingFullPageAsDraft).not.toHaveBeenCalled()
+      expect(actions.confirmPendingAreaAsDraft).not.toHaveBeenCalled()
+    })
+
+    it('keeps the menu open when the queue rejects the text', async () => {
+      actions.confirmPendingFullPageTextAsDraft.mockReturnValue(false)
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+      await act(async () => {
+        screen.getByTestId('pdf-selection-draft').click()
+      })
+
+      // Karar verilmedi: bekleyen metin korunur, içerik kaybolmaz.
+      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
+    })
+
+    it('dismisses the pending text on Escape', async () => {
+      setFullPageText('sayfa metni')
+
+      render(<CaptureChoiceMenu />)
+      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(actions.dismissPendingFullPageText).toHaveBeenCalledTimes(1)
+      expect(actions.dismissPendingFullPage).not.toHaveBeenCalled()
+    })
   })
 
   describe('blob fallback direct send', () => {

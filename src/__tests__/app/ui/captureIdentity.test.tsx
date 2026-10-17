@@ -87,12 +87,13 @@ const BLOB_B = 'blob:http://localhost/capture-b'
 const PNG = 'data:image/png;base64,iVBORw0KGgo='
 
 const queueImageForAi = vi.fn((_dataUrl: string, _meta?: QueuedImageMeta | undefined) => true)
+const queueTextForAi = vi.fn((_text: string, _position?: unknown, _meta?: unknown) => true)
 
 /** Testin okudugu son pipeline ornegi (Harness render sirasinda gunceller). */
 let pipelineRef: Pipeline | null = null
 
 function Harness({ send }: { send: SendDirect }): ReactNode {
-  const pipeline = useScreenshotPipeline({ queueImageForAi })
+  const pipeline = useScreenshotPipeline({ queueImageForAi, queueTextForAi })
   pipelineRef = pipeline
   return (
     <PipelineContext.Provider value={pipeline}>

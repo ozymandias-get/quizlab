@@ -61,7 +61,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const [isPanMode, setIsPanMode] = useState(false)
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
   const [, startTransition] = useTransition()
-  const { queueTextForAi } = useAppToolActions()
+  const { offerFullPageText } = useAppToolActions()
   const { showWarning } = useToastActions()
   const { t: tt } = useTranslation()
   const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
@@ -144,9 +144,14 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     onTextSelection: selectionMenu.handleSelection,
     onTextExtracted: (text) => {
       // Tam sayfa metni: seçim anındaki gerçek sayfa + toplam ile kaynakla.
+      //
+      // Öncesi: metin doğrudan `queueTextForAi` ile kuyruğa yazılıyordu, yani
+      // kullanıcının yalnızca "Taslağa Ekle" seçeneği vardı. Görsel yollar
+      // `pendingFullPageCapture` üzerinden ikili menüye gittiği için iki yol
+      // tutarsızdı. Artık metin de aynı sözleşmede: karar menüde verilir.
       const page = currentPageRef.current
       const total = nativeViewer.totalPages >= 1 ? nativeViewer.totalPages : undefined
-      queueTextForAi(text, null, {
+      offerFullPageText(text, {
         source: buildPdfSourceMeta({
           file: pdfFile
             ? {
@@ -161,8 +166,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
           captureKind: 'full-page-text'
         })
       })
-      // Eklemenin sonucu zaten görünür: taslak sayacı bir artar. Ayrı bir
-      // "AI taslağına eklendi" balonu aynı olayı ikinci kez söylerdi.
     },
     onNoTextFound: () => {
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)

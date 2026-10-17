@@ -13,11 +13,19 @@ import {
   useAiSessionUiPrefsState,
   useAiTabFocus
 } from './ai-context'
-import { type QueuedImageMeta, useAiDraftQueue } from './app-tool/useAiDraftQueue'
+import {
+  type QueuedImageMeta,
+  type QueuedTextMeta,
+  useAiDraftQueue
+} from './app-tool/useAiDraftQueue'
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
 import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
 import { useGeminiSessionRefreshListeners } from './app-tool/useGeminiSessionRefreshListeners'
-import type { PendingAreaCapture, PendingFullPageCapture } from './app-tool/useScreenshotPipeline'
+import type {
+  PendingAreaCapture,
+  PendingFullPageCapture,
+  PendingFullPageTextCapture
+} from './app-tool/useScreenshotPipeline'
 import { useScreenshotPipeline } from './app-tool/useScreenshotPipeline'
 
 interface AppToolQueueState {
@@ -29,6 +37,11 @@ interface AppToolScreenshotState {
   isScreenshotMode: boolean
   pendingAreaCapture: PendingAreaCapture | null
   pendingFullPageCapture: PendingFullPageCapture | null
+  /**
+   * Tam sayfa metni için bekleyen karar. Görsellerin aynı sözleşmesini paylaşır:
+   * metin kuyruğa doğrudan yazılmaz, ikili menüde karar verilir.
+   */
+  pendingFullPageTextCapture: PendingFullPageTextCapture | null
 }
 
 interface AppToolPickerState {
@@ -65,6 +78,15 @@ interface AppToolActionsType {
   /** Alan yakalamasıyla aynı sözleşme: kabul `true`, ret `false`. */
   confirmPendingFullPageAsDraft: () => boolean
   dismissPendingFullPage: () => void
+  /**
+   * Tam sayfa metni menü kararına açılır (doğrudan kuyruğa yazılmaz).
+   *
+   * Görsel yollarla aynı sözleşme: "Bu Sayfanın Metnini AI'ye Ekle" artık
+   * doğrudan `queueTextForAi` çağırmaz, ikili menüyü açar.
+   */
+  offerFullPageText: (text: string, meta?: QueuedTextMeta | null) => void
+  confirmPendingFullPageTextAsDraft: () => boolean
+  dismissPendingFullPageText: () => void
   /**
    * Kuyruğa ekleme **gerçek boolean sonucunu** döndürür: kabul `true`, ret
    * `false`. `void` bir sözleşme, alt katmanın reddettiği bir eklemeyi tüketiciye
@@ -133,8 +155,12 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     offerFullPageCapture,
     confirmPendingFullPageAsDraft,
     dismissPendingFullPage,
+    pendingFullPageTextCapture,
+    offerFullPageText,
+    confirmPendingFullPageTextAsDraft,
+    dismissPendingFullPageText,
     clearScreenshotMeta
-  } = useScreenshotPipeline({ queueImageForAi })
+  } = useScreenshotPipeline({ queueImageForAi, queueTextForAi })
 
   const clearPendingAiItems = useMemo(() => {
     return () => {
@@ -164,8 +190,13 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   )
 
   const screenshotValue = useMemo<AppToolScreenshotState>(
-    () => ({ isScreenshotMode, pendingAreaCapture, pendingFullPageCapture }),
-    [isScreenshotMode, pendingAreaCapture, pendingFullPageCapture]
+    () => ({
+      isScreenshotMode,
+      pendingAreaCapture,
+      pendingFullPageCapture,
+      pendingFullPageTextCapture
+    }),
+    [isScreenshotMode, pendingAreaCapture, pendingFullPageCapture, pendingFullPageTextCapture]
   )
 
   const pickerValue = useMemo<AppToolPickerState>(() => ({ isPickerActive }), [isPickerActive])
@@ -182,6 +213,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       offerFullPageCapture,
       confirmPendingFullPageAsDraft,
       dismissPendingFullPage,
+      offerFullPageText,
+      confirmPendingFullPageTextAsDraft,
+      dismissPendingFullPageText,
       queueTextForAi,
       queueImageForAi,
       removePendingAiItem,
@@ -207,6 +241,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       offerFullPageCapture,
       confirmPendingFullPageAsDraft,
       dismissPendingFullPage,
+      offerFullPageText,
+      confirmPendingFullPageTextAsDraft,
+      dismissPendingFullPageText,
       queueTextForAi,
       queueImageForAi,
       removePendingAiItem,

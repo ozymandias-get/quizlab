@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
   initializeNativePdfWorker: vi.fn(),
   onFullPageCapture: vi.fn(),
+  offerFullPageText: vi.fn(),
   queueTextForAi: vi.fn(),
   startScreenshot: vi.fn(),
   showError: vi.fn()
@@ -61,6 +62,7 @@ vi.mock('@app/providers/AppToolContext', () => ({
     startScreenshot: mocks.startScreenshot,
     onFullPageCapture: mocks.onFullPageCapture,
     queueTextForAi: mocks.queueTextForAi,
+    offerFullPageText: mocks.offerFullPageText,
     sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true }),
     sendImageDirectToAi: vi.fn().mockResolvedValue({ success: true })
   }),
@@ -450,7 +452,10 @@ describe('native viewer — context menu', () => {
     expect(mocks.onFullPageCapture).not.toHaveBeenCalled()
   })
 
-  it('reaches the page-text backend from the text item', async () => {
+  it('offers the page text for the same binary choice instead of queueing it', async () => {
+    // Sözleşme değişimi: metin artık doğrudan `queueTextForAi` ile kuyruğa
+    // yazılmaz. Görsel yollarla aynı karar yüzeyine açılır
+    // (AI'ye Gönder | Taslağa Ekle), böylece iki yol birbirinden ayrışmaz.
     renderDocument()
     await waitFor(() =>
       expect(
@@ -461,8 +466,10 @@ describe('native viewer — context menu', () => {
     openContextMenu()
     fireEvent.click(menuItem('pdf_add_current_page_text_to_ai'))
 
-    await waitFor(() => expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1))
-    expect(mocks.queueTextForAi.mock.calls[0][0]).toEqual(expect.any(String))
+    await waitFor(() => expect(mocks.offerFullPageText).toHaveBeenCalledTimes(1))
+    expect(mocks.offerFullPageText.mock.calls[0][0]).toEqual(expect.any(String))
+    // Karar verilene kadar kuyruğa hiçbir şey yazılmaz.
+    expect(mocks.queueTextForAi).not.toHaveBeenCalled()
   })
 
   it('closes after an item runs', async () => {

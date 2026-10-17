@@ -2,7 +2,7 @@ import { useScreenshot } from '@features/screenshot'
 
 import { useCallback, useRef, useState } from 'react'
 
-import type { QueuedImageMeta } from './useAiDraftQueue'
+import type { QueuedImageMeta, QueuedTextMeta } from './useAiDraftQueue'
 
 /**
  * Bir yakalamanın **kimliği**.
@@ -32,9 +32,26 @@ export interface PendingFullPageCapture {
   meta: QueuedImageMeta | null
 }
 
+/**
+ * Tam sayfa metni için bekleyen karar.
+ *
+ * Görsellerin aksine metnin bir `dataUrl`'i yoktur; içerik doğrudan `text`
+ * alanında taşınır ve **blob geri alma sorunu olmaz**. Yine de aynı sözleşmeye
+ * girer: kuyruğa doğrudan yazılmaz, ikili menüde karar verilir.
+ *
+ * Öncesi: "Bu Sayfanın Metnini AI'ye Ekle" `queueTextForAi`'yi doğrudan
+ * çağırıyordu, yani kullanıcı yalnızca "Taslağa Ekle" seçeneğine sahipti ve
+ * görsel yolun menüsüyle tutarsızdı.
+ */
+export interface PendingFullPageTextCapture {
+  id: CaptureId
+  text: string
+  meta: QueuedTextMeta | null
+}
+
 /** Uygulama yaşamı boyunca benzersiz yakalama kimlikleri. */
 let captureSeq = 0
-function nextCaptureId(kind: 'area' | 'full'): CaptureId {
+function nextCaptureId(kind: 'area' | 'full' | 'text'): CaptureId {
   captureSeq += 1
   return `${kind}:${captureSeq}`
 }
@@ -52,6 +69,11 @@ function revokeIfBlobUrl(url: string) {
 
 interface UseScreenshotPipelineProps {
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => boolean
+  /**
+   * Metni kuyruğa yazar. Bekleyen metnin "Taslağa Ekle" yolu bunu çağırır ve
+   * gerçek boolean sonucunu döner (reddedilirse bekleyen yakalama korunur).
+   */
+  queueTextForAi: (text: string, position?: null, meta?: QueuedTextMeta | null) => boolean
 }
 
 /**
@@ -62,10 +84,14 @@ interface UseScreenshotPipelineProps {
  * Taslağa Ekle) karar verene kadar bekler. Kullanıcı vazgeçerse blob URL'i
  * geri alınır; yeni bir yakalama eski bekleyeni geçersiz kılar.
  *
+ * **Tam sayfa metni de aynı sözleşmede.** Öncesi "Bu Sayfanın Metnini AI'ye
+ * Ekle" doğrudan `queueTextForAi` çağırıyordu: kullanıcının yalnızca "Taslağa
+ * Ekle" seçeneği vardı ve iki yol birbirinden ayrışıyordu.
+ *
  * ## Tek sahiplik
  *
- * İki tür için ayrı state tutulur (dış API böyle), ama **aynı anda ikisi birden
- * dolu olamaz**: yeni bir yakalama geldiğinde diğeri kaynağıyla birlikte
+ * Üç tür için ayrı state tutulur (dış API böyle), ama **aynı anda yalnızca biri
+ * dolu olabilir**: yeni bir yakalama geldiğinde diğerleri kaynaklarıyla birlikte
  * düşürülür. Aksi halde "hangi yakalama ekleniyor / gönderiliyor / temizleniyor?"
  * sorusunun tek ve deterministik bir yanıtı olmazdı — menü alan yakalamasını
  * gösterirken tam sayfa yakalamasının kaynağı ekranda görünmeden yaşar ve
@@ -101,7 +127,10 @@ interface UseScreenshotPipelineProps {
  * Çağıran bu sonucu kontrol etmezse, reddedilen bir ekleme kullanıcıya
  * "Taslağa eklendi" diye gösterilir — bu yüzden dönüş anlamlıdır.
  */
-export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipelineProps) {
+export function useScreenshotPipeline({
+  queueImageForAi,
+  queueTextForAi
+}: UseScreenshotPipelineProps) {
   const screenshotMetaRef = useRef<QueuedImageMeta | null>(null)
   const [areaCapture, setAreaCapture] = useState<PendingAreaCapture | null>(null)
   // Ref render'da değil, **mutasyon anında** güncellenir: aynı olay içinde
@@ -109,6 +138,10 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
   const pendingAreaCaptureRef = useRef<PendingAreaCapture | null>(null)
   const [fullPageCapture, setFullPageCapture] = useState<PendingFullPageCapture | null>(null)
   const pendingFullPageCaptureRef = useRef<PendingFullPageCapture | null>(null)
+  const [fullPageTextCapture, setFullPageTextCapture] = useState<PendingFullPageTextCapture | null>(
+    null
+  )
+  const pendingFullPageTextRef = useRef<PendingFullPageTextCapture | null>(null)
 
   /** Kaynağını hâlâ okuyan (gönderimde olan) yakalamalar. */
   const retainedSourceIdsRef = useRef<Set<CaptureId>>(new Set())
@@ -149,7 +182,18 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     setFullPageCapture(next)
   }, [])
 
-  /** Diğer türün bekleyen yakalamasını kaynağıyla birlikte düşürür. */
+  const setPendingFullPageText = useCallback((next: PendingFullPageTextCapture | null) => {
+    pendingFullPageTextRef.current = next
+    setFullPageTextCapture(next)
+  }, [])
+
+  /**
+   * Diğer türlerin bekleyen yakalamasını kaynaklarıyla birlikte düşürür.
+   *
+   * Metin de bu kapsama girer: aynı anda tek bir bekleyen yakalama olabilir.
+   * Görsellerin `dataUrl`'i vardır ve blob ise geri alınır; **metinde kaynak
+   * yoktur**, düşürmek yalnızca durumu temizler.
+   */
   const dropOtherPendingCapture = useCallback(() => {
     const otherFull = pendingFullPageCaptureRef.current
     if (otherFull) {
@@ -158,7 +202,8 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
       // (doğrudan `setFullPageCapture` çağırmak ikinci bir yazma yoludur).
       setPendingFullPageCapture(null)
     }
-  }, [dropCaptureSource, setPendingFullPageCapture])
+    setPendingFullPageText(null)
+  }, [dropCaptureSource, setPendingFullPageCapture, setPendingFullPageText])
 
   const handleScreenshotCapture = useCallback(
     async (dataUrl: string, rect?: PendingAreaCapture['rect']) => {
@@ -281,9 +326,13 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
         pendingAreaCaptureRef.current = null
         setAreaCapture(null)
       }
+      // Bekleyen tam sayfa metni de düşer: aynı anda tek bekleyen yakalama
+      // olabilir. Aksi halde menü görseli gösterirken metin ekranda görünmeden
+      // yaşar ve kullanıcı onu ne gönderebilir ne iptal edebilir.
+      setPendingFullPageText(null)
       setPendingFullPageCapture({ id: nextCaptureId('full'), dataUrl, meta: meta ?? null })
     },
-    [dropCaptureSource, setPendingFullPageCapture]
+    [dropCaptureSource, setPendingFullPageCapture, setPendingFullPageText]
   )
 
   const confirmPendingFullPageAsDraft = useCallback(() => {
@@ -303,6 +352,46 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     setPendingFullPageCapture(null)
   }, [dropCaptureSource, setPendingFullPageCapture])
 
+  /**
+   * Tam sayfa metni çıkarıldı: bekleyen yakalama olarak tut, kararı kullanıcıya
+   * bırak. Görsel yollarla **aynı sözleşme** — kuyruğa doğrudan yazılmaz.
+   *
+   * Boş metin bir yakalama sayılmaz: çıkarım başarısız olduğunda
+   * `onNoTextFound` uyarısı zaten gösteriliyor ve menü açılması yanıltıcı
+   * olurdu.
+   */
+  const offerFullPageText = useCallback(
+    (text: string, meta?: QueuedTextMeta | null) => {
+      if (!text || !text.trim()) return
+      // Tek sahiplik: yeni metin yakalaması geldiğinde bekleyen görseller
+      // kaynaklarıyla birlikte düşürülür.
+      const prevArea = pendingAreaCaptureRef.current
+      if (prevArea) dropCaptureSource(prevArea.id, prevArea.dataUrl)
+      setPendingAreaCapture(null)
+      dropOtherPendingCapture()
+      setPendingFullPageText({ id: nextCaptureId('text'), text, meta: meta ?? null })
+    },
+    [dropCaptureSource, dropOtherPendingCapture, setPendingAreaCapture, setPendingFullPageText]
+  )
+
+  /**
+   * "Taslağa Ekle" — görsellerle aynı sözleşme: kuyruk yalnızca kabul ederse
+   * sahiplik devreder; reddedilirse bekleyen metin **korunur** ve kullanıcı
+   * elemanlarını azaltıp yeniden deneyebilir (kaybolan içerik yok).
+   */
+  const confirmPendingFullPageTextAsDraft = useCallback(() => {
+    const pending = pendingFullPageTextRef.current
+    if (!pending) return false
+    const accepted = queueTextForAi(pending.text, null, pending.meta ?? undefined)
+    if (!accepted) return false
+    setPendingFullPageText(null)
+    return true
+  }, [queueTextForAi, setPendingFullPageText])
+
+  const dismissPendingFullPageText = useCallback(() => {
+    setPendingFullPageText(null)
+  }, [setPendingFullPageText])
+
   const clearScreenshotMeta = useCallback(() => {
     screenshotMetaRef.current = null
   }, [])
@@ -311,6 +400,7 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     isScreenshotMode,
     pendingAreaCapture: areaCapture,
     pendingFullPageCapture: fullPageCapture,
+    pendingFullPageTextCapture: fullPageTextCapture,
     startScreenshot,
     closeScreenshot,
     handleCapture,
@@ -321,6 +411,9 @@ export function useScreenshotPipeline({ queueImageForAi }: UseScreenshotPipeline
     offerFullPageCapture,
     confirmPendingFullPageAsDraft,
     dismissPendingFullPage,
+    offerFullPageText,
+    confirmPendingFullPageTextAsDraft,
+    dismissPendingFullPageText,
     clearScreenshotMeta
   }
 }

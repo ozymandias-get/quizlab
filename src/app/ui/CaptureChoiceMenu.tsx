@@ -9,7 +9,7 @@ import {
   viewportFallbackAnchor
 } from '@features/pdf'
 
-import { buildImageSourceHeader } from '@app/providers/ai/pdfSource'
+import { buildImageSourceHeader, buildTextSourceHeader } from '@app/providers/ai/pdfSource'
 import { blobUrlToDataUrl } from '@app/providers/app-tool/appToolUtils'
 import { useAppToolActions, useAppToolScreenshotState } from '@app/providers/AppToolContext'
 
@@ -17,8 +17,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 /**
- * Yakalama sonrası ikili menü — alan görseli ve tam sayfa görseli için aynı
- * sözleşme: `AI'ye Gönder | Taslağa Ekle`.
+ * Yakalama sonrası ikili menü — alan görseli, tam sayfa görseli **ve tam sayfa
+ * metni** için aynı sözleşme: `AI'ye Gönder | Taslağa Ekle`.
+ *
+ * Metin dalı görsellerle aynı yüzeyi paylaşır; yalnız iki noktada ayrışır:
+ * kaynak bir `dataUrl` değil düz metindir (blob dönüşümü yok) ve gönderim
+ * `sendImageDirectToAi` yerine `sendTextDirectToAi` üzerinden geçer. Kaynak
+ * başlığı yine eklenir, böylece iki yolun AI sayfasında bıraktığı iz aynıdır.
  *
  * - Görsel önizleme galerisi yok; kompakt menü yakalamanın yakınında belirir.
  * - Alan yakalaması: kırpma rect'i gerçek ekran koordinatıdır.
@@ -81,7 +86,8 @@ import { createPortal } from 'react-dom'
  * "gönderim bitti mi?" sorusunu yanıtlayan effect'i besler.
  */
 function CaptureChoiceMenu() {
-  const { pendingAreaCapture, pendingFullPageCapture } = useAppToolScreenshotState()
+  const { pendingAreaCapture, pendingFullPageCapture, pendingFullPageTextCapture } =
+    useAppToolScreenshotState()
   const {
     confirmPendingAreaAsDraft,
     dismissPendingArea,
@@ -89,6 +95,9 @@ function CaptureChoiceMenu() {
     releaseCaptureSource,
     confirmPendingFullPageAsDraft,
     dismissPendingFullPage,
+    confirmPendingFullPageTextAsDraft,
+    dismissPendingFullPageText,
+    sendTextDirectToAi,
     sendImageDirectToAi
   } = useAppToolActions()
   const [feedback, setFeedback] = useState<SelectionMenuFeedback>('idle')
@@ -99,6 +108,8 @@ function CaptureChoiceMenu() {
   pendingAreaRef.current = pendingAreaCapture
   const pendingFullPageRef = useRef(pendingFullPageCapture)
   pendingFullPageRef.current = pendingFullPageCapture
+  const pendingTextRef = useRef(pendingFullPageTextCapture)
+  pendingTextRef.current = pendingFullPageTextCapture
 
   /**
    * Aktif yakalamanın kimliği: `area:<n>` | `full:<n>` | null.
@@ -120,7 +131,9 @@ function CaptureChoiceMenu() {
     ? pendingAreaCapture.id
     : pendingFullPageCapture
       ? pendingFullPageCapture.id
-      : null
+      : pendingFullPageTextCapture
+        ? pendingFullPageTextCapture.id
+        : null
 
   /**
    * Yeni bir yakalama geldiğinde menü durumu sıfırlanır.
@@ -186,9 +199,15 @@ function CaptureChoiceMenu() {
         DEFAULT_SELECTION_MENU_SIZE
       )
     }
-    // Tam sayfa yakalaması: seçim anındaki sayfanın son metin satırı.
-    if (pendingFullPageCapture) {
-      const page = pendingFullPageCapture.meta?.source?.page ?? pendingFullPageCapture.meta?.page
+    // Tam sayfa yakalaması VE tam sayfa metni: seçim anındaki sayfanın son metin
+    // satırı. İkisi de sayfa çevresinde belirdiği için aynı yer doğru yerdir;
+    // metin için ayrı bir konum kuralı olmasaydı iki yol birbirinden ayrışırdı.
+    const fullPageMeta = pendingFullPageCapture?.meta ?? null
+    const textMeta = pendingFullPageTextCapture?.meta ?? null
+    if (pendingFullPageCapture || pendingFullPageTextCapture) {
+      // `QueuedImageMeta` sayfayı düz taşır, `QueuedTextMeta` yalnız `source`
+      // içinde tutar. İkisi de aynı sayfaya işaret eder.
+      const page = fullPageMeta?.source?.page ?? fullPageMeta?.page ?? textMeta?.source?.page
       const lineRect = page ? findLastTextLineRect(page) : null
       if (hasUsableRect(lineRect) && lineRect) {
         return computeSelectionMenuAnchor(toMenuBounds(lineRect), null, DEFAULT_SELECTION_MENU_SIZE)
@@ -203,7 +222,7 @@ function CaptureChoiceMenu() {
     // Gerçek bir hedef yok: menüyü ekranın sol üst köşesine yapıştıran sabit
     // bir nokta yerine, ölçülen viewport'tan türetilen makul bir konuma düş.
     return viewportFallbackAnchor(DEFAULT_SELECTION_MENU_SIZE)
-  }, [pendingAreaCapture, pendingFullPageCapture])
+  }, [pendingAreaCapture, pendingFullPageCapture, pendingFullPageTextCapture])
 
   const showFeedbackFor = useCallback((next: SelectionMenuFeedback, afterMs: number) => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
@@ -229,7 +248,9 @@ function CaptureChoiceMenu() {
       ? confirmPendingAreaAsDraft()
       : pendingFullPageRef.current
         ? confirmPendingFullPageAsDraft()
-        : false
+        : pendingTextRef.current
+          ? confirmPendingFullPageTextAsDraft()
+          : false
     if (!accepted) {
       showFeedbackFor('error', 1800)
       return
@@ -239,12 +260,15 @@ function CaptureChoiceMenu() {
     setFeedback('idle')
     setHiddenCaptureId(null)
     if (pendingAreaRef.current) dismissPendingArea()
-    else dismissPendingFullPage()
+    else if (pendingFullPageRef.current) dismissPendingFullPage()
+    else if (pendingTextRef.current) dismissPendingFullPageText()
   }, [
     confirmPendingAreaAsDraft,
     confirmPendingFullPageAsDraft,
+    confirmPendingFullPageTextAsDraft,
     dismissPendingArea,
     dismissPendingFullPage,
+    dismissPendingFullPageText,
     feedback,
     showFeedbackFor
   ])
@@ -265,12 +289,15 @@ function CaptureChoiceMenu() {
   const handleSendDirect = useCallback(async () => {
     const area = pendingAreaRef.current
     const fullPage = pendingFullPageRef.current
-    const capture = area ?? fullPage
-    const source = capture?.dataUrl
-    const meta = area?.meta ?? fullPage?.meta ?? null
+    const textCapture = pendingTextRef.current
+    const capture = area ?? fullPage ?? textCapture
     // Koşunun kimliği **kaynak değil, yakalama kimliğidir**. Aynı `data:` URL'ini
     // taşıyan iki yakalama bu sayede ayrı koşu olarak izlenir.
     const captureId = capture?.id ?? null
+    // Metin için "kaynak" bir dataUrl değil, doğrudan metnin kendisidir.
+    const source = area?.dataUrl ?? fullPage?.dataUrl ?? textCapture?.text ?? null
+    const sourceMeta = area?.meta?.source ?? fullPage?.meta?.source ?? null
+    const textSourceMeta = textCapture?.meta?.source ?? null
     if (!source || captureId === null || feedback === 'working') return
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current)
     setFeedback('working')
@@ -289,15 +316,28 @@ function CaptureChoiceMenu() {
      * karşılaştırma A'yı geçersiz kılar — A'nın sonucu B'ye uygulanmaz.
      */
     const stillPending = () => {
-      const current = pendingAreaRef.current?.id ?? pendingFullPageRef.current?.id ?? null
+      const current =
+        pendingAreaRef.current?.id ??
+        pendingFullPageRef.current?.id ??
+        pendingTextRef.current?.id ??
+        null
       return current === captureId
     }
     try {
       // Kaynak dönüşüm bitmeden iptal edilmez: `blobUrlToDataUrl` aynı URL'i
       // okuyor, erken bir revoke burada hatayı tetiklerdi.
-      const dataUrl = await toSendableDataUrl(source)
-      const header = buildImageSourceHeader(meta?.source ?? null)
-      const result = await sendImageDirectToAi(dataUrl, header ? { promptText: header } : {})
+      //
+      // Metin dalı görsel pipeline'ına girmez: ne blob dönüşümü ne de dataUrl
+      // vardır. Kaynak başlığı yine eklenir (`buildTextSourceHeader`) — iki yol
+      // arasında "AI sayfasında ne göründü?" farkı bırakmamak için.
+      const isTextRun = Boolean(textCapture) && !area && !fullPage
+      const dataUrl = isTextRun ? source : await toSendableDataUrl(source)
+      const header = isTextRun
+        ? buildTextSourceHeader(textSourceMeta)
+        : buildImageSourceHeader(sourceMeta)
+      const result = isTextRun
+        ? await sendTextDirectToAi(dataUrl, header ? { promptText: header } : {})
+        : await sendImageDirectToAi(dataUrl, header ? { promptText: header } : {})
       if (!isCurrentRun()) return
       // Kaynağın gönderim üzerindeki müsahadeti biter: ertelenmiş bir iptal
       // varsa burada ve şimdi yapılır (yoksa kaynak sızar).
@@ -308,7 +348,8 @@ function CaptureChoiceMenu() {
           // Kaynak artık gerekmiyor: yalnızca **hâlâ bizimki olan** yakalama
           // normal kabul yolundan serbest bırakılır.
           if (area) dismissPendingArea()
-          else dismissPendingFullPage()
+          else if (fullPage) dismissPendingFullPage()
+          else if (textCapture) dismissPendingFullPageText()
           setHiddenCaptureId((hidden) => (hidden === captureId ? null : hidden))
           setFeedback('idle')
         }
@@ -338,10 +379,12 @@ function CaptureChoiceMenu() {
   }, [
     dismissPendingArea,
     dismissPendingFullPage,
+    dismissPendingFullPageText,
     feedback,
     releaseCaptureSource,
     retainCaptureSource,
     sendImageDirectToAi,
+    sendTextDirectToAi,
     showFeedbackFor,
     toSendableDataUrl
   ])
@@ -360,11 +403,13 @@ function CaptureChoiceMenu() {
       return
     }
     if (pendingAreaRef.current) dismissPendingArea()
-    else dismissPendingFullPage()
-  }, [dismissPendingArea, dismissPendingFullPage, pendingKey])
+    else if (pendingFullPageRef.current) dismissPendingFullPage()
+    else if (pendingTextRef.current) dismissPendingFullPageText()
+  }, [dismissPendingArea, dismissPendingFullPage, dismissPendingFullPageText, pendingKey])
 
   const hasPending =
-    (!!pendingAreaCapture || !!pendingFullPageCapture) && hiddenCaptureId !== pendingKey
+    (!!pendingAreaCapture || !!pendingFullPageCapture || !!pendingFullPageTextCapture) &&
+    hiddenCaptureId !== pendingKey
 
   useEffect(() => {
     if (!hasPending) return
@@ -388,7 +433,10 @@ function CaptureChoiceMenu() {
     }
   }, [hasPending, dismiss])
 
-  if ((!pendingAreaCapture && !pendingFullPageCapture) || typeof document === 'undefined')
+  if (
+    (!pendingAreaCapture && !pendingFullPageCapture && !pendingFullPageTextCapture) ||
+    typeof document === 'undefined'
+  )
     return null
   // Gönderim sürerken kullanıcı menüyü kapattıysa kaynak yaşamaya devam
   // eder, yalnızca menü çizilmez.
