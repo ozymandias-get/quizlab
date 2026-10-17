@@ -44,7 +44,7 @@ interface AppearanceState {
 }
 
 export const useAppearance = create<AppearanceState>()(
-  persist(
+  persist<AppearanceState, [], [], Partial<AppearanceState>>(
     (set) => ({
       bottomBarOpacity: 0.7,
       setBottomBarOpacity: (value) => set({ bottomBarOpacity: value }),
@@ -85,13 +85,37 @@ export const useAppearance = create<AppearanceState>()(
         visibleTools: state.visibleTools,
         visibleModels: state.visibleModels
       }),
+      /**
+       * Re-hydrates only the fields this store still owns.
+       *
+       * A spread of the whole persisted entry would re-hydrate `bgMode` and
+       * `bgSolidColor` as untyped properties nothing reads. Those belong to the
+       * ambient glow that was removed because its continuously repainting 70px
+       * blurred, blend-mode background starved the composited `WebContentsView`
+       * AI panels; leaving them reachable here would keep a removed feature
+       * alive in memory on every install that had ever saved them.
+       *
+       * The keys stay on disk. Rewriting the entry would need `version` +
+       * `migrate`, and `migrate` marking the state dirty makes the persist
+       * middleware write back — including after `settingsSync` restores state
+       * from the main process, which is a restore that must not re-persist.
+       * Ignoring them achieves the same result without a write.
+       */
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Record<string, unknown> | undefined
+        const {
+          bgMode: _bgMode,
+          bgSolidColor: _bgSolidColor,
+          ...stillOwned
+        } = (persisted ?? {}) as Record<string, unknown> & {
+          bgMode?: unknown
+          bgSolidColor?: unknown
+        }
         return {
           ...currentState,
-          ...(persisted ?? {}),
+          ...stillOwned,
           visibleTools: mergeVisibleTools(
-            (persisted?.visibleTools as Record<string, boolean>) ?? undefined
+            (stillOwned.visibleTools as Record<string, boolean>) ?? undefined
           )
         }
       }
