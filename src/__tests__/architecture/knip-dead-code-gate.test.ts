@@ -32,7 +32,7 @@
  * 4068 modules instead of 1142 — and the graph it validated was not the graph
  * the config describes.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { builtinModules } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -60,19 +60,47 @@ const DEV_SCRIPT = read('scripts', 'dev.mjs')
 const FILE_SIZE_GATE = read('scripts', 'check-file-sizes.mjs')
 
 /**
- * The gate scripts whose validation logic is unit tested, and so need a
- * declaration beside them. Their type surface is part of what is under test:
- * dropping one would break `tsc -b` rather than a test.
+ * The file names in `scripts/` with a given extension, read from disk.
  *
- * Hand-maintained, and it has to stay that way in step with `scripts/`: a
- * declaration missing from this list is a rule that has silently stopped being
- * checked, with no failure anywhere to say so.
+ * The two lists this file guards used to be hand-maintained enumerations, and a
+ * gate added without adding its name to the right one left its rule not
+ * covering it — green, with nothing anywhere to say so. That is the quiet
+ * vacuity `security-gate-wiring.test.ts` documents at length, so the
+ * enumerations are derived from the directory instead, and the test below
+ * asserts the read produced something rather than trusting it.
+ *
+ * `readdirSync` throws if the directory is missing, so the failure that matters
+ * is not "unreadable" but "empty": a `scripts/` with nothing in it would leave
+ * both rules checking nothing while reporting nothing wrong.
  */
-const GATE_DECLARATIONS = [
-  'check-audit.d.mts',
-  'check-declaration-consistency.d.mts',
-  'check-electron-security.d.mts'
-]
+const scriptsIn = (extension: string): string[] =>
+  readdirSync(join(ROOT, 'scripts'))
+    .filter((name) => name.endsWith(extension))
+    .sort()
+
+/** Every `scripts/*.mjs`. knip analyses them all, so every one must be reached. */
+const SCRIPT_NAMES = scriptsIn('.mjs')
+
+/**
+ * Every hand-written `scripts/*.d.mts`. These belong to gate scripts whose
+ * validation logic is unit tested: their type surface is part of what is under
+ * test, so dropping one would break `tsc -b` rather than a test.
+ */
+const DECLARATION_NAMES = scriptsIn('.d.mts')
+
+/** `SCRIPT_NAMES` as the repo-relative paths the rules below compare against. */
+const SCRIPT_PATHS = SCRIPT_NAMES.map((name) => `scripts/${name}`)
+
+/**
+ * The scripts nothing reaches: not named by a package.json script, and not a
+ * knip entry either.
+ *
+ * A function so it can be asserted in both directions. As an inline list filter
+ * this rule could only be shown passing; split out, the negative case below
+ * proves it rejects a script even when every real script is accounted for.
+ */
+const unreachableScripts = (paths: string[], commands: string[], entries: Set<string>): string[] =>
+  paths.filter((path) => !commands.some((command) => command.includes(path)) && !entries.has(path))
 
 /**
  * Expands `{a,b}` alternations so an entry glob can be compared with a literal
@@ -139,32 +167,28 @@ describe('knip scope: the gate scripts are analysed, not merely present', () => 
     expect(knip.project).toContain('scripts/**/*.{mjs,mts}')
   })
 
-  it('reaches every scripts/*.mjs through a package.json script or an entry', () => {
-    const commands = Object.values(scripts)
-    // Hand-maintained, so a script added without adding its name here leaves
-    // the rule not covering it — green, and one gate less guarded. Every file
-    // in `scripts/` belongs in this list.
-    const unreached = [
-      'dev',
-      'build-electron',
-      'check-audit',
-      'check-declaration-consistency',
-      'check-electron-security',
-      'check-file-sizes',
-      'check-repo-hygiene',
-      'check-semgrep',
-      'check-type-coverage',
-      'check-version-consistency'
-    ]
-      .map((name) => `scripts/${name}.mjs`)
-      .filter(
-        (path) => !commands.some((command) => command.includes(path)) && !entryPaths.has(path)
-      )
-
-    expect(unreached).toEqual([])
+  it('finds the scripts it is supposed to be guarding', () => {
+    // Anti-vacuity guard for both derived lists. Without this, an empty read
+    // would make the two rules below check nothing and pass — which is how a
+    // list stops guarding anything without ever failing.
+    expect(SCRIPT_NAMES.length).toBeGreaterThan(0)
+    expect(DECLARATION_NAMES.length).toBeGreaterThan(0)
   })
 
-  it.each(GATE_DECLARATIONS)('resolves %s instead of reporting it as unused', (name) => {
+  it('reaches every scripts/*.mjs through a package.json script or an entry', () => {
+    expect(unreachableScripts(SCRIPT_PATHS, Object.values(scripts), entryPaths)).toEqual([])
+  })
+
+  it('the reachability rule reports a script that nothing reaches', () => {
+    // Proves the rule above bites, so it cannot be satisfied by any list at
+    // all. This is the case a hand-maintained list could not produce: the new
+    // name simply is not there, and the rule quietly stops guarding that gate.
+    const ghost = 'scripts/check-nothing-reaches-this.mjs'
+    const commands = Object.values(scripts)
+    expect(unreachableScripts([...SCRIPT_PATHS, ghost], commands, entryPaths)).toEqual([ghost])
+  })
+
+  it.each(DECLARATION_NAMES)('resolves %s instead of reporting it as unused', (name) => {
     // These are consumed through the sibling `.mjs` specifier, so knip never
     // links them. As project files without an entry they are reported unused —
     // a false positive that would either train people to ignore the report or
@@ -241,11 +265,27 @@ describe('gate scripts declare every dependency they use', () => {
   })
 
   it.each([
+    // A deliberate subset, not a completeness claim: `check-file-sizes.mjs` is
+    // asserted directly above, and `check-electron-security.mjs` cannot appear
+    // here because it must not statically import its dependency at all. Deriving
+    // this list from `scripts/` would apply the rule to scripts whose imports
+    // are covered elsewhere and fail them for unrelated reasons.
     'scripts/check-audit.mjs',
+    'scripts/check-declaration-consistency.mjs',
     'scripts/check-semgrep.mjs',
     'scripts/check-type-coverage.mjs'
   ])('%s imports nothing undeclared', (path) => {
     expect(bareImports(read(path))).toEqual([])
+  })
+
+  it('reports a bare import that package.json does not declare', () => {
+    // Proves the rule above bites. `glob` is the historical instance: the file
+    // size gate imported it and it resolved only because npm hoisted `glob@7`
+    // out of electronegativity's tree. A rule that never rejects anything is
+    // indistinguishable from a rule that is not there.
+    expect(bareImports("import { globSync } from 'glob'\n")).toEqual(['glob'])
+    // Node built-ins are declared by the runtime, not by package.json.
+    expect(bareImports("import { join } from 'path'\nimport f from 'node:fs'\n")).toEqual([])
   })
 })
 
@@ -309,6 +349,45 @@ describe('npm scripts: no argument is single-quoted', () => {
 describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   const KNIP_STEP = 'Dead Code (knip)'
 
+  /**
+   * The quality-job steps whose findings must fail the build.
+   *
+   * Not derivable from the filesystem: these are step *names* in
+   * `.github/workflows/build.yml`. Kept as an explicit list because a step's
+   * blocking status is a decision, not a property of any file — `File Size
+   * Check` and `Spell Check (non-blocking)` are steps too, and they are
+   * advisory on purpose.
+   */
+  const BLOCKING_STEPS = [
+    'Declaration consistency',
+    'Lint',
+    'Format Check',
+    'Typecheck',
+    'Architecture (dependency-cruiser)',
+    'CSS Lint',
+    'Dead Code (knip)',
+    'Run Tests with Coverage',
+    'Type Coverage (guard)',
+    'Duplicate Code Detection',
+    'Circular Dependency Check',
+    'Semgrep (production sources)',
+    'Production Dependency Audit',
+    'Electron Hardening (Electronegativity)'
+  ]
+
+  /**
+   * The steps that would report success no matter what they find — either
+   * absent from the workflow, or carrying `continue-on-error`.
+   *
+   * A function so it can be asserted in both directions: as an inline `filter`
+   * this rule could only ever be shown passing.
+   */
+  const softenedSteps = (names: string[]): string[] =>
+    names.filter((name) => {
+      const step = stepBlocks().find((block) => block.includes(`- name: ${name}`))
+      return step === undefined || step.includes('continue-on-error')
+    })
+
   it('runs the analyser', () => {
     expect(stepNames()).toContain(KNIP_STEP)
     const step = stepBlocks().find((block) => block.includes(`- name: ${KNIP_STEP}`))
@@ -353,26 +432,23 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   it('keeps the existing gates blocking', () => {
     // Making one of these advisory would be a silent weakening, which is the
     // failure mode these assertions exist to prevent.
-    const blocking = [
-      'Lint',
-      'Format Check',
-      'Typecheck',
-      'Architecture (dependency-cruiser)',
-      'CSS Lint',
-      'Dead Code (knip)',
-      'Run Tests with Coverage',
-      'Type Coverage (guard)',
-      'Duplicate Code Detection',
-      'Circular Dependency Check',
-      'Semgrep (production sources)',
-      'Production Dependency Audit',
-      'Electron Hardening (Electronegativity)'
-    ]
-    const softened = blocking.filter((name) => {
-      const step = stepBlocks().find((block) => block.includes(`- name: ${name}`))
-      return step === undefined || step.includes('continue-on-error')
-    })
+    //
+    // Hand-maintained and not derivable: these are step names in
+    // `.github/workflows/build.yml`, not files on disk, so a gate added to the
+    // workflow without a name here leaves its blocking status unguarded.
+    expect(softenedSteps(BLOCKING_STEPS)).toEqual([])
+  })
 
-    expect(softened).toEqual([])
+  it('the blocking rule reports a step that is missing or has been softened', () => {
+    // Proves the rule above bites in both of its halves, using real workflow
+    // data rather than an invented step.
+    //
+    // `File Size Check` genuinely carries continue-on-error today — it is
+    // advisory by design, over a pre-existing size-limit debt — so this is the
+    // half `keeps the existing gates blocking` cannot reach. The second case
+    // covers a name that is not in the workflow at all, which is what a gate
+    // renamed out from under this list looks like.
+    expect(softenedSteps(['File Size Check'])).toEqual(['File Size Check'])
+    expect(softenedSteps(['A Step That Does Not Exist'])).toEqual(['A Step That Does Not Exist'])
   })
 })
