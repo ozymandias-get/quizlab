@@ -30,13 +30,13 @@ function SettingsSection({
 }: SettingsSectionProps) {
   return (
     <section
-      className={`border-border/60 bg-card/30 flex flex-col gap-4 rounded-2xl border p-5 ${className}`}
+      className={`border-border/45 bg-muted/15 flex flex-col gap-4 rounded-2xl border p-5 ${className}`}
     >
       <div className="flex items-center gap-2.5">
         {icon && (
           <span
             aria-hidden
-            className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+            className="bg-muted/80 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
           >
             {icon}
           </span>

@@ -58,23 +58,29 @@ function PdfPlaceholder({
     /* Top-aligned (not `justify-center`): with centring, the hero drifted
        upward every time the reading history grew. The column now fills the
        panel so the history section can extend down and scroll instead. */
-    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-5 py-6 select-none motion-reduce:animate-none">
-      <div className="flex h-full w-full max-w-[680px] flex-col items-center gap-5">
-        {/* Hero — flat drop surface, no nested dashed card */}
-        <div className="border-border/60 bg-card/40 relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center">
-          <div className="bg-primary/5 motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full blur-2xl" />
+    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-6 py-7 select-none motion-reduce:animate-none">
+      <div className="flex h-full w-full max-w-[640px] flex-col items-center gap-6">
+        {/* Hero — clean elevated drop surface */}
+        <div className="border-border/50 bg-muted/20 hover:border-border/80 hover:bg-muted/30 motion-normal relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center transition-colors">
           <span
             aria-hidden
-            className="border-primary/20 bg-primary/10 text-primary relative flex size-12 items-center justify-center rounded-2xl border"
+            className="relative flex size-11 items-center justify-center rounded-xl border"
+            style={{
+              color: 'var(--selection-color-source, oklch(var(--primary)))',
+              backgroundColor:
+                'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 12%, transparent)',
+              borderColor:
+                'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
+            }}
           >
             <Upload className="h-5 w-5" />
           </span>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
               {t('no_pdf_loaded')}
             </h2>
-            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[280px] leading-relaxed">
+            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[260px] leading-relaxed">
               {t('drop_pdf_here')}
             </p>
           </div>
@@ -84,14 +90,14 @@ function PdfPlaceholder({
             variant="default"
             size="lg"
             onClick={onSelectPdf}
-            className="pdf-placeholder-cta focus-visible:ring-ring/40 h-9 cursor-pointer gap-2 px-4"
+            className="pdf-placeholder-cta focus-visible:ring-ring/40 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
             aria-label={t('select_pdf')}
           >
             <FileText className="h-3.5 w-3.5" />
             <span>{t('select_pdf')}</span>
           </Button>
 
-          <div className="text-muted-foreground flex items-center gap-1.5">
+          <div className="text-muted-foreground/80 flex items-center gap-1.5">
             <Kbd size="xs" variant="default">
               {getShortcutModifierLabel()}+O
             </Kbd>
@@ -100,7 +106,7 @@ function PdfPlaceholder({
         </div>
 
         {/* Recent Reading Section */}
-        <div className="border-border/60 bg-card/30 flex min-h-0 w-full flex-1 flex-col gap-3 rounded-2xl border p-4 text-left">
+        <div className="border-border/40 flex min-h-0 w-full flex-1 flex-col gap-3 border-t pt-5 text-left">
           <PdfRecentControls
             t={t}
             recentCount={recentItems.length}

@@ -59,14 +59,19 @@ const GridCard = memo<GridCardProps>(function GridCard({
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group hover:shadow-ambient-sm motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left shadow-xs transition-colors ${
-            isActive ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/60'
+          className={`group motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+            isActive
+              ? 'border-ring/50 bg-accent/35'
+              : 'border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45'
           }`}
         >
           <div className="flex items-center gap-3">
             <div
-              className="border-border/60 bg-muted/60 motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
-              style={{ color: accent }}
+              className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
+              style={{
+                color: accent,
+                backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`
+              }}
             >
               {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
             </div>

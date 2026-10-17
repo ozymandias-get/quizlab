@@ -13,8 +13,8 @@ import AiTabStrip from './AiTabStrip'
 const AiHomePage = lazy(() => import('./AiHomePage'))
 
 const PANEL_STYLE = {
-  border: '1px solid oklch(var(--border))',
-  borderRadius: 'var(--radius-xl)'
+  border: '1px solid oklch(var(--border) / 0.7)',
+  borderRadius: 'var(--radius-2xl)'
 } as const
 
 interface AiViewSurfaceProps {

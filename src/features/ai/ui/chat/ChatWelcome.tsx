@@ -56,7 +56,7 @@ const ChatWelcome = memo(function ChatWelcome({
         )}
 
         {/* Main Logo/Icon */}
-        <div className="border-primary/20 bg-primary/10 text-primary mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border shadow-2xs">
+        <div className="bg-primary/10 text-primary mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl">
           <AiIcon modelKey="api-chat" className="h-7 w-7" />
         </div>
 
@@ -78,7 +78,7 @@ const ChatWelcome = memo(function ChatWelcome({
                 key={i}
                 type="button"
                 onClick={() => onSuggestionClick(s.prompt)}
-                className="group border-border/80 bg-card/80 hover:border-border hover:bg-muted/70 focus-visible:ring-ring/40 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="group border-border/50 bg-card/65 hover:border-border/80 hover:bg-muted/55 focus-visible:ring-ring/40 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">
@@ -94,7 +94,7 @@ const ChatWelcome = memo(function ChatWelcome({
         )}
 
         {!hasProvider && (
-          <div className="border-border/80 bg-card mt-4 flex max-w-sm items-center gap-2.5 rounded-xl border p-3.5 text-left shadow-2xs">
+          <div className="border-border/55 bg-card/75 mt-4 flex max-w-sm items-center gap-2.5 rounded-xl border p-3.5 text-left">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
             <p className="text-ql-12 text-muted-foreground leading-normal">
               {t('api_chat_no_provider')}

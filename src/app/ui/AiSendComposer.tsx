@@ -276,20 +276,29 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="border-border/70 bg-popover/92 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border backdrop-blur-xl"
+            className="border-border/55 bg-popover/92 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border backdrop-blur-2xl"
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
                 gövdenin üstünde tutar. */}
-            <header className="border-border/50 bg-popover/60 relative z-[2] flex h-11 shrink-0 items-center gap-2 rounded-t-2xl border-b px-3">
+            <header className="border-border/35 relative z-[2] flex h-10 shrink-0 items-center gap-2 rounded-t-2xl border-b px-3.5">
               <span
+                style={
+                  sendFeedback !== 'error' && sendFeedback !== 'incomplete'
+                    ? {
+                        color: 'var(--selection-color-source, oklch(var(--primary)))',
+                        backgroundColor:
+                          'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 15%, transparent)'
+                      }
+                    : undefined
+                }
                 className={cn(
-                  'flex size-6 shrink-0 items-center justify-center rounded-full border transition-colors',
+                  'flex size-6 shrink-0 items-center justify-center rounded-full transition-colors',
                   sendFeedback === 'error'
-                    ? 'border-destructive/30 bg-destructive/12 text-destructive'
+                    ? 'border-destructive/30 bg-destructive/12 text-destructive border'
                     : sendFeedback === 'incomplete'
-                      ? 'border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
-                      : 'border-primary/20 bg-primary/10 text-primary'
+                      ? 'border border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+                      : 'bg-primary/10 text-primary'
                 )}
                 aria-hidden
               >
@@ -299,8 +308,26 @@ function AiSendComposer({
                   <Sparkles className="size-3.5" />
                 )}
               </span>
-              <p className="text-ql-12 shrink-0 font-semibold">{t('ai_draft_badge')}</p>
-              <span className="bg-muted text-muted-foreground text-ql-10 shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
+              <p className="text-ql-12 text-foreground shrink-0 font-semibold tracking-tight">
+                {t('ai_draft_badge')}
+              </p>
+              <span
+                style={
+                  totalItems > 0
+                    ? {
+                        color: 'var(--selection-color-source, oklch(var(--primary)))',
+                        backgroundColor:
+                          'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 14%, transparent)'
+                      }
+                    : undefined
+                }
+                className={cn(
+                  'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
+                  totalItems > 0
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted/70 text-muted-foreground/80'
+                )}
+              >
                 {t('ai_draft_content_count', { count: totalItems })}
               </span>
               <span className="flex-1" />
@@ -313,7 +340,7 @@ function AiSendComposer({
                 aria-label={t('ai_draft_close')}
                 aria-expanded
                 aria-controls="ai-draft-dock-body"
-                className="text-muted-foreground hover:bg-muted hover:text-foreground size-6"
+                className="text-muted-foreground hover:bg-muted/70 hover:text-foreground size-6 rounded-full"
               >
                 <ChevronDown className="size-3.5" aria-hidden />
               </IconButton>
@@ -327,7 +354,7 @@ function AiSendComposer({
                 <div
                   role="alert"
                   className={cn(
-                    'mx-3 mb-2 rounded-lg border px-2.5 py-1.5',
+                    'mx-3 mb-2 rounded-xl border px-3 py-2',
                     sendFeedback === 'incomplete'
                       ? 'border-amber-500/25 bg-amber-500/8'
                       : 'border-destructive/25 bg-destructive/8'
@@ -352,7 +379,7 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="border-border/60 bg-background/60 focus-within:border-primary/40 focus-within:bg-background @container mx-3 mb-2 overflow-hidden rounded-xl border transition-colors"
+                className="border-border/45 bg-muted/25 focus-within:border-border/80 focus-within:bg-background/75 @container mx-3 my-2 overflow-hidden rounded-xl border transition-all"
               >
                 <DraftNoteField
                   value={noteText}
@@ -363,7 +390,7 @@ function AiSendComposer({
 
                 {/* Araç satırı textarea'dan sert bir çizgiyle ayrılmaz; aynı
                     yüzeyin alt şeridi olarak okunur. */}
-                <div className="flex flex-wrap items-center gap-1.5 px-2 pt-0.5 pb-2">
+                <div className="flex flex-wrap items-center gap-1.5 px-2.5 pt-1 pb-2">
                   <DraftPromptSection
                     quickActionKey={quickActionKey}
                     onQuickActionChange={selectQuickAction}

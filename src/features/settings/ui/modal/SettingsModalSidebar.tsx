@@ -23,7 +23,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
 
   return (
     <aside
-      className="border-border/60 bg-card/20 relative flex min-w-0 shrink-0 flex-col border-r"
+      className="border-border/45 bg-muted/10 relative flex min-w-0 shrink-0 flex-col border-r"
       style={{ width: sidebarWidth }}
     >
       <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4">
@@ -51,7 +51,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
               ))}
             </nav>
           </div>
-          <div className="from-card pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t to-transparent" />
+          <div className="from-background/80 pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t to-transparent" />
         </div>
       </div>
     </aside>

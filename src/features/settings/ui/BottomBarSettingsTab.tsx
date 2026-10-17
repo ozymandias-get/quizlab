@@ -39,8 +39,8 @@ const ROW_BASE =
   'motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors'
 
 /** Enabled row uses the accent surface, disabled row the translucent card. */
-const ROW_ACTIVE = 'border-ring/50 bg-accent/30'
-const ROW_IDLE = 'border-border/60 bg-card hover:bg-muted/50'
+const ROW_ACTIVE = 'border-border/65 bg-accent/35'
+const ROW_IDLE = 'border-border/45 bg-card/55 hover:bg-muted/45'
 
 /**
  * The drag handle repeats on every model row, so it stays hidden at rest and
