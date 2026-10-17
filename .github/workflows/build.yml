@@ -49,6 +49,13 @@ jobs:
       - name: Version consistency
         run: npm run ci:check-version
 
+      # The Node floor and every direct dependency's declared range floor are
+      # stated in more than one place. `npm update` rewrites only the lockfile,
+      # so the manifest and the installed tree can drift apart with nothing
+      # reporting it; this step is what reports it.
+      - name: Declaration consistency
+        run: npm run ci:check-declarations
+
       - name: Lint
         run: npm run lint
 
