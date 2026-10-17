@@ -270,4 +270,113 @@ describe('picker target integrity', () => {
     semantic.setAttribute('class', 'x16qrm4 ProseMirror send-btn')
     expect(injectedGetSafeClassTokens!(semantic)).toEqual(['ProseMirror', 'send-btn'])
   })
+
+  it('T11: voice and dictation buttons are rejected during the submit step', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+
+      const input = document.createElement('textarea')
+      input.setAttribute('placeholder', 'Ask anything')
+      document.body.appendChild(input)
+
+      const micBtn = document.createElement('button')
+      micBtn.setAttribute('aria-label', 'Dikte et')
+      micBtn.setAttribute('data-start-dictation', 'true')
+      document.body.appendChild(micBtn)
+
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('aria-label', 'Send message')
+      document.body.appendChild(sendBtn)
+
+      click(input)
+      document
+        .getElementById('_ai_picker_next_btn')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+      mouseOver(micBtn)
+      expect(micBtn.classList.contains('_ai-picker-hover-good')).toBe(false)
+      expect(micBtn.classList.contains('_ai-picker-hover-low')).toBe(true)
+
+      click(micBtn)
+      expect(micBtn.style.boxShadow).toContain('#ef4444')
+      expect((window as PickerWindow)._aiPickerResult).toBeUndefined()
+
+      click(sendBtn)
+      vi.advanceTimersByTime(1000)
+      const result = (window as PickerWindow)._aiPickerResult as { button?: string } | undefined
+      expect(result?.button).toBe('button[aria-label="Send message"]')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('T12: Shadow DOM element uniqueness check scopes to ShadowRoot instead of matching an unrelated outer document element', () => {
+    // Outer document has exactly ONE <button>, which previously tricked
+    // document.querySelectorAll('button').length === 1 into picking bare 'button'
+    // for a Shadow DOM button!
+    const outerButton = document.createElement('button')
+    outerButton.textContent = 'Outer unrelated button'
+    document.body.appendChild(outerButton)
+
+    const host = document.createElement('div')
+    const shadow = host.attachShadow({ mode: 'open' })
+    document.body.appendChild(host)
+
+    const shadowMic = document.createElement('button')
+    shadowMic.setAttribute('aria-label', 'Microphone')
+    shadow.appendChild(shadowMic)
+
+    const shadowSend = document.createElement('button')
+    shadowSend.setAttribute('aria-label', 'Send prompt')
+    shadow.appendChild(shadowSend)
+
+    const bundle = generateLocatorBundle(shadowSend, 'button')
+    expect(bundle).not.toBeNull()
+    expect(bundle!.primarySelector).toBe('button[aria-label="Send prompt"]')
+  })
+
+  it('T13: clicking the selected input in step 2 refocuses it without red flash, and typing in Shadow DOM advances to submit step', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+
+      const host = document.createElement('rich-textarea')
+      const shadow = host.attachShadow({ mode: 'open' })
+      const editor = document.createElement('div')
+      editor.setAttribute('role', 'textbox')
+      editor.setAttribute('contenteditable', 'true')
+      editor.tabIndex = 0
+      shadow.appendChild(editor)
+      document.body.appendChild(host)
+
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('aria-label', 'Send message')
+      document.body.appendChild(sendBtn)
+
+      click(editor)
+      expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+
+      // Clicking the already-selected input in step 2 ('typing') must not flash red.
+      click(editor)
+      expect(editor.style.boxShadow).not.toContain('#ef4444')
+
+      // Typing a printable key inside the Shadow DOM editor advances to step 3 ('submit').
+      editor.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'a',
+          bubbles: true,
+          composed: true,
+          cancelable: true
+        })
+      )
+      vi.advanceTimersByTime(200)
+
+      // Now in step 'submit': hovering sendBtn paints it green.
+      mouseOver(sendBtn)
+      expect(sendBtn.classList.contains('_ai-picker-hover-good')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

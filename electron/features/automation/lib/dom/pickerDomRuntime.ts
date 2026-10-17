@@ -57,6 +57,31 @@ export function getElementInfo(el: PickerElement): PickerElementInfo {
     }
   }
 
+  const hasDictationAttr =
+    el.hasAttribute('data-start-dictation') ||
+    el.hasAttribute('data-cancel-dictation') ||
+    el.hasAttribute('data-submit-dictation')
+  const voiceSignals = [
+    el.getAttribute('aria-label') || '',
+    el.getAttribute('title') || '',
+    el.getAttribute('data-testid') || '',
+    el.getAttribute('data-test-id') || '',
+    el.getAttribute('name') || ''
+  ]
+    .join(' ')
+    .toLowerCase()
+  const VOICE_CONTROL_REGEX =
+    /(^|\s|-|_)(mikrofon|sesli|dikte|konuş|konus|mic|microphone|dictate|dictation|voice|speak|speech|talk|record|recording|transcribe|transcription|audio)(\s|-|_|$)/i
+  if (hasDictationAttr || VOICE_CONTROL_REGEX.test(voiceSignals)) {
+    return {
+      category: 'unknown',
+      labelEN: 'Voice / Dictation Button',
+      confidence: 'low',
+      tag,
+      hintEN: ''
+    }
+  }
+
   let category: PickerCategory = 'unknown'
   let labelEN = 'Unknown'
   let confidence: PickerConfidence = 'low'
@@ -448,20 +473,41 @@ export function pickVerifiedPrimary(el: Element, candidates: string[]): string |
   if (!el || !Array.isArray(candidates) || candidates.length === 0) return null
   const verified = candidates.filter((c) => safeMatchesSelector(el, c))
   if (verified.length === 0) return candidates[0] || null
-  // Prefer a candidate that uniquely identifies the element in the current
-  // document. Inside shadow roots / iframes the document probe sees zero
-  // matches (or the wrong scope) — those candidates stay in contention and
-  // the first verified one wins, exactly as before.
-  // NOTE: the document probe is intentionally inlined here instead of a
-  // helper call: this function is serialized into the injected picker script
-  // via fn.toString(), so every callee would have to be emitted alongside it.
-  for (const candidate of verified) {
-    try {
-      if (typeof document !== 'undefined' && document.querySelectorAll) {
-        if (document.querySelectorAll(candidate).length === 1) return candidate
+  // Prefer a candidate that uniquely identifies `el` within its own root node
+  // (Document or ShadowRoot). Querying `document` directly when `el` is inside
+  // a ShadowRoot can match an unrelated outer element (e.g. a single `<button>`
+  // in the light DOM) and falsely promote bare `'button'` over a specific
+  // shadow-root attribute selector.
+  // NOTE: inlined so fn.toString() remains self-contained in injected scripts.
+  const rootNode = typeof el.getRootNode === 'function' ? el.getRootNode() : null
+  const scope =
+    rootNode && typeof (rootNode as ParentNode).querySelectorAll === 'function'
+      ? (rootNode as ParentNode)
+      : typeof document !== 'undefined' && typeof document.querySelectorAll === 'function'
+        ? document
+        : null
+  if (scope) {
+    for (const candidate of verified) {
+      try {
+        const matches = scope.querySelectorAll(candidate)
+        if (matches.length === 1 && (!el.isConnected || matches[0] === el)) {
+          return candidate
+        }
+      } catch {
+        // Invalid selector in this scope: keep it in contention.
       }
-    } catch {
-      // Invalid selector in this document: keep it in contention.
+    }
+    if (el.isConnected) {
+      for (const candidate of verified) {
+        try {
+          const matches = scope.querySelectorAll(candidate)
+          if (matches.length > 0 && matches[0] === el) {
+            return candidate
+          }
+        } catch {
+          // Invalid selector in this scope: ignore.
+        }
+      }
     }
   }
   return verified[0] || null

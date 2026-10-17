@@ -66,9 +66,11 @@ const generateAutoSendScript = (
   if (textInputMode === 'typing') {
     return `
     ${createScriptPreamble('auto_send', serialized, true)}
-        const APPEND_TEXT_MODE = false;
+        const APPEND_TEXT_MODE = ${appendMode ? 'true' : 'false'};
 
 ${buildHumanTypingScript()}
+
+${buildTextVerificationScript()}
 
 ${performSubmitScript}
 
@@ -84,7 +86,32 @@ ${performSubmitScript}
                 };
             }
 
-            await humanType(inputElement, ${safeText}, ${typingSpeed});
+            const beforeTextVariants = readFieldTextVariants(inputElement);
+            await humanType(inputElement, ${safeText}, ${typingSpeed}, ${appendMode ? 'true' : 'false'});
+            if (isAborted()) {
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
+                return {
+                    success: false,
+                    error: 'cancelled',
+                    submitOutcome: 'not_attempted',
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, 'cancelled')
+                };
+            }
+
+            const placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
+            diagnostics.textVerifyResult = placement.applied ? 'verified' : placement.state;
+            diagnostics.textVerifyDelta = placement.delta;
+
+            if (!placement.applied) {
+                const verifyError = placement.state === 'partial' ? 'text_input_partial' : 'text_input_unverified';
+                __finalizeSelectorRepair(diagnostics.input, 'input', false);
+                return {
+                    success: false,
+                    error: verifyError,
+                    diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, verifyError)
+                };
+            }
+
             // Text insertion really landed, so an input recovery is now an
             // observed success. Without this the self-healing loop would only
             // ever see "element found", which is exactly the false positive the
@@ -152,6 +179,15 @@ ${performSubmitScript}
                 // önceki içerik korunur.
                 diagnostics.textInputFallback = 'human_typing';
                 await humanType(inputElement, ${safeText}, ${Math.min(typingSpeed, 30)}, ${appendMode ? 'true' : 'false'});
+                if (isAborted()) {
+                    __finalizeSelectorRepair(diagnostics.input, 'input', false);
+                    return {
+                        success: false,
+                        error: 'cancelled',
+                        submitOutcome: 'not_attempted',
+                        diagnostics: finalizeDiagnostics(diagnostics, scriptStartedAt, 'cancelled')
+                    };
+                }
                 placement = await verifyTextPlacementWithRetries(inputElement, ${safeText}, beforeTextVariants);
             }
 
