@@ -20,8 +20,8 @@ Thank you for your interest in contributing. This guide reflects the current rep
 
 ### Prerequisites
 
-- **Node.js 20.19+ / 22.12+ / 24+** (CI uses 24 — see the `engines` range of
-  Vite and Vitest)
+- **Node.js 24.15+ / 26+** (CI uses 24 — the `engines` field mirrors jsdom 30's
+  range, along with the ranges Vite and Vitest publish)
 - **npm**
 - **Git**
 - **Google account** (optional, for the Google AI web session)
