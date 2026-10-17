@@ -11,6 +11,7 @@ Thank you for your interest in contributing. This guide reflects the current rep
 - [Project Structure](#project-structure)
 - [Import Boundaries](#import-boundaries)
 - [Quality Commands](#quality-commands)
+- [Dependency Updates](#dependency-updates)
 - [Reporting Bugs](#reporting-bugs)
 - [Feature Requests](#feature-requests)
 
@@ -190,6 +191,9 @@ npm run ci:check-hygiene
 # Version badge and tag ↔ package.json consistency
 npm run ci:check-version
 
+# Node floor and declared dependency floors ↔ the installed tree
+npm run ci:check-declarations
+
 # Production dependency advisories (high/critical)
 npm run check:audit
 
@@ -197,7 +201,7 @@ npm run check:audit
 npm run check:electron-security
 ```
 
-The last four are blocking in CI. Do not leave them out of a local run.
+The last five are blocking in CI. Do not leave them out of a local run.
 
 Pre-commit hooks are set up via **Husky** and **lint-staged** — they run Prettier and ESLint automatically on staged files.
 
@@ -205,6 +209,71 @@ Pre-commit hooks are set up via **Husky** and **lint-staged** — they run Prett
 running before opening a PR: it enforces the import boundaries below. The full
 set of CI gates is listed in
 [.github/workflows/build.yml](.github/workflows/build.yml).
+
+---
+
+## Dependency Updates
+
+### Declared range floors are pinned to what is installed
+
+Every direct dependency's range in `package.json` has its floor set to the
+version actually on disk — `electron` is declared `^44.9.0` because 44.9.0 is
+installed, not because 44.9.0 is the newest release. Two reasons:
+
+- `npm ci` installs from the manifest and the lockfile together. A floor above
+  the installed tree makes a fresh checkout resolve differently from the one
+  you tested.
+- A floor well below the tree means `package.json` no longer describes what
+  runs. `npm outdated` shows the symptom days later, by which point nobody
+  remembers which command moved it.
+
+The trap is **`npm update`**. Unlike `npm install`, it rewrites only
+`package-lock.json`, moving the tree forward inside the ranges already
+declared. `package.json` is not touched, so the floor and the installed version
+drift apart and nothing reports it. Use `npm install <pkg>@<version>` when you
+mean to move a dependency.
+
+```bash
+# Every direct dependency's floor vs the installed version, and the Node floor
+# in package.json engines.node vs README.md, README_TR.md, CONTRIBUTING.md and
+# the CI node-version pins. Reports every problem it finds, then exits 1.
+npm run ci:check-declarations
+```
+
+When it fails, the message names the file and both values. The Node floor is
+declared once, in `package.json` `engines.node`, and everything else is checked
+against it — so if the floor genuinely moved (it is set by a transitive
+dependency, jsdom 30, and will move again when that package is bumped), change
+`engines.node` first and let the gate tell you which documents need updating.
+
+### Dependabot
+
+[.github/dependabot.yml](.github/dependabot.yml) opens dependency PRs weekly,
+on Mondays at 06:00 Europe/Istanbul.
+
+- **patch and minor arrive grouped**, as a single `chore(deps)` PR labelled
+  `dependencies`. They are low-risk, and one reviewable diff beats a wall of
+  single-package PRs.
+- **majors arrive individually**, one PR per major dependency, deliberately not
+  grouped. TypeScript is the live example: it is held at `^6.0.3` on purpose
+  because `@typescript-eslint/parser` declares `typescript: ">=4.8.4 <6.1.0"` on
+  every published channel, so a TS 7 PR stays red until typescript-eslint
+  widens. Grouped with the rest, that one stuck PR would hold back every other
+  major; ungrouped it blocks only itself.
+- **`github-actions` is tracked too**, because `.github/workflows/build.yml`
+  pins third-party actions by mutable tag (`actions/checkout@v5`, …). Untracked,
+  those drift silently.
+- `open-pull-requests-limit` is 15 rather than the default 10, since ungrouped
+  majors accumulate as separate PRs and the limit is per-ecosystem.
+
+Dependabot updates the declared range alongside the lockfile, so its PRs are
+expected to keep the range-floor invariant above. When one fails
+`ci:check-declarations` anyway, read the message before merging: it names the
+package and both versions.
+
+A dependency held below its registry `latest` on purpose should say so in
+`.npmrc` next to it, with the measurements that justify the hold. TypeScript is
+the only one today.
 
 ---
 
