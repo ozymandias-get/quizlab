@@ -692,10 +692,10 @@ has.
 2. **The `anchorNode.isConnected` guard in `usePdfTextActions.ts` is nearly dead code** —
    observable only for a non-collapsed range with empty text.
 3. **`scrollbar-gutter-stable`** looks undefined in the repository but is **not** — it is
-   a Tailwind 4.3.1 built-in utility, so the class on `PdfViewerDocument.tsx` compiles to
-   `scrollbar-gutter: stable` and reserves the gutter on the `overflow: hidden` container.
-   Do not "clean it up" on the grounds that no CSS file defines it; verify against
-   `node_modules/tailwindcss` first.
+   a built-in utility of the installed Tailwind 4, so the class on `PdfViewerDocument.tsx`
+   compiles to `scrollbar-gutter: stable` and reserves the gutter on the `overflow: hidden`
+   container. Do not "clean it up" on the grounds that no CSS file defines it; verify
+   against `node_modules/tailwindcss` first.
 4. **Native canvas is not DPR-aware** — 1:1 with CSS pixels on HiDPI. Cosmetic: capture is
    unaffected, because it renders at scale 4 into its own canvas.
 5. **Native path renders once at scale 1 before the fit commits** (one frame, cancelled
@@ -801,6 +801,13 @@ has.
     recording because it changes the meaning of a controller field and because it exists
     only because the error shell replaces the canvas: a failure left standing would keep
     the replacement page from ever mounting a canvas to render into.
+27. **`motion` 14.1.0+ can start an animation a frame or two late under main-thread
+    pressure.** Upstream added "delay animation start when main thread held to prevent
+    visual jumps", so any `DURATION.*` transition — a toast's first paint, a panel's
+    entrance — may begin late when the main thread is busy. This is the one deliberate
+    exception to this branch's "no user-visible behaviour change" constraint, and it is
+    upstream's change, not ours; recorded so that a report of "toasts feel laggy on first
+    paint" finds its cause already written down. This branch runs `motion@14.3.0`.
 
 ## Temporary Migration Components
 
