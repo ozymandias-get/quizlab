@@ -219,8 +219,8 @@ describe('native selection presentation — it does not fake a highlight', () =>
  * ## What the bug was
  *
  * PDF.js emits **one `<span role="presentation">` per text item** and positions
- * each with its own `left`/`top` and `--scale-x`. Measured in Chromium 142 against
- * PDF.js 6.4.299's real `TextLayer`, on a bullet/list page:
+ * each with its own `left`/`top` and `--scale-x`. Measured in the app's current
+ * Chromium against PDF.js 6.4.299's real `TextLayer`, on a bullet/list page:
  *
  *  - A run selected **on its own** paints exactly its own box. Overhang measured at
  *    0.00px for `--scale-x` 1.0, 1.1, 1.188, 1.4, 1.6196 and 2.0.
@@ -340,10 +340,10 @@ describe('native selection presentation — behaviour is untouched', () => {
    *
    * PDF.js emits one absolutely positioned span per text item, so every run is a
    * block-level box: there is no line box spanning a line's runs, and no run whose
-   * box covers the empty space to the right of the last glyph. Measured in
-   * Chromium 142 with `document.caretPositionFromPoint`, every point in that empty
-   * space — and every point in the ~1px inter-line gap — resolves to a caret
-   * position *between the layer's children* rather than to a text position:
+   * box covers the empty space to the right of the last glyph. Measured in the
+   * app's current Chromium with `document.caretPositionFromPoint`, every point in
+   * that empty space — and every point in the ~1px inter-line gap — resolves to a
+   * caret position *between the layer's children* rather than to a text position:
    *
    * ```
    *   x = the run's right edge   -> run#1@0    the end of the run

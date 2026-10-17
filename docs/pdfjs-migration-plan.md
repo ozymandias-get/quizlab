@@ -1594,8 +1594,8 @@ The fix changes presentation only, and only for this layer:
 
 - **Colour is still the user's.** `--selection-color-source` publishes the raw
   `selectionColor` preference, and `color-mix(in srgb, …, transparent 32%)` derives
-  the alpha from it in CSS. Purple stays purple; only the opacity is ours. Chromium
-  142 (Electron 42) has supported `color-mix` for many releases, and a literal
+  the alpha from it in CSS. Purple stays purple; only the opacity is ours. The
+  app's current Chromium has supported `color-mix` for many releases, and a literal
   `rgb()` fallback covers anything older.
 - **`br::selection` is transparent.** PDF.js appends a `<br role="presentation">`
   after every run that ends a line. Those breaks are siblings of the runs, so they
@@ -1616,8 +1616,8 @@ neighbours on the same line, with small dense blocks at the start of bullet line
 indented lines and run boundaries. Not an alpha problem — a **compositing** one.
 
 PDF.js emits one `<span role="presentation">` per text item and positions each with
-its own `left`/`top` and `--scale-x`. Measured in Chromium 142 against the real
-6.4.299 `TextLayer`, on a bullet/list page:
+its own `left`/`top` and `--scale-x`. Measured in the app's current Chromium against
+the real 6.4.299 `TextLayer`, on a bullet/list page:
 
 - A run selected **alone** paints exactly its own box — overhang measured 0.00px at
   `--scale-x` 1.0, 1.1, 1.188, 1.4, 1.6196 and 2.0.
