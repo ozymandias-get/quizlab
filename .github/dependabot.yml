@@ -1,3 +1,24 @@
+# Weekly dependency updates.
+#
+# patch + minor go out grouped as one PR: they are low-risk, and a single
+# reviewable diff beats a wall of single-package PRs.
+#
+# Majors are deliberately left UNGROUPED so that each major dependency gets its
+# own PR and one blocked major cannot stall the rest. TypeScript is the live
+# example -- it is held at 6.x on purpose because `@typescript-eslint/parser`
+# still declares `typescript: ">=4.8.0 <6.1.0"` on every published channel, so a
+# TS 7 PR stays red until typescript-eslint widens (see the typescript block in
+# `.npmrc` for the gate-by-gate measurements). Grouped, that one stuck PR would
+# hold back every other major; ungrouped it blocks only itself.
+#
+# `open-pull-requests-limit` is 15 rather than the default 10 because ungrouped
+# majors pile up as separate PRs, and the limit is per-ecosystem -- set too low,
+# a backlog of stuck majors crowds out the patch+minor group.
+#
+# The `github-actions` entry covers `.github/workflows/build.yml`, which pins
+# third-party actions by mutable tag (`actions/checkout@v5`,
+# `softprops/action-gh-release@v2`, ...); untracked, those drift silently, which
+# would defeat the point of tracking npm at all.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,15 +28,30 @@ updates:
       day: monday
       time: '06:00'
       timezone: Europe/Istanbul
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 15
     groups:
       patch-and-minor:
         update-types:
           - minor
           - patch
-      majors:
+    commit-message:
+      prefix: 'chore(deps)'
+    labels:
+      - dependencies
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 15
+    groups:
+      patch-and-minor:
         update-types:
-          - major
+          - minor
+          - patch
     commit-message:
       prefix: 'chore(deps)'
     labels:
