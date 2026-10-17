@@ -13,6 +13,7 @@ const generatedPatterns = [
   /^coverage[/\\]/,
   /^\.nyc_output[/\\]/,
   /^\.cache[/\\]/,
+  /^\.stryker-tmp[/\\]/,
   /\.tsbuildinfo$/
 ]
 const forbidden = tracked.filter((file) => generatedPatterns.some((pattern) => pattern.test(file)))
