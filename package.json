@@ -253,7 +253,10 @@
     "eslint-plugin-react": {
       "eslint": "^10.5.0"
     },
-    "tar": ">=7.5.21"
+    "tar": ">=7.5.21",
+    "typed-rest-client": {
+      "qs": ">=6.16.1"
+    }
   },
   "lint-staged": {
     "!(package-lock).{ts,tsx,js,jsx,json,md,css}": "prettier --write",
