@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 beforeEach(() => {
   window.localStorage.clear()
+  useAppearance.persist.clearStorage()
   useAppearance.setState({
     bottomBarOpacity: 0.7,
     bottomBarScale: 1.0,
@@ -45,6 +46,59 @@ describe('appearanceStore', () => {
     it('updates bottom bar scale', () => {
       useAppearance.getState().setBottomBarScale(1.5)
       expect(useAppearance.getState().bottomBarScale).toBe(1.5)
+    })
+  })
+
+  describe('removed background settings', () => {
+    // The ambient glow was removed with its settings. `merge` used to spread the
+    // whole persisted entry over the current state, which re-hydrated `bgMode`
+    // and `bgSolidColor` as untyped properties nothing reads — keeping a removed
+    // feature alive in memory on every install that had ever saved them.
+    beforeEach(async () => {
+      // The debounced adapter's `getItem` prefers a *pending* write over what is
+      // on disk (see `storeUtils`), so any `setState` left a queued write that
+      // would shadow the fixture written below. Rehydrating once flushes that
+      // queue and starts each case from a known-settled storage.
+      await useAppearance.persist.rehydrate()
+      window.localStorage.clear()
+      useAppearance.persist.clearStorage()
+    })
+
+    const persistEntry = (extra: Record<string, unknown>) =>
+      window.localStorage.setItem(
+        'appearance-storage',
+        JSON.stringify({
+          state: {
+            bottomBarOpacity: 0.9,
+            bottomBarScale: 1.2,
+            selectionColor: '#ff0000',
+            isLayoutSwapped: true,
+            visibleTools: {},
+            visibleModels: {},
+            ...extra
+          },
+          version: 0
+        })
+      )
+
+    it('does not re-hydrate the removed background settings', async () => {
+      persistEntry({ bgMode: 'ambient', bgSolidColor: '#123456' })
+      await useAppearance.persist.rehydrate()
+
+      const state = useAppearance.getState()
+      expect(state).not.toHaveProperty('bgMode')
+      expect(state).not.toHaveProperty('bgSolidColor')
+    })
+
+    it('still re-hydrates the settings that remain', async () => {
+      persistEntry({ bgMode: 'solid', bgSolidColor: '#123456' })
+      await useAppearance.persist.rehydrate()
+
+      const state = useAppearance.getState()
+      expect(state.bottomBarOpacity).toBe(0.9)
+      expect(state.bottomBarScale).toBe(1.2)
+      expect(state.selectionColor).toBe('#ff0000')
+      expect(state.isLayoutSwapped).toBe(true)
     })
   })
 
