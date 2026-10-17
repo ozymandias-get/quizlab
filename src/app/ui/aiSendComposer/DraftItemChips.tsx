@@ -39,7 +39,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
   if (items.length === 0) {
     return (
       <p
-        className="text-ql-11 text-muted-foreground/80 truncate px-3 pt-2 pb-1"
+        className="border-border/40 bg-muted/15 text-ql-11 text-muted-foreground/75 mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed px-3 py-1.5 text-center"
         data-testid="ai-draft-empty"
       >
         {t('ai_draft_empty_hint')}
@@ -48,7 +48,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
   }
 
   return (
-    <div className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2 pb-1">
+    <div className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5">
       <ul className="flex w-max items-center gap-1.5" aria-label={t('ai_send_panel_title')}>
         {items.map((item, index) => (
           <DraftItemChip key={item.id} item={item} order={index + 1} onRemove={onRemoveItem} />
@@ -89,26 +89,26 @@ function DraftItemChip({
 
   return (
     <li
-      className="border-border/60 bg-muted/40 focus-within:border-border hover:border-ring/30 hover:bg-muted/70 motion-normal flex h-7 shrink-0 items-center gap-1.5 rounded-full border pr-1 pl-2 transition-colors"
+      className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-7 shrink-0 items-center gap-1.5 rounded-lg border pr-1 pl-1.5 transition-all"
       data-testid="ai-draft-item"
       title={tooltipLabel}
     >
       <span
-        className="text-ql-10 text-muted-foreground/90 w-3 shrink-0 text-right font-semibold tabular-nums"
+        className="bg-background/80 text-muted-foreground text-ql-10 flex size-4 shrink-0 items-center justify-center rounded-md font-semibold tabular-nums"
         aria-hidden
       >
         {order}
       </span>
-      <span className="bg-border/60 mx-px h-3.5 w-px shrink-0 rounded-full" aria-hidden />
       <span
-        className="text-muted-foreground flex size-3.5 shrink-0 items-center justify-center"
+        style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
+        className="text-primary flex size-3.5 shrink-0 items-center justify-center"
         aria-hidden
       >
         {item.type === 'text' ? <Type className="size-3.5" /> : <ImageIcon className="size-3.5" />}
       </span>
-      <span className="text-ql-11 shrink-0 font-medium">{kindLabel}</span>
+      <span className="text-ql-11 text-foreground shrink-0 font-medium">{kindLabel}</span>
       {pageLabel && (
-        <span className="text-muted-foreground text-ql-10 shrink-0 tabular-nums">
+        <span className="text-muted-foreground/85 text-ql-10 shrink-0 font-mono tabular-nums">
           · {pageLabel}
         </span>
       )}
@@ -121,7 +121,7 @@ function DraftItemChip({
           onClick={() => onRemove(item.id)}
           aria-label={`${t('ai_send_remove_item')} — ${accessibleName}`}
           className={cn(
-            'text-muted-foreground hover:bg-destructive/10 hover:text-destructive size-5 shrink-0 rounded-full'
+            'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive size-5 shrink-0 rounded-md'
           )}
         >
           <X className="size-3" aria-hidden />

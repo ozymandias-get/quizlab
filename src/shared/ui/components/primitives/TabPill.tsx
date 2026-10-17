@@ -4,11 +4,11 @@ import { motion } from 'motion/react'
 import * as React from 'react'
 
 const TAB_PILL_BASE =
-  'focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-full border px-3 transition-colors outline-none select-none focus-visible:ring-2'
+  'focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-lg border px-3 transition-colors outline-none select-none focus-visible:ring-2'
 
-const TAB_PILL_ACTIVE = 'border-border bg-card text-foreground shadow-xs'
+const TAB_PILL_ACTIVE = 'border-border/70 bg-card text-foreground shadow-2xs'
 const TAB_PILL_INACTIVE =
-  'text-muted-foreground border-transparent bg-transparent hover:border-border/60 hover:bg-muted/50 hover:text-foreground'
+  'text-muted-foreground border-transparent bg-transparent hover:border-border/45 hover:bg-muted/45 hover:text-foreground'
 
 export interface TabPillProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -44,7 +44,10 @@ export const TabPill = React.forwardRef<HTMLButtonElement, TabPillProps>(functio
       {...props}
     >
       {isActive && (
-        <div className="bg-ring pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+        <div
+          className="pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full"
+          style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
+        />
       )}
       {children}
     </motion.button>
@@ -108,7 +111,10 @@ export function TabPillContainer({
       {...props}
     >
       {isActive && (
-        <div className="bg-ring pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full" />
+        <div
+          className="pointer-events-none absolute -bottom-px left-1/2 h-0.5 w-1/2 -translate-x-1/2 rounded-full"
+          style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
+        />
       )}
       {children}
     </div>

@@ -30,6 +30,7 @@ const SettingsNavItem = memo(function SettingsNavItem({
       {isActive && (
         <motion.div
           layoutId="active-sidebar-indicator"
+          style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
           className="bg-ring pointer-events-none absolute inset-y-1.5 left-0 w-0.5 rounded-full"
           transition={
             prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 35 }

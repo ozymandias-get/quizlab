@@ -53,9 +53,9 @@ const FloatingDockInner = memo(function FloatingDockInner({
       <motion.div
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeaveReset}
-        className="border-border/60 bg-card/30 flex w-full flex-col items-center gap-1.5 rounded-2xl border p-1.5 py-2"
+        className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-2 backdrop-blur-md"
       >
-        <div className="flex w-full flex-col items-center gap-1">
+        <div className="flex w-full flex-col items-center gap-0.5">
           {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
             <SettingsToolButton onOpenSettings={onOpenSettings} />
           )}
@@ -72,13 +72,12 @@ const FloatingDockInner = memo(function FloatingDockInner({
 
           {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
 
-          <GeminiToolButton onOpenSettings={onOpenSettings} />
+          {visibleTools['tool-gemini-web'] !== false && (
+            <GeminiToolButton onOpenSettings={onOpenSettings} />
+          )}
         </div>
 
-        <div
-          className="bg-border/70 my-[calc(0.25rem*var(--bar-scale-factor,1))] h-px w-5"
-          role="separator"
-        />
+        <div className="bg-border/60 my-1 h-px w-5" role="separator" />
 
         <ModelIconsList visibleModels={visibleModels} />
       </motion.div>

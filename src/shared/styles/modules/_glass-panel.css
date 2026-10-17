@@ -6,7 +6,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid oklch(var(--border));
+  border: 1px solid oklch(var(--border) / 0.75);
   background-color: oklch(var(--card));
   box-shadow: var(--shadow-ambient-sm);
   transform: translateZ(0);
@@ -21,15 +21,15 @@
 .glass-tier-2 {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-ambient-lg);
-  background-color: oklch(var(--popover) / 0.94);
+  background-color: oklch(var(--popover) / 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .glass-tier-3 {
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-ambient-sm);
-  background-color: oklch(var(--card) / 0.85);
+  box-shadow: none;
+  background-color: oklch(var(--card) / 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -37,8 +37,8 @@
 /* Reduced-opacity variant for controls floating over content */
 
 .glass-tier-3-dim {
-  border-color: oklch(var(--border) / 70%);
-  background-color: oklch(var(--card) / 60%);
+  border-color: transparent;
+  background-color: transparent;
 }
 
 .glass-interactive {
@@ -50,7 +50,7 @@
 
 .glass-interactive:hover,
 .glass-interactive:focus-visible {
-  border-color: oklch(var(--ring) / 40%);
+  border-color: oklch(var(--border) / 0.8);
 }
 
 /* Control hover/active states — the single source of truth for toolbar
@@ -59,20 +59,27 @@
 
 .glass-control-hover:hover,
 .glass-control-hover:focus-visible {
-  border-color: oklch(var(--border));
-  background-color: oklch(var(--muted));
+  border-color: oklch(var(--border) / 0.7);
+  background-color: oklch(var(--muted) / 0.75);
   color: oklch(var(--foreground));
 }
 
 .glass-control-active {
-  border-color: oklch(var(--border));
-  background-color: oklch(var(--accent));
+  border-color: color-mix(
+    in srgb,
+    var(--selection-color-source, oklch(var(--ring))) 35%,
+    oklch(var(--border))
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--selection-color-source, oklch(var(--accent))) 14%,
+    oklch(var(--accent))
+  );
   color: oklch(var(--foreground));
-  box-shadow: var(--shadow-ambient-sm);
 }
 
 .glass-tier-control {
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-lg);
 }
 
 /* Panel Containers */
