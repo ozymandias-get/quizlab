@@ -6,7 +6,7 @@
 # Majors are deliberately left UNGROUPED so that each major dependency gets its
 # own PR and one blocked major cannot stall the rest. TypeScript is the live
 # example -- it is held at 6.x on purpose because `@typescript-eslint/parser`
-# still declares `typescript: ">=4.8.0 <6.1.0"` on every published channel, so a
+# still declares `typescript: ">=4.8.4 <6.1.0"` on every published channel, so a
 # TS 7 PR stays red until typescript-eslint widens (see the typescript block in
 # `.npmrc` for the gate-by-gate measurements). Grouped, that one stuck PR would
 # hold back every other major; ungrouped it blocks only itself.
