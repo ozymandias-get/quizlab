@@ -1,9 +1,13 @@
 export const fallbackPipeline = `    /**
-     * Composer kabuğundaki data-composer-submit düğmesine verilen ek puan.
+     * Composer kabuğundaki gerçek gönder düğmesine verilen ek puan.
      * Sayfa genelinde toplanan submit düğmeleri arasında bu, "bu sohbetin gönder
      * düğmesi" demektir: 2026-10-17 ölçümünde sayfada 7 adet
      * button[type="submit"] vardı (6'sı diyalogların "Kapat" düğmesi) ve
      * puanları eşit olduğu için sıralama ilk bulduğunu seçiyordu.
+     *
+     * Ölçüm düzeltmesi: canlı chatgpt.com'da gönder düğmesinin
+     * data-composer-submit özniteliği YOK — tek kanca type="submit".
+     * __isComposerSubmitControl ikisini de kabul ediyor.
      */
     const SEMANTIC_COMPOSER_SUBMIT_BONUS = 30;
 
@@ -107,7 +111,7 @@ export const fallbackPipeline = `    /**
         const candidates = [];
         // Diktasyon kabuğu yalnızca butun dalında lazım; input dalında hiç
         // çağrılmaz (sitenin gönder düğmesiyle ilgisi yok).
-        const composerContainer = kind === 'button' ? __findComposerContainer() : null;
+        const composerContainer = kind === 'button' ? __findComposerContainer(true) : null;
 
         if (kind === 'input') {
             for (const root of roots) {
@@ -122,9 +126,10 @@ export const fallbackPipeline = `    /**
             // Blocklist knocks out nav/utility buttons before scoring. The rule
             // itself lives in selectorRepairRuntime (SEND_LABEL_BLOCKLIST) so
             // runtime selection and persisted auto-repair cannot disagree.
-            // Diktasyon (mikrofon) düğmeleri ayrıca ve önceden elenir: etiketleri
-            // dile bağlı olduğu için blocklist onları her dilde yakalayamıyor, ve
-            // composer boşken gönder düğmesi gizliyken tek görünür düğme onlar.
+            // Diktasyon (ses/mikrofon) düğmeleri ayrıca ve önceden elenir:
+            // ölçülen chatgpt.com dikte düğmesinin data özniteliği yok, yalnız
+            // aria-label'ı var ("Dikte et"), bu yüzden data listesi tek başına
+            // yetmiyor.
             const buttonLookup = config ? config.button : null;
             for (const root of roots) {
                 try {

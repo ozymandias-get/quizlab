@@ -1,3 +1,5 @@
+import { VOICE_CONTROL_LABEL_PATTERN } from '../automationScripts/lib/siteStrategyRegistry.js'
+
 interface BuildPerformSubmitScriptOptions {
   includeInputLookupForEnter: boolean
 }
@@ -139,13 +141,53 @@ ${inputRepairCredit('                ')}`
         // ikinci bir Enter veya ikinci bir click asla gönderilmez.
         const __submitFingerprint = (inputElement, buttonElement) => {
             const text = normalizeForCompare(readComposerText(inputElement));
-            const root = getComposerRoot(inputElement, buttonElement);
+            const composerRoot = getComposerRoot(inputElement, buttonElement);
+            let root = composerRoot;
             let conversationNodes = -1;
             let streaming = false;
             try {
-                conversationNodes = root.querySelectorAll(
-                    'article, [data-message-author-role], [data-message-id], [data-testid*="conversation-turn" i], [data-testid*="user-message" i], [class*="message" i], [class*="markdown" i]'
-                ).length;
+                const CONVERSATION_NODES =
+                    'article, [data-message-author-role], [data-message-id], [data-testid*="conversation-turn" i], [data-testid*="user-message" i], [class*="message" i], [class*="markdown" i]';
+
+                // 2026-10-17 ölçümü (canlı chatgpt.com, konuşma sayfası):
+                // getComposerRoot bir COMPOSER kabuğuna çözülür
+                // ([data-composer-body] → ComposerLayoutBody, 768×52) ve bu kabuğun
+                // içinde 0 konuşma düğümü vardır; oysa sayfada 5 düğüm var ve hepsi
+                // <main> içindedir. Parmakizin konuşma sayacı bu yüzden kalıcı 0'a
+                // düşüyor ve gönderim tespiti YALNIZCA "metin kutudan silindi"
+                // sinyaline kalıyor. Composer tek başına bir teslimat kanıtı
+                // değildir: sayfa yeniden çizim yaparken metin bir anlığına
+                // değişip geri dönebilir ve gerçek gönderim "doğrulanamadı"
+                // diye raporlanır.
+                //
+                // Düzeltme: konuşma düğümü içermeyen bir kabuk, konuşmanın
+                // GERÇEKTE bulunduğu kapsayıcıya genişletilir.
+                //
+                // "En yakın eşleşen" yaklaşımı YETMEZ: ChatGPT'in composer'ı bir
+                // <form> içindedir ve \`closest('main, …, form')\` form'u seçer
+                // (daha yakın olduğu için), o da 0 konuşma düğümü içerir. Bu
+                // yüzden kapsayıcı, "içinde konuşma düğümü bulunan İLK" atas
+                // olacak şekilde yukarı taranır; hiçbiri yoksa gövdeye düşülür.
+                if (root.querySelectorAll(CONVERSATION_NODES).length === 0) {
+                    let widened = null;
+                    let ancestor = root.parentElement;
+                    for (let depth = 0; ancestor && depth < 12; depth++) {
+                        try {
+                            if (ancestor.querySelectorAll(CONVERSATION_NODES).length > 0) {
+                                widened = ancestor;
+                                break;
+                            }
+                        } catch (_) {}
+                        ancestor = ancestor.parentElement;
+                    }
+                    if (!widened && root.closest) {
+                        widened = root.closest('main, [role="main"]');
+                    }
+                    if (!widened) widened = document.body;
+                    if (widened) root = widened;
+                }
+
+                conversationNodes = root.querySelectorAll(CONVERSATION_NODES).length;
                 streaming = Boolean(root.querySelector(
                     'button[aria-label*="Stop" i], button[data-testid*="stop" i], button[aria-label*="Durdur" i], [data-testid*="stop-button" i]'
                 ));
@@ -153,7 +195,14 @@ ${inputRepairCredit('                ')}`
             return text.length + '|' + text.slice(0, 80) + '|' + conversationNodes + '|' + (streaming ? '1' : '0');
         };
 
-        const __observeSubmitEffect = async (inputElement, buttonElement, before, attempts = 10, intervalMs = 80) => {
+        // 2026-10-17 ölçüm düzeltmesi: 10×80ms = 800ms pencere, ChatGPT'de
+        // yeterli değil — composer temizlenmesi ve konuşma düğümünün eklenmesi
+        // React'in yeniden çiziminde 1-2 saniye sürebiliyor ve bu koşularda
+        // mesaj GİTİYOR ama "teslimat doğrulanamadı" deniyordu. 3 saniyelik
+        // pencere yavaş yolayı normalleştirir; mükerrer gönderim riski yoktur
+        // çünkü \`submit_unverified\` zaten \`retry: 'never'\` taşır — bu yalnızca
+        // hükmün doğruluğunu etkiler, gönderim sayısını değil.
+        const __observeSubmitEffect = async (inputElement, buttonElement, before, attempts = 25, intervalMs = 120) => {
             for (let i = 0; i < attempts; i++) {
                 if (typeof isAborted === 'function' && isAborted()) return false;
                 await wait(intervalMs);
@@ -187,6 +236,19 @@ ${inputRepairCredit('                ')}`
                     if (buttonElement.hasAttribute(controls[i])) return controls[i];
                 } catch (_) {}
             }
+            // 2026-10-17 ölçümü (canlı chatgpt.com): gerçek dikte düğmesinin
+            // data özniteliği YOK; tam öznitelikleri type="button", class,
+            // aria-busy="false", aria-label="Dikte et". Bu yüzden teşhis de
+            // etiketi dinlemeli — aksi halde bu tam olarak senaryodur: tıklama
+            // yanlış öğeye düşer, teşhis "genel başarısızlık" der ve hangi
+            // düğmenin hedef olduğu günlükte görünmez.
+            try {
+                const label = ((buttonElement.getAttribute && buttonElement.getAttribute('aria-label')) || '')
+                    + ' ' + ((buttonElement.getAttribute && buttonElement.getAttribute('title')) || '');
+                if (label.trim() && ${VOICE_CONTROL_LABEL_PATTERN.toString()}.test(label)) {
+                    return 'voice_control:' + label.trim();
+                }
+            } catch (_) {}
             return null;
         };
 
@@ -212,15 +274,57 @@ ${inputRepairCredit('                ')}`
             };
 
             if (mode === 'click' || mode === 'mixed') {
-                const buttonResult = await waitForElement(
-                    config.button,
-                    'button',
-                    diagnostics.button,
-                    config,
-                    15000,
-                    true,
-                    ${STABLE_BLOCKED_EXIT_MS}
-                );
+                // ── Gönder düğmesi çözümü: sesli kontroller TIKLANMAZ ──────
+                // 2026-10-17 kök neden ölçümü (uygulama günlüğü, canlı
+                // chatgpt.com proje sayfası):
+                //   matchedSelector = "button.cursor-interaction.size-token-button-composer.flex"
+                //   submitWrongControl = "voice_control:Sesli iletişim yükleniyor"
+                //   durationMs = 4.5, waitIterations = 1
+                // Metin editöre girdikten sonra gönder düğmesi henüz çizilmemişti;
+                // arama 4.5ms'de ilk eşleşmeye durdu. Aday listesi çıplak
+                // \`button\` ile bittiği için "bir şey bulundu" sayılıyor ve
+                // bekleme gerçek düğmeyi hiç beklemiyordu. Bulunan öğe sesli
+                // sohbet düğmesiydi (gönder düğmesiyle AYNI class ailesi:
+                // \`cursor-interaction size-token-button-composer\`).
+                //
+                // Düzeltme: sesli/dikte kontrolü bir "eşleşme" değil, "bu bir
+                // gönder düğmesi değil" sinyalidir. Böyle bir aday bulunduğunda
+                // önbellekten düşürülür ve gerçek gönder düğmesi için beklemeye
+                // devam edilir. Tıklama yalnızca sesli olmayan bir düğmeye
+                // yapılır; süre dolarsa teşhis yine de hangi kontrolün hedef
+                // olduğunu yazar.
+                const __resolveSendButton = async () => {
+                    const budgetMs = 15000;
+                    const deadline = now() + budgetMs;
+                    let rejectedControl = null;
+                    while (true) {
+                        const remaining = deadline - now();
+                        if (remaining <= 0) break;
+                        const attempt = await waitForElement(
+                            config.button,
+                            'button',
+                            diagnostics.button,
+                            config,
+                            remaining,
+                            true,
+                            ${STABLE_BLOCKED_EXIT_MS}
+                        );
+                        const element = attempt.element;
+                        if (!element) {
+                            return { element: null, notReadyReason: attempt.notReadyReason || null, blockedElement: attempt.blockedElement || null, rejectedControl };
+                        }
+                        const wrongControl = __submitWrongControl(element);
+                        if (!wrongControl) return { element, notReadyReason: null, blockedElement: null, rejectedControl: null };
+                        rejectedControl = wrongControl;
+                        // Bu düğmeyi hedef tutmayı bırak: aksi halde önbellek
+                        // aynı yanlış öğeyi bir sonraki denemede de verir.
+                        try { invalidateCacheEntry('button', config.button, diagnostics.button); } catch (_) {}
+                        await wait(120);
+                    }
+                    return { element: null, notReadyReason: null, blockedElement: null, rejectedControl };
+                };
+
+                const buttonResult = await __resolveSendButton();
                 const button = buttonResult.element;
 
                 if (button) {
@@ -267,6 +371,16 @@ ${inputRepairCredit('                ')}`
                         // yönlendirirdi. Gerçek engel raporlanır.
                         error = 'submit_not_ready';
                         diagnostics.submitOutcome = 'blocked';
+                        __finalizeSelectorRepair(diagnostics.button, 'button', false);
+                    } else if (buttonResult.rejectedControl) {
+                        // Bütün bütçe boyunca yalnızca sesli/dikte kontrolleri
+                        // bulundu. Tıklanmadı (böyle bir durumda tıklamak
+                        // mesajı değil sesi başlatırdı), bu yüzden "teslimat
+                        // doğrulanamadı" değil "gönder düğmesi bulunamadı"
+                        // denir ve hangi kontrolün hedef olduğu yazılır.
+                        diagnostics.submitWrongControl = buttonResult.rejectedControl;
+                        error = resolveLookupError(config.button, 'button_not_found', config.health);
+                        diagnostics.submitOutcome = 'not_attempted';
                         __finalizeSelectorRepair(diagnostics.button, 'button', false);
                     } else if (mode === 'click') {
                         error = resolveLookupError(config.button, 'button_not_found', config.health);

@@ -119,12 +119,17 @@ const SELECTOR_INPUT_RULES: ReadonlyArray<{
 ]
 
 const SELECTOR_BUTTON_RULES: ReadonlyArray<string> = [
-  // 2026-10-17 ölçümü (canlı chatgpt.com): yeni composer'da gönder butonu
-  // data-composer-submit taşıyor. Bu, dile bağlı olmayan ve sayfadaki tek
-  // kararlı kancadır; aria-label çevrildiği için ("Mesaj gönder" / "Send
-  // message") locale'a bağlı, data-testid ise hiç yok.
-  '[data-composer-submit]',
+  // 2026-10-17 canlı chatgpt.com ölçümü (TR dil, hem composer boşken hem
+  // metin yazılıyken): sayfadaki TEK `button[type="submit"]` gönder düğmesi
+  // ("Gönder"). Dile bağlı değil, kültürel stille değişmiyor ve composer'daki
+  // dikte düğmesinden ayrışıyor. Bu yüzden birinci sırada.
+  //
+  // `[data-composer-submit]` bu ölçümde YOK: composer boşken de metin varken de
+  // `querySelectorAll('[data-composer-submit]').length === 0`. Kural ölü bir
+  // varsayımdan geliyordu; başta tutmak yalnızca yanlış güven veriyordu.
+  // Başka sürümlerde geri gelirse harmanlanabilir kaldırıldı, önceliği yok.
   'button[type="submit"]',
+  '[data-composer-submit]',
   'button[data-action="send"]',
   '[role="button"][aria-label*="Send" i]',
   'button.send-btn',
@@ -153,37 +158,98 @@ const COMPOSER_INPUT_SELECTORS: ReadonlyArray<string> = [
 ]
 
 /**
- * Composer kabuğu: gerçek bir form, ARIA form rolü ya da class'ında "composer"
- * geçen kapsayıcı. Gönder butonu ile composer'ın aynı kabukta olması, butonun
- * "bu sohbetin gönder düğmesi" olduğunun en ucuz kanıtıdır.
+ * Composer kabuğu adayları, EN DIŞA EN YAKIN olandan başlayarak.
+ *
+ * 2026-10-17 canlı chatgpt.com ölçümü: eski tek satırlık
+ * `form, [role="form"], [class*="composer" i]` kuralı GÖNDER butonu aramasını
+ * tamamen işe yaramaz hale getiriyordu. ChatGPT'in composer'ında `<form>` yok
+ * ve en yakın sarmalayıcının class'ı şu:
+ *   `text-size-chat … in-[[data-composer-body]:has([data-composer-expand-toggle])]:pe-10 …`
+ * Yani `"composer"` alt dizesi orada geçiyor, `closest()` orada duruyor ve
+ * composer kabuğu **540×36 boyutunda, içinde 0 buton** bir sarmalayıcıya
+ * çözülüyordu. Buton araması bu yüzden her zaman boşa düşüp sayfa geneline
+ * (~110 düğme) kaçıyordu.
+ *
+ * Gerçek ve dile bağlı olmayan kabuklar `data-composer-*` ile işaretlenmiş:
+ *   `[data-composer-body]` → 768×52, girişi VE dört düğmeyi birden içeriyor.
+ * Sınıf/aday listesi en sonda: artık yalnızca gerçek bir kabuk bulunamazsa
+ * devreye giriyor.
  */
-const COMPOSER_CONTAINER_SELECTOR = 'form, [role="form"], [class*="composer" i]'
+const COMPOSER_CONTAINER_SELECTORS: ReadonlyArray<string> = [
+  '[data-composer-body]',
+  '[data-composer-input]',
+  '[data-composer-layout]',
+  '[data-composer-footer]',
+  '[data-testid*="composer" i]',
+  '[data-testid*="prompt" i]',
+  '[class*="composer" i]',
+  'form',
+  '[role="form"]'
+]
 
 /**
- * Composer girdisinin bulunduğu en yakın kabuğu döner. Composer girdisi yoksa
- * sayfadaki ortak form kabuğuna düşer (bulunamazsa null).
+ * Bir kabuğun gönder düğmesi aramaya değer olduğunu doğrular: içinde tıklanabilir
+ * bir kontrol bulunmalı. Sınıf alt dizesi eşleşmesi butonsuz bir sarmalayıcıda
+ * durabildiği için (ölçülen ChatGPT durumu) bu kontrol, yanlış kabuğu reddetmenin
+ * genel yoludur.
  */
-function findComposerContainer(): Element | null {
+function containsClickableControl(root: Element): boolean {
+  try {
+    return (
+      root.querySelector('button, [role="button"], input[type="submit"], input[type="button"]') !==
+      null
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Composer girdisinin bulunduğu kabuğu döner.
+ *
+ * `requireControls` yalnızca gönder DÜĞMESİ aranırken doğrudur: o durumda
+ * butonsuz bir kabuk geçerli bir arama alanı değildir ve arama sessizce
+ * sayfa geneline düşerdi. Girdi aranırken bu şart aranmaz (bir sayfanın
+ * composer'ı tek başına input içerebilir).
+ */
+function findComposerContainer(requireControls: boolean): Element | null {
+  let input: Element | null = null
   for (const selector of COMPOSER_INPUT_SELECTORS) {
-    let input: Element | null = null
     try {
       input = document.querySelector(selector)
     } catch {
       continue
     }
-    if (!input) continue
-    try {
-      const container = input.closest(COMPOSER_CONTAINER_SELECTOR)
-      if (container) return container
-    } catch {
-      // closest bu ortamda yoksa form kabuğu denenir
+    if (input) break
+  }
+
+  if (input) {
+    for (const selector of COMPOSER_CONTAINER_SELECTORS) {
+      let container: Element | null = null
+      try {
+        container = input.closest(selector)
+      } catch {
+        container = null
+      }
+      if (!container) continue
+      if (requireControls && !containsClickableControl(container)) continue
+      return container
     }
   }
-  try {
-    return document.querySelector('form, [role="form"]')
-  } catch {
-    return null
+
+  for (const selector of COMPOSER_CONTAINER_SELECTORS) {
+    let container: Element | null = null
+    try {
+      container = document.querySelector(selector)
+    } catch {
+      container = null
+    }
+    if (!container) continue
+    if (requireControls && !containsClickableControl(container)) continue
+    return container
   }
+
+  return null
 }
 
 /**
@@ -198,10 +264,37 @@ const DICTATION_ATTRIBUTES: ReadonlyArray<string> = [
   'data-submit-dictation'
 ]
 
-function isDictationControl(candidate: Element): boolean {
+/**
+ * Ses/dikte düğmelerinin DİLE BAĞLI etiketleri.
+ *
+ * Ölçüm (canlı chatgpt.com, TR): composer içindeki dikte düğmesinin
+ * `data-start-dictation` **ya da benzeri bir data özniteliği YOK**.
+ * Tam öznitelik listesi: `type="button"`, `class`, `aria-busy="false"`,
+ * `aria-label="Dikte et"`. Yani öznitelik listesi bu düğmeye karşı sessizce
+ * geçiyordu ve düğme gönder düğmesi sanılıyordu — tıklamak mesajı değil
+ * dikteyi başlatıyordu.
+ *
+ * Aynı yerde bir de `aria-label="Sesli iletişimi başlat"` (EN: "Start voice
+ * conversation") var; o da 36×36 ve gönder düğmesiyle aynı yerde duruyor.
+ *
+ * Etiket dile bağlı olduğu için bu bir "kanıt" değil "güvenli red" kuralıdır:
+ * yanlış red yalnızca bir tur daha bekletir, yanlış kabul ise mesajı yanlış
+ * yere gönderir. "Gönder"/"Send" bu kalıplarla çakışmaz.
+ */
+export const VOICE_CONTROL_LABEL_PATTERN =
+  /(^|\s|-|_)(mikrofon|sesli|dikte|konuş|konus|mic|dictate|dictation|voice|speak|talk|record|recording|transcribe|transcription)(\s|-|_|$)/i
+
+function isVoiceControl(candidate: Element): boolean {
   if (!candidate || typeof candidate.hasAttribute !== 'function') return false
   for (const attribute of DICTATION_ATTRIBUTES) {
     if (candidate.hasAttribute(attribute)) return true
+  }
+  try {
+    const label =
+      (candidate.getAttribute('aria-label') || '') + ' ' + (candidate.getAttribute('title') || '')
+    if (label.trim() && VOICE_CONTROL_LABEL_PATTERN.test(label)) return true
+  } catch {
+    // getAttribute yoksa yalnızca öznitelik listesi geçerli olur
   }
   return false
 }
@@ -265,19 +358,62 @@ function findButtonInRoot(root: ParentNode): { element: Element; selector: strin
     }
     for (let i = 0; i < matches.length; i++) {
       const el = matches[i]
-      if (isDictationControl(el)) continue
+      if (isVoiceControl(el)) continue
       if (isVisibleCandidate(el, 8, 8)) return { element: el, selector }
     }
   }
   return null
 }
 
+/**
+ * Composer içindeki gerçek gönder düğmesi.
+ *
+ * Ölçüm (canlı chatgpt.com): composer'da dört düğme var ve gönder düğmesi
+ * `type="submit"` olan tek öğe. Aynı anda bir dikte düğmesi (`type="button"`,
+ * `aria-label="Dikte et"`) de duruyor. Kurallar listesinde `button[type=submit]`
+ * birinci olduğu için bu zaten ilk eşleşme olur; bu adım tek farkla onu
+ * "karar" haline getirir — composer kapsamı bulunduğunda sayfa geneline hiç
+ * bakılmaz.
+ */
+function findComposerSubmit(
+  composer: Element | null
+): { element: Element; selector: string } | null {
+  if (!composer) return null
+  let matches: ArrayLike<Element>
+  try {
+    matches = composer.querySelectorAll('button[type="submit"], input[type="submit"]')
+  } catch {
+    return null
+  }
+  for (let i = 0; i < matches.length; i++) {
+    const el = matches[i]
+    if (isVoiceControl(el)) continue
+    if (isVisibleCandidate(el, 8, 8)) return { element: el, selector: 'composer:submit' }
+  }
+  return null
+}
+
 function tryGenericButtonFallback(): SiteStrategyCandidate | null {
-  // Önce composer kabuğunun içi: sayfa genelinde 7 adet button[type="submit"]
-  // olabiliyor (diyalogların "Kapat" düğmeleri + gerçek gönder düğmesi) ve
-  // DOM sırasına göre seçmek yanlış düğmeye basmak demek. Sayfa genelindeki arama
-  // yalnızca composer'da hiçbir şey bulunamazsa devreye girer.
-  const composer = findComposerContainer()
+  // Önce composer kabuğunun kendisi: ölçülen ChatGPT durumunda buton araması
+  // 110 düğmelik sayfa genelinde değil, dört düğmelik gerçek composer'da
+  // yapılır. Kabuk, tıklanabilir bir kontrol içermiyorsa geçerli bir arama
+  // alanı değildir ve reddedilir.
+  const composer = findComposerContainer(true)
+  if (composer) {
+    const decisive = findComposerSubmit(composer)
+    if (decisive) {
+      return {
+        element: decisive.element,
+        matchedSelector: 'generic:button:' + decisive.selector,
+        strategy: 'provider'
+      }
+    }
+  }
+
+  // Sayfa genelindeki arama yalnızca composer'da gönder düğmesi yoksa devreye
+  // girer: sayfada 7 adet `button[type="submit"]` olabiliyor (diyalogların
+  // "Kapat" düğmeleri + gerçek gönder düğmesi) ve DOM sırasına göre seçmek
+  // yanlış düğmeye basmak demek.
   const roots: ReadonlyArray<ParentNode> = composer ? [composer, document] : [document]
   for (const root of roots) {
     const found = findButtonInRoot(root)
@@ -367,30 +503,83 @@ export function listApplicableStrategies(hostname: string): ReadonlyArray<SiteSt
  */
 export const siteStrategyRuntime = `    const __DICTATION_ATTRIBUTES = ['data-start-dictation', 'data-cancel-dictation', 'data-submit-dictation'];
     const __COMPOSER_INPUT_SELECTOR = 'textarea, div[contenteditable="true"], .ProseMirror, [role="textbox"]';
-    const __COMPOSER_CONTAINER_SELECTOR = 'form, [role="form"], [class*="composer" i]';
+    const __COMPOSER_CONTAINER_SELECTORS = [
+        '[data-composer-body]',
+        '[data-composer-input]',
+        '[data-composer-layout]',
+        '[data-composer-footer]',
+        '[data-testid*="composer" i]',
+        '[data-testid*="prompt" i]',
+        '[class*="composer" i]',
+        'form',
+        '[role="form"]'
+    ];
+    const __VOICE_CONTROL_LABEL_PATTERN = ${VOICE_CONTROL_LABEL_PATTERN.toString()};
 
     /**
-     * Sözlük (dictation) düğmesi mi? ChatGPT'de composer boşken görünür tek
-     * yuvarlak ikon düğmesi budur; mesaj yapıştırıldıktan sonra yanlışlıkla ona
-     * basmak göndermeyi sessizce engeller. Etiket dile bağlı olduğu için
-     * (TR: "Dikteyi başlatma", EN: "Start dictation") bu data öznitelikleri
-     * tek güvenilir red sebebi.
+     * Görünür ve etkileşime hazır mı? Gizli (display:none / visibility:hidden)
+     * bir gönder düğmesi "bulundu" sayılmaz; aksi halde tıklama sessizce
+     * yutulur ve mesaj hiç gitmez.
+     */
+    const __isVisibleCandidate = (el, minWidth, minHeight) => {
+        if (!el || !el.isConnected) return false;
+        let rect;
+        try { rect = el.getBoundingClientRect(); } catch (e) { return false; }
+        if (rect.width < minWidth || rect.height < minHeight) return false;
+        try {
+            const style = window.getComputedStyle(el);
+            if (style.visibility === 'hidden' || style.display === 'none') return false;
+        } catch (e) {
+            // computed style alınamıyorsa boyut kontrolü yeterli
+        }
+        return true;
+    };
+
+    /**
+     * Ses/dikte düğmesi mi? Etiket dile bağlı olduğu için (ölçülen TR örnekleri:
+     * "Dikte et", "Sesli iletişimi başlat"; EN: "Dictate", "Start voice
+     * conversation") data öznitelikleri tek başına yetmiyor: canlı
+     * chatgpt.com'da bu düğmenin data özniteliği YOK, yalnız aria-label'ı var.
+     * Bu bir güvenli RED kuralıdır — yanlış red bir tur bekletir, yanlış kabul
+     * mesajı dikteye gönderir.
      */
     const __isDictationControl = (el) => {
         if (!el || typeof el.hasAttribute !== 'function') return false;
         for (let i = 0; i < __DICTATION_ATTRIBUTES.length; i++) {
             if (el.hasAttribute(__DICTATION_ATTRIBUTES[i])) return true;
         }
+        try {
+            const label = ((el.getAttribute && el.getAttribute('aria-label')) || '')
+                + ' ' + ((el.getAttribute && el.getAttribute('title')) || '');
+            if (label.trim() && __VOICE_CONTROL_LABEL_PATTERN.test(label)) return true;
+        } catch (e) {
+            // getAttribute yoksa yalnızca öznitelik listesi geçerli olur
+        }
         return false;
     };
 
     /**
-     * Composer girdisinin bulunduğu en yakın kabuk (form / [role=form] /
-     * class'ında "composer" geçen kapsayıcı). Girdi yoksa sayfadaki ortak form
-     * kabuğuna düşer. ChatGPT'de composer artık <textarea>; ProseMirror ve
-     * contenteditable yok.
+     * Kabuk, gönder düğmesi aramaya değer mi? Tıklanabilir bir kontrol içermeli.
+     * Sınıf alt dizesi eşleşmesi butonsuz bir sarmalayıcıda durabildiği için
+     * (ölçülen ChatGPT durumu: 540x36, 0 buton) bu kontrol yanlış kabuğu
+     * reddetmenin genel yoludur.
      */
-    const __findComposerContainer = () => {
+    const __containsClickableControl = (root) => {
+        if (!root || typeof root.querySelector !== 'function') return false;
+        try {
+            return root.querySelector('button, [role="button"], input[type="submit"], input[type="button"]') !== null;
+        } catch (e) {
+            return false;
+        }
+    };
+
+    /**
+     * Composer girdisinin bulunduğu kabuk. 2026-10-17 canlı chatgpt.com ölçümü:
+     * eski tek satırlık kural butonsuz bir sarmalayıcıya çözülüyordu, bu yüzden
+     * data-composer-* kancaları öne alındı ve buton aramasında kapsam doğrulaması
+     * eklendi. requireControls yalnız gönder DÜĞMESİ aranırken doğrudur.
+     */
+    const __findComposerContainer = (requireControls) => {
         let input = null;
         try {
             input = document.querySelector(__COMPOSER_INPUT_SELECTOR);
@@ -398,24 +587,65 @@ export const siteStrategyRuntime = `    const __DICTATION_ATTRIBUTES = ['data-st
             input = null;
         }
         if (input && input.closest) {
-            try {
-                const container = input.closest(__COMPOSER_CONTAINER_SELECTOR);
-                if (container) return container;
-            } catch (e) {
-                // closest desteklenmiyorsa ortak form kabuğu denenir
+            for (let i = 0; i < __COMPOSER_CONTAINER_SELECTORS.length; i++) {
+                let container = null;
+                try {
+                    container = input.closest(__COMPOSER_CONTAINER_SELECTORS[i]);
+                } catch (e) {
+                    container = null;
+                }
+                if (!container) continue;
+                if (requireControls && !__containsClickableControl(container)) continue;
+                return container;
             }
         }
+        for (let i = 0; i < __COMPOSER_CONTAINER_SELECTORS.length; i++) {
+            let container = null;
+            try {
+                container = document.querySelector(__COMPOSER_CONTAINER_SELECTORS[i]);
+            } catch (e) {
+                container = null;
+            }
+            if (!container) continue;
+            if (requireControls && !__containsClickableControl(container)) continue;
+            return container;
+        }
+        return null;
+    };
+
+    /**
+     * Composer içindeki gerçek gönder düğmesi. Ölçüm: composer'da gönder
+     * düğmesi type="submit" olan tek öğe ve dikte düğmesi (type="button") ile
+     * aynı anda duruyor. Kapsam doğru çözüldüğünde bu arama KARAR verir;
+     * sayfa geneline hiç bakılmaz.
+     */
+    const __findComposerSubmit = (composer) => {
+        if (!composer) return null;
+        let matches;
         try {
-            return document.querySelector('form, [role="form"]');
+            matches = composer.querySelectorAll('button[type="submit"], input[type="submit"]');
         } catch (e) {
             return null;
         }
+        for (let i = 0; i < matches.length; i++) {
+            const el = matches[i];
+            if (__isDictationControl(el)) continue;
+            if (!__isVisibleCandidate(el, 8, 8)) continue;
+            return el;
+        }
+        return null;
     };
 
-    /** Composer kabuğunun kendisi mi, içindeki bir öğe mi? */
+    /**
+     * Composer kabuğunun kendisi mi, içindeki bir öğe mi? Ölçümde
+     * data-composer-submit YOK; kararlı kanca type="submit". İkisi de kabul
+     * edilir (ölü kanca ileride geri gelirse).
+     */
     const __isComposerSubmitControl = (el, container) => {
         if (!el || typeof el.hasAttribute !== 'function') return false;
-        if (!el.hasAttribute('data-composer-submit')) return false;
+        const isSubmitHook = el.hasAttribute('data-composer-submit')
+            || el.getAttribute('type') === 'submit';
+        if (!isSubmitHook) return false;
         if (!container) return false;
         if (container === el) return true;
         try {

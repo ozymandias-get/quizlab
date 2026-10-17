@@ -57,6 +57,8 @@ const INTERNAL_SELECTOR_MARKER =
 const GENERATED_CLASS_TOKEN =
   /^(?:css|sc|jsx|jss|emotion|styled|tw|atomic)-[a-z0-9]{4,}$|^[a-z]{1,4}-[a-z0-9]{5,}$|^[a-z]+[_-][a-f0-9]{6,}$/i
 
+import { VOICE_CONTROL_LABEL_PATTERN } from './siteStrategyRegistry.js'
+
 export const selectorRepairRuntime =
   `    const REPAIR_PROMOTION_SUCCESS_THRESHOLD = ${PROMOTION_SUCCESS_THRESHOLD};
     const REPAIR_MIN_AUTO_REPAIR_SCORE_GAP = ${MIN_AUTO_REPAIR_SCORE_GAP};
@@ -79,7 +81,11 @@ export const selectorRepairRuntime =
         /(^|\\s|-|_)(new|newchat|new-chat|new_chat|newconversation|new-conversation)(\\s|-|_|$)/i,
         /(^|\\s|-|_)(close|sidebar|menu|settings|options|model|picker|theme|dark|light|logout|sign[-_ ]?out|profile|account)(\\s|-|_|$)/i,
         /(^|\\s|-|_)(attach|upload|file|image|emoji|gif|mic|microphone|voice|speak|stop|pause|cancel|clear|delete|edit|copy|share|bookmark|pin|archive|more)(button|btn)?(\\s|-|_|$)/i,
-        /^(nav|header|aside|footer|sidebar)/i
+        // 2026-10-17 ölçümü (canlı chatgpt.com, TR): dikte düğmesinin etiketi
+        // "Dikte et", sesli sohbet düğmesinin "Sesli iletişimi başlat". Üstteki
+        // desen yalnızca İngilizce karşılıkları (mic/microphone/voice/speak)
+        // kapsıyordu; TR etiketleri listeden geçiyordu.
+        ${VOICE_CONTROL_LABEL_PATTERN.toString()}
     ];
 
     const __isBlockedSendLabel = (text) => {
