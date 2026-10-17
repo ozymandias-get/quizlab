@@ -107,7 +107,7 @@ jobs:
         run: npm run build
 
       - name: Setup Python (Semgrep)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
