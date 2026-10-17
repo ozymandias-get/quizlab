@@ -6,7 +6,6 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 
-import BackgroundSettings from './appearance/BackgroundSettings'
 import BarAppearanceSettings from './appearance/BarAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
 
@@ -22,10 +21,6 @@ const AppearanceTab = memo(() => {
     setBottomBarOpacity,
     bottomBarScale,
     setBottomBarScale,
-    bgMode,
-    setBgMode,
-    bgSolidColor,
-    setBgSolidColor,
     selectionColor,
     setSelectionColor
   } = useAppearance(
@@ -34,10 +29,6 @@ const AppearanceTab = memo(() => {
       setBottomBarOpacity: s.setBottomBarOpacity,
       bottomBarScale: s.bottomBarScale,
       setBottomBarScale: s.setBottomBarScale,
-      bgMode: s.bgMode,
-      setBgMode: s.setBgMode,
-      bgSolidColor: s.bgSolidColor,
-      setBgSolidColor: s.setBgSolidColor,
       selectionColor: s.selectionColor,
       setSelectionColor: s.setSelectionColor
     }))
@@ -62,14 +53,6 @@ const AppearanceTab = memo(() => {
         <SelectionColorSettings
           selectionColor={selectionColor}
           setSelectionColor={setSelectionColor}
-          t={t}
-        />
-
-        <BackgroundSettings
-          bgMode={bgMode}
-          setBgMode={setBgMode}
-          bgSolidColor={bgSolidColor}
-          setBgSolidColor={setBgSolidColor}
           t={t}
         />
       </div>

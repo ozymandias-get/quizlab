@@ -26,12 +26,6 @@ function applySelectionColorTheme(color: string) {
   root.style.setProperty('--accent-color', color)
 }
 
-function pauseAmbientAnimations(paused: boolean) {
-  const bg = document.querySelector('.app-ambient-background')
-  if (!bg) return
-  ;(bg as HTMLElement).style.setProperty('--ambient-paused', paused ? 'paused' : 'running')
-}
-
 function AppEffects() {
   const language = useLanguage((state) => state.language)
   const selectionColor = useAppearance((state) => state.selectionColor)
@@ -81,14 +75,6 @@ function AppEffects() {
     removeStorageItem('tutorial-storage')
     removeStorageItem('tutorial-completion')
     removeStorageItem('tutorial-onboarding-done')
-  }, [])
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      pauseAmbientAnimations(document.hidden)
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   return null

@@ -4,7 +4,6 @@ import { persist } from 'zustand/middleware'
 import { createDebouncedStorageAdapter } from './storeUtils'
 
 type FocusMode = 'pdf' | 'ai' | null
-export type BackgroundMode = 'ambient' | 'solid'
 
 const DEFAULT_VISIBLE_TOOLS: Record<string, boolean> = {
   'tour-target-tool-settings': true,
@@ -24,10 +23,6 @@ interface AppearanceState {
   bottomBarScale: number
   setBottomBarScale: (value: number) => void
 
-  bgMode: BackgroundMode
-  setBgMode: (mode: BackgroundMode) => void
-  bgSolidColor: string
-  setBgSolidColor: (color: string) => void
   selectionColor: string
   setSelectionColor: (color: string) => void
   isLayoutSwapped: boolean
@@ -56,10 +51,6 @@ export const useAppearance = create<AppearanceState>()(
       bottomBarScale: 1.0,
       setBottomBarScale: (value) => set({ bottomBarScale: value }),
 
-      bgMode: 'ambient',
-      setBgMode: (mode) => set({ bgMode: mode }),
-      bgSolidColor: '#000000',
-      setBgSolidColor: (color) => set({ bgSolidColor: color }),
       selectionColor: '#EAB308',
       setSelectionColor: (color) => set({ selectionColor: color }),
       isLayoutSwapped: false,
@@ -89,8 +80,6 @@ export const useAppearance = create<AppearanceState>()(
       partialize: (state) => ({
         bottomBarOpacity: state.bottomBarOpacity,
         bottomBarScale: state.bottomBarScale,
-        bgMode: state.bgMode,
-        bgSolidColor: state.bgSolidColor,
         selectionColor: state.selectionColor,
         isLayoutSwapped: state.isLayoutSwapped,
         visibleTools: state.visibleTools,

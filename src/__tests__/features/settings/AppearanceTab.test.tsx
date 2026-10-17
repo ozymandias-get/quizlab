@@ -3,17 +3,13 @@ import AppearanceTab from '@features/settings/ui/AppearanceTab'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const {
-  mockSetBottomBarOpacity,
-  mockSetBottomBarScale,
-  mockSetBgSolidColor,
-  mockSetSelectionColor
-} = vi.hoisted(() => ({
-  mockSetBottomBarOpacity: vi.fn(),
-  mockSetBottomBarScale: vi.fn(),
-  mockSetBgSolidColor: vi.fn(),
-  mockSetSelectionColor: vi.fn()
-}))
+const { mockSetBottomBarOpacity, mockSetBottomBarScale, mockSetSelectionColor } = vi.hoisted(
+  () => ({
+    mockSetBottomBarOpacity: vi.fn(),
+    mockSetBottomBarScale: vi.fn(),
+    mockSetSelectionColor: vi.fn()
+  })
+)
 
 vi.mock('@app/providers', () => ({
   useAppearance: () => ({
@@ -21,8 +17,6 @@ vi.mock('@app/providers', () => ({
     setBottomBarOpacity: mockSetBottomBarOpacity,
     bottomBarScale: 1,
     setBottomBarScale: mockSetBottomBarScale,
-    bgSolidColor: '#000000',
-    setBgSolidColor: mockSetBgSolidColor,
     selectionColor: '#00ff00',
     setSelectionColor: mockSetSelectionColor
   })
@@ -30,7 +24,7 @@ vi.mock('@app/providers', () => ({
 
 vi.mock('@ui/components/Icons', () => ({
   EyeIcon: () => <div data-testid="icon-eye" />,
-  PaletteIcon: () => <div data-testid="icon-palette" />,
+
   SelectionIcon: () => <div data-testid="icon-selection" />,
   SliderIcon: () => <div data-testid="icon-slider" />,
   MagicWandIcon: () => <div data-testid="icon-magic-wand" />
@@ -89,7 +83,6 @@ describe('AppearanceTab', () => {
     expect(screen.getByText('appearance_description')).toBeInTheDocument()
     expect(screen.getByText('bar_appearance')).toBeInTheDocument()
     expect(screen.getByText('selection_color_settings')).toBeInTheDocument()
-    expect(screen.getByText('background_settings')).toBeInTheDocument()
   })
 
   it('changes opacity slider', () => {
