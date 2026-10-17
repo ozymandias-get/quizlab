@@ -18,6 +18,7 @@
         ]
       }
     ],
+    "at-rule-prelude-no-invalid": [true, { "ignoreAtRules": ["apply"] }],
     "alpha-value-notation": null,
     "lightness-notation": null,
     "color-function-notation": null,

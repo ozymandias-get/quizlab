@@ -24,8 +24,7 @@ export function isContentDestroyedError(error: unknown): boolean {
 }
 
 export type ExecuteContentScriptResult =
-  | { ok: true; value: unknown }
-  | { ok: false; destroyed: boolean; error: unknown }
+  { ok: true; value: unknown } | { ok: false; destroyed: boolean; error: unknown }
 
 /**
  * Safe wrapper around `content.executeJavaScript`. Converts the raw rejection

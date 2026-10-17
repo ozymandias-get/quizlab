@@ -6,6 +6,7 @@ import path from 'path'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
+import { getDefaultDialogDirectory, rememberDialogDirectory } from '../../core/dialogDirectory.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -235,12 +236,16 @@ export function registerPdfProtocolHandlers() {
       const filterName = options.filterName || 'PDF Documents'
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
-        filters: [{ name: filterName, extensions: ['pdf'] }]
+        filters: [{ name: filterName, extensions: ['pdf'] }],
+        defaultPath: getDefaultDialogDirectory()
       })
 
       if (canceled || filePaths.length === 0) return success(null)
 
       const filePath = filePaths[0]
+      // Electron 43 no longer restores the last used directory on its own, so
+      // the next picker would start in Downloads; remember this one instead.
+      rememberDialogDirectory(filePaths[0])
       try {
         const stats = await fs.promises.stat(filePath)
 

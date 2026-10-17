@@ -7,6 +7,7 @@ release
 reports
 artifacts
 .playwright-mcp
+.stryker-tmp
 patches
 .husky/_
 *.log

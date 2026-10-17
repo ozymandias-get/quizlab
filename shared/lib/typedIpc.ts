@@ -1,10 +1,5 @@
 type IpcErrorCode =
-  | 'invalid_input'
-  | 'not_found'
-  | 'already_exists'
-  | 'unauthorized'
-  | 'internal_error'
-  | 'cancelled'
+  'invalid_input' | 'not_found' | 'already_exists' | 'unauthorized' | 'internal_error' | 'cancelled'
 
 type IpcError = {
   code: IpcErrorCode

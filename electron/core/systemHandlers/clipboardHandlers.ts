@@ -6,14 +6,13 @@
  * rate-limited per sender and stripped of control characters before it reaches
  * the system clipboard.
  */
-import { clipboard } from 'electron'
-
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { requireTrustedIpcSender } from '../ipcSecurity.js'
 import { Logger } from '../logger.js'
 import { sanitizeClipboardText } from './clipboard.js'
+import { writeClipboardText } from './clipboardApi.js'
 
 const { IPC_CHANNELS } = APP_CONFIG
 
@@ -25,7 +24,7 @@ export function registerClipboardHandlers(): void {
 
   registerIpcHandler(
     IPC_CHANNELS.COPY_TEXT,
-    (event, text: string) => {
+    async (event, text: string) => {
       try {
         if (typeof text !== 'string' || text.length === 0) return success(false)
 
@@ -47,7 +46,7 @@ export function registerClipboardHandlers(): void {
 
         const sanitized = sanitizeClipboardText(text)
 
-        clipboard.writeText(sanitized)
+        await writeClipboardText(sanitized)
         Logger.info(`[Clipboard] Text copied: ${text.length} chars`)
         return success(true)
       } catch (error) {

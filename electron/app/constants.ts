@@ -31,13 +31,15 @@ export const APP_CONFIG = {
     BATCH_DELETE_SIZE: 10,
     BATCH_DELETE_SIZE_HEAVY: 500,
     SAFE_CACHE_DIRS: ['Cache', 'Code Cache', 'GPUCache'] as const,
+    // Electron 44 removed 'websql' from the Session.clearStorageData({ storages })
+    // union. Chromium dropped the Web SQL Database API years ago, so no real store is
+    // left uncleaned; do not re-add it.
     PARTITION_STORAGE_TYPES: [
       'cookies',
       'filesystem',
       'indexdb',
       'localstorage',
       'shadercache',
-      'websql',
       'serviceworkers',
       'cachestorage'
     ] as const

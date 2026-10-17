@@ -1,3 +1,4 @@
+import path from 'path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
@@ -11,14 +12,27 @@ const resetProfile = vi.fn()
 const setEnabled = vi.fn()
 const setEnabledApps = vi.fn()
 const dispose = vi.fn()
+const exportSession = vi.fn()
+const importSession = vi.fn()
+const showSaveDialog = vi.fn()
+const showOpenDialog = vi.fn()
 
 vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getPath: vi.fn(() => '/tmp/quizlab-test')
+    getPath: vi.fn((name: string) =>
+      name === 'documents' ? '/home/u/Documents' : '/tmp/quizlab-test'
+    )
   },
   ipcMain: {
     handle: ipcHandle
+  },
+  safeStorage: {
+    isEncryptionAvailable: vi.fn(() => true)
+  },
+  dialog: {
+    showSaveDialog,
+    showOpenDialog
   },
   BrowserWindow: {
     getAllWindows: vi.fn(() => []),
@@ -33,7 +47,9 @@ vi.mock('../../../features/gemini-web-session/sessionManager', () => ({
     resetProfile,
     setEnabled,
     setEnabledApps,
-    dispose
+    dispose,
+    exportSession,
+    importSession
   }
 }))
 
@@ -57,6 +73,16 @@ describe('gemini web session handlers', () => {
     setEnabled.mockReset().mockResolvedValue({ success: true })
     setEnabledApps.mockReset().mockResolvedValue({ success: true })
     dispose.mockReset().mockResolvedValue(undefined)
+    exportSession.mockReset().mockResolvedValue({ success: true })
+    importSession.mockReset().mockResolvedValue({ success: true })
+    showSaveDialog.mockReset().mockResolvedValue({
+      canceled: false,
+      filePath: '/home/u/Documents/gemini-session.enc'
+    })
+    showOpenDialog.mockReset().mockResolvedValue({
+      canceled: false,
+      filePaths: ['/home/u/Documents/gemini-session.enc']
+    })
   })
 
   it('registers handlers and validates enabledAppIds payload', async () => {
@@ -88,6 +114,62 @@ describe('gemini web session handlers', () => {
     expect(setEnabled).toHaveBeenNthCalledWith(1, true)
     expect(setEnabled).toHaveBeenNthCalledWith(2, false)
     expect(setEnabled).toHaveBeenNthCalledWith(3, false)
+  })
+
+  it('saves into an absolute default path under the dialog directory', async () => {
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const exportHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
+    await exportHandler?.(trustedEvent)
+
+    const saveOptions = showSaveDialog.mock.calls[0]?.[0]
+    // A bare 'gemini-session.enc' would be resolved against Downloads.
+    expect(path.isAbsolute(saveOptions.defaultPath)).toBe(true)
+    expect(saveOptions.defaultPath).toBe(path.join('/home/u/Documents', 'gemini-session.enc'))
+  })
+
+  it('imports from the dialog directory', async () => {
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const importHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+    await importHandler?.(trustedEvent)
+
+    const openOptions = showOpenDialog.mock.calls[0]?.[0]
+    expect(openOptions.defaultPath).toBe('/home/u/Documents')
+  })
+
+  it('reopens each dialog where the other one last was', async () => {
+    showSaveDialog.mockResolvedValue({
+      canceled: false,
+      filePath: '/home/u/Pictures/gemini-session.enc'
+    })
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/home/u/Documents/gemini-session.enc']
+    })
+    const { registerGeminiWebSessionHandlers } =
+      await import('../../../features/gemini-web-session/geminiWebSessionHandlers.js')
+    registerGeminiWebSessionHandlers()
+
+    const exportHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
+    const importHandler = getHandler(APP_CONFIG.IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+    await exportHandler?.(trustedEvent)
+    await importHandler?.(trustedEvent)
+    await importHandler?.(trustedEvent)
+
+    // One tracked directory is shared across features, exactly as the single OS
+    // dialog behaved before Electron 43: the export pick decides where the
+    // import picker opens, and the import pick decides where the next picker
+    // opens. Both rememberDialogDirectory calls are load-bearing here.
+    const firstOpenOptions = showOpenDialog.mock.calls[0]?.[0]
+    expect(firstOpenOptions.defaultPath).toBe('/home/u/Pictures')
+
+    const secondOpenOptions = showOpenDialog.mock.calls[1]?.[0]
+    expect(secondOpenOptions.defaultPath).toBe('/home/u/Documents')
   })
 
   it('blocks untrusted sender requests', async () => {

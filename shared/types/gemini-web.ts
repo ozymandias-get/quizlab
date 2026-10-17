@@ -3,11 +3,7 @@
  */
 
 export type GeminiWebSessionState =
-  | 'uninitialized'
-  | 'auth_required'
-  | 'authenticated'
-  | 'degraded'
-  | 'reauth_required'
+  'uninitialized' | 'auth_required' | 'authenticated' | 'degraded' | 'reauth_required'
 
 export type GeminiWebSessionReasonCode =
   | 'none'
@@ -50,11 +46,7 @@ export type GeminiWebSessionActionResult = {
 export type SessionActionLike = GeminiWebSessionActionResult
 
 export type GeminiWebSessionRefreshReason =
-  | 'proactive_expiry'
-  | 'http_401'
-  | 'http_403'
-  | 'login_redirect'
-  | 'unknown'
+  'proactive_expiry' | 'http_401' | 'http_403' | 'login_redirect' | 'unknown'
 
 type GeminiWebSessionRefreshPhase = 'started' | 'success' | 'failed'
 

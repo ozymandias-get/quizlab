@@ -1,9 +1,15 @@
-import { BrowserWindow, clipboard, nativeImage } from 'electron'
+import { BrowserWindow, nativeImage } from 'electron'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
+import {
+  type ClipboardSnapshotData,
+  readClipboardSnapshot,
+  writeClipboardImage,
+  writeClipboardSnapshot
+} from '../../core/systemHandlers/clipboardApi.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 
 const MAX_CAPTURE_DIMENSION = 16384
@@ -21,7 +27,7 @@ let activeCaptures = 0
 interface ClipboardSnapshot {
   text?: string
   html?: string
-  image?: Electron.NativeImage
+  image?: { mimeType: string; bytes: Buffer }
   /**
    * Ownership key of a send transaction. Every COPY_IMAGE of one send passes
    * the same scope: the first copy pushes the entry, later copies reuse it, and
@@ -65,13 +71,16 @@ interface SnapshotReservation {
  * - While any entry exists the clipboard may hold an app-written temporary
  *   image; reading it would snapshot garbage. New entries reference the
  *   oldest entry's content instead — the one true pre-overwrite state.
- * - When no snapshot can be taken (stack full / read failure) the caller must
- *   refuse the copy: overwriting the clipboard without a way back loses the
- *   user's content.
+ * - When the stack is full the caller must refuse the copy: overwriting the
+ *   clipboard without a way back loses the user's content.
  */
-function reserveClipboardSnapshot(scope?: string): SnapshotReservation {
+async function reserveClipboardSnapshot(scope?: string): Promise<SnapshotReservation> {
   try {
     if (scope) {
+      // Checked before the await below on purpose: copies of one send arrive
+      // sequentially from `bulkSendPipeline.ts` (`await` per image in the paste
+      // loop) and all carry the same scope, so a second copy of the same scope
+      // cannot be racing this lookup. Concurrent copies would need a real lock.
       const existing = clipboardSnapshots.find((snapshot) => snapshot.scope === scope)
       if (existing) return { pushed: false, entry: existing }
     }
@@ -82,30 +91,25 @@ function reserveClipboardSnapshot(scope?: string): SnapshotReservation {
     }
 
     const source = clipboardSnapshots[0]
-    let text: string | undefined
-    let html: string | undefined
-    let image: Electron.NativeImage | undefined
-
+    let snapshot: ClipboardSnapshotData
     if (source) {
-      text = source.text
-      html = source.html
-      image = source.image
+      snapshot = { text: source.text, html: source.html, image: source.image }
     } else {
-      try {
-        const t = clipboard.readText()
-        if (t) text = t
-      } catch {}
-      try {
-        const h = clipboard.readHTML()
-        if (h) html = h
-      } catch {}
-      try {
-        const img = clipboard.readImage()
-        if (img && !img.isEmpty()) image = img
-      } catch {}
+      snapshot = await readClipboardSnapshot()
+      // The read is asynchronous, so a concurrent handler may have pushed an
+      // entry — and overwritten the clipboard — while it was in flight. The
+      // entry holds the one true pre-overwrite state; this read may have
+      // landed after that write and captured the temporary image instead.
+      const raced = clipboardSnapshots[0]
+      if (raced) snapshot = { text: raced.text, html: raced.html, image: raced.image }
     }
 
-    const entry: ClipboardSnapshot = { text, html, image, scope }
+    const entry: ClipboardSnapshot = {
+      text: snapshot.text,
+      html: snapshot.html,
+      image: snapshot.image,
+      scope
+    }
     clipboardSnapshots.push(entry)
     return { pushed: true, entry }
   } catch (error) {
@@ -124,24 +128,6 @@ function discardClipboardSnapshot(entry: ClipboardSnapshot): void {
   if (index !== -1) clipboardSnapshots.splice(index, 1)
 }
 
-function writeClipboardSnapshot(snapshot: ClipboardSnapshot): boolean {
-  try {
-    if (snapshot.image) {
-      clipboard.writeImage(snapshot.image)
-    } else if (snapshot.html) {
-      clipboard.writeHTML(snapshot.html)
-    } else if (snapshot.text !== undefined) {
-      clipboard.writeText(snapshot.text)
-    } else {
-      clipboard.clear()
-    }
-    return true
-  } catch (error) {
-    Logger.error('[Clipboard] Failed to restore clipboard:', error)
-    return false
-  }
-}
-
 /**
  * Releases a snapshot reservation.
  *
@@ -155,23 +141,32 @@ function writeClipboardSnapshot(snapshot: ClipboardSnapshot): boolean {
  * Returns false when there was nothing to release, so callers can report the
  * failure instead of pretending the clipboard was restored.
  */
-function restoreClipboard(scope?: string): boolean {
-  if (scope) {
-    const index = clipboardSnapshots.findIndex((snapshot) => snapshot.scope === scope)
-    if (index === -1) return false
-    const [snapshot] = clipboardSnapshots.splice(index, 1)
+async function restoreClipboard(scope?: string): Promise<boolean> {
+  try {
+    if (scope) {
+      const index = clipboardSnapshots.findIndex((snapshot) => snapshot.scope === scope)
+      if (index === -1) return false
+      const [snapshot] = clipboardSnapshots.splice(index, 1)
+      if (clipboardSnapshots.length > 0) return true
+      return await writeClipboardSnapshot(snapshot)
+    }
+
+    const snapshot = clipboardSnapshots.pop()
+    if (!snapshot) return false
+
+    // Inner cycle of a nested send: leave the current content in place; the
+    // outermost restore writes the user's original content back.
     if (clipboardSnapshots.length > 0) return true
-    return writeClipboardSnapshot(snapshot)
+
+    return await writeClipboardSnapshot(snapshot)
+  } catch (error) {
+    // A clipboard refusal is logged and reported as `false` by the adapter
+    // itself, so this only catches an unexpected throw — but dropping it would
+    // turn a broken restore into a generic IPC failure the renderer does not
+    // recognise as a restore failure.
+    Logger.error('[Clipboard] Failed to restore clipboard:', error)
+    return false
   }
-
-  const snapshot = clipboardSnapshots.pop()
-  if (!snapshot) return false
-
-  // Inner cycle of a nested send: leave the current content in place; the
-  // outermost restore writes the user's original content back.
-  if (clipboardSnapshots.length > 0) return true
-
-  return writeClipboardSnapshot(snapshot)
 }
 
 export function registerScreenshotHandlers() {
@@ -294,7 +289,7 @@ export function registerScreenshotHandlers() {
           Logger.info(`[Clipboard] Image ready for clipboard: ${imgSize.width}x${imgSize.height}`)
         }
 
-        const reservation = reserveClipboardSnapshot(scope)
+        const reservation = await reserveClipboardSnapshot(scope)
         if (!reservation.entry) {
           // Geri yükleme garantisi verilemiyorsa pano ezilmez: kullanıcının
           // panosunu geri dönüşü olmadan kaybetmek "gönderim başarısız"dan
@@ -304,12 +299,17 @@ export function registerScreenshotHandlers() {
         }
         pushedEntry = reservation.pushed ? reservation.entry : null
 
+        // Encoded once: the retry loop re-sends the same bytes, and the adapter
+        // copies them into a Blob per attempt, so the temporary NativeImage can
+        // be collected as soon as this handler returns.
+        const png = image.toPNG()
+
         // Windows clipboard locks can be transiently held by other apps
         // (Clipboard history, Office, etc.). Retry with short backoff.
         let lastError: unknown = null
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            clipboard.writeImage(image)
+            await writeClipboardImage({ mimeType: 'image/png', bytes: png })
             writeSucceeded = true
             break
           } catch (err) {
@@ -324,11 +324,6 @@ export function registerScreenshotHandlers() {
           Logger.error('[Clipboard] Copy failed after retries:', lastError)
           return success(false)
         }
-
-        // Do not mutate the NativeImage after writeImage – on Linux the
-        // object is reference-counted and the clipboard may still hold a
-        // reference. Resizing would corrupt the clipboard contents. Let GC
-        // handle the temporary image.
 
         return success(true)
       } catch (error) {
@@ -351,7 +346,7 @@ export function registerScreenshotHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.RESTORE_CLIPBOARD,
-    (_event, scope?: string) => {
+    async (_event, scope?: string) => {
       if (
         scope !== undefined &&
         (typeof scope !== 'string' || !CLIPBOARD_SCOPE_PATTERN.test(scope))
@@ -359,7 +354,7 @@ export function registerScreenshotHandlers() {
         Logger.warn('[Clipboard] Restore rejected: invalid scope')
         return success(false)
       }
-      return success(restoreClipboard(scope))
+      return success(await restoreClipboard(scope))
     },
     requireTrustedIpcSender,
     success(false)
