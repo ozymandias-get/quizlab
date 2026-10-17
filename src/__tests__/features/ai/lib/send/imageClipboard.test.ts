@@ -8,7 +8,8 @@
  */
 import {
   copyImageToClipboardWithRetry,
-  createClipboardRestore
+  createClipboardRestore,
+  RESTORE_SETTLE_MS
 } from '@features/ai/lib/send/imageClipboard'
 import { isPasteIgnoredByPage } from '@features/ai/lib/send/imageSendSubmitDiagnosis'
 import type { AiSendDiagnostics } from '@features/ai/model/types'
@@ -17,6 +18,8 @@ import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { RESTORE_SETTLE_FLOOR_MS } from './sharedTestHelpers'
 
 const restoreClipboard = vi.fn()
 
@@ -178,9 +181,12 @@ describe('createClipboardRestore', () => {
 
     await clipboard.restore()
 
-    // Ölçüm settle beklemesini de kapsar (RESTORE_SETTLE_MS = 700).
+    // Ölçüm settle beklemesini de kapsar (RESTORE_SETTLE_MS).
+    // Eşik `RESTORE_SETTLE_MS` DEĞİL, tolerans düşülmüş tabandır: setTimeout
+    // tabanlı bekleme `performance.now()` farkı olarak birebir kendi süresini
+    // garanti etmez (bkz. TIMER_TOLERANCE_MS).
     expect(typeof diagnostics.timings.clipboardRestoreMs).toBe('number')
-    expect(diagnostics.timings.clipboardRestoreMs).toBeGreaterThanOrEqual(700)
+    expect(diagnostics.timings.clipboardRestoreMs).toBeGreaterThanOrEqual(RESTORE_SETTLE_FLOOR_MS)
   })
 
   it('waits the settle period only when the paste actually completed', async () => {
@@ -190,7 +196,7 @@ describe('createClipboardRestore', () => {
     const withoutPasteMs = Date.now() - startedAt
 
     // Yapıştırma hiç olmadıysa beklenecek bir şey yok: restore hemen döner.
-    expect(withoutPasteMs).toBeLessThan(700)
+    expect(withoutPasteMs).toBeLessThan(RESTORE_SETTLE_MS)
     expect(restoreClipboard).toHaveBeenCalledTimes(1)
   })
 
