@@ -153,7 +153,7 @@ diagnostics:
 **To build from source**
 
 - Node.js `24.15+` or `26+` (CI uses 24; the floor comes from jsdom 30's `engines`
-  range, together with the ranges Vite and Vitest publish)
+  range, which is stricter than the ranges Vite and Vitest publish)
 - npm — the lockfile is `package-lock.json` and CI uses `npm ci`
 - Git
 - A Google account, only if you want the Google AI web session

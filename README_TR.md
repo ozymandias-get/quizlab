@@ -158,7 +158,7 @@ ve tanılama araçları:
 **Kaynaktan derlemek için**
 
 - Node.js `24.15+` veya `26+` (CI 24 kullanır; alt sınır jsdom 30'un `engines`
-  aralığından ve Vite ile Vitest'in yayımladığı aralıklardan gelir)
+  aralığından gelir ve Vite ile Vitest'in yayımladığı aralıklardan daha katıdır)
 - npm — kilit dosyası `package-lock.json`, CI `npm ci` kullanır
 - Git
 - Yalnızca Google AI web oturumunu istiyorsanız Google hesabı
