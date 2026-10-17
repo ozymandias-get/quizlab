@@ -3,7 +3,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 
-import type { AiErrorClassification, AiSendDiagnostics } from '../../model/types'
+import type { AiErrorClassification, AiSendDiagnostics, SendSubmitOutcome } from '../../model/types'
 import { classifyAiSendError, isContentCancelled, normalizeSendErrorCode } from '../aiSenderSupport'
 import { executeContentScript, normalizeExecutionResult } from './scriptExecution'
 import { attachDiagnostics, nowMs, roundMs } from './sendDiagnostics'
@@ -139,4 +139,28 @@ export async function executePipelineStep<TFail>(
   }
 
   return { success: true, scriptResult }
+}
+
+/**
+ * Betiğin gönderim sonucunu taşınabilir bir değere indirger.
+ *
+ * Betik alanı bildirmemişse (ör. enter_key yolunda etki gözlemlendi ama alan
+ * doldurulmadı) `observed` kabul edilir: `success: true` zaten gönderim
+ * girişiminin yapıldığını ifade eder ve gözlem alanı yalnızca belirsizliği
+ * taşır.
+ */
+export function resolveSubmitOutcome(
+  scriptResult: { submitOutcome?: string | null } | null | undefined
+): SendSubmitOutcome {
+  const raw = scriptResult?.submitOutcome
+  if (
+    raw === 'observed' ||
+    raw === 'delivery_unconfirmed' ||
+    raw === 'blocked' ||
+    raw === 'not_attempted' ||
+    raw === 'input_only'
+  ) {
+    return raw
+  }
+  return 'observed'
 }
