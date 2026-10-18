@@ -37,7 +37,7 @@ const NONE_VALUE = '__none__'
  * rozetindeki chevron görünmüyordu). Esneme, metni `line-clamp-1` ile kısaltır.
  */
 const TRIGGER_CLASS =
-  'border-border/70 bg-transparent hover:bg-muted/50 h-8 min-w-0 max-w-full shrink gap-1.5 rounded-lg px-2 text-ql-12 font-medium shadow-none'
+  'border-border/50 bg-background/50 hover:bg-muted/65 hover:border-border/75 h-7 min-w-0 max-w-full shrink gap-1.5 rounded-full px-2.5 text-ql-11 font-medium shadow-none transition-colors'
 
 /**
  * Kayıtlı prompt için kısa, güvenli bir görüntüleme etiketi.
@@ -104,14 +104,28 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           id="ai-draft-quick-action"
           aria-label={t('ai_draft_quick_action_label')}
           size="sm"
+          style={
+            quickActionKey
+              ? {
+                  borderColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
+                  backgroundColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
+                }
+              : undefined
+          }
           className={cn(
             TRIGGER_CLASS,
-            'max-w-[10rem]',
-            quickActionKey ? 'text-foreground' : 'text-muted-foreground'
+            'max-w-[10.5rem]',
+            quickActionKey ? 'text-foreground font-semibold' : 'text-muted-foreground'
           )}
         >
           {selectedPreset ? (
-            <selectedPreset.icon className="text-primary size-3.5 shrink-0" aria-hidden />
+            <selectedPreset.icon
+              style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
+              className="text-primary size-3.5 shrink-0"
+              aria-hidden
+            />
           ) : (
             <Zap className="size-3.5 shrink-0" aria-hidden />
           )}
@@ -150,9 +164,31 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
           id="ai-draft-prompt"
           aria-label={t('ai_draft_prompt_label')}
           size="sm"
-          className={cn(TRIGGER_CLASS, 'max-w-[12rem]', selectedPromptId && 'text-foreground')}
+          style={
+            selectedPromptId
+              ? {
+                  borderColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
+                  backgroundColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
+                }
+              : undefined
+          }
+          className={cn(
+            TRIGGER_CLASS,
+            'max-w-[12.5rem]',
+            selectedPromptId ? 'text-foreground font-semibold' : 'text-muted-foreground'
+          )}
         >
-          <FileText className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
+          <FileText
+            style={
+              selectedPromptId
+                ? { color: 'var(--selection-color-source, oklch(var(--primary)))' }
+                : undefined
+            }
+            className="text-muted-foreground size-3.5 shrink-0"
+            aria-hidden
+          />
           <SelectValue placeholder={t('ai_draft_prompt_placeholder')} />
         </SelectTrigger>
         <SelectContent

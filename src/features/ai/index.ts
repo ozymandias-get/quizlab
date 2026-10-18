@@ -43,4 +43,5 @@ export { useChatUiStore } from './store/chatUiStore'
  * and the pick (a full config) wins; a repair queued after re-reads the
  * picked config and its staleness check drops the outdated evidence.
  */
+export { invalidateAllConfigCaches } from './lib/aiSenderSupport'
 export { enqueueSelectorRepair } from './lib/selectorRepair/repairQueue'

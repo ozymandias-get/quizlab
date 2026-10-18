@@ -5,17 +5,12 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type { QueryClient } from '@tanstack/react-query'
 import type { RefObject } from 'react'
 
-import type {
-  AiSendDiagnostics,
-  SendStage,
-  SendSubmitOutcome,
-  SendTextResult
-} from '../../model/types'
+import type { AiSendDiagnostics, SendStage, SendTextResult } from '../../model/types'
 import type { ConfigCache } from '../aiSenderSupport'
 import { toAutomationConfig } from '../aiSenderSupport'
 import { buildPromptText, mergePromptText } from '../aiSenderSupport'
 import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
-import { executePipelineStep } from './pipelineUtils'
+import { executePipelineStep, resolveSubmitOutcome } from './pipelineUtils'
 import { isSendError, resolveSendContext } from './resolveSendContext'
 import { cloneScriptDiagnostics } from './scriptExecution'
 import { attachDiagnostics, nowMs, recordScriptStageTimings, roundMs } from './sendDiagnostics'
@@ -183,28 +178,4 @@ export async function executeTextSendPipeline(
     diagnostics,
     requestStartedAt
   )
-}
-
-/**
- * Betiğin gönderim sonucunu taşınabilir bir değere indirger.
- *
- * Betik alanı bildirmemişse (ör. enter_key yolunda etki gözlemlendi ama alan
- * doldurulmadı) `observed` kabul edilir: `success: true` zaten gönderim
- * girişiminin yapıldığını ifade eder ve gözlem alanı yalnızca belirsizliği
- * taşır.
- */
-function resolveSubmitOutcome(
-  scriptResult: { submitOutcome?: string | null } | null | undefined
-): SendSubmitOutcome {
-  const raw = scriptResult?.submitOutcome
-  if (
-    raw === 'observed' ||
-    raw === 'delivery_unconfirmed' ||
-    raw === 'blocked' ||
-    raw === 'not_attempted' ||
-    raw === 'input_only'
-  ) {
-    return raw
-  }
-  return 'observed'
 }

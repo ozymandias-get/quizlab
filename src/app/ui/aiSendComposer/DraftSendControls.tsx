@@ -78,8 +78,8 @@ function DraftSendControls({
         : 'text-muted-foreground'
 
   return (
-    <div className="border-border/50 bg-muted/20 flex min-h-8 shrink-0 items-center gap-2 border-t px-3 py-1">
-      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 select-none">
+    <div className="border-border/35 bg-muted/15 flex min-h-8 shrink-0 items-center gap-2 rounded-b-2xl border-t px-3.5 py-1.5">
+      <label className="flex shrink-0 cursor-pointer items-center gap-2 select-none">
         <Switch
           size="sm"
           checked={!!autoSend}
@@ -94,9 +94,18 @@ function DraftSendControls({
         {/* Anahtar tek başına durumu söylemez; kısa metin hem "Açık/Kapalı"
             hem de auto-send'in ne anlama geldiğini görünür kılar. */}
         <span
+          style={
+            autoSend
+              ? {
+                  color: 'var(--selection-color-source, oklch(var(--primary)))',
+                  backgroundColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 14%, transparent)'
+                }
+              : undefined
+          }
           className={cn(
-            'text-ql-10 shrink-0 font-medium',
-            autoSend ? 'text-primary' : 'text-muted-foreground/70'
+            'text-ql-10 shrink-0 rounded-full px-1.5 py-0.5 font-semibold transition-colors',
+            autoSend ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground/70'
           )}
         >
           {autoSend ? t('ai_send_auto_on') : t('ai_send_auto_off')}
@@ -107,7 +116,7 @@ function DraftSendControls({
         <button
           type="button"
           onClick={onRetry}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           <RotateCcw className="size-3 shrink-0" aria-hidden />
           {t('ai_send_retry')}
@@ -120,7 +129,7 @@ function DraftSendControls({
         <button
           type="button"
           onClick={onDismiss}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 shrink-0 rounded-md px-1.5 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 shrink-0 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           {t('ai_send_dismiss')}
         </button>
@@ -199,12 +208,21 @@ export function DraftSendButton({
         // gelmezdi; `aria-label` adı her genişlikte korur.
         aria-label={label}
         data-testid="ai-draft-send"
+        style={
+          !isDisabled
+            ? {
+                backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
+                color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
+              }
+            : undefined
+        }
         className={cn(
-          'text-ql-12 h-8 shrink-0 gap-1.5 rounded-lg px-3 font-semibold @max-[330px]:px-2.5',
+          'text-ql-11 h-7 shrink-0 gap-1.5 rounded-full px-3 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98] @max-[330px]:px-2.5',
           // Devre dışıyken yarı saydam birincil blok kalmaz: dolu bir `muted`
           // yüzey + okunur metin. Tüm düğmeyi `opacity` ile soldurmak koyu temada
           // ıslak gri bir leke gibi okunuyordu.
-          isDisabled && 'bg-muted text-muted-foreground hover:bg-muted opacity-100'
+          isDisabled &&
+            'bg-muted/65 text-muted-foreground/65 hover:bg-muted/65 opacity-100 shadow-none'
         )}
       >
         <SendIcon className={cn('size-3.5', intent === 'sending' && 'animate-spin')} aria-hidden />

@@ -62,16 +62,19 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
             <button
               type="button"
               onClick={() => onOpenModel('api-chat')}
-              className={`group hover:shadow-ambient-sm motion-normal relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left shadow-xs transition-colors ${
+              className={`group motion-normal relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors ${
                 isApiChatActive
-                  ? 'border-ring/50 bg-accent/30'
-                  : 'border-border/60 bg-card hover:bg-muted/60'
+                  ? 'border-ring/50 bg-accent/35'
+                  : 'border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45'
               }`}
             >
               <div className="flex w-full items-center gap-3">
                 <div
-                  className="border-border/60 bg-muted/60 motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg border transition-transform group-hover:scale-105 motion-reduce:scale-100"
-                  style={{ color: apiChatAccent }}
+                  className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
+                  style={{
+                    color: apiChatAccent,
+                    backgroundColor: `color-mix(in srgb, ${apiChatAccent} 13%, transparent)`
+                  }}
                 >
                   {getAiIcon('api-chat')}
                 </div>

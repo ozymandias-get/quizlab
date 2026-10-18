@@ -1,5 +1,7 @@
+import { canonicalizeHostname } from '@shared-core/selectorConfig'
 import type { AiRegistryResponse, AiSelectorConfig } from '@shared-core/types'
 
+import { invalidateConfigCaches } from '@shared/lib/configCacheEpoch'
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -43,7 +45,12 @@ export function useSaveAiConfig(options?: { suppressErrorToast?: boolean }) {
       errorMessage: t('toast_ai_config_save_failed'),
       showErrorToast: !options?.suppressErrorToast,
       onSuccess: (_, { hostname }) => {
+        invalidateConfigCaches()
         queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY(hostname) })
+        const canonical = canonicalizeHostname(hostname)
+        if (canonical && canonical !== hostname) {
+          queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY(canonical) })
+        }
         queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY() })
         showSuccess(t('toast_ai_config_saved'), t('toast_config_saved'))
       }

@@ -11,6 +11,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { AI_CONFIG_KEY } from '@platform/electron/api/useAiApi'
 
+import { configCacheEpochValue, invalidateConfigCaches } from '@shared/lib/configCacheEpoch'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { reportSuppressedError } from '@shared/lib/logger'
 
@@ -262,6 +263,16 @@ export function queueForContent<T>(
 export const toAutomationConfig = normalizeAutomationConfig
 
 /**
+ * Invalidates all in-memory sender config caches across hooks (e.g. after a
+ * manual Magic Selector pick or selector settings update/deletion).
+ *
+ * Re-exported rather than reimplemented: the platform hooks that write the
+ * config have to be able to fire this, and they sit below `@features/ai` in the
+ * layer order. See `@shared/lib/configCacheEpoch`.
+ */
+export { invalidateConfigCaches as invalidateAllConfigCaches } from '@shared/lib/configCacheEpoch'
+
+/**
  * Drops the memoized per-content AI config.
  *
  * The cache key embeds the URL, the current AI and the *base* registry config
@@ -270,6 +281,7 @@ export const toAutomationConfig = normalizeAutomationConfig
  * next send even though the persisted config is already correct.
  */
 export function resetConfigCache(configCache: ConfigCache): void {
+  invalidateConfigCaches()
   configCache.key = null
   configCache.cache = null
 }
@@ -325,15 +337,25 @@ export async function getCachedAiConfig(options: {
     return { config: baseConfig, regex: null }
   }
 
-  const configSignature = JSON.stringify(baseConfig || {})
-  const cacheKey = `${currentUrl}::${currentAI}::${configSignature}`
+  let hostname = ''
+  try {
+    hostname = new URL(currentUrl).hostname
+  } catch {
+    return { config: baseConfig, regex: null }
+  }
 
-  if (configCache.key === cacheKey && configCache.cache) {
+  const queryInvalidated =
+    typeof queryClient?.getQueryState === 'function' &&
+    queryClient.getQueryState(AI_CONFIG_KEY(hostname))?.isInvalidated === true
+
+  const configSignature = JSON.stringify(baseConfig || {})
+  const cacheKey = `${currentUrl}::${currentAI}::${configSignature}::${configCacheEpochValue()}`
+
+  if (!queryInvalidated && configCache.key === cacheKey && configCache.cache) {
     return configCache.cache
   }
 
   try {
-    const hostname = new URL(currentUrl).hostname
     const customConfig = (await queryClient.fetchQuery({
       queryKey: AI_CONFIG_KEY(hostname),
       queryFn: () => {

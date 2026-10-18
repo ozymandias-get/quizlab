@@ -481,4 +481,36 @@ describe('useElementPicker', () => {
     const executeCallsAfterRerenders = mockContent.executeJavaScript.mock.calls.length
     expect(executeCallsAfterRerenders).toBe(executeCallsAfterStart)
   })
+
+  it('cleans up the previous tab when starting picker on a newly switched tab', async () => {
+    const firstTab = {
+      executeJavaScript: vi.fn().mockResolvedValue(undefined),
+      getURL: vi.fn().mockReturnValue('https://first.example/')
+    }
+    installConsoleListenerSpy(firstTab)
+    currentContent = { current: firstTab }
+
+    const { result } = renderHook(() => useElementPicker(() => currentContent.current))
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+    firstTab.executeJavaScript.mockClear()
+
+    const secondTab = {
+      executeJavaScript: vi.fn().mockResolvedValue(undefined),
+      getURL: vi.fn().mockReturnValue('https://second.example/')
+    }
+    installConsoleListenerSpy(secondTab)
+    currentContent.current = secondTab
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    expect(firstTab.executeJavaScript).toHaveBeenCalledWith(
+      'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
+    )
+    expect(secondTab.executeJavaScript).toHaveBeenCalledWith('// script')
+  })
 })

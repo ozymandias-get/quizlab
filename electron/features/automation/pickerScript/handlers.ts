@@ -79,6 +79,13 @@ export function buildPickerHandlersBlock(): string {
             e.stopPropagation();
             try {
                 var ctx = getEventContext(e);
+                if (
+                    ctx.rawTarget &&
+                    typeof ctx.rawTarget.closest === 'function' &&
+                    ctx.rawTarget.closest('[data-ai-picker-ui="true"]')
+                ) {
+                    return;
+                }
                 const target = normalizeTarget(ctx.rawTarget, ctx.path);
                 if (!target) return;
 
@@ -174,18 +181,62 @@ export function buildPickerHandlersBlock(): string {
             e.stopPropagation();
 
             var clickCtx = getEventContext(e);
+            if (clickCtx.rawTarget && typeof clickCtx.rawTarget.closest === 'function') {
+                if (step === 'typing' && clickCtx.rawTarget.closest('#_ai_picker_next_btn')) {
+                    if (typingAdvanceTimer) {
+                        clearTimeout(typingAdvanceTimer);
+                        pendingTimers.delete(typingAdvanceTimer);
+                        typingAdvanceTimer = null;
+                    }
+                    step = 'submit';
+                    updateInfoBox(null);
+                    return;
+                }
+                if (clickCtx.rawTarget.closest('[data-ai-picker-ui="true"]')) {
+                    return;
+                }
+            }
+
             const target = normalizeTarget(clickCtx.rawTarget, clickCtx.path);
             if (!target) return;
 
             if (step === 'typing') {
                 if (target.id === '_ai_picker_next_btn') {
+                    if (typingAdvanceTimer) {
+                        clearTimeout(typingAdvanceTimer);
+                        pendingTimers.delete(typingAdvanceTimer);
+                        typingAdvanceTimer = null;
+                    }
                     step = 'submit';
                     updateInfoBox(null);
                     return;
                 }
 
+                const isSelectedInputOrChild =
+                    selectedInputElement &&
+                    (target === selectedInputElement ||
+                        (Array.isArray(clickCtx.path) && clickCtx.path.indexOf(selectedInputElement) >= 0) ||
+                        (selectedInputElement.isConnected &&
+                            typeof selectedInputElement.contains === 'function' &&
+                            selectedInputElement.contains(target)));
+                if (isSelectedInputOrChild) {
+                    try {
+                        if (typeof selectedInputElement.focus === 'function') {
+                            selectedInputElement.focus();
+                        }
+                    } catch (focusErr) {
+                        safePickerLog('typing.refocus', focusErr);
+                    }
+                    return;
+                }
+
                 const targetInfo = memoGetElementInfo(target);
                 if (targetInfo.category === 'button') {
+                    if (typingAdvanceTimer) {
+                        clearTimeout(typingAdvanceTimer);
+                        pendingTimers.delete(typingAdvanceTimer);
+                        typingAdvanceTimer = null;
+                    }
                     step = 'submit';
                     updateInfoBox(null);
                 } else {
@@ -254,6 +305,13 @@ export function buildPickerHandlersBlock(): string {
                 step = 'typing';
                 labelBox.style.display = 'none';
                 updateInfoBox(null);
+                try {
+                    if (typeof target.focus === 'function') {
+                        target.focus();
+                    }
+                } catch (focusErr) {
+                    safePickerLog('input.focus', focusErr);
+                }
             } 
             else if (step === 'submit') {
                 try {
@@ -285,6 +343,9 @@ export function buildPickerHandlersBlock(): string {
                         safePickerLog('submit.result', selectionData);
                         const resultJson = JSON.stringify(selectionData);
                         window._aiPickerResult = JSON.parse(resultJson);
+                        try {
+                            delete window.__quizlabReaderAutomationCache;
+                        } catch (_) {}
 
                         // Bridge wiring: the renderer-side \`usePickerConsoleBridge\`
                         // listens for \`console-message\` events from the
@@ -334,12 +395,10 @@ export function buildPickerHandlersBlock(): string {
         //
         // CRITICAL EXCEPTION: once the user has selected an input element
         // (\`selectedInputElement\` is set) and the keydown target IS that
-        // input (or a descendant of it), we must let the key reach the
-        // input. Otherwise the input's value never updates, the \`input\`
-        // event never fires, \`onTypingDetected\` never advances the picker
-        // to \`step='submit'\`, and the send button never becomes pickable.
-        // This is the root cause of the "I can pick the input but can't
-        // type so the send button never appears" bug.
+        // input (or a descendant of it, including across Shadow DOM via
+        // composedPath), we must let normal typing keys reach the input
+        // without capture-phase stopPropagation on document blocking child
+        // editor listeners.
         //
         // Escape is always handled: it cancels the picker regardless of
         // where the user is typing.
@@ -367,24 +426,63 @@ export function buildPickerHandlersBlock(): string {
                 return;
             }
 
-            // Typing inside the selected input: let the key through so the
-            // input's value updates and the \`input\` event fires
-            // \`onTypingDetected\`. We do still stopPropagation so the host
-            // site's own keydown handlers (e.g. Cmd+K listener) don't
-            // double-fire alongside the input's own handler.
-            if (selectedInputElement && e.target) {
+            if (selectedInputElement) {
                 let isInsideSelected = false;
                 try {
+                    var keyCtx = getEventContext(e);
+                    var rawKeyTarget = keyCtx.rawTarget || e.target;
                     isInsideSelected =
-                        e.target === selectedInputElement ||
-                        (typeof selectedInputElement.contains === 'function' &&
+                        rawKeyTarget === selectedInputElement ||
+                        (Array.isArray(keyCtx.path) && keyCtx.path.indexOf(selectedInputElement) >= 0) ||
+                        (rawKeyTarget &&
+                            typeof selectedInputElement.contains === 'function' &&
                             selectedInputElement.isConnected &&
-                            selectedInputElement.contains(e.target));
+                            selectedInputElement.contains(rawKeyTarget));
                 } catch (containsErr) {
                     safePickerLog('keydown.contains', containsErr);
                 }
                 if (isInsideSelected) {
-                    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                    // Prevent Enter (without Shift) from prematurely submitting
+                    // the AI composer during Step 2 before the send button is picked;
+                    // instead, advance directly to Step 3 ('submit').
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        if (typeof e.preventDefault === 'function') e.preventDefault();
+                        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                        if (step === 'typing') {
+                            if (typingAdvanceTimer) {
+                                clearTimeout(typingAdvanceTimer);
+                                pendingTimers.delete(typingAdvanceTimer);
+                                typingAdvanceTimer = null;
+                            }
+                            step = 'submit';
+                            updateInfoBox(null);
+                        }
+                        return;
+                    }
+                    // Block navigation / function / host-shortcut combos even
+                    // while focused inside the selected input.
+                    if (
+                        e.key === 'Tab' ||
+                        /^F\d+$/i.test(e.key || '') ||
+                        ((e.ctrlKey || e.metaKey || e.altKey) && e.key && e.key.length > 1)
+                    ) {
+                        if (typeof e.preventDefault === 'function') e.preventDefault();
+                        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+                        return;
+                    }
+                    // For printable characters / edits in Step 2, also trigger
+                    // typing detection so custom editors that swallow input events
+                    // still advance smoothly to Step 3.
+                    if (
+                        step === 'typing' &&
+                        typeof e.key === 'string' &&
+                        (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Delete') &&
+                        !e.ctrlKey &&
+                        !e.metaKey &&
+                        !e.altKey
+                    ) {
+                        onTypingDetected(e);
+                    }
                     return;
                 }
             }
@@ -413,18 +511,21 @@ export function buildPickerHandlersBlock(): string {
             } catch (err) { safePickerLog('typing.rootNode', err); }
 
             const isDirectInput = target === selectedInputElement;
+            const isInComposedPath = Array.isArray(typeCtx.path) && typeCtx.path.indexOf(selectedInputElement) >= 0;
             const isNestedInput = !!(selectedInputElement.isConnected && selectedInputElement.contains && selectedInputElement.contains(target));
             const isSameRoot = !!selectedRoot && !!targetRoot && selectedRoot === targetRoot;
 
-            if (!isDirectInput && !isNestedInput && !isSameRoot) {
+            if (!isDirectInput && !isInComposedPath && !isNestedInput && !isSameRoot) {
                 return;
             }
 
             if (typingAdvanceTimer) {
                 clearTimeout(typingAdvanceTimer);
+                pendingTimers.delete(typingAdvanceTimer);
             }
 
-            typingAdvanceTimer = setTimeout(() => {
+            typingAdvanceTimer = scheduleTimer(() => {
+                typingAdvanceTimer = null;
                 if (step !== 'typing') return;
                 step = 'submit';
                 updateInfoBox(null);

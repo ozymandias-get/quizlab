@@ -108,6 +108,7 @@ export default memo(function SettingsModalContent({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: DURATION.normal }}
+              className="mx-auto w-full max-w-3xl"
             >
               {visitedTabsList.map((tabId) => (
                 <TabPanel

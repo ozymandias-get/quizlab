@@ -35,6 +35,18 @@ export const fallbackPipeline = `    /**
             try {
                 const candidate = strategy.fn(kind, config);
                 if (candidate && candidate.element) {
+                    const minGap = (typeof REPAIR_MIN_AUTO_REPAIR_SCORE_GAP === 'number')
+                        ? REPAIR_MIN_AUTO_REPAIR_SCORE_GAP
+                        : 15;
+                    if (typeof candidate.scoreGap === 'number' && candidate.scoreGap < minGap) {
+                        return {
+                            element: candidate.element,
+                            matchedSelector: candidate.matchedSelector || strategy.name + ':auto',
+                            strategy: strategy.name,
+                            scoreGap: candidate.scoreGap
+                        };
+                    }
+
                     const confidence = computeConfidenceScore(candidate, kind, config);
                     const rejected =
                         confidence.level === 'low' ||
@@ -85,6 +97,9 @@ export const fallbackPipeline = `    /**
      */
     const trySiteStrategy = (kind, config) => {
         try {
+            if (typeof __ensureBuiltinSiteStrategiesRegistered === 'function') {
+                __ensureBuiltinSiteStrategiesRegistered();
+            }
             const hostname = (window.location.hostname || '').toLowerCase();
             const matches = __listApplicableStrategies(hostname);
             for (let i = 0; i < matches.length; i++) {

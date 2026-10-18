@@ -26,6 +26,19 @@ describe('scriptExecution', () => {
     })
   })
 
+  it('preserves submitMethod, submitObserved, and submitOutcome fields from injected script results', () => {
+    const normalized = normalizeExecutionResult({
+      success: true,
+      mode: 'mixed',
+      submitMethod: 'button_click',
+      submitObserved: false,
+      submitOutcome: 'delivery_unconfirmed'
+    })
+    expect(normalized?.submitMethod).toBe('button_click')
+    expect(normalized?.submitObserved).toBe(false)
+    expect(normalized?.submitOutcome).toBe('delivery_unconfirmed')
+  })
+
   it('returns null for invalid result shapes', () => {
     expect(normalizeExecutionResult(null)).toBeNull()
     expect(normalizeExecutionResult('bad')).toBeNull()

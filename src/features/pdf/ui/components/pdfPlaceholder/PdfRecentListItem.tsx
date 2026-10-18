@@ -136,7 +136,8 @@ function PdfRecentListItem({
       {isActive && (
         <span
           aria-hidden
-          className="bg-ring motion-slow absolute inset-y-2 left-0 w-0.5 rounded-full"
+          className="motion-slow absolute inset-y-2 left-0 w-0.5 rounded-full"
+          style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
         />
       )}
 
@@ -160,8 +161,11 @@ function PdfRecentListItem({
           {showProgress && (
             <div className="bg-muted mt-2 h-1 overflow-hidden rounded-full">
               <div
-                className="bg-primary/70 h-full rounded-full"
-                style={{ width: `${Math.round(progress * 100)}%` }}
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.round(progress * 100)}%`,
+                  backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))'
+                }}
               />
             </div>
           )}

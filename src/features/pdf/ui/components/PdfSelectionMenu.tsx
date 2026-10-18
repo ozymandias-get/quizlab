@@ -123,7 +123,7 @@ function PdfSelectionMenu({
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className="border-border bg-popover/95 text-popover-foreground shadow-ambient-lg z-dropdown motion-normal fixed rounded-xl border p-1 backdrop-blur-md"
+      className="border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-dropdown motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl"
       onMouseDown={(e) => {
         // Menüye tıklanınca metin seçimi kaybolmasın: içerik zaten snapshot'ta,
         // ama seçim kaybı yeni bir selectionchange tetikleyip menüyü kapatırdı.
@@ -140,7 +140,7 @@ function PdfSelectionMenu({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.fast }}
-            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2"
           >
             {feedbackContent.icon}
             <span className={['text-ql-12 min-w-0 font-medium', feedbackContent.tone].join(' ')}>
@@ -154,7 +154,7 @@ function PdfSelectionMenu({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: DURATION.fast }}
-            className="flex items-stretch"
+            className="flex items-stretch gap-1"
           >
             <button
               type="button"
@@ -162,22 +162,21 @@ function PdfSelectionMenu({
               data-testid="pdf-selection-send"
               disabled={isBusy}
               onClick={onSendToAi}
-              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              style={{
+                backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
+                color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
+              }}
+              className="focus-visible:ring-ring/40 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
             >
-              <span
-                className="bg-primary/12 text-primary group-hover:bg-primary/18 flex size-5 shrink-0 items-center justify-center rounded-md transition-colors"
-                aria-hidden
-              >
+              <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
                 {feedback === 'working' ? (
-                  <Loader2 className="text-primary size-3.5 animate-spin" />
+                  <Loader2 className="size-3.5 animate-spin" />
                 ) : (
-                  <Send className="size-3.5" strokeWidth={2} />
+                  <Send className="size-3.5" strokeWidth={2.2} />
                 )}
               </span>
               <span className="truncate">{t('send_to_ai')}</span>
             </button>
-
-            <span aria-hidden className="bg-border/70 my-1.5 w-px shrink-0" />
 
             <button
               type="button"
@@ -185,10 +184,11 @@ function PdfSelectionMenu({
               data-testid="pdf-selection-draft"
               disabled={isBusy}
               onClick={onAddToDraft}
-              className="hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-ring/40 group text-ql-12 flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/40 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
             >
               <span
-                className="bg-muted text-muted-foreground group-hover:bg-primary/12 group-hover:text-primary flex size-5 shrink-0 items-center justify-center rounded-md transition-colors"
+                style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
+                className="text-primary flex size-4 shrink-0 items-center justify-center transition-colors"
                 aria-hidden
               >
                 <BookmarkPlus className="size-3.5" strokeWidth={2} />
