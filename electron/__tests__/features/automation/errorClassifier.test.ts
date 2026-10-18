@@ -8,195 +8,184 @@ import {
 
 import { describe, expect, it } from 'vitest'
 
+/**
+ * `shared/lib/errorClassifier.ts` saf bir tablodur: her hata kodu tek bir
+ * karara (category / retry / triggerFallback) eşlenir. Bu dosya tablodaki her
+ * satırı TEK yerde toplar; yeni bir kod eklediğinde beklenti buraya girilir,
+ * tablo ile davranış böylece kilitlenir.
+ */
 describe('errorClassifier', () => {
-  describe('normalizeErrorCode', () => {
-    it('returns trimmed string for valid string codes', () => {
-      expect(normalizeErrorCode('  input_not_found  ')).toBe('input_not_found')
-    })
+  interface Row {
+    code: string
+    category: string
+    retry: string
+    triggerFallback: boolean
+    isUserActionable?: boolean
+    toastKey?: string
+  }
 
-    it('collapses framework noise to unknown', () => {
-      expect(normalizeErrorCode('Illegal invocation')).toBe('unknown')
-      expect(normalizeErrorCode('')).toBe('unknown')
-      expect(normalizeErrorCode('   ')).toBe('unknown')
-    })
+  const TABLE: Row[] = [
+    // selector
+    {
+      code: 'input_not_found',
+      category: 'selector',
+      retry: 'after-repick',
+      triggerFallback: false,
+      isUserActionable: true,
+      toastKey: 'toast_input_not_found'
+    },
+    {
+      code: 'button_not_found',
+      category: 'selector',
+      retry: 'after-repick',
+      triggerFallback: false
+    },
+    {
+      code: 'selector_repick_required',
+      category: 'selector',
+      retry: 'never',
+      triggerFallback: false,
+      isUserActionable: true
+    },
+    {
+      code: 'ambiguous_match',
+      category: 'selector',
+      retry: 'after-repick',
+      triggerFallback: false
+    },
+    // submit
+    {
+      code: 'submit_not_ready',
+      category: 'submit',
+      retry: 'different-strategy',
+      triggerFallback: true
+    },
+    {
+      code: 'submit_failed',
+      category: 'submit',
+      retry: 'same-strategy',
+      triggerFallback: true
+    },
+    {
+      code: 'autosend_failed_draft_saved',
+      category: 'submit',
+      retry: 'never',
+      triggerFallback: false
+    },
+    // paste / upload / clipboard
+    { code: 'paste_failed', category: 'paste', retry: 'different-strategy', triggerFallback: true },
+    {
+      code: 'upload_failed',
+      category: 'upload',
+      retry: 'different-strategy',
+      triggerFallback: true
+    },
+    {
+      code: 'upload_timed_out',
+      category: 'upload',
+      retry: 'after-backoff',
+      triggerFallback: false
+    },
+    {
+      code: 'clipboard_failed',
+      category: 'clipboard',
+      retry: 'after-backoff',
+      triggerFallback: false
+    },
+    // network / timeout
+    { code: 'network_error', category: 'network', retry: 'after-backoff', triggerFallback: false },
+    { code: 'timed_out', category: 'timeout', retry: 'same-strategy', triggerFallback: false },
+    // Jenerik `(timeout|timed_out)` alt dize eşleşmesi.
+    {
+      code: 'image_upload_timed_out',
+      category: 'timeout',
+      retry: 'same-strategy',
+      triggerFallback: false
+    },
+    {
+      code: 'click_send_timeout',
+      category: 'timeout',
+      retry: 'same-strategy',
+      triggerFallback: false
+    },
+    {
+      code: 'paste_timed_out',
+      category: 'timeout',
+      retry: 'same-strategy',
+      triggerFallback: false
+    },
+    // webview / permission / site / config
+    { code: 'webview_destroyed', category: 'webview', retry: 'never', triggerFallback: false },
+    {
+      code: 'auth_required',
+      category: 'permission',
+      retry: 'never',
+      triggerFallback: false,
+      isUserActionable: true
+    },
+    { code: 'wrong_url', category: 'site', retry: 'never', triggerFallback: false },
+    { code: 'config_not_found', category: 'config', retry: 'never', triggerFallback: false },
+    { code: 'empty_text', category: 'config', retry: 'never', triggerFallback: false },
+    // Bilinmeyen kod → unknown fallback.
+    {
+      code: 'mystery_failure_xyz',
+      category: 'unknown',
+      retry: 'same-strategy',
+      triggerFallback: true,
+      toastKey: 'toast_automation_failed'
+    }
+  ]
 
-    it('coerces numbers and rejects everything else', () => {
-      expect(normalizeErrorCode(500)).toBe('500')
-      expect(normalizeErrorCode(null)).toBe('unknown')
-      expect(normalizeErrorCode(undefined)).toBe('unknown')
-      expect(normalizeErrorCode({})).toBe('unknown')
-      expect(normalizeErrorCode([])).toBe('unknown')
-    })
+  it('maps every ERROR_TABLE code to its category / retry / fallback decision', () => {
+    for (const row of TABLE) {
+      const classified = classifyAutomationError(row.code)
+      expect(
+        { code: row.code, category: classified.category, retry: classified.retry },
+        `ERROR_TABLE row drifted for ${row.code}`
+      ).toEqual({ code: row.code, category: row.category, retry: row.retry })
+      expect(classified.triggerFallback, `triggerFallback drifted for ${row.code}`).toBe(
+        row.triggerFallback
+      )
+      if (row.isUserActionable !== undefined) {
+        expect(classified.isUserActionable, `isUserActionable drifted for ${row.code}`).toBe(
+          row.isUserActionable
+        )
+      }
+      if (row.toastKey) {
+        expect(classified.toastKey, `toastKey drifted for ${row.code}`).toBe(row.toastKey)
+      }
+    }
+
+    // Non-string error inputs must not throw.
+    const undefinedCode = classifyAutomationError(undefined).code
+    expect(undefinedCode).toBe('unknown')
   })
 
-  describe('classifyAutomationError - selector category', () => {
-    it('classifies input_not_found as selector / after-repick / user-actionable', () => {
-      const c = classifyAutomationError('input_not_found')
-      expect(c.category).toBe('selector')
-      expect(c.retry).toBe('after-repick')
-      expect(c.isUserActionable).toBe(true)
-      expect(c.toastKey).toBe('toast_input_not_found')
-    })
-
-    it('classifies button_not_found as selector / after-repick', () => {
-      const c = classifyAutomationError('button_not_found')
-      expect(c.category).toBe('selector')
-      expect(c.retry).toBe('after-repick')
-    })
-
-    it('classifies selector_repick_required as selector / never (user must act)', () => {
-      const c = classifyAutomationError('selector_repick_required')
-      expect(c.category).toBe('selector')
-      expect(c.retry).toBe('never')
-      expect(c.isUserActionable).toBe(true)
-    })
-
-    it('classifies ambiguous_match as selector / after-repick', () => {
-      const c = classifyAutomationError('ambiguous_match')
-      expect(c.category).toBe('selector')
-      expect(c.retry).toBe('after-repick')
-    })
+  it('normalizes codes, framework noise and non-strings', () => {
+    expect(normalizeErrorCode('  input_not_found  ')).toBe('input_not_found')
+    expect(normalizeErrorCode(500)).toBe('500')
+    for (const raw of ['Illegal invocation', '', '   ', null, undefined, {}, []]) {
+      expect(normalizeErrorCode(raw)).toBe('unknown')
+    }
   })
 
-  describe('classifyAutomationError - submit / paste / upload', () => {
-    it('classifies submit_not_ready as submit / different-strategy / triggerFallback', () => {
-      const c = classifyAutomationError('submit_not_ready')
-      expect(c.category).toBe('submit')
-      expect(c.retry).toBe('different-strategy')
-      expect(c.triggerFallback).toBe(true)
-    })
+  it('derives shouldRequestRepick / isRetryable / errorCategoryOf consistently', () => {
+    expect(shouldRequestRepick('input_not_found')).toBe(true)
+    expect(shouldRequestRepick('button_not_found')).toBe(true)
+    expect(shouldRequestRepick('ambiguous_match')).toBe(true)
+    expect(shouldRequestRepick('submit_failed')).toBe(false)
+    expect(shouldRequestRepick('submit_not_ready')).toBe(false)
+    expect(shouldRequestRepick('selector_repick_required')).toBe(false) // 'never'
 
-    it('classifies submit_failed as submit / same-strategy / triggerFallback', () => {
-      const c = classifyAutomationError('submit_failed')
-      expect(c.category).toBe('submit')
-      expect(c.retry).toBe('same-strategy')
-      expect(c.triggerFallback).toBe(true)
-    })
+    expect(isRetryable('submit_failed')).toBe(true) // same-strategy
+    expect(isRetryable('submit_not_ready')).toBe(true) // different-strategy
+    expect(isRetryable('clipboard_failed')).toBe(true) // after-backoff
+    expect(isRetryable('input_not_found')).toBe(false) // after-repick
+    expect(isRetryable('webview_destroyed')).toBe(false) // never
+    expect(isRetryable('mystery_xyz')).toBe(true) // unknown → same-strategy
 
-    it('classifies paste_failed as paste / different-strategy', () => {
-      const c = classifyAutomationError('paste_failed')
-      expect(c.category).toBe('paste')
-      expect(c.retry).toBe('different-strategy')
-      expect(c.triggerFallback).toBe(true)
-    })
-
-    it('classifies upload_failed as upload / different-strategy', () => {
-      const c = classifyAutomationError('upload_failed')
-      expect(c.category).toBe('upload')
-      expect(c.retry).toBe('different-strategy')
-    })
-
-    it('classifies upload_timed_out as upload / after-backoff', () => {
-      const c = classifyAutomationError('upload_timed_out')
-      expect(c.category).toBe('upload')
-      expect(c.retry).toBe('after-backoff')
-    })
-
-    it('classifies clipboard_failed as clipboard / after-backoff', () => {
-      const c = classifyAutomationError('clipboard_failed')
-      expect(c.category).toBe('clipboard')
-      expect(c.retry).toBe('after-backoff')
-    })
-
-    it('classifies autosend_failed_draft_saved as submit / never (no auto-retry)', () => {
-      const c = classifyAutomationError('autosend_failed_draft_saved')
-      expect(c.category).toBe('submit')
-      expect(c.retry).toBe('never')
-    })
-  })
-
-  describe('classifyAutomationError - network / timeout', () => {
-    it('classifies network_error as network / after-backoff', () => {
-      const c = classifyAutomationError('network_error')
-      expect(c.category).toBe('network')
-      expect(c.retry).toBe('after-backoff')
-    })
-
-    it('classifies timed_out as timeout / same-strategy', () => {
-      const c = classifyAutomationError('timed_out')
-      expect(c.category).toBe('timeout')
-      expect(c.retry).toBe('same-strategy')
-    })
-
-    it('catches any "timeout" or "timed_out" substring as timeout category', () => {
-      expect(classifyAutomationError('image_upload_timed_out').category).toBe('timeout')
-      expect(classifyAutomationError('click_send_timeout').category).toBe('timeout')
-      expect(classifyAutomationError('paste_timed_out').category).toBe('timeout')
-    })
-  })
-
-  describe('classifyAutomationError - webview / permission / site / config', () => {
-    it('classifies webview_destroyed as webview / never', () => {
-      const c = classifyAutomationError('webview_destroyed')
-      expect(c.category).toBe('webview')
-      expect(c.retry).toBe('never')
-    })
-
-    it('classifies auth_required as permission / never / user-actionable', () => {
-      const c = classifyAutomationError('auth_required')
-      expect(c.category).toBe('permission')
-      expect(c.retry).toBe('never')
-      expect(c.isUserActionable).toBe(true)
-    })
-
-    it('classifies wrong_url as site / never', () => {
-      const c = classifyAutomationError('wrong_url')
-      expect(c.category).toBe('site')
-      expect(c.retry).toBe('never')
-    })
-
-    it('classifies config_not_found as config / never', () => {
-      const c = classifyAutomationError('config_not_found')
-      expect(c.category).toBe('config')
-      expect(c.retry).toBe('never')
-    })
-
-    it('classifies empty_text as config / never', () => {
-      const c = classifyAutomationError('empty_text')
-      expect(c.category).toBe('config')
-      expect(c.retry).toBe('never')
-    })
-  })
-
-  describe('classifyAutomationError - unknown', () => {
-    it('falls back to unknown / same-strategy / triggerFallback for unrecognized codes', () => {
-      const c = classifyAutomationError('mystery_failure_xyz')
-      expect(c.category).toBe('unknown')
-      expect(c.retry).toBe('same-strategy')
-      expect(c.triggerFallback).toBe(true)
-      expect(c.toastKey).toBe('toast_automation_failed')
-    })
-
-    it('handles non-string error inputs without throwing', () => {
-      const c = classifyAutomationError(undefined)
-      expect(c.code).toBe('unknown')
-      expect(c.category).toBe('unknown')
-    })
-  })
-
-  describe('helpers', () => {
-    it('shouldRequestRepick returns true for after-repick errors only', () => {
-      expect(shouldRequestRepick('input_not_found')).toBe(true)
-      expect(shouldRequestRepick('button_not_found')).toBe(true)
-      expect(shouldRequestRepick('ambiguous_match')).toBe(true)
-      expect(shouldRequestRepick('submit_failed')).toBe(false)
-      expect(shouldRequestRepick('submit_not_ready')).toBe(false)
-      expect(shouldRequestRepick('selector_repick_required')).toBe(false) // 'never'
-    })
-
-    it('isRetryable excludes never and after-repick', () => {
-      expect(isRetryable('submit_failed')).toBe(true) // same-strategy
-      expect(isRetryable('submit_not_ready')).toBe(true) // different-strategy
-      expect(isRetryable('clipboard_failed')).toBe(true) // after-backoff
-      expect(isRetryable('input_not_found')).toBe(false) // after-repick
-      expect(isRetryable('webview_destroyed')).toBe(false) // never
-      expect(isRetryable('mystery_xyz')).toBe(true) // unknown → same-strategy
-    })
-
-    it('errorCategoryOf returns just the category for log/metric use', () => {
-      expect(errorCategoryOf('input_not_found')).toBe('selector')
-      expect(errorCategoryOf('paste_failed')).toBe('paste')
-      expect(errorCategoryOf('totally_random')).toBe('unknown')
-    })
+    expect(errorCategoryOf('input_not_found')).toBe('selector')
+    expect(errorCategoryOf('paste_failed')).toBe('paste')
+    expect(errorCategoryOf('totally_random')).toBe('unknown')
   })
 })

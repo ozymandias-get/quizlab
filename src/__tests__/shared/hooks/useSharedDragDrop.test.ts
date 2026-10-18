@@ -27,6 +27,16 @@ function makeDragEvent(overrides: Partial<any> = {}): any {
   }
 }
 
+/** A drag carrying files — the only shape the drag handlers treat as a drop. */
+function fileDrag(files: File[] = []): any {
+  return makeDragEvent({ dataTransfer: { types: ['Files'], files, dropEffect: '' } })
+}
+
+/** A drag carrying text — never a drop, whatever the handler does with it. */
+function textDrag(): any {
+  return makeDragEvent({ dataTransfer: { types: ['text'], files: [], dropEffect: '' } })
+}
+
 function makeFile(name: string, path?: string): File {
   const file = new File(['content'], name, { type: 'application/pdf' })
   ;(file as any).path = path
@@ -43,9 +53,7 @@ describe('useSharedDragDrop', () => {
     it('sets isDragOver=true when files are being dragged', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       expect(result.current.isDragOver).toBe(true)
     })
@@ -53,16 +61,14 @@ describe('useSharedDragDrop', () => {
     it('does not set isDragOver=true for non-file drags', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['text'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(textDrag())
       })
       expect(result.current.isDragOver).toBe(false)
     })
 
     it('calls preventDefault and stopPropagation', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-      const event = makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
+      const event = fileDrag()
       act(() => {
         result.current.dragHandlers.onDragEnter(event)
       })
@@ -73,14 +79,10 @@ describe('useSharedDragDrop', () => {
     it('increments internal counter on each enter (handles nested elements)', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       // Even after 2 enters and 1 leave, isDragOver should still be true
       act(() => {
@@ -93,7 +95,7 @@ describe('useSharedDragDrop', () => {
   describe('onDragOver', () => {
     it('sets dropEffect to "copy" when files are being dragged', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-      const event = makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
+      const event = fileDrag()
       act(() => {
         result.current.dragHandlers.onDragOver(event)
       })
@@ -102,7 +104,7 @@ describe('useSharedDragDrop', () => {
 
     it('does not change dropEffect for non-file drags', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-      const event = makeDragEvent({ dataTransfer: { types: ['text'], files: [], dropEffect: '' } })
+      const event = textDrag()
       act(() => {
         result.current.dragHandlers.onDragOver(event)
       })
@@ -114,9 +116,7 @@ describe('useSharedDragDrop', () => {
     it('clears isDragOver when counter reaches 0', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       expect(result.current.isDragOver).toBe(true)
 
@@ -129,12 +129,8 @@ describe('useSharedDragDrop', () => {
     it('keeps isDragOver=true when there are unpaired enters', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       act(() => {
         result.current.dragHandlers.onDragLeave(makeDragEvent())
@@ -159,9 +155,7 @@ describe('useSharedDragDrop', () => {
       const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
       const file = makeFile('test.pdf', '/path/to/test.pdf')
       act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [file], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDrop(fileDrag([file]))
       })
       expect(onFileReceived).toHaveBeenCalledWith(file)
     })
@@ -170,28 +164,25 @@ describe('useSharedDragDrop', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       const file = makeFile('test.pdf', '/path/to/test.pdf')
       act(() => {
-        result.current.dragHandlers.onDragEnter(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDragEnter(fileDrag())
       })
       expect(result.current.isDragOver).toBe(true)
 
       act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [file], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDrop(fileDrag([file]))
       })
       expect(result.current.isDragOver).toBe(false)
     })
 
-    it('filters to PDF files only', () => {
+    it.each([
+      ['a non-PDF file', 'test.txt', '/path/to/test.txt'],
+      ['an empty file list', null, null]
+    ])('does not call onFileReceived for %s', (_label, name, path) => {
       const onFileReceived = vi.fn()
       const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
-      const txtFile = makeFile('test.txt', '/path/to/test.txt')
+      const files = name === null ? [] : [makeFile(name, path as string)]
       act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [txtFile], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDrop(fileDrag(files))
       })
       expect(onFileReceived).not.toHaveBeenCalled()
     })
@@ -201,9 +192,7 @@ describe('useSharedDragDrop', () => {
       const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
       const file = makeFile('TEST.PDF', '/path/to/TEST.PDF')
       act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [file], dropEffect: '' } })
-        )
+        result.current.dragHandlers.onDrop(fileDrag([file]))
       })
       expect(onFileReceived).toHaveBeenCalledWith(file)
     })
@@ -214,24 +203,9 @@ describe('useSharedDragDrop', () => {
       const file1 = makeFile('first.pdf', '/path/first.pdf')
       const file2 = makeFile('second.pdf', '/path/second.pdf')
       act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({
-            dataTransfer: { types: ['Files'], files: [file1, file2], dropEffect: '' }
-          })
-        )
+        result.current.dragHandlers.onDrop(fileDrag([file1, file2]))
       })
       expect(onFileReceived).toHaveBeenCalledWith(file1)
-    })
-
-    it('does not call onFileReceived when no PDF is dropped', () => {
-      const onFileReceived = vi.fn()
-      const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
-      act(() => {
-        result.current.dragHandlers.onDrop(
-          makeDragEvent({ dataTransfer: { types: ['Files'], files: [], dropEffect: '' } })
-        )
-      })
-      expect(onFileReceived).not.toHaveBeenCalled()
     })
   })
 })

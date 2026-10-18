@@ -29,14 +29,9 @@ vi.mock('@headlessui/react', () => {
 })
 
 describe('ColorPicker', () => {
-  it('renders with label and color value', () => {
-    render(<ColorPicker color="#aabbcc" onChange={() => {}} label="Primary Color" />)
-
-    expect(screen.getByText('Primary Color')).toBeInTheDocument()
-    expect(screen.getAllByText('#aabbcc')[0]).toBeInTheDocument()
-  })
-
-  it('calls onChange when color is picked', () => {
+  // The component's only contract is forwarding the react-colorful selection to
+  // the caller's onChange; everything else is presentational.
+  it('calls onChange when a color is picked', () => {
     const onChange = vi.fn()
     render(<ColorPicker color="#ffffff" onChange={onChange} />)
 

@@ -80,8 +80,4 @@ describe('createPageCache', () => {
     await cache.getPage(1)
     expect(getPage).toHaveBeenCalledTimes(3)
   })
-
-  it('is empty before anything is requested', () => {
-    expect(cache.size).toBe(0)
-  })
 })

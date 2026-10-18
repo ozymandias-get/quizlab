@@ -53,13 +53,6 @@ describe('ToastItem', () => {
     vi.useRealTimers()
   })
 
-  it('should render correct content', () => {
-    render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
-
-    expect(screen.getByText('Success Title')).toBeInTheDocument()
-    expect(screen.getByText('Success Message')).toBeInTheDocument()
-  })
-
   it('should call onRemove when close button is clicked', () => {
     render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
 

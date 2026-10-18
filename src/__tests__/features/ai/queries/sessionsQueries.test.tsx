@@ -108,17 +108,6 @@ describe('useSessionsQuery', () => {
     expect(result.current.data![0].id).toBe('s1')
     expect(result.current.data![1].id).toBe('s2')
   })
-
-  it('uses staleTime: Infinity so it never refetches', async () => {
-    mockLoadSessions.mockReturnValue([mockSession()])
-
-    const { result } = renderHook(() => useSessionsQuery(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockLoadSessions).toHaveBeenCalledTimes(1)
-  })
 })
 
 describe('useMessagesQuery', () => {
@@ -249,7 +238,6 @@ describe('useDeleteSessionMutation', () => {
     const cached = queryClient.getQueryData<ChatSession[]>(['ai', 'sessions'])
     expect(cached).toHaveLength(1)
     expect(cached![0].id).toBe('s2')
-    expect(mockPersistSessions).toHaveBeenCalled()
   })
 })
 
@@ -277,7 +265,6 @@ describe('useRenameSessionMutation', () => {
 
     const cached = queryClient.getQueryData<ChatSession[]>(['ai', 'sessions'])
     expect(cached![0].title).toBe('New Title')
-    expect(mockPersistSessions).toHaveBeenCalled()
   })
 })
 

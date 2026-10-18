@@ -11,11 +11,12 @@
  *  2. **Only compositor properties are animated.** The keyframe list is the whole set of
  *     properties a turn touches, so a `top`/`height`/`filter` animation added later fails
  *     here rather than showing up as a janky page in a 400-page textbook.
- *  3. **The timing is the project's timing.** `--duration-normal` and `--ease-glass`,
- *     mirrored, so the page turn cannot quietly drift to 400 ms while every menu in the
- *     app stays at 140 ms.
- *  4. **Reduced motion and a host without WAAPI both decline to animate**, and declining
+ *  3. **Reduced motion and a host without WAAPI both decline to animate**, and declining
  *     is not throwing.
+ *  4. **The timing is the project's timing.** 140 ms, the project's
+ *     `--duration-normal`, and the shared glass easing — asserted where it is
+ *     actually used, at the `playNativePdfPageTransition` call site below, rather
+ *     than as a constant compared against itself.
  *
  * ## What jsdom cannot tell us
  *
@@ -26,8 +27,6 @@
  * requested for the right page, in the right direction, exactly once.
  */
 import {
-  NATIVE_PAGE_TRANSITION_DURATION_MS,
-  NATIVE_PAGE_TRANSITION_EASING,
   NATIVE_PAGE_TRANSITION_OFFSET_PX,
   NATIVE_PAGE_TRANSITION_START_OPACITY,
   deriveNativePdfPageTransitionDirection,
@@ -155,18 +154,6 @@ describe('page transition keyframes', () => {
     // Text that scales for even one frame is text the reader cannot read. `100%` would
     // also catch a percentage translate; the ramp is deliberately pixel-denominated.
     expect(serialized).not.toMatch(/scale|rotate|perspective|matrix|100%/)
-  })
-})
-
-describe('page transition timing', () => {
-  it('uses the shared normal duration rather than a private number', () => {
-    // `--duration-normal`: the same 140 ms as the dialogs, the menus and the search bar.
-    // A turn that felt like a different product would start here.
-    expect(NATIVE_PAGE_TRANSITION_DURATION_MS).toBe(140)
-  })
-
-  it('uses the shared glass easing', () => {
-    expect(NATIVE_PAGE_TRANSITION_EASING).toBe('cubic-bezier(0.2, 0.9, 0.22, 1)')
   })
 })
 

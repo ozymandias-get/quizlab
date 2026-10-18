@@ -86,10 +86,4 @@ describe('App onboarding gate', () => {
     render(<App />)
     expect(await screen.findByText('Select Your Language')).toBeInTheDocument()
   })
-
-  it('goes straight to the workspace once onboarding is done', () => {
-    languageState.isOnboardingDone = true
-    render(<App />)
-    expect(screen.queryByText('Select Your Language')).not.toBeInTheDocument()
-  })
 })

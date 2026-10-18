@@ -25,60 +25,40 @@ function makeSite(id: string, opts: Partial<AiPlatform> = {}): AiPlatform {
 }
 
 describe('safeAiAccentColor', () => {
-  it('returns valid 6-digit hex color', () => {
-    expect(safeAiAccentColor('#ff0000')).toBe('#ff0000')
-  })
+  const DEFAULT_ACCENT = '#6ee7b7'
 
-  it('returns valid 3-digit hex color', () => {
-    expect(safeAiAccentColor('#f0f')).toBe('#f0f')
-    expect(safeAiAccentColor('#FFF')).toBe('#FFF')
-  })
-
-  it('returns default for invalid hex', () => {
-    expect(safeAiAccentColor('not-a-color')).toBe('#6ee7b7')
-    expect(safeAiAccentColor('red')).toBe('#6ee7b7')
-    expect(safeAiAccentColor('#xyz')).toBe('#6ee7b7')
-  })
-
-  it('returns default for empty string', () => {
-    expect(safeAiAccentColor('')).toBe('#6ee7b7')
-  })
-
-  it('returns default for undefined', () => {
-    expect(safeAiAccentColor()).toBe('#6ee7b7')
-  })
-
-  it('returns default for hex without #', () => {
-    expect(safeAiAccentColor('ff0000')).toBe('#6ee7b7')
-  })
-
-  it('returns default for too long hex', () => {
-    expect(safeAiAccentColor('#1234567')).toBe('#6ee7b7')
-  })
-
-  it('accepts case-insensitive hex', () => {
-    expect(safeAiAccentColor('#ABCDEF')).toBe('#ABCDEF')
-    expect(safeAiAccentColor('#abcdef')).toBe('#abcdef')
+  // Every rejected shape collapses to the same fallback: the point of this
+  // function is that a malformed colour can never reach the stylesheet.
+  it.each([
+    ['a valid 6-digit hex', '#ff0000', '#ff0000'],
+    ['a valid 3-digit hex', '#f0f', '#f0f'],
+    ['uppercase hex is preserved verbatim', '#ABCDEF', '#ABCDEF'],
+    ['a non-hex word', 'not-a-color', DEFAULT_ACCENT],
+    ['a css colour name', 'red', DEFAULT_ACCENT],
+    ['hex digits after a bad hash', '#xyz', DEFAULT_ACCENT],
+    ['an empty string', '', DEFAULT_ACCENT],
+    ['an undefined value', undefined, DEFAULT_ACCENT],
+    ['hex without the leading hash', 'ff0000', DEFAULT_ACCENT],
+    ['a hex longer than 6 digits', '#1234567', DEFAULT_ACCENT]
+  ])('safeAiAccentColor on %s', (_case, input, expected) => {
+    expect(safeAiAccentColor(input)).toBe(expected)
   })
 })
 
 describe('mergeOrderedIds', () => {
-  it('preserves the order of items that are in both lists', () => {
-    const previous = ['a', 'b', 'c']
-    const next = ['a', 'b', 'c']
-    expect(mergeOrderedIds(previous, next)).toEqual(['a', 'b', 'c'])
-  })
-
-  it('appends new items to the end', () => {
-    const previous = ['a', 'b']
-    const next = ['a', 'b', 'c', 'd']
-    expect(mergeOrderedIds(previous, next)).toEqual(['a', 'b', 'c', 'd'])
-  })
-
-  it('removes items that are no longer in next', () => {
-    const previous = ['a', 'b', 'c']
-    const next = ['a', 'c']
-    expect(mergeOrderedIds(previous, next)).toEqual(['a', 'c'])
+  // Ordering is the whole contract here: ids already in `previous` keep their
+  // old slot, new ids append in `next` order, dropped ids disappear.
+  it.each([
+    ['an identical list keeps its order', ['a', 'b', 'c'], ['a', 'b', 'c'], ['a', 'b', 'c']],
+    ['new items append to the end', ['a', 'b'], ['a', 'b', 'c', 'd'], ['a', 'b', 'c', 'd']],
+    ['items missing from next are removed', ['a', 'b', 'c'], ['a', 'c'], ['a', 'c']],
+    ['an empty previous takes everything', [], ['a', 'b'], ['a', 'b']],
+    ['an empty next drops everything', ['a', 'b'], [], []],
+    ['both empty stays empty', [], [], []],
+    ['completely new ids replace the old ones', ['a', 'b'], ['c', 'd'], ['c', 'd']],
+    ['previous order wins over next order', ['b', 'a'], ['a', 'b', 'c'], ['b', 'a', 'c']]
+  ])('%s', (_case, previous, next, expected) => {
+    expect(mergeOrderedIds(previous, next)).toEqual(expected)
   })
 
   it('returns the same array reference when nothing changes (perf optimization)', () => {
@@ -89,36 +69,11 @@ describe('mergeOrderedIds', () => {
     expect(result).toBe(previous)
   })
 
-  it('returns new reference when items change', () => {
+  it('returns a new reference when the contents change', () => {
     const prev = ['a', 'b']
     const result = mergeOrderedIds(prev, ['a', 'b', 'c'])
     expect(result).not.toBe(prev)
     expect(result).toEqual(['a', 'b', 'c'])
-  })
-
-  it('handles empty previous', () => {
-    expect(mergeOrderedIds([], ['a', 'b'])).toEqual(['a', 'b'])
-  })
-
-  it('handles empty next', () => {
-    expect(mergeOrderedIds(['a', 'b'], [])).toEqual([])
-  })
-
-  it('handles both empty', () => {
-    expect(mergeOrderedIds([], [])).toEqual([])
-  })
-
-  it('handles completely new ids', () => {
-    const result = mergeOrderedIds(['a', 'b'], ['c', 'd'])
-    expect(result).toEqual(['c', 'd'])
-  })
-
-  it('preserves previous order even when next has different order', () => {
-    // We keep the order of items that are already in `previous`,
-    // and append new items in the order they appear in `next`.
-    const previous = ['b', 'a']
-    const next = ['a', 'b', 'c']
-    expect(mergeOrderedIds(previous, next)).toEqual(['b', 'a', 'c'])
   })
 })
 

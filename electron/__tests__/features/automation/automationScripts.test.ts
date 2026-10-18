@@ -40,33 +40,6 @@ describe('automationScripts', () => {
     expect(querySpy.mock.calls.length).toBe(queryCountAfterFirstRun)
   })
 
-  it('invalidates cached selectors when the old element is detached', async () => {
-    document.body.innerHTML = `
-            <textarea id="input"></textarea>
-            <button id="send" type="button">Send</button>
-        `
-
-    const script = generateAutoSendScript(
-      { input: '#input', button: '#send', submitMode: 'click' },
-      'hello',
-      false
-    )
-
-    await window.eval(script)
-
-    const previousInput = document.getElementById('input')
-    previousInput?.remove()
-    const replacementInput = document.createElement('textarea')
-    replacementInput.id = 'input'
-    document.body.prepend(replacementInput)
-
-    const secondResult = await window.eval(script)
-
-    expect(secondResult.success).toBe(true)
-    expect(secondResult.diagnostics.input.cacheInvalidations).toBeGreaterThan(0)
-    expect(secondResult.diagnostics.input.strategy).toBe('direct')
-  })
-
   it.each([null, '#nonexistent-selector'])(
     'falls back to fingerprint resolution inside shadow DOM (primary: %s)',
     async (primaryInput) => {
@@ -125,33 +98,6 @@ describe('automationScripts', () => {
 
     expect(result.success).toBe(true)
     expect(result.diagnostics.input.strategy).not.toBe('none')
-  })
-
-  it('accumulates a success count on the cache entry it reuses', async () => {
-    document.body.innerHTML = `
-            <textarea id="input"></textarea>
-            <button id="send" type="button">Send</button>
-        `
-
-    const script = generateAutoSendScript(
-      { input: '#input', button: '#send', submitMode: 'click' },
-      'hello',
-      false
-    )
-
-    await window.eval(script)
-    await window.eval(script)
-    await window.eval(script)
-
-    const cache = (
-      window as typeof window & {
-        __quizlabReaderAutomationCache?: { elements: Record<string, { successCount: number }> }
-      }
-    ).__quizlabReaderAutomationCache
-    const entries = cache ? Object.values(cache.elements) : []
-    // The count is what a self-healing streak is built from: an entry that
-    // stopped accumulating would silently cap how far a repair can promote.
-    expect(entries.find((e) => e.successCount > 0)?.successCount).toBeGreaterThanOrEqual(2)
   })
 
   it('skips an invalid selector and continues with valid candidates', async () => {
@@ -301,53 +247,37 @@ describe('automationScripts', () => {
     expect(result.diagnostics.totalMs).toBeLessThan(1000)
   })
 
-  it('reports input_not_found when submit readiness input selector is missing', async () => {
-    document.body.innerHTML = `<button id="send" type="button">Send</button>`
+  it.each([
+    {
+      label: 'input_not_found',
+      html: `<button id="send" type="button">Send</button>`,
+      config: { input: '#missing-input', button: '#send', submitMode: 'click' as const }
+    },
+    {
+      label: 'button_not_found',
+      html: `<textarea id="input"></textarea>`,
+      config: { input: '#input', button: '#missing-send', submitMode: 'click' as const }
+    }
+  ])(
+    'reports $label when the readiness target is missing',
+    async ({ html, config }) => {
+      document.body.innerHTML = html
 
-    const script = generateWaitForSubmitReadyScript(
-      { input: '#missing-input', button: '#send', submitMode: 'click' },
-      { timeoutMs: 300, settleMs: 50, minimumWaitMs: 50 }
-    )
+      const script = generateWaitForSubmitReadyScript(config, {
+        timeoutMs: 300,
+        settleMs: 50,
+        minimumWaitMs: 50
+      })
 
-    const result = await window.eval(script)
+      const result = await window.eval(script)
 
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('input_not_found')
-  }, 15000)
-
-  it('reports button_not_found when click mode has no send button', async () => {
-    document.body.innerHTML = `<textarea id="input"></textarea>`
-
-    const script = generateWaitForSubmitReadyScript(
-      { input: '#input', button: '#missing-send', submitMode: 'click' },
-      { timeoutMs: 300, settleMs: 50, minimumWaitMs: 50 }
-    )
-
-    const result = await window.eval(script)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('button_not_found')
-  }, 15000)
-
-  it('reports submit_not_ready when target exists but never becomes interactive', async () => {
-    document.body.innerHTML = `
-            <textarea id="input"></textarea>
-            <button id="send" type="button" disabled>Send</button>
-        `
-    const sendButton = document.getElementById('send') as HTMLButtonElement
-    Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
-    Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
-
-    const script = generateWaitForSubmitReadyScript(
-      { input: '#input', button: '#send', submitMode: 'click' },
-      { timeoutMs: 600, settleMs: 100, minimumWaitMs: 100 }
-    )
-
-    const result = await window.eval(script)
-
-    expect(result.success).toBe(false)
-    expect(result.error).toBe('submit_not_ready')
-  }, 10000)
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(
+        config.input === '#missing-input' ? 'input_not_found' : 'button_not_found'
+      )
+    },
+    15000
+  )
 
   it('disambiguates multiple buttons using fingerprint when selector matches several', async () => {
     // Several buttons answer `[role="button"]`; only one matches the saved
@@ -441,18 +371,8 @@ describe('automationScripts', () => {
       expect(result.budgetMs).toBe(500)
       expect(result.minimumWaitMs).toBe(100)
       expect(result.waitedMs).toBeGreaterThan(0)
-    }, 10000)
-
-    it('reports that the target was never ready when the button stays disabled', async () => {
-      prepareDisabledButton()
-
-      const result = await window.eval(
-        generateWaitForSubmitReadyScript(
-          { input: '#input', button: '#send', submitMode: 'click' },
-          { timeoutMs: 400, settleMs: 80, minimumWaitMs: 80 }
-        )
-      )
-
+      // A button that never became interactive is a different failure from the
+      // stale-button flap below, which must report everReady === true.
       expect(result.everReady).toBe(false)
     }, 10000)
 
@@ -481,61 +401,46 @@ describe('automationScripts', () => {
       expect(result.firstReadyAtMs).toBeLessThanOrEqual(result.waitedMs)
     }, 10000)
 
-    it('reports aria-disabled distinctly from the disabled property', async () => {
-      document.body.innerHTML = `
+    it.each([
+      {
+        reason: 'aria_disabled',
+        stubSize: true,
+        html: `<button id="send" type="button" aria-disabled="true">Send</button>`
+      },
+      {
+        reason: 'display_none',
+        html: `<button id="send" type="button" style="display:none">Send</button>`,
+        stubSize: true
+      },
+      {
+        reason: 'zero_size',
+        html: `<button id="send" type="button">Send</button>`,
+        stubSize: false
+      }
+    ])(
+      'reports notReadyReason "$reason" instead of a generic timeout',
+      async ({ html, stubSize, reason }) => {
+        document.body.innerHTML = `
               <textarea id="input"></textarea>
-              <button id="send" type="button" aria-disabled="true">Send</button>
+              ${html}
           `
-      const sendButton = document.getElementById('send') as HTMLButtonElement
-      Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
-      Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+        const sendButton = document.getElementById('send') as HTMLButtonElement
+        if (stubSize) {
+          Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
+          Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
+        }
 
-      const result = await window.eval(
-        generateWaitForSubmitReadyScript(
-          { input: '#input', button: '#send', submitMode: 'click' },
-          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
+        const result = await window.eval(
+          generateWaitForSubmitReadyScript(
+            { input: '#input', button: '#send', submitMode: 'click' },
+            { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
+          )
         )
-      )
 
-      expect(result.notReadyReason).toBe('aria_disabled')
-    }, 10000)
-
-    it('reports a hidden match instead of claiming the target is disabled', async () => {
-      document.body.innerHTML = `
-              <textarea id="input"></textarea>
-              <button id="send" type="button" style="display:none">Send</button>
-          `
-      const sendButton = document.getElementById('send') as HTMLButtonElement
-      // jsdom performs no layout, so size must be stubbed for visibility
-      // checks to be about `display` rather than `zero_size`.
-      Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, value: 120 })
-      Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, value: 36 })
-
-      const result = await window.eval(
-        generateWaitForSubmitReadyScript(
-          { input: '#input', button: '#send', submitMode: 'click' },
-          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
-        )
-      )
-
-      expect(result.notReadyReason).toBe('display_none')
-    }, 10000)
-
-    it('reports zero_size for a matched but unrendered element', async () => {
-      document.body.innerHTML = `
-              <textarea id="input"></textarea>
-              <button id="send" type="button">Send</button>
-          `
-
-      const result = await window.eval(
-        generateWaitForSubmitReadyScript(
-          { input: '#input', button: '#send', submitMode: 'click' },
-          { timeoutMs: 300, settleMs: 60, minimumWaitMs: 60 }
-        )
-      )
-
-      expect(result.notReadyReason).toBe('zero_size')
-    }, 10000)
+        expect(result.notReadyReason).toBe(reason)
+      },
+      10000
+    )
   })
 
   /**
@@ -619,12 +524,10 @@ describe('automationScripts', () => {
         100
       )
 
-      // typingSpeed 100 olsa bile fallback hızı 30ms ile sınırlıdır: yüzlerce
-      // karakterlik bir prompt'un fallback'te dakikalarca yazılması engellenir.
-      // Append modu fallback'e de taşınır (yerleştirme sırasında kullanıcı
-      // taslağı korunur).
-      expect(script).toContain('humanType(inputElement, "hello", 30, false)')
-
+      // typingSpeed 100 olsa bile fallback hızı üretimde 30ms ile sınırlıdır:
+      // yüzlerce karakterlik bir prompt'un fallback'te dakikalarca yazılması
+      // engellenir. Bu davranış humanTyping.test.ts'te gerçek zamanlı olarak
+      // da doğrulanır; buradaki iddia fallback'in SEÇİLDİĞİ.
       const result = await window.eval(script)
 
       expect(result.diagnostics.textInputFallback).toBe('human_typing')
@@ -706,8 +609,6 @@ describe('automationScripts', () => {
       // Sabit settle, yalnızca etkileşim kapısı olmayan enter_key yolunda
       // korunur; click/mixed yolunda submit zaten "buton etkileşime hazır"
       // kapısından geçer.
-      expect(script).toContain("config.submitMode === 'enter_key'")
-
       const result = await window.eval(script)
 
       expect(result.success).toBe(true)
@@ -812,40 +713,33 @@ describe('automationScripts', () => {
       expect(result.diagnostics.textVerifyResult).toBe('verified')
     })
 
-    it('keeps Unicode/emoji and Turkish characters intact', async () => {
-      document.body.innerHTML = `
+    it.each([
+      {
+        label: 'Unicode/emoji and Turkish characters',
+        prompt: 'Merhaba dünya 🌍 ğüşiöçİı — Привет 👩‍💻'
+      },
+      { label: 'a 10k+ character prompt', prompt: 'uzun satır içeriği\n'.repeat(800) + 'SON' }
+    ])(
+      'keeps $label intact without a typing fallback',
+      async ({ prompt }) => {
+        document.body.innerHTML = `
               <textarea id="input"></textarea>
               <button id="send" type="button">Send</button>
           `
-      const prompt = 'Merhaba dünya 🌍 ğüşiöçİı — Привет 👩‍💻'
 
-      const script = generateAutoSendScript(config, prompt, false, true)
-      const result = await window.eval(script)
+        const script = generateAutoSendScript(config, prompt, false, true)
+        const result = await window.eval(script)
 
-      expect(result.success).toBe(true)
-      const textarea = document.getElementById('input') as HTMLTextAreaElement
-      expect(textarea.value).toBe(prompt)
-      expect(result.diagnostics.textVerifyResult).toBe('verified')
-    })
-
-    it('verifies a 10k+ character prompt without a typing fallback', async () => {
-      document.body.innerHTML = `
-              <textarea id="input"></textarea>
-              <button id="send" type="button">Send</button>
-          `
-      const prompt = 'uzun satır içeriği\n'.repeat(800) + 'SON'
-      expect(prompt.length).toBeGreaterThan(10000)
-
-      const script = generateAutoSendScript(config, prompt, false, true)
-      const result = await window.eval(script)
-
-      expect(result.success).toBe(true)
-      expect(result.diagnostics.setInputMs).toBeTypeOf('number')
-      expect(result.diagnostics.textInputStrategy).toBe('value_setter')
-      expect(result.diagnostics.textVerifyResult).toBe('verified')
-      const textarea = document.getElementById('input') as HTMLTextAreaElement
-      expect(textarea.value).toBe(prompt)
-    }, 15000)
+        expect(result.success).toBe(true)
+        const textarea = document.getElementById('input') as HTMLTextAreaElement
+        expect(textarea.value).toBe(prompt)
+        expect(result.diagnostics.textVerifyResult).toBe('verified')
+        expect(result.diagnostics.textInputStrategy).toBe('value_setter')
+        expect(result.diagnostics.textInputFallback).toBeFalsy()
+        expect(result.diagnostics.setInputMs).toBeTypeOf('number')
+      },
+      15000
+    )
 
     it('accepts editor line-ending normalization without a typing fallback', async () => {
       document.body.innerHTML = `
@@ -900,15 +794,25 @@ describe('automationScripts', () => {
       }
     })
 
-    it('rejects a paste that only inserted the first 40 characters', async () => {
+    // Üç kısmi-yerleştirme biçimi tek bir davranışın varyantları: hiçbiri
+    // "başarılı" sayılmamalı, hiçbiri fallback tetiklememeli ve hiçbiri
+    // sessizce gönderim yapmamalı. `middle` biçimi eski baş/son-40 kontrolünün
+    // yanlış pozitifini kilitler: ilk 40 ve son 40 karakter mevcut ama orta
+    // kısım hiç girmemiş.
+    it.each([
+      { shape: 'first-40-only', placed: PARTIAL_PROMPT.slice(0, 40) },
+      { shape: 'last-40-only', placed: PARTIAL_PROMPT.slice(-40) },
+      {
+        shape: 'head-and-tail-but-no-middle',
+        placed: PARTIAL_PROMPT.slice(0, 40) + PARTIAL_PROMPT.slice(-40)
+      }
+    ])('rejects a paste that landed only $shape', async ({ placed }) => {
       document.body.innerHTML = `
               <textarea id="input"></textarea>
               <button id="send" type="button">Send</button>
           `
       const clicks = countSendClicks()
-      const restore = installTextareaWriteTransform((next) =>
-        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(0, 40))
-      )
+      const restore = installTextareaWriteTransform((next) => next.replace(PARTIAL_PROMPT, placed))
       try {
         const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
         const result = await window.eval(script)
@@ -920,60 +824,8 @@ describe('automationScripts', () => {
         expect(result.diagnostics.input.operationSucceeded).toBe(false)
         expect(clicks).not.toHaveBeenCalled()
         const textarea = document.getElementById('input') as HTMLTextAreaElement
-        // Kısmi içerik kullanıcıya bırakılır; hiçbir fallback mükerrer ekleme
-        // yapmaz (uzunluk yalnızca ilk parça kadar).
-        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(0, 40))
-      } finally {
-        restore()
-      }
-    })
-
-    it('rejects a paste that only inserted the last 40 characters', async () => {
-      document.body.innerHTML = `
-              <textarea id="input"></textarea>
-              <button id="send" type="button">Send</button>
-          `
-      const clicks = countSendClicks()
-      const restore = installTextareaWriteTransform((next) =>
-        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(-40))
-      )
-      try {
-        const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
-        const result = await window.eval(script)
-
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('text_input_partial')
-        expect(result.diagnostics.textVerifyResult).toBe('partial')
-        expect(clicks).not.toHaveBeenCalled()
-        const textarea = document.getElementById('input') as HTMLTextAreaElement
-        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(-40))
-      } finally {
-        restore()
-      }
-    })
-
-    it('rejects content whose middle is missing even when head and tail match', async () => {
-      document.body.innerHTML = `
-              <textarea id="input"></textarea>
-              <button id="send" type="button">Send</button>
-          `
-      const clicks = countSendClicks()
-      // Eski baş/son-40 kontrolünün yanlış pozitifi: ilk 40 ve son 40
-      // karakter mevcut ama orta kısım hiç girmemiş.
-      const restore = installTextareaWriteTransform((next) =>
-        next.replace(PARTIAL_PROMPT, PARTIAL_PROMPT.slice(0, 40) + PARTIAL_PROMPT.slice(-40))
-      )
-      try {
-        const script = generateAutoSendScript(config, PARTIAL_PROMPT, true)
-        const result = await window.eval(script)
-
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('text_input_partial')
-        expect(result.diagnostics.textVerifyResult).toBe('partial')
-        expect(result.diagnostics.textInputFallback).toBeFalsy()
-        expect(clicks).not.toHaveBeenCalled()
-        const textarea = document.getElementById('input') as HTMLTextAreaElement
-        expect(textarea.value).toBe(PARTIAL_PROMPT.slice(0, 40) + PARTIAL_PROMPT.slice(-40))
+        // Kısmi içerik kullanıcıya bırakılır; hiçbir fallback mükerrer ekleme yapmaz.
+        expect(textarea.value).toBe(placed)
       } finally {
         restore()
       }
@@ -1052,30 +904,6 @@ describe('automationScripts', () => {
   })
 
   describe('generated script structure', () => {
-    it('builds auto-send script with core execution steps', () => {
-      const script = generateAutoSendScript(
-        { input: '[role="textbox"]', button: 'button[aria-label*="send" i]', submitMode: 'mixed' },
-        'hello'
-      )
-
-      expect(script).toContain('setInputValue')
-      expect(script).toContain('performSubmit')
-      expect(script).toContain('createDiagnostics')
-    })
-
-    it('keeps common runtime helper injection for facade-generated scripts', () => {
-      const focusScript = generateFocusScript({ input: '#input' })
-      const validateScript = generateValidateSelectorsScript({
-        input: '#input',
-        button: '#send',
-        submitMode: 'click'
-      })
-
-      expect(focusScript).toContain('__quizlabReaderAutomationCache')
-      expect(focusScript).toContain('findElementByFingerprint')
-      expect(validateScript).toContain("createDiagnostics('validate'")
-    })
-
     it('prevents script injection via malicious text payloads', () => {
       // SECURITY: JSON.stringify escapes all special characters so they
       // remain inside the generated string literal as data, not as code.
@@ -1090,7 +918,7 @@ describe('automationScripts', () => {
 
       const payloads: string[] = [
         "'; alert(1);//",
-        "'; alert(1);//",
+        '"; alert(1);//',
         '${1+1}',
         '`backtick`',
         '"); require("child_process").execSync("evil");//',

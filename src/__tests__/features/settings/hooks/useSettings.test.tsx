@@ -11,12 +11,13 @@ vi.mock('@app/providers/UpdateContext', () => ({
 }))
 
 const mockUseAppVersion = vi.fn()
+const mockOpenExternal = vi.fn()
 vi.mock('@platform/electron/api/useSettingsSystemApi', () => ({
   useAppVersion: () => mockUseAppVersion(),
   useOpenExternal: () => ({ mutate: mockOpenExternal })
 }))
 
-const mockOpenExternal = vi.fn()
+const RELEASES_URL = 'https://github.com/ozymandias-get/quizlab/releases/latest'
 
 describe('useSettings', () => {
   beforeEach(() => {
@@ -32,89 +33,72 @@ describe('useSettings', () => {
     })
   })
 
-  it('should return app version', () => {
+  it.each([
+    ['a reported version', '1.2.3', '1.2.3'],
+    ['an unavailable version', undefined, '1.0.0']
+  ])('reports %s as %s', (_label, data, expected) => {
+    mockUseAppVersion.mockReturnValue({ data })
+
     const { result } = renderHook(() => useSettings())
-    expect(result.current.appVersion).toBe('1.2.3')
+
+    expect(result.current.appVersion).toBe(expected)
   })
 
-  it('should return "checking" when checking for updates', () => {
+  // One precedence chain in useSettings.ts: checking → error → available →
+  // latest → idle. Getting the order wrong shows the wrong button in the About
+  // tab, so each rung is pinned individually.
+  it.each([
+    ['checking', { isCheckingUpdate: true, hasCheckedUpdate: false }],
+    ['error', { updateInfo: { error: 'Network Error' }, isCheckingUpdate: false }],
+    [
+      'available',
+      { updateAvailable: true, updateInfo: { version: '2.0.0' }, isCheckingUpdate: false }
+    ],
+    ['latest', { updateAvailable: false, hasCheckedUpdate: true, isCheckingUpdate: false }],
+    ['idle', { updateAvailable: false, hasCheckedUpdate: false, isCheckingUpdate: false }]
+  ])('derives updateStatus %s from the update context', (expected, updateContext) => {
     mockUseUpdate.mockReturnValue({
-      isCheckingUpdate: true,
+      updateInfo: null,
+      checkForUpdates: mockCheckForUpdates,
+      ...updateContext
+    })
+
+    const { result } = renderHook(() => useSettings())
+
+    expect(result.current.updateStatus).toBe(expected)
+  })
+
+  it('forwards the update info alongside the available status', () => {
+    mockUseUpdate.mockReturnValue({
+      updateAvailable: true,
+      updateInfo: { version: '2.0.0' },
+      isCheckingUpdate: false,
       hasCheckedUpdate: false,
       checkForUpdates: mockCheckForUpdates
     })
 
     const { result } = renderHook(() => useSettings())
-    expect(result.current.updateStatus).toBe('checking')
-  })
 
-  it('should return "error" when update info has error', () => {
-    mockUseUpdate.mockReturnValue({
-      updateInfo: { error: 'Network Error' },
-      isCheckingUpdate: false,
-      checkForUpdates: mockCheckForUpdates
-    })
-
-    const { result } = renderHook(() => useSettings())
-    expect(result.current.updateStatus).toBe('error')
-  })
-
-  it('should return "available" when update is available', () => {
-    mockUseUpdate.mockReturnValue({
-      updateAvailable: true,
-      updateInfo: { version: '2.0.0' },
-      isCheckingUpdate: false,
-      checkForUpdates: mockCheckForUpdates
-    })
-
-    const { result } = renderHook(() => useSettings())
-    expect(result.current.updateStatus).toBe('available')
     expect(result.current.updateInfo).toEqual({ version: '2.0.0' })
   })
 
-  it('should return "latest" when checked and no update', () => {
-    mockUseUpdate.mockReturnValue({
-      updateAvailable: false,
-      hasCheckedUpdate: true,
-      isCheckingUpdate: false,
-      checkForUpdates: mockCheckForUpdates
-    })
-
-    const { result } = renderHook(() => useSettings())
-    expect(result.current.updateStatus).toBe('latest')
-  })
-
-  it('should return "idle" initially', () => {
-    const { result } = renderHook(() => useSettings())
-    expect(result.current.updateStatus).toBe('idle')
-  })
-
-  it('calls checkForUpdates from context', async () => {
+  it('delegates checkForUpdates to the update context', async () => {
     const { result } = renderHook(() => useSettings())
 
     await act(async () => {
       await result.current.checkForUpdates()
     })
 
-    expect(mockCheckForUpdates).toHaveBeenCalled()
+    expect(mockCheckForUpdates).toHaveBeenCalledTimes(1)
   })
 
-  it('calls openExternal with releases URL', async () => {
+  it('opens the releases page through the OS, not the renderer', async () => {
     const { result } = renderHook(() => useSettings())
 
     await act(async () => {
       await result.current.openReleasesPage()
     })
 
-    expect(mockOpenExternal).toHaveBeenCalledWith(
-      'https://github.com/ozymandias-get/quizlab/releases/latest'
-    )
-  })
-
-  it('handles default app version if undefined', () => {
-    mockUseAppVersion.mockReturnValue({ data: undefined })
-
-    const { result } = renderHook(() => useSettings())
-    expect(result.current.appVersion).toBe('1.0.0')
+    expect(mockOpenExternal).toHaveBeenCalledWith(RELEASES_URL)
   })
 })

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { IPC_CHANNELS } from '../../../../../shared/constants/ipcChannels.js'
 
@@ -61,6 +61,20 @@ function seedConfig() {
   sanitizeChatMessage.mockImplementation((m) => ({ role: m.role, content: m.content }))
 }
 
+/**
+ * `registerApiChatHandlers` self-guards (`apiChatHandlers.ts:38`), so `main()`
+ * registers exactly once for the whole file and every test shares the one
+ * handler table — which is exactly why `clearMocks` has to stay `false`.
+ * Registering in `beforeAll` makes that explicit rather than calling a no-op
+ * inside each test.
+ */
+let sendHandler: ReturnType<typeof getHandler>
+
+beforeAll(async () => {
+  await main()
+  sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
+})
+
 describe('apiChatHandlers error mapping', () => {
   it('maps 401 to code "unauthorized" (not internal_error)', async () => {
     seedConfig()
@@ -70,8 +84,6 @@ describe('apiChatHandlers error mapping', () => {
       text: async () => 'Invalid API key'
     })
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { role: 'user', content: 'hello', id: 'm1', timestamp: 1 }
     ])
@@ -91,8 +103,6 @@ describe('apiChatHandlers error mapping', () => {
       text: async () => 'Too many requests'
     })
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { role: 'user', content: 'hello', id: 'm1', timestamp: 1 }
     ])
@@ -111,8 +121,6 @@ describe('apiChatHandlers error mapping', () => {
       json: async () => ({ error: 'weird envelope' })
     })
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { role: 'user', content: 'hello', id: 'm1', timestamp: 1 }
     ])
@@ -126,8 +134,6 @@ describe('apiChatHandlers error mapping', () => {
   it('rejects a non-array messages payload as invalid_input', async () => {
     seedConfig()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, 'not-an-array')
 
     expect(result.ok).toBe(false)

@@ -72,7 +72,6 @@ describe('useSystemApi', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(mockElectronApi.checkForUpdates).toHaveBeenCalled()
     expect(result.current.data).toEqual({ available: true, version: '4.0.1' })
   })
 

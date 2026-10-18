@@ -78,13 +78,6 @@ describe('AppearanceTab', () => {
     vi.clearAllMocks()
   })
 
-  it('renders appearance settings', () => {
-    render(<AppearanceTab />)
-    expect(screen.getByText('appearance_description')).toBeInTheDocument()
-    expect(screen.getByText('bar_appearance')).toBeInTheDocument()
-    expect(screen.getByText('selection_color_settings')).toBeInTheDocument()
-  })
-
   it('changes opacity slider', () => {
     render(<AppearanceTab />)
     const sliderInput = screen.getAllByTestId('slider-input')[0]

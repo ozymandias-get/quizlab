@@ -229,68 +229,70 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('native viewer — AI text actions', () => {
-  it('renders a text layer for the mounted page', async () => {
-    renderDocument()
+/* ------------------------------------------------------------- selection */
 
-    await waitFor(() => {
-      expect(
-        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
-      ).toBeGreaterThan(0)
-    })
+/**
+ * Select the page's whole text run, the way a drag from the first glyph to the last
+ * would, and wait for the binary menu the selection raises.
+ *
+ * The selection double is the bulk of what these three cases need; factored out so
+ * each one reads as the action it is asserting rather than as 50 lines of DOM.
+ */
+async function selectPageRun(): Promise<void> {
+  await waitFor(() => {
+    expect(
+      document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
+    ).toBeGreaterThan(0)
   })
+  await drainFrames()
 
+  const run = document.querySelector(
+    '[data-native-pdf-text-layer] span[role="presentation"]'
+  )?.firstChild
+  if (!run) throw new Error('text layer produced no run')
+
+  vi.spyOn(window, 'getSelection').mockReturnValue({
+    toString: () => PAGE_TEXT,
+    isCollapsed: false,
+    rangeCount: 1,
+    anchorNode: run,
+    focusNode: run,
+    getRangeAt: () => ({
+      commonAncestorContainer: run,
+      startContainer: run,
+      endContainer: run,
+      getBoundingClientRect: () => ({
+        left: 10,
+        top: 10,
+        right: 110,
+        bottom: 30,
+        width: 100,
+        height: 20,
+        x: 10,
+        y: 10,
+        toJSON: () => ({})
+      }),
+      getClientRects: () => []
+    })
+  } as unknown as Selection)
+
+  const container = document.querySelector('.pdf-viewer-container') as HTMLElement
+  act(() => {
+    container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+  })
+  flushFrames()
+
+  await waitFor(() => {
+    expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
+  })
+}
+
+describe('native viewer — AI text actions', () => {
   it('shows the binary menu on selection without auto-queueing', async () => {
     renderDocument()
+    await selectPageRun()
 
-    await waitFor(() => {
-      expect(
-        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
-      ).toBeGreaterThan(0)
-    })
-    await drainFrames()
-
-    const run = document.querySelector(
-      '[data-native-pdf-text-layer] span[role="presentation"]'
-    )?.firstChild
-    if (!run) throw new Error('text layer produced no run')
-
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => PAGE_TEXT,
-      isCollapsed: false,
-      rangeCount: 1,
-      anchorNode: run,
-      focusNode: run,
-      getRangeAt: () => ({
-        commonAncestorContainer: run,
-        startContainer: run,
-        endContainer: run,
-        getBoundingClientRect: () => ({
-          left: 10,
-          top: 10,
-          right: 110,
-          bottom: 30,
-          width: 100,
-          height: 20,
-          x: 10,
-          y: 10,
-          toJSON: () => ({})
-        }),
-        getClientRects: () => []
-      })
-    } as unknown as Selection)
-
-    const container = document.querySelector('.pdf-viewer-container') as HTMLElement
-    act(() => {
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-    })
-    flushFrames()
-
-    // Menü doğrudan belirir; ekstra AI simgesi gerekmez.
-    await waitFor(() => {
-      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
-    })
     expect(screen.getByTestId('pdf-selection-send')).toBeInTheDocument()
     expect(screen.getByTestId('pdf-selection-draft')).toBeInTheDocument()
     // Otomatik kuyruklama yok.
@@ -299,54 +301,7 @@ describe('native viewer — AI text actions', () => {
 
   it('queues with page metadata only after Taslağa Ekle', async () => {
     renderDocument()
-
-    await waitFor(() => {
-      expect(
-        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
-      ).toBeGreaterThan(0)
-    })
-    await drainFrames()
-
-    const run = document.querySelector(
-      '[data-native-pdf-text-layer] span[role="presentation"]'
-    )?.firstChild
-    if (!run) throw new Error('text layer produced no run')
-
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => PAGE_TEXT,
-      isCollapsed: false,
-      rangeCount: 1,
-      anchorNode: run,
-      focusNode: run,
-      getRangeAt: () => ({
-        commonAncestorContainer: run,
-        startContainer: run,
-        endContainer: run,
-        getBoundingClientRect: () => ({
-          left: 10,
-          top: 10,
-          right: 110,
-          bottom: 30,
-          width: 100,
-          height: 20,
-          x: 10,
-          y: 10,
-          toJSON: () => ({})
-        }),
-        getClientRects: () => []
-      })
-    } as unknown as Selection)
-
-    const container = document.querySelector('.pdf-viewer-container') as HTMLElement
-    act(() => {
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-    })
-    flushFrames()
-
-    await waitFor(() => {
-      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
-    })
+    await selectPageRun()
 
     fireEvent.click(screen.getByTestId('pdf-selection-draft'))
 
@@ -361,54 +316,7 @@ describe('native viewer — AI text actions', () => {
 
   it('sends directly without touching the draft queue', async () => {
     renderDocument()
-
-    await waitFor(() => {
-      expect(
-        document.querySelectorAll('[data-native-pdf-text-layer] span[role="presentation"]').length
-      ).toBeGreaterThan(0)
-    })
-    await drainFrames()
-
-    const run = document.querySelector(
-      '[data-native-pdf-text-layer] span[role="presentation"]'
-    )?.firstChild
-    if (!run) throw new Error('text layer produced no run')
-
-    vi.spyOn(window, 'getSelection').mockReturnValue({
-      toString: () => PAGE_TEXT,
-      isCollapsed: false,
-      rangeCount: 1,
-      anchorNode: run,
-      focusNode: run,
-      getRangeAt: () => ({
-        commonAncestorContainer: run,
-        startContainer: run,
-        endContainer: run,
-        getBoundingClientRect: () => ({
-          left: 10,
-          top: 10,
-          right: 110,
-          bottom: 30,
-          width: 100,
-          height: 20,
-          x: 10,
-          y: 10,
-          toJSON: () => ({})
-        }),
-        getClientRects: () => []
-      })
-    } as unknown as Selection)
-
-    const container = document.querySelector('.pdf-viewer-container') as HTMLElement
-    act(() => {
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-    })
-    flushFrames()
-
-    await waitFor(() => {
-      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
-    })
+    await selectPageRun()
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('pdf-selection-send'))

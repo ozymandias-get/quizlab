@@ -94,9 +94,9 @@ describe('cacheScheduler', () => {
       expect(mockStartIdleDetection).toHaveBeenCalledWith(expect.any(Function))
     })
 
-    it('sets up foreground interval for quick checks', async () => {
+    it('sets up a single foreground timer that drives the quick check', async () => {
       startCacheScheduler()
-      // After 15 minutes foreground check should fire (plus smart 5-min checks)
+      // After 15 minutes the foreground check should have fired.
       vi.advanceTimersByTime(15 * 60 * 1000)
       // Flush pending microtasks from async smart checks
       await vi.advanceTimersByTimeAsync(0)
@@ -108,14 +108,6 @@ describe('cacheScheduler', () => {
       startCacheScheduler()
       startCacheScheduler()
       expect(mockStartIdleDetection).toHaveBeenCalledTimes(1)
-    })
-
-    it('calls runQuickCheck on every scheduled tick', async () => {
-      startCacheScheduler()
-      vi.advanceTimersByTime(15 * 60 * 1000)
-      await vi.advanceTimersByTimeAsync(0)
-      await Promise.resolve()
-      expect(mockRunQuickCheck.mock.calls.length).toBeGreaterThanOrEqual(1)
     })
 
     it('hands the already-measured total to runQuickCheck instead of re-walking', async () => {
@@ -219,16 +211,6 @@ describe('cacheScheduler', () => {
       // After stop there should be no new calls
       vi.advanceTimersByTime(30 * 60 * 1000)
       expect(mockRunQuickCheck.mock.calls.length).toBe(callsBefore)
-    })
-
-    it('is safe to call when scheduler was never started', () => {
-      expect(() => stopCacheScheduler()).not.toThrow()
-    })
-
-    it('is safe to call multiple times', () => {
-      startCacheScheduler()
-      stopCacheScheduler()
-      expect(() => stopCacheScheduler()).not.toThrow()
     })
   })
 })

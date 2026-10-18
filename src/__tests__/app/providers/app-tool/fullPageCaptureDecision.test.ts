@@ -31,46 +31,9 @@ describe('useScreenshotPipeline — full-page capture decision', () => {
     return renderHook(() => useScreenshotPipeline({ queueImageForAi, queueTextForAi }))
   }
 
-  it('parks a full-page capture for the choice menu instead of queueing it', () => {
-    const { result } = setup()
-
-    act(() => {
-      result.current.offerFullPageCapture('blob:page-13', {
-        page: 13,
-        captureKind: 'full-page',
-        source: {
-          docId: 'doc',
-          page: 13,
-          totalPages: 59,
-          captureKind: 'full-page-image',
-          createdAt: 1
-        }
-      })
-    })
-
-    // Kendiliğinden taslağa EKLENMEZ.
-    expect(queueImageForAi).not.toHaveBeenCalled()
-    expect(result.current.pendingFullPageCapture).not.toBeNull()
-    expect(result.current.pendingFullPageCapture?.dataUrl).toBe('blob:page-13')
-    expect(result.current.pendingFullPageCapture?.meta?.page).toBe(13)
-  })
-
-  it('queues the capture only after the user picks "Taslağa Ekle"', () => {
-    const { result } = setup()
-
-    act(() => {
-      result.current.offerFullPageCapture('blob:page-13', { page: 13, captureKind: 'full-page' })
-    })
-    act(() => {
-      result.current.confirmPendingFullPageAsDraft()
-    })
-
-    expect(queueImageForAi).toHaveBeenCalledWith(
-      'blob:page-13',
-      expect.objectContaining({ page: 13, captureKind: 'full-page' })
-    )
-    expect(result.current.pendingFullPageCapture).toBeNull()
-  })
+  // Tam sayfa GÖRSELİ'nin parklanması ve "Taslağa Ekle" ile kuyruğa devri
+  // `useScreenshotPipeline.test.tsx` içinde aynı sözleşmeyi alan yakalamayla
+  // sınar; buradaki kalan testler tek sahiplik + iptal davranışını korur.
 
   // ── Tam sayfa metni: görsellerle AYNI sözleşme ──────────────────────────
   // Öncesi: "Bu Sayfanın Metnini AI'ye Ekle" doğrudan `queueTextForAi` çağırıyordu;

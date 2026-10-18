@@ -202,7 +202,14 @@ describe('session monitor', () => {
     expect(result.proactiveRefreshDue).toBe(true)
   })
 
-  it('does not set proactiveRefreshDue when expiry is far away', async () => {
+  // proactiveRefreshDue requires: not shouldRefresh, advanceMs > 0, and expiry
+  // inside (threshold, threshold + advance]. These are the three ways that
+  // conjunction can fail.
+  it.each([
+    ['the expiry is far away', 4 * 60 * 60, 10 * 60 * 1000],
+    ['shouldRefresh is already true', 120, 10 * 60 * 1000],
+    ['advanceMs is 0', 12 * 60, 0]
+  ])('does not set proactiveRefreshDue when %s', async (_label, expiresInSeconds, advanceMs) => {
     vi.setSystemTime(new Date('2026-04-08T10:00:00.000Z'))
     const monitor = new SessionMonitor()
     const targetSession = {
@@ -211,7 +218,7 @@ describe('session monitor', () => {
           {
             name: 'SID',
             domain: '.google.com',
-            expirationDate: Date.now() / 1000 + 4 * 60 * 60
+            expirationDate: Date.now() / 1000 + expiresInSeconds
           }
         ])
       }
@@ -220,56 +227,9 @@ describe('session monitor', () => {
     const result = await monitor.inspectCookieExpiry(
       targetSession as never,
       5 * 60 * 1000,
-      10 * 60 * 1000
+      advanceMs
     )
 
-    expect(result.shouldRefresh).toBe(false)
-    expect(result.proactiveRefreshDue).toBe(false)
-  })
-
-  it('does not set proactiveRefreshDue when shouldRefresh is already true', async () => {
-    vi.setSystemTime(new Date('2026-04-08T10:00:00.000Z'))
-    const monitor = new SessionMonitor()
-    const targetSession = {
-      cookies: {
-        get: vi.fn().mockResolvedValue([
-          {
-            name: 'SID',
-            domain: '.google.com',
-            expirationDate: Date.now() / 1000 + 120
-          }
-        ])
-      }
-    }
-
-    const result = await monitor.inspectCookieExpiry(
-      targetSession as never,
-      5 * 60 * 1000,
-      10 * 60 * 1000
-    )
-
-    expect(result.shouldRefresh).toBe(true)
-    expect(result.proactiveRefreshDue).toBe(false)
-  })
-
-  it('does not set proactiveRefreshDue when advanceMs is 0', async () => {
-    vi.setSystemTime(new Date('2026-04-08T10:00:00.000Z'))
-    const monitor = new SessionMonitor()
-    const targetSession = {
-      cookies: {
-        get: vi.fn().mockResolvedValue([
-          {
-            name: 'SID',
-            domain: '.google.com',
-            expirationDate: Date.now() / 1000 + 12 * 60
-          }
-        ])
-      }
-    }
-
-    const result = await monitor.inspectCookieExpiry(targetSession as never, 5 * 60 * 1000, 0)
-
-    expect(result.shouldRefresh).toBe(false)
     expect(result.proactiveRefreshDue).toBe(false)
   })
 })

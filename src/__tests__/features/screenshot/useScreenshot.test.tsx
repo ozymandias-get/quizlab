@@ -4,13 +4,10 @@ import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 describe('useScreenshot', () => {
-  it('initializes with false state', () => {
-    const { result } = renderHook(() => useScreenshot())
-    expect(result.current.isScreenshotMode).toBe(false)
-  })
-
   it('toggles screenshot mode', () => {
     const { result } = renderHook(() => useScreenshot())
+
+    expect(result.current.isScreenshotMode).toBe(false)
 
     act(() => {
       result.current.startScreenshot()

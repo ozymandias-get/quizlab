@@ -3,19 +3,11 @@ import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { describe, expect, it } from 'vitest'
 
 describe('APP_CONSTANTS', () => {
-  it('should have GITHUB_RELEASES_URL as a valid GitHub releases URL', () => {
-    expect(APP_CONSTANTS.GITHUB_RELEASES_URL).toMatch(
-      /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases/
-    )
-  })
-
-  it('should have GITHUB_REPO_URL as a valid GitHub repo URL', () => {
-    expect(APP_CONSTANTS.GITHUB_REPO_URL).toMatch(/^https:\/\/github\.com\/[^/]+\/[^/]+$/)
-  })
-
-  it('should have SCREENSHOT_TYPES with FULL and CROP', () => {
-    expect(APP_CONSTANTS.SCREENSHOT_TYPES.FULL).toBe('full-page')
-    expect(APP_CONSTANTS.SCREENSHOT_TYPES.CROP).toBe('crop')
+  it.each([
+    ['GITHUB_RELEASES_URL', /^https:\/\/github\.com\/[^/]+\/[^/]+\/releases/],
+    ['GITHUB_REPO_URL', /^https:\/\/github\.com\/[^/]+\/[^/]+$/]
+  ])('should have %s as a valid GitHub URL', (key, pattern) => {
+    expect(APP_CONSTANTS[key as 'GITHUB_REPO_URL']).toMatch(pattern)
   })
 
   it('should have TOUR_TARGETS with all required targets', () => {

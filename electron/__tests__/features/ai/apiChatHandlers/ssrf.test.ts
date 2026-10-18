@@ -130,17 +130,10 @@ describe('validateProviderUrl (SSRF Protection)', () => {
     expect(validateProviderUrl('https://[::a9fe:a9fe]')).toContain('SSRF blocked')
   })
 
-  it('rejects link-local, ULA, multicast, documentation, and transition IPv6', () => {
-    expect(validateProviderUrl('https://[fe80::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[fe80::a9fe:a9fe]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[fc00::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[fd12:3456::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[ff02::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[2001:db8::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[2001::1]')).toContain('SSRF blocked')
-    expect(validateProviderUrl('https://[2002::1]')).toContain('SSRF blocked')
-  })
-
+  // Per-range coverage of link-local / ULA / multicast / documentation /
+  // transition addresses lives in ssrfDnsPinning.test.ts (`classifyHost`), which
+  // asserts the same addresses more exhaustively. Only the classification →
+  // rejection mapping is asserted here.
   describe('local network opt-in', () => {
     // `allowLocalNetwork` is the canonical field. The deprecated persisted
     // aliases are resolved to it by getSsrOptionsForProvider (and again on
@@ -176,40 +169,13 @@ describe('validateProviderUrl (SSRF Protection)', () => {
     it('keeps the cloud metadata endpoint blocked under the opt-in', () => {
       // The invariant that motivated splitting the classification: consent to
       // reach a local model server is not consent to reach the instance
-      // metadata service.
+      // metadata service. The exhaustive per-range table lives in
+      // ssrfDnsPinning.test.ts; this keeps the classification → rejection
+      // mapping that only this file can prove.
       expect(validateProviderUrl('https://169.254.169.254')).toContain('SSRF blocked')
       expect(validateProviderUrl('https://169.254.169.254', allow)).toContain('SSRF blocked')
-      // Common metadata hostnames and the port variant.
-      expect(validateProviderUrl('http://169.254.169.254:80/latest', allow)).toContain(
-        'SSRF blocked'
-      )
-      // Whole link-local block, not just the well-known address.
-      expect(validateProviderUrl('https://169.254.1.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://169.254.255.254', allow)).toContain('SSRF blocked')
-      // IPv6 link local, and an IPv4-mapped metadata address.
-      expect(validateProviderUrl('https://[fe80::1]', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[::ffff:169.254.169.254]', allow)).toContain(
-        'SSRF blocked'
-      )
       // 6to4 tunnels an arbitrary IPv4 destination, metadata included.
       expect(validateProviderUrl('https://[2002:a9fe:a9fe::]', allow)).toContain('SSRF blocked')
-    })
-
-    it('keeps the remaining special-use ranges blocked under the opt-in', () => {
-      expect(validateProviderUrl('https://0.0.0.0', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://0.1.2.3', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://100.64.0.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://198.18.0.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://192.0.2.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://198.51.100.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://203.0.113.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://224.0.0.1', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://255.255.255.255', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[::]', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[ff02::1]', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[2001:db8::1]', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[2001::1]', allow)).toContain('SSRF blocked')
-      expect(validateProviderUrl('https://[2002::1]', allow)).toContain('SSRF blocked')
     })
 
     it('still allows genuinely public providers under the opt-in', () => {

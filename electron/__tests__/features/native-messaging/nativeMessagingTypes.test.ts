@@ -1,111 +1,55 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-describe('nativeMessagingTypes', () => {
-  describe('BRIDGE_PORT', () => {
-    const ORIGINAL_ENV = process.env.QUIZLAB_EXTENSION_BRIDGE_PORT
+/**
+ * This module is mostly literal constants. Asserting that
+ * `HMAC_HEADER === 'x-hmac-signature'` only restates the source line and can
+ * never fail for any useful reason, so those pinning tests were removed.
+ *
+ * `BRIDGE_PORT` is the one piece of real logic here (an IIFE with three
+ * branches), so it keeps its tests.
+ */
+describe('BRIDGE_PORT', () => {
+  const ORIGINAL_ENV = process.env.QUIZLAB_EXTENSION_BRIDGE_PORT
 
-    afterEach(() => {
-      if (ORIGINAL_ENV === undefined) {
-        delete process.env.QUIZLAB_EXTENSION_BRIDGE_PORT
-      } else {
-        process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = ORIGINAL_ENV
-      }
-      vi.resetModules()
-    })
-
-    it('defaults to 51999 when env var is not set', async () => {
+  afterEach(() => {
+    if (ORIGINAL_ENV === undefined) {
       delete process.env.QUIZLAB_EXTENSION_BRIDGE_PORT
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(51999)
-    })
-
-    it('uses env var when set to a valid port', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = '52000'
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(52000)
-    })
-
-    it('uses env var when set to max valid port (65534)', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = '65534'
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(65534)
-    })
-
-    it('falls back to default when env var is below minimum (1024)', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = '1024'
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(51999)
-    })
-
-    it('falls back to default when env var is above maximum (65535)', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = '65535'
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(51999)
-    })
-
-    it('falls back to default when env var is not a number', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = 'invalid'
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(51999)
-    })
-
-    it('falls back to default when env var is empty string', async () => {
-      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = ''
-      vi.resetModules()
-      const { BRIDGE_PORT } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_PORT).toBe(51999)
-    })
+    } else {
+      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = ORIGINAL_ENV
+    }
+    vi.resetModules()
   })
 
-  describe('constants', () => {
-    it('CRITICAL_COOKIE_NAMES contains expected cookies', async () => {
-      const { CRITICAL_COOKIE_NAMES } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(CRITICAL_COOKIE_NAMES.has('SID')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-1PSID')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-3PSID')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-1PSIDTS')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-3PSIDTS')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-1PSIDCC')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.has('__Secure-3PSIDCC')).toBe(true)
-      expect(CRITICAL_COOKIE_NAMES.size).toBe(7)
-    })
+  async function readBridgePort(envValue: string | undefined): Promise<number> {
+    if (envValue === undefined) {
+      delete process.env.QUIZLAB_EXTENSION_BRIDGE_PORT
+    } else {
+      process.env.QUIZLAB_EXTENSION_BRIDGE_PORT = envValue
+    }
+    vi.resetModules()
+    const { BRIDGE_PORT } =
+      await import('../../../features/native-messaging/nativeMessagingTypes.js')
+    return BRIDGE_PORT
+  }
 
-    it('HMAC_HEADER is x-hmac-signature', async () => {
-      const { HMAC_HEADER } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(HMAC_HEADER).toBe('x-hmac-signature')
-    })
+  const DEFAULT_PORT = 51999
 
-    it('BRIDGE_SECRET_HEADER is x-bridge-secret', async () => {
-      const { BRIDGE_SECRET_HEADER } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(BRIDGE_SECRET_HEADER).toBe('x-bridge-secret')
-    })
+  it('uses a valid in-range env port', async () => {
+    await expect(readBridgePort('52000')).resolves.toBe(52000)
+  })
 
-    it('MAX_COOKIE_BODY_SIZE is 512KB', async () => {
-      const { MAX_COOKIE_BODY_SIZE } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(MAX_COOKIE_BODY_SIZE).toBe(1024 * 512)
-    })
+  it.each([
+    ['unset', undefined],
+    ['below the minimum', '1024'],
+    ['above the maximum', '65535']
+  ])('falls back to the default when the env port is %s', async (_label, envValue) => {
+    await expect(readBridgePort(envValue as string | undefined)).resolves.toBe(DEFAULT_PORT)
+  })
 
-    it('EXTENSION_SOURCE_DIR is extensions/quizlab-session-extension', async () => {
-      const { EXTENSION_SOURCE_DIR } =
-        await import('../../../features/native-messaging/nativeMessagingTypes.js')
-      expect(EXTENSION_SOURCE_DIR).toBe('extensions/quizlab-session-extension')
-    })
+  it.each([
+    ['not a number', 'invalid'],
+    ['empty', '']
+  ])('falls back to the default when the env port is %s', async (_label, envValue) => {
+    await expect(readBridgePort(envValue as string)).resolves.toBe(DEFAULT_PORT)
   })
 })

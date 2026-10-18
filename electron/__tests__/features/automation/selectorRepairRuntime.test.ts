@@ -21,11 +21,6 @@ import {
   generateFocusScript,
   generateValidateSelectorsScript
 } from '@electron/features/automation/automationScripts'
-import { selectorRepairRuntimeConstants } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
-import {
-  MIN_AUTO_REPAIR_SCORE_GAP,
-  SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
-} from '@shared-core/selectorRepair'
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -410,13 +405,6 @@ describe('selector self-healing evidence', () => {
     expect(diagnostics.recovered).toBeFalsy()
   }, 15000)
 
-  it('keeps the promotion threshold a single shared constant', () => {
-    expect(selectorRepairRuntimeConstants.PROMOTION_SUCCESS_THRESHOLD).toBe(
-      SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
-    )
-    expect(selectorRepairRuntimeConstants.MIN_AUTO_REPAIR_SCORE_GAP).toBe(MIN_AUTO_REPAIR_SCORE_GAP)
-  })
-
   it('never reports a runtime marker selector as a stable selector', async () => {
     document.body.innerHTML = `<form role="form"><textarea data-testid="ask"></textarea></form>`
     const textarea = document.querySelector('textarea')
@@ -431,10 +419,10 @@ describe('selector self-healing evidence', () => {
     )
     const diagnostics = result.diagnostics.input as LocatorDiagnostics
 
-    if (diagnostics.stableSelector) {
-      expect(diagnostics.stableSelector).not.toMatch(
-        /^(fingerprint|text|semantic|provider|heuristic|gemini|chatgpt|generic|builtin):/
-      )
-    }
+    // Whatever the recovery produced, it must be persistable CSS: a runtime
+    // marker (`fingerprint:`, `text:`, `semantic:` …) can never be re-resolved.
+    expect(diagnostics.stableSelector ?? '').not.toMatch(
+      /^(fingerprint|text|semantic|provider|heuristic|gemini|chatgpt|generic|builtin):/
+    )
   })
 })

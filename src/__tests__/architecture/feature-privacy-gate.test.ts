@@ -12,12 +12,15 @@
  *     failed a build
  *
  * These tests assert the gates are wired, not merely present.
+ *
+ * The `--output-type` / `--validate` half of that contract is asserted once, in
+ * `layer-boundaries.test.ts` ("still passes --validate, so a violation fails the
+ * process"). It used to be restated here over the same two package.json strings;
+ * this file now owns only the privacy rules it does not share with its sibling.
  */
 import { ESLint } from 'eslint'
 import { createRequire } from 'node:module'
 import { beforeAll, describe, expect, it } from 'vitest'
-
-import packageJson from '../../../package.json'
 
 // The cruiser config is plain JS with no type declarations; load it as-is
 // rather than widening `*.cjs` to `any` project-wide.
@@ -174,18 +177,6 @@ describe('architecture gate: dependency-cruiser rules', () => {
     expect(names).not.toContain('no-teeny-uncrossable-boundaries')
   })
 
-  it('keeps the pre-existing platform rules', () => {
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'no-circular',
-        'shared-core-no-electron',
-        'renderer-no-electron-direct',
-        'electron-no-renderer',
-        'no-nodejs-from-browser'
-      ])
-    )
-  })
-
   it('does not hold third-party cycles against the build', () => {
     // A direct dependency is resolved into the graph even with
     // --do-not-follow, so an unscoped no-circular rule fails on a cycle inside
@@ -193,20 +184,5 @@ describe('architecture gate: dependency-cruiser rules', () => {
     // everyone to ignore this gate.
     const circular = depcruiseConfig.forbidden.find((rule) => rule.name === 'no-circular')
     expect(circular?.from?.pathNot).toMatch(/node_modules/)
-  })
-})
-
-describe('architecture gate: analyze:architecture actually fails', () => {
-  const script = (packageJson.scripts as Record<string, string>)['analyze:architecture']
-
-  it('uses a reporter that propagates violations as a non-zero exit code', () => {
-    // `text` (and json/dot/html/anon) print violations but always exit 0.
-    // Only the default `err` reporter, or an explicit --output-type err,
-    // makes dependency-cruiser fail the process.
-    expect(script).not.toMatch(/--output-type (text|json|dot|ddot|html|anon|archi|flat|d2)\b/)
-  })
-
-  it('passes --validate so violations are treated as errors', () => {
-    expect(script).toContain('--validate')
   })
 })

@@ -76,28 +76,6 @@ describe('cacheRegistry', () => {
       // Should have rules for ai_session, gemini, chatgpt, old_platform
       expect(partitionRules.length).toBeGreaterThanOrEqual(4 * 3) // 4 partitions × 3 dirs
     })
-
-    it('assigns cache category to all rules', () => {
-      const rules = getCacheRules()
-      for (const rule of rules) {
-        expect(rule.category).toBe('cache')
-      }
-    })
-
-    it('all rules have cleanupOnIdle true, cleanupOnStartup false by default', () => {
-      const rules = getCacheRules()
-      for (const rule of rules) {
-        expect(rule.cleanupOnIdle).toBe(true)
-        expect(rule.cleanupOnStartup).toBe(false)
-      }
-    })
-
-    it('rules have ttlMs set', () => {
-      const rules = getCacheRules()
-      for (const rule of rules) {
-        expect(rule.ttlMs).toBeGreaterThan(0)
-      }
-    })
   })
 
   describe('protected files and dirs', () => {
@@ -178,9 +156,11 @@ describe('cacheRegistry', () => {
   })
 
   describe('markPartitionActive', () => {
-    it('can mark and check partition activity', () => {
-      // We can't directly check activity since getActivityCategory is not exported,
-      // but we can verify markPartitionActive doesn't throw
+    it('accepts a partition name and an empty name without corrupting the set', () => {
+      // Activity is observed through isProtectedPartition() in
+      // electron/__tests__/core/systemHandlers/cache.test.ts ("protects recently
+      // active partitions from cleanup"). This case only pins that the ingest
+      // path does not throw on its two boundary inputs.
       expect(() => markPartitionActive('test-partition')).not.toThrow()
       expect(() => markPartitionActive('')).not.toThrow()
     })

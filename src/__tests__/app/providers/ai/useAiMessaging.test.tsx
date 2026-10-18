@@ -86,24 +86,27 @@ function renderMessaging(
   }
 }
 
-describe('useAiMessaging — api-chat image branch', () => {
-  beforeEach(() => {
-    mockUseAiSender.mockReturnValue({
-      sendTextToAI: mockSendText,
-      sendImageToAI: mockSendImage,
-      cancelOngoing: vi.fn()
-    })
-    mockChatUiState.inputValueByTab = {}
-    mockChatUiState.attachmentsByTab = {}
-    mockChatUiState.addAttachment.mockReset()
-    mockChatUiState.updateInput.mockReset()
-    mockSendImage.mockReset()
-    mockSendText.mockReset()
-    mockScheduleApiChatSend.mockReset().mockResolvedValue({ success: true })
-    mockPrepareImageForUpload.mockClear()
-    mockPrepareImageForUpload.mockImplementation(async (url: string) => url)
+// Dört `describe` bloğu da aynı temizlikle başlıyordu: tek bir dosya-seviyesi
+// `beforeEach` yeterlidir. `mockUseAiSender` varsayılanı `sendBulkToAI`'siz
+// sürümdür; gereken test kendi dönüşünü kurar.
+beforeEach(() => {
+  mockUseAiSender.mockReturnValue({
+    sendTextToAI: mockSendText,
+    sendImageToAI: mockSendImage,
+    cancelOngoing: vi.fn()
   })
+  mockChatUiState.inputValueByTab = {}
+  mockChatUiState.attachmentsByTab = {}
+  mockChatUiState.addAttachment.mockReset()
+  mockChatUiState.updateInput.mockReset()
+  mockSendImage.mockReset()
+  mockSendText.mockReset()
+  mockScheduleApiChatSend.mockReset().mockResolvedValue({ success: true })
+  mockPrepareImageForUpload.mockClear()
+  mockPrepareImageForUpload.mockImplementation(async (url: string) => url)
+})
 
+describe('useAiMessaging — api-chat image branch', () => {
   it('attaches the image to the api-chat tab', async () => {
     const { result } = renderMessaging()
 
@@ -205,7 +208,7 @@ describe('useAiMessaging — api-chat image branch', () => {
 
     expect(outcome).toEqual({ success: false, error: 'invalid_image_format' })
     expect(mockChatUiState.addAttachment).not.toHaveBeenCalled()
-    expect(showWarning).toHaveBeenCalled()
+    expect(showWarning).toHaveBeenCalledWith(expect.stringMatching(/invalid_image_format/))
   })
 
   it('rejects an http(s) source that a provider could not resolve', async () => {
@@ -248,7 +251,9 @@ describe('useAiMessaging — api-chat image branch', () => {
       await result.current.sendImageToAI(PNG, { autoSend: true })
     })
 
-    expect(mockScheduleApiChatSend).toHaveBeenCalled()
+    // Zamanlayıcı etkin sekme kimliğiyle ve bir zaman aşımı tutucusuyla
+    // çağrılır (bkz. useAiMessaging.ts:272).
+    expect(mockScheduleApiChatSend).toHaveBeenCalledWith('tab-1', expect.anything())
   })
 
   it('does not touch the composer for content targets', async () => {
@@ -268,23 +273,6 @@ describe('useAiMessaging — api-chat image branch', () => {
 // reached a model. Both paths below looked identical to the user, so a queued
 // image simply disappeared.
 describe('useAiMessaging — delivery reporting', () => {
-  beforeEach(() => {
-    mockUseAiSender.mockReturnValue({
-      sendTextToAI: mockSendText,
-      sendImageToAI: mockSendImage,
-      cancelOngoing: vi.fn()
-    })
-    mockChatUiState.inputValueByTab = {}
-    mockChatUiState.attachmentsByTab = {}
-    mockChatUiState.addAttachment.mockReset()
-    mockChatUiState.updateInput.mockReset()
-    mockSendImage.mockReset()
-    mockSendText.mockReset()
-    mockScheduleApiChatSend.mockReset().mockResolvedValue({ success: true })
-    mockPrepareImageForUpload.mockClear()
-    mockPrepareImageForUpload.mockImplementation(async (url: string) => url)
-  })
-
   it('stages silently when auto-send is off', async () => {
     const { result, showWarning } = renderMessaging()
 
@@ -348,7 +336,7 @@ describe('useAiMessaging — delivery reporting', () => {
       await result.current.sendImageToAI(PNG)
     })
 
-    expect(showWarning).toHaveBeenCalled()
+    expect(showWarning).toHaveBeenCalledWith(expect.stringMatching(/paste_failed/))
   })
 
   /**
@@ -379,9 +367,13 @@ describe('useAiMessaging — delivery reporting', () => {
     // Yakalanmamış hata mesajıyla normalize edilir; bu yol toast üretmez,
     // hata composer'da `resolveSendOutcome` ile gösterilir.
     expect(outcome).toMatchObject({ success: false, error: 'boom' })
-    // Telafi yine de koşar: hazırlanan ek hedefte bırakılmaz.
-    expect(mockChatUiState.addAttachment).toHaveBeenCalled()
-    expect(mockChatUiState.updateInput).toHaveBeenCalled()
+    // Telafi yine de koşar: hazırlanan ek ve varsayılan talimat hedefte
+    // bırakılmaz (ek hazırlanmadan önce hata atılmıştı).
+    expect(mockChatUiState.addAttachment).toHaveBeenCalledWith('tab-1', expect.any(String))
+    expect(mockChatUiState.updateInput).toHaveBeenCalledWith(
+      'tab-1',
+      'Describe and summarise this image.'
+    )
   })
 
   it('reports an in-flight cancellation as uncertain so the retry is blocked', async () => {
@@ -419,23 +411,6 @@ describe('useAiMessaging — delivery reporting', () => {
 // a PDF tab id wrote the image into per-tab state that no composer reads, and
 // the send still reported success.
 describe('useAiMessaging — api-chat tab targeting', () => {
-  beforeEach(() => {
-    mockUseAiSender.mockReturnValue({
-      sendTextToAI: mockSendText,
-      sendImageToAI: mockSendImage,
-      cancelOngoing: vi.fn()
-    })
-    mockChatUiState.inputValueByTab = {}
-    mockChatUiState.attachmentsByTab = {}
-    mockChatUiState.addAttachment.mockReset()
-    mockChatUiState.updateInput.mockReset()
-    mockSendImage.mockReset()
-    mockSendText.mockReset()
-    mockScheduleApiChatSend.mockReset().mockResolvedValue({ success: true })
-    mockPrepareImageForUpload.mockClear()
-    mockPrepareImageForUpload.mockImplementation(async (url: string) => url)
-  })
-
   it('attaches to the active api-chat tab without opening another', async () => {
     const { result, openAiWorkspace } = renderMessaging()
 
@@ -497,17 +472,6 @@ describe('useAiMessaging — api-chat tab targeting', () => {
  * metrik olarak sonuca işlenir (ek IPC/log veya içerik verisi yok).
  */
 describe('useAiMessaging — content readiness measurement', () => {
-  beforeEach(() => {
-    mockUseAiSender.mockReturnValue({
-      sendTextToAI: mockSendText,
-      sendImageToAI: mockSendImage,
-      sendBulkToAI: vi.fn(),
-      cancelOngoing: vi.fn()
-    })
-    mockSendText.mockReset()
-    mockSendImage.mockReset()
-  })
-
   it('records how long the content took to become ready', async () => {
     mockSendText.mockResolvedValue({
       success: true,

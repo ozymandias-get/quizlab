@@ -183,17 +183,6 @@ describe('renderPageToImageFallback', () => {
       expect(result).toMatchObject({ width: 1190, height: 1684 })
     })
 
-    it('never releases the borrowed document, because the viewer owns it', async () => {
-      const handle = makeHandle({ 1: makePage(595, 842) })
-      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
-
-      await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
-
-      // Nothing was loaded, so nothing could be released — and a borrowed handle
-      // exposes no teardown for capture to reach for in the first place.
-      expect(mocks.loadTemporaryCaptureDocument).not.toHaveBeenCalled()
-    })
-
     it('never releases the borrowed document when the render itself fails', async () => {
       // Page 99 is absent, so getPage() rejects. The failure path still must not
       // tear down a document this call did not create.

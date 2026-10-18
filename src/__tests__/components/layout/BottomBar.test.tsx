@@ -113,34 +113,20 @@ describe('BottomBar', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the resizer hub container', () => {
+  it('renders the resizer hub with two drag areas, two pills and one sparkles canvas', async () => {
     const { container } = render(<BottomBar />)
-    const hub = container.querySelector('.resizer-hub-container')
-    expect(hub).toBeInTheDocument()
-  })
 
-  it('renders resizer drag areas with compare visual elements', () => {
-    const { container } = render(<BottomBar />)
-    const dragAreas = container.querySelectorAll('.resizer-drag-area')
-    expect(dragAreas.length).toBe(2)
-    // Single shared sparkles canvas covering the hub (perf: 1 canvas vs 2)
-    const sparkles = screen.getAllByTestId('sparkles-core')
-    expect(sparkles.length).toBe(1)
-  })
-
-  it('renders the handlebar pill in each drag area', () => {
-    const { container } = render(<BottomBar />)
+    expect(container.querySelector('.resizer-hub-container')).toBeInTheDocument()
     // The vertical track is a `.resizer-drag-area::after` pseudo-element, so
     // only the pill is observable in the DOM.
-    const handles = container.querySelectorAll('.resizer-handle')
-    expect(handles.length).toBe(2)
-    const gripIcons = container.querySelectorAll('[class*="lucide-grip-vertical"]')
-    expect(gripIcons.length).toBe(2)
-  })
+    expect(container.querySelectorAll('.resizer-drag-area')).toHaveLength(2)
+    expect(container.querySelectorAll('.resizer-handle')).toHaveLength(2)
+    expect(container.querySelectorAll('[class*="lucide-grip-vertical"]')).toHaveLength(2)
 
-  it('renders settings icon in floating dock inner', () => {
-    render(<BottomBar />)
-    expect(screen.getByTestId('settings-icon')).toBeInTheDocument()
+    // SparklesCore is React.lazy, so it only lands after the dynamic import
+    // resolves. Single shared canvas covering the hub (perf: 1 canvas vs 2).
+    const sparkles = await screen.findAllByTestId('sparkles-core')
+    expect(sparkles).toHaveLength(1)
   })
 
   it('opens and closes the settings modal from the dock', () => {

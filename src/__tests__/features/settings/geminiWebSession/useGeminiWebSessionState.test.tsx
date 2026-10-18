@@ -177,7 +177,7 @@ describe('useGeminiWebSessionState', () => {
     expect(mockRefetch).toHaveBeenCalledTimes(1)
   })
 
-  it('rolls back enabled apps when managed app update fails', async () => {
+  it('restores the server truth after a managed app update fails', async () => {
     mockSetEnabledApps.mockResolvedValue({
       success: false,
       error: 'failed_to_save'
@@ -191,6 +191,17 @@ describe('useGeminiWebSessionState', () => {
       result.current.handlers.onToggleManagedApp('gemini')
       await Promise.resolve()
     })
+
+    // The toggle intent really was computed and dispatched: the save is asked
+    // to drop 'gemini'. This is what keeps the rest of the test from passing
+    // vacuously when the toggle is never sent at all.
+    expect(mockSetEnabledApps).toHaveBeenCalledWith(expect.not.arrayContaining(['gemini']))
+
+    // There is no client-side optimistic state to roll back — the hook never
+    // mutates `enabledAppIds` locally. The failed save is undone by refetching,
+    // so the server's unchanged list is what must land. Remove the refetch and
+    // this assertion fails.
+    expect(mockRefetch).toHaveBeenCalled()
 
     await waitFor(() => {
       expect(result.current.enabledAppIds.has('gemini')).toBe(true)

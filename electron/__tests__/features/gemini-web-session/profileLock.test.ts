@@ -100,10 +100,17 @@ describe('profile lock', () => {
     )
   })
 
-  it('returns already_in_use for a live lock without touching it', async () => {
+  // A lock held by a live PID is never reclaimed. The former suite had four
+  // near-identical "already_in_use" tests; these three are the genuinely
+  // different lock-file shapes a live holder can leave behind.
+  it.each([
+    ['a bare pid', JSON.stringify({ pid: 4242 })],
+    ['a fresh heartbeat', JSON.stringify({ pid: 4242, heartbeatAt: new Date().toISOString() })],
+    ['a legacy lock with no timestamps', JSON.stringify({ pid: 4242 })]
+  ])('returns already_in_use for a live lock with %s, without touching it', async (_label, raw) => {
     sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
     fsMocks.open.mockRejectedValue({ code: 'EEXIST' })
-    fsMocks.readFile.mockResolvedValue(JSON.stringify({ pid: 4242 }))
+    fsMocks.readFile.mockResolvedValue(raw)
 
     const lock = makeLock()
 
@@ -113,12 +120,10 @@ describe('profile lock', () => {
     expect(fsMocks.rename).not.toHaveBeenCalled()
   })
 
-  it('does not reclaim a live lock with a fresh heartbeat', async () => {
+  it('does not delete a well-formed live lock when read fails transiently', async () => {
     sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
     fsMocks.open.mockRejectedValue({ code: 'EEXIST' })
-    fsMocks.readFile.mockResolvedValue(
-      JSON.stringify({ pid: 4242, heartbeatAt: new Date().toISOString() })
-    )
+    fsMocks.readFile.mockRejectedValue(Object.assign(new Error('EIO'), { code: 'EIO' }))
 
     const lock = makeLock()
 
@@ -128,7 +133,7 @@ describe('profile lock', () => {
     expect(fsMocks.rename).not.toHaveBeenCalled()
   })
 
-  it('reclaims a lock whose heartbeat went stale (hung holder)', async () => {
+  it('does not reclaim a stale heartbeat from a hung holder', async () => {
     sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
     fsMocks.open.mockRejectedValueOnce({ code: 'EEXIST' }).mockResolvedValueOnce(handle())
     fsMocks.readFile.mockResolvedValue(
@@ -140,18 +145,6 @@ describe('profile lock', () => {
     const acquired = await lock.acquire()
     expect(acquired.ok).toBe(true)
     expect(fsMocks.rename).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not reclaim a live legacy lock (no timestamps)', async () => {
-    sessionUtilsMocks.isProcessAlive.mockReturnValue(true)
-    fsMocks.open.mockRejectedValue({ code: 'EEXIST' })
-    fsMocks.readFile.mockResolvedValue(JSON.stringify({ pid: 4242 }))
-
-    const lock = makeLock()
-
-    const acquired = await lock.acquire()
-    expect(acquired).toEqual({ ok: false, error: 'already_in_use' })
-    expect(fsMocks.rename).not.toHaveBeenCalled()
   })
 
   it('refreshes the heartbeat while held and stops on release', async () => {

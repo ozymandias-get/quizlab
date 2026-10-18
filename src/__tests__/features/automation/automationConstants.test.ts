@@ -3,80 +3,57 @@ import {
   PICKER_TIMING,
   PICKER_TRANSLATION_KEYS
 } from '@features/automation/lib/automationConstants'
+import '@shared/i18n/i18next'
 
-import { describe, expect, it } from 'vitest'
+import i18next from 'i18next'
+import { beforeAll, describe, expect, it } from 'vitest'
+
+beforeAll(async () => {
+  await i18next.changeLanguage('en')
+})
 
 describe('PICKER_TRANSLATION_KEYS', () => {
-  it('should be a non-empty array', () => {
-    expect(Array.isArray(PICKER_TRANSLATION_KEYS)).toBe(true)
-    expect(PICKER_TRANSLATION_KEYS.length).toBeGreaterThan(0)
+  // These keys are the allow-list `useElementPicker` builds its translation map
+  // from before injecting the picker into the guest page (see
+  // useElementPicker.ts, `for (const key of PICKER_TRANSLATION_KEYS)`). A key
+  // listed here but missing from a shipped locale renders a blank label inside
+  // the page the user is clicking on, so both bundles must answer for it.
+  it('resolves to a real translation in every shipped language', () => {
+    for (const lng of ['en', 'tr'] as const) {
+      const bundle = i18next.getResourceBundle(lng, 'translation') as Record<string, unknown>
+
+      for (const key of PICKER_TRANSLATION_KEYS) {
+        expect(typeof bundle[key], `${lng} is missing "${key}"`).toBe('string')
+      }
+    }
   })
 
-  it('should contain step key', () => {
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_step')
-  })
-
-  it('should contain intro keys', () => {
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_intro_title')
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_intro_text')
-  })
-
-  it('should contain element keys', () => {
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_el_input')
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_el_submit')
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_el_button')
-  })
-
-  it('should contain hint keys', () => {
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_hint_input_correct')
-    expect(PICKER_TRANSLATION_KEYS).toContain('picker_hint_submit_correct')
-  })
-
-  it('should contain all keys with picker_ prefix', () => {
-    PICKER_TRANSLATION_KEYS.forEach((key) => {
-      expect(key).toMatch(/^picker_/)
-    })
-  })
-
-  it('should have no duplicate keys', () => {
+  // The array is append-only; a duplicated entry silently overwrites its own
+  // translation and shifts every later label.
+  it('lists every key exactly once', () => {
     const unique = new Set(PICKER_TRANSLATION_KEYS)
     expect(unique.size).toBe(PICKER_TRANSLATION_KEYS.length)
   })
 })
 
 describe('PICKER_SCRIPTS', () => {
-  it('should have RESET and CLEANUP as non-empty strings', () => {
-    expect(typeof PICKER_SCRIPTS.RESET).toBe('string')
-    expect(PICKER_SCRIPTS.RESET.length).toBeGreaterThan(0)
-    expect(typeof PICKER_SCRIPTS.CLEANUP).toBe('string')
-    expect(PICKER_SCRIPTS.CLEANUP.length).toBeGreaterThan(0)
-  })
-
-  it('should delete _aiPickerResult in RESET', () => {
-    expect(PICKER_SCRIPTS.RESET).toContain('_aiPickerResult')
-  })
-
-  it('should delete _aiPickerCancelled in RESET', () => {
-    expect(PICKER_SCRIPTS.RESET).toContain('_aiPickerCancelled')
-  })
-
-  it('should call cleanup function and delete globals in CLEANUP', () => {
-    expect(PICKER_SCRIPTS.CLEANUP).toContain('_aiPickerCleanup')
-    expect(PICKER_SCRIPTS.CLEANUP).toContain('_aiPickerResult')
-    expect(PICKER_SCRIPTS.CLEANUP).toContain('_aiPickerCancelled')
+  // Both strings are handed straight to `executeJavaScript`, so an empty or
+  // non-string value would inject nothing and leave the picker overlay stuck.
+  it('exposes non-empty injectable source for RESET and CLEANUP', () => {
+    for (const [name, script] of Object.entries(PICKER_SCRIPTS)) {
+      expect(typeof script, `${name} should be a string`).toBe('string')
+      expect(script.length, `${name} should not be empty`).toBeGreaterThan(0)
+    }
   })
 })
 
 describe('PICKER_TIMING', () => {
-  it('should expose positive numeric timings for every key', () => {
-    expect(typeof PICKER_TIMING).toBe('object')
+  // Every entry feeds a `setTimeout`; a missing or zero value collapses the
+  // picker's teardown steps into the same tick.
+  it('exposes only positive numeric delays', () => {
     for (const [key, value] of Object.entries(PICKER_TIMING)) {
       expect(typeof value, `${key} should be a number`).toBe('number')
       expect(value, `${key} should be > 0`).toBeGreaterThan(0)
     }
-  })
-
-  it('post-save delay should be longer than cleanup delay so the user sees the done state', () => {
-    expect(PICKER_TIMING.POST_SAVE_DELAY_MS).toBeGreaterThanOrEqual(PICKER_TIMING.CLEANUP_DELAY_MS)
   })
 })

@@ -216,12 +216,17 @@ describe('usePdfPanTool', () => {
   })
 
   describe('non-primary buttons', () => {
-    it('does not start a drag for a secondary button', () => {
+    // Only the primary button starts a drag: the others belong to the browser
+    // (context menu) and to the OS (middle-click paste/scroll).
+    it.each([
+      [2, 'secondary'],
+      [1, 'middle']
+    ])('does not start a drag for the %s button', (button) => {
       const { host, leaf, containerRef } = build()
       const { result } = mountPan(containerRef)
 
       act(() => {
-        pointerDown(leaf, { button: 2 })
+        pointerDown(leaf, { button })
       })
       act(() => {
         document.dispatchEvent(pointer('pointermove', 40, 25))
@@ -229,43 +234,21 @@ describe('usePdfPanTool', () => {
 
       expect(result.current.isDragging).toBe(false)
       expect(host.el.scrollLeft).toBe(0)
+      expect(host.el.scrollTop).toBe(0)
       expect(host.capture).not.toHaveBeenCalled()
-    })
-
-    it('does not start a drag for the middle button', () => {
-      const { leaf, containerRef } = build()
-      const { result } = mountPan(containerRef)
-
-      act(() => {
-        pointerDown(leaf, { button: 1 })
-      })
-
-      expect(result.current.isDragging).toBe(false)
     })
   })
 
   describe('pointer capture lifecycle', () => {
-    it('captures on press and releases on release', () => {
-      const { host, leaf, containerRef } = build()
-      mountPan(containerRef)
-
-      act(() => {
-        pointerDown(leaf, { pointerId: 7 })
-      })
-      expect(host.capture).toHaveBeenCalledWith(7)
-
-      act(() => {
-        document.dispatchEvent(pointer('pointerup', 0, 0))
-      })
-    })
-
-    it('releases the captured pointer using the releasing event id', () => {
+    it('captures the pressed pointer and releases it with the releasing event id', () => {
       const { host, leaf, containerRef } = build()
       mountPan(containerRef)
 
       act(() => {
         pointerDown(leaf, { pointerId: 11 })
       })
+      expect(host.capture).toHaveBeenCalledWith(11)
+
       act(() => {
         document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 11 }))
       })
@@ -299,7 +282,14 @@ describe('usePdfPanTool', () => {
       act(() => {
         pointerDown(leaf)
       })
+      act(() => {
+        document.dispatchEvent(pointer('pointermove', 30, 15))
+      })
 
+      // Observable proof that the *nearest scrollable ancestor* won, not merely
+      // that something was captured.
+      expect(host.el.scrollLeft).toBe(-30)
+      expect(host.el.scrollTop).toBe(-15)
       expect(host.capture).toHaveBeenCalledTimes(1)
     })
 

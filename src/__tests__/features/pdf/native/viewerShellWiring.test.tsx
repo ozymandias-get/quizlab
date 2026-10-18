@@ -22,11 +22,7 @@ import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerSta
 
 const mocks = vi.hoisted(() => ({
   toolbarProps: { current: null as Record<string, unknown> | null },
-  nativeViewerProps: { current: null as Record<string, unknown> | null },
-  // Stable identities, so "the toolbar is bound to the controller's search" is an
-  // identity assertion rather than a hope.
-  controllerHighlight: vi.fn(),
-  controllerClearHighlights: vi.fn()
+  nativeViewerProps: { current: null as Record<string, unknown> | null }
 }))
 
 vi.mock('react-i18next', () => ({
@@ -152,46 +148,13 @@ afterEach(() => {
 })
 
 describe('PdfViewerDocument renderer wiring', () => {
-  it('mounts the native viewer', () => {
-    renderDocument()
-
-    expect(screen.getByTestId('native-viewer')).toBeInTheDocument()
-  })
-
-  it('binds the toolbar to the native controller', () => {
-    renderDocument()
-
-    const toolbar = toolbarProps()
-    expect(toolbar.currentPage).toBe(1)
-    expect(toolbar.totalPages).toBeTypeOf('number')
-    expect(toolbar.ZoomIn).toBeTypeOf('function')
-    expect(toolbar.ZoomOut).toBeTypeOf('function')
-    expect(toolbar.CurrentScale).toBeTypeOf('function')
-    expect(toolbar.onPreviousPage).toBeTypeOf('function')
-    expect(toolbar.onNextPage).toBeTypeOf('function')
-    expect(toolbar.onJumpToPage).toBeTypeOf('function')
-  })
-
-  it('binds the toolbar search to the controller, not to anything else', () => {
-    renderDocument()
-
-    // The search bar is renderer-agnostic and only ever calls
-    // `highlight` / `clearHighlights`. That those are the controller's own
-    // functions is the whole of what it means for search to work now: a stale
-    // binding would render a working-looking bar over a viewer that highlights
-    // nothing.
-    const toolbar = toolbarProps()
-    expect(toolbar.highlight).toBeTypeOf('function')
-    expect(toolbar.clearHighlights).toBeTypeOf('function')
-    expect(toolbar.highlight).not.toBe(mocks.controllerHighlight)
-    expect(toolbar.highlight).not.toBe(mocks.controllerClearHighlights)
-  })
-
   it('passes the very same functions the controller exposes', () => {
     renderDocument()
 
     // Identity against the controller, not merely "is a function". The controller
-    // is handed to the viewer mock, so its search pair is the only candidate.
+    // is handed to the viewer mock, so its search pair and its navigation are the
+    // only candidates — a toolbar bound to a dead state would still look correct
+    // in a snapshot.
     const controller = nativeViewerProps().controller as Record<string, unknown>
     const toolbar = toolbarProps()
     expect(toolbar.highlight).toBe(controller.highlight)
@@ -201,17 +164,6 @@ describe('PdfViewerDocument renderer wiring', () => {
     expect(toolbar.onNextPage).toBe(controller.goToNextPage)
     expect(toolbar.currentPage).toBe(controller.currentPage)
     expect(toolbar.totalPages).toBe(controller.totalPages)
-  })
-
-  it('needs no capture bounding: capture works on the renderer', () => {
-    renderDocument()
-
-    // The toolbar used to take a bounding flag while the native viewer had no
-    // capture pipeline. It has one now, so the flag is gone from the toolbar
-    // entirely: leaving it would be a second thing to forget to remove, and it
-    // could only ever disable a capability that exists.
-    expect(toolbarProps()).not.toHaveProperty('nativeCanvasMode')
-    expect(toolbarProps()).not.toHaveProperty('captureActionsDisabled')
   })
 
   it('hands the viewer a distinct ref for each surface it mounts into', () => {
@@ -231,11 +183,14 @@ describe('PdfViewerDocument renderer wiring', () => {
     expect(new Set(refs).size).toBe(4)
   })
 
-  it('mounts one toolbar and one container, not one of each per renderer', () => {
+  it('mounts one toolbar, one viewer and one container', () => {
     renderDocument()
 
+    // The renderer switch lives in `PdfViewerDocument`, so exactly one of each can
+    // ever exist. `native-viewer` being present is also the positive statement that
+    // the native viewer is what the shell renders.
+    expect(screen.getByTestId('native-viewer')).toBeInTheDocument()
     expect(screen.getAllByTestId('pdf-toolbar')).toHaveLength(1)
-    expect(screen.getAllByTestId('native-viewer')).toHaveLength(1)
     expect(document.querySelectorAll('.pdf-viewer-container')).toHaveLength(1)
   })
 

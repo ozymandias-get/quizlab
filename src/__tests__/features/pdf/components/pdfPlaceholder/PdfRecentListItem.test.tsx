@@ -51,7 +51,7 @@ function renderItem(options: RenderOptions = {}) {
 }
 
 describe('PdfRecentListItem', () => {
-  it('resume button click resumes exactly once and does not trigger the card handler', () => {
+  it('resume button click resumes exactly once', () => {
     const { onResume } = renderItem()
 
     fireEvent.click(screen.getByRole('button', { name: 'continue_reading' }))
@@ -165,18 +165,6 @@ describe('PdfRecentListItem', () => {
 
       expect(onResume).not.toHaveBeenCalled()
       expect(onRemove).not.toHaveBeenCalled()
-    })
-
-    it('relink and remove buttons still work', () => {
-      const { onResume, onRelink, onRemove } = renderItem({ isInvalid: true })
-
-      fireEvent.click(screen.getByRole('button', { name: 'choose_new_location' }))
-      expect(onRelink).toHaveBeenCalledTimes(1)
-
-      fireEvent.click(screen.getByRole('button', { name: 'remove_from_history' }))
-      expect(onRemove).toHaveBeenCalledTimes(1)
-
-      expect(onResume).not.toHaveBeenCalled()
     })
   })
 })

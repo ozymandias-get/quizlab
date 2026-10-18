@@ -23,15 +23,6 @@ function makeDragEvent(overrides: Partial<ReactDragEvent> = {}): ReactDragEvent 
 }
 
 describe('useGridDragReorder', () => {
-  it('exposes a ref + 4 handlers', () => {
-    const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], vi.fn()))
-    expect(result.current.dragItemRef).toBeDefined()
-    expect(typeof result.current.handleDragStart).toBe('function')
-    expect(typeof result.current.handleDragOver).toBe('function')
-    expect(typeof result.current.handleDrop).toBe('function')
-    expect(typeof result.current.handleDragEnd).toBe('function')
-  })
-
   describe('handleDragStart', () => {
     it('stores the dragged item id in the ref', () => {
       const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], vi.fn()))
@@ -90,61 +81,28 @@ describe('useGridDragReorder', () => {
       expect(result.current.dragItemRef.current).toBeNull()
     })
 
-    it('does nothing when from === to', () => {
+    // Every one of these must leave the order untouched: a drop is only valid
+    // when a drag started AND the hover target is a real, different id.
+    it.each([
+      ['from === to', ['a', 'b', 'c'], 'a', 'a', true],
+      ['no dragOver was recorded', ['a', 'b', 'c'], 'a', null, true],
+      ['no dragStart happened', ['a', 'b', 'c'], null, 'c', true],
+      ['the hover id is not in the order array', ['a', 'b', 'c'], 'a', 'unknown-id', true],
+      ['the list has a single item', ['a'], 'a', 'a', true]
+    ])('does not reorder when %s', (_case, order, from, to, doDragStart) => {
       const onReorder = vi.fn()
-      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
+      const { result } = renderHook(() => useGridDragReorder(order, onReorder))
 
-      act(() => {
-        result.current.handleDragStart('a')
-      })
-      act(() => {
-        result.current.handleDragOver(makeDragEvent(), 'a')
-      })
-      act(() => {
-        result.current.handleDrop(makeDragEvent())
-      })
-
-      expect(onReorder).not.toHaveBeenCalled()
-    })
-
-    it('does nothing when dragOver was not set', () => {
-      const onReorder = vi.fn()
-      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
-
-      act(() => {
-        result.current.handleDragStart('a')
-      })
-      act(() => {
-        result.current.handleDrop(makeDragEvent())
-      })
-
-      expect(onReorder).not.toHaveBeenCalled()
-    })
-
-    it('does nothing when dragStart was not called', () => {
-      const onReorder = vi.fn()
-      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
-
-      act(() => {
-        result.current.handleDragOver(makeDragEvent(), 'c')
-      })
-      act(() => {
-        result.current.handleDrop(makeDragEvent())
-      })
-
-      expect(onReorder).not.toHaveBeenCalled()
-    })
-
-    it('ignores ids that are not in the order array', () => {
-      const onReorder = vi.fn()
-      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
-
-      act(() => {
-        result.current.handleDragStart('a')
-      })
-      act(() => {
-        result.current.handleDragOver(makeDragEvent(), 'unknown-id')
-      })
+      if (doDragStart && from !== null) {
+        act(() => {
+          result.current.handleDragStart(from)
+        })
+      }
+      if (to !== null) {
+        act(() => {
+          result.current.handleDragOver(makeDragEvent(), to)
+        })
+      }
       act(() => {
         result.current.handleDrop(makeDragEvent())
       })
@@ -168,23 +126,6 @@ describe('useGridDragReorder', () => {
 
       // d removed from index 3, inserted at index 1 (where b was)
       expect(onReorder).toHaveBeenCalledWith(['a', 'd', 'b', 'c'])
-    })
-
-    it('moves a single-item list (no-op)', () => {
-      const onReorder = vi.fn()
-      const { result } = renderHook(() => useGridDragReorder(['a'], onReorder))
-
-      act(() => {
-        result.current.handleDragStart('a')
-      })
-      act(() => {
-        result.current.handleDragOver(makeDragEvent(), 'a')
-      })
-      act(() => {
-        result.current.handleDrop(makeDragEvent())
-      })
-
-      expect(onReorder).not.toHaveBeenCalled()
     })
   })
 

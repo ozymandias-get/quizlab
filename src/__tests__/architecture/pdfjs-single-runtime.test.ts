@@ -223,18 +223,6 @@ describe('single runtime: one worker', () => {
     expect(engine).not.toMatch(/pdf\.worker\.min\.mjs\?/)
   })
 
-  it('the worker path is built from the same staged root as every other asset', () => {
-    const options = codeOf(repoPath('src/features/pdf/engine/pdfDocumentOptions.ts'))
-
-    // One directory, one source of truth. If this and `vite.config.mts`'s
-    // `PDFJS_WORKER_FILE` ever diverge the packaged app ships without a worker,
-    // which only shows up as a blank page at runtime.
-    expect(options).toMatch(/PDFJS_WORKER_RELATIVE_PATH = 'build\/pdf\.worker\.min\.mjs'/)
-
-    const config = codeOf(repoPath('vite.config.mts'))
-    expect(config).toMatch(/PDFJS_WORKER_FILE = 'build\/pdf\.worker\.min\.mjs'/)
-  })
-
   it('nothing imports the 3.x worker file', () => {
     // `pdf.worker.min.js` was RPV's worker and does not exist in 6.x any more.
     const offenders = pdfProductionFiles
@@ -252,22 +240,6 @@ describe('single runtime: one worker', () => {
       )
       .map(relativeToRepo)
     expect(writers).toEqual(['src/features/pdf/engine/pdfWorker.ts'])
-  })
-
-  it('reports a repo-relative offender identically on Windows and POSIX', () => {
-    // The normalization the assertions above depend on is itself pinned, so a
-    // future edit that drops `slashPath` — or loosens it into a no-op — fails here
-    // on the runner that happens to have the other separator instead of failing
-    // silently on one platform only. Both shapes are fed explicitly because CI
-    // only ever exercises the host one.
-    const posix = 'src/features/pdf/engine/pdfWorker.ts'
-    const windows = 'src\\features\\pdf\\engine\\pdfWorker.ts'
-    expect(slashPath(posix)).toBe(posix)
-    expect(slashPath(windows)).toBe(posix)
-    // The real sweep, end to end, for the file the strict assertion above names.
-    expect(relativeToRepo(repoPath('src/features/pdf/engine/pdfWorker.ts'))).toBe(posix)
-    // And a genuinely wrong path stays wrong after normalization.
-    expect(slashPath('src\\features\\pdf\\engine\\pdfWorker2.ts')).not.toBe(posix)
   })
 })
 
@@ -343,12 +315,6 @@ describe('single runtime: scripting stays disabled', () => {
 describe('single runtime: asset staging', () => {
   const ASSET_SUBDIRS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'] as const
 
-  it('the engine declares the four asset directories', () => {
-    expect(readSource(repoPath('src/features/pdf/engine/pdfDocumentOptions.ts'))).toContain(
-      `['cmaps', 'standard_fonts', 'wasm', 'iccs']`
-    )
-  })
-
   it('every declared asset directory exists in the installed package', () => {
     const packageRoot = dirname(require.resolve('pdfjs-dist/package.json', { paths: [repoRoot] }))
     for (const subdir of ASSET_SUBDIRS) {
@@ -366,26 +332,14 @@ describe('single runtime: asset staging', () => {
   })
 
   it('reads them from node_modules/pdfjs-dist, not the retired alias', () => {
+    // The packaging half of "one runtime": a build that staged the alias, the
+    // deleted viewer, or a second chunk name would ship a worker and fonts from
+    // a package the app no longer declares.
     expect(viteConfig).toContain("const PDFJS_PACKAGE = 'node_modules/pdfjs-dist'")
     expect(viteConfig).not.toContain('node_modules/pdfjs-6')
-  })
-})
-
-/* ------------------------------------------------------------------- chunks */
-
-describe('single runtime: one PDF chunk', () => {
-  it('emits a single vendor-pdf chunk', () => {
-    expect(viteConfig).toContain("return 'vendor-pdf'")
-    expect(viteConfig).toContain("test: /pdfjs-dist/, name: 'vendor-pdf'")
-  })
-
-  it('has no legacy or native chunk name left', () => {
+    expect(viteConfig).not.toContain('@react-pdf-viewer')
     expect(viteConfig).not.toContain('vendor-pdf-legacy')
     expect(viteConfig).not.toContain('vendor-pdf-native')
-  })
-
-  it('does not special-case the deleted viewer in the chunk rules', () => {
-    expect(viteConfig).not.toContain('@react-pdf-viewer')
   })
 })
 

@@ -44,14 +44,10 @@ describe('CONFIG_KEYS whitelist', () => {
       expect(CONFIG_KEYS as readonly string[]).not.toContain(key)
     }
   })
-
-  it('keeps every whitelisted key assignable on the config type', () => {
-    expect(new Set(CONFIG_KEYS).size).toBe(CONFIG_KEYS.length)
-  })
 })
 
 describe('sanitizeConfig repair metadata', () => {
-  it('keeps a well-formed repair state', () => {
+  it('keeps a well-formed repair state and adds no keys when there is none', () => {
     const result = sanitizeConfig({
       input: '#ask',
       button: '#send',
@@ -61,6 +57,12 @@ describe('sanitizeConfig repair metadata', () => {
     expect(result).not.toBeNull()
     expect(result!.repair?.input).toEqual(VALID_CANDIDATE)
     expect(result!.repair?.button).toBeNull()
+
+    // Absent repair metadata must not materialise as an empty object either.
+    const withoutRepair = sanitizeConfig({ input: '#ask', button: '#send' })
+    expect(withoutRepair).not.toBeNull()
+    expect('repair' in (withoutRepair as object)).toBe(false)
+    expect('lastRepair' in (withoutRepair as object)).toBe(false)
   })
 
   it('keeps a well-formed lastRepair record', () => {
@@ -83,13 +85,6 @@ describe('sanitizeConfig repair metadata', () => {
       inputStrategy: 'candidate',
       buttonStrategy: 'fingerprint'
     })
-  })
-
-  it('leaves configs without repair metadata untouched', () => {
-    const result = sanitizeConfig({ input: '#ask', button: '#send' })
-    expect(result).not.toBeNull()
-    expect('repair' in (result as object)).toBe(false)
-    expect('lastRepair' in (result as object)).toBe(false)
   })
 
   it('rejects an unknown strategy enum value', () => {

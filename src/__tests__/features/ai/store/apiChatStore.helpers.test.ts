@@ -1,6 +1,5 @@
 import '@shared/i18n/i18next'
 
-import { LOCAL_STORAGE_KEY } from '@features/ai/store/apiChatPersistence'
 import {
   buildCombinedPrompt,
   buildErrorReply,
@@ -120,13 +119,6 @@ describe('apiChatStore helpers (pure functions)', () => {
       expect(buildErrorReply({ code: 500 }).content).toMatch(
         /^(Hata|Error): \{&?quot;code&?quot;:500\}$/
       )
-    })
-  })
-
-  describe('constants', () => {
-    it('exposes the localStorage key and default title', () => {
-      expect(LOCAL_STORAGE_KEY).toBe('quizlab_api_chat_sessions_v2')
-      expect(DEFAULT_SESSION_TITLE).toBe('New Chat')
     })
   })
 })

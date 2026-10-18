@@ -124,31 +124,23 @@ describe('Logger - basic API', () => {
     expect(errorSpy).toHaveBeenCalled()
     expect(errorSpy.mock.calls[0].length).toBe(3)
   })
-
-  it('Logger.error handles Error objects', () => {
-    const err = new Error('boom')
-    Logger.error('Failed:', err)
-    expect(errorSpy).toHaveBeenCalled()
-  })
 })
 
 describe('Logger - reportSuppressedError', () => {
-  it('does not throw when called with just a scope', () => {
-    expect(() => reportSuppressedError('test-scope')).not.toThrow()
-  })
-
-  it('does not throw when called with a cause', () => {
-    expect(() => reportSuppressedError('test-scope', { cause: new Error('inner') })).not.toThrow()
-  })
-
-  it('handles circular cause without crashing', () => {
-    const cause: any = {}
-    cause.self = cause
-    expect(() => reportSuppressedError('circular', { cause })).not.toThrow()
-  })
-
-  it('handles undefined cause explicitly', () => {
-    expect(() => reportSuppressedError('test', { cause: undefined })).not.toThrow()
+  it.each([
+    ['a bare scope', () => reportSuppressedError('test-scope')],
+    ['a cause', () => reportSuppressedError('test-scope', { cause: new Error('inner') })],
+    [
+      'a circular cause',
+      () => {
+        const cause: any = {}
+        cause.self = cause
+        reportSuppressedError('circular', { cause })
+      }
+    ],
+    ['an undefined cause', () => reportSuppressedError('test', { cause: undefined })]
+  ])('does not throw for %s', (_label, call) => {
+    expect(call).not.toThrow()
   })
 })
 
@@ -164,13 +156,15 @@ describe('Logger - createIssueLogReport', () => {
     expect(report).toContain('Language: en')
   })
 
-  it('includes the recent logs section', () => {
+  it('includes a fenced "Recent Logs" section', () => {
     const report = createIssueLogReport({
       appVersion: '0.1.0',
       language: 'tr'
     })
     expect(report).toContain('## Recent Logs')
     expect(report).toContain('```text')
+    // Match the logs block — must end with a code fence
+    expect(report.trim().endsWith('```')).toBe(true)
   })
 
   it('includes a user agent line (or "unknown" in node)', () => {
@@ -188,18 +182,5 @@ describe('Logger - createIssueLogReport', () => {
     })
     expect(report).toContain('## Reproduction Steps')
     expect(report).toContain('1.')
-  })
-
-  it('includes a "Recent Logs" section', () => {
-    const report = createIssueLogReport({
-      appVersion: '0.1.0',
-      language: 'en'
-    })
-    // The section is always present; the body is either the logs or
-    // the "No buffered logs yet." placeholder.
-    expect(report).toContain('## Recent Logs')
-    expect(report).toContain('```text')
-    // Match the logs block — must end with a code fence
-    expect(report.trim().endsWith('```')).toBe(true)
   })
 })

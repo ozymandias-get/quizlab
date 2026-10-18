@@ -17,32 +17,20 @@ describe('appCleanup', () => {
     vi.restoreAllMocks()
   })
 
-  it('registerCleanup stores the cleanup function', async () => {
-    const { registerCleanup, runCleanup } = await import('../../core/appCleanup.js')
-    const fn = vi.fn().mockResolvedValue(undefined)
-    registerCleanup(fn)
-    await runCleanup()
-    expect(fn).toHaveBeenCalledTimes(1)
-  })
-
-  it('registerCleanup ignores subsequent calls', async () => {
+  it('stores the first cleanup function and runs it exactly once, ignoring later registrations', async () => {
+    // Storage, the first-wins latch and the run-once latch are one state machine;
+    // three separate tests asserted the same three facts.
     const { registerCleanup, runCleanup } = await import('../../core/appCleanup.js')
     const fn1 = vi.fn().mockResolvedValue(undefined)
     const fn2 = vi.fn().mockResolvedValue(undefined)
+
     registerCleanup(fn1)
     registerCleanup(fn2)
     await runCleanup()
+    await runCleanup()
+
     expect(fn1).toHaveBeenCalledTimes(1)
     expect(fn2).not.toHaveBeenCalled()
-  })
-
-  it('runCleanup runs cleanup only once even when called multiple times', async () => {
-    const { registerCleanup, runCleanup } = await import('../../core/appCleanup.js')
-    const fn = vi.fn().mockResolvedValue(undefined)
-    registerCleanup(fn)
-    await runCleanup()
-    await runCleanup()
-    expect(fn).toHaveBeenCalledTimes(1)
   })
 
   it('runCleanup does nothing when no cleanup registered', async () => {

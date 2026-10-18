@@ -39,12 +39,21 @@ describe('chatUiStore', () => {
     resetStore()
   })
 
-  describe('setActiveSessionId', () => {
-    it('sets the active session id for a tab', () => {
-      useChatUiStore.getState().setActiveSessionId('tab1', 'session-1')
-      expect(useChatUiStore.getState().activeSessionIdByTab.tab1).toBe('session-1')
-    })
+  // Every action is the same shape: write one value keyed by tab. The part
+  // worth pinning is that each action lands in a DIFFERENT per-tab bucket, so
+  // the bucket is what each row below asserts.
+  it.each([
+    ['setActiveSessionId', 'activeSessionIdByTab', 'session-1'],
+    ['updateInput', 'inputValueByTab', 'hello'],
+    ['setStreaming', 'isStreamingByTab', true],
+    ['setSelectedModel', 'selectedModelByTab', 'gpt-4o'],
+    ['setActiveProvider', 'activeProviderByTab', 'openai']
+  ] as const)('%s writes into its own per-tab bucket', (action, bucket, value) => {
+    ;(useChatUiStore.getState()[action] as (tab: string, v: unknown) => void)('tab1', value)
+    expect(useChatUiStore.getState()[bucket].tab1).toBe(value)
+  })
 
+  describe('setActiveSessionId', () => {
     it('updates session id for existing tab', () => {
       useChatUiStore.getState().setActiveSessionId('tab1', 'session-1')
       useChatUiStore.getState().setActiveSessionId('tab1', 'session-2')
@@ -60,11 +69,6 @@ describe('chatUiStore', () => {
   })
 
   describe('updateInput', () => {
-    it('sets the input value for a tab', () => {
-      useChatUiStore.getState().updateInput('tab1', 'hello')
-      expect(useChatUiStore.getState().inputValueByTab.tab1).toBe('hello')
-    })
-
     it('overwrites previous input value', () => {
       useChatUiStore.getState().updateInput('tab1', 'first')
       useChatUiStore.getState().updateInput('tab1', 'second')
@@ -100,11 +104,6 @@ describe('chatUiStore', () => {
   })
 
   describe('streaming state (hybrid architecture)', () => {
-    it('sets streaming flag for a tab', () => {
-      useChatUiStore.getState().setStreaming('tab1', true)
-      expect(useChatUiStore.getState().isStreamingByTab.tab1).toBe(true)
-    })
-
     it('unsets streaming flag for a tab', () => {
       useChatUiStore.getState().setStreaming('tab1', true)
       useChatUiStore.getState().setStreaming('tab1', false)
@@ -130,31 +129,17 @@ describe('chatUiStore', () => {
       expect(useChatUiStore.getState().activeStreamingContentByTab.tab1).toBe('')
     })
 
-    it('clears streaming content when streaming ends', () => {
-      // Simulates the mutation cleanup in useSendMessageMutation:
-      // 1. Streaming starts
+    // The mutation cleanup in useSendMessageMutation ends a send with exactly
+    // these two calls; running them as one sequence is what a real send does.
+    it('clears both the flag and the partial content when streaming ends', () => {
       useChatUiStore.getState().setStreaming('tab1', true)
       useChatUiStore.getState().appendStreamingContent('tab1', 'partial response')
-      expect(useChatUiStore.getState().isStreamingByTab.tab1).toBe(true)
-      expect(useChatUiStore.getState().activeStreamingContentByTab.tab1).toBe('partial response')
 
-      // 2. Streaming ends (mutation completes) — both flag and content are cleaned up
       useChatUiStore.getState().setStreaming('tab1', false)
       useChatUiStore.getState().clearStreamingContent('tab1')
+
       expect(useChatUiStore.getState().isStreamingByTab.tab1).toBe(false)
       expect(useChatUiStore.getState().activeStreamingContentByTab.tab1).toBe('')
-    })
-  })
-
-  describe('model and provider selection', () => {
-    it('sets selected model for a tab', () => {
-      useChatUiStore.getState().setSelectedModel('tab1', 'gpt-4o')
-      expect(useChatUiStore.getState().selectedModelByTab.tab1).toBe('gpt-4o')
-    })
-
-    it('sets active provider for a tab', () => {
-      useChatUiStore.getState().setActiveProvider('tab1', 'openai')
-      expect(useChatUiStore.getState().activeProviderByTab.tab1).toBe('openai')
     })
   })
 

@@ -25,6 +25,16 @@ function imageItem(id: string, dataUrl: string): AiDraftItem {
   return { id, type: 'image', dataUrl }
 }
 
+/** Sayfa kaynağı taşıyan görsel — gövdedeki "Sayfa N/59" başlıkları bunu üretir. */
+function imageItemAt(id: string, page: number): AiDraftItem {
+  return {
+    id,
+    type: 'image',
+    dataUrl: 'data:image/png;base64,AAA',
+    source: { docId: 'doc', page, totalPages: 59, captureKind: 'area-image', createdAt: 1 }
+  }
+}
+
 describe('useDraftSendOrchestration', () => {
   const buildHarness = (initial: AiDraftItem[] = [], providerId = 'chatgpt') => {
     const sendTextToAI = vi.fn().mockResolvedValue({ success: true })
@@ -89,6 +99,78 @@ describe('useDraftSendOrchestration', () => {
       autoSend: true,
       promptText: 'note'
     })
+  })
+
+  // ── Tek mesaj sözleşmesi: çoklu görsel ve karışık kuyruk ────────────────
+  // Görseller tek mesajın ekleri olur, prompt yalnızca bir kez yazılır ve
+  // sağlayıcı taşıyamıyorsa sessizce bölünmez: taslak korunur.
+  it('sends three images with a single bulk call and a single prompt', async () => {
+    const { result, sendBulkToAI, sendTextToAI } = buildHarness([
+      imageItemAt('i1', 11),
+      imageItemAt('i2', 12),
+      imageItemAt('i3', 13)
+    ])
+
+    await act(async () => {
+      await result.current.sendPendingAiItems({ promptText: 'Özetle' })
+    })
+
+    expect(sendBulkToAI).toHaveBeenCalledTimes(1)
+    expect(sendTextToAI).not.toHaveBeenCalled()
+    const [urls, opts] = sendBulkToAI.mock.calls[0]
+    expect(urls).toHaveLength(3)
+    // Prompt yalnızca bir kez.
+    expect(opts.promptText).toContain('Özetle')
+    expect(opts.promptText.match(/Özetle/g)).toHaveLength(1)
+    // Sayfa bilgileri gövdede.
+    expect(opts.promptText).toContain('Sayfa 11/59')
+    expect(opts.promptText).toContain('Sayfa 12/59')
+    expect(opts.promptText).toContain('Sayfa 13/59')
+  })
+
+  it('sends mixed text+image as one message (no per-image submit)', async () => {
+    const { result, sendBulkToAI, sendTextToAI } = buildHarness([
+      textItem('t1', 'A'),
+      imageItemAt('i1', 13)
+    ])
+
+    await act(async () => {
+      await result.current.sendPendingAiItems({ promptText: 'Note' })
+    })
+
+    expect(sendBulkToAI).toHaveBeenCalledTimes(1)
+    expect(sendTextToAI).not.toHaveBeenCalled()
+    const [urls] = sendBulkToAI.mock.calls[0]
+    expect(urls).toHaveLength(1)
+  })
+
+  it('never splits into multiple messages for an unsupported provider', async () => {
+    // Bilinmeyen/kullanıcı tanımlı sağlayıcı desteklenmiyor sayılır: gönderim
+    // reddedilir, taslak korunur, sessiz çoklu mesaj ÜRETİLMEZ.
+    const { result, sendBulkToAI, setPendingAiItems } = buildHarness(
+      [imageItemAt('i1', 11), imageItemAt('i2', 12)],
+      'my-custom-site'
+    )
+
+    let res: { success: boolean; error?: string } = { success: true }
+    await act(async () => {
+      res = await result.current.sendPendingAiItems()
+    })
+
+    expect(res.success).toBe(false)
+    expect(res.error).toBe('bulk_not_supported')
+    expect(sendBulkToAI).not.toHaveBeenCalled()
+    expect(setPendingAiItems).not.toHaveBeenCalled()
+  })
+
+  it('single image needs no provider capability and sends as one message', async () => {
+    const { result, sendBulkToAI } = buildHarness([imageItemAt('i1', 11)], 'my-custom-site')
+
+    await act(async () => {
+      await result.current.sendPendingAiItems()
+    })
+
+    expect(sendBulkToAI).toHaveBeenCalledTimes(1)
   })
 
   it('stops on failure and does not clear pending items', async () => {

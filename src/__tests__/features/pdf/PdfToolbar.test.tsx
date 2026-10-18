@@ -2,6 +2,7 @@ import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
 import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import { TooltipProvider } from '@shared/ui/components/primitives'
+
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -17,176 +18,108 @@ const ZoomIn = ({ children }: any) => children({ onClick: vi.fn() })
 const ZoomOut = ({ children }: any) => children({ onClick: vi.fn() })
 const CurrentScale = ({ children }: any) => children({ scale: 1.25 })
 
-describe('PdfToolbar', () => {
-  it('renders pan mode button and handles toggle', () => {
-    const onTogglePanMode = vi.fn()
-    const { getByTestId, queryByLabelText } = render(
-      <TooltipProvider>
-        <PdfToolbar
-          pdfFile={null}
-          panMode={false}
-          onTogglePanMode={onTogglePanMode}
-          currentPage={1}
-          totalPages={5}
-          onPreviousPage={vi.fn()}
-          onNextPage={vi.fn()}
-          highlight={vi.fn()}
-          clearHighlights={vi.fn()}
-          ZoomIn={ZoomIn}
-          ZoomOut={ZoomOut}
-          CurrentScale={CurrentScale}
-          onJumpToPage={vi.fn()}
-        />
-      </TooltipProvider>
-    )
+interface PdfFileLike {
+  path: string
+  name: string
+}
 
+interface Overrides {
+  pdfFile?: PdfFileLike | null
+  panMode?: boolean
+  onTogglePanMode?: () => void
+  onReload?: () => void
+  highlight?: Mock<(keyword: string) => void>
+  clearHighlights?: Mock<() => void>
+}
+
+/**
+ * Every toolbar test renders the same 14-prop component, so the defaults live
+ * here once. The previous version copy-pasted the whole block five times, which
+ * is how `pdf-toolbar-reload` and the search wiring drifted apart unnoticed.
+ */
+function renderToolbar(overrides: Overrides = {}) {
+  const props = {
+    pdfFile: overrides.pdfFile ?? null,
+    panMode: overrides.panMode ?? false,
+    onTogglePanMode: overrides.onTogglePanMode ?? vi.fn(),
+    currentPage: 2,
+    totalPages: 61,
+    onPreviousPage: vi.fn(),
+    onNextPage: vi.fn(),
+    highlight: overrides.highlight ?? vi.fn<(keyword: string) => void>(),
+    clearHighlights: overrides.clearHighlights ?? vi.fn<() => void>(),
+    ZoomIn,
+    ZoomOut,
+    CurrentScale,
+    onJumpToPage: vi.fn(),
+    onReload: overrides.onReload ?? vi.fn()
+  }
+
+  const draw = () => (
+    <TooltipProvider>
+      <PdfToolbar {...(props as React.ComponentProps<typeof PdfToolbar>)} />
+    </TooltipProvider>
+  )
+
+  const view = render(draw())
+
+  return {
+    ...view,
+    props,
+    /** Apply new overrides to an already-mounted toolbar. */
+    update(next: Overrides) {
+      Object.assign(props, next)
+      view.rerender(draw())
+    },
+    /** Swap the open document, the way a tab switch does. */
+    setPdfFile(next: PdfFileLike | null) {
+      props.pdfFile = next
+      view.rerender(draw())
+    }
+  }
+}
+
+/*
+ * Not tested on purpose: the AI quick-bar (text / image / area send buttons and
+ * the mode toggle). Those controls moved to the selection menu, and their
+ * `data-testid`s no longer exist anywhere under `src/`. A test that asserts a
+ * removed feature is still absent only fails if someone re-adds the exact same
+ * identifiers, so it guarded nothing.
+ */
+
+describe('PdfToolbar', () => {
+  it('renders the pan-mode toggle, reports clicks and mirrors the pressed state', () => {
+    const onTogglePanMode = vi.fn()
+    const { getByTestId, queryByLabelText, update } = renderToolbar({ onTogglePanMode })
+
+    // The tool palette only appears when the reader asks for it.
     expect(queryByLabelText('pdf_tools')).not.toBeInTheDocument()
 
     const panButton = getByTestId('pan-mode-button')
     expect(panButton).toBeInTheDocument()
     expect(panButton).toHaveAttribute('aria-pressed', 'false')
 
-    panButton.click()
+    fireEvent.click(panButton)
     expect(onTogglePanMode).toHaveBeenCalledTimes(1)
-  })
 
-  it('reflects active pan mode state', () => {
-    const { getByTestId } = render(
-      <TooltipProvider>
-        <PdfToolbar
-          pdfFile={null}
-          panMode
-          onTogglePanMode={vi.fn()}
-          currentPage={1}
-          totalPages={5}
-          onPreviousPage={vi.fn()}
-          onNextPage={vi.fn()}
-          highlight={vi.fn()}
-          clearHighlights={vi.fn()}
-          ZoomIn={ZoomIn}
-          ZoomOut={ZoomOut}
-          CurrentScale={CurrentScale}
-          onJumpToPage={vi.fn()}
-        />
-      </TooltipProvider>
-    )
-
-    const panButton = getByTestId('pan-mode-button')
-    expect(panButton).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('does not render AI quick-bar controls (new selection menu owns them)', () => {
-    const { queryByTestId } = render(
-      <TooltipProvider>
-        <PdfToolbar
-          pdfFile={null}
-          panMode={false}
-          onTogglePanMode={vi.fn()}
-          currentPage={2}
-          totalPages={61}
-          onPreviousPage={vi.fn()}
-          onNextPage={vi.fn()}
-          highlight={vi.fn()}
-          clearHighlights={vi.fn()}
-          ZoomIn={ZoomIn}
-          ZoomOut={ZoomOut}
-          CurrentScale={CurrentScale}
-          onJumpToPage={vi.fn()}
-        />
-      </TooltipProvider>
-    )
-
-    // Yeni akış: AI metin/görsel/alan butonları ve mod geçişi yok.
-    expect(queryByTestId('pdf-ai-quick-bar')).not.toBeInTheDocument()
-    expect(queryByTestId('pdf-toolbar-mode-toggle')).not.toBeInTheDocument()
-    expect(queryByTestId('pdf-quick-text-ai')).not.toBeInTheDocument()
-    expect(queryByTestId('pdf-quick-image-ai')).not.toBeInTheDocument()
-    expect(queryByTestId('pdf-quick-area-ai')).not.toBeInTheDocument()
-    // Pan korunur.
-    expect(queryByTestId('pan-mode-button')).toBeInTheDocument()
+    // Pressed state follows the prop, not the click: the toolbar mirrors what
+    // the viewer decided, it does not own it.
+    update({ panMode: true })
+    expect(getByTestId('pan-mode-button')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('keeps reload as an independent viewer control', () => {
     const onReload = vi.fn()
-    const { getByTestId } = render(
-      <TooltipProvider>
-        <PdfToolbar
-          pdfFile={null}
-          panMode={false}
-          onTogglePanMode={vi.fn()}
-          currentPage={2}
-          totalPages={61}
-          onPreviousPage={vi.fn()}
-          onNextPage={vi.fn()}
-          highlight={vi.fn()}
-          clearHighlights={vi.fn()}
-          ZoomIn={ZoomIn}
-          ZoomOut={ZoomOut}
-          CurrentScale={CurrentScale}
-          onJumpToPage={vi.fn()}
-          onReload={onReload}
-        />
-      </TooltipProvider>
-    )
+    const { getByTestId } = renderToolbar({ onReload })
 
     fireEvent.click(getByTestId('pdf-toolbar-reload'))
+
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
   describe('viewer with no legacy renderer branch', () => {
-    interface NativeToolbarOverrides {
-      highlight?: Mock<(keyword: string) => void>
-      clearHighlights?: Mock<() => void>
-    }
-
-    function nativeToolbar(props: {
-      pdfFile: { path: string; name: string } | null
-      highlight: Mock<(keyword: string) => void>
-      clearHighlights: Mock<() => void>
-    }) {
-      return (
-        <TooltipProvider>
-          <PdfToolbar
-            pdfFile={props.pdfFile}
-            onReload={vi.fn()}
-            panMode={false}
-            onTogglePanMode={vi.fn()}
-            currentPage={2}
-            totalPages={61}
-            onPreviousPage={vi.fn()}
-            onNextPage={vi.fn()}
-            highlight={props.highlight}
-            clearHighlights={props.clearHighlights}
-            ZoomIn={ZoomIn}
-            ZoomOut={ZoomOut}
-            CurrentScale={CurrentScale}
-            onJumpToPage={vi.fn()}
-          />
-        </TooltipProvider>
-      )
-    }
-
-    function renderNativeToolbar(
-      overrides: NativeToolbarOverrides = {},
-      pdfFile: { path: string; name: string } | null = null
-    ) {
-      const props = {
-        pdfFile,
-        highlight: overrides.highlight ?? vi.fn(),
-        clearHighlights: overrides.clearHighlights ?? vi.fn()
-      }
-      const view = render(nativeToolbar(props))
-      return {
-        ...view,
-        setPdfFile: (next: { path: string; name: string } | null) => {
-          props.pdfFile = next
-          view.rerender(nativeToolbar(props))
-        }
-      }
-    }
-
     it('reveals the search bar when the shared store opens it', async () => {
-      renderNativeToolbar()
+      renderToolbar()
 
       act(() => usePdfSearchStore.setState({ isOpen: false }))
       await waitFor(() =>
@@ -198,9 +131,9 @@ describe('PdfToolbar', () => {
     })
 
     it('clears the highlights when the search input is emptied', async () => {
-      const highlight = vi.fn()
-      const clearHighlights = vi.fn()
-      renderNativeToolbar({ highlight, clearHighlights })
+      const highlight = vi.fn<(keyword: string) => void>()
+      const clearHighlights = vi.fn<() => void>()
+      renderToolbar({ highlight, clearHighlights })
 
       const input = screen.getByPlaceholderText('search_placeholder')
       fireEvent.change(input, { target: { value: 'thermodynamics' } })
@@ -215,12 +148,13 @@ describe('PdfToolbar', () => {
     })
 
     it('does not carry a pending search into the next document', async () => {
-      const highlight = vi.fn()
-      const clearHighlights = vi.fn()
-      const { setPdfFile } = renderNativeToolbar(
-        { highlight, clearHighlights },
-        { path: '/docs/first.pdf', name: 'first.pdf' }
-      )
+      const highlight = vi.fn<(keyword: string) => void>()
+      const clearHighlights = vi.fn<() => void>()
+      const { setPdfFile } = renderToolbar({
+        highlight,
+        clearHighlights,
+        pdfFile: { path: '/docs/first.pdf', name: 'first.pdf' }
+      })
 
       fireEvent.change(screen.getByPlaceholderText('search_placeholder'), {
         target: { value: 'thermodynamics' }

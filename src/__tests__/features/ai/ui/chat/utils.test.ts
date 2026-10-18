@@ -18,26 +18,15 @@ function makeMessage(
 }
 
 describe('formatTime', () => {
-  it('formats a timestamp as HH:MM', () => {
-    // 2026-06-02 14:30:00 UTC
-    const ts = new Date('2026-06-02T14:30:00').getTime()
-    const result = formatTime(ts)
-    // Result is HH:MM in local time, so we just check the format
-    expect(result).toMatch(/^\d{2}:\d{2}$/)
-  })
-
-  it('zero-pads single-digit hours and minutes', () => {
-    // 2026-06-02 09:05:00 — depends on local time, so we just check format
-    const ts = new Date('2026-06-02T09:05:00').getTime()
-    const result = formatTime(ts)
-    expect(result).toMatch(/^\d{2}:\d{2}$/)
-  })
-
-  it('handles midnight (00:00)', () => {
-    const ts = new Date('2026-06-02T00:00:00').getTime()
-    const result = formatTime(ts)
-    // Could be 00:00 in UTC, or 23:59 the day before in negative timezones
-    expect(result).toMatch(/^\d{2}:\d{2}$/)
+  // Local-time dependent, so the contract is the zero-padded HH:MM shape —
+  // including the midnight case, which lands on 00:00 or the day-before 23:59
+  // depending on the runner's timezone.
+  it.each([
+    ['a two-digit time', '2026-06-02T14:30:00'],
+    ['a single-digit hour and minute', '2026-06-02T09:05:00'],
+    ['midnight', '2026-06-02T00:00:00']
+  ])('formats %s as HH:MM', (_case, iso) => {
+    expect(formatTime(new Date(iso).getTime())).toMatch(/^\d{2}:\d{2}$/)
   })
 })
 

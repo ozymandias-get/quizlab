@@ -101,33 +101,31 @@ function documentProps(): Record<string, unknown> {
 }
 
 describe('PdfViewer', () => {
-  it('renders placeholder when no PDF is provided', () => {
-    render(<PdfViewer pdfFile={null} onSelectPdf={vi.fn()} />)
-    expect(screen.getByText('PDF Placeholder')).toBeInTheDocument()
+  // Both children are mocked, so the assertion that matters is *which* one the
+  // shell chose for the file it was handed — not the text the mock emits.
+  it.each([
+    ['no PDF', null, 'PDF Placeholder'],
+    ['a PDF', pdfFile, 'PDF Viewer Content']
+  ])('mounts the %s branch and not the other one', (_label, file, expected) => {
+    render(<PdfViewer pdfFile={file} onSelectPdf={vi.fn()} />)
+
+    const other = expected === 'PDF Placeholder' ? 'PDF Viewer Content' : 'PDF Placeholder'
+    expect(screen.getByText(expected)).toBeInTheDocument()
+    expect(screen.queryByText(other)).not.toBeInTheDocument()
   })
 
-  it('renders the document when a PDF is provided', () => {
-    render(<PdfViewer pdfFile={pdfFile} onSelectPdf={vi.fn()} />)
-
-    expect(screen.getByText('PDF Viewer Content')).toBeInTheDocument()
-  })
-
-  it('passes the resume page down to the document', () => {
-    render(<PdfViewer pdfFile={pdfFile} initialPage={8} onSelectPdf={vi.fn()} />)
-
-    expect(documentProps().initialPage).toBe(8)
-  })
-
-  it('reports progress through the callback it was given', () => {
+  it('passes the resume page and the progress callback down to the document', () => {
     const onReadingProgressChange = vi.fn()
     render(
       <PdfViewer
         pdfFile={pdfFile}
+        initialPage={8}
         onSelectPdf={vi.fn()}
         onReadingProgressChange={onReadingProgressChange}
       />
     )
 
+    expect(documentProps().initialPage).toBe(8)
     expect(documentProps().onReadingProgressChange).toBe(onReadingProgressChange)
   })
 

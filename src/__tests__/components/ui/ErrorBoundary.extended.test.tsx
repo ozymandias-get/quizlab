@@ -43,35 +43,27 @@ describe('ErrorBoundary - Recovery Tests', () => {
     vi.clearAllMocks()
   })
 
-  it('renders children when no error occurs', () => {
-    render(
+  it('renders children normally, and swaps to the error UI when a child throws', () => {
+    const { unmount } = render(
       <ErrorBoundary>
         <Thrower shouldThrow={false} />
       </ErrorBoundary>
     )
-    expect(screen.getByText('Safe Content')).toBeInTheDocument()
-  })
 
-  it('shows error UI when child throws', () => {
+    expect(screen.getByText('Safe Content')).toBeInTheDocument()
+    expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument()
+    unmount()
+
     render(
       <ErrorBoundary>
-        <Thrower shouldThrow />
+        <Thrower shouldThrow message="Specific error message" />
       </ErrorBoundary>
     )
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
-    expect(screen.getByText(/Test Error!/)).toBeInTheDocument()
+    expect(screen.getByText('Specific error message')).toBeInTheDocument()
   })
 
-  it('shows custom title when provided', () => {
-    render(
-      <ErrorBoundary title="PDF Hatası">
-        <Thrower shouldThrow />
-      </ErrorBoundary>
-    )
-    expect(screen.getByText('PDF Hatası')).toBeInTheDocument()
-  })
-
-  it('shows custom fallback when provided', () => {
+  it('shows a custom fallback render function when provided', () => {
     const fallback = (error: Error, retry: () => void) => (
       <div>
         <h1>Custom UI</h1>
@@ -104,8 +96,11 @@ describe('ErrorBoundary - Recovery Tests', () => {
     )
   })
 
-  it('resets to children state after retry (reload stubbed)', () => {
-    const onReset = vi.fn()
+  it('resets state and hard-reloads the window on retry', () => {
+    const callOrder: string[] = []
+    const onReset = vi.fn(() => callOrder.push('onReset'))
+    reloadMock.mockImplementation(() => callOrder.push('reload'))
+
     render(
       <ErrorBoundary onReset={onReset}>
         <Thrower shouldThrow />
@@ -115,18 +110,12 @@ describe('ErrorBoundary - Recovery Tests', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Try Again'))
-    expect(onReset).toHaveBeenCalled()
+
+    expect(onReset).toHaveBeenCalledTimes(1)
     expect(reloadMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows technical details section', () => {
-    render(
-      <ErrorBoundary>
-        <Thrower shouldThrow />
-      </ErrorBoundary>
-    )
-
-    expect(screen.getByText('Technical Details')).toBeInTheDocument()
+    // onReset must run first: consumers use it to clear in-memory state that
+    // must not survive the reload.
+    expect(callOrder).toEqual(['onReset', 'reload'])
   })
 
   it('logs error to Logger when caught', () => {
@@ -141,57 +130,6 @@ describe('ErrorBoundary - Recovery Tests', () => {
       expect.any(Error),
       expect.any(Object)
     )
-  })
-
-  it('triggers a hard reload on retry (Ctrl+R action)', () => {
-    render(
-      <ErrorBoundary>
-        <Thrower shouldThrow />
-      </ErrorBoundary>
-    )
-
-    expect(reloadMock).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByText('Try Again'))
-
-    expect(reloadMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not show error UI for non-error renders', () => {
-    render(
-      <ErrorBoundary>
-        <div>All good</div>
-      </ErrorBoundary>
-    )
-
-    expect(screen.getByText('All good')).toBeInTheDocument()
-    expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument()
-  })
-
-  it('shows error message from thrown Error', () => {
-    render(
-      <ErrorBoundary>
-        <Thrower shouldThrow message="Specific error message" />
-      </ErrorBoundary>
-    )
-
-    expect(screen.getByText('Specific error message')).toBeInTheDocument()
-  })
-
-  it('calls onReset before the hard reload', () => {
-    const callOrder: string[] = []
-    const onReset = vi.fn(() => callOrder.push('onReset'))
-    reloadMock.mockImplementation(() => callOrder.push('reload'))
-
-    render(
-      <ErrorBoundary onReset={onReset}>
-        <Thrower shouldThrow />
-      </ErrorBoundary>
-    )
-
-    fireEvent.click(screen.getByText('Try Again'))
-
-    expect(callOrder).toEqual(['onReset', 'reload'])
   })
 
   it('exposes a Ctrl+R keyboard shortcut hint via aria-keyshortcuts', () => {

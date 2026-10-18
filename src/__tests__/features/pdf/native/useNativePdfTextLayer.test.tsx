@@ -219,7 +219,8 @@ describe('native text layer — mount and shape', () => {
   })
 
   it('asks for the page text once and reuses it across zooms', async () => {
-    serveDocument(createFakeDocument({ numPages: 12, textItems: { 1: ['cached'] } }))
+    const document = createFakeDocument({ numPages: 12, textItems: { 1: ['cached'] } })
+    serveDocument(document)
     const control: Control = { current: null }
 
     render(
@@ -230,6 +231,7 @@ describe('native text layer — mount and shape', () => {
       />
     )
     await waitForFrames(() => expect(FakeTextLayer.calls.length).toBeGreaterThan(0))
+    const lookupsAfterFirstRender = document.page(1).getTextContentCalls.length
 
     act(() => control.current?.zoomTo(2))
     flushFrames()
@@ -240,6 +242,7 @@ describe('native text layer — mount and shape', () => {
 
     // Three layers, one lookup: a zoom changes the scale, not the text.
     expect(FakeTextLayer.calls.length).toBeGreaterThanOrEqual(3)
+    expect(document.page(1).getTextContentCalls).toHaveLength(lookupsAfterFirstRender)
   })
 
   it('is inert while the feature flag is off', async () => {

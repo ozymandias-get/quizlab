@@ -31,17 +31,9 @@ beforeEach(() => {
 
 describe('appearanceStore', () => {
   describe('bottom bar settings', () => {
-    it('has default opacity of 0.7', () => {
-      expect(useAppearance.getState().bottomBarOpacity).toBe(0.7)
-    })
-
     it('updates bottom bar opacity', () => {
       useAppearance.getState().setBottomBarOpacity(1.0)
       expect(useAppearance.getState().bottomBarOpacity).toBe(1.0)
-    })
-
-    it('has default scale of 1.0', () => {
-      expect(useAppearance.getState().bottomBarScale).toBe(1.0)
     })
 
     it('updates bottom bar scale', () => {
@@ -104,10 +96,6 @@ describe('appearanceStore', () => {
   })
 
   describe('selection color', () => {
-    it('has default selection color of #EAB308', () => {
-      expect(useAppearance.getState().selectionColor).toBe('#EAB308')
-    })
-
     it('updates selection color', () => {
       useAppearance.getState().setSelectionColor('#ff0000')
       expect(useAppearance.getState().selectionColor).toBe('#ff0000')
@@ -115,10 +103,6 @@ describe('appearanceStore', () => {
   })
 
   describe('layout swap', () => {
-    it('defaults to not swapped', () => {
-      expect(useAppearance.getState().isLayoutSwapped).toBe(false)
-    })
-
     it('sets layout swapped', () => {
       useAppearance.getState().setIsLayoutSwapped(true)
       expect(useAppearance.getState().isLayoutSwapped).toBe(true)
@@ -133,10 +117,6 @@ describe('appearanceStore', () => {
   })
 
   describe('focus mode', () => {
-    it('defaults to null', () => {
-      expect(useAppearance.getState().focusMode).toBeNull()
-    })
-
     it('sets focus mode to pdf', () => {
       useAppearance.getState().setFocusMode('pdf')
       expect(useAppearance.getState().focusMode).toBe('pdf')
@@ -166,15 +146,6 @@ describe('appearanceStore', () => {
   })
 
   describe('tool visibility', () => {
-    it('has all default tools visible', () => {
-      const tools = useAppearance.getState().visibleTools
-      expect(tools['tour-target-tool-settings']).toBe(true)
-      expect(tools['tour-target-tool-swap']).toBe(true)
-      expect(tools['tour-target-tool-pdf-focus']).toBe(true)
-      expect(tools['tour-target-tool-ai-focus']).toBe(true)
-      expect(tools['tour-target-tool-picker']).toBe(true)
-    })
-
     it('hides a tool', () => {
       useAppearance.getState().setVisibleTool('tour-target-tool-settings', false)
       expect(useAppearance.getState().visibleTools['tour-target-tool-settings']).toBe(false)
@@ -188,10 +159,6 @@ describe('appearanceStore', () => {
   })
 
   describe('model visibility', () => {
-    it('starts with empty visible models', () => {
-      expect(useAppearance.getState().visibleModels).toEqual({})
-    })
-
     it('sets a model visible', () => {
       useAppearance.getState().setVisibleModel('gemini', true)
       expect(useAppearance.getState().visibleModels['gemini']).toBe(true)

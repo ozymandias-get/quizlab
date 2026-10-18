@@ -33,7 +33,7 @@ describe('siteStrategyRegistry', () => {
     __resetSiteStrategiesForTests()
   })
 
-  it('registers a new strategy and retrieves it', () => {
+  it('registers a new strategy and replaces an existing one with the same id', () => {
     registerSiteStrategy({
       id: 'test:foo',
       match: { hostPatterns: ['foo.example.com'] },
@@ -43,14 +43,9 @@ describe('siteStrategyRegistry', () => {
     const all = getRegisteredStrategies()
     expect(all).toHaveLength(1)
     expect(all[0].id).toBe('test:foo')
-  })
 
-  it('replaces existing strategy with the same id', () => {
-    registerSiteStrategy({
-      id: 'test:foo',
-      match: { hostPatterns: ['foo.com'] },
-      produce: makeFakeProduce('v1')
-    })
+    // A second registration under the same id REPLACES the first, it does not
+    // append, and the newer produce() is the one that runs.
     registerSiteStrategy({
       id: 'test:foo',
       match: { hostPatterns: ['foo.com'] },
@@ -60,11 +55,7 @@ describe('siteStrategyRegistry', () => {
     expect(getRegisteredStrategies()).toHaveLength(1)
     const match = findStrategiesForHostname('foo.com')
     expect(match).toHaveLength(1)
-    const first = match[0]
-    expect(first).toBeDefined()
-    const candidate = first!.produce('input')
-    expect(candidate).not.toBeNull()
-    expect(candidate!.matchedSelector).toBe('v2:input')
+    expect(match[0].produce('input')?.matchedSelector).toBe('v2:input')
   })
 
   it('matches hostname with multi-pattern strategy', () => {
@@ -80,7 +71,7 @@ describe('siteStrategyRegistry', () => {
     expect(findStrategiesForHostname('CHAT.ANTHROPIC.com')).toHaveLength(1) // case-insensitive
   })
 
-  it('sorts matches by priority (highest first)', () => {
+  it('sorts matches by priority (highest first) and defaults omitted priority to 0', () => {
     registerSiteStrategy({
       id: 'test:low',
       match: { hostPatterns: ['claude'], priority: 1 },
@@ -96,9 +87,14 @@ describe('siteStrategyRegistry', () => {
       match: { hostPatterns: ['claude'], priority: 5 },
       produce: makeFakeProduce('mid')
     })
+    registerSiteStrategy({
+      id: 'test:default',
+      match: { hostPatterns: ['claude'] },
+      produce: makeFakeProduce('default')
+    })
 
     const matches = findStrategiesForHostname('claude.ai')
-    expect(matches.map((m) => m.id)).toEqual(['test:high', 'test:mid', 'test:low'])
+    expect(matches.map((m) => m.id)).toEqual(['test:high', 'test:mid', 'test:low', 'test:default'])
   })
 
   it('returns empty array when no strategies match', () => {
@@ -110,70 +106,40 @@ describe('siteStrategyRegistry', () => {
     expect(findStrategiesForHostname('bar.com')).toEqual([])
   })
 
-  it('default priority is 0 for entries that omit it', () => {
-    registerSiteStrategy({
-      id: 'test:default',
-      match: { hostPatterns: ['bar'] },
-      produce: makeFakeProduce('default')
-    })
-    registerSiteStrategy({
-      id: 'test:high',
-      match: { hostPatterns: ['bar'], priority: 5 },
-      produce: makeFakeProduce('high')
-    })
-
-    const matches = findStrategiesForHostname('bar.example.com')
-    expect(matches[0].id).toBe('test:high')
-    expect(matches[1].id).toBe('test:default')
-  })
-
-  it('listApplicableStrategies eagerly registers built-ins on first call', () => {
+  it('registers built-ins on first call, ranks the generic fallback last, and honours user overrides', () => {
     expect(getRegisteredStrategies()).toHaveLength(0)
-    const matches = listApplicableStrategies('claude.ai')
-    expect(matches.length).toBeGreaterThan(0)
-    expect(matches.some((s) => s.id === 'builtin:claude')).toBe(true)
-    // Generic fallback is registered eagerly at module load
+    const claudeMatches = listApplicableStrategies('claude.ai')
+    expect(claudeMatches.length).toBeGreaterThan(0)
+    expect(claudeMatches.some((s) => s.id === 'builtin:claude')).toBe(true)
+    // Generic fallback is registered eagerly at module load.
     expect(getRegisteredStrategies().some((s) => s.id === 'builtin:generic')).toBe(true)
-  })
 
-  it('generic fallback (priority -100) loses to site-specific strategies', () => {
-    listApplicableStrategies('claude.ai') // ensure builtins
-    const matches = findStrategiesForHostname('claude.ai')
-    const firstId = matches[0].id
-    const lastId = matches[matches.length - 1].id
-    expect(firstId).toBe('builtin:claude')
-    expect(lastId).toBe('builtin:generic')
-  })
+    // The site-specific built-in outranks the generic fallback.
+    const ranked = findStrategiesForHostname('claude.ai')
+    expect(ranked[0].id).toBe('builtin:claude')
+    expect(ranked[ranked.length - 1].id).toBe('builtin:generic')
 
-  it('generic fallback is the only match on unknown hostnames', () => {
-    listApplicableStrategies('chat.example.org') // ensure builtins
-    const matches = findStrategiesForHostname('chat.example.org')
-    expect(matches).toHaveLength(1)
-    expect(matches[0].id).toBe('builtin:generic')
-  })
+    // An unknown hostname matches the generic fallback and nothing else.
+    const unknown = findStrategiesForHostname('chat.example.org')
+    expect(unknown).toHaveLength(1)
+    expect(unknown[0].id).toBe('builtin:generic')
 
-  it('registers all builtin strategies for known providers', () => {
+    // Every known provider registers its own built-in.
     listApplicableStrategies('chat.deepseek.com')
     listApplicableStrategies('chat.qwen.ai')
     listApplicableStrategies('kimi.moonshot.cn')
     const ids = getRegisteredStrategies().map((s) => s.id)
-    expect(ids).toContain('builtin:claude')
-    expect(ids).toContain('builtin:deepseek')
-    expect(ids).toContain('builtin:qwen')
-    expect(ids).toContain('builtin:kimi')
-    expect(ids).toContain('builtin:generic')
-  })
+    for (const builtin of ['claude', 'deepseek', 'qwen', 'kimi', 'generic']) {
+      expect(ids, `builtin:${builtin} must be registered`).toContain(`builtin:${builtin}`)
+    }
 
-  it('user-registered strategy can be added alongside built-ins', () => {
-    listApplicableStrategies('claude.ai') // ensure builtins loaded
+    // A user strategy outranks every built-in.
     registerSiteStrategy({
       id: 'user:custom',
       match: { hostPatterns: ['claude.ai'], priority: 1000 },
       produce: makeFakeProduce('user:custom')
     })
-
-    const matches = findStrategiesForHostname('claude.ai')
-    expect(matches[0].id).toBe('user:custom')
+    expect(findStrategiesForHostname('claude.ai')[0].id).toBe('user:custom')
   })
 
   describe('generic DOM-based fallback produce functions', () => {
@@ -222,26 +188,22 @@ describe('siteStrategyRegistry', () => {
       expect(result!.matchedSelector).toContain('textarea')
     })
 
-    it('tryGenericInputFallback returns null when no input element exists', () => {
+    it('returns null when nothing is findable, for input and for button', () => {
       listApplicableStrategies('claude.ai')
-      const matches = findStrategiesForHostname('claude.ai')
-      const claude = matches.find((s) => s.id === 'builtin:claude')!
-      const result = claude.produce('input')
-      expect(result).toBeNull()
-    })
+      const claude = findStrategiesForHostname('claude.ai').find((s) => s.id === 'builtin:claude')!
 
-    it('tryGenericInputFallback skips elements that are too small (header vs composer)', () => {
-      listApplicableStrategies('claude.ai')
+      // Boş sayfa: composer yok.
+      expect(claude.produce('input')).toBeNull()
+
+      // Composer var ama gönder butonu yok.
       const tiny = document.createElement('textarea')
       Object.defineProperty(tiny, 'offsetWidth', { configurable: true, value: 10 })
       Object.defineProperty(tiny, 'offsetHeight', { configurable: true, value: 5 })
       mockRect(tiny, 10, 5)
       document.body.appendChild(tiny)
 
-      const matches = findStrategiesForHostname('claude.ai')
-      const claude = matches.find((s) => s.id === 'builtin:claude')!
-      const result = claude.produce('input')
-      expect(result).toBeNull()
+      expect(claude.produce('input')).toBeNull()
+      expect(claude.produce('button')).toBeNull()
     })
 
     it('tryGenericButtonFallback finds a send button with aria-label', () => {
@@ -262,10 +224,8 @@ describe('siteStrategyRegistry', () => {
 
     it('tryGenericButtonFallback returns null when no send button exists', () => {
       listApplicableStrategies('claude.ai')
-      const matches = findStrategiesForHostname('claude.ai')
-      const claude = matches.find((s) => s.id === 'builtin:claude')!
-      const result = claude.produce('button')
-      expect(result).toBeNull()
+      const claude = findStrategiesForHostname('claude.ai').find((s) => s.id === 'builtin:claude')!
+      expect(claude.produce('button')).toBeNull()
     })
 
     it('all builtin strategies share the same DOM-based produce functions', () => {

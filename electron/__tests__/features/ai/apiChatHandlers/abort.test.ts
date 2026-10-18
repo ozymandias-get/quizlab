@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { IPC_CHANNELS } from '../../../../../shared/constants/ipcChannels.js'
 
@@ -51,6 +51,22 @@ async function main(): Promise<void> {
   registerApiChatHandlers()
 }
 
+/**
+ * `registerApiChatHandlers` self-guards (`apiChatHandlers.ts:38`), so `main()`
+ * registers exactly once for the whole file and every test shares the one
+ * handler table — which is exactly why `clearMocks` has to stay `false`.
+ * Registering in `beforeAll` makes that explicit rather than calling a no-op
+ * inside each test.
+ */
+let sendHandler: ReturnType<typeof getHandler>
+let cancelHandler: ReturnType<typeof getHandler>
+
+beforeAll(async () => {
+  await main()
+  sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
+  cancelHandler = getHandler(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
+})
+
 describe('apiChatHandlers abort semantics', () => {
   it('reports user cancellation with code "cancelled" (not timeout)', async () => {
     loadConfig.mockResolvedValue({
@@ -75,11 +91,6 @@ describe('apiChatHandlers abort semantics', () => {
         })
       })
     })
-
-    await main()
-
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
-    const cancelHandler = getHandler(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
 
     const sendPromise = sendHandler({ sender: {} }, [
       { role: 'user', content: 'hello', id: 'm1', timestamp: 1 }
@@ -125,9 +136,6 @@ describe('apiChatHandlers abort semantics', () => {
       })
     })
 
-    await main()
-
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { role: 'user', content: 'hello', id: 'm1', timestamp: 1 }
     ])
@@ -172,10 +180,6 @@ describe('apiChatHandlers abort semantics', () => {
       })
     })
 
-    await main()
-
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
-    const cancelHandler = getHandler(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
     const message = [{ role: 'user', content: 'hello', id: 'm1', timestamp: 1 }]
 
     const first = sendHandler({ sender: {} }, message, undefined, undefined, undefined, 'req-first')
@@ -206,9 +210,6 @@ describe('apiChatHandlers abort semantics', () => {
 
     const firstResult = await first
     expect(firstResult.ok).toBe(false)
-    if (!firstResult.ok) {
-      expect(firstResult.error.code).toBe('cancelled')
-    }
     if (!firstResult.ok) {
       expect(firstResult.error.code).toBe('cancelled')
     }

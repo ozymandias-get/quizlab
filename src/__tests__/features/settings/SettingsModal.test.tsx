@@ -113,20 +113,9 @@ describe('SettingsModal', () => {
     expect(screen.queryByText('Prompts')).not.toBeInTheDocument()
   })
 
-  it('renders fullscreen overlay when open', async () => {
-    render(<SettingsModal isOpen onClose={vi.fn()} />)
-    expect(screen.getByRole('tabpanel')).toBeInTheDocument()
-    expect(await screen.findByText('Prompts Tab Content')).toBeInTheDocument()
-  })
-
-  it('renders sidebar with tabs', async () => {
-    render(<SettingsModal isOpen onClose={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Prompts' })).toBeInTheDocument()
-  })
-
   // The modal is a dialog, so a screen reader has to be told it is modal and
   // told what it is; without those it reads as an unlabelled region.
-  it('exposes a labelled modal dialog', () => {
+  it('exposes a labelled modal dialog when open', () => {
     render(<SettingsModal isOpen onClose={vi.fn()} />)
 
     const dialog = screen.getByRole('dialog')

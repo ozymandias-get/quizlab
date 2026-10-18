@@ -16,15 +16,6 @@ import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 import { describe, expect, it } from 'vitest'
 
 describe('IPC_CHANNELS - structural invariants', () => {
-  it('is a non-null object', () => {
-    expect(typeof IPC_CHANNELS).toBe('object')
-  })
-
-  it('has at least 30 channels defined', () => {
-    const channelCount = Object.keys(IPC_CHANNELS).length
-    expect(channelCount).toBeGreaterThanOrEqual(30)
-  })
-
   it('every channel value is a non-empty string', () => {
     for (const [k, v] of Object.entries(IPC_CHANNELS)) {
       expect(typeof v, `IPC_CHANNELS.${k} should be a string`).toBe('string')
@@ -92,12 +83,12 @@ describe('IPC_CHANNELS - required channels present', () => {
     'FETCH_API_CHAT_MODELS'
   ]
 
-  for (const channel of required) {
-    it(`defines ${channel}`, () => {
-      expect(IPC_CHANNELS).toHaveProperty(channel)
-      expect(typeof (IPC_CHANNELS as any)[channel]).toBe('string')
-    })
-  }
+  it('defines every channel the renderer and the main process share', () => {
+    for (const channel of required) {
+      expect(IPC_CHANNELS, `IPC_CHANNELS.${channel} should be defined`).toHaveProperty(channel)
+      expect(typeof (IPC_CHANNELS as any)[channel], `IPC_CHANNELS.${channel}`).toBe('string')
+    }
+  })
 })
 
 describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {

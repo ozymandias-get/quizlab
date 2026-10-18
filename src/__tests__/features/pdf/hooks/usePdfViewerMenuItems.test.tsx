@@ -58,16 +58,11 @@ describe('usePdfViewerMenuItems', () => {
     expect(setContextMenu).toHaveBeenCalledWith(null)
   })
 
-  // Zoom clamping and page jumps used to be `@react-pdf-viewer` adapters here.
-  // The native controller owns its scale outright and exposes `jumpToPage`, so
-  // the toolbar binds them directly and this hook no longer has a surface for
-  // them — asserting the absence is what keeps a second clamp from reappearing.
-  it('exposes no zoom or jump handler', () => {
-    const { result } = setup()
-
-    expect(result.current).not.toHaveProperty('handleZoom')
-    expect(result.current).not.toHaveProperty('handleJumpToPage')
-  })
+  // Not asserted on purpose: `handleZoom` / `handleJumpToPage`. Those were
+  // `@react-pdf-viewer` adapters; the viewer is gone and the native controller
+  // owns scale and page jumps outright, so neither name appears anywhere in
+  // `src/` any more. A `not.toHaveProperty` guard on a name that exists nowhere
+  // can only fail if someone re-typed the exact same identifier.
 
   it('reloads the viewer by bumping the reload key inside a transition', () => {
     const { result } = setup()

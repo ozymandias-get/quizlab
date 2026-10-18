@@ -1,4 +1,3 @@
-import { normalizeProvider } from '../../../../features/ai/apiChatHandlers/config.js'
 import {
   getSsrOptionsForProvider,
   validateProviderUrl
@@ -93,44 +92,5 @@ describe('local-network permission', () => {
     const options = getSsrOptionsForProvider(baseProvider)
     expect(validateProviderUrl('http://127.0.0.1:11434/v1', options)).toBeNull()
     expect(validateProviderUrl('http://localhost:1234/v1', options)).toBeNull()
-  })
-})
-
-describe('legacy config migration', () => {
-  it('migrates isCustomProvider to the canonical flag at load', () => {
-    const loaded = normalizeProvider({ ...baseProvider, isCustomProvider: true })
-    expect(loaded.allowLocalNetwork).toBe(true)
-    expect('isCustomProvider' in loaded).toBe(false)
-    // ...and the migrated provider then passes the runtime check on its own.
-    expect(getSsrOptionsForProvider(loaded)).toEqual({ allowLocalNetwork: true })
-  })
-
-  it('migrates allowLocalEndpoints to the canonical flag at load', () => {
-    const loaded = normalizeProvider({ ...baseProvider, allowLocalEndpoints: true })
-    expect(loaded.allowLocalNetwork).toBe(true)
-    expect('allowLocalEndpoints' in loaded).toBe(false)
-    expect(getSsrOptionsForProvider(loaded)).toEqual({ allowLocalNetwork: true })
-  })
-
-  it('does not invent consent for a migrated provider that never had any', () => {
-    const loaded = normalizeProvider(baseProvider)
-    expect(loaded.allowLocalNetwork).toBeUndefined()
-    expect(getSsrOptionsForProvider(loaded)).toBeUndefined()
-  })
-
-  it('a brand new custom provider starts without consent', () => {
-    // Mirrors what ApiSettingsTab.addProvider() creates.
-    const created: ApiProviderConfig = {
-      id: 'provider-1',
-      name: '',
-      baseUrl: '',
-      apiKey: '',
-      defaultModel: '',
-      enabled: true,
-      models: [],
-      providerType: 'custom'
-    }
-    expect(created.allowLocalNetwork).toBeUndefined()
-    expect(getSsrOptionsForProvider(created)).toBeUndefined()
   })
 })

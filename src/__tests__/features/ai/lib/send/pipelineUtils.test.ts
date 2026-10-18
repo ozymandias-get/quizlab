@@ -14,9 +14,6 @@ describe('executePipelineStep', () => {
     const result = await executePipelineStep(params)
 
     expect(result.success).toBe(true)
-    expect(params.onTiming).toHaveBeenCalled()
-    expect(params.onExecuteTiming).toHaveBeenCalled()
-    expect(params.onResult).toHaveBeenCalled()
   })
 
   it('returns failure when script generation returns null', async () => {
@@ -101,35 +98,25 @@ describe('executePipelineStep', () => {
     expect(params.onExecuteTiming).toHaveBeenCalledWith(expect.any(Number))
   })
 
-  it('returns webview_destroyed when executeJavaScript rejects with destroyed webcontents', async () => {
-    const content = createSendContentMock()
-    ;(content as any).executeJavaScript = vi
-      .fn()
-      .mockRejectedValue(new Error('Error: WebContents was destroyed'))
+  // Both the prefixed and the bare Electron message must resolve to a
+  // controlled `webview_destroyed` failure, never throw.
+  it.each([['Error: WebContents was destroyed'], ['WebContents was destroyed']])(
+    'returns webview_destroyed when executeJavaScript rejects with %j',
+    async (message) => {
+      const content = createSendContentMock()
+      ;(content as any).executeJavaScript = vi.fn().mockRejectedValue(new Error(message))
 
-    const params = makePipelineParams({ content, scheduledContent: content })
+      const params = makePipelineParams({ content, scheduledContent: content })
 
-    const result = await executePipelineStep(params)
+      const result = await executePipelineStep(params)
 
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error).toHaveProperty('error', 'webview_destroyed')
+      expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error).toHaveProperty('error', 'webview_destroyed')
+      }
+      expect(params.diagnostics.classification?.code).toBe('webview_destroyed')
     }
-    expect(params.diagnostics.classification?.code).toBe('webview_destroyed')
-  })
-
-  it('does not throw for destroyed-content rejections (controlled failure instead)', async () => {
-    const content = createSendContentMock()
-    ;(content as any).executeJavaScript = vi
-      .fn()
-      .mockRejectedValue(new Error('WebContents was destroyed'))
-
-    const params = makePipelineParams({ content, scheduledContent: content })
-
-    await expect(executePipelineStep(params)).resolves.toEqual(
-      expect.objectContaining({ success: false })
-    )
-  })
+  )
 
   it('returns a controlled failure for generic executeJavaScript rejections', async () => {
     const content = createSendContentMock()

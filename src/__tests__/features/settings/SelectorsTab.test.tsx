@@ -5,22 +5,20 @@ import SelectorsTab from '@features/settings/ui/SelectorsTab'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// The harness is only ever reached lazily from the `vi.mock` factories below, so
+// it is never imported statically.
 const {
-  aiSites,
   mockConfirm,
   mockDeleteConfig,
   mockGenerateValidateSelectorsScript,
-  mockLoggerError,
   mockOpenAiWorkspace,
   mockSaveAiConfig,
-  mockShowError,
   mockShowSuccess,
-  mockShowWarning,
   mockStartPickerWhenReady,
   mockContent,
-  selectorsData
-} = vi.hoisted(() => ({
-  aiSites: {
+  stubs
+} = vi.hoisted(() => {
+  const aiSites = {
     chatgpt: {
       id: 'chatgpt',
       icon: 'chatgpt',
@@ -43,21 +41,9 @@ const {
       url: 'https://example.com',
       isSite: true
     }
-  } satisfies Record<string, AiPlatform>,
-  mockConfirm: vi.fn(() => true),
-  mockDeleteConfig: vi.fn(),
-  mockGenerateValidateSelectorsScript: vi.fn(),
-  mockLoggerError: vi.fn(),
-  mockOpenAiWorkspace: vi.fn(),
-  mockSaveAiConfig: vi.fn(),
-  mockShowError: vi.fn(),
-  mockShowSuccess: vi.fn(),
-  mockShowWarning: vi.fn(),
-  mockStartPickerWhenReady: vi.fn(),
-  mockContent: {
-    executeJavaScript: vi.fn()
-  },
-  selectorsData: {
+  } satisfies Record<string, AiPlatform>
+
+  const selectorsData = {
     'openai.com': {
       version: 2,
       input: '#prompt',
@@ -72,101 +58,93 @@ const {
       submitMode: 'mixed'
     }
   } satisfies Record<string, AiSelectorConfig>
-}))
 
-vi.mock('@app/providers', () => ({
-  useAppToolActions: () => ({
-    startPickerWhenReady: mockStartPickerWhenReady
-  }),
-  useToastActions: () => ({
-    showError: mockShowError,
-    showSuccess: mockShowSuccess,
-    showWarning: mockShowWarning
-  })
-}))
-
-vi.mock('@app/providers/ai-context', () => ({
-  useAiTabsList: () => ({ tabs: [{ id: 'tab-chatgpt', modelId: 'chatgpt' }] }),
-  useAiTabFocus: () => ({ currentAI: 'chatgpt' }),
-  useAiSites: () => aiSites,
-  useAiModelsCatalog: () => ({
-    aiSites,
-    enabledModels: [],
-    defaultAiModel: 'chatgpt'
-  }),
-  useAiTabActions: () => ({
-    openAiWorkspace: mockOpenAiWorkspace
-  }),
-  useAiContent: () => ({
-    getContentController: () => mockContent
-  }),
-  useAiContentPresence: () => ({
-    hasActiveContent: true
-  })
-}))
-
-vi.mock('@platform/electron/api/useAiApi', () => ({
-  useSaveAiConfig: () => ({ mutateAsync: mockSaveAiConfig, isPending: false })
-}))
-
-vi.mock('@platform/electron/api/useSettingsAiApi', () => ({
-  useAiConfig: () => ({ data: selectorsData }),
-  useDeleteAiConfig: () => ({ mutateAsync: mockDeleteConfig, isPending: false })
-}))
-
-vi.mock('@platform/electron/api/useAutomationApi', () => ({
-  useGenerateValidateSelectorsScript: () => ({
-    mutateAsync: mockGenerateValidateSelectorsScript,
-    isPending: false
-  })
-}))
-
-vi.mock('@shared/lib/logger', () => ({
-  Logger: {
-    error: mockLoggerError
+  const mockContent = { executeJavaScript: vi.fn() }
+  const mocks = {
+    openAiWorkspace: vi.fn(),
+    startPickerWhenReady: vi.fn(),
+    showError: vi.fn(),
+    showSuccess: vi.fn(),
+    showWarning: vi.fn(),
+    logError: vi.fn(),
+    saveAiConfig: vi.fn(),
+    deleteConfig: vi.fn(),
+    generateValidateSelectorsScript: vi.fn()
   }
-}))
 
-vi.mock('@ui/components/Icons', () => ({
-  CheckIcon: ({ className }: { className?: string }) => (
-    <span className={className}>CheckIcon</span>
-  ),
-  ChevronRightIcon: ({ className }: { className?: string }) => (
-    <span className={className}>ChevronRightIcon</span>
-  ),
-  ExternalLinkIcon: ({ className }: { className?: string }) => (
-    <span className={className}>ExternalLinkIcon</span>
-  ),
-  GlobeIcon: ({ className }: { className?: string }) => (
-    <span className={className}>GlobeIcon</span>
-  ),
-  LoaderIcon: ({ className }: { className?: string }) => (
-    <span className={className}>LoaderIcon</span>
-  ),
-  MagicWandIcon: ({ className }: { className?: string }) => (
-    <span className={className}>MagicWandIcon</span>
-  ),
-  RefreshIcon: ({ className }: { className?: string }) => (
-    <span className={className}>RefreshIcon</span>
-  ),
-  SelectorIcon: ({ className }: { className?: string }) => (
-    <span className={className}>SelectorIcon</span>
-  ),
-  TrashIcon: ({ className }: { className?: string }) => (
-    <span className={className}>TrashIcon</span>
-  ),
-  getAiIcon: vi.fn((icon: string) => (icon === 'chatgpt' ? <span>ChatGptIcon</span> : null))
-}))
-
-vi.mock('motion/react', () => ({
-  motion: {
-    div: ({ children, layout: _layout, ...props }: any) => <div {...props}>{children}</div>
+  return {
+    mockConfirm: vi.fn(() => true),
+    mockContent,
+    mockDeleteConfig: mocks.deleteConfig,
+    mockGenerateValidateSelectorsScript: mocks.generateValidateSelectorsScript,
+    mockOpenAiWorkspace: mocks.openAiWorkspace,
+    mockSaveAiConfig: mocks.saveAiConfig,
+    mockShowSuccess: mocks.showSuccess,
+    mockStartPickerWhenReady: mocks.startPickerWhenReady,
+    // The harness turns this one object into every module namespace, so a new
+    // icon or query hook is a change in selectorsTabHarness.tsx only.
+    stubs: {
+      aiSites,
+      aiConfig: selectorsData,
+      mockContent,
+      tabs: [{ id: 'tab-chatgpt', modelId: 'chatgpt' }],
+      currentAI: 'chatgpt',
+      getContentController: () => mockContent,
+      hasActiveContent: true,
+      ...mocks
+    }
   }
-}))
+})
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
-}))
+// `vi.mock` calls are hoisted above every top-level binding, so each factory
+// has to reach the harness lazily rather than through a shared helper.
+vi.mock(
+  '@ui/components/Icons',
+  async () => (await import('./selectorsTabHarness')).selectorsTabIconStubs
+)
+vi.mock('motion/react', async () => (await import('./selectorsTabHarness')).selectorsTabMotionStubs)
+vi.mock('react-i18next', async () =>
+  (await import('./selectorsTabHarness')).selectorsTabI18nStubs()
+)
+vi.mock(
+  '@app/providers',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)['@app/providers']
+)
+vi.mock(
+  '@app/providers/ai-context',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)[
+      '@app/providers/ai-context'
+    ]
+)
+vi.mock(
+  '@platform/electron/api/useAiApi',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)[
+      '@platform/electron/api/useAiApi'
+    ]
+)
+vi.mock(
+  '@platform/electron/api/useSettingsAiApi',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)[
+      '@platform/electron/api/useSettingsAiApi'
+    ]
+)
+vi.mock(
+  '@platform/electron/api/useAutomationApi',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)[
+      '@platform/electron/api/useAutomationApi'
+    ]
+)
+vi.mock(
+  '@shared/lib/logger',
+  async () =>
+    (await import('./selectorsTabHarness')).selectorsTabModuleStubs(stubs)['@shared/lib/logger']
+)
+
 describe('SelectorsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()

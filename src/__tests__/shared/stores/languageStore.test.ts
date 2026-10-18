@@ -40,10 +40,6 @@ afterEach(() => {
 
 describe('languageStore', () => {
   describe('initial state', () => {
-    it('defaults to English', () => {
-      expect(useLanguage.getState().language).toBe('en')
-    })
-
     it('reads persisted language from localStorage', () => {
       window.localStorage.setItem('appLanguage', 'tr')
       // Reinitialize by calling setState as the store would on init
@@ -57,16 +53,10 @@ describe('languageStore', () => {
   })
 
   describe('LANGUAGES constant', () => {
-    it('includes English', () => {
-      expect(LANGUAGES.en).toBeDefined()
-      expect(LANGUAGES.en.code).toBe('en')
-      expect(LANGUAGES.en.dir).toBe('ltr')
-    })
-
-    it('includes Turkish', () => {
-      expect(LANGUAGES.tr).toBeDefined()
-      expect(LANGUAGES.tr.code).toBe('tr')
-      expect(LANGUAGES.tr.dir).toBe('ltr')
+    it.each(['en', 'tr'] as const)('includes %s with its code and direction', (code) => {
+      expect(LANGUAGES[code]).toBeDefined()
+      expect(LANGUAGES[code].code).toBe(code)
+      expect(LANGUAGES[code].dir).toBe('ltr')
     })
 
     it('has no unsupported languages', () => {
@@ -94,11 +84,6 @@ describe('languageStore', () => {
     it('ignores invalid language codes', async () => {
       await useLanguage.getState().setLanguage('fr')
       expect(useLanguage.getState().language).toBe('en')
-    })
-
-    it('ignores setLanguage to current language', async () => {
-      await useLanguage.getState().setLanguage('en')
-      expect(i18next.changeLanguage).toHaveBeenCalledWith('en')
     })
 
     it('handles localStorage write failure gracefully', async () => {

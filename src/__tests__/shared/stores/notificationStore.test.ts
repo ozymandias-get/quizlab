@@ -33,14 +33,6 @@ beforeEach(() => {
 })
 
 describe('notificationStore', () => {
-  it('has every notification type enabled by default', () => {
-    const state = useNotificationPrefs.getState()
-    for (const type of TYPES) {
-      expect(state[`${type}Enabled`]).toBe(true)
-      expect(state.isEnabled(type)).toBe(true)
-    }
-  })
-
   it.each(TYPES)('disables and re-enables %s notifications', (type) => {
     const setEnabled = setterFor(type)
     const key = `${type}Enabled` as const

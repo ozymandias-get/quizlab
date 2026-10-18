@@ -5,57 +5,42 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock electron app module before import
 vi.mock('electron', () => ({
   app: {
-    getPath: vi.fn((name: string) => `/mock/userData/${name}`)
+    getPath: vi.fn(() => '/mock/userData')
   }
 }))
+
+type CoreHelpers = typeof import('../../core/coreHelpers.js')
+
+// Every helper resolves app.getPath('userData') plus one fixed filename. The
+// filename is the part that matters: renaming it would silently orphan the
+// user's saved config, and the "inside userData" and "distinct" checks follow
+// from the same three assertions.
+const PATHS: Array<[keyof CoreHelpers, string]> = [
+  ['getCustomPlatformsPath', 'ai_custom_platforms.json'],
+  ['getAiConfigPath', 'ai_custom_selectors.json'],
+  ['getApiChatConfigPath', 'api_chat_config.json'],
+  ['getAppSettingsPath', 'app_settings.json']
+]
 
 describe('electron/core/coreHelpers', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('getCustomPlatformsPath returns correct path', async () => {
-    const { getCustomPlatformsPath } = await import('../../core/coreHelpers.js')
-    const result = getCustomPlatformsPath()
-    expect(result).toContain('ai_custom_platforms.json')
-    expect(result).toContain('userData')
+  it.each(PATHS)('%s resolves %s inside the userData directory', async (name, fileName) => {
+    const helpers: CoreHelpers = await import('../../core/coreHelpers.js')
+
+    const result = helpers[name]() as unknown as string
+
+    expect(result).toBe(path.join('/mock', 'userData', fileName))
+    expect(path.dirname(result)).toBe(path.join('/mock', 'userData'))
   })
 
-  it('getAiConfigPath returns correct path', async () => {
-    const { getAiConfigPath } = await import('../../core/coreHelpers.js')
-    const result = getAiConfigPath()
-    expect(result).toContain('ai_custom_selectors.json')
-    expect(result).toContain('userData')
-  })
+  it('gives every helper a distinct destination path', async () => {
+    const helpers: CoreHelpers = await import('../../core/coreHelpers.js')
 
-  it('getApiChatConfigPath returns correct path', async () => {
-    const { getApiChatConfigPath } = await import('../../core/coreHelpers.js')
-    const result = getApiChatConfigPath()
-    expect(result).toContain('api_chat_config.json')
-    expect(result).toContain('userData')
-  })
+    const resolved = new Set(PATHS.map(([name]) => helpers[name]() as unknown as string))
 
-  it('all paths are within the userData directory', async () => {
-    const helpers = await import('../../core/coreHelpers.js')
-
-    const paths = [
-      helpers.getCustomPlatformsPath(),
-      helpers.getAiConfigPath(),
-      helpers.getApiChatConfigPath()
-    ]
-
-    paths.forEach((p) => {
-      expect(p).toContain(path.join('mock', 'userData'))
-    })
-  })
-
-  it('paths do not overlap', async () => {
-    const helpers = await import('../../core/coreHelpers.js')
-    const paths = new Set([
-      helpers.getCustomPlatformsPath(),
-      helpers.getAiConfigPath(),
-      helpers.getApiChatConfigPath()
-    ])
-    expect(paths.size).toBe(3)
+    expect(resolved.size).toBe(PATHS.length)
   })
 })

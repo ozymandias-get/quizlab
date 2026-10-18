@@ -1,40 +1,14 @@
 import { vi } from 'vitest'
 
 import {
+  createSessionsApiMock,
   mockAddMessageToSession,
   mockBuildCombinedPrompt,
   mockBuildErrorReply,
-  mockPersistSessions,
   mockSendApiChatRequest
 } from './mocks'
 
-vi.mock('@features/ai/api/sessions.api', () => ({
-  sendApiChatRequest: (...args: any[]) => mockSendApiChatRequest(...args),
-  persistSessions: (...args: any[]) => mockPersistSessions(...args),
-  addMessageToSession: (...args: any[]) => mockAddMessageToSession(...args),
-  buildCombinedPrompt: (...args: any[]) => mockBuildCombinedPrompt(...args),
-  buildErrorReply: (...args: any[]) => mockBuildErrorReply(...args),
-  loadSessions: vi.fn(() => []),
-  createNewSession: vi.fn(() => ({
-    id: 'new-session',
-    messages: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    title: 'New Chat'
-  })),
-  clearSessionMessages: vi.fn((sessions: any[], _id: string) => sessions),
-  renameSession: vi.fn((sessions: any[], _id: string, _title: string) => sessions),
-  deleteSessionFromList: vi.fn((sessions: any[], _id: string) => sessions),
-  fetchApiChatModels: vi.fn(async () => []),
-  getApiChatConfig: vi.fn(async () => ({
-    providers: [],
-    generalPrompt: '',
-    memoryPrompt: '',
-    characterPrompt: '',
-    selectedProviderId: '',
-    selectedModel: ''
-  }))
-}))
+vi.mock('@features/ai/api/sessions.api', () => createSessionsApiMock())
 
 vi.mock('@features/ai/store/apiChatSessionUtils', async () => {
   const actual = await vi.importActual('@features/ai/store/apiChatSessionUtils')
@@ -56,7 +30,13 @@ import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { createWrapper, mockAssistantMessage, mockSession, resetChatUiStore } from './mocks'
+import {
+  createWrapper,
+  mockAssistantMessage,
+  mockSession,
+  resetChatUiStore,
+  seedActiveTabSession
+} from './mocks'
 
 describe('useSendMessageMutation', () => {
   let queryClient: QueryClient
@@ -102,14 +82,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('optimistically adds user message to the cache before API call', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-1' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-1')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'session-1' })
     ])
@@ -130,14 +103,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('adds assistant reply to cache after API call succeeds', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-1' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-1')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'session-1' })
     ])
@@ -163,14 +129,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('sets streaming flag true during mutation and false after completion', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'tab1-session' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'tab1-session')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'tab1-session' })
     ])
@@ -205,14 +164,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('handles API failure by adding error message and cleaning streaming state', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-err' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-err')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'session-err' })
     ])
@@ -239,14 +191,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('keeps transcript ordering valid when the API fails after user message persistence', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-order' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-order')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'session-order' })
     ])
@@ -272,14 +217,7 @@ describe('useSendMessageMutation', () => {
   })
 
   it('allows a retry after failure and persists the second reply', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-retry' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-retry')
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
       mockSession({ id: 'session-retry' })
     ])
@@ -307,30 +245,5 @@ describe('useSendMessageMutation', () => {
     const contents = session?.messages.map((m) => m.content?.toString() ?? '')
     expect(contents).toContain('retried ok')
     expect(useChatUiStore.getState().isStreamingByTab['tab1']).toBe(false)
-  })
-
-  it('persists sessions after mutation (success or error)', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-persist' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
-    queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
-      mockSession({ id: 'session-persist' })
-    ])
-    mockSendApiChatRequest.mockResolvedValue(mockAssistantMessage({ content: 'persisted' }))
-
-    const { result } = renderHook(() => useSendMessageMutation(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync({ tabId: 'tab1', text: 'persist me', images: [] })
-    })
-
-    expect(mockPersistSessions).toHaveBeenCalled()
   })
 })

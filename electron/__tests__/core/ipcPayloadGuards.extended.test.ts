@@ -2,48 +2,18 @@ import { toStrictBoolean } from '@electron/core/ipcPayloadGuards'
 
 import { describe, expect, it } from 'vitest'
 
+// `toStrictBoolean` is a strict `value === true`. The eleven one-value tests
+// this replaced only restated that implementation back to it — the truth table
+// has exactly two rows, so it is asserted as two rows.
 describe('toStrictBoolean', () => {
-  it('returns true for literal true', () => {
+  it('returns true for the literal true', () => {
     expect(toStrictBoolean(true)).toBe(true)
   })
 
-  it('returns false for literal false', () => {
-    expect(toStrictBoolean(false)).toBe(false)
-  })
-
-  it('returns false for string "true"', () => {
-    expect(toStrictBoolean('true')).toBe(false)
-  })
-
-  it('returns false for string "false"', () => {
-    expect(toStrictBoolean('false')).toBe(false)
-  })
-
-  it('returns false for number 1', () => {
-    expect(toStrictBoolean(1)).toBe(false)
-  })
-
-  it('returns false for number 0', () => {
-    expect(toStrictBoolean(0)).toBe(false)
-  })
-
-  it('returns false for null', () => {
-    expect(toStrictBoolean(null)).toBe(false)
-  })
-
-  it('returns false for undefined', () => {
-    expect(toStrictBoolean(undefined)).toBe(false)
-  })
-
-  it('returns false for empty string', () => {
-    expect(toStrictBoolean('')).toBe(false)
-  })
-
-  it('returns false for object', () => {
-    expect(toStrictBoolean({})).toBe(false)
-  })
-
-  it('returns false for array', () => {
-    expect(toStrictBoolean([])).toBe(false)
+  it('returns false for everything that is not the literal true', () => {
+    const notTrue: unknown[] = ['true', 'false', 1, 0, null, undefined, '', {}, [], 'TRUE']
+    for (const value of notTrue) {
+      expect(toStrictBoolean(value)).toBe(false)
+    }
   })
 })

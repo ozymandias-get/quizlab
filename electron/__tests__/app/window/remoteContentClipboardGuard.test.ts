@@ -95,10 +95,6 @@ describe('remote content clipboard guard', () => {
         true
       )
     })
-
-    it('replaces execCommand at install time', () => {
-      expect(fakeDocument.execCommand).not.toBeUndefined()
-    })
   })
 
   describe('security: untrusted clipboard access stays blocked', () => {
@@ -110,23 +106,9 @@ describe('remote content clipboard guard', () => {
         stopImmediatePropagation: vi.fn()
       }) as unknown as Event
 
-    it('blocks an untrusted copy event', () => {
-      const event = makeUntrustedEvent('copy')
-      fakeDocument.listeners.copy(event)
-      expect(event.preventDefault).toHaveBeenCalled()
-      expect(event.stopImmediatePropagation).toHaveBeenCalled()
-    })
-
-    it('blocks an untrusted cut event', () => {
-      const event = makeUntrustedEvent('cut')
-      fakeDocument.listeners.cut(event)
-      expect(event.preventDefault).toHaveBeenCalled()
-      expect(event.stopImmediatePropagation).toHaveBeenCalled()
-    })
-
-    it('blocks an untrusted paste event', () => {
-      const event = makeUntrustedEvent('paste')
-      fakeDocument.listeners.paste(event)
+    it.each(['copy', 'cut', 'paste'])('blocks an untrusted %s event', (type) => {
+      const event = makeUntrustedEvent(type)
+      fakeDocument.listeners[type](event)
       expect(event.preventDefault).toHaveBeenCalled()
       expect(event.stopImmediatePropagation).toHaveBeenCalled()
     })
@@ -153,21 +135,9 @@ describe('remote content clipboard guard', () => {
         stopImmediatePropagation: vi.fn()
       }) as unknown as Event
 
-    it('lets a trusted paste through', () => {
-      const event = makeTrustedEvent('paste')
-      fakeDocument.listeners.paste(event)
-      expect(event.preventDefault).not.toHaveBeenCalled()
-    })
-
-    it('lets a trusted copy through', () => {
-      const event = makeTrustedEvent('copy')
-      fakeDocument.listeners.copy(event)
-      expect(event.preventDefault).not.toHaveBeenCalled()
-    })
-
-    it('lets a trusted cut through', () => {
-      const event = makeTrustedEvent('cut')
-      fakeDocument.listeners.cut(event)
+    it.each(['copy', 'cut', 'paste'])('lets a trusted %s through', (type) => {
+      const event = makeTrustedEvent(type)
+      fakeDocument.listeners[type](event)
       expect(event.preventDefault).not.toHaveBeenCalled()
     })
 
@@ -270,33 +240,32 @@ describe('applyRemoteContentSecurity', () => {
     expect(shellOpenExternal).toHaveBeenCalledWith('https://accounts.google.com/signin')
   })
 
-  it('leaves non-auth navigation untouched', async () => {
-    const { applyRemoteContentSecurity: apply } =
-      await import('../../../app/window/remoteContentSecurity.js')
-    const { webContents, listeners } = createWebContents()
-    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
-
-    const preventDefault = vi.fn()
-    listeners.get('will-navigate')?.({ preventDefault }, 'https://chatgpt.com/c/abc')
-    listeners.get('will-redirect')?.({ preventDefault }, 'https://chatgpt.com/api/auth')
-    expect(preventDefault).not.toHaveBeenCalled()
-  })
-
   it('lets a provider navigate across origins, so sign-in and consent still work', async () => {
     // The scheme guard is deliberately not an origin lock: providers legitimately
     // move to sibling hosts mid-flow, and pinning the entry host would break
     // login while still not being the security boundary (see
     // `isUrlTrustedForTarget` for the renderer-initiated path and
     // `permissionPolicy` for what an untrusted origin may do inside the view).
+    // These are the hosts providers actually move to, and all of them are https.
     const { applyRemoteContentSecurity: apply } =
       await import('../../../app/window/remoteContentSecurity.js')
     const { webContents, listeners } = createWebContents()
     apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
 
-    const preventDefault = vi.fn()
-    listeners.get('will-navigate')?.({ preventDefault }, 'https://auth.chatgpt.com/authorize')
-    listeners.get('will-navigate')?.({ preventDefault }, 'https://chat.openai.com/')
-    expect(preventDefault).not.toHaveBeenCalled()
+    for (const url of [
+      'https://auth.chatgpt.com/authorize',
+      'https://chat.openai.com/backend-api/conversation',
+      'https://chatgpt.com/api/auth/session',
+      'https://challenges.cloudflare.com/turnstile/v0/api.js',
+      'https://gemini.google.com/',
+      'https://chat.openai.com/',
+      // A custom AI platform is an arbitrary https origin the user registered.
+      'https://my-self-hosted-llm.internal/chat'
+    ]) {
+      const preventDefault = vi.fn()
+      listeners.get('will-navigate')?.({ preventDefault }, url)
+      expect(preventDefault, url).not.toHaveBeenCalled()
+    }
   })
 
   it('blocks main-frame navigation to any scheme that has no legitimate use', async () => {
@@ -316,11 +285,11 @@ describe('applyRemoteContentSecurity', () => {
     ]) {
       const preventDefault = vi.fn()
       listeners.get('will-navigate')?.({ preventDefault }, url)
-      expect(preventDefault).toHaveBeenCalledTimes(1)
+      expect(preventDefault, url).toHaveBeenCalledTimes(1)
 
       const redirectPrevent = vi.fn()
       listeners.get('will-redirect')?.({ preventDefault: redirectPrevent }, url)
-      expect(redirectPrevent).toHaveBeenCalledTimes(1)
+      expect(redirectPrevent, url).toHaveBeenCalledTimes(1)
     }
 
     // Nothing dangerous may reach the OS hand-off either.
@@ -381,65 +350,30 @@ describe('applyRemoteContentSecurity', () => {
     expect(shellOpenExternal).not.toHaveBeenCalled()
   })
 
-  it('still lets every provider sign-in, consent and challenge flow through', async () => {
-    // The scheme guard is not an origin lock: pinning main-frame navigation to
-    // the entry host would break every login. These are the hosts providers
-    // actually move to, and all of them are https.
-    const { applyRemoteContentSecurity: apply } =
-      await import('../../../app/window/remoteContentSecurity.js')
-    const { webContents, listeners } = createWebContents()
-    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
-
-    for (const url of [
-      'https://auth.chatgpt.com/authorize',
-      'https://chat.openai.com/backend-api/conversation',
-      'https://chatgpt.com/api/auth/session',
-      'https://challenges.cloudflare.com/turnstile/v0/api.js',
-      'https://gemini.google.com/',
-      // A custom AI platform is an arbitrary https origin the user registered.
-      'https://my-self-hosted-llm.internal/chat'
-    ]) {
-      const preventDefault = vi.fn()
-      listeners.get('will-navigate')?.({ preventDefault }, url)
-      expect(preventDefault, url).not.toHaveBeenCalled()
-    }
-  })
-
-  it('still intercepts the IdP auth hosts for the OS hand-off, on https', async () => {
+  it('intercepts the IdP auth hosts without handing them to the OS on a plain partition', async () => {
     // These are blocked on purpose and handed to the user's browser — a
-    // separate concern from the scheme guard, and it must keep working.
+    // separate concern from the scheme guard, and it must keep working. A plain
+    // AI partition blocks them but does NOT send them to the OS.
     const { applyRemoteContentSecurity: apply } =
       await import('../../../app/window/remoteContentSecurity.js')
-    const { webContents, listeners } = createWebContents()
-    apply({ webContents: webContents as never, partition: 'persist:ai_chatgpt' })
 
-    for (const url of [
-      'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      'https://login.live.com/oauth20_authorize.srf',
-      'https://login.x.com/i/flow/login',
-      'https://accounts.google.com/o/oauth2/v2/auth'
-    ]) {
-      const preventDefault = vi.fn()
-      listeners.get('will-navigate')?.({ preventDefault }, url)
-      expect(preventDefault, url).toHaveBeenCalledTimes(1)
+    for (const partition of ['persist:ai_chatgpt', 'persist:gemini_web_profile']) {
+      const { webContents, listeners } = createWebContents()
+      apply({ webContents: webContents as never, partition })
+
+      for (const url of [
+        'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        'https://login.live.com/oauth20_authorize.srf',
+        'https://login.x.com/i/flow/login',
+        'https://accounts.google.com/o/oauth2/v2/auth'
+      ]) {
+        const preventDefault = vi.fn()
+        listeners.get('will-navigate')?.({ preventDefault }, url)
+        expect(preventDefault, `${partition} ${url}`).toHaveBeenCalledTimes(1)
+      }
     }
 
-    // A plain AI partition does not send them to the OS.
-    expect(shellOpenExternal).not.toHaveBeenCalled()
-  })
-
-  it('still hands Google auth to the OS for the shared Google session partition', async () => {
-    const { applyRemoteContentSecurity: apply } =
-      await import('../../../app/window/remoteContentSecurity.js')
-    const { webContents, listeners } = createWebContents()
-    apply({ webContents: webContents as never, partition: 'persist:gemini_web_profile' })
-
-    const preventDefault = vi.fn()
-    listeners.get('will-navigate')?.(
-      { preventDefault },
-      'https://accounts.google.com/o/oauth2/v2/auth'
-    )
-    expect(preventDefault).toHaveBeenCalledTimes(1)
+    // Only the Google session partition may hand the sign-in URL off.
     expect(shellOpenExternal).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth')
   })
 })

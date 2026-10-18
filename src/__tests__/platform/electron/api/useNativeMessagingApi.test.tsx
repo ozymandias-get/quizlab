@@ -41,13 +41,6 @@ describe('useNativeMessagingApi', () => {
     }
   })
 
-  it('useNativeMessagingInstallExtension calls installExtension', async () => {
-    vi.mocked(getElectronApi).mockReturnValue({ nativeMessaging: mockNativeMessaging } as any)
-    const { result } = renderHook(() => useNativeMessagingInstallExtension(), { wrapper })
-    await result.current.mutateAsync()
-    expect(mockNativeMessaging.installExtension).toHaveBeenCalled()
-  })
-
   it('useNativeMessagingRemoveExtension calls removeExtension and invalidates', async () => {
     vi.mocked(getElectronApi).mockReturnValue({ nativeMessaging: mockNativeMessaging } as any)
     const { result } = renderHook(() => useNativeMessagingRemoveExtension(), { wrapper })

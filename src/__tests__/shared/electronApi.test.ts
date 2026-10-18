@@ -35,40 +35,24 @@ describe('getElectronApi', () => {
     expect(getElectronApi()).toBe(mockApi)
   })
 
-  it('returns null when window.electronAPI is not defined', () => {
-    setElectronAPI(undefined)
-    expect(getElectronApi()).toBeNull()
-  })
-
-  it('returns null when window.electronAPI is null', () => {
-    setElectronAPI(null)
+  it.each([
+    ['undefined', undefined],
+    ['null', null]
+  ])('returns null when window.electronAPI is %s', (_label, value) => {
+    setElectronAPI(value)
     expect(getElectronApi()).toBeNull()
   })
 })
 
 describe('hasElectronApi', () => {
-  it('returns true when electronAPI exists', () => {
-    setElectronAPI({})
-    expect(hasElectronApi()).toBe(true)
-  })
-
-  it('returns false when electronAPI is undefined', () => {
-    setElectronAPI(undefined)
-    expect(hasElectronApi()).toBe(false)
-  })
-
-  it('returns false when electronAPI is null', () => {
-    setElectronAPI(null)
-    expect(hasElectronApi()).toBe(false)
-  })
-
-  it('returns false when electronAPI is empty string', () => {
-    setElectronAPI('')
-    expect(hasElectronApi()).toBe(false)
-  })
-
-  it('returns false when electronAPI is 0', () => {
-    setElectronAPI(0)
-    expect(hasElectronApi()).toBe(false)
+  it.each([
+    ['an object', {}, true],
+    ['undefined', undefined, false],
+    ['null', null, false],
+    ['an empty string', '', false],
+    ['zero', 0, false]
+  ])('returns %j for %s', (_label, value, expected) => {
+    setElectronAPI(value)
+    expect(hasElectronApi()).toBe(expected)
   })
 })

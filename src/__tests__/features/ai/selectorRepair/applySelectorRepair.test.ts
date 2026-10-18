@@ -147,64 +147,71 @@ describe('applySelectorRepair', () => {
   })
 })
 
-describe('reportSelectorRepair', () => {
-  const NOW = 1_700_000_000_000
+const NOW = 1_700_000_000_000
 
-  const config: AiSelectorConfig = {
-    version: 2,
-    input: '#gone',
-    button: 'button#old',
-    inputCandidates: ['#gone', 'textarea[data-testid="ask"]'],
-    inputFingerprint: { tag: 'textarea', dataTestId: 'ask' },
-    health: 'ready',
-    repair: {
+/** A config staged one success short of the promotion threshold. */
+const STAGED_CONFIG: AiSelectorConfig = {
+  version: 2,
+  input: '#gone',
+  button: 'button#old',
+  inputCandidates: ['#gone', 'textarea[data-testid="ask"]'],
+  inputFingerprint: { tag: 'textarea', dataTestId: 'ask' },
+  health: 'ready',
+  repair: {
+    input: {
+      selector: 'textarea[data-testid="ask"]',
+      strategy: 'candidate',
+      confidenceScore: 95,
+      confidenceLevel: 'high',
+      firstSeenAt: NOW,
+      lastSeenAt: NOW,
+      successCount: SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD - 1,
+      consecutiveSuccessCount: SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD - 1,
+      sourceFingerprint: { tag: 'textarea', dataTestId: 'ask' }
+    }
+  }
+}
+
+/**
+ * One successful logical text send in which the saved input selector did NOT
+ * work and a stable candidate did — the only situation that may learn.
+ */
+function sendDiagnostics(): AiSendDiagnostics {
+  return {
+    pipeline: 'text',
+    currentAI: 'custom-ai',
+    autoSend: false,
+    timings: { queueWaitMs: 0, configResolveMs: 0, totalMs: 0 },
+    script: {
+      kind: 'auto_send',
+      pageUrl: 'https://example.com/',
+      totalMs: 1,
       input: {
-        selector: 'textarea[data-testid="ask"]',
+        requestedSelector: '#gone',
+        matchedSelector: 'textarea[data-testid="ask"]',
         strategy: 'candidate',
+        durationMs: 1,
+        waitIterations: 1,
+        cacheHits: 0,
+        cacheInvalidations: 0,
+        interactiveRequired: false,
+        recovered: true,
         confidenceScore: 95,
         confidenceLevel: 'high',
-        firstSeenAt: NOW,
-        lastSeenAt: NOW,
-        successCount: SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD - 1,
-        consecutiveSuccessCount: SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD - 1,
-        sourceFingerprint: { tag: 'textarea', dataTestId: 'ask' }
-      }
+        stableSelector: 'textarea[data-testid="ask"]',
+        repairEligible: true,
+        repairReason: 'eligible',
+        operationSucceeded: true
+      },
+      setInputMs: 1,
+      submitMs: 0,
+      error: null
     }
   }
+}
 
-  function sendDiagnostics(): AiSendDiagnostics {
-    return {
-      pipeline: 'text',
-      currentAI: 'custom-ai',
-      autoSend: false,
-      timings: { queueWaitMs: 0, configResolveMs: 0, totalMs: 0 },
-      script: {
-        kind: 'auto_send',
-        pageUrl: 'https://example.com/',
-        totalMs: 1,
-        input: {
-          requestedSelector: '#gone',
-          matchedSelector: 'textarea[data-testid="ask"]',
-          strategy: 'candidate',
-          durationMs: 1,
-          waitIterations: 1,
-          cacheHits: 0,
-          cacheInvalidations: 0,
-          interactiveRequired: false,
-          recovered: true,
-          confidenceScore: 95,
-          confidenceLevel: 'high',
-          stableSelector: 'textarea[data-testid="ask"]',
-          repairEligible: true,
-          repairReason: 'eligible',
-          operationSucceeded: true
-        },
-        setInputMs: 1,
-        submitMs: 0,
-        error: null
-      }
-    }
-  }
+describe('reportSelectorRepair', () => {
+  const config = STAGED_CONFIG
 
   beforeEach(() => {
     vi.clearAllMocks()

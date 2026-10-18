@@ -12,6 +12,10 @@ import { describe, expect, it } from 'vitest'
  *
  * Not: `window.eval` bir function body bekler; tüm harness'ler arrow
  * function içine sarılmıştır.
+ *
+ * `errorClassifierRuntime` bloğu yalnızca parity matrisinin kapsamadığı
+ * `__retryBudgetFor` sayısal bütçesini sınar; sınıflandırma kararlarının
+ * host ile eşleşmesi `errorClassifierParity.test.ts` tarafından kanıtlanır.
  */
 describe('runtime helpers (guest-page template strings)', () => {
   describe('errorClassifierRuntime', () => {
@@ -24,82 +28,46 @@ describe('runtime helpers (guest-page template strings)', () => {
       }
     }`
 
-    it('classifies selector errors with after-repick policy', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        classify: (raw: string) => {
-          retry: string
-          triggerFallback: boolean
-          category: string
-          toastKey: string
-        }
+    const getHelpers = () =>
+      (window.eval(harness) as () => unknown)() as {
+        classify: (raw: string) => { retry: string; triggerFallback: boolean; category: string }
+        retryBudget: (raw: string) => number
+        normalize: (raw: string) => string
       }
-      const result = helpers.classify('input_not_found')
+
+    it('classifies selector errors with after-repick policy and no fallback', () => {
+      const result = getHelpers().classify('input_not_found')
       expect(result.category).toBe('selector')
       expect(result.retry).toBe('after-repick')
       expect(result.triggerFallback).toBe(false)
     })
 
     it('classifies submit_not_ready as different-strategy with fallback', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        classify: (raw: string) => {
-          retry: string
-          triggerFallback: boolean
-          category: string
-          toastKey: string
-        }
-      }
-      const result = helpers.classify('submit_not_ready')
+      const result = getHelpers().classify('submit_not_ready')
       expect(result.category).toBe('submit')
       expect(result.retry).toBe('different-strategy')
       expect(result.triggerFallback).toBe(true)
     })
 
-    it('classifies timed_out substring as timeout category', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        classify: (raw: string) => { category: string; retry: string }
-      }
-      expect(helpers.classify('image_upload_timed_out').category).toBe('timeout')
-      expect(helpers.classify('click_send_timeout').category).toBe('timeout')
+    it('normalizes framework noise to unknown', () => {
+      expect(getHelpers().normalize('Illegal invocation')).toBe('unknown')
     })
 
-    it('falls back to unknown category for unrecognized codes', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        classify: (raw: string) => { category: string; toastKey: string }
-      }
-      const result = helpers.classify('something_random')
-      expect(result.category).toBe('unknown')
-      expect(result.toastKey).toBe('toast_automation_failed')
-    })
-
-    it('normalizes "Illegal invocation" to unknown', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        normalize: (raw: string) => string
-      }
-      expect(helpers.normalize('Illegal invocation')).toBe('unknown')
-    })
-
-    it('returns 0 retry budget for never and after-repick', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        retryBudget: (raw: string) => number
-      }
-      expect(helpers.retryBudget('webview_destroyed')).toBe(0)
-      expect(helpers.retryBudget('input_not_found')).toBe(0)
-    })
-
-    it('returns 1 retry budget for same-strategy / different-strategy', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        retryBudget: (raw: string) => number
-      }
-      expect(helpers.retryBudget('submit_failed')).toBe(1)
-      expect(helpers.retryBudget('submit_not_ready')).toBe(1)
-    })
-
-    it('returns 2 retry budget for after-backoff', () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        retryBudget: (raw: string) => number
-      }
-      expect(helpers.retryBudget('network_error')).toBe(2)
-      expect(helpers.retryBudget('clipboard_failed')).toBe(2)
+    // `errorClassifierParity.test.ts` bu runtime'ın her hata kodunda host ile
+    // birebir aynı kararı verdiğini zaten kanıtlıyor. Parity tek sayısal alanı
+    // (`__retryBudgetFor`) kapsamadığı için yalnızca o burada sınanır.
+    it.each([
+      // Host: retry 'never' ve 'after-repick' → bütçe yok.
+      { code: 'webview_destroyed', budget: 0 },
+      { code: 'input_not_found', budget: 0 },
+      // Host: 'same-strategy' / 'different-strategy' → bir deneme.
+      { code: 'submit_failed', budget: 1 },
+      { code: 'submit_not_ready', budget: 1 },
+      // Host: 'after-backoff' → iki deneme.
+      { code: 'network_error', budget: 2 },
+      { code: 'clipboard_failed', budget: 2 }
+    ])('returns a retry budget of $budget for $code', ({ code, budget }) => {
+      expect(getHelpers().retryBudget(code)).toBe(budget)
     })
   })
 

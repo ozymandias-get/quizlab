@@ -44,11 +44,11 @@ describe('AI platform config shape', () => {
     expect((platform.name as string).length).toBeGreaterThan(0)
   })
 
-  it.each(entries)('%s carries a usable url, partition, icon and colour', (_id, platform) => {
+  it.each(entries)('%s carries a usable url, icon and colour', (_id, platform) => {
     // Every one of these loads remote content into a managed view, so plain http
-    // is not a valid configuration for any of them.
+    // is not a valid configuration for any of them. The partition is asserted
+    // separately, against the real `persist:` prefixes, further down.
     expect(platform.url).toMatch(/^https:\/\//)
-    expect(platform.partition).toMatch(/^persist:/)
     expect(platform.icon).toBeTypeOf('string')
     expect(platform.color).toMatch(/^#[\da-f]{6}$/i)
   })
@@ -109,12 +109,12 @@ describe('AI platform partitions', () => {
 })
 
 describe('YouTube is the only plain site', () => {
-  it('is marked isSite', () => {
-    expect(youtubePlatform.isSite).toBe(true)
-  })
-
-  it.each(entries.filter(([id]) => id !== 'youtube'))('%s is not a site', (_id, platform) => {
-    expect(platform.isSite ?? false).toBe(false)
+  // One case for all nine platforms instead of nine one-boolean cases: the
+  // interesting property is the set of sites, not each entry in isolation.
+  it('marks exactly youtube as isSite', () => {
+    expect(entries.filter(([, platform]) => platform.isSite === true).map(([id]) => id)).toEqual([
+      'youtube'
+    ])
   })
 })
 

@@ -23,7 +23,11 @@
  *  - **`glob` was never declared.** `scripts/check-file-sizes.mjs` imported it and
  *    it resolved only because npm hoisted `glob@7` out of
  *    `@doyensec/electronegativity`'s dependency tree. A CI gate was leaning on
- *    an unrelated package's transitive shape.
+ *    an unrelated package's transitive shape. Whether any `scripts/**` file still
+ *    imports something package.json does not declare is now left entirely to
+ *    `analyze:knip` — `scripts/**` is in its `project`, so an undeclared import
+ *    there is reported as an unlisted dependency and fails the CI step. This file
+ *    no longer re-derives it from the script text.
  *
  * A related one lives in `package.json`: `analyze:architecture` quoted
  * `--do-not-follow 'node_modules'`, and npm runs scripts through cmd.exe on
@@ -33,7 +37,6 @@
  * the config describes.
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { builtinModules } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -57,7 +60,6 @@ const workflow = read('.github', 'workflows', 'build.yml')
 
 const ELECTRON_SECURITY_GATE = read('scripts', 'check-electron-security.mjs')
 const DEV_SCRIPT = read('scripts', 'dev.mjs')
-const FILE_SIZE_GATE = read('scripts', 'check-file-sizes.mjs')
 
 /**
  * The file names in `scripts/` with a given extension, read from disk.
@@ -118,53 +120,15 @@ const expandBraces = (pattern: string): string[] => {
 
 const entryPaths = new Set((knip.entry ?? []).flatMap(expandBraces))
 
-/** Splits the workflow into `- name:` delimited step blocks. */
+/**
+ * Splits the workflow into `- name:` delimited step blocks.
+ */
 const stepBlocks = (): string[] =>
   workflow.split(/\n(?=\s*- name:)/).filter((block) => block.includes('- name:'))
 
-/**
- * The `quality` job's text, from its key to the next job.
- *
- * `stepBlocks` covers the whole workflow, so it also sees the `build` and
- * `release` jobs. Only `quality` holds the gates, and scoping is what lets
- * `names every blocking step in the quality job` below make a claim about
- * exactly one job instead of all three.
- */
-const qualityJobText = (): string => {
-  const lines = workflow.split('\n')
-  const start = lines.findIndex((line) => /^ {2}quality:\s*$/.test(line))
-  const end = lines.findIndex((line, index) => index > start && /^ {2}[\w-]+:\s*$/.test(line))
-  return lines.slice(start, end === -1 ? undefined : end).join('\n')
-}
-
-const qualityStepBlocks = (): string[] =>
-  qualityJobText()
-    .split(/\n(?=\s*- name:)/)
-    .filter((block) => block.includes('- name:'))
-
 const stepNameOf = (block: string): string => /- name: (.+)/.exec(block)?.[1]?.trim() ?? ''
 
-/** The quality-job steps that report success whatever they find. */
-const blockingQualitySteps = (): string[] =>
-  qualityStepBlocks()
-    .filter((block) => !block.includes('continue-on-error'))
-    .map(stepNameOf)
-
 const stepNames = (): string[] => stepBlocks().map(stepNameOf).filter(Boolean)
-
-/**
- * Every bare (non-relative) module specifier a script imports.
- *
- * A CI gate that runs on the build machine is production code for the purposes
- * of dependency hygiene: if it imports something package.json does not declare,
- * the build depends on whatever npm happened to hoist.
- */
-const bareImports = (source: string): string[] =>
-  [...source.matchAll(/(?:from|import|require)\s*\(?\s*'([^']+)'/g)]
-    .map((match) => match[1])
-    .filter((specifier) => !specifier.startsWith('.') && !specifier.startsWith('/'))
-    .map((specifier) => specifier.replace(/^node:/, ''))
-    .filter((specifier) => !builtinModules.includes(specifier))
 
 /**
  * Asserts the gate script still reaches electronegativity the only way it
@@ -263,57 +227,6 @@ describe('knip: the electronegativity ignore is justified, not blanket', () => {
   })
 })
 
-describe('gate scripts declare every dependency they use', () => {
-  it('the file-size gate imports nothing that package.json does not declare', () => {
-    // This is the check that would have caught `glob`: it was resolvable only
-    // through a hoisted transitive copy of glob@7, so the gate's behaviour
-    // depended on an unrelated package's dependency shape.
-    expect(bareImports(FILE_SIZE_GATE)).toEqual([])
-  })
-
-  it('the file-size gate discovers files with a Node built-in', () => {
-    expect(FILE_SIZE_GATE).toMatch(/import \{ globSync, readFileSync \} from 'fs'/)
-    expect(FILE_SIZE_GATE).toMatch(/globSync\(pattern, \{ exclude \}\)/)
-  })
-
-  it('the file-size gate still excludes tests, generated output and declarations', () => {
-    for (const pattern of [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/__tests__/**',
-      '**/*.test.*',
-      '**/*.spec.*',
-      '**/*.d.ts'
-    ]) {
-      expect(FILE_SIZE_GATE).toContain(`'${pattern}'`)
-    }
-  })
-
-  it.each([
-    // A deliberate subset, not a completeness claim: `check-file-sizes.mjs` is
-    // asserted directly above, and `check-electron-security.mjs` cannot appear
-    // here because it must not statically import its dependency at all. Deriving
-    // this list from `scripts/` would apply the rule to scripts whose imports
-    // are covered elsewhere and fail them for unrelated reasons.
-    'scripts/check-audit.mjs',
-    'scripts/check-declaration-consistency.mjs',
-    'scripts/check-semgrep.mjs',
-    'scripts/check-type-coverage.mjs'
-  ])('%s imports nothing undeclared', (path) => {
-    expect(bareImports(read(path))).toEqual([])
-  })
-
-  it('reports a bare import that package.json does not declare', () => {
-    // Proves the rule above bites. `glob` is the historical instance: the file
-    // size gate imported it and it resolved only because npm hoisted `glob@7`
-    // out of electronegativity's tree. A rule that never rejects anything is
-    // indistinguishable from a rule that is not there.
-    expect(bareImports("import { globSync } from 'glob'\n")).toEqual(['glob'])
-    // Node built-ins are declared by the runtime, not by package.json.
-    expect(bareImports("import { join } from 'path'\nimport f from 'node:fs'\n")).toEqual([])
-  })
-})
-
 describe('dependency-cruiser: the --do-not-follow argument survives every shell', () => {
   /**
    * npm runs scripts through cmd.exe on Windows, where single quotes are not
@@ -374,64 +287,27 @@ describe('npm scripts: no argument is single-quoted', () => {
 describe('CI: the dead-code gate is blocking and tolerance-free', () => {
   const KNIP_STEP = 'Dead Code (knip)'
 
-  /**
-   * Every blocking step in the `quality` job, in workflow order.
-   *
-   * Not derivable from the filesystem: these are step *names* in
-   * `.github/workflows/build.yml`. Kept as an explicit list because a step's
-   * blocking status is a decision, not a property of any file.
-   *
-   * Deliberately excluded, being advisory by decision, and listed here so
-   * nobody "fixes" the gap by adding them: `File Size Check` (a pre-existing
-   * size-limit debt) and `Spell Check (non-blocking)`.
-   *
-   * The provisioning steps are here too, not only the gates. `Setup Node.js`
-   * is the sharpest case: ubuntu-latest ships a preinstalled Node, so softening
-   * that step leaves CI running on whatever the image has, silently below the
-   * `24.15.0` floor that `Declaration consistency` exists to protect.
-   */
-  const BLOCKING_STEPS = [
-    'Checkout code',
-    'Setup Node.js',
-    'Install dependencies',
-    'Repository hygiene guard',
-    'Version consistency',
-    'Declaration consistency',
-    'Lint',
-    'Format Check',
-    'Typecheck',
-    'Architecture (dependency-cruiser)',
-    'CSS Lint',
-    'Dead Code (knip)',
-    'Run Tests with Coverage',
-    'Type Coverage (guard)',
-    'Duplicate Code Detection',
-    'Circular Dependency Check',
-    'Build (renderer + backend)',
-    'Setup Python (Semgrep)',
-    'Install Semgrep',
-    'Semgrep (production sources)',
-    'Production Dependency Audit',
-    'Electron Hardening (Electronegativity)'
-  ]
+  const knipStep = (): string => {
+    const step = stepBlocks().find((block) => block.includes(`- name: ${KNIP_STEP}`))
+    expect(step).toBeDefined()
+    return step as string
+  }
 
   /**
-   * The steps that would report success no matter what they find — either
-   * absent from the workflow, or carrying `continue-on-error`.
+   * The provisioning steps of the `quality` job, and why they are in scope.
    *
-   * A function so it can be asserted in both directions: as an inline `filter`
-   * this rule could only ever be shown passing.
+   * This file no longer mirrors the whole step list. A hand-maintained list of
+   * every CI step name is a duplicate of `.github/workflows/build.yml` that can
+   * only ever report "someone changed the workflow" — so it went red on every
+   * legitimate addition and taught everyone to ignore it. What is not derivable
+   * from the workflow file itself is *which* gates are meant to be blocking,
+   * and that is a decision, not a property. The rules below therefore cover:
+   * this gate's own step, the tolerance flags that would silently disarm it,
+   * and the Node floor the rest of the job is built on.
    */
-  const softenedSteps = (names: string[]): string[] =>
-    names.filter((name) => {
-      const step = stepBlocks().find((block) => block.includes(`- name: ${name}`))
-      return step === undefined || step.includes('continue-on-error')
-    })
-
   it('runs the analyser', () => {
     expect(stepNames()).toContain(KNIP_STEP)
-    const step = stepBlocks().find((block) => block.includes(`- name: ${KNIP_STEP}`))
-    expect(step).toContain('npm run analyze:knip')
+    expect(knipStep()).toContain('npm run analyze:knip')
   })
 
   it('is blocking: the step carries no continue-on-error', () => {
@@ -439,14 +315,7 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
     // code (11 unused exports, 48 unused exported types). That debt is gone, so
     // a softened step would now only hide regressions — the whole point of the
     // gate is that any finding fails the build.
-    const step = stepBlocks().find((block) => block.includes(`- name: ${KNIP_STEP}`))
-    expect(step).toBeDefined()
-    expect(step).not.toContain('continue-on-error')
-  })
-
-  it('is named so a reader cannot mistake it for advisory', () => {
-    expect(KNIP_STEP).not.toContain('advisory')
-    expect(stepNames()).not.toContain('Dead Code (knip, advisory)')
+    expect(knipStep()).not.toContain('continue-on-error')
   })
 
   it('runs knip bare, with no issue ceiling to regress against', () => {
@@ -469,38 +338,19 @@ describe('CI: the dead-code gate is blocking and tolerance-free', () => {
     expect(scripts['analyze:deadcode']).toBe('npm run analyze:knip')
   })
 
-  it('keeps the existing gates blocking', () => {
-    // Making one of these advisory would be a silent weakening, which is the
-    // failure mode these assertions exist to prevent.
-    expect(softenedSteps(BLOCKING_STEPS)).toEqual([])
-  })
-
-  it('names every blocking step in the quality job, and only the blocking ones', () => {
-    // The list is hand-maintained because these are step names, not files, so
-    // its completeness is a claim someone has to keep true. Asserting it is
-    // what stops this being the fourth round of finding a name missing:
-    // `Repository hygiene guard`, `Version consistency` and
-    // `Build (renderer + backend)` were blocking the whole time and none of
-    // them was listed, so nothing would have caught softening any of them.
-    //
-    // Asserted in both directions. A blocking step missing from the list leaves
-    // its status unguarded; an advisory step wrongly listed would pin a
-    // deliberate decision into a permanent red.
-    const blocking = blockingQualitySteps()
-    expect(blocking.filter((name) => !BLOCKING_STEPS.includes(name))).toEqual([])
-    expect(BLOCKING_STEPS.filter((name) => !blocking.includes(name))).toEqual([])
-  })
-
-  it('the blocking rule reports a step that is missing or has been softened', () => {
-    // Proves the rule above bites in both of its halves, using real workflow
-    // data rather than an invented step.
-    //
-    // `File Size Check` genuinely carries continue-on-error today — it is
-    // advisory by design, over a pre-existing size-limit debt — so this is the
-    // half `keeps the existing gates blocking` cannot reach. The second case
-    // covers a name that is not in the workflow at all, which is what a gate
-    // renamed out from under this list looks like.
-    expect(softenedSteps(['File Size Check'])).toEqual(['File Size Check'])
-    expect(softenedSteps(['A Step That Does Not Exist'])).toEqual(['A Step That Does Not Exist'])
+  it('the pre-flight gates this job is built on stay blocking', () => {
+    // ubuntu-latest ships a preinstalled Node, so softening `Setup Node.js`
+    // leaves CI running on whatever the image has, silently below the
+    // `24.15.0` floor that `ci:check-declarations` exists to protect.
+    for (const name of [
+      'Setup Node.js',
+      'Repository hygiene guard',
+      'Version consistency',
+      'Declaration consistency'
+    ]) {
+      const step = stepBlocks().find((block) => block.includes(`- name: ${name}`))
+      expect(step, `workflow step not found: ${name}`).toBeDefined()
+      expect(step).not.toContain('continue-on-error')
+    }
   })
 })

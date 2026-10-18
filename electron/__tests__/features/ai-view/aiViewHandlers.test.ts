@@ -186,13 +186,28 @@ beforeEach(() => {
 })
 
 describe('ai view IPC - registration', () => {
-  it('registers every managed-view channel exactly once', () => {
-    for (const channel of Object.values(CHANNELS)) {
-      if (channel === CHANNELS.syncHost) continue
-      if (channel === CHANNELS.event) continue
-      expect(HANDLERS.has(channel)).toBe(true)
-    }
-    expect([...LISTENERS.keys()]).toEqual(expect.arrayContaining([CHANNELS.syncHost]))
+  it('registers exactly the expected invoke handlers, and sync-host as a listener', () => {
+    // Exact set equality, not `HANDLERS.has(...)`: HANDLERS is a Map, so a
+    // duplicate registration would collapse invisibly, and a `has` loop cannot
+    // see a channel that was added by mistake either. Comparing sorted key
+    // lists catches both a removed and an unexpected channel.
+    expect([...HANDLERS.keys()].sort()).toEqual(
+      [
+        CHANNELS.attach,
+        CHANNELS.detach,
+        CHANNELS.destroy,
+        CHANNELS.reload,
+        CHANNELS.loadUrl,
+        CHANNELS.navigate,
+        CHANNELS.getUrl,
+        CHANNELS.execute,
+        CHANNELS.insertText,
+        CHANNELS.inputEvent,
+        CHANNELS.paste,
+        CHANNELS.focus
+      ].sort()
+    )
+    expect([...LISTENERS.keys()]).toEqual([CHANNELS.syncHost])
   })
 
   it('no longer exposes a window-wide mouse-ignore channel', () => {
@@ -228,12 +243,11 @@ describe('ai view IPC - trusted sender boundary', () => {
       })) as { ok: boolean; data?: unknown }
       // The repo convention is a typed envelope: commands that answer with a
       // boolean deny as { ok: true, data: false }, the rest as { ok: false }.
-      // Either way no manager call is made.
+      // Either way no manager call is made. (The `else` needs no assertion:
+      // reaching it already means `ok` was falsy.)
       if (result.ok) {
         // getUrl is the one command whose "nothing" answer is null.
         expect(result.data === false || result.data === null).toBe(true)
-      } else {
-        expect(result.ok).toBe(false)
       }
     }
 
@@ -277,19 +291,13 @@ describe('ai view IPC - input validation', () => {
     expect(request).not.toHaveProperty('partition')
   })
 
-  it('rejects a script request with no script', async () => {
+  it.each([
+    ['an empty script', ''],
+    ['an oversized script', 'a'.repeat(512 * 1024 + 1)],
+    ['a missing script', undefined]
+  ])('rejects %s', async (_label, script) => {
     await expect(
-      invoke(CHANNELS.execute)(trustedEvent, { viewId: 'tab-1', script: '' })
-    ).resolves.toMatchObject({ ok: false })
-    expect(manager.executeAiViewScript).not.toHaveBeenCalled()
-  })
-
-  it('rejects an oversized script', async () => {
-    await expect(
-      invoke(CHANNELS.execute)(trustedEvent, {
-        viewId: 'tab-1',
-        script: 'a'.repeat(512 * 1024 + 1)
-      })
+      invoke(CHANNELS.execute)(trustedEvent, { viewId: 'tab-1', script })
     ).resolves.toMatchObject({ ok: false })
     expect(manager.executeAiViewScript).not.toHaveBeenCalled()
   })
@@ -359,16 +367,17 @@ describe('ai view IPC - capability boundary', () => {
     expect(manager.pasteAiView).not.toHaveBeenCalled()
   })
 
-  it('returns a typed failure when the view is unknown', async () => {
+  it('wraps the manager answers in the typed envelope for an unknown view', async () => {
+    // A rejection becomes a typed failure; a null answer becomes `{ ok: true,
+    // data: null }`. Both are the same branch in the handler, so they are
+    // asserted together.
     ;(manager.executeAiViewScript as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('view_not_found')
     )
     await expect(
       invoke(CHANNELS.execute)(trustedEvent, { viewId: 'ghost', script: '1' })
     ).resolves.toMatchObject({ ok: false, error: { message: 'view_not_found' } })
-  })
 
-  it('returns null for the url of an unknown view', async () => {
     ;(manager.getAiViewUrl as ReturnType<typeof vi.fn>).mockReturnValueOnce(null)
     await expect(invoke(CHANNELS.getUrl)(trustedEvent, { viewId: 'ghost' })).resolves.toEqual({
       ok: true,

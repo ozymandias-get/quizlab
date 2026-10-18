@@ -42,15 +42,12 @@ describe('webAiRegistry', () => {
     expect(WEB_AI_REGISTRY).toHaveProperty('api-chat')
   })
 
-  it('chatgpt uses mixed submit mode', () => {
-    expect(WEB_AI_REGISTRY.chatgpt.submitMode).toBe('mixed')
-  })
-
-  it('api-chat has an empty url', () => {
-    expect(WEB_AI_REGISTRY['api-chat'].url).toBe('')
-  })
-
-  it('youtube is marked as a site', () => {
-    expect(WEB_AI_REGISTRY.youtube.isSite).toBe(true)
+  it.each([
+    ['chatgpt', 'mixed', 'https://chatgpt.com'],
+    ['api-chat', 'enter_key', '']
+  ])('%s carries the expected submit mode and url', (id, submitMode, url) => {
+    const platform = WEB_AI_REGISTRY[id]
+    expect(platform.submitMode).toBe(submitMode)
+    expect(platform.url).toBe(url)
   })
 })

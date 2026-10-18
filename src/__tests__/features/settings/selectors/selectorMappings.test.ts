@@ -1,3 +1,5 @@
+import type { SelectorHealthState } from '@features/settings/ui/selectors/types'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -5,23 +7,35 @@ import {
   getHealthTone
 } from '../../../../features/settings/ui/selectors/selectorMappings'
 
+const ALL_STATES: SelectorHealthState[] = [
+  'ready',
+  'migrated',
+  'repaired',
+  'needs_repick',
+  'missing'
+]
+
 describe('selectorMappings', () => {
-  it('returns correct label keys for all health states', () => {
-    expect(getHealthLabelKey('ready')).toBe('selectors_health_ready')
-    expect(getHealthLabelKey('migrated')).toBe('selectors_health_migrated')
-    expect(getHealthLabelKey('needs_repick')).toBe('selectors_health_needs_repick')
-    expect(getHealthLabelKey('missing')).toBe('selectors_health_missing')
+  // Every state a card can land in must map to a distinct, non-empty label key —
+  // a missing key renders a blank badge on the selector card.
+  it('gives every health state its own label key', () => {
+    const keys = ALL_STATES.map((state) => getHealthLabelKey(state))
+
+    for (const key of keys) {
+      expect(key).toMatch(/^selectors_health_/)
+    }
+    expect(new Set(keys).size).toBe(keys.length)
   })
 
-  it('returns stable tone classes for health states', () => {
-    const readyTone = getHealthTone('ready')
-    expect(readyTone.badge).toContain('emerald')
-    expect(readyTone.icon).toContain('emerald')
-    expect(readyTone.border).toContain('emerald')
+  // Only the distinction matters, not the exact Tailwind classes: a design-token
+  // change should not fail a behaviour test.
+  it('renders each health state differently from the healthy one', () => {
+    const ready = getHealthTone('ready')
 
-    const missingTone = getHealthTone('missing')
-    expect(missingTone.badge).toContain('border')
-    expect(missingTone.icon).toContain('border')
-    expect(missingTone.border).toContain('border')
+    for (const state of ALL_STATES.filter((value) => value !== 'ready')) {
+      const tone = getHealthTone(state)
+      expect(tone.badge, `${state} badge should differ from ready`).not.toBe(ready.badge)
+      expect(tone.border, `${state} border should differ from ready`).not.toBe(ready.border)
+    }
   })
 })

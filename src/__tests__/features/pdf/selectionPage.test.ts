@@ -4,7 +4,6 @@ import {
   computeSelectionMenuAnchor,
   DEFAULT_SELECTION_MENU_SIZE,
   hasUsableRect,
-  toMenuBounds,
   viewportFallbackAnchor
 } from '../../../features/pdf/text/selectionPage'
 
@@ -45,15 +44,6 @@ describe('rect helpers', () => {
     expect(hasUsableRect({ width: 100, height: 40 })).toBe(true)
     // A width/height taşımayan düz nesne (yalnız dört kenar) de ölçümdür.
     expect(hasUsableRect({ width: undefined, height: undefined })).toBe(true)
-  })
-
-  it('normalizes a rect into menu bounds', () => {
-    expect(toMenuBounds({ top: 1, bottom: 2, left: 3, right: 4 })).toEqual({
-      top: 1,
-      bottom: 2,
-      left: 3,
-      right: 4
-    })
   })
 })
 
@@ -112,11 +102,6 @@ describe('computeSelectionMenuAnchor', () => {
     expect(anchor.left).toBeGreaterThanOrEqual(8)
   })
 
-  it('is deterministic for the same input (no reposition churn)', () => {
-    const rect = { top: 150, bottom: 170, left: 250, right: 350 }
-    expect(computeSelectionMenuAnchor(rect)).toEqual(computeSelectionMenuAnchor(rect))
-  })
-
   // Aşama 3 test matrisi: aynı geometri farklı seçim yönleri/kenarları/ölçekleri
   // için de "anlamsız" konum üretmemeli. Zoom ve rotation yalnızca rect'in
   // sayısal değerlerini değiştirir; karar mantığı ölçekten bağımsızdır.
@@ -130,22 +115,33 @@ describe('computeSelectionMenuAnchor', () => {
       expect(anchor.top + MENU.height).toBeLessThanOrEqual(window.innerHeight)
     }
 
-    it('handles a single-line selection near the right edge', () => {
-      const anchor = computeSelectionMenuAnchor({
-        top: 200,
-        bottom: 220,
-        left: window.innerWidth - 60,
-        right: window.innerWidth - 20
-      })
-      assertInsideViewport(anchor)
-    })
-
-    it('handles an upward (bottom-to-top) multi-line selection', () => {
-      // Yukarıdan aşağı seçimde bitiş rect'i son satırın ALTINDA; aşağıdan
-      // yukarıda üstte. Karar bitiş rect'ine göre verilir.
-      const downward = computeSelectionMenuAnchor({ top: 200, bottom: 320, left: 300, right: 500 })
-      assertInsideViewport(downward)
-      expect(downward.top).toBe(328)
+    // Rotation sonrası PDF.js farklı bir rect döndürebilir; yine de menü
+    // seçimin altında ve sınırların içinde konumlanmalı.
+    it.each([
+      [
+        'a single-line selection near the right edge',
+        () => ({
+          top: 200,
+          bottom: 220,
+          left: window.innerWidth - 60,
+          right: window.innerWidth - 20
+        })
+      ],
+      [
+        'a selection near the viewport bottom',
+        () => ({
+          top: window.innerHeight - 60,
+          bottom: window.innerHeight - 20,
+          left: 300,
+          right: 500
+        })
+      ],
+      [
+        'a rotated page whose end rect comes back sideways',
+        () => ({ top: 400, bottom: 700, left: 300, right: 420 })
+      ]
+    ])('keeps the menu inside the viewport for %s', (_label, rect) => {
+      assertInsideViewport(computeSelectionMenuAnchor(rect()))
     })
 
     it('flips above the selection at the end of a page', () => {
@@ -179,41 +175,6 @@ describe('computeSelectionMenuAnchor', () => {
       expect(Number.isFinite(anchor.left)).toBe(true)
       expect(anchor.left).toBeGreaterThanOrEqual(8)
       expect(anchor.left + MENU.width).toBeLessThanOrEqual(window.innerWidth)
-    })
-
-    it('is scale-agnostic: zoom only changes the input rect, never the decision', () => {
-      // %50 ve %200 zoom altındaki bitiş rect'leri aynı kararı üretir:
-      // yeterli yer varsa menü seçimin altına, yoksa üstüne gider.
-      const container = { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
-      const normal = computeSelectionMenuAnchor(
-        { top: 300, bottom: 320, left: 300, right: 500 },
-        container
-      )
-      const zoomed = computeSelectionMenuAnchor(
-        { top: 300, bottom: 320, left: 600, right: 800 },
-        container
-      )
-      expect(normal.top).toBe(328)
-      expect(zoomed.top).toBe(328)
-      assertInsideViewport(normal)
-      assertInsideViewport(zoomed)
-    })
-
-    it('keeps the menu on screen when the selection sits near the viewport bottom', () => {
-      const nearBottom = computeSelectionMenuAnchor({
-        top: window.innerHeight - 60,
-        bottom: window.innerHeight - 20,
-        left: 300,
-        right: 500
-      })
-      assertInsideViewport(nearBottom)
-    })
-
-    it('handles a rotated page whose end rect comes back sideways', () => {
-      // Rotation sonrası PDF.js farklı bir rect döndürebilir; menü yine de
-      // seçimin altında ve sınırların içinde konumlanır.
-      const anchor = computeSelectionMenuAnchor({ top: 400, bottom: 700, left: 300, right: 420 })
-      assertInsideViewport(anchor)
     })
   })
 })

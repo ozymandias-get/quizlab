@@ -119,39 +119,16 @@ describe('RefreshTriggerPolicy', () => {
   let policy: InstanceType<typeof RefreshTriggerPolicy>
   let context: RefreshTriggerContext
 
+  // `vi.clearAllMocks()` clears call history only, never implementations, and
+  // this project sets `clearMocks: false`. The previous 47-line beforeEach was
+  // mostly a verbatim second copy of the vi.hoisted defaults; only the three
+  // mocks that individual tests re-configure with a NON-once setter need to be
+  // re-armed here (mockResolvedValueOnce / mockImplementationOnce calls drain
+  // themselves).
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.completedListeners.length = 0
     mocked.redirectListeners.length = 0
-    mocked.nowIso.mockReturnValue('2026-04-07T19:30:00.000Z')
-    mocked.applyProbeTransition.mockImplementation(({ previous, outcome, timestamp }) => ({
-      ...previous,
-      state: outcome.healthy ? ('authenticated' as const) : ('degraded' as const),
-      reasonCode: outcome.healthy ? ('none' as const) : ('login_redirect' as const),
-      lastCheckAt: timestamp,
-      lastHealthyAt: outcome.healthy ? timestamp : previous.lastHealthyAt,
-      consecutiveFailures: outcome.healthy ? 0 : previous.consecutiveFailures + 1
-    }))
-    mocked.readMetadata.mockResolvedValue({
-      state: 'auth_required',
-      reasonCode: 'unknown',
-      lastCheckAt: null,
-      lastHealthyAt: null,
-      consecutiveFailures: 0,
-      featureEnabled: true,
-      enabled: true,
-      enabledAppIds: ['gemini'],
-      accountHash: 'hash-before'
-    })
-    mocked.writeStatus.mockImplementation(async (status, accountHash) => ({
-      ...status,
-      accountHash
-    }))
-    mocked.initialize.mockResolvedValue(undefined)
-    mocked.getActiveCheck.mockReturnValue(null)
-    mocked.acquire.mockResolvedValue({ ok: true })
-    mocked.release.mockResolvedValue(undefined)
-    mocked.emitRefreshEvent.mockClear()
     mocked.isWithinRefreshGracePeriod.mockReturnValue(false)
     mocked.isWithinSilentRefreshCooldown.mockReturnValue(false)
     mocked.runSilentRefreshProbe.mockResolvedValue({
@@ -159,8 +136,6 @@ describe('RefreshTriggerPolicy', () => {
       accountHash: 'hash-after',
       timedOut: false
     })
-    mocked.markRefreshSuccess.mockReturnValue(undefined)
-    mocked.getAbortSignal.mockReturnValue(new AbortController().signal)
     mocked.resolvePersistentSession.mockReturnValue({
       webRequest: {
         onCompleted: vi.fn((filter, callback) => {
@@ -171,7 +146,6 @@ describe('RefreshTriggerPolicy', () => {
         })
       }
     })
-
     context = {
       metadataRepository: {
         readMetadata: mocked.readMetadata,
@@ -410,9 +384,7 @@ describe('RefreshTriggerPolicy', () => {
     expect(trigger).not.toHaveBeenCalled()
   })
 
-  it('keeps active refresh state observable', () => {
-    expect(policy.getActiveRefresh()).toBeNull()
-    policy.clearActiveRefresh()
-    expect(policy.getActiveRefresh()).toBeNull()
-  })
+  // The former "keeps active refresh state observable" test only asserted null
+  // before and null after clearing an already-null value, so it could not
+  // fail. The refresh lifecycle itself is asserted above.
 })

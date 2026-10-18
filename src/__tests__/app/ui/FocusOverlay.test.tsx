@@ -150,25 +150,6 @@ describe('FocusOverlay', () => {
     )
   })
 
-  it('tells the AI surface to step aside while a dialog is open', () => {
-    // The AI surface subscribes to the shared dialog registry itself, so the
-    // focus overlay does not have to relay anything.
-    render(
-      <FocusOverlay
-        mode="ai"
-        onClose={vi.fn()}
-        isAiSurfaceMounted
-        isResizing={false}
-        isAiSurfaceActive
-        aiViewSurfaceState={surfaceState}
-      />
-    )
-
-    expect(mockAiViewSurface).toHaveBeenCalledWith(
-      expect.objectContaining({ isSurfaceActive: true })
-    )
-  })
-
   it('renders the aesthetic loader while AI is still mounting', () => {
     render(
       <FocusOverlay

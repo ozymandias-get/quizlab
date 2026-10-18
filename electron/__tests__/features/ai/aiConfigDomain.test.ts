@@ -36,7 +36,7 @@ describe('finalizeStoredConfig', () => {
     expect(result.button).toBe('#x')
   })
 
-  it('should default submitMode to mixed when missing', () => {
+  it('should default submitMode to mixed and stamp CONFIG_VERSION', () => {
     const result = finalizeStoredConfig(
       'example.com',
       {
@@ -46,6 +46,7 @@ describe('finalizeStoredConfig', () => {
       { defaultHealth: 'ready' }
     )
     expect(result.submitMode).toBe('mixed')
+    expect(result.version).toBe(CONFIG_VERSION)
   })
 
   it('should preserve existing submitMode', () => {
@@ -61,40 +62,12 @@ describe('finalizeStoredConfig', () => {
     expect(result.submitMode).toBe('click')
   })
 
-  it('should set health to needs_repick when input is missing', () => {
-    const result = finalizeStoredConfig(
-      'example.com',
-      {
-        input: null,
-        button: '#button'
-      },
-      { defaultHealth: 'ready' }
-    )
+  it.each([
+    ['the input', { input: null, button: '#button' }],
+    ['the button', { input: '#input', button: null }]
+  ])('should set health to needs_repick when %s is missing', (_label, config) => {
+    const result = finalizeStoredConfig('example.com', config, { defaultHealth: 'ready' })
     expect(result.health).toBe('needs_repick')
-  })
-
-  it('should set health to needs_repick when button is missing', () => {
-    const result = finalizeStoredConfig(
-      'example.com',
-      {
-        input: '#input',
-        button: null
-      },
-      { defaultHealth: 'ready' }
-    )
-    expect(result.health).toBe('needs_repick')
-  })
-
-  it('should set CONFIG_VERSION as version', () => {
-    const result = finalizeStoredConfig(
-      'example.com',
-      {
-        input: '#input',
-        button: '#button'
-      },
-      { defaultHealth: 'ready' }
-    )
-    expect(result.version).toBe(CONFIG_VERSION)
   })
 
   it('should include timestamp when provided', () => {
@@ -206,16 +179,12 @@ describe('resolveConfigForHostname', () => {
     expect(result!.input).toBe('#gemini')
   })
 
-  it('should return null for unknown hostname', () => {
-    expect(resolveConfigForHostname(configMap, 'unknown.com')).toBeNull()
-  })
-
-  it('should return null for undefined hostname', () => {
-    expect(resolveConfigForHostname(configMap, undefined)).toBeNull()
-  })
-
-  it('should return null for empty hostname', () => {
-    expect(resolveConfigForHostname(configMap, '')).toBeNull()
+  it.each([
+    ['an unknown hostname', 'unknown.com'],
+    ['an undefined hostname', undefined],
+    ['an empty hostname', '']
+  ])('should return null for %s', (_label, hostname) => {
+    expect(resolveConfigForHostname(configMap, hostname)).toBeNull()
   })
 
   it('does not leak selectors from a sibling subdomain that shares canonical hostname', () => {

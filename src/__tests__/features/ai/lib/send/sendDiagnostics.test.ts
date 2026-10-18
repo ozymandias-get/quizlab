@@ -12,13 +12,8 @@ import {
 import { describe, expect, it } from 'vitest'
 
 describe('nowMs', () => {
-  it('returns a number', () => {
-    expect(typeof nowMs()).toBe('number')
-  })
-
-  it('returns a positive value', () => {
-    const result = nowMs()
-    expect(result).toBeGreaterThan(0)
+  it('returns a positive number', () => {
+    expect(nowMs()).toBeGreaterThan(0)
   })
 
   it('falls back to Date.now when performance.now is unavailable', () => {
@@ -35,24 +30,14 @@ describe('nowMs', () => {
 })
 
 describe('roundMs', () => {
-  it('rounds to 2 decimal places', () => {
-    expect(roundMs(1.23456)).toBe(1.23)
-  })
-
-  it('rounds up when needed', () => {
-    expect(roundMs(1.235)).toBe(1.24)
-  })
-
-  it('handles integers', () => {
-    expect(roundMs(5)).toBe(5)
-  })
-
-  it('handles zero', () => {
-    expect(roundMs(0)).toBe(0)
-  })
-
-  it('handles negative values', () => {
-    expect(roundMs(-1.234)).toBe(-1.23)
+  it.each([
+    [1.23456, 1.23],
+    [1.235, 1.24],
+    [5, 5],
+    [0, 0],
+    [-1.234, -1.23]
+  ])('rounds %j to %j', (input, expected) => {
+    expect(roundMs(input)).toBe(expected)
   })
 })
 
@@ -75,7 +60,7 @@ describe('createSendDiagnostics', () => {
     })
   })
 
-  it('creates image pipeline diagnostics', () => {
+  it('carries the image pipeline, tabId and autoSend through', () => {
     const result = createSendDiagnostics({
       pipeline: 'image',
       currentAI: 'gemini',
@@ -83,10 +68,12 @@ describe('createSendDiagnostics', () => {
       autoSend: false
     })
 
-    expect(result.pipeline).toBe('image')
-    expect(result.currentAI).toBe('gemini')
-    expect(result.tabId).toBe('tab-123')
-    expect(result.autoSend).toBe(false)
+    expect(result).toMatchObject({
+      pipeline: 'image',
+      currentAI: 'gemini',
+      tabId: 'tab-123',
+      autoSend: false
+    })
   })
 })
 

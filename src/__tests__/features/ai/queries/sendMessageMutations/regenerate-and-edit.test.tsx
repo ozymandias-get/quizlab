@@ -1,39 +1,14 @@
 import { vi } from 'vitest'
 
 import {
+  createSessionsApiMock,
   mockAddMessageToSession,
   mockBuildCombinedPrompt,
   mockBuildErrorReply,
   mockSendApiChatRequest
 } from './mocks'
 
-vi.mock('@features/ai/api/sessions.api', () => ({
-  sendApiChatRequest: (...args: any[]) => mockSendApiChatRequest(...args),
-  persistSessions: vi.fn(),
-  addMessageToSession: (...args: any[]) => mockAddMessageToSession(...args),
-  buildCombinedPrompt: (...args: any[]) => mockBuildCombinedPrompt(...args),
-  buildErrorReply: (...args: any[]) => mockBuildErrorReply(...args),
-  loadSessions: vi.fn(() => []),
-  createNewSession: vi.fn(() => ({
-    id: 'new-session',
-    messages: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    title: 'New Chat'
-  })),
-  clearSessionMessages: vi.fn((sessions: any[], _id: string) => sessions),
-  renameSession: vi.fn((sessions: any[], _id: string, _title: string) => sessions),
-  deleteSessionFromList: vi.fn((sessions: any[], _id: string) => sessions),
-  fetchApiChatModels: vi.fn(async () => []),
-  getApiChatConfig: vi.fn(async () => ({
-    providers: [],
-    generalPrompt: '',
-    memoryPrompt: '',
-    characterPrompt: '',
-    selectedProviderId: '',
-    selectedModel: ''
-  }))
-}))
+vi.mock('@features/ai/api/sessions.api', () => createSessionsApiMock())
 
 vi.mock('@features/ai/store/apiChatSessionUtils', async () => {
   const actual = await vi.importActual('@features/ai/store/apiChatSessionUtils')
@@ -59,7 +34,13 @@ import { QueryClient } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { createWrapper, mockAssistantMessage, mockSession, resetChatUiStore } from './mocks'
+import {
+  createWrapper,
+  mockAssistantMessage,
+  mockSession,
+  resetChatUiStore,
+  seedActiveTabSession
+} from './mocks'
 
 describe('useRegenerateMutation', () => {
   let queryClient: QueryClient
@@ -89,14 +70,7 @@ describe('useRegenerateMutation', () => {
   })
 
   it('truncates the last assistant message and regenerates a new reply', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-rg' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-rg')
 
     const existingMessages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Hello', timestamp: 1000 },
@@ -131,14 +105,9 @@ describe('useRegenerateMutation', () => {
   })
 
   it('resets streaming flag after regeneration completes', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-stream' },
-      isStreamingByTab: { tab1: true },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-stream')
+    // Start streaming so the test proves the mutation turns it back OFF.
+    useChatUiStore.setState({ isStreamingByTab: { tab1: true } })
 
     const messages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'hi', timestamp: 1000 },
@@ -162,14 +131,7 @@ describe('useRegenerateMutation', () => {
   })
 
   it('handles error during regeneration gracefully', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-err' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-err')
 
     const messages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'do it', timestamp: 1000 },
@@ -225,14 +187,7 @@ describe('useEditAndRegenerateMutation', () => {
   })
 
   it('edits the specified user message and regenerates assistant reply', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-er' },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {},
-      isStreamingByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-er')
 
     const existingMessages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Original', timestamp: 1000 },
@@ -266,14 +221,9 @@ describe('useEditAndRegenerateMutation', () => {
   })
 
   it('cleans up streaming state after edit-and-regenerate', async () => {
-    useChatUiStore.setState({
-      activeSessionIdByTab: { tab1: 'session-clean' },
-      isStreamingByTab: { tab1: true },
-      inputValueByTab: {},
-      attachmentsByTab: {},
-      selectedModelByTab: {},
-      activeProviderByTab: {}
-    })
+    seedActiveTabSession('tab1', 'session-clean')
+    // Start streaming so the test proves the mutation turns it back OFF.
+    useChatUiStore.setState({ isStreamingByTab: { tab1: true } })
 
     const messages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Q', timestamp: 1000 },
@@ -305,15 +255,6 @@ describe('useEditAndRegenerateMutation', () => {
 describe('chat send lock (shared by send, regenerate and edit)', () => {
   let queryClient: QueryClient
 
-  const emptyUiState = (sessionId: string) => ({
-    activeSessionIdByTab: { tab1: sessionId },
-    inputValueByTab: {},
-    attachmentsByTab: {},
-    selectedModelByTab: {},
-    activeProviderByTab: {},
-    isStreamingByTab: {}
-  })
-
   beforeEach(() => {
     vi.clearAllMocks()
     resetChatUiStore()
@@ -333,7 +274,7 @@ describe('chat send lock (shared by send, regenerate and edit)', () => {
   })
 
   it('rejects a second regenerate while one is in flight, then allows a later one', async () => {
-    useChatUiStore.setState(emptyUiState('session-lock'))
+    seedActiveTabSession('tab1', 'session-lock')
 
     const messages: ApiChatMessage[] = [
       { id: 'u1', role: 'user', content: 'Q', timestamp: 1000 },
@@ -379,7 +320,7 @@ describe('chat send lock (shared by send, regenerate and edit)', () => {
   })
 
   it('shares the lock between plain send and regenerate on the same tab', async () => {
-    useChatUiStore.setState(emptyUiState('session-shared'))
+    seedActiveTabSession('tab1', 'session-shared')
 
     const messages: ApiChatMessage[] = [{ id: 'u1', role: 'user', content: 'Q', timestamp: 1000 }]
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [
@@ -415,7 +356,7 @@ describe('chat send lock (shared by send, regenerate and edit)', () => {
   })
 
   it('does not deadlock the tab when edit validation throws before sending', async () => {
-    useChatUiStore.setState(emptyUiState('session-deadlock'))
+    seedActiveTabSession('tab1', 'session-deadlock')
 
     const messages: ApiChatMessage[] = [{ id: 'u1', role: 'user', content: 'Q', timestamp: 1000 }]
     queryClient.setQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS, [

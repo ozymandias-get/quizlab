@@ -83,22 +83,7 @@ describe('usePdfWorkspaceState', () => {
     vi.mocked(getElectronApi).mockReturnValue(null)
   })
 
-  it('returns the expected shape', () => {
-    const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-    expect(result.current).toHaveProperty('t')
-    expect(result.current).toHaveProperty('leftPanelProps')
-    expect(result.current).toHaveProperty('readingProps')
-    expect(result.current).toHaveProperty('rootDragHandlers')
-  })
-
   describe('leftPanelProps', () => {
-    it('passes through PDF tab props', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      expect(result.current.leftPanelProps.pdfTabs).toEqual([])
-      expect(result.current.leftPanelProps.pdfFile).toBeNull()
-      expect(result.current.leftPanelProps.activePdfTab).toBeNull()
-    })
-
     it('passes through interaction states', () => {
       const { result } = renderHook(() =>
         usePdfWorkspaceState({ isInteractionBlocked: true, isPanelResizing: true })

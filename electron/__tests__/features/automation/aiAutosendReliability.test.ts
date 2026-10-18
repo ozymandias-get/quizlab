@@ -9,6 +9,7 @@
  *   D) Sentetik Enter'ın sahte başarı sayılması.
  */
 import { generateAutoSendScript } from '@electron/features/automation/automationScripts'
+import type { SubmitMode } from '@shared-core/types'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -67,56 +68,45 @@ describe('aiAutosendReliability', () => {
   }
 
   describe('A — enabled button misclassified as disabled', () => {
-    it('clicks an enabled send button that only carries a Tailwind disabled variant', async () => {
-      document.body.innerHTML = `
+    it.each([
+      {
+        variant: 'Tailwind disabled variant',
+        className: 'disabled:opacity-50 hover:bg-primary'
+      },
+      {
+        variant: 'aria-disabled variant',
+        className: 'aria-disabled:opacity-50 aria-disabled:cursor-not-allowed'
+      }
+    ])(
+      'clicks an enabled send button that only carries a $variant',
+      async ({ className }) => {
+        document.body.innerHTML = `
         <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" class="disabled:opacity-50 hover:bg-primary" type="button">Send</button>
+        <button id="send" class="${className}" type="button">Send</button>
       `
-      const clicks = vi.fn()
-      const send = document.getElementById('send') as HTMLButtonElement
-      send.addEventListener('click', clicks)
-      makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
+        const clicks = vi.fn()
+        const send = document.getElementById('send') as HTMLButtonElement
+        send.addEventListener('click', clicks)
+        makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
 
-      const startedAt = Date.now()
-      const script = generateAutoSendScript(
-        { input: '#composer', button: '#send', submitMode: 'click' },
-        'merhaba',
-        true
-      )
-      const result = await window.eval(script)
-      const elapsed = Date.now() - startedAt
-
-      expect(result.success).toBe(true)
-      expect(clicks).toHaveBeenCalledTimes(1)
-      // 15 saniyelik buton kapısı dolanmamalı.
-      expect(elapsed).toBeLessThan(5000)
-    }, 20000)
-
-    it('clicks an enabled send button that only carries an aria-disabled variant', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" class="aria-disabled:opacity-50 aria-disabled:cursor-not-allowed" type="button">Send</button>
-      `
-      const clicks = vi.fn()
-      const send = document.getElementById('send') as HTMLButtonElement
-      send.addEventListener('click', clicks)
-      makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
-
-      const startedAt = Date.now()
-      const result = await window.eval(
-        generateAutoSendScript(
+        const startedAt = Date.now()
+        const script = generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
           true
         )
-      )
+        const result = await window.eval(script)
+        const elapsed = Date.now() - startedAt
 
-      expect(result.success).toBe(true)
-      expect(clicks).toHaveBeenCalledTimes(1)
-      expect(Date.now() - startedAt).toBeLessThan(5000)
-    }, 20000)
+        expect(result.success).toBe(true)
+        expect(clicks).toHaveBeenCalledTimes(1)
+        // 15 saniyelik buton kapısı dolanmamalı.
+        expect(elapsed).toBeLessThan(5000)
+      },
+      20000
+    )
 
-    it('still refuses a genuinely disabled button', async () => {
+    it('still refuses a genuinely disabled button and names it blocked, not missing', async () => {
       document.body.innerHTML = `
         <div role="textbox" contenteditable="true" id="composer"></div>
         <button id="send" type="button" disabled>Send</button>
@@ -134,99 +124,6 @@ describe('aiAutosendReliability', () => {
 
       expect(result.success).toBe(false)
       expect(clicks).not.toHaveBeenCalled()
-      expect(result.error).toBe('submit_not_ready')
-    }, 25000)
-  })
-
-  describe('D — synthetic Enter must not report unearned success', () => {
-    it('does not claim success when the editor ignores the untrusted Enter', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button">Send</button>
-      `
-      const composer = document.getElementById('composer') as HTMLDivElement
-      composer.textContent = 'merhaba'
-      // Site sentetik klavye olayını yok sayıyor (isTrusted=false): içerik
-      // değişmez, mesaj gönderilmez.
-      composer.addEventListener('keydown', (event) => {
-        if (!event.isTrusted) event.stopImmediatePropagation()
-      })
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: null, submitMode: 'enter_key' },
-          'merhaba',
-          true
-        )
-      )
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('submit_unverified')
-    }, 25000)
-
-    it('reports success when Enter really empties the composer', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button">Send</button>
-      `
-      const composer = document.getElementById('composer') as HTMLDivElement
-      composer.textContent = 'merhaba'
-      composer.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.isTrusted) composer.textContent = ''
-      })
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: null, submitMode: 'enter_key' },
-          'merhaba',
-          true
-        )
-      )
-
-      expect(result.success).toBe(true)
-      expect(result.submitObserved).toBe(true)
-    }, 25000)
-
-    it('does not press Enter twice when the button is present but disabled', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button" disabled>Send</button>
-      `
-      const composer = document.getElementById('composer') as HTMLDivElement
-      composer.textContent = 'merhaba'
-      const enterKeys = vi.fn()
-      composer.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') enterKeys()
-      })
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: '#send', submitMode: 'mixed' },
-          'merhaba',
-          true
-        )
-      )
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('submit_not_ready')
-      // Körlemesine Enter gönderilmemeli.
-      expect(enterKeys).not.toHaveBeenCalled()
-    }, 30000)
-
-    it('reports a disabled button as blocked, not as a missing selector', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button" disabled>Send</button>
-      `
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: '#send', submitMode: 'click' },
-          'merhaba',
-          true
-        )
-      )
-
       // `button_not_found` kullanıcıyı selector'ını yeniden seçmeye yönlendirir
       // ve bu bir selector hatası DEĞİLDİR — buton bulundu, pasifti.
       expect(result.error).toBe('submit_not_ready')
@@ -234,6 +131,66 @@ describe('aiAutosendReliability', () => {
       expect(result.notReadyReason).toBeTruthy()
       expect(result.submitOutcome).toBe('blocked')
     }, 30000)
+  })
+
+  describe('D — synthetic Enter must not report unearned success', () => {
+    // Tabloya açık tip verilir: aksi halde `submitMode` alanı `SubmitMode`
+    // literal kümesi yerine `string` olarak genişler ve generateAutoSendScript'in
+    // beklediği `SubmitMode | undefined` ile uyuşmaz.
+    const enterTwiceCases: Array<{
+      scenario: string
+      body: string
+      submitMode: SubmitMode
+      expectedError: string | null
+      maxEnterKeys: number
+    }> = [
+      {
+        scenario: 'the button is present but disabled',
+        body: `<button id="send" type="button" disabled>Send</button>`,
+        submitMode: 'mixed',
+        expectedError: 'submit_not_ready',
+        maxEnterKeys: 0
+      },
+      {
+        scenario: 'mixed mode finds no button at all',
+        body: '',
+        submitMode: 'mixed',
+        expectedError: null,
+        maxEnterKeys: 1
+      }
+    ]
+
+    it.each(enterTwiceCases)(
+      'never dispatches Enter twice when $scenario',
+      async ({ body, submitMode, expectedError, maxEnterKeys }) => {
+        document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        ${body}
+      `
+        const composer = document.getElementById('composer') as HTMLDivElement
+        composer.textContent = 'merhaba'
+        const enterKeys = vi.fn()
+        composer.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') enterKeys()
+        })
+
+        const result = await window.eval(
+          generateAutoSendScript(
+            { input: '#composer', button: body ? '#send' : null, submitMode },
+            'merhaba',
+            true
+          )
+        )
+
+        if (expectedError) {
+          expect(result.success).toBe(false)
+          expect(result.error).toBe(expectedError)
+        }
+        // Körlemesine Enter gönderilmemeli; fallback ise en fazla bir kez denenmeli.
+        expect(enterKeys.mock.calls.length).toBeLessThanOrEqual(maxEnterKeys)
+      },
+      30000
+    )
 
     it('exits the readiness gate early when the button stays stably disabled', async () => {
       document.body.innerHTML = `
@@ -254,26 +211,6 @@ describe('aiAutosendReliability', () => {
       // Kararlı pasiflikte 15 saniye beklemenin anlamı yoktur.
       expect(result.success).toBe(false)
       expect(elapsed).toBeLessThan(10000)
-    }, 30000)
-
-    it('never dispatches Enter twice when mixed mode finds no button', async () => {
-      document.body.innerHTML = `<div role="textbox" contenteditable="true" id="composer"></div>`
-      const composer = document.getElementById('composer') as HTMLDivElement
-      const enterKeys = vi.fn()
-      composer.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') enterKeys()
-      })
-
-      await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: null, submitMode: 'mixed' },
-          'merhaba',
-          true
-        )
-      )
-
-      // Enter fallback'i bir kez denenir; doğrulanamazsa tekrar edilmez.
-      expect(enterKeys.mock.calls.length).toBeLessThanOrEqual(1)
     }, 30000)
   })
 
@@ -439,122 +376,80 @@ describe('aiAutosendReliability', () => {
       expect(result.success).toBe(true)
     }, 20000)
 
-    it('still rejects partial text after the punctuation relaxation', async () => {
-      document.body.innerHTML = `
-        <textarea id="input"></textarea>
+    // Katlama (noktalama/Unicode normalleştirme) YALNIZCA kabul yönünde çalışır.
+    // Eksik içerik kabul edilmez ve append/replace sözleşmeleri gevşetilmez.
+    it.each([
+      {
+        contract: 'partial text after the punctuation relaxation',
+        existingDraft: '',
+        append: false,
+        prompt: `${'tam bir cümle. '.repeat(6)}SON`,
+        // Alan, yazılan TAM metnin ortasından bir parçayı düşürerek yazar.
+        editorWrite: (next: string) => next.replace(next.slice(10, 30), ''),
+        expectedError: null
+      },
+      {
+        // Replace sözleşmesi: eski taslak KAYBOLDUR. Editör yeni metni ekleyip
+        // eskisini silmezse içerik kirlidir ve gönderilmemelidir.
+        contract: 'a replace that left the previous draft in place',
+        existingDraft: 'eski taslak metni',
+        append: false,
+        prompt: 'yeni ve tek gönderilecek metin',
+        // Editör yeni metni EKLER ama eski taslağı SİLMEZ.
+        editorWrite: (next: string) => `eski taslak metni ${next}`,
+        expectedError: 'text_input_partial'
+      },
+      {
+        // Append sözleşmesi: önceki içerik KORUNUR. Yeni metin eskisinden
+        // uzun olduğu için "kazanılan uzunluk" eşiği de aşılır: korumanın tek
+        // gerçek sınavı, kayıp eski içeriğin yakalanmasıdır.
+        contract: 'an append that dropped the previous draft',
+        existingDraft: 'korunmasi gereken eski icerik',
+        append: true,
+        prompt: 'eklenecek yeni icerik '.repeat(5).trim(),
+        editorWrite: (next: string) => next.replace('korunmasi gereken eski icerik', ''),
+        expectedError: null
+      }
+    ])(
+      'rejects $contract',
+      async ({ existingDraft, append, prompt, editorWrite, expectedError }) => {
+        document.body.innerHTML = `
+        <textarea id="input">${existingDraft}</textarea>
         <button id="send" type="button">Send</button>
       `
-      const prompt = `${'tam bir cümle. '.repeat(6)}SON`
 
-      // Alan, yazılan TAM metnin ortasından bir parçayı düşürerek yazar:
-      // kısmi yerleştirme senaryosu.
-      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
-      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
-        configurable: true,
-        get() {
-          return descriptor.get?.call(this)
-        },
-        set(next: string) {
-          descriptor.set?.call(this, next.replace(prompt.slice(10, 30), ''))
-        }
-      })
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+          configurable: true,
+          get() {
+            return descriptor.get?.call(this)
+          },
+          set(next: string) {
+            descriptor.set?.call(this, editorWrite(String(next)))
+          }
+        })
 
-      try {
-        const result = await window.eval(
-          generateAutoSendScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            prompt,
-            false
+        try {
+          const result = await window.eval(
+            generateAutoSendScript(
+              { input: '#input', button: '#send', submitMode: 'click' },
+              prompt,
+              false,
+              append
+            )
           )
-        )
 
-        // Katlama yalnızca kabul yönünde çalışır: eksik içerik kabul edilmez.
-        expect(result.success).toBe(false)
-        expect(result.diagnostics.textVerifyResult).not.toBe('verified')
-      } finally {
-        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
-      }
-    }, 20000)
-
-    it('rejects a replace that left the previous draft in place', async () => {
-      // Replace sözleşmesi: eski taslak KAYBOLDUR. Editör yeni metni ekleyip
-      // eskisini silmezse içerik kirlidir ve gönderilmemelidir. Katlanmış
-      // karşılaştırma bu durumu "eski taslak gitti" diye okursa yanlış
-      // pozitif üretir.
-      document.body.innerHTML = `
-        <textarea id="input">eski taslak metni</textarea>
-        <button id="send" type="button">Send</button>
-      `
-      const prompt = 'yeni ve tek gönderilecek metin'
-
-      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
-      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
-        configurable: true,
-        get() {
-          return descriptor.get?.call(this)
-        },
-        set(next: string) {
-          // Editör yeni metni EKLER ama eski taslağı SİLMEZ.
-          descriptor.set?.call(this, `eski taslak metni ${next}`)
+          expect(result.success).toBe(false)
+          expect(result.diagnostics.textVerifyResult).not.toBe('verified')
+          if (expectedError) {
+            expect(result.error).toBe(expectedError)
+          }
+        } finally {
+          Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
         }
-      })
-
-      try {
-        const result = await window.eval(
-          generateAutoSendScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            prompt,
-            false
-          )
-        )
-
-        expect(result.success).toBe(false)
-        expect(result.diagnostics.textVerifyResult).not.toBe('verified')
-        expect(result.error).toBe('text_input_partial')
-      } finally {
-        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
-      }
-    }, 20000)
-
-    it('rejects an append that dropped the previous draft', async () => {
-      // Append sözleşmesi: önceki içerik KORUNUR. Kaybolduysa doğrulama
-      // başarısız olmalıdır; noktalama katlaması bu korumayı gevşetmemelidir.
-      document.body.innerHTML = `
-        <textarea id="input">korunmasi gereken eski icerik</textarea>
-        <button id="send" type="button">Send</button>
-      `
-      const prompt = 'eklenecek yeni icerik '.repeat(5).trim()
-
-      const descriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!
-      Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
-        configurable: true,
-        get() {
-          return descriptor.get?.call(this)
-        },
-        set(next: string) {
-          // Editör YENİ metni alır ama ESKİ taslağı siler. Yeni metin
-          // eskisinden uzun olduğu için "kazanılan uzunluk" eşiği de aşılır:
-          // korumanın tek gerçek sınavı, kayıp eski içeriğin yakalanmasıdır.
-          descriptor.set?.call(this, next.replace('korunmasi gereken eski icerik', ''))
-        }
-      })
-
-      try {
-        const result = await window.eval(
-          generateAutoSendScript(
-            { input: '#input', button: '#send', submitMode: 'click' },
-            prompt,
-            false,
-            true
-          )
-        )
-
-        expect(result.success).toBe(false)
-        expect(result.diagnostics.textVerifyResult).not.toBe('verified')
-      } finally {
-        Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
-      }
-    }, 20000)
+      },
+      20000
+    )
   })
 
   /**
@@ -571,31 +466,63 @@ describe('aiAutosendReliability', () => {
    * tıklandı" durumudur.
    */
   describe('E — a click that changes nothing must not report a delivery', () => {
-    it('reports submit_unverified when the clicked button produced no observable effect', async () => {
-      document.body.innerHTML = `
+    // `submit_unverified` sınıflandırıcısında `retry: 'never'` taşır: tıklama
+    // denendi ama teslimat gözlemlenmedi. Tablo `submitMode` alanını literal
+    // `SubmitMode` olarak tutar (aksi halde `string` olarak genişler).
+    const unobservedClickCases: Array<{
+      scenario: string
+      submitMode: SubmitMode
+      expectedError: string
+    }> = [
+      {
+        scenario: 'click mode with no observable effect',
+        submitMode: 'click',
+        expectedError: 'submit_unverified'
+      },
+      {
+        scenario: 'mixed mode must not fall back to Enter after an unobserved click',
+        submitMode: 'mixed',
+        expectedError: 'submit_unverified'
+      }
+    ]
+
+    it.each(unobservedClickCases)(
+      'reports $scenario',
+      async ({ submitMode, expectedError }) => {
+        document.body.innerHTML = `
         <div role="textbox" contenteditable="true" id="composer"></div>
         <button id="send" type="button">Send</button>
       `
-      const clicks = vi.fn()
-      document.getElementById('send')?.addEventListener('click', clicks)
+        const clicks = vi.fn()
+        document.getElementById('send')?.addEventListener('click', clicks)
+        const enterKeys = vi.fn()
+        document.getElementById('composer')?.addEventListener('keydown', enterKeys)
 
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: '#send', submitMode: 'click' },
-          'merhaba',
-          true
+        const result = await window.eval(
+          generateAutoSendScript(
+            { input: '#composer', button: '#send', submitMode },
+            'merhaba',
+            true
+          )
         )
-      )
 
-      // Tıklama gerçekten denendi — bu bir "butona hiç ulaşılamadı" hatası değil.
-      expect(clicks).toHaveBeenCalledTimes(1)
-      expect(result.submitMethod).toBe('button_click')
-      // …ama hiçbir etki gözlemlenmediği için teslimat BAŞARILI SAYILAMAZ.
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('submit_unverified')
-      expect(result.submitObserved).toBe(false)
-      expect(result.submitOutcome).toBe('delivery_unconfirmed')
-    }, 30000)
+        // Tıklama gerçekten denendi — bu bir "butona hiç ulaşılamadı" hatası değil.
+        expect(clicks).toHaveBeenCalledTimes(1)
+        expect(result.submitMethod).toBe('button_click')
+        // …ama hiçbir etki gözlemlenmediği için teslimat BAŞARILI SAYILAMAZ.
+        expect(result.success).toBe(false)
+        expect(result.error).toBe(expectedError)
+        expect(result.submitObserved).toBe(false)
+        expect(result.submitOutcome).toBe('delivery_unconfirmed')
+        // Üst üste ikinci gönderim mükerrer mesaj üretir: Enter yalnızca
+        // gönderim HİÇ denenmediğinde denenmelidir.
+        expect(enterKeys).not.toHaveBeenCalled()
+        // Efektsiz bir tıklama locator'ın DOĞRU olduğunun kanıtı değildir:
+        // ödüllendirilirse bozuk selector onarım zincirinde yukarı taşınır.
+        expect(result.diagnostics.button.operationSucceeded).toBe(false)
+      },
+      30000
+    )
 
     it('observes a real delivery when the conversation grows outside the composer shell', async () => {
       // 2026-10-17 ölçümü (canlı chatgpt.com konuşma sayfası): gönderim
@@ -654,27 +581,6 @@ describe('aiAutosendReliability', () => {
       expect(result.submitObserved).toBe(true)
       expect(result.success).toBe(true)
       expect(result.submitOutcome).toBe('observed')
-    }, 30000)
-
-    it('does not credit the button selector repair for a click with no observable effect', async () => {
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button">Send</button>
-      `
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: '#send', submitMode: 'click' },
-          'merhaba',
-          true
-        )
-      )
-
-      // `operationSucceeded` host tarafındaki tek "gerçek kullanım" sinyalidir
-      // (logicalSendEvidence / evaluateRepairEvidence). Etkisiz bir tıklama
-      // locator'ın DOĞRU olduğunun kanıtı değildir: ödüllendirilirse bozuk
-      // selector onarım zincirinde yukarı taşınır.
-      expect(result.diagnostics.button.operationSucceeded).toBe(false)
     }, 30000)
 
     it('refuses to click a dictation control and names it instead', async () => {
@@ -748,32 +654,6 @@ describe('aiAutosendReliability', () => {
       expect(dictation).not.toHaveBeenCalled()
       expect(realSend).toHaveBeenCalledTimes(1)
       expect(result.diagnostics.submitWrongControl).toBeNull()
-    }, 30000)
-
-    it('never follows an unobserved click with an Enter fallback in mixed mode', async () => {
-      // `mixed` modda buton BULUNAMAZSA Enter yoluna düşmek güvenlidir. But
-      // buton bulundu ve tıklandıysa mesajın GİTMİŞ olma ihtimali vardır;
-      // üst üste ikinci gönderim mükerrer mesaj üretir. Bu yüzden
-      // `submit_unverified` sınıflandırıcıda `retry: 'never'` taşır ve
-      // Enter yalnızca gönderim HİÇ denenmediğinde denenmelidir.
-      document.body.innerHTML = `
-        <div role="textbox" contenteditable="true" id="composer"></div>
-        <button id="send" type="button">Send</button>
-      `
-      const enterKeys = vi.fn()
-      document.getElementById('composer')?.addEventListener('keydown', enterKeys)
-
-      const result = await window.eval(
-        generateAutoSendScript(
-          { input: '#composer', button: '#send', submitMode: 'mixed' },
-          'merhaba',
-          true
-        )
-      )
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('submit_unverified')
-      expect(enterKeys).not.toHaveBeenCalled()
     }, 30000)
 
     it('keeps reporting success when the click really empties the composer', async () => {

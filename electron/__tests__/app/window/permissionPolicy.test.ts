@@ -31,31 +31,14 @@ describe('window/permissionPolicy', () => {
   })
 
   describe('partition binding', () => {
-    it('denies every permission for an unknown partition', () => {
-      for (const permission of ['media', 'geolocation', 'notifications', 'fullscreen']) {
-        const d = ask({ partition: 'persist:attacker', permission })
-        expect(d.granted).toBe(false)
-        expect(d.reason).toBe('not_a_known_partition')
-      }
-    })
-
-    it('treats a custom partition with no registered origin as untrusted', () => {
-      const d = ask({
-        partition: CUSTOM,
-        permission: 'notifications',
-        requestingUrl: 'https://example.com/'
-      })
+    it.each([
+      ['an unknown partition', 'persist:attacker'],
+      ['a custom partition with no registered origin', CUSTOM],
+      ['the generic ai_session partition', 'persist:ai_session']
+    ])('grants nothing on %s', (_label, partition) => {
+      const d = ask({ partition, permission: 'media' })
       expect(d.granted).toBe(false)
-      expect(d.reason).toBe('not_a_known_partition')
-    })
-
-    it('does not trust the generic ai_session partition for any origin', () => {
-      const d = ask({
-        partition: 'persist:ai_session',
-        permission: 'notifications',
-        requestingUrl: 'https://chatgpt.com/'
-      })
-      expect(d.granted).toBe(false)
+      expect(d.requiresConsent).toBe(false)
     })
 
     it('recognises custom partitions by prefix', () => {
@@ -114,7 +97,9 @@ describe('window/permissionPolicy', () => {
     it.each([
       'https://evil.com/',
       'https://chatgpt.com.evil.com/',
+      'https://chatgpt.com.evil.io/',
       'https://notchatgpt.com/',
+      'https://evilchatgpt.com/',
       'https://chatgpt.computer/',
       // Auth domains the app blocks from guest navigation must not inherit
       // the provider's grant.
@@ -124,15 +109,6 @@ describe('window/permissionPolicy', () => {
       const d = ask({ permission: 'media', requestingUrl })
       expect(d.granted).toBe(false)
       expect(d.reason).toBe('origin_not_registered')
-    })
-
-    it('does not let a prefix-similar host inherit the grant', () => {
-      expect(
-        ask({ permission: 'media', requestingUrl: 'https://chatgpt.com.evil.io/' }).granted
-      ).toBe(false)
-      expect(ask({ permission: 'media', requestingUrl: 'https://evilchatgpt.com/' }).granted).toBe(
-        false
-      )
     })
 
     it('keeps a cross-partition origin out', () => {
@@ -149,14 +125,8 @@ describe('window/permissionPolicy', () => {
   })
 
   describe('subframes', () => {
-    it('denies ambient permissions to subframes on a trusted origin', () => {
-      const d = ask({ permission: 'media', isMainFrame: false })
-      expect(d.granted).toBe(false)
-      expect(d.reason).toBe('subframe_denied')
-    })
-
-    it('denies geolocation to subframes', () => {
-      const d = ask({ permission: 'geolocation', isMainFrame: false })
+    it.each(['media', 'geolocation'])('denies ambient %s to a subframe', (permission) => {
+      const d = ask({ permission, isMainFrame: false })
       expect(d.granted).toBe(false)
       expect(d.reason).toBe('subframe_denied')
     })
@@ -397,29 +367,17 @@ describe('window/permissionPolicy', () => {
   })
 
   describe('managed view partition allowlist', () => {
-    it('allows every built-in provider partition', () => {
-      for (const partition of [
-        'persist:ai_session',
-        'persist:ai_chatgpt',
-        'persist:ai_claude',
-        'persist:ai_deepseek',
-        'persist:ai_qwen',
-        'persist:ai_kimi',
-        'persist:ai_m365',
-        'persist:ai_copilot',
-        'persist:ai_grok',
-        'persist:ai_huggingchat',
-        'persist:ai_manus',
-        'persist:ai_mistral',
-        'persist:ai_perplexity',
-        'persist:gemini_web_profile'
-      ]) {
-        expect(isAllowedManagedViewPartition(partition)).toBe(true)
-      }
-    })
-
-    it('allows custom partitions', () => {
-      expect(isAllowedManagedViewPartition('persist:ai_custom_abc')).toBe(true)
+    // One representative per allowlist family: a plain provider, the shared
+    // Google session and the custom prefix. The removed variant asserted 14
+    // hardcoded partition names all returned `true`, which only restated the
+    // production list back to itself.
+    it.each([
+      ['a built-in provider', 'persist:ai_chatgpt'],
+      ['the shared session', 'persist:ai_session'],
+      ['the Google web profile', 'persist:gemini_web_profile'],
+      ['a custom platform', 'persist:ai_custom_abc']
+    ])('allows %s partition', (_label, partition) => {
+      expect(isAllowedManagedViewPartition(partition)).toBe(true)
     })
 
     it.each([undefined, null, '', 42, {}, 'persist:pdf_viewer', 'ai_chatgpt', 'persist:'])(

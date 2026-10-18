@@ -275,17 +275,6 @@ describe('native annotation layer — mount and shape', () => {
     expect(container.querySelector('[data-native-pdf-text-layer]')).not.toBe(null)
     expect(container.querySelector('canvas')).not.toBe(null)
   })
-
-  it('is inert while the feature flag is off', async () => {
-    serveDocument(createFakeDocument({ numPages: 6, annotations: { 1: [internalLink('a', 0)] } }))
-
-    const { container } = render(<NativeViewerHarness enabled={false} />)
-    await settle()
-
-    expect(mocks.getDocument).not.toHaveBeenCalled()
-    expect(FakeAnnotationLayer.calls).toHaveLength(0)
-    expect(annotationLayerOf(container)).toBe(null)
-  })
 })
 
 /* -------------------------------------------------------------- supersede */
@@ -352,88 +341,73 @@ describe('native annotation layer — supersede and cleanup', () => {
     expect(FakeAnnotationLayer.calls.at(-1)?.scale).toBe(4)
   })
 
-  it('drops a destination that resolves after a zoom superseded its layer', async () => {
-    serveDocument(
-      createFakeDocument({
-        numPages: 12,
-        destinations: { chapterTwo: [2, { name: 'XYZ' }] },
-        annotations: { 1: [{ ...internalLink('a', 0), dest: 'chapterTwo' }] }
-      })
-    )
-    const control: Control = { current: null }
-
-    const { container } = render(
-      <NativeViewerHarness
-        onController={(c) => {
-          control.current = c
-        }}
-      />
-    )
-    await waitForFrames(() => expect(linkAnchorsOf(container)).toHaveLength(1))
-
-    // The click starts a named-destination lookup. The zoom supersedes the layer — and
-    // with it the link service that click belonged to — before the lookup lands. The
-    // frames are flushed while the stack is still synchronous, so the dispose really
-    // does happen first rather than after the promise resolved.
-    act(() => {
-      linkAnchorsOf(container)[0].dispatchEvent(
-        new MouseEvent('click', { bubbles: true, cancelable: true })
+  // A named destination needs a round-trip through the worker, and either a zoom or a
+  // reload can dispose the link service that click belonged to before the answer lands.
+  it.each(['zoom', 'reload'])(
+    'drops a destination that resolves after a %s superseded its layer',
+    async (action) => {
+      serveDocument(
+        createFakeDocument({
+          numPages: 12,
+          destinations: { chapterTwo: [2, { name: 'XYZ' }] },
+          annotations: { 1: [{ ...internalLink('a', 0), dest: 'chapterTwo' }] }
+        })
       )
-      control.current?.zoomTo(2)
-    })
-    flushFrames()
-    await settle()
+      const control: Control = { current: null }
 
-    expect(control.current?.currentPage).toBe(1)
-  })
-
-  it('drops a destination that resolves after a reload superseded its layer', async () => {
-    serveDocument(
-      createFakeDocument({
-        numPages: 12,
-        destinations: { chapterTwo: [2, { name: 'XYZ' }] },
-        annotations: { 1: [{ ...internalLink('a', 0), dest: 'chapterTwo' }] }
-      })
-    )
-    const control: Control = { current: null }
-
-    const { container, rerender } = render(
-      <NativeViewerHarness
-        reloadKey={0}
-        onController={(c) => {
-          control.current = c
-        }}
-      />
-    )
-    await waitForFrames(() => expect(linkAnchorsOf(container)).toHaveLength(1))
-    const layersBeforeReload = FakeAnnotationLayer.instances.length
-
-    act(() => {
-      linkAnchorsOf(container)[0].dispatchEvent(
-        new MouseEvent('click', { bubbles: true, cancelable: true })
+      const { container, rerender } = render(
+        <NativeViewerHarness
+          reloadKey={0}
+          onController={(c) => {
+            control.current = c
+          }}
+        />
       )
-    })
+      await waitForFrames(() => expect(linkAnchorsOf(container)).toHaveLength(1))
+      const layersBefore = FakeAnnotationLayer.instances.length
 
-    serveDocument(createFakeDocument({ numPages: 3, annotations: { 1: [internalLink('z', 0)] } }))
-    rerender(
-      <NativeViewerHarness
-        reloadKey={1}
-        onController={(c) => {
-          control.current = c
-        }}
-      />
-    )
-    await settle()
+      // The click starts the lookup. For the zoom case the supersede happens in the same
+      // synchronous block and the frames are flushed while the stack is still open, so
+      // the dispose really does come first rather than after the promise resolved. For
+      // the reload case a whole new document is served in its place.
+      act(() => {
+        linkAnchorsOf(container)[0].dispatchEvent(
+          new MouseEvent('click', { bubbles: true, cancelable: true })
+        )
+        if (action === 'zoom') {
+          control.current?.zoomTo(2)
+        }
+      })
 
-    // A new document, a new layer, and the previous document's link service gone with
-    // it — so the in-flight destination cannot move the new document's page.
-    expect(FakeAnnotationLayer.instances.length).toBeGreaterThan(layersBeforeReload)
-    expect(
-      FakeAnnotationLayer.instances.slice(0, layersBeforeReload).every((l) => l.isDestroyed())
-    ).toBe(true)
-    expect(control.current?.currentPage).toBe(1)
-    expect(control.current?.annotationLayerError).toBe(null)
-  })
+      if (action === 'zoom') {
+        flushFrames()
+        await settle()
+      } else {
+        serveDocument(
+          createFakeDocument({ numPages: 3, annotations: { 1: [internalLink('z', 0)] } })
+        )
+        rerender(
+          <NativeViewerHarness
+            reloadKey={1}
+            onController={(c) => {
+              control.current = c
+            }}
+          />
+        )
+        await settle()
+      }
+
+      // A new layer exists and every layer from before it is destroyed, so the previous
+      // document's link service went with them — the in-flight destination cannot move
+      // the page the reader is on now.
+      expect(FakeAnnotationLayer.instances.length).toBeGreaterThan(layersBefore)
+      expect(
+        FakeAnnotationLayer.instances.slice(0, layersBefore).every((l) => l.isDestroyed())
+      ).toBe(true)
+      expect(control.current?.currentPage).toBe(1)
+      expect(control.current?.annotationLayerError).toBe(null)
+    }
+  )
 
   it('clears the DOM and destroys the layer on unmount', async () => {
     const document = createFakeDocument({

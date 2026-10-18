@@ -4,46 +4,28 @@ import { normalizeHostname, sanitizeConfig } from '@electron/features/ai/aiConfi
 import { describe, expect, it } from 'vitest'
 
 describe('normalizeHostname', () => {
-  it('should return lowercase hostname', () => {
-    expect(normalizeHostname('Example.COM')).toBe('example.com')
+  // The table is the specification: one accepted spelling and one rejection
+  // reason per row, rather than ten one-line tests around the same regex.
+  it.each([
+    ['Example.COM', 'example.com'],
+    ['example.com.', 'example.com'],
+    ['  example.com  ', 'example.com'],
+    ['sub.example.com', 'sub.example.com'],
+    ['host123.example.com', 'host123.example.com']
+  ])('accepts %j as %j', (input, expected) => {
+    expect(normalizeHostname(input)).toBe(expected)
   })
 
-  it('should strip trailing dot', () => {
-    expect(normalizeHostname('example.com.')).toBe('example.com')
-  })
-
-  it('should trim whitespace', () => {
-    expect(normalizeHostname('  example.com  ')).toBe('example.com')
-  })
-
-  it('should return null for non-string input', () => {
-    expect(normalizeHostname(null)).toBeNull()
-    expect(normalizeHostname(undefined)).toBeNull()
-    expect(normalizeHostname(123)).toBeNull()
-  })
-
-  it('should return null for empty string', () => {
-    expect(normalizeHostname('')).toBeNull()
-  })
-
-  it('should return null for hostname with slash', () => {
-    expect(normalizeHostname('example.com/path')).toBeNull()
-  })
-
-  it('should return null for invalid hostname starting with dash', () => {
-    expect(normalizeHostname('-example.com')).toBeNull()
-  })
-
-  it('should accept valid hostname with subdomain', () => {
-    expect(normalizeHostname('sub.example.com')).toBe('sub.example.com')
-  })
-
-  it('should accept hostname with numbers', () => {
-    expect(normalizeHostname('host123.example.com')).toBe('host123.example.com')
-  })
-
-  it('should return null for whitespace-only string', () => {
-    expect(normalizeHostname('   ')).toBeNull()
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['a number', 123],
+    ['an empty string', ''],
+    ['a whitespace-only string', '   '],
+    ['a value with a slash', 'example.com/path'],
+    ['a value starting with a dash', '-example.com']
+  ])('rejects %s', (_label, input) => {
+    expect(normalizeHostname(input)).toBeNull()
   })
 })
 

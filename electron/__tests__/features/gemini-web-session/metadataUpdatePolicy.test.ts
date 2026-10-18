@@ -85,7 +85,7 @@ describe('MetadataUpdatePolicy', () => {
   })
 
   describe('setEnabled', () => {
-    it('calls initialize and reads metadata', async () => {
+    it('initialises and reads metadata before deciding what to write', async () => {
       await policy.setEnabled(true)
       expect(mocked.initialize).toHaveBeenCalled()
       expect(mocked.readMetadata).toHaveBeenCalled()
@@ -128,11 +128,8 @@ describe('MetadataUpdatePolicy', () => {
   })
 
   describe('setEnabledApps', () => {
-    it('calls initialize and reads metadata', async () => {
-      await policy.setEnabledApps(['gemini', 'aistudio'])
-      expect(mocked.initialize).toHaveBeenCalled()
-      expect(mocked.readMetadata).toHaveBeenCalled()
-    })
+    // setEnabledApps shares the initialise + read + success-result preamble with
+    // setEnabled; those two assertions now live only in the setEnabled block.
 
     it('writes sanitized enabledAppIds', async () => {
       await policy.setEnabledApps(['gemini', 'aistudio'])

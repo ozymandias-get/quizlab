@@ -88,10 +88,12 @@ describe('HealthCheckPolicy', () => {
       expect(result.reasonCode).toBe('unknown')
     })
 
-    it('returns early when feature is disabled', async () => {
+    it('returns early when the feature flag is off, without running the probe path', async () => {
       mocked.FEATURE_ENABLED = false
+      mocked.readMetadata.mockResolvedValueOnce({ enabled: true, state: 'uninitialized' })
       const result = await policy.performHealthCheck()
       expect(result.state).not.toBe('authenticated')
+      expect(mocked.writeStatus).not.toHaveBeenCalled()
     })
 
     it('returns early when metadata says disabled', async () => {
@@ -100,9 +102,11 @@ describe('HealthCheckPolicy', () => {
       expect(mocked.writeStatus).not.toHaveBeenCalled()
     })
 
-    it('runs profile health check', async () => {
-      await policy.performHealthCheck()
-      expect(mocked.checkProfileHealth).toHaveBeenCalled()
+    it('runs the profile health check and reports a healthy status when nothing is wrong', async () => {
+      const result = await policy.performHealthCheck()
+      expect(mocked.checkProfileHealth).toHaveBeenCalledTimes(1)
+      expect(mocked.runAutoProfileRecovery).not.toHaveBeenCalled()
+      expect(result.state).not.toBe('reauth_required')
     })
 
     it('runs auto recovery on profile health failure', async () => {
@@ -139,16 +143,10 @@ describe('HealthCheckPolicy', () => {
       await Promise.all([policy.performHealthCheck(), policy.performHealthCheck()])
       expect(mocked.checkProfileHealth).toHaveBeenCalledTimes(1)
     })
-  })
 
-  describe('getActiveCheck / clearActiveCheck', () => {
-    it('returns null initially', () => {
-      expect(policy.getActiveCheck()).toBeNull()
-    })
-
-    it('returns null after clearing', () => {
-      policy.clearActiveCheck()
-      expect(policy.getActiveCheck()).toBeNull()
-    })
+    // The former `getActiveCheck / clearActiveCheck` block asserted null before
+    // and null after calling clearActiveCheck on an already-null value, so it
+    // could not fail. clearActiveCheck() is exercised by the policy tests above
+    // through the dedup path.
   })
 })
