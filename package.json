@@ -62,7 +62,8 @@
       "buildResources": "resources"
     },
     "files": [
-      "dist/**/*"
+      "dist/**/*",
+      "!**/node_modules/**/*"
     ],
     "extraResources": [
       {
@@ -143,7 +144,12 @@
       "releaseType": "release"
     },
     "npmRebuild": false,
-    "nodeGypRebuild": false
+    "nodeGypRebuild": false,
+    "electronLanguages": [
+      "en-US",
+      "tr"
+    ],
+    "afterPack": "scripts/after-pack.cjs"
   },
   "keywords": [
     "electron",
