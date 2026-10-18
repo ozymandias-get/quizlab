@@ -25,21 +25,21 @@ const AiHomeSection = memo(function AiHomeSection({
   const handleToggle = () => setIsOpen((current) => !current)
 
   return (
-    <section className="border-border/60 bg-card/30 overflow-hidden rounded-2xl border">
+    <section className="border-border/45 bg-muted/15 overflow-hidden rounded-2xl border">
       <button
         type="button"
         aria-expanded={isOpen}
-        className="hover:bg-muted/40 focus-visible:ring-ring flex w-full cursor-pointer items-center gap-2.5 px-4 pt-4 pb-3 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
+        className="hover:bg-muted/35 focus-visible:ring-ring flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
-        <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+        <div className="bg-muted/80 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-ql-13 text-foreground truncate font-semibold">{title}</span>
             {count > 0 && (
-              <span className="bg-muted text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums">
+              <span className="bg-muted/80 text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums">
                 {count}
               </span>
             )}
@@ -64,8 +64,7 @@ const AiHomeSection = memo(function AiHomeSection({
             transition={{ duration: DURATION.slow, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div className="bg-border mx-4 h-px" />
-            <div className="px-4 pt-3 pb-4">{children}</div>
+            <div className="px-4 pt-1 pb-4">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

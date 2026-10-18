@@ -25,12 +25,12 @@ const AiHomeHero = memo(function AiHomeHero({
   const { t } = useTranslation()
 
   return (
-    <section className="border-border/60 bg-card/30 flex flex-col gap-4 rounded-2xl border p-5">
+    <section className="flex flex-col gap-3 px-1 pt-1 pb-1">
       <div className={isCompact ? 'max-w-none' : 'max-w-2xl'}>
         <h1 className="text-foreground text-ql-18 tracking-ql-tight font-semibold">
           {t('ai_home.title')}
         </h1>
-        <p className="text-ql-12 text-muted-foreground mt-1.5 leading-relaxed">
+        <p className="text-ql-12 text-muted-foreground mt-1 leading-relaxed">
           {t('ai_home.description')}
         </p>
       </div>
@@ -41,7 +41,7 @@ const AiHomeHero = memo(function AiHomeHero({
             <span className="text-ql-10 tracking-ql-label font-semibold uppercase">
               {t('ai_home_open_tabs_label')}
             </span>
-            <span aria-hidden className="bg-border h-px flex-1" />
+            <span aria-hidden className="bg-border/50 h-px flex-1" />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {tabs.slice(0, 5).map((tab) => {
@@ -66,8 +66,11 @@ const AiHomeHero = memo(function AiHomeHero({
       )}
 
       {tabs.length === 0 && (
-        <div className="text-muted-foreground flex items-center gap-2">
-          <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
+        <div className="text-muted-foreground/80 flex items-center gap-2">
+          <MousePointerClick
+            className="h-3.5 w-3.5 shrink-0"
+            style={{ color: 'var(--selection-color-source, currentColor)' }}
+          />
           <p className="text-ql-12">{t('ai_home.get_started_hint')}</p>
         </div>
       )}

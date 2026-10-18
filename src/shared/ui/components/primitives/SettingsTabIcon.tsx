@@ -15,7 +15,14 @@ function SettingsTabIcon({ children, className = '' }: SettingsTabIconProps) {
   return (
     <span
       aria-hidden
-      className={`border-border/60 bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-xl border ${className}`}
+      className={`flex size-10 shrink-0 items-center justify-center rounded-xl border ${className}`}
+      style={{
+        color: 'var(--selection-color-source, oklch(var(--foreground)))',
+        backgroundColor:
+          'color-mix(in srgb, var(--selection-color-source, oklch(var(--muted))) 12%, transparent)',
+        borderColor:
+          'color-mix(in srgb, var(--selection-color-source, oklch(var(--border))) 24%, transparent)'
+      }}
     >
       {children}
     </span>

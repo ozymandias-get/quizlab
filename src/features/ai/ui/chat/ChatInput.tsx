@@ -80,14 +80,14 @@ const ChatInput = memo(function ChatInput({
     <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Main Semantic Input Card */}
-        <div className="border-border/80 bg-card/90 shadow-ambient-sm focus-within:ring-foreground/15 motion-normal relative w-full overflow-hidden rounded-2xl border transition-all focus-within:border-neutral-400 focus-within:ring-1 dark:focus-within:border-neutral-500">
+        <div className="border-border/55 bg-card/85 shadow-ambient-sm focus-within:border-border focus-within:ring-foreground/10 motion-normal relative w-full overflow-hidden rounded-2xl border transition-all focus-within:ring-1">
           {attachments.length > 0 && (
-            <div className="border-border/60 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
+            <div className="border-border/50 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
               {attachments.map((data, i) => (
                 // Attachments are local state — no stable id available
                 // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
                 <div key={i} className="group/attach animate-app-enter relative">
-                  <div className="border-border/80 h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs">
+                  <div className="border-border/60 h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs">
                     <img src={data} alt="" className="h-full w-full object-cover" />
                   </div>
                   <IconButton
@@ -118,7 +118,7 @@ const ChatInput = memo(function ChatInput({
           </div>
 
           {/* Clean Sub-divider */}
-          <div className="bg-border/60 mx-3 h-px" />
+          <div className="bg-border/45 mx-3 h-px" />
 
           <div className="flex items-center justify-between gap-2 px-3 py-2">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -204,6 +204,14 @@ const ChatInput = memo(function ChatInput({
                     size="compact"
                     onClick={onSend}
                     disabled={!inputValue.trim() && attachments.length === 0}
+                    style={
+                      inputValue.trim() || attachments.length > 0
+                        ? {
+                            backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
+                            color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
+                          }
+                        : undefined
+                    }
                     aria-label={t('api_chat_send')}
                   >
                     <Send />

@@ -15,8 +15,8 @@ const DOCK_ICON_BASE = 32
 const DOCK_ICON_HOVER = 34
 
 const ICON_CONTAINER_STYLE: CSSProperties = {
-  width: 'calc(1.25rem * var(--bar-scale-factor, 1))',
-  height: 'calc(1.25rem * var(--bar-scale-factor, 1))'
+  width: '1.25rem',
+  height: '1.25rem'
 }
 
 export interface FloatingDockIconProps {

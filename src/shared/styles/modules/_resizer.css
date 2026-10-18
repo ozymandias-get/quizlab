@@ -43,11 +43,11 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--muted-foreground) / 0.45) 15%,
-    oklch(var(--muted-foreground) / 0.45) 85%,
+    oklch(var(--border) / 0.65) 18%,
+    oklch(var(--border) / 0.65) 82%,
     transparent 100%
   );
-  opacity: calc(0.35 + (var(--bar-opacity-factor, 0.7) * 0.25));
+  opacity: calc(0.25 + (var(--bar-opacity-factor, 0.7) * 0.45));
   transition:
     width var(--duration-slow) var(--ease-glass),
     opacity var(--duration-slow) var(--ease-glass),
@@ -60,30 +60,39 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--ring) / 0.8) 15%,
-    oklch(var(--ring) / 0.8) 85%,
+    var(--selection-color-source, oklch(var(--ring))) 15%,
+    var(--selection-color-source, oklch(var(--ring))) 85%,
     transparent 100%
   );
 }
 
-/* Handlebar pill — the single source of truth for its surface and states.
-   Unlayered, so it wins over the :where()-wrapped utilities on the element.
-   `--shadow-ambient-*` already carries the 1px border ring, so the pill needs
-   no border of its own. */
+/* Center floating dock surface — responds directly to `--bar-opacity-factor`
+   configured in Settings > Appearance > Bar Appearance. */
+
+.dock-surface {
+  background-color: oklch(var(--card) / calc(0.15 + (var(--bar-opacity-factor, 0.7) * 0.82)));
+  border-color: oklch(var(--border) / calc(0.2 + (var(--bar-opacity-factor, 0.7) * 0.65)));
+  box-shadow: var(--shadow-ambient-sm);
+}
+
+/* Handlebar pill — minimal at rest so it doesn't clutter the center column,
+   surfacing clearly when the drag track is hovered or focused. */
 
 .resizer-handle {
-  background-color: oklch(var(--card));
+  background-color: transparent;
   border-radius: var(--radius-full);
-  box-shadow: var(--shadow-ambient-sm);
+  opacity: 0.35;
   transition:
+    opacity var(--duration-normal) var(--ease-glass),
     background-color var(--duration-normal) var(--ease-glass),
     box-shadow var(--duration-normal) var(--ease-glass);
 }
 
 .resizer-drag-area:hover .resizer-handle,
 .resizer-drag-area:focus-visible .resizer-handle {
+  opacity: 1;
   background-color: oklch(var(--accent));
-  box-shadow: var(--shadow-ambient-md);
+  box-shadow: var(--shadow-ambient-sm);
 }
 
 .resizer-drag-area:hover .resizer-handle svg,
@@ -98,8 +107,8 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--ring)) 15%,
-    oklch(var(--ring)) 85%,
+    var(--selection-color-source, oklch(var(--ring))) 15%,
+    var(--selection-color-source, oklch(var(--ring))) 85%,
     transparent 100%
   );
 }

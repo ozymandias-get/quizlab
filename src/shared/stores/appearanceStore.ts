@@ -7,6 +7,7 @@ type FocusMode = 'pdf' | 'ai' | null
 
 const DEFAULT_VISIBLE_TOOLS: Record<string, boolean> = {
   'tour-target-tool-settings': true,
+  'tool-gemini-web': true,
   'tour-target-tool-swap': true,
   'tour-target-tool-pdf-focus': true,
   'tour-target-tool-ai-focus': true,

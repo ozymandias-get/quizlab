@@ -36,6 +36,7 @@ export function buildPickerUiBlock(pickerStyles: string): string {
         let styleEl = null;
 
         const infoBox = mainDoc.createElement('div');
+        infoBox.setAttribute('data-ai-picker-ui', 'true');
         Object.assign(infoBox.style, {
             position: 'fixed', top: '20px', left: '20px', 
             width: '320px', padding: '16px',
@@ -65,6 +66,10 @@ export function buildPickerUiBlock(pickerStyles: string): string {
                     if (nextBtn) {
                         nextBtn.onclick = function(e) {
                             e.stopPropagation();
+                            if (typingAdvanceTimer) {
+                                clearTimeout(typingAdvanceTimer);
+                                typingAdvanceTimer = null;
+                            }
                             step = 'submit';
                             updateInfoBox(null);
                         };
@@ -76,6 +81,7 @@ export function buildPickerUiBlock(pickerStyles: string): string {
         };
 
         const labelBox = mainDoc.createElement('div');
+        labelBox.setAttribute('data-ai-picker-ui', 'true');
         Object.assign(labelBox.style, {
             position: 'fixed', padding: '6px 10px', 
             background: 'rgba(0,0,0,0.85)', 

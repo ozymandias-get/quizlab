@@ -1,3 +1,4 @@
+import { canonicalizeHostname } from '@shared-core/selectorConfig'
 import type {
   AiSelectorConfig,
   ClearAiModelDataInput,
@@ -5,6 +6,7 @@ import type {
   CustomAiResult
 } from '@shared-core/types'
 
+import { invalidateConfigCaches } from '@shared/lib/configCacheEpoch'
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -40,7 +42,12 @@ export function useDeleteAiConfig() {
   return useElectronMutation<boolean, string>((api, hostname) => api.deleteAiConfig(hostname), {
     errorMessage: t('toast_ai_config_delete_failed'),
     onSuccess: (_, hostname) => {
+      invalidateConfigCaches()
       queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY(hostname) })
+      const canonical = canonicalizeHostname(hostname)
+      if (canonical && canonical !== hostname) {
+        queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY(canonical) })
+      }
       queryClient.invalidateQueries({ queryKey: AI_CONFIG_KEY() })
       showSuccess(t('toast_ai_config_deleted'), t('toast_config_deleted'))
     }

@@ -64,10 +64,10 @@ const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean })
       <SparklesCore
         background="transparent"
         minSize={0.4}
-        maxSize={1}
-        particleDensity={12}
+        maxSize={0.9}
+        particleDensity={5}
         paused={hidden}
-        className="motion-normal pointer-events-none absolute inset-0 h-full w-full opacity-100"
+        className="motion-normal pointer-events-none absolute inset-0 h-full w-full opacity-20"
         particleColor="#FFFFFF"
       />
     </Suspense>

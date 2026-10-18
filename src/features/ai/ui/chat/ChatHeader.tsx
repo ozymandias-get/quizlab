@@ -21,15 +21,15 @@ const ChatHeader = memo(function ChatHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="border-border/80 bg-card/90 relative z-10 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:px-6 sm:py-3">
+    <div className="border-border/50 bg-card/85 relative z-10 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:px-6 sm:py-3">
       <div className="flex items-center gap-3">
-        <div className="border-primary/20 bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg border shadow-xs">
+        <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
           <AiIcon modelKey="api-chat" className="h-4 w-4" />
         </div>
         <div>
           <div className="text-ql-13 text-foreground font-semibold">{t('api_chat_title')}</div>
           {activeProvider && (
-            <div className="text-ql-10 border-border/60 bg-muted/40 text-muted-foreground mt-0.5 flex w-fit items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono select-none">
+            <div className="text-ql-10 border-border/45 bg-muted/40 text-muted-foreground mt-0.5 flex w-fit items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono select-none">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
               </span>
