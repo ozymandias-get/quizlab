@@ -108,4 +108,72 @@ describe('PdfSelectionMenu', () => {
     expect(screen.getByTestId('pdf-selection-send').tagName).toBe('BUTTON')
     expect(screen.getByTestId('pdf-selection-draft').tagName).toBe('BUTTON')
   })
+
+  /**
+   * Kenar düzeltmesi gerçekten uygulanmalı.
+   *
+   * `useLayoutEffect` menüyü ölçüp taşmayı düzeltiyor, ama düzeltme `transform`
+   * olarak yazılıyordu. Aynı özellik `motion.div`'in sahipliğinde olduğu için
+   * motion her karede üstüne yazıyor, animasyon bitince de `transform: none`
+   * basıyordu: düzeltme hiç görünmüyordu. Ölçüm taşmayı gösterdiğinde yüzeyin
+   * `transform`'ında gerçekten kayma bulunmalı.
+   */
+  it('nudges itself back inside the viewport after measuring the real surface', () => {
+    // Menü sağ kenarı 1196px'ye taşıyor; jsdom viewport'u 1024px.
+    const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 144,
+      left: 900,
+      right: 1196,
+      width: 296,
+      height: 44,
+      x: 900,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect)
+
+    try {
+      render(<PdfSelectionMenu top={100} left={900} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
+
+      expect(screen.getByTestId('pdf-selection-menu').style.transform).toBe(
+        'translate(-180px, 0px)'
+      )
+    } finally {
+      rectSpy.mockRestore()
+    }
+  })
+
+  it('leaves the surface untransformed when it already fits', () => {
+    const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 144,
+      left: 300,
+      right: 596,
+      width: 296,
+      height: 44,
+      x: 300,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect)
+
+    try {
+      render(<PdfSelectionMenu top={100} left={300} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
+
+      expect(screen.getByTestId('pdf-selection-menu').style.transform).toBe('')
+    } finally {
+      rectSpy.mockRestore()
+    }
+  })
+
+  /**
+   * Karar menüsü geçici bir yüzen yüzeydir: AI taslak dock'u `z-modal` (300),
+   * odak katmanı da 300'de. `z-dropdown` (100) altında kalınca menü panelin
+   * altına boyanır ve düğmeleri görünmez olur.
+   */
+  it('stacks above the draft dock and focus overlay', () => {
+    render(<PdfSelectionMenu top={100} left={100} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
+
+    expect(screen.getByTestId('pdf-selection-menu').className).toContain('z-tooltip')
+    expect(screen.getByTestId('pdf-selection-menu').className).not.toContain('z-dropdown')
+  })
 })

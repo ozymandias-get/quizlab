@@ -1,3 +1,5 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
@@ -8,7 +10,12 @@ type ScreenshotMeta = { page?: number; captureKind?: 'full-page' | 'selection' }
 interface ElectronScreenshotInput {
   startScreenshot: (meta?: ScreenshotMeta) => void
   currentPageRef: React.MutableRefObject<number>
-  handleFullPageScreenshotRef: React.MutableRefObject<() => Promise<void>>
+  /**
+   * Kısayoldan gelen tam sayfa yakalaması **noktasızdır**: kullanıcı bir yere
+   * tıklamamıştır. Bu yüzden nokta argümanı gönderilmez ve karar menüsü kendi
+   * varsayılanına (sayfanın en alt metin satırı) düşer.
+   */
+  handleFullPageScreenshotRef: React.MutableRefObject<(point?: PdfActionPoint) => Promise<void>>
 }
 
 /**

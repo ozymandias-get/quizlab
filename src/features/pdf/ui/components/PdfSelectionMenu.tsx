@@ -107,100 +107,112 @@ function PdfSelectionMenu({
 
   const feedbackContent = feedbackNode()
 
+  /**
+   * Konum ve kenar düzeltmesi **düz bir div'de**; giriş animasyonu içerideki
+   * `motion.div'de`.
+   *
+   * Daha önce ikisi aynı elemandaydı ve `transform` özelliğinin sahibi
+   * `motion` olduğu için motion her karede üstüne yazıyor, animasyon bitince de
+   * `transform: none` basıyordu: ölçülen kenar düzeltmesi hiç görünmüyordu.
+   * Ayrılmış yüzeyde artık `transform`'ın tek sahibi bu bileşendir.
+   */
   return (
-    <motion.div
+    <div
       ref={surfaceRef}
       role="menu"
       aria-label={t('pdf_selection_menu_label', { defaultValue: 'Seçim işlemleri' })}
       aria-busy={feedback === 'working'}
       data-testid="pdf-selection-menu"
-      initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -3 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DURATION.fast, ease: [0.2, 0.8, 0.2, 1] }}
       style={{
         top,
         left,
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className="border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-dropdown motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl"
+      className="border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-tooltip motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl"
       onMouseDown={(e) => {
         // Menüye tıklanınca metin seçimi kaybolmasın: içerik zaten snapshot'ta,
         // ama seçim kaybı yeni bir selectionchange tetikleyip menüyü kapatırdı.
         e.preventDefault()
       }}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        {feedbackContent ? (
-          <motion.div
-            key="feedback"
-            data-testid="pdf-selection-menu-feedback"
-            role="status"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: DURATION.fast }}
-            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2"
-          >
-            {feedbackContent.icon}
-            <span className={['text-ql-12 min-w-0 font-medium', feedbackContent.tone].join(' ')}>
-              {feedbackContent.text}
-            </span>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="actions"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: DURATION.fast }}
-            className="flex items-stretch gap-1"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="pdf-selection-send"
-              disabled={isBusy}
-              onClick={onSendToAi}
-              style={{
-                backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
-                color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
-              }}
-              className="focus-visible:ring-ring/40 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+      <motion.div
+        initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -3 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: DURATION.fast, ease: [0.2, 0.8, 0.2, 1] }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {feedbackContent ? (
+            <motion.div
+              key="feedback"
+              data-testid="pdf-selection-menu-feedback"
+              role="status"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: DURATION.fast }}
+              className="flex items-center gap-2.5 rounded-xl px-2.5 py-2"
             >
-              <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
-                {feedback === 'working' ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Send className="size-3.5" strokeWidth={2.2} />
-                )}
+              {feedbackContent.icon}
+              <span className={['text-ql-12 min-w-0 font-medium', feedbackContent.tone].join(' ')}>
+                {feedbackContent.text}
               </span>
-              <span className="truncate">{t('send_to_ai')}</span>
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              data-testid="pdf-selection-draft"
-              disabled={isBusy}
-              onClick={onAddToDraft}
-              className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/40 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+            </motion.div>
+          ) : (
+            <motion.div
+              key="actions"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: DURATION.fast }}
+              className="flex items-stretch gap-1"
             >
-              <span
-                style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
-                className="text-primary flex size-4 shrink-0 items-center justify-center transition-colors"
-                aria-hidden
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="pdf-selection-send"
+                disabled={isBusy}
+                onClick={onSendToAi}
+                style={{
+                  backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
+                  color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
+                }}
+                className="focus-visible:ring-ring/40 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
               >
-                <BookmarkPlus className="size-3.5" strokeWidth={2} />
-              </span>
-              <span className="truncate">
-                {t('pdf_add_to_draft', { defaultValue: 'Taslağa Ekle' })}
-              </span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+                <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
+                  {feedback === 'working' ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Send className="size-3.5" strokeWidth={2.2} />
+                  )}
+                </span>
+                <span className="truncate">{t('send_to_ai')}</span>
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                data-testid="pdf-selection-draft"
+                disabled={isBusy}
+                onClick={onAddToDraft}
+                className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/40 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span
+                  style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
+                  className="text-primary flex size-4 shrink-0 items-center justify-center transition-colors"
+                  aria-hidden
+                >
+                  <BookmarkPlus className="size-3.5" strokeWidth={2} />
+                </span>
+                <span className="truncate">
+                  {t('pdf_add_to_draft', { defaultValue: 'Taslağa Ekle' })}
+                </span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
   )
 }
 

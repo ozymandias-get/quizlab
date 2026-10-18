@@ -29,16 +29,27 @@ const areaCapture = (dataUrl: string) => ({
   meta: null,
   rect: null
 })
-const fullPageCapture = (dataUrl: string) => ({
+/**
+ * Sayfa numarası, menünün noktasız yollarda sayfayı DOM'da arayabilmesi için
+ * gerekir; `meta` bilinçli olarak gevşek bir yapıda tutulur (testler `null`'ın
+ * yanında `{ page }` de kurar).
+ */
+type TestMeta = { page?: number; source?: { page?: number } | null } | null
+
+type TestPoint = { x: number; y: number } | null
+
+const fullPageCapture = (dataUrl: string, point: TestPoint = null) => ({
   id: `full:${(nextCaptureId += 1)}`,
   dataUrl,
-  meta: null
+  meta: null as TestMeta,
+  point
 })
 /** Tam sayfa metni: görsellerle aynı karar yüzeyi, kaynak yerine düz metin. */
-const fullPageTextCapture = (text: string) => ({
+const fullPageTextCapture = (text: string, point: TestPoint = null) => ({
   id: `text:${(nextCaptureId += 1)}`,
   text,
-  meta: null
+  meta: null as TestMeta,
+  point
 })
 
 const state = {
@@ -74,6 +85,9 @@ const actions = {
 
 const mockBlobUrlToDataUrl = vi.fn(async (url: string) => `${PNG}#from-${url}`)
 
+/** Sayfanın "en alt metin satırı" — gerçekten tıklamayla ilgisi olmayan yer. */
+const mockFindLastTextLineRect = vi.fn((_page: number): DOMRect | null => null)
+
 vi.mock('@app/providers/AppToolContext', () => ({
   useAppToolScreenshotState: () => state,
   useAppToolActions: () => actions
@@ -86,12 +100,12 @@ vi.mock('@app/providers/app-tool/appToolUtils', async (importOriginal) => ({
 
 vi.mock('@features/pdf', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/pdf')>()),
-  findLastTextLineRect: () => null
+  findLastTextLineRect: (page: number) => mockFindLastTextLineRect(page)
 }))
 
-function setFullPage(dataUrl: string) {
+function setFullPage(dataUrl: string, point: TestPoint = null) {
   state.pendingAreaCapture = null
-  state.pendingFullPageCapture = fullPageCapture(dataUrl)
+  state.pendingFullPageCapture = fullPageCapture(dataUrl, point)
   state.pendingFullPageTextCapture = null
 }
 
@@ -101,10 +115,10 @@ function setArea(dataUrl: string) {
   state.pendingFullPageTextCapture = null
 }
 
-function setFullPageText(text: string) {
+function setFullPageText(text: string, point: TestPoint = null) {
   state.pendingAreaCapture = null
   state.pendingFullPageCapture = null
-  state.pendingFullPageTextCapture = fullPageTextCapture(text)
+  state.pendingFullPageTextCapture = fullPageTextCapture(text, point)
 }
 
 describe('CaptureChoiceMenu', () => {
@@ -119,11 +133,92 @@ describe('CaptureChoiceMenu', () => {
     actions.sendTextDirectToAi.mockResolvedValue({ success: true })
     actions.sendImageDirectToAi.mockResolvedValue({ success: true })
     mockBlobUrlToDataUrl.mockImplementation(async (url: string) => `${PNG}#from-${url}`)
+    mockFindLastTextLineRect.mockReturnValue(null)
   })
 
   it('renders nothing when there is no pending capture', () => {
     render(<CaptureChoiceMenu />)
     expect(screen.queryByTestId('pdf-selection-menu')).toBeNull()
+  })
+
+  /**
+   * Belirtinin kendisi: sağ tık menüsünden "AI'ye gönder" seçildiğinde karar
+   * menüsü **tıklanan yerde** açılmalı.
+   *
+   * Nokta taşınmadığı için menü konumu tahmin ediliyordu ve sayfanın en alt
+   * metin satırına düşüyordu — her seferinde farklı, tıklamayla ilgisiz bir yer.
+   * `findLastTextLineRect` bilerek uzakta bir rect döndürüyor: tıkma noktası
+   * taşındığında bu rect'un **kazanmaması** gerekir.
+   */
+  describe('click-point anchoring', () => {
+    const farAwayLineRect = {
+      top: 600,
+      bottom: 620,
+      left: 100,
+      right: 500,
+      width: 400,
+      height: 20,
+      x: 100,
+      y: 600,
+      toJSON: () => ({})
+    } as DOMRect
+
+    it('opens at the right-click point for a page image, not at the page text line', () => {
+      mockFindLastTextLineRect.mockReturnValue(farAwayLineRect)
+      setFullPage(PNG, { x: 420, y: 260 })
+
+      render(<CaptureChoiceMenu />)
+
+      const menu = screen.getByTestId('pdf-selection-menu')
+      // 296px menü, imlecin altında ve merkezinde: left = 420 - 296/2, top = 260 + 8
+      expect(menu.style.left).toBe('272px')
+      expect(menu.style.top).toBe('268px')
+    })
+
+    it('opens at the right-click point for page text', () => {
+      mockFindLastTextLineRect.mockReturnValue(farAwayLineRect)
+      setFullPageText('sayfa metni', { x: 420, y: 260 })
+
+      render(<CaptureChoiceMenu />)
+
+      const menu = screen.getByTestId('pdf-selection-menu')
+      expect(menu.style.left).toBe('272px')
+      expect(menu.style.top).toBe('268px')
+    })
+
+    it('never asks the DOM for a page line when the point is known', () => {
+      setFullPage(PNG, { x: 420, y: 260 })
+
+      render(<CaptureChoiceMenu />)
+
+      expect(mockFindLastTextLineRect).not.toHaveBeenCalled()
+    })
+
+    it('still falls back to the page text line when nothing was clicked (hotkey path)', () => {
+      mockFindLastTextLineRect.mockReturnValue(farAwayLineRect)
+      state.pendingAreaCapture = null
+      state.pendingFullPageCapture = { ...fullPageCapture(PNG), meta: { page: 3 } }
+      state.pendingFullPageTextCapture = null
+
+      render(<CaptureChoiceMenu />)
+
+      expect(mockFindLastTextLineRect).toHaveBeenCalledWith(3)
+      const menu = screen.getByTestId('pdf-selection-menu')
+      expect(menu.style.top).toBe('628px')
+      expect(menu.style.left).toBe('152px')
+    })
+
+    it('drops to the viewport anchor only when neither a point nor a page exists', () => {
+      mockFindLastTextLineRect.mockReturnValue(null)
+      setFullPage(PNG)
+
+      render(<CaptureChoiceMenu />)
+
+      // viewportFallbackAnchor: yatayda ortalı, dikeyde alt kenara 8px.
+      const menu = screen.getByTestId('pdf-selection-menu')
+      expect(menu.style.left).toBe('364px')
+      expect(menu.style.top).toBe('716px')
+    })
   })
 
   // ── Tam sayfa metni: görsellerle aynı ikili menü ───────────────────────

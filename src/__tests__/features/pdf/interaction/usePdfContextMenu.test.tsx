@@ -54,4 +54,43 @@ describe('usePdfContextMenu', () => {
 
     expect(result.current.contextMenu).toBeNull()
   })
+
+  /**
+   * Sağ tık noktası, menü kapanırken silinmemeli.
+   *
+   * `ContextMenu` bir öğeye tıklanınca `onClick()`'i çağırıp hemen ardından
+   * `onClose()` ile state'i temizler. Nokta yalnızca state'te duruyorsa, o
+   * öğeden yürüyen her şey (metin çıkarma, sayfa görseli) noktayı kaybeder ve
+   * karar menüsünü nereye koyacağını bilemez.
+   */
+  it('keeps the last right-click point readable after the menu closes', () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const { result } = renderHook(() => usePdfContextMenu({ current: el }))
+
+    act(() => {
+      el.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 420,
+          clientY: 260
+        })
+      )
+    })
+    act(() => {
+      result.current.setContextMenu(null)
+    })
+
+    expect(result.current.contextMenu).toBeNull()
+    expect(result.current.contextMenuPointRef.current).toEqual({ x: 420, y: 260 })
+  })
+
+  it('has no point before the first right-click', () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    const { result } = renderHook(() => usePdfContextMenu({ current: el }))
+
+    expect(result.current.contextMenuPointRef.current).toBeNull()
+  })
 })

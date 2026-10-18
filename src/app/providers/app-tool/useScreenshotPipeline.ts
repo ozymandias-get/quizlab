@@ -1,3 +1,5 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import { useScreenshot } from '@features/screenshot'
 
 import { useCallback, useRef, useState } from 'react'
@@ -30,6 +32,12 @@ export interface PendingFullPageCapture {
   id: CaptureId
   dataUrl: string
   meta: QueuedImageMeta | null
+  /**
+   * Yakalamayı başlatan eylemin noktası (sağ tık). Karar menüsü buraya
+   * konumlanır. `null` ise noktasız bir yoldan (kısayol) gelindiği demektir
+   * ve menü sayfanın en alt metin satırına düşer.
+   */
+  point: PdfActionPoint | null
 }
 
 /**
@@ -47,6 +55,8 @@ export interface PendingFullPageTextCapture {
   id: CaptureId
   text: string
   meta: QueuedTextMeta | null
+  /** `PendingFullPageCapture.point` ile aynı sözleşme. */
+  point: PdfActionPoint | null
 }
 
 /** Uygulama yaşamı boyunca benzersiz yakalama kimlikleri. */
@@ -316,7 +326,7 @@ export function useScreenshotPipeline({
    * kararını bekle. Kendiliğinden taslağa eklenmez.
    */
   const offerFullPageCapture = useCallback(
-    (dataUrl: string, meta?: QueuedImageMeta | null) => {
+    (dataUrl: string, meta?: QueuedImageMeta | null, point?: PdfActionPoint | null) => {
       const prev = pendingFullPageCaptureRef.current
       if (prev) dropCaptureSource(prev.id, prev.dataUrl)
       // Tek sahiplik: aynı anda bekleyen bir alan yakalaması varsa düşürülür.
@@ -330,7 +340,12 @@ export function useScreenshotPipeline({
       // olabilir. Aksi halde menü görseli gösterirken metin ekranda görünmeden
       // yaşar ve kullanıcı onu ne gönderebilir ne iptal edebilir.
       setPendingFullPageText(null)
-      setPendingFullPageCapture({ id: nextCaptureId('full'), dataUrl, meta: meta ?? null })
+      setPendingFullPageCapture({
+        id: nextCaptureId('full'),
+        dataUrl,
+        meta: meta ?? null,
+        point: point ?? null
+      })
     },
     [dropCaptureSource, setPendingFullPageCapture, setPendingFullPageText]
   )
@@ -361,7 +376,7 @@ export function useScreenshotPipeline({
    * olurdu.
    */
   const offerFullPageText = useCallback(
-    (text: string, meta?: QueuedTextMeta | null) => {
+    (text: string, meta?: QueuedTextMeta | null, point?: PdfActionPoint | null) => {
       if (!text || !text.trim()) return
       // Tek sahiplik: yeni metin yakalaması geldiğinde bekleyen görseller
       // kaynaklarıyla birlikte düşürülür.
@@ -369,7 +384,12 @@ export function useScreenshotPipeline({
       if (prevArea) dropCaptureSource(prevArea.id, prevArea.dataUrl)
       setPendingAreaCapture(null)
       dropOtherPendingCapture()
-      setPendingFullPageText({ id: nextCaptureId('text'), text, meta: meta ?? null })
+      setPendingFullPageText({
+        id: nextCaptureId('text'),
+        text,
+        meta: meta ?? null,
+        point: point ?? null
+      })
     },
     [dropCaptureSource, dropOtherPendingCapture, setPendingAreaCapture, setPendingFullPageText]
   )

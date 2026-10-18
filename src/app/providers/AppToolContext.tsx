@@ -1,3 +1,5 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import type { AiSendOptions } from '@features/ai'
 
 import { useToastActions } from '@shared/stores/toastStore'
@@ -74,7 +76,11 @@ interface AppToolActionsType {
   /** Süren gönderim bitti: ertelenen kaynak iptali (varsa) burada yapılır. */
   releaseCaptureSource: (id: string) => void
   /** Tam sayfa yakalaması menü kararına açılır (doğrudan kuyruğa yazılmaz). */
-  offerFullPageCapture: (imageUri: string, meta?: QueuedImageMeta | null) => void
+  offerFullPageCapture: (
+    imageUri: string,
+    meta?: QueuedImageMeta | null,
+    point?: PdfActionPoint | null
+  ) => void
   /** Alan yakalamasıyla aynı sözleşme: kabul `true`, ret `false`. */
   confirmPendingFullPageAsDraft: () => boolean
   dismissPendingFullPage: () => void
@@ -84,7 +90,11 @@ interface AppToolActionsType {
    * Görsel yollarla aynı sözleşme: "Bu Sayfanın Metnini AI'ye Ekle" artık
    * doğrudan `queueTextForAi` çağırmaz, ikili menüyü açar.
    */
-  offerFullPageText: (text: string, meta?: QueuedTextMeta | null) => void
+  offerFullPageText: (
+    text: string,
+    meta?: QueuedTextMeta | null,
+    point?: PdfActionPoint | null
+  ) => void
   confirmPendingFullPageTextAsDraft: () => boolean
   dismissPendingFullPageText: () => void
   /**
