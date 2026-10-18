@@ -444,6 +444,79 @@ describe('automationScripts', () => {
   })
 
   /**
+   * Bekleme bütçeleri GEÇERSİZ KILINABİLİR birer test kancasıdır; üretim
+   * değerleri ölçümden gelir. Buradaki sözleşme şudur: hiçbir parametre
+   * geçilmediğinde üretilen betik, bugünkü üretim değerlerini AYNEN taşır.
+   *
+   * Kanıt iki parçalıdır: (1) parametresiz çıktı, bugünkü sayıların
+   * gömülü olduğu metinle bayt bayt aynıdır; (2) parametreli çağrı bu
+   * sayıları gerçekten değiştirir — yani kanca etkili, sahte değil.
+   */
+  describe('submit wait budgets are opt-in', () => {
+    const CONFIG = { input: '#input', button: '#send', submitMode: 'click' } as const
+    const PRODUCTION_BUDGETS = {
+      submitBudgetMs: 15000,
+      unconfiguredButtonProbeMs: 1000,
+      stableBlockedExitMs: 2000,
+      observeAttempts: 25,
+      observeIntervalMs: 120,
+      rejectedControlRetryMs: 120
+    }
+
+    it('emits byte-identical scripts with no budget given as with the production budget', () => {
+      // Birebir aynı metin: parametresiz çağrı, üretim değerlerinin kendisidir.
+      expect(generateAutoSendScript(CONFIG, 'hello', true)).toBe(
+        generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, PRODUCTION_BUDGETS)
+      )
+      expect(generateAutoSendScript(CONFIG, 'hello', true)).toBe(
+        generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, {})
+      )
+      expect(generateClickSendScript(CONFIG)).toBe(
+        generateClickSendScript(CONFIG, PRODUCTION_BUDGETS)
+      )
+    })
+
+    it('embeds the measured production budgets in the emitted script', () => {
+      const script = generateAutoSendScript(CONFIG, 'hello', true)
+
+      expect(script).toContain('configured ? 15000 : 1000')
+      expect(script).toContain('attempts = 25, intervalMs = 120')
+      expect(script).toMatch(/true,\s*2000\s*\);/)
+      expect(script).toContain('await wait(120);')
+    })
+
+    it('actually substitutes every budget when one is supplied', () => {
+      const script = generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, {
+        submitBudgetMs: 400,
+        unconfiguredButtonProbeMs: 120,
+        stableBlockedExitMs: 50,
+        observeAttempts: 3,
+        observeIntervalMs: 5,
+        rejectedControlRetryMs: 7
+      })
+
+      expect(script).toContain('configured ? 400 : 120')
+      expect(script).toContain('attempts = 3, intervalMs = 5')
+      expect(script).toMatch(/true,\s*50\s*\);/)
+      expect(script).toContain('await wait(7);')
+      // Yanlışlıkla başka bir yerin sayısı değişmemeli.
+      expect(script).toContain('diagnostics.preSubmitWaitMs = 500;')
+    })
+
+    it('falls back to production budgets when an override is unusable', () => {
+      const script = generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, {
+        submitBudgetMs: Number.NaN,
+        stableBlockedExitMs: -1,
+        observeAttempts: 0
+      })
+
+      expect(script).toContain('configured ? 15000 : 1000')
+      // 0 deneme "hiç gözlemleme" demek; üretim sözleşmesi en az 1 tur ister.
+      expect(script).toContain('attempts = 1, intervalMs = 120')
+    })
+  })
+
+  /**
    * Yapıştırma doğrulaması ve topic sözleşmeleri.
    *
    * Gerçek editörler (ProseMirror/Lexical) içeriği kendi blok modeline göre

@@ -3,7 +3,7 @@ import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 import { serializeAutomationConfig } from '../../scripts/config.js'
 import { buildHumanTypingScript } from '../../scripts/humanTyping.js'
 import { buildSetInputValueScript } from '../../scripts/setInputValue.js'
-import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { buildPerformSubmitScript, type SubmitBudgetOptions } from '../../scripts/submit.js'
 import { buildTextVerificationScript } from '../../scripts/verifyTextPlacement.js'
 import { createScriptPreamble } from '../preamble.js'
 
@@ -51,17 +51,26 @@ const buildSubmitBlock = (shouldSubmit: boolean) => `
                 ...(submitResult.success ? {} : { error: submitResult.error || 'submit_failed' })
             };`
 
+/**
+ * @param budget Test-only wait-budget overrides. Production call sites pass
+ *   nothing, so the emitted script always carries the measured defaults
+ *   (see `SubmitBudgetOptions`).
+ */
 const generateAutoSendScript = (
   config: AutomationConfig,
   text: string,
   shouldSubmit: boolean = true,
   appendMode: boolean = false,
   textInputMode: TextInputMode = 'auto',
-  typingSpeed: number = 30
+  typingSpeed: number = 30,
+  budget?: SubmitBudgetOptions
 ): string => {
   const serialized = serializeAutomationConfig(config)
   const safeText = JSON.stringify(text)
-  const performSubmitScript = buildPerformSubmitScript({ includeInputLookupForEnter: false })
+  const performSubmitScript = buildPerformSubmitScript({
+    includeInputLookupForEnter: false,
+    ...budget
+  })
 
   if (textInputMode === 'typing') {
     return `

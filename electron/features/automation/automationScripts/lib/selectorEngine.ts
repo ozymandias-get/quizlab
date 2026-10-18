@@ -145,9 +145,11 @@ export const selectorEngine =
         let blockedElement = null;
         let blockedReason = null;
         let stableBlockedSince = 0;
+        let aborted = false;
 
         while (now() - start < timeout) {
             if (typeof isAborted === 'function' && isAborted()) {
+                aborted = true;
                 break;
             }
             attempts += 1;
@@ -186,6 +188,41 @@ export const selectorEngine =
             }
 
             await wait(250);
+        }
+
+        // ÖLÜ BÖLGE KAPATMA.
+        //
+        // Döngünün son adımı \`await wait(250)\` olduğu için bütçenin son
+        // ~250ms'i HİÇBİR kontrol yapılmadan geçer: \`while (now() - start <
+        // timeout)\` koşulu bir sonraki turda \`false\` olur ve o tur hiç
+        // çalışmaz. Ölçüm: 1000ms bütçede son başarılı varış 750ms, 2000ms
+        // bütçede 1800ms — yani bütçenin %25'i kullanılamaz duruyor.
+        //
+        // Düzeltme, \`__eventDrivenWait\`'in kendi çıkış deseniyle aynıdır
+        // (eventDrivenWait.ts, "timeout'a düştük — son bir kontrol daha"):
+        // döngü bittiğinde bir tur daha taranır. Böylece "varış + ~250ms <
+        // bütçe" kuralı her bütçede geçerli olur.
+        //
+        // İptal (abort) ve kararlı-pasiflik erken çıkışlarında tur sayacı
+        // ARTIRILMAZ: \`waitIterations\` bir tur sayacıdır ve sayaç tabanlı
+        // ölçümler (etkin buton ilk turda bulunmalı) bozulmamalıdır.
+        if (!aborted) {
+            const finalResult = queryElementWithPipeline(lookup, kind, diagnostics, config, fallbackAttempts);
+            const finalElement = finalResult.element;
+            if (finalElement) {
+                if (!mustBeInteractive || isReadyForInteraction(finalElement)) {
+                    attempts += 1;
+                    diagnostics.waitIterations = attempts;
+                    diagnostics.interactiveRequired = mustBeInteractive;
+                    diagnostics.durationMs = roundMs(now() - start);
+                    diagnostics.fallbackAttempts = fallbackAttempts;
+                    return finalResult;
+                }
+                blockedElement = finalElement;
+                blockedReason = typeof describeNotReady === 'function'
+                    ? describeNotReady(finalElement)
+                    : 'not_interactive';
+            }
         }
 
         diagnostics.waitIterations = attempts;

@@ -16,6 +16,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 describe('aiAutosendReliability', () => {
   let restoreLayout: (() => void) | null = null
 
+  /**
+   * Testlerin koştuğu küçük bekleme bütçeleri.
+   *
+   * Üretim ölçümleri (15s buton bütçesi, 3s gözlem penceresi, 2s kararlı-pasif
+   * çıkışı) korunur; bu değerler yalnızca aynı YAPISAL davranışı saniyeler yerine
+   * milisaniyelerle sınamak içindir (bkz. `SubmitBudgetOptions`).
+   *
+   * ⚠️ Güvenlik payı: bu kancayla ölçülen hiçbir davranış yükten BAĞIMSIZ
+   * değildir. Aşağıdaki kontrollerin hepsi sayaç tabanlıdır ve sayaç gecikmeyi
+   * AZALTIR, artırmaz — yani küçük bütçe bir testi kıramaz, yalnızca daha
+   * çabuk bitmesini sağlar. `notReadyReason`/`submitOutcome` gibi alanlar da
+   * bütçeden değil, gözlenen durumdan türetilir.
+   */
+  const FAST_BUDGET = {
+    submitBudgetMs: 500,
+    unconfiguredButtonProbeMs: 250,
+    stableBlockedExitMs: 250,
+    observeAttempts: 3,
+    observeIntervalMs: 10,
+    rejectedControlRetryMs: 20
+  } as const
+
   beforeEach(() => {
     document.body.innerHTML = ''
     delete (window as typeof window & { __quizlabReaderAutomationCache?: unknown })
@@ -89,21 +111,26 @@ describe('aiAutosendReliability', () => {
         send.addEventListener('click', clicks)
         makeSendButtonDeliver(send, document.getElementById('composer') as HTMLDivElement)
 
-        const startedAt = Date.now()
         const script = generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
         const result = await window.eval(script)
-        const elapsed = Date.now() - startedAt
 
         expect(result.success).toBe(true)
         expect(clicks).toHaveBeenCalledTimes(1)
-        // 15 saniyelik buton kapısı dolanmamalı.
-        expect(elapsed).toBeLessThan(5000)
+        // Etkin buton İLK turda bulunmalı: 15 saniyelik etkileşim kapısı
+        // dolanmamalı. Bu sayaç yükten bağımsızdır ve daha güçlüdür — gecikmiş
+        // bir tur sayısını AZALTIR, artırmaz. Kapı dolansaydı (250ms/yoklama)
+        // değer ~60'a çıkardı.
+        expect(result.diagnostics.button.waitIterations).toBeLessThan(3)
       },
-      20000
+      5000
     )
 
     it('still refuses a genuinely disabled button and names it blocked, not missing', async () => {
@@ -118,7 +145,11 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
@@ -130,7 +161,11 @@ describe('aiAutosendReliability', () => {
       expect(result.error).not.toBe('button_not_found')
       expect(result.notReadyReason).toBeTruthy()
       expect(result.submitOutcome).toBe('blocked')
-    }, 30000)
+      // Kararlı pasiflikte kapı erken kapanmalı (üretimde 2s). Sayaç yükten
+      // bağımsızdır: erken çıkış kaybolursa 250ms'lik her yoklamada bir tur
+      // artar ve değer ~60'a çıkar.
+      expect(result.diagnostics.button.waitIterations).toBeLessThan(30)
+    }, 5000)
   })
 
   describe('D — synthetic Enter must not report unearned success', () => {
@@ -178,7 +213,11 @@ describe('aiAutosendReliability', () => {
           generateAutoSendScript(
             { input: '#composer', button: body ? '#send' : null, submitMode },
             'merhaba',
-            true
+            true,
+            false,
+            'auto',
+            30,
+            FAST_BUDGET
           )
         )
 
@@ -189,7 +228,7 @@ describe('aiAutosendReliability', () => {
         // Körlemesine Enter gönderilmemeli; fallback ise en fazla bir kez denenmeli.
         expect(enterKeys.mock.calls.length).toBeLessThanOrEqual(maxEnterKeys)
       },
-      30000
+      5000
     )
 
     it('exits the readiness gate early when the button stays stably disabled', async () => {
@@ -198,20 +237,29 @@ describe('aiAutosendReliability', () => {
         <button id="send" type="button" aria-disabled="true">Send</button>
       `
 
-      const startedAt = Date.now()
       const result = await window.eval(
         generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
-      const elapsed = Date.now() - startedAt
 
-      // Kararlı pasiflikte 15 saniye beklemenin anlamı yoktur.
+      // Kararlı pasiflikte 15 saniye beklemenin anlamı yoktur: buton bulundu
+      // ama etkileşime hazır değil, bu bir selector hatası değildir.
       expect(result.success).toBe(false)
-      expect(elapsed).toBeLessThan(10000)
-    }, 30000)
+      expect(result.error).toBe('submit_not_ready')
+      expect(result.notReadyReason).toBeTruthy()
+      expect(result.submitOutcome).toBe('blocked')
+      // Erken çıkış sayacı. Üretim penceresi 2s / 250ms yoklama ≈ 8 tur; erken
+      // çıkış kaybolursa 15s'lik bütçe dolar ve değer ~60 olur. Sayaç yükten
+      // bağımsızdır: gecikme tur sayısını yalnızca ARTIRIR.
+      expect(result.diagnostics.button.waitIterations).toBeLessThan(30)
+    }, 5000)
   })
 
   describe('C — framework model must actually receive the text', () => {
@@ -270,7 +318,11 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'mixed' },
           prompt,
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
@@ -281,7 +333,7 @@ describe('aiAutosendReliability', () => {
       expect(result.diagnostics.textVerifyResult).toBe('verified')
       expect(result.success).toBe(true)
       expect(clicks).toHaveBeenCalledTimes(1)
-    }, 30000)
+    }, 5000)
 
     it('flags a raw DOM insertion as unverified instead of reporting success', async () => {
       document.body.innerHTML = `
@@ -309,7 +361,9 @@ describe('aiAutosendReliability', () => {
       expect(result.success).toBe(false)
       expect(['text_input_unverified', 'text_input_partial']).toContain(result.error)
       expect(result.diagnostics.textVerifyResult).not.toBe('verified')
-    }, 30000)
+      // Ölçülen en yavaş test (≈1.4s): doğrulama yeniden denemeleri gönderim
+      // bütçesinden değil, metin yerleştirme zincirinden gelir.
+    }, 10000)
   })
 
   describe('B — full-text verification has no false negatives', () => {
@@ -345,7 +399,7 @@ describe('aiAutosendReliability', () => {
       )
       expect(second.diagnostics.textVerifyResult).toBe('verified')
       expect(second.diagnostics.textInputFallback).toBeFalsy()
-    }, 20000)
+    }, 5000)
 
     it('accepts decomposed Unicode that the editor recomposed to NFC', async () => {
       document.body.innerHTML = `
@@ -374,7 +428,7 @@ describe('aiAutosendReliability', () => {
       )
       expect(second.diagnostics.textVerifyResult).toBe('verified')
       expect(result.success).toBe(true)
-    }, 20000)
+    }, 5000)
 
     // Katlama (noktalama/Unicode normalleştirme) YALNIZCA kabul yönünde çalışır.
     // Eksik içerik kabul edilmez ve append/replace sözleşmeleri gevşetilmez.
@@ -448,7 +502,7 @@ describe('aiAutosendReliability', () => {
           Object.defineProperty(HTMLTextAreaElement.prototype, 'value', descriptor)
         }
       },
-      20000
+      5000
     )
   })
 
@@ -502,7 +556,11 @@ describe('aiAutosendReliability', () => {
           generateAutoSendScript(
             { input: '#composer', button: '#send', submitMode },
             'merhaba',
-            true
+            true,
+            false,
+            'auto',
+            30,
+            FAST_BUDGET
           )
         )
 
@@ -521,7 +579,7 @@ describe('aiAutosendReliability', () => {
         // ödüllendirilirse bozuk selector onarım zincirinde yukarı taşınır.
         expect(result.diagnostics.button.operationSucceeded).toBe(false)
       },
-      30000
+      5000
     )
 
     it('observes a real delivery when the conversation grows outside the composer shell', async () => {
@@ -571,7 +629,11 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
@@ -581,7 +643,7 @@ describe('aiAutosendReliability', () => {
       expect(result.submitObserved).toBe(true)
       expect(result.success).toBe(true)
       expect(result.submitOutcome).toBe('observed')
-    }, 30000)
+    }, 5000)
 
     it('refuses to click a dictation control and names it instead', async () => {
       // 2026-10-17 KÖK NEDEN (uygulama günlüğü, canlı chatgpt.com proje sayfası):
@@ -607,7 +669,11 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: '[data-start-dictation]', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
@@ -622,7 +688,7 @@ describe('aiAutosendReliability', () => {
       // hedef olduğu yine de yazılır — teşhis kaybolmaz.
       expect(result.diagnostics.submitWrongControl).toBe('data-start-dictation')
       expect(result.diagnostics.button.operationSucceeded).toBe(false)
-    }, 30000)
+    }, 5000)
 
     it('waits out a dictation control and clicks the real send button that appears after it', async () => {
       // Aynı kök nedenin ikinci yarısı: gönder düğmesi geç çizilir. Arama
@@ -647,14 +713,18 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: 'button[type="submit"]', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
       expect(dictation).not.toHaveBeenCalled()
       expect(realSend).toHaveBeenCalledTimes(1)
       expect(result.diagnostics.submitWrongControl).toBeNull()
-    }, 30000)
+    }, 5000)
 
     it('keeps reporting success when the click really empties the composer', async () => {
       document.body.innerHTML = `
@@ -671,14 +741,18 @@ describe('aiAutosendReliability', () => {
         generateAutoSendScript(
           { input: '#composer', button: '#send', submitMode: 'click' },
           'merhaba',
-          true
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
         )
       )
 
       expect(result.success).toBe(true)
       expect(result.submitObserved).toBe(true)
       expect(result.submitOutcome).toBe('observed')
-    }, 30000)
+    }, 5000)
   })
 
   describe('9 — auto-send preference is never overridden', () => {
@@ -704,6 +778,6 @@ describe('aiAutosendReliability', () => {
       expect(clicks).not.toHaveBeenCalled()
       const textarea = document.getElementById('input') as HTMLTextAreaElement
       expect(textarea.value).toBe('merhaba')
-    }, 20000)
+    }, 5000)
   })
 })

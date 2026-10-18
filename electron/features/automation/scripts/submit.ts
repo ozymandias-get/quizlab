@@ -1,18 +1,42 @@
 import { VOICE_CONTROL_LABEL_PATTERN } from '../automationScripts/lib/siteStrategyRegistry.js'
+import { normalizeMs } from '../automationScripts/preamble.js'
+import {
+  buildResolveSendButtonScript,
+  resolveSubmitButtonBudget,
+  type SubmitButtonBudgetOptions
+} from './resolveSendButton.js'
 
-interface BuildPerformSubmitScriptOptions {
+/**
+ * Gönderim betiğinin gerçek zaman bütçeleri.
+ *
+ * Bu değerler birer kural DEĞİL, birer ölçüm düzeltmesidir: hepsi canlı
+ * chatgpt.com ölçümlerinden çıkarıldı (bkz. ilgili sabitlerin yorumları).
+ * Bu yüzden değiştirilebilir birer "ayar" olarak değil, testlerin küçük
+ * bütçeyle koşabilmesi için GEÇERSİZ KILINABİLİR birer varsayılan olarak
+ * tutulur.
+ *
+ * ⛔ Sözleşme: HİÇBİR parametre geçilmediğinde üretilen betik, bu
+ * değerlerin sabit hâlinde yazıldığı betikle BAYT BAYT aynıdır. Testler bu
+ * eşitliği `automationScripts.test.ts` içinde ölçer; bozulursa gerçek kullanıcı
+ * 15 saniyelik bütçesini kaybetmiştir.
+ */
+export interface SubmitBudgetOptions extends SubmitButtonBudgetOptions {
+  /** `__observeSubmitEffect` yoklama turu sayısı. */
+  observeAttempts?: number
+  /** `__observeSubmitEffect` yoklamaları arası bekleme. */
+  observeIntervalMs?: number
+}
+
+interface BuildPerformSubmitScriptOptions extends SubmitBudgetOptions {
   includeInputLookupForEnter: boolean
 }
 
 /**
- * Gönder butonunun "kararlı biçimde pasif" kalması ne kadar sürebilir?
- *
- * Metin doğrulandıktan sonra gönder butonu hâlâ `disabled` ise sorun bekleme
- * değildir: editörün iç modeli metni almamıştır (DOM'a elle eklenmiş olabilir).
- * 15 saniyeyi doldurmak yalnızca kullanıcıyı bekletir ve sonucu değiştirmez,
- * bu yüzden bekleme 2 saniyede sonlanır ve gerçek neden raporlanır.
+ * Gönderim sonrası teslimat gözleminin penceresi (25 × 120ms = 3 saniye).
+ * Gerekçe betik metninin içindedir: `__observeSubmitEffect` tanımı.
  */
-const STABLE_BLOCKED_EXIT_MS = 2000
+const OBSERVE_EFFECT_ATTEMPTS = 25
+const OBSERVE_EFFECT_INTERVAL_MS = 120
 
 /**
  * Builds the shared submit routine used by the auto-send and click-send scripts.
@@ -55,6 +79,14 @@ const STABLE_BLOCKED_EXIT_MS = 2000
  * bunu "teslim edilmedi" olarak işaretler (mükerrer gönderim de engellenir).
  */
 export function buildPerformSubmitScript(options: BuildPerformSubmitScriptOptions): string {
+  // `normalizeMs` aynı zamanda `generateWaitForSubmitReadyScript`'in bütçe
+  // seçeneğini de normalize eder; geçersiz/eksik bir değer üretim
+  // varsayılanına düşer. Buton arama bütçeleri `resolveSendButton.ts`te,
+  // gözlem bütçeleri aşağıda normalize edilir (bkz. `SubmitBudgetOptions`).
+  const buttonBudget = resolveSubmitButtonBudget(options)
+  const observeAttempts = normalizeMs(options.observeAttempts, OBSERVE_EFFECT_ATTEMPTS, 1)
+  const observeIntervalMs = normalizeMs(options.observeIntervalMs, OBSERVE_EFFECT_INTERVAL_MS, 0)
+
   const enterDispatch = (target: string) => `
                 {
                     const eventParams = {
@@ -202,7 +234,7 @@ ${inputRepairCredit('                ')}`
         // pencere yavaş yolayı normalleştirir; mükerrer gönderim riski yoktur
         // çünkü \`submit_unverified\` zaten \`retry: 'never'\` taşır — bu yalnızca
         // hükmün doğruluğunu etkiler, gönderim sayısını değil.
-        const __observeSubmitEffect = async (inputElement, buttonElement, before, attempts = 25, intervalMs = 120) => {
+        const __observeSubmitEffect = async (inputElement, buttonElement, before, attempts = ${observeAttempts}, intervalMs = ${observeIntervalMs}) => {
             for (let i = 0; i < attempts; i++) {
                 if (typeof isAborted === 'function' && isAborted()) return false;
                 await wait(intervalMs);
@@ -293,36 +325,7 @@ ${inputRepairCredit('                ')}`
                 // devam edilir. Tıklama yalnızca sesli olmayan bir düğmeye
                 // yapılır; süre dolarsa teşhis yine de hangi kontrolün hedef
                 // olduğunu yazar.
-                const __resolveSendButton = async () => {
-                    const budgetMs = 15000;
-                    const deadline = now() + budgetMs;
-                    let rejectedControl = null;
-                    while (true) {
-                        const remaining = deadline - now();
-                        if (remaining <= 0) break;
-                        const attempt = await waitForElement(
-                            config.button,
-                            'button',
-                            diagnostics.button,
-                            config,
-                            remaining,
-                            true,
-                            ${STABLE_BLOCKED_EXIT_MS}
-                        );
-                        const element = attempt.element;
-                        if (!element) {
-                            return { element: null, notReadyReason: attempt.notReadyReason || null, blockedElement: attempt.blockedElement || null, rejectedControl };
-                        }
-                        const wrongControl = __submitWrongControl(element);
-                        if (!wrongControl) return { element, notReadyReason: null, blockedElement: null, rejectedControl: null };
-                        rejectedControl = wrongControl;
-                        // Bu düğmeyi hedef tutmayı bırak: aksi halde önbellek
-                        // aynı yanlış öğeyi bir sonraki denemede de verir.
-                        try { invalidateCacheEntry('button', config.button, diagnostics.button); } catch (_) {}
-                        await wait(120);
-                    }
-                    return { element: null, notReadyReason: null, blockedElement: null, rejectedControl };
-                };
+${buildResolveSendButtonScript(buttonBudget)}
 
                 const buttonResult = await __resolveSendButton();
                 const button = buttonResult.element;
