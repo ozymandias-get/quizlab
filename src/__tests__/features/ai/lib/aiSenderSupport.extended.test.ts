@@ -40,34 +40,25 @@ const makeQueryClient = (fetchResult: unknown) =>
   }) as any
 
 describe('resolveAutoSend', () => {
-  it('uses the per-call option when provided', () => {
-    expect(resolveAutoSend(false, { autoSend: true })).toBe(true)
-    expect(resolveAutoSend(true, { autoSend: false })).toBe(false)
-  })
-
-  it('falls back to the global preference when no options are provided', () => {
-    expect(resolveAutoSend(true)).toBe(true)
-    expect(resolveAutoSend(false)).toBe(false)
-  })
-
-  it('falls back to the global preference when options is empty', () => {
-    expect(resolveAutoSend(true, {})).toBe(true)
-    expect(resolveAutoSend(false, {})).toBe(false)
-  })
-
-  // Regression: the removed `forceAutoSend` escape hatch let the composer submit
-  // even with auto-send off, silently overriding a setting the user had turned
-  // off. A disabled preference must now be un-bypassable.
-  it('cannot be bypassed while the global preference is off', () => {
-    expect(resolveAutoSend(false, { autoSend: false })).toBe(false)
-    expect(resolveAutoSend(false, {})).toBe(false)
-  })
-
-  it('handles truthy/falsy options correctly', () => {
-    expect(resolveAutoSend(false, { autoSend: 1 as any })).toBe(1)
-    expect(resolveAutoSend(true, { autoSend: 0 as any })).toBe(0)
+  // A defined per-call option wins; an absent one falls back to the global
+  // preference. The rows that matter most are the last two: a disabled global
+  // must stay un-bypassable (the removed `forceAutoSend` escape hatch let the
+  // composer submit anyway).
+  it.each([
+    ['a per-call true overrides a false global', false, { autoSend: true }, true],
+    ['a per-call false overrides a true global', true, { autoSend: false }, false],
+    ['no options falls back to a true global', true, undefined, true],
+    ['no options falls back to a false global', false, undefined, false],
+    ['empty options falls back to a true global', true, {}, true],
+    ['empty options falls back to a false global', false, {}, false],
+    ['a false global cannot be bypassed by a false per-call', false, { autoSend: false }, false],
+    ['a false global cannot be bypassed by no options', false, {}, false],
+    ['a truthy non-boolean passes through', false, { autoSend: 1 as any }, 1],
+    ['a falsy non-boolean passes through', true, { autoSend: 0 as any }, 0],
     // `null` is not undefined, so it is returned as-is
-    expect(resolveAutoSend(false, { autoSend: null as any })).toBe(null)
+    ['a null per-call passes through', false, { autoSend: null as any }, null]
+  ])('%s', (_case, globalPref, options, expected) => {
+    expect(resolveAutoSend(globalPref as boolean, options as any)).toBe(expected)
   })
 })
 
@@ -283,76 +274,45 @@ describe('mergeAiConfigs - additional edge cases', () => {
 })
 
 describe('toAutomationConfig - additional edge cases', () => {
-  it('handles all nullable fields being null', () => {
-    const result = toAutomationConfig({
-      input: null,
-      button: null,
-      waitFor: null
-    })
-    expect(result.input).toBeNull()
-    expect(result.button).toBeNull()
-    expect(result.waitFor).toBeNull()
-  })
-
-  it('converts non-array candidates to null', () => {
-    const result = toAutomationConfig({
-      inputCandidates: 'not-array' as any,
-      buttonCandidates: 42 as any
-    })
-    expect(result.inputCandidates).toBeNull()
-    expect(result.buttonCandidates).toBeNull()
-  })
-
-  it('uses null for missing fingerprint', () => {
-    const result = toAutomationConfig({})
-    expect(result.inputFingerprint).toBeNull()
-    expect(result.buttonFingerprint).toBeNull()
-  })
-
-  it('keeps array candidates', () => {
-    const result = toAutomationConfig({
-      inputCandidates: ['a', 'b'],
-      buttonCandidates: ['c', 'd']
-    })
-    expect(result.inputCandidates).toEqual(['a', 'b'])
-    expect(result.buttonCandidates).toEqual(['c', 'd'])
-  })
-
-  it('uses null sourceUrl/sourceHostname for non-string values', () => {
-    const result = toAutomationConfig({
-      sourceUrl: 123 as any,
-      sourceHostname: null as any
-    })
-    expect(result.sourceUrl).toBeNull()
-    expect(result.sourceHostname).toBeNull()
+  it.each([
+    [
+      'null nullable fields stay null',
+      { input: null, button: null, waitFor: null },
+      { input: null, button: null, waitFor: null }
+    ],
+    [
+      'non-array candidates become null',
+      { inputCandidates: 'not-array', buttonCandidates: 42 },
+      { inputCandidates: null, buttonCandidates: null }
+    ],
+    ['an empty input yields null everywhere', {}, { inputFingerprint: null }],
+    [
+      'array candidates are kept as-is',
+      { inputCandidates: ['a', 'b'], buttonCandidates: ['c', 'd'] },
+      { inputCandidates: ['a', 'b'], buttonCandidates: ['c', 'd'] }
+    ],
+    [
+      'non-string sourceUrl/sourceHostname become null',
+      { sourceUrl: 123, sourceHostname: null },
+      { sourceUrl: null, sourceHostname: null }
+    ]
+  ])('%s', (_case, input, expected) => {
+    expect(toAutomationConfig(input as any)).toMatchObject(expected)
   })
 })
 
 describe('normalizeSendErrorCode - additional edge cases', () => {
-  it('returns the string for strings', () => {
-    expect(normalizeSendErrorCode('webview_not_ready', 'fb')).toBe('webview_not_ready')
-  })
-
-  it('handles whitespace-only strings', () => {
-    expect(normalizeSendErrorCode('   ', 'fb')).toBe('fb')
-    expect(normalizeSendErrorCode('\t\n', 'fb')).toBe('fb')
-  })
-
-  it('handles boolean input', () => {
-    expect(normalizeSendErrorCode(true, 'fb')).toBe('fb')
-    expect(normalizeSendErrorCode(false, 'fb')).toBe('fb')
-  })
-
-  it('handles array input', () => {
-    expect(normalizeSendErrorCode([1, 2, 3], 'fb')).toBe('fb')
-  })
-
-  it('returns numeric value as string', () => {
-    expect(normalizeSendErrorCode(0, 'fb')).toBe('0')
-    expect(normalizeSendErrorCode(-1, 'fb')).toBe('-1')
-  })
-
-  it('preserves string "0"', () => {
-    expect(normalizeSendErrorCode('0', 'fb')).toBe('0')
+  it.each([
+    ['a real code passes through', 'webview_not_ready', 'webview_not_ready'],
+    ['a spaces-only string falls back', '   ', 'fb'],
+    ['a tab/newline-only string falls back', '\t\n', 'fb'],
+    ['a boolean falls back', true, 'fb'],
+    ['false falls back', false, 'fb'],
+    ['an array falls back', [1, 2, 3], 'fb'],
+    ['a number is stringified', 0, '0'],
+    ['a negative number is stringified', -1, '-1'],
+    ['the string "0" is preserved, not falsy-coerced', '0', '0']
+  ])('%s', (_case, raw, expected) => {
+    expect(normalizeSendErrorCode(raw, 'fb')).toBe(expected)
   })
 })

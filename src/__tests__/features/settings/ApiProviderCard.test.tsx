@@ -42,26 +42,22 @@ function renderCard(overrides: Partial<ApiProviderConfig> = {}) {
  * and toggling must persist an explicit boolean rather than leaving it unset.
  */
 describe('ApiProviderCard local-network consent', () => {
-  it('renders the consent switch off for a provider that never opted in', () => {
-    renderCard()
-    expect(screen.getByRole('switch')).toHaveAttribute('data-state', 'unchecked')
+  it.each([
+    ['never opted in', {}, 'unchecked'],
+    ['opted in', { allowLocalNetwork: true }, 'checked']
+  ])('renders the consent switch %s', (_label, overrides, dataState) => {
+    renderCard(overrides)
+    expect(screen.getByRole('switch')).toHaveAttribute('data-state', dataState)
   })
 
-  it('renders the consent switch on when the provider opted in', () => {
-    renderCard({ allowLocalNetwork: true })
-    expect(screen.getByRole('switch')).toHaveAttribute('data-state', 'checked')
-  })
-
-  it('writes an explicit true when switched on', () => {
-    const { onUpdate } = renderCard()
+  it('writes an explicit boolean in both directions', () => {
+    const turnedOn = renderCard()
     fireEvent.click(screen.getByRole('switch'))
-    expect(onUpdate).toHaveBeenCalledWith('p1', { allowLocalNetwork: true })
-  })
+    expect(turnedOn.onUpdate).toHaveBeenCalledWith('p1', { allowLocalNetwork: true })
 
-  it('writes an explicit false when switched off', () => {
-    const { onUpdate } = renderCard({ allowLocalNetwork: true })
-    fireEvent.click(screen.getByRole('switch'))
-    expect(onUpdate).toHaveBeenCalledWith('p1', { allowLocalNetwork: false })
+    const turnedOff = renderCard({ allowLocalNetwork: true })
+    fireEvent.click(screen.getAllByRole('switch')[1])
+    expect(turnedOff.onUpdate).toHaveBeenCalledWith('p1', { allowLocalNetwork: false })
   })
 
   it('labels the switch and points it at the explanation', () => {

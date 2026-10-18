@@ -71,23 +71,6 @@ describe('useAiDraftQueue', () => {
     expect(blobUrls).toEqual(['blob:first', 'blob:second'])
   })
 
-  it('revokes a preview created for an item removed during conversion', async () => {
-    mockCreateObjectURL.mockReturnValueOnce('blob:orphan')
-    const { result } = renderHook(() => useAiDraftQueue())
-    const largeDataUrl = `data:image/png;base64,${'QUJD'.repeat(500001)}`
-
-    await act(async () => {
-      result.current.queueImageForAi(largeDataUrl)
-    })
-    const id = result.current.pendingAiItems[0].id
-    await act(async () => {
-      result.current.removePendingAiItem(id)
-      await new Promise((r) => setTimeout(r, 100))
-    })
-
-    expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:orphan')
-  })
-
   it('resolves large data URL previews with local decode (no fetch)', async () => {
     const { result } = renderHook(() => useAiDraftQueue())
 

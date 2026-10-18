@@ -111,40 +111,7 @@ describe('applyProbeTransition', () => {
     expect(result.consecutiveFailures).toBe(0)
   })
 
-  it('should set reasonCode to login_redirect for login_redirect kind', () => {
-    const outcome: ProbeOutcome = { kind: 'login_redirect', healthy: false }
-    const result = applyProbeTransition({
-      previous: baseStatus,
-      outcome,
-      timestamp: '2025-01-15T12:00:00Z',
-      maxConsecutiveFailures: 5
-    })
-    expect(result.reasonCode).toBe('login_redirect')
-  })
-
-  it('should set reasonCode to unknown for unknown kind', () => {
-    const outcome: ProbeOutcome = { kind: 'unknown', healthy: false }
-    const result = applyProbeTransition({
-      previous: baseStatus,
-      outcome,
-      timestamp: '2025-01-15T12:00:00Z',
-      maxConsecutiveFailures: 5
-    })
-    expect(result.reasonCode).toBe('unknown')
-  })
-
-  it('should always update lastCheckAt', () => {
-    const outcome: ProbeOutcome = { kind: 'network', healthy: false }
-    const result = applyProbeTransition({
-      previous: baseStatus,
-      outcome,
-      timestamp: '2025-01-15T12:00:00Z',
-      maxConsecutiveFailures: 2
-    })
-    expect(result.lastCheckAt).toBe('2025-01-15T12:00:00Z')
-  })
-
-  it('should preserve enabledAppIds from previous status', () => {
+  it('preserves enabledAppIds from the previous status across a healthy probe', () => {
     const statusWithApps = { ...baseStatus, enabledAppIds: ['gemini'] as any }
     const outcome: ProbeOutcome = { kind: 'authenticated', healthy: true }
     const result = applyProbeTransition({
@@ -154,5 +121,27 @@ describe('applyProbeTransition', () => {
       maxConsecutiveFailures: 2
     })
     expect(result.enabledAppIds).toEqual(['gemini'])
+    // Every transition carries the probe timestamp forward.
+    expect(result.lastCheckAt).toBe('2025-01-15T12:00:00Z')
+    expect(result.lastHealthyAt).toBe('2025-01-15T12:00:00Z')
   })
+
+  it.each([
+    ['network', 'network', 0, 2],
+    ['login_redirect', 'login_redirect', 0, 3],
+    ['challenge', 'challenge', 0, 5],
+    ['unknown', 'unknown', 0, 5]
+  ] as const)(
+    'maps the %s probe kind to reasonCode %s',
+    (kind, expectedReason, previousFailures, max) => {
+      const outcome: ProbeOutcome = { kind, healthy: false }
+      const result = applyProbeTransition({
+        previous: { ...baseStatus, consecutiveFailures: previousFailures },
+        outcome,
+        timestamp: '2025-01-15T12:00:00Z',
+        maxConsecutiveFailures: max
+      })
+      expect(result.reasonCode).toBe(expectedReason)
+    }
+  )
 })

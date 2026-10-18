@@ -36,32 +36,13 @@ describe('isStagedSendResult', () => {
 })
 
 describe('isDeliveredSendResult', () => {
-  it('is false for a staged image send', () => {
-    expect(isDeliveredSendResult({ success: true, mode: 'paste_only' })).toBe(false)
-  })
-
-  it('is false for a staged api-chat send', () => {
-    expect(isDeliveredSendResult({ success: true, mode: 'staged' })).toBe(false)
-  })
-
-  it('is true when auto-send clicked through', () => {
-    expect(isDeliveredSendResult({ success: true, mode: 'auto_click' })).toBe(true)
-  })
-
-  it('is true for a text send with no mode', () => {
-    expect(isDeliveredSendResult({ success: true })).toBe(true)
-  })
-
-  it('is true for any other successful mode', () => {
-    expect(isDeliveredSendResult({ success: true, mode: 'enter_key' })).toBe(true)
-    expect(isDeliveredSendResult({ success: true, mode: 'mixed' })).toBe(true)
-  })
-
   it('is false for a failure regardless of mode', () => {
     expect(isDeliveredSendResult({ success: false })).toBe(false)
     expect(isDeliveredSendResult({ success: false, mode: 'auto_click' })).toBe(false)
   })
 
+  // The two predicates must partition every successful outcome exactly: a
+  // send is either staged or delivered, never both and never neither.
   it('agrees with isStagedSendResult for every successful outcome', () => {
     const cases = [
       { success: true },
@@ -70,7 +51,9 @@ describe('isDeliveredSendResult', () => {
       { success: true, mode: 'paste_only' },
       { success: true, mode: 'paste_and_prompt' },
       { success: true, mode: 'auto_click' },
-      { success: true, mode: 'click' }
+      { success: true, mode: 'click' },
+      { success: true, mode: 'enter_key' },
+      { success: true, mode: 'mixed' }
     ]
     for (const c of cases) {
       expect(isDeliveredSendResult(c)).toBe(!isStagedSendResult(c))

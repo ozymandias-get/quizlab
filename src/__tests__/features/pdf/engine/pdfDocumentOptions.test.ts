@@ -20,6 +20,18 @@ import { describe, expect, it } from 'vitest'
 
 const BASE = 'https://app.test/'
 
+/**
+ * `DocumentInitParameters` declares every asset URL as optional, so these four
+ * widen to `string | undefined`. A missing one has to fail loudly rather than be
+ * sliced: `undefined.slice(...)` yields `''`, and `toContain('')` passes for
+ * anything at all — exactly the silent CDN fallback this test exists to catch.
+ */
+const declaredAssetUrl = (value: string | undefined): string => {
+  if (typeof value !== 'string')
+    throw new Error('the document options do not declare this asset URL')
+  return value
+}
+
 describe('createPdfDocumentOptions', () => {
   it('never enables PDF JavaScript actions', () => {
     expect(createPdfDocumentOptions('local-pdf://a', BASE).enableScripting).toBe(false)
@@ -56,6 +68,22 @@ describe('createPdfDocumentOptions', () => {
     expect(options.standardFontDataUrl).toBe(`${BASE}${PDFJS_ASSET_DIR}/standard_fonts/`)
     expect(options.wasmUrl).toBe(`${BASE}${PDFJS_ASSET_DIR}/wasm/`)
     expect(options.iccUrl).toBe(`${BASE}${PDFJS_ASSET_DIR}/iccs/`)
+
+    // Every directory the build stages must have a URL on the options object, or
+    // PDF.js falls back to a CDN fetch for it — which is silent in dev and broken
+    // offline. Asserted against the declared list rather than a copied literal, so
+    // adding a subdir without wiring it up fails here.
+    const staged = PDFJS_ASSET_SUBDIRS.join('|')
+    for (const value of [
+      options.cMapUrl,
+      options.standardFontDataUrl,
+      options.wasmUrl,
+      options.iccUrl
+    ]) {
+      const subdir = declaredAssetUrl(value).slice(`${BASE}${PDFJS_ASSET_DIR}/`.length, -1)
+      expect(subdir).not.toBe('')
+      expect(staged).toContain(subdir)
+    }
   })
 
   it('declares the cMaps as packed binaries', () => {
@@ -82,10 +110,6 @@ describe('createPdfDocumentOptions', () => {
       expect(value).not.toContain('Users')
       expect(value).not.toMatch(/^file:/)
     }
-  })
-
-  it('covers exactly the four staged directories', () => {
-    expect(PDFJS_ASSET_SUBDIRS).toEqual(['cmaps', 'standard_fonts', 'wasm', 'iccs'])
   })
 })
 

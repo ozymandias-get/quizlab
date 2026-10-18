@@ -5,6 +5,14 @@ const setPermissionCheckHandler = vi.fn()
 const setDisplayMediaRequestHandler = vi.fn()
 const onBeforeSendHeaders = vi.fn()
 const getSources = vi.fn()
+const fromPartition = vi.fn(() => ({
+  webRequest: {
+    onBeforeSendHeaders
+  },
+  setPermissionRequestHandler,
+  setPermissionCheckHandler,
+  setDisplayMediaRequestHandler
+}))
 const showDisplayMediaPicker = vi.fn()
 const resolveWebPermission = vi.fn(async (_request: unknown, decision: { granted: boolean }) => {
   if (decision.granted) return true
@@ -24,14 +32,7 @@ vi.mock('electron', () => ({
       setPermissionRequestHandler,
       setPermissionCheckHandler
     },
-    fromPartition: vi.fn(() => ({
-      webRequest: {
-        onBeforeSendHeaders
-      },
-      setPermissionRequestHandler,
-      setPermissionCheckHandler,
-      setDisplayMediaRequestHandler
-    }))
+    fromPartition
   }
 }))
 
@@ -59,18 +60,24 @@ describe('window/sessions', () => {
     setPermissionRequestHandler.mockReset()
     setPermissionCheckHandler.mockReset()
     setDisplayMediaRequestHandler.mockReset()
+    fromPartition.mockClear()
     onBeforeSendHeaders.mockReset()
     getSources.mockReset()
     showDisplayMediaPicker.mockReset()
     resolveWebPermission.mockClear()
   })
 
-  it('configures a dynamic custom AI partition only once', async () => {
+  it('configures a dynamic custom AI partition only once, against that partition', async () => {
     const module = await import('../../../app/window/sessions.js')
 
     module.setupAiSession('persist:ai_custom_dynamic')
     module.setupAiSession('persist:ai_custom_dynamic')
 
+    // Asserted against session.fromPartition, not just a bare call count: the
+    // memoisation this pins is "the first partition to ask wins", so the
+    // partition name has to appear exactly once in the setup calls.
+    expect(fromPartition).toHaveBeenCalledTimes(1)
+    expect(fromPartition).toHaveBeenCalledWith('persist:ai_custom_dynamic')
     expect(setPermissionRequestHandler).toHaveBeenCalledTimes(1)
     expect(setPermissionCheckHandler).toHaveBeenCalledTimes(1)
     expect(setDisplayMediaRequestHandler).toHaveBeenCalledTimes(1)

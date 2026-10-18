@@ -221,6 +221,16 @@ describe('useElementPicker', () => {
 
     expect(result.current.isPickerActive).toBe(false)
     expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
+
+    // Explicit stop reaches the same teardown the cancel emit did.
+    await act(async () => {
+      await result.current.startPicker()
+    })
+    await act(async () => {
+      await result.current.stopPicker()
+    })
+    expect(result.current.isPickerActive).toBe(false)
+    expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
   })
 
   it('surfaces picker_selection_missing when the picker payload is not a config', async () => {
@@ -284,7 +294,10 @@ describe('useElementPicker', () => {
     expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
   })
 
-  it('reports save failures with picker_save_failed (not a PDF error toast)', async () => {
+  // S11: C5 (real bug). A save failure must surface exactly one error toast (the
+  // domain-specific `picker_save_failed`), not two — `toast_ai_config_save_failed`
+  // would otherwise leak through from useSaveAiConfig's default error path.
+  it('reports save failures with picker_save_failed only', async () => {
     mockSaveAiConfigMutate.mockRejectedValueOnce(new Error('disk full'))
     const { result } = renderPicker()
 
@@ -306,22 +319,12 @@ describe('useElementPicker', () => {
       undefined,
       expect.objectContaining({ error: 'disk full' })
     )
+    expect(mockToast.showError).not.toHaveBeenCalledWith(
+      'toast_ai_config_save_failed',
+      expect.anything(),
+      expect.anything()
+    )
     expect(result.current.isPickerActive).toBe(false)
-  })
-
-  it('stops the picker and runs the cleanup script', async () => {
-    const { result } = renderPicker()
-
-    await act(async () => {
-      await result.current.startPicker()
-    })
-
-    await act(async () => {
-      await result.current.stopPicker()
-    })
-
-    expect(result.current.isPickerActive).toBe(false)
-    expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
   })
 
   it('toggles between start and stop', async () => {
@@ -416,40 +419,6 @@ describe('useElementPicker', () => {
     // Exactly one script-generation request should have gone out.
     expect(mockGeneratePickerScriptMutate).toHaveBeenCalledTimes(1)
     expect(mockContent.executeJavaScript).toHaveBeenCalledTimes(3) // cleanup + reset + script
-  })
-
-  // S11: C5 (real bug). Save failure should surface exactly one error
-  // toast (the domain-specific `picker_save_failed`), not two
-  // (`toast_ai_config_save_failed` would otherwise leak through from
-  // useSaveAiConfig's default error path).
-  it('shows only picker_save_failed on save failure, not the underlying AI config toast', async () => {
-    mockSaveAiConfigMutate.mockRejectedValueOnce(new Error('disk full'))
-    const { result } = renderPicker()
-
-    await act(async () => {
-      await result.current.startPicker()
-    })
-
-    await act(async () => {
-      fireSessionResult({
-        input: 'textarea',
-        button: 'button',
-        inputFingerprint: { tag: 'textarea' },
-        buttonFingerprint: { tag: 'button' }
-      })
-    })
-
-    expect(mockToast.showError).toHaveBeenCalledWith(
-      'picker_save_failed',
-      undefined,
-      expect.objectContaining({ error: 'disk full' })
-    )
-    // The duplicate AI-config toast must NOT be fired — suppressErrorToast.
-    expect(mockToast.showError).not.toHaveBeenCalledWith(
-      'toast_ai_config_save_failed',
-      expect.anything(),
-      expect.anything()
-    )
   })
 
   // S11: content getter identity churn. The hook should not re-run its

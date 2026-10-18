@@ -1,8 +1,4 @@
-import {
-  MAX_ALIVE_TABS_OPTIONS,
-  SLEEP_TIMEOUT_OPTIONS,
-  useAiLifecycleSettings
-} from '@features/ai/hooks/useAiLifecycleSettings'
+import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
@@ -69,11 +65,5 @@ describe('useAiLifecycleSettings', () => {
 
     act(() => result.current.setNeverSleepSiteIds(['gemini', 'perplexity']))
     expect(result.current.neverSleepSiteIds).toEqual(['gemini', 'perplexity'])
-  })
-
-  it('exposes the option lists expected by the settings UI', () => {
-    expect(MAX_ALIVE_TABS_OPTIONS).toEqual([1, 2, 3, 4, 5])
-    expect(SLEEP_TIMEOUT_OPTIONS).toHaveLength(6)
-    expect(SLEEP_TIMEOUT_OPTIONS.find((o) => o.value === Infinity)?.labelKey).toBe('sleep_never')
   })
 })

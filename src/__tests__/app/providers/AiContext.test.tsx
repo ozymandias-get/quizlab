@@ -262,30 +262,6 @@ describe('AiContext', () => {
     expect(mockShowWarning).toHaveBeenCalledWith('error_send_failed')
   })
 
-  it('wraps sending image with toast notifications', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
-    await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
-
-    // Open an AI workspace and register a content for the test environment
-    act(() => {
-      result.current.openAiWorkspace('chatgpt')
-    })
-    const tabId = result.current.activeTabId
-    act(() => {
-      result.current.registerContent(tabId, {
-        getURL: () => 'https://chatgpt.com',
-        executeJavaScript: vi.fn().mockResolvedValue('complete'),
-        isDestroyed: () => false
-      } as any)
-    })
-
-    mockSendImage.mockResolvedValue({ success: true })
-
-    await act(async () => {
-      await result.current.sendImageToAI('data:image...')
-    })
-  })
-
   it('does not let stale content cleanup remove a replacement instance', async () => {
     const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))

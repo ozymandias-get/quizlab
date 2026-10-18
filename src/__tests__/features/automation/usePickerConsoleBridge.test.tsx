@@ -145,4 +145,46 @@ describe('usePickerConsoleBridge', () => {
     result.current.stopListening()
     expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
   })
+
+  // The three session-binding cases below used to live in a separate
+  // pickerSessionBridge.test.tsx whose entire scaffold was a verbatim copy of
+  // this file's. They belong here: same hook, same `setup()`, same fixtures.
+  it('T15: a result from a previous session is ignored by the new session', () => {
+    const { result, onResult } = setup()
+    result.current.startListening(mockController as never, 'session-2')
+
+    // Stale emit from session-1 (different nonce) must not be accepted.
+    handlerSink.current?.({
+      message: `_aiPicker:result:session-1:${JSON.stringify({ inputFingerprint: {}, buttonFingerprint: {} })}`
+    })
+    expect(onResult).not.toHaveBeenCalled()
+
+    // The current session result is accepted.
+    const payload = { inputFingerprint: { tag: 'textarea' }, buttonFingerprint: { tag: 'button' } }
+    handlerSink.current?.({
+      message: `_aiPicker:result:session-2:${JSON.stringify(payload)}`
+    })
+    expect(onResult).toHaveBeenCalledWith(payload, 'session-2')
+  })
+
+  it('T15b: legacy result without a session is ignored once a session is active', () => {
+    const { result, onResult } = setup()
+    result.current.startListening(mockController as never, 'session-9')
+
+    handlerSink.current?.({
+      message: `_aiPicker:result:${JSON.stringify({ inputFingerprint: {}, buttonFingerprint: {} })}`
+    })
+    expect(onResult).not.toHaveBeenCalled()
+  })
+
+  it('T14 guard: messages after stopListening are dropped', () => {
+    const { result, onResult } = setup()
+    result.current.startListening(mockController as never, 'session-3')
+    result.current.stopListening()
+
+    handlerSink.current?.({
+      message: `_aiPicker:result:session-3:${JSON.stringify({ inputFingerprint: {}, buttonFingerprint: {} })}`
+    })
+    expect(onResult).not.toHaveBeenCalled()
+  })
 })

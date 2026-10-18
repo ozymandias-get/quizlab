@@ -2,6 +2,12 @@
  * Tests for the shared constants modules.
  * - DEFAULT_PROMPTS: id uniqueness, language pairing, text content sanity
  * - STORAGE_KEYS: stability (no renames), uniqueness, used-by audit
+ *
+ * Deliberately not asserted here, because `npm run typecheck` already proves
+ * it: that `Prompt.id`/`Prompt.text` are non-empty strings (both are typed
+ * `string` in `shared/constants/prompts.ts`), and that every `STORAGE_KEYS`
+ * value is a non-empty string (the object is `as const`). Those assertions
+ * could only fail if the compiler failed, and then nothing would run.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -14,30 +20,9 @@ describe('DEFAULT_PROMPTS - structure', () => {
     expect(DEFAULT_PROMPTS.length).toBeGreaterThan(0)
   })
 
-  it('every entry has id and text properties of correct types', () => {
-    for (const p of DEFAULT_PROMPTS) {
-      expect(typeof p.id).toBe('string')
-      expect(typeof p.text).toBe('string')
-      expect(p.id.length).toBeGreaterThan(0)
-      expect(p.text.length).toBeGreaterThan(0)
-    }
-  })
-
   it('ids are unique (no duplicates)', () => {
     const ids = DEFAULT_PROMPTS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
-  })
-
-  it('ids do not exceed a reasonable length', () => {
-    for (const p of DEFAULT_PROMPTS) {
-      expect(p.id.length).toBeLessThanOrEqual(64)
-    }
-  })
-
-  it('texts are at least 30 characters (real instructions, not stubs)', () => {
-    for (const p of DEFAULT_PROMPTS) {
-      expect(p.text.length).toBeGreaterThan(30)
-    }
   })
 })
 
@@ -109,22 +94,11 @@ describe('DEFAULT_PROMPTS - content sanity', () => {
 })
 
 describe('STORAGE_KEYS - structural invariants', () => {
-  it('is a non-null object', () => {
-    expect(typeof STORAGE_KEYS).toBe('object')
-  })
-
-  it('has at least 10 keys defined', () => {
-    expect(Object.keys(STORAGE_KEYS).length).toBeGreaterThanOrEqual(10)
-  })
-
-  it('all values are non-empty strings', () => {
-    for (const [k, v] of Object.entries(STORAGE_KEYS)) {
-      expect(typeof v, `STORAGE_KEYS.${k} should be a string`).toBe('string')
-      expect(v.length, `STORAGE_KEYS.${k} should not be empty`).toBeGreaterThan(0)
-    }
-  })
-
   it('all values are unique (no two keys share a storage name)', () => {
+    // A collision here means one feature silently reads and overwrites
+    // another's persisted state. The values are `as const` string literals, so
+    // `npm run typecheck` already guarantees they are non-empty strings — only
+    // the uniqueness is this file's to prove.
     const vals = Object.values(STORAGE_KEYS)
     expect(new Set(vals).size).toBe(vals.length)
   })

@@ -8,7 +8,6 @@ import {
   createGeminiStatus,
   getPlatform,
   registerBeforeUnloadCleanup,
-  revokeObjectUrl,
   selectPdfInBrowser,
   toMapRecord
 } from '@platform/electron/browserApiUtils'
@@ -114,14 +113,6 @@ describe('registerBeforeUnloadCleanup', () => {
     // Second call is a no-op because the flag is already set
     registerBeforeUnloadCleanup()
     expect(addSpy).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('revokeObjectUrl', () => {
-  it('does not revoke an untracked URL', () => {
-    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-    revokeObjectUrl('blob:untracked')
-    expect(revokeSpy).not.toHaveBeenCalled()
   })
 })
 

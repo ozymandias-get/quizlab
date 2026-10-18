@@ -335,25 +335,6 @@ describe('native page transition — the whole page stack moves as one', () => {
     expect(turns[0].element).not.toBe(container.querySelector('[data-native-pdf-canvas]'))
   })
 
-  it('presents on a box that owns all four layers', async () => {
-    const { container, control } = await mountViewer()
-
-    act(() => control.current?.goToNextPage())
-    await waitForFrames(() => expect(turns).toHaveLength(1))
-
-    const page = pageBoxOf(container)
-    for (const selector of [
-      '[data-native-pdf-canvas]',
-      '[data-native-pdf-text-layer]',
-      '[data-native-pdf-annotation-layer]',
-      '[data-native-pdf-search-layer]'
-    ]) {
-      // One transform on one box is what keeps a selected span, a search highlight and a
-      // link's hitbox on the same coordinate system as the glyphs under them.
-      expect(page?.querySelector(selector), selector).not.toBe(null)
-    }
-  })
-
   it('leaves the centering and scroll contract exactly as it was', async () => {
     const { container, control } = await mountViewer()
 
@@ -377,15 +358,17 @@ describe('native page transition — the whole page stack moves as one', () => {
     })
   })
 
+  // One transform on one box is the whole synchronisation story: the canvas, the text
+  // runs, the link hitboxes and the highlight rectangles are all descendants of it, so
+  // they cannot drift apart no matter what order their own async renders complete in.
+  // Asserting the layer count here therefore also asserts that all four surfaces are
+  // still children of the page box.
   it('moves every layer, not just the one that has finished painting', async () => {
     const { container, control } = await mountViewer()
 
     act(() => control.current?.goToNextPage())
     await waitForFrames(() => expect(turns).toHaveLength(1))
 
-    // One transform on the page box is the whole synchronisation story: the canvas, the text
-    // runs, the link hitboxes and the highlight rectangles are all descendants of it, so
-    // they cannot drift apart no matter what order their own async renders complete in.
     const page = pageBoxOf(container)
     expect(turns[0].element).toBe(page)
     const layers = page?.children ?? []

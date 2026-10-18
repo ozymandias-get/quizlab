@@ -3,10 +3,6 @@ import { isVisionCapable, VISION_MODEL_PATTERNS } from '@features/ai/lib/apiChat
 import { describe, expect, it } from 'vitest'
 
 describe('VISION_MODEL_PATTERNS', () => {
-  it('should contain regex patterns for all known vision-capable models', () => {
-    expect(VISION_MODEL_PATTERNS.length).toBeGreaterThanOrEqual(7)
-  })
-
   it('should match gpt-4o variants', () => {
     expect(VISION_MODEL_PATTERNS[0].test('gpt-4o')).toBe(true)
     expect(VISION_MODEL_PATTERNS[0].test('GPT-4o-mini')).toBe(true)
@@ -21,81 +17,36 @@ describe('VISION_MODEL_PATTERNS', () => {
 })
 
 describe('isVisionCapable', () => {
-  describe('GPT-4o models', () => {
-    it('should return true for gpt-4o', () => {
-      expect(isVisionCapable('gpt-4o')).toBe(true)
+  // The legacy families that predate the modern allowlist. Kept as an explicit
+  // table because the case-insensitivity of each family is part of the contract.
+  describe('legacy model families', () => {
+    it.each([
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4o-2024-08-06',
+      'GPT-4o',
+      'gpt-4.0-turbo',
+      'gpt-4.1-turbo',
+      'claude-3-5-sonnet',
+      'claude-3-opus',
+      'CLAUDE-3-5-sonnet',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-2.5-pro'
+    ])('should return true for %s', (model) => {
+      expect(isVisionCapable(model)).toBe(true)
     })
 
-    it('should return true for gpt-4o-mini', () => {
-      expect(isVisionCapable('gpt-4o-mini')).toBe(true)
-    })
+    it.each(['gpt-3.5-turbo', 'claude-2.1', 'some-random-model'])(
+      'should return false for %s',
+      (model) => {
+        expect(isVisionCapable(model)).toBe(false)
+      }
+    )
 
-    it('should return true for gpt-4o-2024-08-06', () => {
-      expect(isVisionCapable('gpt-4o-2024-08-06')).toBe(true)
-    })
-
-    it('should be case-insensitive for GPT-4o', () => {
-      expect(isVisionCapable('GPT-4o')).toBe(true)
-    })
-  })
-
-  describe('GPT-4.x-turbo models', () => {
-    it('should return true for gpt-4.0-turbo', () => {
-      expect(isVisionCapable('gpt-4.0-turbo')).toBe(true)
-    })
-
-    it('should return true for gpt-4.1-turbo', () => {
-      expect(isVisionCapable('gpt-4.1-turbo')).toBe(true)
-    })
-  })
-
-  describe('Claude models', () => {
-    it('should return true for claude-3-5-sonnet', () => {
-      expect(isVisionCapable('claude-3-5-sonnet')).toBe(true)
-    })
-
-    it('should return true for claude-3-opus', () => {
-      expect(isVisionCapable('claude-3-opus')).toBe(true)
-    })
-
-    it('should be case-insensitive for CLAUDE-3-5', () => {
-      expect(isVisionCapable('CLAUDE-3-5-sonnet')).toBe(true)
-    })
-  })
-
-  describe('Gemini models', () => {
-    it('should return true for gemini-1.5-pro', () => {
-      expect(isVisionCapable('gemini-1.5-pro')).toBe(true)
-    })
-
-    it('should return true for gemini-2.0-flash', () => {
-      expect(isVisionCapable('gemini-2.0-flash')).toBe(true)
-    })
-
-    it('should return true for gemini-1.5-flash', () => {
-      expect(isVisionCapable('gemini-1.5-flash')).toBe(true)
-    })
-
-    it('should return true for gemini-2.5-pro', () => {
-      expect(isVisionCapable('gemini-2.5-pro')).toBe(true)
-    })
-  })
-
-  describe('non-vision models', () => {
-    it('should return false for gpt-3.5-turbo', () => {
-      expect(isVisionCapable('gpt-3.5-turbo')).toBe(false)
-    })
-
-    it('should return false for claude-2.1', () => {
-      expect(isVisionCapable('claude-2.1')).toBe(false)
-    })
-
-    it('should return false for empty string', () => {
+    it('should return false for an empty string', () => {
       expect(isVisionCapable('')).toBe(false)
-    })
-
-    it('should return false for random text', () => {
-      expect(isVisionCapable('some-random-model')).toBe(false)
     })
   })
 
@@ -120,7 +71,6 @@ describe('isVisionCapable', () => {
     })
 
     it('should return false for text-only gpt-3.5 and gpt-4 base ids', () => {
-      expect(isVisionCapable('gpt-3.5-turbo')).toBe(false)
       expect(isVisionCapable('gpt-3.5')).toBe(false)
       expect(isVisionCapable('gpt-40')).toBe(false)
     })
@@ -140,13 +90,12 @@ describe('isVisionCapable', () => {
     })
 
     it('should return false for claude-2.x', () => {
-      expect(isVisionCapable('claude-2.1')).toBe(false)
       expect(isVisionCapable('claude-2')).toBe(false)
     })
   })
 
   describe('modern Gemini models', () => {
-    it.each(['gemini-3-pro', 'gemini-2.5-flash', 'gemini-2.5-pro-latest', 'gemini-1.5-flash'])(
+    it.each(['gemini-3-pro', 'gemini-2.5-flash', 'gemini-2.5-pro-latest'])(
       'should return true for %s',
       (model) => {
         expect(isVisionCapable(model)).toBe(true)
@@ -187,7 +136,7 @@ describe('isVisionCapable', () => {
       expect(isVisionCapable(null as unknown as string)).toBe(false)
     })
 
-    it.each(['', 'unknown-model', 'text-davinci-003', 'gemini-pro', 'claude-2'])(
+    it.each(['text-davinci-003', 'gemini-pro'])(
       'should return false for the non-vision id %j',
       (id) => {
         expect(isVisionCapable(id)).toBe(false)

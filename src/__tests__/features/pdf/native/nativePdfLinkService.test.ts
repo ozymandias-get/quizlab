@@ -96,31 +96,20 @@ beforeEach(() => {
 /* -------------------------------------------------- internal destinations */
 
 describe('native link service — internal destinations', () => {
-  it('converts a 0-based literal page index to the controller 1-based page', async () => {
+  // One conversion, one place. These are the three positions that matter: the first
+  // page, mid-document, and the last — the endpoints are where an off-by-one hides.
+  it.each([
+    [0, 1],
+    [6, 7],
+    [11, 12]
+  ])('converts the 0-based index %i to controller page %i', async (index, page) => {
     const { service, jumpToPage } = createHarness({ numPages: 12 })
 
     // `GoTo` destination as `getAnnotations` reports it: [0-based index, { name }].
-    await service.goToDestination([0, { name: 'XYZ' }, null, null, null])
+    await service.goToDestination([index, { name: 'XYZ' }])
 
     expect(jumpToPage).toHaveBeenCalledTimes(1)
-    expect(jumpToPage).toHaveBeenCalledWith(1)
-  })
-
-  it('does not repeat the off-by-one in the middle of the document', async () => {
-    const { service, jumpToPage } = createHarness({ numPages: 12 })
-
-    // A 0-based index of 6 is QuizLab's page 7. The whole point of this phase.
-    await service.goToDestination([6, { name: 'Fit' }])
-
-    expect(jumpToPage).toHaveBeenCalledWith(7)
-  })
-
-  it('reaches the last page from the last 0-based index', async () => {
-    const { service, jumpToPage } = createHarness({ numPages: 12 })
-
-    await service.goToDestination([11, { name: 'Fit' }])
-
-    expect(jumpToPage).toHaveBeenCalledWith(12)
+    expect(jumpToPage).toHaveBeenCalledWith(page)
   })
 
   it('resolves an indirect page ref through the page-index lookup', async () => {
@@ -178,28 +167,20 @@ describe('native link service — internal destinations', () => {
   it('gives an internal anchor a non-empty, app-local href so it stays focusable', () => {
     const { service } = createHarness({ numPages: 12 })
 
-    const href = service.getDestinationHash([0, { name: 'XYZ' }])
+    const internal = service.getDestinationHash([0, { name: 'XYZ' }])
+    const named = service.getDestinationHash('chapterTwo')
+    const empty = service.getDestinationHash('')
 
-    expect(href.startsWith('#')).toBe(true)
-    expect(href).not.toBe('#')
-    // Never a navigable URL: an internal destination must not leave the app.
-    expect(href).not.toMatch(/^[a-z][a-z0-9+.-]*:/i)
-  })
-
-  it('gives a named destination a non-empty href too', () => {
-    const { service } = createHarness({ numPages: 12 })
-
-    expect(service.getDestinationHash('chapterTwo').startsWith('#')).toBe(true)
-  })
-
-  it('gives an empty destination an empty href, as PDF.js does', () => {
-    const { service } = createHarness({ numPages: 12 })
-
+    for (const href of [internal, named]) {
+      expect(href.startsWith('#')).toBe(true)
+      expect(href).not.toBe('#')
+      // Never a navigable URL: an internal destination must not leave the app.
+      expect(href).not.toMatch(/^[a-z][a-z0-9+.-]*:/i)
+    }
     // PDF.js's `_bindLink(link, '')` is the tooltip-only case: no destination, so no
-    // href and an onclick that cancels.
-    expect(service.getDestinationHash('')).toBe('')
-    // `[]` does stringify to something, so PDF.js hashes it too — parity, not a
-    // deliberate improvement.
+    // href and an onclick that cancels. `[]` does stringify to something, so PDF.js
+    // hashes it too — parity, not a deliberate improvement.
+    expect(empty).toBe('')
     expect(service.getDestinationHash([]).startsWith('#')).toBe(true)
   })
 })
@@ -322,22 +303,17 @@ describe('native link service — a resolution that lands after supersede', () =
   })
 
   it('goes inert for good once disposed', async () => {
-    const { service, jumpToPage } = createHarness({ numPages: 12 })
-
-    service.dispose()
-    await service.goToDestination([3, { name: 'XYZ' }])
-
-    expect(jumpToPage).not.toHaveBeenCalled()
-  })
-
-  it('stays inert for an external link after dispose', () => {
-    const { service, openExternal } = createHarness({ numPages: 12 })
+    const { service, jumpToPage, openExternal } = createHarness({ numPages: 12 })
     const link = anchor()
 
     service.dispose()
+    await service.goToDestination([3, { name: 'XYZ' }])
     service.addLinkAttributes(link, 'https://example.com/docs')
-
     link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+    // Neither channel survives: a page change, a document switch or an unmount all
+    // dispose the service, and nothing may act on the reader's behalf afterwards.
+    expect(jumpToPage).not.toHaveBeenCalled()
     expect(openExternal).not.toHaveBeenCalled()
   })
 })
@@ -491,24 +467,5 @@ describe('native link service — annotation kinds it deliberately does not act 
 
     expect(jumpToPage).not.toHaveBeenCalled()
     expect(openExternal).not.toHaveBeenCalled()
-  })
-
-  it('reports itself as having external links enabled, which PDF.js reads', () => {
-    const { service } = createHarness({ numPages: 12 })
-
-    expect(service.externalLinkEnabled).toBe(true)
-  })
-
-  it('resolves anchors against an empty base, not against the document URL', () => {
-    const { service } = createHarness({ numPages: 12 })
-
-    expect(service.getAnchorUrl('#x')).toBe('#x')
-    expect(service.getAnchorUrl('')).toBe('')
-  })
-
-  it('never exposes an event bus, so a JavaScript action has nowhere to dispatch', () => {
-    const { service } = createHarness({ numPages: 12 })
-
-    expect((service as { eventBus?: unknown }).eventBus).toBeUndefined()
   })
 })

@@ -7,8 +7,7 @@ import {
   useAppVersion,
   useCacheInfo,
   useClearCache,
-  useDeepCleanCache,
-  useOpenExternal
+  useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -104,9 +103,8 @@ describe('useSettingsSystemApi', () => {
     expect(result.current.data).toEqual({ size: 1024, entries: 10 })
   })
 
-  it('useOpenExternal should open the given URL', async () => {
-    const { result } = renderHook(() => useOpenExternal(), { wrapper })
-    await result.current.mutateAsync('https://example.com')
-    expect(mockElectronApi.openExternal).toHaveBeenCalledWith('https://example.com')
-  })
+  // `useOpenExternal` is deliberately NOT tested here: this module re-exports the
+  // one implementation from `useSystemApi` (see its source), which is already
+  // covered by useSystemApi.test.tsx. Re-testing a re-export would only pin the
+  // re-export itself.
 })

@@ -14,7 +14,13 @@ const safeStorageMocks = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   safeStorage: {
     isEncryptionAvailable: safeStorageMocks.isEncryptionAvailable,
-    getSelectedStorageBackend: safeStorageMocks.getSelectedStorageBackend
+    // A getter, not a captured reference: the "backend API is absent" case is
+    // expressed by deleting the property from the hoisted object, and a plain
+    // value copy would keep serving the original probe and never reach the
+    // `typeof probe !== 'function'` branch in sessionEncryptionCapability.ts.
+    get getSelectedStorageBackend() {
+      return safeStorageMocks.getSelectedStorageBackend
+    }
   }
 }))
 
@@ -30,24 +36,23 @@ describe('gemini-web-session/sessionEncryptionCapability', () => {
     }
   })
 
-  it('reports available on a real Linux keystore', () => {
-    const capability = getEncryptionCapability()
-    expect(capability).toEqual({ available: true, backend: 'gnome_libsecret' })
-  })
-
-  it('reports available for kwallet', () => {
-    safeStorageMocks.getSelectedStorageBackend.mockReturnValue('kwallet5')
-    expect(getEncryptionCapability().available).toBe(true)
-  })
-
-  it('reports available on Windows and macOS, which return no backend name', () => {
-    safeStorageMocks.getSelectedStorageBackend.mockReturnValue('')
-    expect(getEncryptionCapability()).toEqual({ available: true, backend: '' })
+  // Every backend except basic_text (and a probe that throws) is usable, so the
+  // five per-backend tests and the loop that re-tested them collapse into one
+  // table.
+  it.each([
+    ['gnome_libsecret', 'gnome_libsecret'],
+    ['kwallet5', 'kwallet5'],
+    ['kwallet6', 'kwallet6'],
+    ['gnome_libsecret_dbus', 'gnome_libsecret_dbus'],
+    ['an empty string (Windows/macOS report no backend name)', '']
+  ])('reports available for the %s backend', (_label, backend) => {
+    safeStorageMocks.getSelectedStorageBackend.mockReturnValue(backend)
+    expect(getEncryptionCapability()).toEqual({ available: true, backend })
   })
 
   it('reports available when the backend API is absent', () => {
     mocks.getSelectedStorageBackend = undefined
-    expect(getEncryptionCapability().available).toBe(true)
+    expect(getEncryptionCapability()).toEqual({ available: true, backend: '' })
   })
 
   it('rejects basic_text even though isEncryptionAvailable is true', () => {
@@ -79,13 +84,6 @@ describe('gemini-web-session/sessionEncryptionCapability', () => {
       reason: 'backend_unknown',
       backend: ''
     })
-  })
-
-  it('never returns a non-basic_text backend as unavailable', () => {
-    for (const backend of ['gnome_libsecret', 'kwallet5', 'kwallet6', 'gnome_libsecret_dbus', '']) {
-      safeStorageMocks.getSelectedStorageBackend.mockReturnValue(backend)
-      expect(getEncryptionCapability().available).toBe(true)
-    }
   })
 
   it('maps each refusal to a distinct error code', () => {

@@ -8,42 +8,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const originalNodeEnv = process.env.NODE_ENV
 
+// toErrorMessage has exactly three branches: an Error with a message, a
+// non-empty string, and the fallback. The nine former one-assertion-per-input
+// tests were one behaviour each for the same three outcomes.
 describe('toErrorMessage', () => {
-  it('should return message from Error instance', () => {
-    expect(toErrorMessage(new Error('test error'), 'fallback')).toBe('test error')
+  it.each([
+    ['an Error', new Error('test error'), 'test error'],
+    ['a TypeError', new TypeError('type error'), 'type error']
+  ])('returns the message of %s', (_label, error, expected) => {
+    expect(toErrorMessage(error, 'fallback')).toBe(expected)
   })
 
-  it('should return message from TypeError', () => {
-    expect(toErrorMessage(new TypeError('type error'), 'fallback')).toBe('type error')
-  })
-
-  it('should return string directly', () => {
+  it('returns a non-empty string directly', () => {
     expect(toErrorMessage('raw error', 'fallback')).toBe('raw error')
   })
 
-  it('should return fallback for empty string', () => {
-    expect(toErrorMessage('', 'fallback')).toBe('fallback')
-  })
-
-  it('should return fallback for null', () => {
-    expect(toErrorMessage(null, 'fallback')).toBe('fallback')
-  })
-
-  it('should return fallback for undefined', () => {
-    expect(toErrorMessage(undefined, 'fallback')).toBe('fallback')
-  })
-
-  it('should return fallback for number', () => {
-    expect(toErrorMessage(42, 'fallback')).toBe('fallback')
-  })
-
-  it('should return fallback for object', () => {
-    expect(toErrorMessage({ msg: 'err' }, 'fallback')).toBe('fallback')
-  })
-
-  it('should return fallback for Error with empty message', () => {
-    const err = new Error('')
-    expect(toErrorMessage(err, 'fallback')).toBe('fallback')
+  it.each([
+    ['an empty string', ''],
+    ['null', null],
+    ['undefined', undefined],
+    ['a number', 42],
+    ['a plain object', { msg: 'err' }],
+    ['an Error with an empty message', new Error('')]
+  ])('returns the fallback for %s', (_label, error) => {
+    expect(toErrorMessage(error, 'fallback')).toBe('fallback')
   })
 })
 
@@ -74,18 +62,12 @@ describe('logSuppressedError', () => {
     expect(last.message).toContain('test msg')
   })
 
-  it('records a fallback message for non-Error inputs', () => {
+  it.each([
+    ['a number', 42],
+    ['null', null]
+  ])('records a fallback message for %s', (_label, error) => {
     const lengthBefore = getRecentElectronLogs().length
-    logSuppressedError('ctx', 42)
-    const logs = getRecentElectronLogs()
-    const last = logs[logs.length - 1]
-    expect(logs.length).toBe(lengthBefore + 1)
-    expect(last?.message).toContain('unknown_error')
-  })
-
-  it('records a fallback message for null', () => {
-    const lengthBefore = getRecentElectronLogs().length
-    logSuppressedError('ctx', null)
+    logSuppressedError('ctx', error)
     const logs = getRecentElectronLogs()
     const last = logs[logs.length - 1]
     expect(logs.length).toBe(lengthBefore + 1)

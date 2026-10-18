@@ -45,21 +45,17 @@ describe('normalizePdfText', () => {
       expect(normalizePdfText('a\n\n\n\nb')).toBe('a\n\nb')
     })
 
-    it('preserves single newlines', () => {
+    it('preserves a single newline and a paragraph break alike', () => {
+      // Newlines are not whitespace to be squeezed: a line break and a paragraph
+      // break both carry the structure the author wrote.
       expect(normalizePdfText('a\nb\nc')).toBe('a\nb\nc')
-    })
-
-    it('preserves two consecutive newlines (paragraph break)', () => {
       expect(normalizePdfText('a\n\nb')).toBe('a\n\nb')
     })
   })
 
   describe('edge cases', () => {
-    it('returns empty string for empty input', () => {
+    it('returns empty string for empty or whitespace-only input', () => {
       expect(normalizePdfText('')).toBe('')
-    })
-
-    it('returns empty string for whitespace-only input', () => {
       expect(normalizePdfText('   ')).toBe('')
       expect(normalizePdfText('\n\n\n')).toBe('')
     })
@@ -69,10 +65,6 @@ describe('normalizePdfText', () => {
       // The exact behavior: tabs collapse, leading spaces on newlines are stripped,
       // but trailing space on the first line remains.
       expect(normalizePdfText('a \t\n\r\n  b')).toBe('a \n\nb')
-    })
-
-    it('preserves internal punctuation', () => {
-      expect(normalizePdfText('Hello, world! How are you?')).toBe('Hello, world! How are you?')
     })
 
     it('preserves Unicode characters', () => {

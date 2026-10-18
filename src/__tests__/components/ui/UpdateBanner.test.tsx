@@ -31,34 +31,34 @@ describe('UpdateBanner', () => {
     vi.clearAllMocks()
   })
 
-  it('renders when visible and update available', () => {
+  it('shows the released version and name', () => {
     render(<UpdateBanner {...defaultProps} />)
+
     expect(screen.getByText('update_available')).toBeInTheDocument()
     expect(screen.getByText('1.2.3')).toBeInTheDocument()
     expect(screen.getByText('Cool Update')).toBeInTheDocument()
   })
 
-  it('returns null if not visible', () => {
-    const { container } = render(<UpdateBanner {...defaultProps} isVisible={false} />)
+  it.each([
+    ['it is not visible', { isVisible: false }],
+    ['there is no update info', { updateInfo: null }]
+  ])('renders nothing when %s', (_label, props) => {
+    const { container } = render(<UpdateBanner {...defaultProps} {...props} />)
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('returns null if no update info', () => {
-    const { container } = render(<UpdateBanner {...defaultProps} updateInfo={null} />)
-    expect(container).toBeEmptyDOMElement()
-  })
+  it('calls onClose from either dismiss control', () => {
+    for (const trigger of [
+      () => screen.getByTestId('icon-close').closest('button')!,
+      () => screen.getByText('later')
+    ]) {
+      const onClose = vi.fn()
+      const { unmount } = render(<UpdateBanner {...defaultProps} onClose={onClose} />)
 
-  it('calls onClose when closed', () => {
-    render(<UpdateBanner {...defaultProps} />)
-    const closeBtn = screen.getByTestId('icon-close').closest('button')
-    fireEvent.click(closeBtn!)
-    expect(defaultProps.onClose).toHaveBeenCalled()
-  })
-
-  it('calls onClose when Later clicked', () => {
-    render(<UpdateBanner {...defaultProps} />)
-    fireEvent.click(screen.getByText('later'))
-    expect(defaultProps.onClose).toHaveBeenCalled()
+      fireEvent.click(trigger())
+      expect(onClose).toHaveBeenCalledTimes(1)
+      unmount()
+    }
   })
 
   it('opens the releases page, never the renderer, on download', async () => {

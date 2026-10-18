@@ -1,6 +1,6 @@
 import ScreenshotTool from '@features/screenshot/ui/ScreenshotTool'
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@shared/lib/logger', () => ({
@@ -34,11 +34,6 @@ describe('ScreenshotTool', () => {
       <ScreenshotTool isActive={false} onCapture={onCapture} onClose={onClose} />
     )
     expect(container).toBeEmptyDOMElement()
-  })
-
-  it('renders overlay when active', () => {
-    render(<ScreenshotTool isActive onCapture={onCapture} onClose={onClose} />)
-    expect(screen.getByText('cancel_with_esc')).toBeInTheDocument()
   })
 
   it('handles selection drag and capture', async () => {

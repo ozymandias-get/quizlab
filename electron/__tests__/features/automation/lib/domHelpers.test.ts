@@ -13,108 +13,81 @@ import {
 import { describe, expect, it } from 'vitest'
 
 describe('escapeCssStringValue', () => {
-  it('returns empty string for falsy values', () => {
-    expect(escapeCssStringValue('')).toBe('')
-    expect(escapeCssStringValue(null as never)).toBe('')
-    expect(escapeCssStringValue(undefined as never)).toBe('')
-  })
+  it('escapes backslashes and double quotes, and passes plain text through', () => {
+    const cases: Array<[unknown, string]> = [
+      ['', ''],
+      [null, ''],
+      [undefined, ''],
+      ['a\\b', 'a\\\\b'],
+      ['a"b', 'a\\"b'],
+      ['\\"hello\\"', '\\\\\\"hello\\\\\\"'],
+      // Kaçış gerekmediğinde metin olduğu gibi döner.
+      ['hello-world', 'hello-world']
+    ]
 
-  it('escapes backslashes', () => {
-    expect(escapeCssStringValue('a\\b')).toBe('a\\\\b')
-  })
-
-  it('escapes double quotes', () => {
-    expect(escapeCssStringValue('a"b')).toBe('a\\"b')
-  })
-
-  it('escapes both backslashes and double quotes', () => {
-    expect(escapeCssStringValue('\\"hello\\"')).toBe('\\\\\\"hello\\\\\\"')
-  })
-
-  it('returns the same string when no escaping is needed', () => {
-    expect(escapeCssStringValue('hello-world')).toBe('hello-world')
+    for (const [input, expected] of cases) {
+      expect(escapeCssStringValue(input as never), `escapeCssStringValue(${String(input)})`).toBe(
+        expected
+      )
+    }
   })
 })
 
 describe('isElementContentEditable', () => {
-  it('returns true for HTMLElement with contenteditable attribute', () => {
-    const el = document.createElement('div')
-    el.setAttribute('contenteditable', 'true')
-    expect(isElementContentEditable(el)).toBe(true)
-  })
+  it('follows the contenteditable attribute and stays false for non-HTMLElements', () => {
+    const editable = document.createElement('div')
+    editable.setAttribute('contenteditable', 'true')
+    expect(isElementContentEditable(editable)).toBe(true)
 
-  it('returns false for HTMLElement without contentEditable', () => {
-    const el = document.createElement('div')
-    expect(isElementContentEditable(el)).toBe(false)
-  })
+    const plain = document.createElement('div')
+    expect(isElementContentEditable(plain)).toBe(false)
 
-  it('returns true when contenteditable attribute is "true"', () => {
-    const el = document.createElement('div')
-    el.setAttribute('contenteditable', 'true')
-    expect(isElementContentEditable(el)).toBe(true)
-  })
-
-  it('returns false for non-HTMLElements without isContentEditable', () => {
-    const el = document.createElement('div') as unknown as SVGElement
-    expect(isElementContentEditable(el as unknown as Element)).toBe(false)
+    const cast = document.createElement('div') as unknown as SVGElement
+    expect(isElementContentEditable(cast as unknown as Element)).toBe(false)
   })
 })
 
 describe('inferSendLikeControl', () => {
-  it('returns true when aria-label contains "send"', () => {
-    const el = document.createElement('button')
-    el.setAttribute('aria-label', 'Send message')
-    expect(inferSendLikeControl(el)).toBe(true)
-  })
+  it('matches send-like aria-label / data-testid / className only', () => {
+    const withAriaLabel = document.createElement('button')
+    withAriaLabel.setAttribute('aria-label', 'Send message')
+    expect(inferSendLikeControl(withAriaLabel)).toBe(true)
 
-  it('returns true when data-testid contains "send"', () => {
-    const el = document.createElement('button')
-    el.setAttribute('data-testid', 'send-button')
-    expect(inferSendLikeControl(el)).toBe(true)
-  })
+    const withTestId = document.createElement('button')
+    withTestId.setAttribute('data-testid', 'send-button')
+    expect(inferSendLikeControl(withTestId)).toBe(true)
 
-  it('returns true when className contains "send"', () => {
-    const el = document.createElement('button')
-    el.className = 'send-message-btn'
-    expect(inferSendLikeControl(el)).toBe(true)
-  })
+    const withClass = document.createElement('button')
+    withClass.className = 'send-message-btn'
+    expect(inferSendLikeControl(withClass)).toBe(true)
 
-  it('returns false for a generic element', () => {
-    const el = document.createElement('div')
-    expect(inferSendLikeControl(el)).toBe(false)
+    expect(inferSendLikeControl(document.createElement('div'))).toBe(false)
   })
 })
 
 describe('getElementInfo', () => {
-  it('returns high-confidence button info for a send-like control', () => {
-    const el = document.createElement('button')
-    el.setAttribute('aria-label', 'Send')
-    const info = getElementInfo(el as unknown as PickerElement)
-    expect(info.category).toBe('button')
-    expect(info.confidence).toBe('high')
-    expect(info.labelEN).toBe('Send Button')
-  })
+  it('classifies buttons, text inputs and spans with their confidence', () => {
+    const sendLike = document.createElement('button')
+    sendLike.setAttribute('aria-label', 'Send')
+    const sendInfo = getElementInfo(sendLike as unknown as PickerElement)
+    expect(sendInfo.category).toBe('button')
+    expect(sendInfo.confidence).toBe('high')
+    expect(sendInfo.labelEN).toBe('Send Button')
 
-  it('returns input info for input[type="text"]', () => {
-    const el = document.createElement('input')
-    el.setAttribute('type', 'text')
-    const info = getElementInfo(el as unknown as PickerElement)
-    expect(info.category).toBe('input')
-    expect(info.confidence).toBe('high')
-  })
+    const plainButton = document.createElement('button')
+    const buttonInfo = getElementInfo(plainButton as unknown as PickerElement)
+    expect(buttonInfo.category).toBe('button')
+    expect(buttonInfo.confidence).toBe('high')
 
-  it('returns button info for a <button> element', () => {
-    const el = document.createElement('button')
-    const info = getElementInfo(el as unknown as PickerElement)
-    expect(info.category).toBe('button')
-    expect(info.confidence).toBe('high')
-  })
+    const textInput = document.createElement('input')
+    textInput.setAttribute('type', 'text')
+    const inputInfo = getElementInfo(textInput as unknown as PickerElement)
+    expect(inputInfo.category).toBe('input')
+    expect(inputInfo.confidence).toBe('high')
 
-  it('returns text info for a <span> element', () => {
-    const el = document.createElement('span')
-    const info = getElementInfo(el as unknown as PickerElement)
-    expect(info.category).toBe('text')
-    expect(info.confidence).toBe('low')
+    const spanInfo = getElementInfo(document.createElement('span') as unknown as PickerElement)
+    expect(spanInfo.category).toBe('text')
+    expect(spanInfo.confidence).toBe('low')
   })
 })
 

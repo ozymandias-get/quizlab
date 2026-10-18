@@ -7,16 +7,21 @@
  * faked, so "the spans PDF.js writes are the spans QuizLab reads" is the claim
  * under test rather than an assumption.
  *
- * The behaviours pinned here are the ones a renderer swap silently breaks:
+ * The behaviours pinned here are the ones a renderer swap silently breaks, and the
+ * ones the hook cannot be tested for on its own:
  *
- *  - a selection on the text layer is accepted; one outside it is not
- *  - the out-of-container bail-out, the detached-anchor guard and the collapsed
- *    case behave exactly as the legacy path does
- *  - `selectionchange` still coalesces into one rAF update per frame
- *  - the 150 ms scroll freeze still suppresses selection work
- *  - `pdf-selection-active` is added only when there is both text and a position
+ *  - a selection inside the viewer that is not on the text layer is rejected — the
+ *    container-level guard cannot catch it, so the text layer has to be addressable
  *  - pan mode / blocked interaction suppress the whole listener set
  *  - reading order for two columns comes from geometry, not DOM order
+ *  - extraction reports the characters the range actually covers, not whole runs
+ *
+ * The generic selection lifecycle — coalescing, the scroll freeze, the
+ * `pdf-selection-active` toggle, the detached-anchor guard, listener teardown — is
+ * not repeated here. It is hook behaviour, independent of which renderer mounts the
+ * layer, and `text/usePdfTextActions.test.tsx` exercises it directly against the
+ * hook without a viewer harness. Only the native-specific cases above belong in this
+ * file.
  */
 import {
   type FakeDocument,
@@ -26,10 +31,8 @@ import {
 } from './nativeViewerHarness'
 
 import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
-import { usePdfTextActions } from '@features/pdf/text/usePdfTextActions'
 
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
-import type { RefObject } from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -174,10 +177,6 @@ function panelOf(): HTMLElement {
   return screen.getByTestId('native-container')
 }
 
-function textRunOf(container: HTMLElement, index = 0): Node {
-  return container.querySelectorAll('span[role="presentation"]')[index].firstChild as Node
-}
-
 /** Drive a full press-drag-release over the viewer, as the browser would. */
 function selectInside(container: HTMLElement, selection: Selection): void {
   vi.spyOn(window, 'getSelection').mockReturnValue(selection)
@@ -257,49 +256,6 @@ afterEach(() => {
 })
 
 describe('native text layer — selection scope', () => {
-  it('accepts a selection that lands on the text layer', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const node = textRunOf(container, 1)
-
-    selectInside(
-      container,
-      makeSelection({
-        text: 'quick',
-        anchorNode: node,
-        focusNode: node,
-        commonAncestor: node,
-        rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
-      })
-    )
-
-    expect(onTextSelection).toHaveBeenCalledTimes(1)
-    expect(onTextSelection.mock.calls[0][0]).toBe('quick')
-    expect(onTextSelection.mock.calls[0][1]).not.toBeNull()
-    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(true)
-  })
-
-  it('ignores a selection made elsewhere in the app', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const elsewhere = document.createElement('div')
-    elsewhere.textContent = 'unrelated AI panel text'
-    document.body.appendChild(elsewhere)
-
-    selectInside(
-      container,
-      makeSelection({
-        text: 'unrelated AI panel text',
-        anchorNode: elsewhere.firstChild,
-        focusNode: elsewhere.firstChild,
-        commonAncestor: elsewhere.firstChild,
-        rect: makeRect({ left: 900, top: 500, right: 1000, bottom: 520, width: 100, height: 20 })
-      })
-    )
-
-    expect(onTextSelection).toHaveBeenCalledWith('', null)
-    expect(onTextSelection).not.toHaveBeenCalledWith('unrelated AI panel text', expect.anything())
-    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
-  })
-
   it('ignores a selection inside the viewer that is not the text layer', async () => {
     // The canvas is inside the panel, so the container-level guard cannot reject
     // it. On the native path the text layer is addressable, so the selection has
@@ -322,182 +278,6 @@ describe('native text layer — selection scope', () => {
     expect(onTextSelection).toHaveBeenCalledWith('', null)
     expect(onTextSelection).not.toHaveBeenCalledWith('canvas chrome', expect.anything())
     expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
-  })
-
-  it('skips a detached anchor without clearing the live pill', async () => {
-    // The Phase 2 guard: `container.contains(anchor)` is still true inside a
-    // detached subtree, so this is *not* the out-of-container bail-out — it is a
-    // page transition that tore the layer down while the browser kept the
-    // selection. It must be skipped silently, leaving the live pill alone.
-    //
-    // Built by hand rather than through the harness, because the scenario needs
-    // the container itself to be disconnected from the document.
-    const container = document.createElement('div')
-    const pageBox = document.createElement('div')
-    pageBox.setAttribute('data-native-pdf-page', '1')
-    const textLayer = document.createElement('div')
-    textLayer.setAttribute('data-native-pdf-text-layer', '')
-    textLayer.setAttribute('data-native-pdf-text-page', '1')
-    const span = document.createElement('span')
-    span.setAttribute('role', 'presentation')
-    span.textContent = 'quick'
-    textLayer.appendChild(span)
-    pageBox.appendChild(textLayer)
-    container.appendChild(pageBox)
-    document.body.appendChild(container)
-
-    const onTextSelection = vi.fn()
-    const containerRef = { current: container } as RefObject<HTMLElement | null>
-    const rendered = renderHook(() =>
-      usePdfTextActions({
-        containerRef,
-        currentPage: 1,
-        onTextSelection,
-        textSelectionEnabled: true
-      })
-    )
-
-    const node = span.firstChild as Node
-    vi.spyOn(window, 'getSelection').mockReturnValue(
-      makeSelection({
-        text: '',
-        isCollapsed: false,
-        anchorNode: node,
-        focusNode: node,
-        commonAncestor: node
-      })
-    )
-
-    container.remove()
-
-    expect(() => {
-      act(() => {
-        document.dispatchEvent(new Event('selectionchange'))
-      })
-    }).not.toThrow()
-
-    expect(onTextSelection).not.toHaveBeenCalled()
-    expect(pendingFrames.size).toBe(0)
-    rendered.unmount()
-  })
-
-  it('clears the pill on a collapsed selection', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const node = textRunOf(container, 1)
-
-    selectInside(
-      container,
-      makeSelection({
-        text: 'quick',
-        anchorNode: node,
-        focusNode: node,
-        commonAncestor: node,
-        rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
-      })
-    )
-    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(true)
-
-    vi.spyOn(window, 'getSelection').mockReturnValue(
-      makeSelection({ text: '', isCollapsed: true, anchorNode: null, rangeCount: 0 })
-    )
-    act(() => {
-      document.dispatchEvent(new Event('selectionchange'))
-    })
-
-    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
-    expect(onTextSelection).toHaveBeenLastCalledWith('', null)
-  })
-})
-
-/* --------------------------------------------------- selection lifecycle */
-
-describe('native text layer — selection lifecycle', () => {
-  it('coalesces several same-frame events into one update', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const node = textRunOf(container, 1)
-    vi.spyOn(window, 'getSelection').mockReturnValue(
-      makeSelection({
-        text: 'quick brown',
-        anchorNode: node,
-        focusNode: node,
-        commonAncestor: node,
-        rect: makeRect({ left: 100, top: 100, right: 300, bottom: 120, width: 200, height: 20 })
-      })
-    )
-
-    act(() => {
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-    })
-    expect(pendingFrames.size).toBe(1)
-
-    act(flushFrames)
-    expect(onTextSelection).toHaveBeenCalledTimes(1)
-    expect(onTextSelection).toHaveBeenCalledWith('quick brown', expect.anything())
-  })
-
-  it('suppresses selection work during the 150 ms scroll freeze and resumes after', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const node = textRunOf(container, 1)
-    const selection = makeSelection({
-      text: 'quick',
-      anchorNode: node,
-      focusNode: node,
-      commonAncestor: node,
-      rect: makeRect({ left: 100, top: 100, right: 200, bottom: 120, width: 100, height: 20 })
-    })
-    vi.spyOn(window, 'getSelection').mockReturnValue(selection)
-
-    act(() => {
-      container.dispatchEvent(new Event('scroll'))
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new Event('selectionchange'))
-    })
-
-    expect(pendingFrames.size).toBe(0)
-    expect(onTextSelection).not.toHaveBeenCalled()
-
-    // The freeze is time-based, not frame-based: advance past 150 ms and the next
-    // press resolves normally.
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 160))
-    })
-    selectInside(container, selection)
-    expect(onTextSelection).toHaveBeenCalledWith('quick', expect.anything())
-  })
-
-  it('adds pdf-selection-active only when text and a position were produced', async () => {
-    const { container, onTextSelection } = await mountSelection()
-    const node = textRunOf(container, 1)
-    // A zero-area range yields no pill position, so the class must stay off.
-    selectInside(
-      container,
-      makeSelection({
-        text: 'quick',
-        anchorNode: node,
-        focusNode: node,
-        commonAncestor: node,
-        rect: makeRect({ width: 0, height: 0 })
-      })
-    )
-
-    expect(onTextSelection).toHaveBeenCalledWith('', null)
-    expect(container.classList.contains(SELECTION_ACTIVE_CLASS)).toBe(false)
-  })
-
-  it('removes every document listener on unmount', async () => {
-    const { unmount } = await mountSelection()
-    const removeSpy = vi.spyOn(document, 'removeEventListener')
-
-    unmount()
-
-    const removed = removeSpy.mock.calls.map(([type]) => type)
-    expect(removed).toContain('pointerdown')
-    expect(removed).toContain('pointerup')
-    expect(removed).toContain('selectionchange')
   })
 })
 

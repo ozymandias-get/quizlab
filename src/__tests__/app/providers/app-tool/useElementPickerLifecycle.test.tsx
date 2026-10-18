@@ -92,51 +92,35 @@ describe('useElementPickerLifecycle', () => {
     })
   })
 
-  it('waits for did-stop-loading instead of polling readyState in a loop', async () => {
-    const controller = createController({
-      executeJavaScript: vi.fn().mockResolvedValue('loading')
-    })
+  // Catch-up hâlâ 'loading' derken hazır olma iki olaydan gelir ve ikisi de
+  // aynı davranışı gösterir: olay gelene kadar picker başlamaz, gelir gelmez
+  // bir kez başlar.
+  it.each(['did-stop-loading', 'dom-ready'] as const)(
+    'waits for %s instead of polling readyState in a loop',
+    async (event) => {
+      const controller = createController({
+        executeJavaScript: vi.fn().mockResolvedValue('loading')
+      })
 
-    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
+      const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
 
-    await act(async () => {
-      result.current.startPickerWhenReady()
-    })
+      await act(async () => {
+        result.current.startPickerWhenReady()
+      })
 
-    await act(async () => {
-      await Promise.resolve()
-    })
+      await act(async () => {
+        await Promise.resolve()
+      })
 
-    expect(mockStartPicker).not.toHaveBeenCalled()
+      expect(mockStartPicker).not.toHaveBeenCalled()
 
-    await act(async () => {
-      controller._trigger('did-stop-loading')
-    })
+      await act(async () => {
+        controller._trigger(event)
+      })
 
-    expect(mockStartPicker).toHaveBeenCalledTimes(1)
-  })
-
-  it('fulfills on dom-ready when catch-up is still loading', async () => {
-    const controller = createController({
-      executeJavaScript: vi.fn().mockResolvedValue('loading')
-    })
-
-    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
-
-    await act(async () => {
-      result.current.startPickerWhenReady()
-    })
-
-    await act(async () => {
-      await Promise.resolve()
-    })
-
-    await act(async () => {
-      controller._trigger('dom-ready')
-    })
-
-    expect(mockStartPicker).toHaveBeenCalledTimes(1)
-  })
+      expect(mockStartPicker).toHaveBeenCalledTimes(1)
+    }
+  )
 
   it('does not start picker on a previous content after the active instance changes', async () => {
     const controllerA = createController({
@@ -228,25 +212,6 @@ describe('useElementPickerLifecycle', () => {
     unmount()
 
     expect(controller._unsubscribeCount()).toBeLessThan(before)
-  })
-
-  it('calls startPicker at most once per successful readiness', async () => {
-    const controller = createController({
-      executeJavaScript: vi.fn().mockResolvedValue('complete')
-    })
-
-    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
-
-    await act(async () => {
-      result.current.startPickerWhenReady()
-    })
-
-    await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(mockStartPicker).toHaveBeenCalledTimes(1)
   })
 
   it('cancels the pending request when the managed view reports it is gone', async () => {

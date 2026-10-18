@@ -232,7 +232,12 @@ describe('native page layout — the layers move as one', () => {
 })
 
 describe('native page layout — centering is not a state transition', () => {
-  it('keeps the centering declaration across a zoom step and a page change', async () => {
+  it('brings the centering declaration back after a page swap', async () => {
+    // Centering is a declaration on the page wrapper, not something re-derived per
+    // render, so there is nothing to flicker and no intermediate state in which the
+    // page is neither centered nor scrollable. Zoom out and zoom past the viewport:
+    // both are the *same* declaration resolving differently. Only the page swap
+    // replaces the box, so it is the only case that can lose the contract.
     const control: {
       current: { zoomTo: (scale: number) => void; goToNextPage: () => void } | null
     } = { current: null }
@@ -242,22 +247,15 @@ describe('native page layout — centering is not a state transition', () => {
     })
 
     const pageOf = () => container.querySelector<HTMLElement>('[data-native-pdf-page]')
-    expect(classListOf(pageOf())).toContain('m-auto')
 
-    // Zoom out: the page gets shorter, so it becomes a "centered" page. The declaration
-    // is unchanged — only the canvas size moved — so there is nothing to flicker and no
-    // intermediate render in which the page is neither centered nor scrollable.
     act(() => control.current?.zoomTo(0.5))
     flushFrames()
     expect(classListOf(pageOf())).toContain('m-auto')
 
-    // Zoom in past the viewport: now the overflow case. The same declaration resolves
-    // to a zero start margin, which is what keeps the top edge reachable.
     act(() => control.current?.zoomTo(4))
     flushFrames()
     expect(classListOf(pageOf())).toContain('m-auto')
 
-    // A page swap replaces the page box; the contract has to come back with it.
     act(() => control.current?.goToNextPage())
     flushFrames()
     const nextPage = pageOf()

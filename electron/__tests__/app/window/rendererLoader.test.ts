@@ -66,7 +66,9 @@ describe('window/rendererLoader', () => {
 
     await module.loadRenderer(window)
 
-    expect(showErrorBox).toHaveBeenCalled()
+    // Not a bare toHaveBeenCalled(): the box must name the missing index file,
+    // otherwise a crash on any unrelated path would satisfy this test.
+    expect(showErrorBox).toHaveBeenCalledWith('Load Error', expect.stringContaining('index.html'))
   })
 
   it('installs the CSP header rewrite only once per session', async () => {

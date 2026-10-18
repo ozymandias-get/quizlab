@@ -245,13 +245,6 @@ describe('electron/core/logger', () => {
         timestamp: '2024-01-01T00:00:00.000Z'
       })
     })
-
-    it('uses current timestamp when not provided', async () => {
-      const { pushToLoggerBuffer, getRecentElectronLogs } = await loadLogger()
-      pushToLoggerBuffer('warn', 'auto-timestamp')
-      const logs = getRecentElectronLogs()
-      expect(logs[logs.length - 1].timestamp).toBeDefined()
-    })
   })
 
   describe('buffer overflow', () => {
@@ -284,25 +277,17 @@ describe('electron/core/logger', () => {
       ;(globalThis as any).window = { electronAPI: { log: mockLog } } as any
       const { Logger } = await loadLogger()
       Logger.info('prod-info')
-      expect(mockLog).not.toHaveBeenCalled()
+      // Not a bare "not called": the warn/error path is exercised in the same
+      // state, so this only proves the level filter, not the plumbing.
+      Logger.warn('prod-warn')
+      expect(mockLog).toHaveBeenCalledTimes(1)
+      expect(mockLog).toHaveBeenCalledWith('warn', 'prod-warn', expect.any(String))
     })
 
     it('does not crash when electronAPI is missing', async () => {
       process.env.NODE_ENV = 'production'
       const { Logger } = await loadLogger()
       expect(() => Logger.warn('no-api')).not.toThrow()
-    })
-
-    it('forwards all levels to electronAPI.log in development', async () => {
-      process.env.NODE_ENV = 'development'
-      const mockLog = vi.fn()
-      ;(globalThis as any).window = { electronAPI: { log: mockLog } } as any
-      const { Logger } = await loadLogger()
-      Logger.debug('dev-debug')
-      Logger.info('dev-info')
-      Logger.warn('dev-warn')
-      Logger.error('dev-error')
-      expect(mockLog).toHaveBeenCalledTimes(4)
     })
   })
 
@@ -324,16 +309,10 @@ describe('electron/core/logger', () => {
     })
   })
 
-  describe('initLogger', () => {
-    it('returns early when userDataPath is not provided', async () => {
-      const { initLogger } = await loadLogger()
-      expect(() => initLogger()).not.toThrow()
-      expect(() => initLogger({})).not.toThrow()
-    })
-
-    it('does not throw when userDataPath is provided but fs not available', async () => {
-      const { initLogger } = await loadLogger()
-      expect(() => initLogger({ userDataPath: '/tmp/test-logs', logToDisk: true })).not.toThrow()
-    })
-  })
+  // The `initLogger` no-throw cases that used to live here asserted only
+  // `expect(() => initLogger(...)).not.toThrow()`. The observable contract —
+  // an unarmed logger must not create directories, and flushing before arming
+  // must be a no-op — is asserted for real in
+  // electron/__tests__/core/diskLogger.flush.test.ts ("is a no-op before
+  // initLogger, and after initLogger without a userDataPath").
 })

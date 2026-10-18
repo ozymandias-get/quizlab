@@ -61,46 +61,27 @@ describe('usePdfShortcuts', () => {
     expect(onSelectPdf).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the PDF search when Ctrl+F is pressed with an active PDF', () => {
+  it.each([
+    ['Ctrl+F', false, { key: 'f', ctrlKey: true }],
+    ['Cmd+F on macOS', true, { key: 'f', metaKey: true }]
+  ])('opens the PDF search on %s when a PDF tab is active', (_label, isMac, init) => {
     seedActivePdfTab(pdfFile)
-    renderHook(() => usePdfShortcuts({}))
+    renderHook(() => usePdfShortcuts({ isMac }))
 
-    const event = dispatchKeyDown({ key: 'f', ctrlKey: true })
+    const event = dispatchKeyDown(init)
 
     expect(usePdfSearchStore.getState().isOpen).toBe(true)
     expect(event.defaultPrevented).toBe(true)
   })
 
-  it('opens the PDF search for Cmd+F on macOS with an active PDF', () => {
-    seedActivePdfTab(pdfFile)
-    renderHook(() => usePdfShortcuts({ isMac: true }))
-
-    dispatchKeyDown({ key: 'f', metaKey: true })
-
-    expect(usePdfSearchStore.getState().isOpen).toBe(true)
-  })
-
-  it('does nothing for Ctrl+F without an active PDF and does not preventDefault', () => {
-    renderHook(() => usePdfShortcuts({}))
-
-    const event = dispatchKeyDown({ key: 'f', ctrlKey: true })
-
-    expect(usePdfSearchStore.getState().isOpen).toBe(false)
-    expect(event.defaultPrevented).toBe(false)
-  })
-
-  it('does nothing for Ctrl+F when the active tab is a drive tab', () => {
-    seedActivePdfTab(null, 'drive')
-    renderHook(() => usePdfShortcuts({}))
-
-    const event = dispatchKeyDown({ key: 'f', ctrlKey: true })
-
-    expect(usePdfSearchStore.getState().isOpen).toBe(false)
-    expect(event.defaultPrevented).toBe(false)
-  })
-
-  it('does nothing for Ctrl+F when the active pdf tab has no file loaded', () => {
-    seedActivePdfTab(null, 'pdf')
+  // All three are "there is no PDF to search": the reader gets the browser's own
+  // find, and this hook leaves the keystroke alone.
+  it.each([
+    ['no active tab', () => {}],
+    ['the active tab is a drive tab', () => seedActivePdfTab(null, 'drive')],
+    ['the active pdf tab has no file loaded', () => seedActivePdfTab(null, 'pdf')]
+  ])('does nothing for Ctrl+F with %s', (_label, seed) => {
+    seed()
     renderHook(() => usePdfShortcuts({}))
 
     const event = dispatchKeyDown({ key: 'f', ctrlKey: true })

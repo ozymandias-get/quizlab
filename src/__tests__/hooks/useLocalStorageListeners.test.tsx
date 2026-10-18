@@ -33,10 +33,11 @@ describe('useLocalStorage listener lifecycle', () => {
     return { added, removed }
   }
 
-  it('does not re-register storage listeners across re-renders', () => {
-    const { result, rerender } = renderHook(() =>
-      useLocalStorage<boolean>('quizlab_test_listen', false)
-    )
+  it.each([
+    ['useLocalStorage', () => useLocalStorage<boolean>('quizlab_test_listen', false)],
+    ['useLocalStorageBoolean', () => useLocalStorageBoolean('quizlab_test_bool', false)]
+  ])('%s does not re-register storage listeners across re-renders', (_name, useHook) => {
+    const { result, rerender } = renderHook(() => useHook())
 
     expect(syncListenerOps().added).toBe(2)
 
@@ -49,18 +50,11 @@ describe('useLocalStorage listener lifecycle', () => {
     act(() => {
       result.current[1](true)
     })
-    expect(localStorage.getItem('quizlab_test_listen')).toBe('true')
-  })
-
-  it('does not re-register storage listeners for the boolean variant', () => {
-    const { rerender } = renderHook(() => useLocalStorageBoolean('quizlab_test_bool', false))
-
-    expect(syncListenerOps().added).toBe(2)
-
-    for (let i = 0; i < 10; i++) rerender()
-
-    expect(syncListenerOps().added).toBe(2)
-    expect(syncListenerOps().removed).toBe(0)
+    expect(
+      localStorage.getItem(
+        _name === 'useLocalStorage' ? 'quizlab_test_listen' : 'quizlab_test_bool'
+      )
+    ).toBe('true')
   })
 
   it('keeps a stable setter identity across re-renders', () => {

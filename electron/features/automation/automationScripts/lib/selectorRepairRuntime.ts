@@ -7,9 +7,10 @@
  * names and candidate CSS strings travel back over IPC.
  *
  * The decision policy itself lives in `shared/selectorRepair.ts` (cross-process,
- * unit-tested). The constants below are the runtime mirror of it, and
- * `electron/__tests__/features/automation/selectorRepairRuntime.test.ts`
- * contains a parity test that keeps the two in sync.
+ * unit-tested). Its scoring constants (`REPAIR_SCORE_BONUS_*`,
+ * `MIN_AUTO_REPAIR_SCORE_GAP`) are imported from that module and interpolated
+ * into the script below, so they have one source of truth instead of a local
+ * copy that could silently drift.
  *
  * Responsibilities:
  *   1. Decide whether a resolution counts as a *recovery* (saved selector stale).
@@ -20,6 +21,7 @@
  *   4. Mark a recovery as *used* only after the real pipeline step succeeded.
  */
 import {
+  MIN_AUTO_REPAIR_SCORE_GAP,
   REPAIR_SCORE_BONUS_INTERACTIVE,
   REPAIR_SCORE_BONUS_MAX,
   REPAIR_SCORE_BONUS_STABLE_SELECTOR
@@ -28,9 +30,6 @@ import { buildInjectedStableSelectorHelper } from '../../lib/injectedPickerDom.j
 
 /** Mirrors `SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD` in shared/selectorRepair.ts. */
 const PROMOTION_SUCCESS_THRESHOLD = 3
-
-/** Mirrors `MIN_AUTO_REPAIR_SCORE_GAP` in shared/selectorRepair.ts. */
-const MIN_AUTO_REPAIR_SCORE_GAP = 15
 
 /**
  * Button auto-repair is strictly more conservative than input auto-repair:
@@ -329,11 +328,3 @@ export const selectorRepairRuntime =
         return null;
     };
 ` + buildInjectedStableSelectorHelper()
-
-/** Exposed for the parity test; mirrors the injected `REPAIR_*` constants. */
-export const selectorRepairRuntimeConstants = {
-  PROMOTION_SUCCESS_THRESHOLD,
-  MIN_AUTO_REPAIR_SCORE_GAP,
-  BUTTON_MIN_SELECTOR_PRIORITY,
-  INPUT_MIN_SELECTOR_PRIORITY
-} as const

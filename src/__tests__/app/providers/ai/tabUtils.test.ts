@@ -12,181 +12,118 @@ import {
 import { describe, expect, it } from 'vitest'
 
 describe('normalizeTitle', () => {
-  it('returns undefined for undefined', () => {
-    expect(normalizeTitle(undefined)).toBeUndefined()
+  it.each([undefined, '', '   '])('returns undefined for the blank input %j', (input) => {
+    expect(normalizeTitle(input)).toBeUndefined()
   })
 
-  it('returns undefined for empty string', () => {
-    expect(normalizeTitle('')).toBeUndefined()
-  })
-
-  it('returns undefined for whitespace-only string', () => {
-    expect(normalizeTitle('   ')).toBeUndefined()
-  })
-
-  it('trims surrounding whitespace', () => {
-    expect(normalizeTitle('  Hello  ')).toBe('Hello')
-  })
-
-  it('keeps internal whitespace', () => {
-    expect(normalizeTitle('  Hello   World  ')).toBe('Hello   World')
-  })
-
-  it('returns the same string when no whitespace', () => {
-    expect(normalizeTitle('Hello')).toBe('Hello')
+  it.each([
+    ['  Hello  ', 'Hello'],
+    ['  Hello   World  ', 'Hello   World'],
+    ['Hello', 'Hello']
+  ])('trims the outside of %j without touching the inside', (input, expected) => {
+    expect(normalizeTitle(input)).toBe(expected)
   })
 })
 
 describe('sanitizePinnedTabs', () => {
   const validIds = ['gpt', 'claude', 'gemini']
 
-  it('returns empty array when input is not an array', () => {
-    expect(sanitizePinnedTabs(null, validIds)).toEqual([])
-    expect(sanitizePinnedTabs(undefined, validIds)).toEqual([])
-    expect(sanitizePinnedTabs('not array', validIds)).toEqual([])
-    expect(sanitizePinnedTabs(42, validIds)).toEqual([])
-    expect(sanitizePinnedTabs({}, validIds)).toEqual([])
-  })
+  it.each([null, undefined, 'not array', 42, {}, []])(
+    'returns an empty array for the unusable input %j',
+    (input) => {
+      expect(sanitizePinnedTabs(input as never, validIds)).toEqual([])
+    }
+  )
 
-  it('returns empty array for empty input', () => {
-    expect(sanitizePinnedTabs([], validIds)).toEqual([])
-  })
-
-  it('filters out tabs with non-string id', () => {
-    const result = sanitizePinnedTabs(
+  // Sekiz ayrı "bir alan geçersiz" testi tek bir tablo haline gelir: girdi ve
+  // kalan tek geçerli sekme birlikte verilir.
+  it.each([
+    [
+      'a non-string id',
       [
         { id: null, modelId: 'gpt' },
         { id: 42, modelId: 'gpt' },
         { id: 'valid', modelId: 'gpt' }
       ],
-      validIds
-    )
-    expect(result).toEqual([{ id: 'valid', modelId: 'gpt', title: undefined }])
-  })
-
-  it('filters out tabs with non-string modelId', () => {
-    const result = sanitizePinnedTabs(
+      { id: 'valid', modelId: 'gpt', title: undefined }
+    ],
+    [
+      'a non-string modelId',
       [
         { id: 'a', modelId: null },
         { id: 'b', modelId: 42 },
         { id: 'c', modelId: 'gpt' }
       ],
-      validIds
-    )
-    expect(result).toEqual([{ id: 'c', modelId: 'gpt', title: undefined }])
-  })
-
-  it('filters out tabs with invalid modelId', () => {
-    const result = sanitizePinnedTabs(
+      { id: 'c', modelId: 'gpt', title: undefined }
+    ],
+    [
+      'an unknown modelId',
       [
         { id: 'a', modelId: 'unknown' },
         { id: 'b', modelId: 'gpt' }
       ],
-      validIds
-    )
-    expect(result).toEqual([{ id: 'b', modelId: 'gpt', title: undefined }])
-  })
-
-  it('deduplicates by id', () => {
-    const result = sanitizePinnedTabs(
+      { id: 'b', modelId: 'gpt', title: undefined }
+    ],
+    [
+      'a duplicate id',
       [
         { id: 'dup', modelId: 'gpt' },
         { id: 'dup', modelId: 'claude' }
       ],
-      validIds
-    )
-    expect(result).toEqual([{ id: 'dup', modelId: 'gpt', title: undefined }])
+      { id: 'dup', modelId: 'gpt', title: undefined }
+    ],
+    [
+      'surrounding whitespace',
+      [{ id: '  abc  ', modelId: '  gpt  ' }],
+      { id: 'abc', modelId: 'gpt', title: undefined }
+    ],
+    [
+      'null and primitive entries',
+      [null, 'string', 42, undefined, false, { id: 'a', modelId: 'gpt' }],
+      { id: 'a', modelId: 'gpt', title: undefined }
+    ]
+  ] as const)('drops the entry with %s and keeps the rest', (_label, input, expected) => {
+    expect(sanitizePinnedTabs(input as never, validIds)).toEqual([expected])
   })
 
-  it('trims id and modelId whitespace', () => {
-    const result = sanitizePinnedTabs([{ id: '  abc  ', modelId: '  gpt  ' }], validIds)
-    expect(result).toEqual([{ id: 'abc', modelId: 'gpt', title: undefined }])
-  })
-
-  it('preserves normalized title', () => {
+  it('preserves a normalized title', () => {
     const result = sanitizePinnedTabs([{ id: 'a', modelId: 'gpt', title: '  My Tab  ' }], validIds)
     expect(result).toEqual([{ id: 'a', modelId: 'gpt', title: 'My Tab' }])
-  })
-
-  it('skips null and primitive entries', () => {
-    const result = sanitizePinnedTabs(
-      [null, 'string', 42, undefined, false, { id: 'a', modelId: 'gpt' }],
-      validIds
-    )
-    expect(result).toEqual([{ id: 'a', modelId: 'gpt', title: undefined }])
   })
 })
 
 describe('arePinnedTabsEqual', () => {
-  it('returns true for two empty arrays', () => {
-    expect(arePinnedTabsEqual([], [])).toBe(true)
-  })
+  const tab = (over: Record<string, unknown> = {}) => ({ id: 'a', modelId: 'gpt', ...over })
 
-  it('returns false for arrays of different lengths', () => {
-    expect(arePinnedTabsEqual([{ id: 'a', modelId: 'gpt' }], [])).toBe(false)
-  })
-
-  it('returns true for equal arrays', () => {
-    const a = [
-      { id: 'a', modelId: 'gpt' },
-      { id: 'b', modelId: 'claude' }
-    ]
-    const b = [
-      { id: 'a', modelId: 'gpt' },
-      { id: 'b', modelId: 'claude' }
-    ]
-    expect(arePinnedTabsEqual(a, b)).toBe(true)
-  })
-
-  it('returns false when id differs', () => {
-    expect(arePinnedTabsEqual([{ id: 'a', modelId: 'gpt' }], [{ id: 'b', modelId: 'gpt' }])).toBe(
-      false
-    )
-  })
-
-  it('returns false when modelId differs', () => {
-    expect(
-      arePinnedTabsEqual([{ id: 'a', modelId: 'gpt' }], [{ id: 'a', modelId: 'claude' }])
-    ).toBe(false)
-  })
-
-  it('compares normalized titles', () => {
-    expect(
-      arePinnedTabsEqual(
-        [{ id: 'a', modelId: 'gpt', title: '  Tab  ' }],
-        [{ id: 'a', modelId: 'gpt', title: 'Tab' }]
-      )
-    ).toBe(true)
-  })
-
-  it('returns false when title differs', () => {
-    expect(
-      arePinnedTabsEqual(
-        [{ id: 'a', modelId: 'gpt', title: 'A' }],
-        [{ id: 'a', modelId: 'gpt', title: 'B' }]
-      )
-    ).toBe(false)
+  it.each([
+    ['two empty arrays', [], [], true],
+    [
+      'equal arrays',
+      [tab(), tab({ id: 'b', modelId: 'claude' })],
+      [tab(), tab({ id: 'b', modelId: 'claude' })],
+      true
+    ],
+    ['normalized titles', [tab({ title: '  Tab  ' })], [tab({ title: 'Tab' })], true],
+    ['different lengths', [tab()], [], false],
+    ['a different id', [tab()], [tab({ id: 'b' })], false],
+    ['a different modelId', [tab()], [tab({ modelId: 'claude' })], false],
+    ['a different title', [tab({ title: 'A' })], [tab({ title: 'B' })], false]
+  ] as const)('compares %s', (_label, a, b, expected) => {
+    expect(arePinnedTabsEqual(a as never, b as never)).toBe(expected)
   })
 })
 
 describe('areStringArraysEqual', () => {
-  it('returns true for two empty arrays', () => {
-    expect(areStringArraysEqual([], [])).toBe(true)
-  })
-
-  it('returns false for different lengths', () => {
-    expect(areStringArraysEqual(['a'], [])).toBe(false)
-  })
-
-  it('returns true for same elements in same order', () => {
-    expect(areStringArraysEqual(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(true)
-  })
-
-  it('returns false for different order', () => {
-    expect(areStringArraysEqual(['a', 'b'], ['b', 'a'])).toBe(false)
-  })
-
-  it('returns false for different content', () => {
-    expect(areStringArraysEqual(['a'], ['b'])).toBe(false)
+  // `as const` would freeze the rows into readonly tuples, which the helper's
+  // `string[]` signature cannot take, so the row type is declared to match it:
+  // the label stays a literal in the test title, the arrays stay mutable.
+  it.each<[string, string[], string[], boolean]>([
+    ['two empty arrays', [], [], true],
+    ['same elements in the same order', ['a', 'b', 'c'], ['a', 'b', 'c'], true],
+    ['different lengths', ['a'], [], false],
+    ['different order', ['a', 'b'], ['b', 'a'], false],
+    ['different content', ['a'], ['b'], false]
+  ])('compares %s', (_label, a, b, expected) => {
+    expect(areStringArraysEqual(a, b)).toBe(expected)
   })
 })

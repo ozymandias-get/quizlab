@@ -47,17 +47,6 @@ describe('userElementPicker integration', () => {
     delete pickerWindow._aiPickerResult
   })
 
-  describe('script smoke', () => {
-    it('includes shadow-aware target resolution helpers', () => {
-      const script = generatePickerScript()
-
-      expect(script).toContain('getElementInfo')
-      expect(script).toContain('generateLocatorBundle')
-      expect(script).toContain('getEventContext')
-      expect(script).toContain('_ai_picker_next_btn')
-    })
-  })
-
   it('captures rich selector data and validates on the same shadow DOM composer', async () => {
     const host = document.createElement('div')
     host.id = 'gemini-shell'
@@ -210,7 +199,7 @@ describe('userElementPicker integration', () => {
   // cleanup. After the fix, calling window._aiPickerCleanup while a
   // post-save timer is queued must cancel the timer so it cannot mutate
   // the DOM after teardown.
-  it('drains pending post-save timers when cleanup runs', () => {
+  it('leaves no late timer behind when cleanup runs during the post-save teardown', async () => {
     const pickerWindow = window as PickerWindow
     delete pickerWindow._aiPickerResult
     delete pickerWindow._aiPickerCancelled
@@ -237,16 +226,10 @@ describe('userElementPicker integration', () => {
     expect(typeof pickerWindow._aiPickerCleanup).toBe('function')
     pickerWindow._aiPickerCleanup!()
 
-    // Mark a sentinel on the document that the second-stage timer would
-    // unset. If the timer fired, it would clear this attribute.
-    document.body.setAttribute('data-test-post-save-fired', 'true')
-    return new Promise<void>((resolve) => setTimeout(resolve, 1000)).then(() => {
-      // The 500ms submit post-save timer is the one that fires cleanup
-      // itself; running cleanup twice is a no-op (the IIFE guards on
-      // listenerRoots.length === 0). The contract we care about is that
-      // the DOM didn't get re-mutated by a late timer.
-      expect(typeof pickerWindow._aiPickerCleanup).toBe('undefined')
-    })
+    // A late timer would leave the picker's injected DOM behind; the cleanup
+    // hook must be gone for good, not merely callable a second time.
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+    expect(typeof pickerWindow._aiPickerCleanup).toBe('undefined')
   })
 
   it.each(['selected', 'rejected'] as const)(

@@ -236,6 +236,10 @@ describe('sessionOrchestrator', () => {
   })
 
   it('resetProfile clears profile and writes reset_profile_required state', async () => {
+    // The helper above already builds the orchestrator with a
+    // storageStateSnapshotPath, so the former "resetProfile works with
+    // storageStateSnapshotPath" test constructed the identical object and
+    // asserted nothing more than `success === true`.
     mocked.metadata.enabled = true
     const orchestrator = await createOrchestrator()
     const result = await orchestrator.resetProfile()
@@ -243,23 +247,9 @@ describe('sessionOrchestrator', () => {
     expect(mocked.clearPersistentPartitionData).toHaveBeenCalledTimes(1)
     expect(mocked.resetCooldowns).toHaveBeenCalledTimes(1)
     expect(mocked.release).toHaveBeenCalled()
-  })
-
-  it('resetProfile works with storageStateSnapshotPath', async () => {
-    mocked.metadata.enabled = true
-    const { SessionOrchestrator } =
-      await import('../../../features/gemini-web-session/sessionOrchestrator.js')
-    const orchestrator = new SessionOrchestrator({
-      config: { checkIntervalMs: 1000, jitterPct: 0.2, maxConsecutiveFailures: 3 } as any,
-      paths: {
-        profileDir: '/tmp/quizlab-test/profile',
-        configPath: '/tmp/quizlab-test/config.json',
-        lockPath: '/tmp/quizlab-test/.lock',
-        storageStateSnapshotPath: '/tmp/quizlab-test/snapshot.json'
-      },
-      resolvePersistentSession: (() => ({})) as never
-    })
-    const result = await orchestrator.resetProfile()
-    expect(result.success).toBe(true)
+    expect(mocked.writeStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ state: 'auth_required', reasonCode: 'reset_profile_required' }),
+      null
+    )
   })
 })

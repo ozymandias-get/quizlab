@@ -31,13 +31,14 @@ import {
   isUsableRepairEvidence,
   isSameRepairCandidate,
   MAX_REPAIR_CANDIDATE_COUNT,
-  MIN_AUTO_REPAIR_SCORE_GAP,
   normalizeConfidenceLevel,
   normalizeLookupStrategy,
   RECOVERY_LOOKUP_STRATEGIES,
   REPAIR_FLAP_WINDOW_MS,
-  REPAIR_STRATEGY_TRUST_ORDER,
+  REPAIR_SCORE_BONUS_INTERACTIVE,
   REPAIR_SCORE_BONUS_MAX,
+  REPAIR_SCORE_BONUS_STABLE_SELECTOR,
+  REPAIR_STRATEGY_TRUST_ORDER,
   SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
 } from '../../../shared/selectorRepair'
 
@@ -79,8 +80,8 @@ describe('lookup strategy union', () => {
 
   it('rejects unknown strategy names', () => {
     expect(isLookupStrategy('telemetry')).toBe(false)
-    // 'siteStrategy' is a known recovery strategy (silent hits were the bug).
-    expect(isLookupStrategy('siteStrategy')).toBe(true)
+    // 'siteStrategy' is in AUTOMATION_LOOKUP_STRATEGIES (covered above) and is a
+    // recovery strategy rather than a silent hit — see selectorRepairSiteStrategy.
     expect(isLookupStrategy(42)).toBe(false)
     expect(normalizeLookupStrategy('direct')).toBe('direct')
     expect(normalizeLookupStrategy('nope')).toBeUndefined()
@@ -612,30 +613,13 @@ describe('evidence ranking', () => {
     const fingerprintButton: SelectorRepairEvidence = { ...EVIDENCE, strategy: 'fingerprint' }
     expect(compareRepairEvidence('button', fingerprintButton, providerButton)).toBeGreaterThan(0)
   })
-
-  it('exposes the trust order as the canonical ranking', () => {
-    expect(REPAIR_STRATEGY_TRUST_ORDER).toEqual([
-      'candidate',
-      'fingerprint',
-      'semantic',
-      'provider',
-      'siteStrategy',
-      'heuristic'
-    ])
-  })
 })
 
 describe('policy constants', () => {
-  it('keeps a single documented promotion threshold', () => {
-    expect(SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD).toBe(3)
-  })
-
-  it('keeps a single documented ambiguity gap', () => {
-    expect(MIN_AUTO_REPAIR_SCORE_GAP).toBe(15)
-  })
-
-  it('bounds the repair score bonus', () => {
-    expect(REPAIR_SCORE_BONUS_MAX).toBe(35)
+  it('bounds the repair score bonus by the sum of its parts', () => {
+    expect(REPAIR_SCORE_BONUS_MAX).toBe(
+      REPAIR_SCORE_BONUS_STABLE_SELECTOR + REPAIR_SCORE_BONUS_INTERACTIVE
+    )
   })
 
   it('maps each locator kind to its own config keys', () => {

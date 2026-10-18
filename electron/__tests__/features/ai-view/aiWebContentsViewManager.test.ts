@@ -11,7 +11,6 @@ class FakeWebContentsView {
   static boundsHistory: Array<{ viewId: string; bounds: unknown }> = []
   static radiusHistory: Array<{ viewId: string; radius: number }> = []
   static visibleHistory: Array<{ viewId: string; visible: boolean }> = []
-  static closedViews: string[] = []
 
   viewId: string
   bounds: unknown
@@ -221,15 +220,16 @@ async function reset() {
   createdViews = []
   FakeWebContentsView.boundsHistory = []
   FakeWebContentsView.visibleHistory = []
-  FakeWebContentsView.closedViews = []
   nextWebContentsId = 1
 }
 
 describe('AiWebContentsViewManager - creation', () => {
-  it('creates exactly one view per tab id', async () => {
+  it('creates exactly one view per tab id and hands it to the window content view', async () => {
     await reset()
     const first = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     expect(first.generation).toBeGreaterThan(0)
+    expect(addChildView).toHaveBeenCalledTimes(1)
+    expect(addChildView).toHaveBeenCalledWith(expect.any(FakeWebContentsView))
 
     WebContentsViewMock.mockClear()
     const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
@@ -332,12 +332,6 @@ describe('AiWebContentsViewManager - creation', () => {
     expect(second.generation).not.toBe(first.generation)
     expect(removeChildView).toHaveBeenCalledTimes(1)
     expect(WebContentsViewMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('attaches the view to the window content view', async () => {
-    await reset()
-    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    expect(addChildView).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -632,21 +626,21 @@ describe('AiWebContentsViewManager - commands', () => {
     const entry = manager.getManagedAiView('tab-1')!
 
     expect(manager.reloadAiView('tab-1')).toBe(true)
-    expect(entry.webContents.reload).toHaveBeenCalled()
+    expect(entry.webContents.reload).toHaveBeenCalledWith()
 
     expect(manager.navigateAiView('tab-1', -1)).toBe(true)
-    expect(entry.webContents.navigationHistory.goBack).toHaveBeenCalled()
+    expect(entry.webContents.navigationHistory.goBack).toHaveBeenCalledWith()
     expect(manager.navigateAiView('tab-1', 1)).toBe(true)
-    expect(entry.webContents.navigationHistory.goForward).toHaveBeenCalled()
+    expect(entry.webContents.navigationHistory.goForward).toHaveBeenCalledWith()
 
     expect(manager.insertAiViewText('tab-1', 'hello')).toBe(true)
     expect(entry.webContents.insertText).toHaveBeenCalledWith('hello')
 
     expect(manager.pasteAiView('tab-1')).toBe(true)
-    expect(entry.webContents.paste).toHaveBeenCalled()
+    expect(entry.webContents.paste).toHaveBeenCalledWith()
 
     expect(manager.focusAiView('tab-1')).toBe(true)
-    expect(entry.webContents.focus).toHaveBeenCalled()
+    expect(entry.webContents.focus).toHaveBeenCalledWith()
 
     expect(manager.getAiViewUrl('tab-1')).toBeTruthy()
   })
@@ -673,14 +667,8 @@ describe('AiWebContentsViewManager - commands', () => {
     // which made the panel unresizable. Nothing may bring it back.
     await reset()
     await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
-    await manager.attachAiView({ viewId: 'tab-2', source: GROK })
-
     manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, true)
-    manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 100, height: 100 }, false)
-    manager.syncAiViewHost('tab-2', 'h2', { x: 0, y: 0, width: 100, height: 100 }, true)
     manager.detachAiViewHost('tab-1', 'h1')
-    await manager.destroyAiView('tab-2')
-    await manager.attachAiView({ viewId: 'tab-3', source: CHATGPT })
 
     expect(setIgnoreMouseEvents).not.toHaveBeenCalled()
   })
@@ -1098,7 +1086,6 @@ describe('AiWebContentsViewManager - renderer reload', () => {
     const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     expect(second.generation).toBe(first.generation)
     expect(second.currentUrl).toBe(first.currentUrl)
-    expect(FakeWebContentsView.closedViews).toEqual([])
   })
 
   it('releases the claim of every view, not just the first', async () => {

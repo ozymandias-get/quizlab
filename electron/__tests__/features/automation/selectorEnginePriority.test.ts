@@ -50,48 +50,36 @@ describe('selectorEngine template behavior', () => {
         classify: (sel: string) => string
       }
 
-    it('classifies ID selectors as id', () => {
+    it('classifies every supported selector shape, and falls back for the rest', () => {
       const h = getHelpers()
-      expect(h.classify('#input')).toBe('id')
-      expect(h.classify('#chat-input-2')).toBe('id')
-    })
 
-    it('classifies data-testid / aria-label / role / name / placeholder / type', () => {
-      const h = getHelpers()
-      expect(h.classify('[data-testid="composer"]')).toBe('dataTestId')
-      expect(h.classify('[aria-label="Send"]')).toBe('ariaLabel')
-      expect(h.classify('[role="textbox"]')).toBe('role')
-      expect(h.classify('[name="q"]')).toBe('name')
-      expect(h.classify('[placeholder="Ask"]')).toBe('placeholder')
-      expect(h.classify('[type="text"]')).toBe('type')
-    })
+      const classified: Array<[string, string]> = [
+        // id
+        ['#input', 'id'],
+        ['#chat-input-2', 'id'],
+        // stabil bağlar
+        ['[data-testid="composer"]', 'dataTestId'],
+        ['[aria-label="Send"]', 'ariaLabel'],
+        ['[role="textbox"]', 'role'],
+        ['[name="q"]', 'name'],
+        ['[placeholder="Ask"]', 'placeholder'],
+        ['[type="text"]', 'type'],
+        ['[contenteditable="true"]', 'contentEditable'],
+        // kırılgan bağlar
+        ['textarea.chat-input', 'tagClass'],
+        ['div[class*=editor]', 'tagClass'],
+        ['div:nth-child(3)', 'tagNth'],
+        // runtime işaretçisi
+        ['fingerprint:abc123', 'fingerprint'],
+        // geri düşüş
+        ['', 'fallback'],
+        ['   ', 'fallback'],
+        ['textarea', 'fallback']
+      ]
 
-    it('classifies contenteditable', () => {
-      const h = getHelpers()
-      expect(h.classify('[contenteditable="true"]')).toBe('contentEditable')
-    })
-
-    it('classifies tag.class and tag[class*=] as tagClass', () => {
-      const h = getHelpers()
-      expect(h.classify('textarea.chat-input')).toBe('tagClass')
-      expect(h.classify('div[class*=editor]')).toBe('tagClass')
-    })
-
-    it('classifies :nth-child as tagNth', () => {
-      const h = getHelpers()
-      expect(h.classify('div:nth-child(3)')).toBe('tagNth')
-    })
-
-    it('classifies fingerprint: prefix', () => {
-      const h = getHelpers()
-      expect(h.classify('fingerprint:abc123')).toBe('fingerprint')
-    })
-
-    it('returns fallback for empty / unknown / tag-only selectors', () => {
-      const h = getHelpers()
-      expect(h.classify('')).toBe('fallback')
-      expect(h.classify('   ')).toBe('fallback')
-      expect(h.classify('textarea')).toBe('fallback')
+      for (const [selector, expected] of classified) {
+        expect(h.classify(selector), `classify(${JSON.stringify(selector)})`).toBe(expected)
+      }
     })
   })
 
@@ -101,25 +89,22 @@ describe('selectorEngine template behavior', () => {
         sort: (sels: string[]) => string[]
       }
 
-    it('puts high-priority (id) before low-priority (tagClass)', () => {
+    it('orders, prioritizes, deduplicates and stays stable', () => {
       const h = getHelpers()
-      const sorted = h.sort(['textarea.chat-input', '#input'])
-      expect(sorted[0]).toBe('#input')
-      expect(sorted[1]).toBe('textarea.chat-input')
-    })
 
-    it('orders by priority: id > dataTestId > ariaLabel > placeholder > tagClass > tagNth > fallback', () => {
-      const h = getHelpers()
-      const sorted = h.sort([
-        'textarea',
-        'textarea.chat-input',
-        'div:nth-child(2)',
-        '[placeholder="Ask"]',
-        '[aria-label="Send"]',
-        '[data-testid="composer"]',
-        '#composer-input'
-      ])
-      expect(sorted).toEqual([
+      // Tam öncelik sırası: id > dataTestId > ariaLabel > placeholder >
+      // tagClass > tagNth > fallback.
+      expect(
+        h.sort([
+          'textarea',
+          'textarea.chat-input',
+          'div:nth-child(2)',
+          '[placeholder="Ask"]',
+          '[aria-label="Send"]',
+          '[data-testid="composer"]',
+          '#composer-input'
+        ])
+      ).toEqual([
         '#composer-input',
         '[data-testid="composer"]',
         '[aria-label="Send"]',
@@ -128,26 +113,19 @@ describe('selectorEngine template behavior', () => {
         'div:nth-child(2)',
         'textarea'
       ])
-    })
 
-    it('puts fingerprint selector first (priority 110)', () => {
-      const h = getHelpers()
-      const sorted = h.sort(['textarea', '#input', 'fingerprint:abc'])
-      expect(sorted[0]).toBe('fingerprint:abc')
-      expect(sorted[1]).toBe('#input')
-      expect(sorted[2]).toBe('textarea')
-    })
+      // fingerprint işaretçisi her şeyin önünde gelir.
+      expect(h.sort(['textarea', '#input', 'fingerprint:abc'])).toEqual([
+        'fingerprint:abc',
+        '#input',
+        'textarea'
+      ])
 
-    it('is stable for selectors of equal priority (preserves alphabetical order)', () => {
-      const h = getHelpers()
-      const sorted = h.sort(['#b', '#a', '#c'])
-      expect(sorted).toEqual(['#a', '#b', '#c'])
-    })
+      // Eşit öncelikte kararlı (alfabetik) sıra korunur.
+      expect(h.sort(['#b', '#a', '#c'])).toEqual(['#a', '#b', '#c'])
 
-    it('deduplicates input via uniqueStrings', () => {
-      const h = getHelpers()
-      const sorted = h.sort(['#a', '#a', '#b'])
-      expect(sorted).toEqual(['#a', '#b'])
+      // Aynı seçici iki kez verilirse tekrarlar ayıklanır.
+      expect(h.sort(['#a', '#a', '#b'])).toEqual(['#a', '#b'])
     })
   })
 

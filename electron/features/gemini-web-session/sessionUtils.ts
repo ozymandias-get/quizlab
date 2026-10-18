@@ -6,7 +6,7 @@ type GoogleAccountCookie = {
   value?: string | null
 }
 
-export const GOOGLE_ACCOUNT_HASH_COOKIE_NAMES = ['__Secure-1PSID', 'SID', 'SAPISID'] as const
+const GOOGLE_ACCOUNT_HASH_COOKIE_NAMES = ['__Secure-1PSID', 'SID', 'SAPISID'] as const
 
 export function nowIso(): string {
   return new Date().toISOString()

@@ -4,24 +4,23 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 describe('SettingsAddToggleButton', () => {
-  it('shows the add label and icon when collapsed', () => {
-    render(
+  // One branch: `expanded` swaps the add label for the cancel label, and both
+  // states must fire the same toggle handler.
+  it('swaps between the add and cancel labels and toggles from either', () => {
+    const onToggle = vi.fn()
+    const { rerender } = render(
       <SettingsAddToggleButton
         expanded={false}
         addLabel="Add model"
         cancelLabel="Cancel"
-        onToggle={vi.fn()}
+        onToggle={onToggle}
       />
     )
 
-    expect(screen.getByRole('button', { name: /add model/i })).toBeInTheDocument()
-    expect(screen.queryByText('Cancel')).not.toBeInTheDocument()
-  })
+    fireEvent.click(screen.getByRole('button', { name: /add model/i }))
+    expect(onToggle).toHaveBeenCalledTimes(1)
 
-  it('shows the cancel label and triggers toggle when expanded', () => {
-    const onToggle = vi.fn()
-
-    render(
+    rerender(
       <SettingsAddToggleButton
         expanded
         addLabel="Add model"
@@ -31,6 +30,7 @@ describe('SettingsAddToggleButton', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
-    expect(onToggle).toHaveBeenCalledTimes(1)
+    expect(onToggle).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Add model')).not.toBeInTheDocument()
   })
 })

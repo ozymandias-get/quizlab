@@ -12,19 +12,6 @@ export const BRIDGE_PORT = (() => {
   return 51999
 })()
 
-export const CRITICAL_COOKIE_NAMES = new Set([
-  'SID',
-  '__Secure-1PSID',
-  '__Secure-3PSID',
-  '__Secure-1PSIDTS',
-  '__Secure-3PSIDTS',
-  '__Secure-1PSIDCC',
-  '__Secure-3PSIDCC'
-])
-
-export const HMAC_HEADER = 'x-hmac-signature'
-export const BRIDGE_SECRET_HEADER = 'x-bridge-secret'
-
 export const MAX_COOKIE_BODY_SIZE = 1024 * 512 // 512 KB
 
 // isAllowedOrigin was removed — HMAC signing provides auth regardless of origin.

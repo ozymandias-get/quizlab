@@ -39,21 +39,10 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 describe('LanguageTab', () => {
-  it('renders language options', () => {
+  it('shows the current language and switches on click', () => {
     render(<LanguageTab />)
 
-    expect(screen.getByText('language_description')).toBeInTheDocument()
-    expect(screen.getAllByText('English').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Türkçe')).toBeInTheDocument()
-  })
-
-  it('displays current language', () => {
-    render(<LanguageTab />)
     expect(screen.getByText(/current_language/)).toBeInTheDocument()
-  })
-
-  it('allows changing language', () => {
-    render(<LanguageTab />)
 
     fireEvent.click(screen.getByText('Türkçe'))
 

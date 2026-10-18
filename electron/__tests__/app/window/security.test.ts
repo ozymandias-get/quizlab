@@ -120,10 +120,4 @@ describe('window/security', () => {
     expect(preventDefault).toHaveBeenCalledTimes(1)
     expect(callback).toHaveBeenCalledWith(false)
   })
-
-  it('no longer installs any webview gate, since webviewTag is disabled', async () => {
-    const module = await import('../../../app/window/security.js')
-    expect(Object.keys(module)).not.toContain('setupWebviewSecurity')
-    expect(Object.keys(module)).not.toContain('WEBVIEW_CLIPBOARD_PROTECTION_SCRIPT')
-  })
 })

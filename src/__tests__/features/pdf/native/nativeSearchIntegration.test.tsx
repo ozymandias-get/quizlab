@@ -26,7 +26,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { highlightsIn, installNativeSearchGeometry, searchLayerOf } from './nativeSearchGeometry'
+import {
+  type NativeSearchGeometryHandle,
+  highlightsIn,
+  installNativeSearchGeometry,
+  searchLayerOf
+} from './nativeSearchGeometry'
 
 const mocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
@@ -142,6 +147,31 @@ function SearchShell() {
 
 function noop(): void {}
 
+/**
+ * Mount the shell and wait until a page box with text runs is on screen, with the
+ * layout stand-in attached to that box.
+ *
+ * Every test below needs exactly this precondition — a page box to measure against
+ * and runs to measure — and jsdom has neither, so it is set up once here rather than
+ * repeated in each case.
+ */
+async function mountReady(options: {
+  textItems: Record<number, string[]>
+}): Promise<{ container: HTMLElement; geometry: NativeSearchGeometryHandle }> {
+  serve(createFakeDocument({ numPages: 4, textItems: options.textItems }))
+  const geometry = installNativeSearchGeometry()
+  const { container } = render(<SearchShell />)
+
+  await waitForFrames(() => {
+    geometry.attachPageBox(container.querySelector<HTMLElement>('[data-native-pdf-page]')!)
+    if (!container.querySelector('[data-native-pdf-text-layer] span')) {
+      throw new Error('no text runs yet')
+    }
+  })
+
+  return { container, geometry }
+}
+
 let matchMediaSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
@@ -181,16 +211,7 @@ afterEach(() => {
 
 describe('search UI on the native viewer', () => {
   it('renders the shared search bar and highlights a typed keyword on Enter', async () => {
-    serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus nephritis'] } }))
-    const geometry = installNativeSearchGeometry()
-    const { container } = render(<SearchShell />)
-
-    await waitForFrames(() => {
-      geometry.attachPageBox(container.querySelector<HTMLElement>('[data-native-pdf-page]')!)
-      if (!container.querySelector('[data-native-pdf-text-layer] span')) {
-        throw new Error('no text runs yet')
-      }
-    })
+    const { container, geometry } = await mountReady({ textItems: { 1: ['lupus nephritis'] } })
 
     const input = screen.getByPlaceholderText('search_placeholder')
     fireEvent.change(input, { target: { value: 'lupus' } })
@@ -203,16 +224,7 @@ describe('search UI on the native viewer', () => {
   })
 
   it('clears the query and closes the bar on Escape', async () => {
-    serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus nephritis'] } }))
-    const geometry = installNativeSearchGeometry()
-    const { container } = render(<SearchShell />)
-
-    await waitForFrames(() => {
-      geometry.attachPageBox(container.querySelector<HTMLElement>('[data-native-pdf-page]')!)
-      if (!container.querySelector('[data-native-pdf-text-layer] span')) {
-        throw new Error('no text runs yet')
-      }
-    })
+    const { container, geometry } = await mountReady({ textItems: { 1: ['lupus nephritis'] } })
 
     const input = screen.getByPlaceholderText('search_placeholder')
     fireEvent.change(input, { target: { value: 'lupus' } })
@@ -227,16 +239,7 @@ describe('search UI on the native viewer', () => {
   })
 
   it('opens the same bar from the app-level shortcut store', async () => {
-    serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus'] } }))
-    const geometry = installNativeSearchGeometry()
-    const { container } = render(<SearchShell />)
-
-    await waitForFrames(() => {
-      geometry.attachPageBox(container.querySelector<HTMLElement>('[data-native-pdf-page]')!)
-      if (!container.querySelector('[data-native-pdf-text-layer] span')) {
-        throw new Error('no text runs yet')
-      }
-    })
+    await mountReady({ textItems: { 1: ['lupus'] } })
 
     // `usePdfShortcuts` calls this on Ctrl/Cmd+F. No new global keydown listener was added
     // for the native path, so this is still the one route into the bar.
@@ -248,22 +251,12 @@ describe('search UI on the native viewer', () => {
     await waitForFrames(() =>
       expect(screen.getByPlaceholderText('search_placeholder')).toBeInTheDocument()
     )
-    geometry.restore()
   })
 
   it('searches after the debounce without an explicit Enter', async () => {
-    serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus nephritis'] } }))
-    const geometry = installNativeSearchGeometry()
-    const { container } = render(<SearchShell />)
-
     // Settle the viewer first: the geometry stand-in and the text layer's readiness both
     // need real timers, and only the toolbar's 300 ms debounce needs faking ones.
-    await waitForFrames(() => {
-      geometry.attachPageBox(container.querySelector<HTMLElement>('[data-native-pdf-page]')!)
-      if (!container.querySelector('[data-native-pdf-text-layer] span')) {
-        throw new Error('no text runs yet')
-      }
-    })
+    const { container, geometry } = await mountReady({ textItems: { 1: ['lupus nephritis'] } })
 
     vi.useFakeTimers()
     try {

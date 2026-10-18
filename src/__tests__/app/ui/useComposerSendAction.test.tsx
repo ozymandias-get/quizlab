@@ -23,6 +23,32 @@ function setup(autoSend = false) {
   return { result, onSend, setIsExpanded, setStoredExpanded }
 }
 
+/**
+ * `setup()` yalnızca mutlu yolu kurar. Bu tek giriş noktası, `isSubmitting`,
+ * `effectiveAutoSend` ve `onSend` değiştirilmiş her senaryoyu aynı biçimde
+ * kurar — altı kez kopyalanan `renderHook(() => useComposerSendAction({...}))`
+ * bloğunun yerini alır.
+ */
+function setupWith(overrides: {
+  onSend: (payload: Payload) => Promise<unknown>
+  isSubmitting?: boolean
+  effectiveAutoSend?: boolean
+}) {
+  const setIsExpanded = vi.fn()
+  const { result, unmount } = renderHook(() =>
+    useComposerSendAction({
+      isSubmitting: overrides.isSubmitting ?? false,
+      setIsSubmitting: vi.fn(),
+      onSend: overrides.onSend,
+      noteText: '',
+      effectiveAutoSend: overrides.effectiveAutoSend ?? true,
+      setIsExpanded,
+      setStoredExpanded: vi.fn()
+    })
+  )
+  return { result, setIsExpanded, unmount }
+}
+
 /** The escape hatch must be gone from the payload, not merely set to false. */
 function sentPayloadKeys(onSend: ReturnType<typeof vi.fn>): string[] {
   return Object.keys(onSend.mock.calls[0][0] as Payload)
@@ -75,16 +101,6 @@ describe('useComposerSendAction', () => {
     expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: true }))
   })
 
-  it('passes the auto-send preference through for a plain handleSend', async () => {
-    const { result, onSend } = setup(false)
-
-    await act(async () => {
-      await result.current.handleSend()
-    })
-
-    expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: false }))
-  })
-
   it('returns to idle after a delivered result, with no success badge', async () => {
     const { result } = setup(true)
 
@@ -101,18 +117,10 @@ describe('useComposerSendAction', () => {
   // A staged outcome was accepted but never delivered, so it must not report
   // "sent" either. Success feedback is gone entirely, so it reports nothing.
   it('returns to idle after a staged result, never claiming delivery', async () => {
-    const onSend = vi.fn(async () => ({ success: true, mode: 'staged' }) as unknown)
-    const { result } = renderHook(() =>
-      useComposerSendAction({
-        isSubmitting: false,
-        setIsSubmitting: vi.fn(),
-        onSend,
-        noteText: '',
-        effectiveAutoSend: false,
-        setIsExpanded: vi.fn(),
-        setStoredExpanded: vi.fn()
-      })
-    )
+    const { result } = setupWith({
+      onSend: vi.fn(async () => ({ success: true, mode: 'staged' }) as unknown),
+      effectiveAutoSend: false
+    })
 
     await act(async () => {
       await result.current.handleSend()
@@ -123,19 +131,9 @@ describe('useComposerSendAction', () => {
   })
 
   it('shows the error state and re-expands for a failed result', async () => {
-    const onSend = vi.fn(async () => ({ success: false, error: 'invalid_input' }) as unknown)
-    const setIsExpanded = vi.fn()
-    const { result } = renderHook(() =>
-      useComposerSendAction({
-        isSubmitting: false,
-        setIsSubmitting: vi.fn(),
-        onSend,
-        noteText: '',
-        effectiveAutoSend: true,
-        setIsExpanded,
-        setStoredExpanded: vi.fn()
-      })
-    )
+    const { result, setIsExpanded } = setupWith({
+      onSend: vi.fn(async () => ({ success: false, error: 'invalid_input' }) as unknown)
+    })
 
     await act(async () => {
       await result.current.handleSend()
@@ -152,20 +150,11 @@ describe('useComposerSendAction', () => {
   // stays closed. Assuming otherwise is how a duplicate message reaches the
   // target.
   it('treats a thrown send as an undecidable, non-repeatable outcome', async () => {
-    const onSend = vi.fn(async () => {
-      throw new Error('boom')
-    }) as unknown as (payload: Payload) => Promise<unknown>
-    const { result } = renderHook(() =>
-      useComposerSendAction({
-        isSubmitting: false,
-        setIsSubmitting: vi.fn(),
-        onSend,
-        noteText: '',
-        effectiveAutoSend: true,
-        setIsExpanded: vi.fn(),
-        setStoredExpanded: vi.fn()
-      })
-    )
+    const { result } = setupWith({
+      onSend: (async () => {
+        throw new Error('boom')
+      }) as unknown as (payload: Payload) => Promise<unknown>
+    })
 
     await act(async () => {
       await result.current.handleSend()
@@ -180,17 +169,7 @@ describe('useComposerSendAction', () => {
     const onSend = vi.fn(async () => {
       throw new Error('boom')
     }) as unknown as (payload: Payload) => Promise<unknown>
-    const { result } = renderHook(() =>
-      useComposerSendAction({
-        isSubmitting: false,
-        setIsSubmitting: vi.fn(),
-        onSend,
-        noteText: '',
-        effectiveAutoSend: true,
-        setIsExpanded: vi.fn(),
-        setStoredExpanded: vi.fn()
-      })
-    )
+    const { result } = setupWith({ onSend })
 
     await act(async () => {
       await result.current.handleSend({ noteText: 'Explain this' })
@@ -208,17 +187,7 @@ describe('useComposerSendAction', () => {
 
   it('ignores a send while another one is submitting', async () => {
     const onSend = vi.fn(async () => ({ success: true }) as unknown)
-    const { result } = renderHook(() =>
-      useComposerSendAction({
-        isSubmitting: true,
-        setIsSubmitting: vi.fn(),
-        onSend,
-        noteText: '',
-        effectiveAutoSend: true,
-        setIsExpanded: vi.fn(),
-        setStoredExpanded: vi.fn()
-      })
-    )
+    const { result } = setupWith({ onSend, isSubmitting: true })
 
     await act(async () => {
       await result.current.handleSend()
@@ -242,17 +211,7 @@ describe('useComposerSendAction', () => {
             release = resolve
           })
       )
-      const { result } = renderHook(() =>
-        useComposerSendAction({
-          isSubmitting: false,
-          setIsSubmitting: vi.fn(),
-          onSend,
-          noteText: '',
-          effectiveAutoSend: true,
-          setIsExpanded: vi.fn(),
-          setStoredExpanded: vi.fn()
-        })
-      )
+      const { result } = setupWith({ onSend })
 
       // İki ayrı tetikleyici: paneldeki düğme ve Ctrl/Cmd+Enter.
       let first!: Promise<void>
@@ -269,18 +228,9 @@ describe('useComposerSendAction', () => {
     })
 
     it('does not surface an error when the pipeline reports a concurrent send', async () => {
-      const onSend = vi.fn(async () => ({ success: false, error: 'send_in_progress' }) as unknown)
-      const { result } = renderHook(() =>
-        useComposerSendAction({
-          isSubmitting: false,
-          setIsSubmitting: vi.fn(),
-          onSend,
-          noteText: '',
-          effectiveAutoSend: true,
-          setIsExpanded: vi.fn(),
-          setStoredExpanded: vi.fn()
-        })
-      )
+      const { result } = setupWith({
+        onSend: vi.fn(async () => ({ success: false, error: 'send_in_progress' }) as unknown)
+      })
 
       await act(async () => {
         await result.current.handleSend()
@@ -313,17 +263,7 @@ describe('useComposerSendAction', () => {
           releaseSecond = resolve
         })
       })
-      const { result } = renderHook(() =>
-        useComposerSendAction({
-          isSubmitting: false,
-          setIsSubmitting: vi.fn(),
-          onSend,
-          noteText: '',
-          effectiveAutoSend: true,
-          setIsExpanded: vi.fn(),
-          setStoredExpanded: vi.fn()
-        })
-      )
+      const { result } = setupWith({ onSend })
 
       await act(async () => {
         await result.current.handleSend()
@@ -353,17 +293,7 @@ describe('useComposerSendAction', () => {
     it('clears the pending timer on unmount', async () => {
       const clearSpy = vi.spyOn(globalThis, 'clearTimeout')
       const onSend = vi.fn(async () => ({ success: false, error: 'paste_failed' }) as unknown)
-      const { result, unmount } = renderHook(() =>
-        useComposerSendAction({
-          isSubmitting: false,
-          setIsSubmitting: vi.fn(),
-          onSend,
-          noteText: '',
-          effectiveAutoSend: true,
-          setIsExpanded: vi.fn(),
-          setStoredExpanded: vi.fn()
-        })
-      )
+      const { result, unmount } = setupWith({ onSend })
 
       await act(async () => {
         await result.current.handleSend()
@@ -384,26 +314,12 @@ describe('useComposerSendAction', () => {
    *    bilgilendirilir ve durumu kapatabilir (mükerrer mesaj koruması).
    */
   describe('retry contract', () => {
-    function setupWith(onSend: (payload: Payload) => Promise<unknown>) {
-      return renderHook(() =>
-        useComposerSendAction({
-          isSubmitting: false,
-          setIsSubmitting: vi.fn(),
-          onSend,
-          noteText: '',
-          effectiveAutoSend: true,
-          setIsExpanded: vi.fn(),
-          setStoredExpanded: vi.fn()
-        })
-      )
-    }
-
     it('re-runs the last send intent for a safely repeatable failure', async () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()
         .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
         .mockResolvedValueOnce({ success: true })
-      const { result } = setupWith(onSend)
+      const { result } = setupWith({ onSend })
 
       await act(async () => {
         await result.current.handleSend({ noteText: 'Explain this', autoSend: true })
@@ -426,7 +342,7 @@ describe('useComposerSendAction', () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()
         .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
-      const { result } = setupWith(onSend)
+      const { result } = setupWith({ onSend })
 
       await act(async () => {
         await result.current.handleSend({ noteText: 'Explain this' })
@@ -447,7 +363,7 @@ describe('useComposerSendAction', () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()
         .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
-      const { result } = setupWith(onSend)
+      const { result } = setupWith({ onSend })
 
       await act(async () => {
         await result.current.handleSend({ noteText: 'Explain this' })

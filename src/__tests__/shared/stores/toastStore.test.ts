@@ -44,30 +44,23 @@ describe('toastStore', () => {
   })
 
   describe('addToast', () => {
-    it('adds a toast and returns an id', () => {
-      const { result: actions } = renderHook(() => useToastActions())
-      let id = ''
-      act(() => {
-        id = actions.current.addToast({ message: uniqueMessage(), type: 'info' })
-      })
-      expect(id).toBeTruthy()
-      expect(typeof id).toBe('string')
-    })
-
-    it('adds toast to the list', () => {
+    it('adds a toast and returns an id that the list holds', () => {
       const msg = uniqueMessage()
       const { result: list } = renderHook(() => useToastList())
       const { result: actions } = renderHook(() => useToastActions())
 
+      let id = ''
       act(() => {
-        actions.current.addToast({ message: msg, type: 'info' })
+        id = actions.current.addToast({ message: msg, type: 'info' })
       })
 
-      const found = list.current.toasts.find((t) => t.message === msg)
-      expect(found).toBeDefined()
+      expect(id).toBeTruthy()
+      expect(typeof id).toBe('string')
+      const found = list.current.toasts.find((t) => t.id === id)
+      expect(found?.message).toBe(msg)
     })
 
-    it('assigns a type and createdAt', () => {
+    it('assigns the type it was given', () => {
       const msg = uniqueMessage()
       const { result: actions } = renderHook(() => useToastActions())
       const { result: list } = renderHook(() => useToastList())
@@ -78,12 +71,11 @@ describe('toastStore', () => {
       })
 
       const toast = list.current.toasts.find((t) => t.id === id)
-      expect(toast).toBeDefined()
       expect(toast!.type).toBe('error')
       expect(toast!.createdAt).toBeGreaterThan(0)
     })
 
-    it('defaults to info type', () => {
+    it('fills the unspecified fields with the documented defaults', () => {
       const msg = uniqueMessage()
       const { result: actions } = renderHook(() => useToastActions())
       const { result: list } = renderHook(() => useToastList())
@@ -92,31 +84,10 @@ describe('toastStore', () => {
         actions.current.addToast({ message: msg })
       })
 
-      expect(list.current.toasts.find((t) => t.message === msg)?.type).toBe('info')
-    })
-
-    it('defaults params to empty object', () => {
-      const msg = uniqueMessage()
-      const { result: actions } = renderHook(() => useToastActions())
-      const { result: list } = renderHook(() => useToastList())
-
-      act(() => {
-        actions.current.addToast({ message: msg })
-      })
-
-      expect(list.current.toasts.find((t) => t.message === msg)?.params).toEqual({})
-    })
-
-    it('defaults duration to 5000', () => {
-      const msg = uniqueMessage()
-      const { result: actions } = renderHook(() => useToastActions())
-      const { result: list } = renderHook(() => useToastList())
-
-      act(() => {
-        actions.current.addToast({ message: msg })
-      })
-
-      expect(list.current.toasts.find((t) => t.message === msg)?.duration).toBe(5000)
+      const toast = list.current.toasts.find((t) => t.message === msg)
+      expect(toast?.type).toBe('info')
+      expect(toast?.params).toEqual({})
+      expect(toast?.duration).toBe(5000)
     })
   })
 
@@ -226,7 +197,7 @@ describe('toastStore', () => {
       expect(list.current.toasts.find((t) => t.id === id)).toBeUndefined()
     })
 
-    it('does nothing for unknown id', () => {
+    it('ignores a remove for an unknown id', () => {
       const msg = uniqueMessage()
       const { result: actions } = renderHook(() => useToastActions())
       const { result: list } = renderHook(() => useToastList())

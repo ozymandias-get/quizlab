@@ -11,26 +11,21 @@ import {
 } from '../../../../app/providers/app-tool/appToolUtils'
 
 describe('buildPendingId', () => {
-  it('returns a string starting with the prefix', () => {
-    expect(buildPendingId('text').startsWith('text_')).toBe(true)
-    expect(buildPendingId('image').startsWith('image_')).toBe(true)
-  })
+  // Biçim sözleşmesi tek id'de doğrulanır: `<prefix>_<timestamp>_<suffix>`.
+  it('builds "<prefix>_<timestamp>_<suffix>" with a fresh timestamp', () => {
+    for (const prefix of ['text', 'image'] as const) {
+      const id = buildPendingId(prefix)
+      expect(id.startsWith(`${prefix}_`)).toBe(true)
 
-  it('includes a numeric timestamp after the prefix', () => {
-    const id = buildPendingId('text')
-    const match = id.match(/^text_(\d+)_/)
-    expect(match).not.toBeNull()
-    // Timestamp should be a recent number (within last 5s)
-    const ts = parseInt(match![1], 10)
-    expect(ts).toBeGreaterThan(Date.now() - 5_000)
-    expect(ts).toBeLessThanOrEqual(Date.now())
-  })
-
-  it('includes a random suffix after the timestamp', () => {
-    const id = buildPendingId('text')
-    const parts = id.split('_')
-    expect(parts.length).toBe(3)
-    expect(parts[2].length).toBeGreaterThan(0)
+      const match = id.match(new RegExp(`^${prefix}_(\\d+)_`))
+      expect(match).not.toBeNull()
+      const ts = parseInt(match![1], 10)
+      // Zaman damgası şimdiye yakın olmalı (5 sn tolerans).
+      expect(ts).toBeGreaterThan(Date.now() - 5_000)
+      expect(ts).toBeLessThanOrEqual(Date.now())
+      expect(id.split('_')).toHaveLength(3)
+      expect(id.split('_')[2].length).toBeGreaterThan(0)
+    }
   })
 
   it('produces unique ids for consecutive calls', async () => {
@@ -41,13 +36,6 @@ describe('buildPendingId', () => {
     // Some may collide if Date.now() and Math.random() align, but for
     // 100 calls we should have at least 90 unique ids
     expect(ids.size).toBeGreaterThanOrEqual(90)
-  })
-
-  it('respects the prefix type', () => {
-    expect(buildPendingId('text').startsWith('text_')).toBe(true)
-    expect(buildPendingId('image').startsWith('image_')).toBe(true)
-    // No other prefixes
-    expect(buildPendingId('text')).not.toMatch(/^image_/)
   })
 })
 
@@ -60,28 +48,6 @@ describe('clearBrowserTextSelection', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-  })
-
-  it('is a no-op when window.getSelection is undefined', () => {
-    // Mock the function to return undefined
-    const originalGetSelection = window.getSelection
-    ;(window as any).getSelection = undefined
-    try {
-      // Should not throw
-      clearBrowserTextSelection()
-    } finally {
-      ;(window as any).getSelection = originalGetSelection
-    }
-  })
-
-  it('is a no-op when getSelection returns null', () => {
-    const originalGetSelection = window.getSelection
-    ;(window as any).getSelection = () => null
-    try {
-      clearBrowserTextSelection() // should not throw
-    } finally {
-      ;(window as any).getSelection = originalGetSelection
-    }
   })
 
   it('is a no-op when rangeCount is 0', () => {

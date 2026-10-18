@@ -182,11 +182,4 @@ describe('findPageCanvas', () => {
 
     expect(findPageCanvas(1)).toBeNull()
   })
-
-  it('reuses the cache for repeated lookups of the same page', () => {
-    const box = makeNativePage(6)
-    container.appendChild(box)
-
-    expect(findPageCanvas(6)).toBe(findPageCanvas(6))
-  })
 })

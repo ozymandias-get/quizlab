@@ -94,7 +94,7 @@ export const domSearchHelpers =
     /**
      * Minimum gap between the best and the runner-up fingerprint scores.
      *
-     * Mirrors MIN_AUTO_REPAIR_SCORE_GAP (15) from shared/selectorRepair — one
+     * Matches MIN_AUTO_REPAIR_SCORE_GAP from shared/selectorRepair — one
      * policy, not two scoring systems. Two elements this close cannot be told
      * apart, so the resolver must fail safe instead of trusting array order.
      */

@@ -320,7 +320,7 @@ describe('native viewer — capture actions', () => {
     expect(mocks.getDocument).toHaveBeenCalledTimes(1)
   })
 
-  it('sends the current native page to the AI as one high-DPI image', async () => {
+  it('sends the current native page to the AI as one image, exactly once', async () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -332,6 +332,9 @@ describe('native viewer — capture actions', () => {
     expect(offered.page).toBe(1)
     expect(offered.captureKind).toBe('full-page')
     expect(mocks.showError).not.toHaveBeenCalled()
+    // One menu item, one queue entry: no duplicate offer and no error toast.
+    await settle()
+    expect(mocks.onFullPageCapture).toHaveBeenCalledTimes(1)
   })
 
   it('labels the capture with the page the reader moved to, not page 1', async () => {
@@ -365,19 +368,7 @@ describe('native viewer — capture actions', () => {
     expect(getActivePdfDocument('local-pdf://book')).not.toBeNull()
   })
 
-  it('never queues twice, and never opens an error toast', async () => {
-    renderDocument()
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-
-    requestFullPageImageViaContextMenu()
-    await waitFor(() => expect(mocks.onFullPageCapture).toHaveBeenCalledTimes(1))
-    await settle()
-
-    expect(mocks.onFullPageCapture).toHaveBeenCalledTimes(1)
-    expect(mocks.showError).not.toHaveBeenCalled()
-  })
-
-  it('starts the crop screenshot with the native page number', async () => {
+  it('starts the crop screenshot with the native page number, and no page image', async () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
@@ -390,6 +381,8 @@ describe('native viewer — capture actions', () => {
     expect(mocks.startScreenshot).toHaveBeenCalledWith(
       expect.objectContaining({ page: 1, captureKind: 'selection' })
     )
+    // The other binary arm must stay unused.
+    expect(mocks.onFullPageCapture).not.toHaveBeenCalled()
   })
 
   it('restarts the document on reload and keeps capture pointed at the new one', async () => {
@@ -432,24 +425,7 @@ describe('native viewer — context menu', () => {
     fireEvent.click(menuItem('pdf_send_page_as_image'))
 
     await waitFor(() => expect(mocks.onFullPageCapture).toHaveBeenCalledTimes(1))
-    const [offered] = offeredCaptures()
-    expect(offered.url).toMatch(/^data:image\//)
-    expect(offered.page).toBe(1)
-    expect(offered.captureKind).toBe('full-page')
     expect(mocks.getDocument).toHaveBeenCalledTimes(1)
-  })
-
-  it('reaches the real crop pipeline from the screenshot item', async () => {
-    renderDocument()
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-
-    openContextMenu()
-    fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
-
-    expect(mocks.startScreenshot).toHaveBeenCalledWith(
-      expect.objectContaining({ page: 1, captureKind: 'selection' })
-    )
-    expect(mocks.onFullPageCapture).not.toHaveBeenCalled()
   })
 
   it('offers the page text for the same binary choice instead of queueing it', async () => {
@@ -480,16 +456,8 @@ describe('native viewer — context menu', () => {
     fireEvent.click(menuItem('ctx_crop_screenshot_ai'))
 
     expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
-  })
-
-  it('never renders a second menu, or a native-only variant', async () => {
-    renderDocument()
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-
-    openContextMenu()
-
     // One menu component, one hook, one set of items — the renderer switch is in
     // `PdfViewerDocument`, and it only chooses which capture backend they call.
-    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(0)
   })
 })

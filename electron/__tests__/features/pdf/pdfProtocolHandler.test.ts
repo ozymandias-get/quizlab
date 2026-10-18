@@ -279,6 +279,75 @@ describe('local-pdf:// protocol handler', () => {
     })
   })
 
+  // SECURITY: these exercise the real origin gate in pdfProtocol.ts
+  // (isAllowedPdfOrigin + the origin/referer/sec-fetch-site block). The old
+  // pdfProtocolSecurity.test.ts only grepped the source text for the string
+  // 'Access-Control-Allow-Origin', which ran no product code at all.
+  describe('CORS origin validation', () => {
+    it('serves the request and echoes a validated localhost origin back in Access-Control-Allow-Origin', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { origin: 'http://localhost:5173' })
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
+      expect(response.headers.get('vary')).toBe('Origin')
+      expect(response.headers.get('access-control-allow-origin')).not.toBe('*')
+    })
+
+    it('returns 403 for a foreign web origin and never streams the file', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { origin: 'https://evil.com' })
+      )
+
+      expect(response.status).toBe(403)
+      expect(response.headers.get('access-control-allow-origin')).toBeNull()
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('returns 403 for a crafted localhost.evil.com origin (exact hostname match only)', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { origin: 'http://localhost.evil.com' })
+      )
+
+      expect(response.status).toBe(403)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the Referer check when no Origin header is present', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { referer: 'https://evil.com/page' })
+      )
+
+      expect(response.status).toBe(403)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects a cross-site Sec-Fetch-Site navigation that carries neither Origin nor Referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { 'sec-fetch-site': 'cross-site' })
+      )
+
+      expect(response.status).toBe(403)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+  })
+
   describe('invalid range (416)', () => {
     it('returns 416 with bytes */N for out-of-bounds start', async () => {
       await loadAndRegister()

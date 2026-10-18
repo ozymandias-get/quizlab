@@ -67,8 +67,8 @@ describe('activePdfDocumentRegistry', () => {
     setActivePdfDocument(handle, 'local-pdf://pdf_a', 'fp')
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
-    // Evicted on sight, so no later capture retries a dead document.
-    expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
+    // Evicted on sight, so a second capture must not probe the dead handle again.
+    expect(handle.isAlive).toHaveBeenCalledTimes(1)
   })
 
   it('treats a throwing liveness probe as dead', () => {
@@ -87,12 +87,13 @@ describe('activePdfDocumentRegistry', () => {
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
   })
 
-  it('keeps serving a live handle across repeated lookups', () => {
+  it('keeps serving a live handle until it is withdrawn or cleared', () => {
     setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+    const first = getActivePdfDocument('local-pdf://pdf_a')
 
-    expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(
-      getActivePdfDocument('local-pdf://pdf_a')
-    )
+    // A borrowed handle is not consumed by being read: the viewer stays
+    // mounted, so capture may ask for the same document again.
+    expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(first)
   })
 
   it('reports the identity the registrant supplied', () => {

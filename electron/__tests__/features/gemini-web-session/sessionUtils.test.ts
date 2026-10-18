@@ -3,21 +3,18 @@ import { describe, expect, it } from 'vitest'
 
 import {
   computeGoogleAccountHash,
-  GOOGLE_ACCOUNT_HASH_COOKIE_NAMES,
-  isProcessAlive,
-  nowIso
+  isProcessAlive
 } from '../../../features/gemini-web-session/sessionUtils.js'
 
 function expectedHash(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
 
-describe('nowIso', () => {
-  it('returns an ISO 8601 string', () => {
-    const result = nowIso()
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-  })
-})
+// `nowIso` was `return new Date().toISOString()` — a regex match on it could
+// not fail for any useful reason, so that test was dropped.
+// `GOOGLE_ACCOUNT_HASH_COOKIE_NAMES` was asserted as a literal equal to the
+// literal in the source; its order is already pinned by the fallback tests
+// below.
 
 describe('isProcessAlive', () => {
   it('returns true for the current process', () => {
@@ -79,9 +76,5 @@ describe('computeGoogleAccountHash', () => {
     ]
     const hash = computeGoogleAccountHash(cookies)
     expect(hash).toBe(expectedHash('second'))
-  })
-
-  it('uses correct cookie name constants', () => {
-    expect(GOOGLE_ACCOUNT_HASH_COOKIE_NAMES).toEqual(['__Secure-1PSID', 'SID', 'SAPISID'])
   })
 })

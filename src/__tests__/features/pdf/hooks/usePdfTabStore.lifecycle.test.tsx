@@ -28,17 +28,22 @@ const makeFile = (name: string, path: string, streamUrl = `blob:${name}`): PdfFi
 
 const resetStore = (): void => resetPdfTabStore()
 
-describe('usePdfTabStore - opening PDFs', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
+// Every suite below works against the same singleton store and the same crypto
+// stub. Hoisting the pair into one place removes seven copies of the same block;
+// `viewerSessionKey` overrides the stub where it needs specific ids.
+let randomUUID: ReturnType<typeof vi.fn>
 
+beforeEach(() => {
+  randomUUID = vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
+  vi.stubGlobal('crypto', { randomUUID } as unknown as Crypto)
+  resetStore()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('usePdfTabStore - opening PDFs', () => {
   it('opens a PDF in a brand new tab', () => {
     const { result } = renderHook(() => usePdfTabStore())
 
@@ -149,14 +154,10 @@ describe('usePdfTabStore - opening PDFs', () => {
   // not churn it, or every "open recent" would reset the reader's zoom and page.
   describe('viewerSessionKey', () => {
     beforeEach(() => {
-      vi.stubGlobal('crypto', {
-        randomUUID: vi
-          .fn()
-          .mockReturnValueOnce('new-tab-id')
-          .mockReturnValueOnce('session-a')
-          .mockReturnValueOnce('session-b')
-      } as unknown as Crypto)
-      resetStore()
+      randomUUID
+        .mockReturnValueOnce('new-tab-id')
+        .mockReturnValueOnce('session-a')
+        .mockReturnValueOnce('session-b')
     })
 
     it('is preserved when the same path is reopened with new metadata', () => {
@@ -210,16 +211,6 @@ describe('usePdfTabStore - opening PDFs', () => {
 })
 
 describe('usePdfTabStore - closing tabs', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('removes the closed tab and reassigns active id', () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
@@ -298,16 +289,6 @@ describe('usePdfTabStore - closing tabs', () => {
 })
 
 describe('usePdfTabStore - renaming', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('renames a tab', () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
@@ -354,20 +335,17 @@ describe('usePdfTabStore - renaming', () => {
       result.current.renamePdfTab(id!, 'Same')
     })
     expect(result.current.pdfTabs[0]?.title).toBe('Same')
+
+    // The redundant call must not wedge the store: a later, different rename
+    // still has to land.
+    act(() => {
+      result.current.renamePdfTab(id!, 'Renamed')
+    })
+    expect(result.current.pdfTabs[0]?.title).toBe('Renamed')
   })
 })
 
 describe('usePdfTabStore - setActivePdfTab', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('switches the active tab', () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
@@ -389,11 +367,14 @@ describe('usePdfTabStore - setActivePdfTab', () => {
     })
     const id = result.current.activePdfTabId
 
-    const before = result.current.activePdfTabId
+    const before = result.current.pdfTabs
     act(() => {
       result.current.setActivePdfTab(id)
     })
-    expect(result.current.activePdfTabId).toBe(before)
+
+    // Selecting the tab that is already active must not rebuild the array.
+    expect(result.current.activePdfTabId).toBe(id)
+    expect(result.current.pdfTabs).toBe(before)
   })
 
   it('ignores unknown ids', () => {
@@ -411,16 +392,6 @@ describe('usePdfTabStore - setActivePdfTab', () => {
 })
 
 describe('usePdfTabStore - goToPdfHome', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('creates an empty tab when there are none', () => {
     const { result } = renderHook(() => usePdfTabStore())
     expect(result.current.pdfTabs).toHaveLength(0)
@@ -469,16 +440,6 @@ describe('usePdfTabStore - goToPdfHome', () => {
 })
 
 describe('usePdfTabStore - openGoogleDriveTab', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('creates a drive tab', () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
@@ -508,16 +469,6 @@ describe('usePdfTabStore - openGoogleDriveTab', () => {
 })
 
 describe('usePdfTabStore - derived values', () => {
-  beforeEach(() => {
-    vi.stubGlobal('crypto', {
-      randomUUID: vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
-    } as unknown as Crypto)
-    resetStore()
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it('activeTab reflects the active id', () => {
     const { result } = renderHook(() => usePdfTabState())
     act(() => {

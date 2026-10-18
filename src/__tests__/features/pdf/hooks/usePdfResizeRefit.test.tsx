@@ -37,98 +37,40 @@ describe('usePdfResizeRefit', () => {
     vi.unstubAllGlobals()
   })
 
-  it('debounces repeated ResizeObserver notifications into a single refit', () => {
-    const zoomTo = vi.fn()
-    const containerRef = { current: document.createElement('div') }
-    const bodyAddSpy = vi.spyOn(document.body.classList, 'add')
-    const bodyRemoveSpy = vi.spyOn(document.body.classList, 'remove')
-    const bodyContainsSpy = vi.spyOn(document.body.classList, 'contains')
-
-    renderHook(() => usePdfResizeRefit(containerRef, zoomTo, true, false))
-
-    expect(resizeObserverCallback).toBeTypeOf('function')
-
-    act(() => {
-      resizeObserverCallback?.()
-      resizeObserverCallback?.()
-      resizeObserverCallback?.()
-      vi.advanceTimersByTime(149)
-    })
-
-    expect(zoomTo).not.toHaveBeenCalled()
-
-    act(() => {
-      vi.advanceTimersByTime(1)
-    })
-
-    expect(zoomTo).toHaveBeenCalledTimes(1)
-    expect(zoomTo).toHaveBeenCalledWith(1)
-    expect(bodyAddSpy).not.toHaveBeenCalled()
-    expect(bodyRemoveSpy).not.toHaveBeenCalled()
-    expect(bodyContainsSpy).not.toHaveBeenCalled()
-  })
-
-  it('waits for panel resizing to finish and refits only once', () => {
-    const zoomTo = vi.fn()
+  // Three triggers, one policy: nothing refits until 150ms have passed with no
+  // further trigger, and then it refits exactly once, to scale 1.
+  it.each([
+    ['repeated ResizeObserver notifications', false, false],
+    ['a panel resize that has finished', false, true],
+    ['the document becoming ready with no resize at all', true, false]
+  ])('debounces %s into a single refit', (_label, startsDisabled, panelIsResizing) => {
+    const zoomTo = vi.fn<(scale: unknown) => void>()
     const containerRef = { current: document.createElement('div') }
 
     const { rerender } = renderHook(
       ({ enabled, isPanelResizing }: { enabled: boolean; isPanelResizing: boolean }) =>
         usePdfResizeRefit(containerRef, zoomTo, enabled, isPanelResizing),
-      {
-        initialProps: {
-          enabled: true,
-          isPanelResizing: true
-        }
-      }
+      { initialProps: { enabled: !startsDisabled, isPanelResizing: panelIsResizing } }
     )
 
-    act(() => {
-      vi.advanceTimersByTime(300)
-    })
-
-    expect(zoomTo).not.toHaveBeenCalled()
-
-    rerender({
-      enabled: true,
-      isPanelResizing: false
-    })
-
-    act(() => {
-      vi.advanceTimersByTime(149)
-    })
-
-    expect(zoomTo).not.toHaveBeenCalled()
-
-    act(() => {
-      vi.advanceTimersByTime(1)
-    })
-
-    expect(zoomTo).toHaveBeenCalledTimes(1)
-    expect(zoomTo).toHaveBeenCalledWith(1)
-  })
-
-  it('refits when the document first becomes ready, even without a resize event', () => {
-    // Regression: focus mode mounts a fresh PdfViewer; the container's
-    // initial ResizeObserver reading can be stale (0x0 or pre-layout),
-    // so the refit must also fire when `enabled` flips to true.
-    const zoomTo = vi.fn()
-    const containerRef = { current: document.createElement('div') }
-
-    const { rerender } = renderHook(
-      ({ enabled }: { enabled: boolean }) =>
-        usePdfResizeRefit(containerRef, zoomTo, enabled, false),
-      {
-        initialProps: { enabled: false }
-      }
-    )
-
+    // Whatever the trigger, waiting longer than the debounce on its own must not
+    // refit: the hook refits on a *settled* measurement, not on a timer alone.
     act(() => {
       vi.advanceTimersByTime(500)
     })
     expect(zoomTo).not.toHaveBeenCalled()
 
-    rerender({ enabled: true })
+    if (startsDisabled) {
+      rerender({ enabled: true, isPanelResizing: false })
+    } else {
+      // A still-active panel resize holds the refit back until the drag ends.
+      act(() => {
+        resizeObserverCallback?.()
+        resizeObserverCallback?.()
+        resizeObserverCallback?.()
+      })
+      rerender({ enabled: true, isPanelResizing: false })
+    }
 
     act(() => {
       vi.advanceTimersByTime(149)
@@ -138,7 +80,6 @@ describe('usePdfResizeRefit', () => {
     act(() => {
       vi.advanceTimersByTime(1)
     })
-
     expect(zoomTo).toHaveBeenCalledTimes(1)
     expect(zoomTo).toHaveBeenCalledWith(1)
   })

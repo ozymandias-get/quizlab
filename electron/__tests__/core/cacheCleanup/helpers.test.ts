@@ -46,28 +46,31 @@ describe('safeDeleteFile', () => {
   })
 })
 
-describe('deleteBatch', () => {
-  it('returns zero results for empty batch', async () => {
-    const { deleteBatch } = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
-    const result = await deleteBatch([], '/tmp/userdata')
-    expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
-  })
-})
-
-describe('deleteDirectoryContents', () => {
-  it('returns zero results for non-existent directory', async () => {
-    const { deleteDirectoryContents } =
-      await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
-    const result = await deleteDirectoryContents('/tmp/userdata/nonexistent', '/tmp/userdata')
-    expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
-  })
-})
-
-describe('cleanupOrphanedTempFiles', () => {
-  it('returns zero results for non-existent userData path', async () => {
-    const { cleanupOrphanedTempFiles } =
-      await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
-    const result = await cleanupOrphanedTempFiles('/tmp/userdata/nonexistent')
-    expect(result).toEqual({ deleted: 0, freed: 0, errors: 0 })
+describe('missing-path entry points', () => {
+  // deleteBatch / deleteDirectoryContents / cleanupOrphanedTempFiles all report
+  // the same {deleted, freed, errors} tally, so one table pins all three: each
+  // must report zero work instead of throwing on a path that is not there.
+  it.each([
+    [
+      'deleteBatch',
+      (helpers: typeof import('../../../core/cacheCleanup/cacheCleanupHelpers.js')) =>
+        helpers.deleteBatch([], '/tmp/userdata')
+    ],
+    [
+      'deleteDirectoryContents',
+      async (_helpers: typeof import('../../../core/cacheCleanup/cacheCleanupHelpers.js')) => {
+        const { deleteDirectoryContents } =
+          await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
+        return deleteDirectoryContents('/tmp/userdata/nonexistent', '/tmp/userdata')
+      }
+    ],
+    [
+      'cleanupOrphanedTempFiles',
+      (helpers: typeof import('../../../core/cacheCleanup/cacheCleanupHelpers.js')) =>
+        helpers.cleanupOrphanedTempFiles('/tmp/userdata/nonexistent')
+    ]
+  ])('%s reports zero work for a missing path', async (_name, call) => {
+    const helpers = await import('../../../core/cacheCleanup/cacheCleanupHelpers.js')
+    await expect(call(helpers)).resolves.toEqual({ deleted: 0, freed: 0, errors: 0 })
   })
 })

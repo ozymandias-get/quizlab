@@ -19,12 +19,7 @@ describe('useLastNavigationTime', () => {
     vi.useRealTimers()
   })
 
-  it('returns a ref with 0 initially', () => {
-    const { result } = renderHook(() => useLastNavigationTime(1))
-    expect(result.current.current).toBe(0)
-  })
-
-  it('updates timestamp when currentPage changes', () => {
+  it('records the time of the last page change, and only on a change', () => {
     const now = 1_000_000
     vi.setSystemTime(now)
 
@@ -39,20 +34,11 @@ describe('useLastNavigationTime', () => {
     vi.setSystemTime(now + 500)
     rerender({ page: 3 })
     expect(result.current.current).toBe(now + 500)
-  })
 
-  it('does not update when currentPage stays the same', () => {
-    vi.setSystemTime(100_000)
-
-    const { result, rerender } = renderHook(({ page }) => useLastNavigationTime(page), {
-      initialProps: { page: 5 }
-    })
-
-    expect(result.current.current).toBe(0)
-
-    vi.setSystemTime(200_000)
-    rerender({ page: 5 })
-    expect(result.current.current).toBe(0)
+    // Same page: no navigation happened, so the timestamp must not move.
+    vi.setSystemTime(now + 900)
+    rerender({ page: 3 })
+    expect(result.current.current).toBe(now + 500)
   })
 })
 
@@ -60,8 +46,8 @@ describe('useLastNavigationTime', () => {
 // useContainerSize
 // ---------------------------------------------------------------------------
 describe('useContainerSize', () => {
-  it('returns initial {w:0, h:0}', () => {
-    const ref = { current: null }
+  it('starts at {w:0, h:0} for an element the ref has not seen yet', () => {
+    const ref = { current: null as HTMLDivElement | null }
     const { result } = renderHook(() => useContainerSize(ref))
     expect(result.current).toEqual({ w: 0, h: 0 })
   })
@@ -102,49 +88,61 @@ describe('useFitScale', () => {
   // Dead-zone / quantization (the core fix for Issue 4)
   // -----------------------------------------------------------------------
   describe('quantization dead-zone', () => {
-    it('rounds fitScale to 1 % granularity (2 decimal places)', () => {
-      const { result } = renderHook(() => useFitScale(pageDimensions, { w: 700, h: 800 }))
-      // w-ratio = 700/612 ≈ 1.1438, h-ratio = 800/792 ≈ 1.0101
-      // min ≈ 1.0101 → rounded to 1.01
-      expect(result.current).toBe(1.01)
-    })
-
-    it('absorbs ±1px noise on the non-limiting axis (width)', () => {
-      // In 1200×900 the limiting axis is height (900/792 ≈ 1.136).
-      // Width noise doesn't change the min at all, so scale stays identical.
+    // The dead-zone is a single property — a sub-threshold jitter must not move
+    // the quantized scale — so every shape of that jitter is driven through one
+    // table instead of four near-identical tests. `base`/`baseline` vary because
+    // 1200×900 and 1024×768 quantize to different scales.
+    it.each([
+      [
+        'one pixel on the non-limiting axis',
+        { w: 1200, h: 900 },
+        1.14,
+        [
+          [1201, 900],
+          [1200, 900]
+        ]
+      ],
+      [
+        'one pixel on the limiting axis',
+        { w: 1200, h: 900 },
+        1.14,
+        [
+          [1200, 901],
+          [1200, 900]
+        ]
+      ],
+      [
+        'one pixel on both axes',
+        { w: 1200, h: 900 },
+        1.14,
+        [
+          [1199, 901],
+          [1200, 900]
+        ]
+      ],
+      [
+        'a repeated alternating jitter in a 1024×768 window',
+        { w: 1024, h: 768 },
+        0.97,
+        [
+          [1025, 768],
+          [1023, 768],
+          [1024, 768],
+          [1025, 768],
+          [1023, 768]
+        ]
+      ]
+    ])('absorbs %s', (_label, base, expected, sizes) => {
       const { result, rerender } = renderHook(({ cs }) => useFitScale(pageDimensions, cs), {
-        initialProps: { cs: { w: 1200, h: 900 } }
+        initialProps: { cs: base }
       })
 
-      const initial = result.current
-      expect(initial).toBe(1.14)
+      expect(result.current).toBe(expected)
 
-      rerender({ cs: { w: 1201, h: 900 } })
-      expect(result.current).toBe(initial)
-    })
-
-    it('absorbs ±1px noise on the limiting axis (height)', () => {
-      // 900/792 ≈ 1.13636 → round → 1.14
-      // 901/792 ≈ 1.13763 → round → 1.14  ← same bucket (dead-zone = 0.5 %)
-      const { result, rerender } = renderHook(({ cs }) => useFitScale(pageDimensions, cs), {
-        initialProps: { cs: { w: 1200, h: 900 } }
-      })
-
-      const initial = result.current
-      expect(initial).toBe(1.14)
-
-      rerender({ cs: { w: 1200, h: 901 } })
-      expect(result.current).toBe(initial)
-    })
-
-    it('absorbs simultaneous ±1px noise on both axes', () => {
-      const { result, rerender } = renderHook(({ cs }) => useFitScale(pageDimensions, cs), {
-        initialProps: { cs: { w: 1200, h: 900 } }
-      })
-
-      const initial = result.current // 1.14
-      rerender({ cs: { w: 1199, h: 901 } })
-      expect(result.current).toBe(initial)
+      for (const [w, h] of sizes) {
+        rerender({ cs: { w, h } })
+        expect(result.current).toBe(expected)
+      }
     })
 
     it('detects a meaningful resize (≥ ~1 % change in the limiting axis)', () => {
@@ -163,34 +161,15 @@ describe('useFitScale', () => {
       expect(result.current).not.toBe(1.14)
     })
 
-    it('handles very large containers without overflow', () => {
-      const { result } = renderHook(() => useFitScale(pageDimensions, { w: 3840, h: 2160 }))
-      // h-ratio = 2160/792 ≈ 2.7273 → quantized: 2.73
-      expect(result.current).toBe(2.73)
-    })
+    it.each([
+      ['a very large container', 3840, 2160, 2.73],
+      ['a very small container', 100, 100, 0.13],
+      ['a 1024×768 window', 1024, 768, 0.97]
+    ])('quantizes %s without overflowing', (_label, w, h, expected) => {
+      // h-ratio = h/792, w-ratio = w/612; the smaller of the two, rounded to 2dp.
+      const { result } = renderHook(() => useFitScale(pageDimensions, { w, h }))
 
-    it('handles very small containers', () => {
-      const { result } = renderHook(() => useFitScale(pageDimensions, { w: 100, h: 100 }))
-      // w-ratio = 100/612 ≈ 0.1634, h-ratio = 100/792 ≈ 0.1263
-      // min ≈ 0.1263 → quantized: 0.13
-      expect(result.current).toBe(0.13)
-    })
-
-    it('stays stable under repeated ±1px fluctuations', () => {
-      // 1024×768 → h-ratio = 768/792 ≈ 0.9697 → quantized: 0.97
-      const { result, rerender } = renderHook(({ cs }) => useFitScale(pageDimensions, cs), {
-        initialProps: { cs: { w: 1024, h: 768 } }
-      })
-
-      const baseline = result.current
-      expect(baseline).toBe(0.97)
-
-      for (let i = 0; i < 10; i++) {
-        const offsetW = i % 3 === 0 ? 1 : i % 3 === 1 ? -1 : 0
-        rerender({ cs: { w: 1024 + offsetW, h: 768 } })
-      }
-
-      expect(result.current).toBe(baseline)
+      expect(result.current).toBe(expected)
     })
   })
 })

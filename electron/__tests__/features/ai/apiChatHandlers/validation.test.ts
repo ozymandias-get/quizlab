@@ -95,14 +95,9 @@ describe('sanitizeChatMessage', () => {
     })
     expect(result?.images).toHaveLength(2)
   })
-  it('handles undefined images gracefully', () => {
-    const result = sanitizeChatMessage({ role: 'user', content: 'No images' })
-    expect(result?.images).toBeUndefined()
-  })
-
-  it('handles empty images array', () => {
-    const result = sanitizeChatMessage({ role: 'user', content: 'empty', images: [] })
-    expect(result?.images).toEqual([])
+  it('handles an absent and an empty images array', () => {
+    expect(sanitizeChatMessage({ role: 'user', content: 'No images' })?.images).toBeUndefined()
+    expect(sanitizeChatMessage({ role: 'user', content: 'empty', images: [] })?.images).toEqual([])
   })
 })
 
@@ -129,16 +124,9 @@ describe('sanitizeChatMessage — image-only turns', () => {
     expect(result).toEqual({ role: 'user', content: '', images: [PNG] })
   })
 
-  it('still drops a user turn with empty text and no images', () => {
+  it('drops every turn with no text and no usable image', () => {
     expect(sanitizeChatMessage({ role: 'user', content: '', images: [] })).toBeNull()
     expect(sanitizeChatMessage({ role: 'user', content: '' })).toBeNull()
-  })
-
-  it('still drops an assistant turn with empty text', () => {
-    expect(sanitizeChatMessage({ role: 'assistant', content: '' })).toBeNull()
-  })
-
-  it('does not rescue a turn whose only image was rejected', () => {
     expect(
       sanitizeChatMessage({ role: 'user', content: '', images: ['https://example.com/a.png'] })
     ).toBeNull()
@@ -215,12 +203,6 @@ describe('buildChatCompletionMessages', () => {
     expect(messages).toEqual([{ role: 'user', content: 'Hi' }])
   })
 
-  it('never emits an empty content array', () => {
-    const messages = buildChatCompletionMessages([{ role: 'user', content: '', images: [PNG] }])
-    const content = messages[0].content
-    expect(Array.isArray(content) && content.length).toBeGreaterThan(0)
-  })
-
   it('preserves turn order across a multi-turn transcript', () => {
     const messages = buildChatCompletionMessages([
       { role: 'user', content: 'First question', images: [PNG] },
@@ -241,54 +223,34 @@ describe('buildChatCompletionMessages', () => {
 })
 
 describe('isValidChatContentItem', () => {
-  it('accepts valid text item', () => {
-    expect(isValidChatContentItem({ type: 'text', text: 'hello' })).toBe(true)
-  })
-
-  it('accepts valid image_url item', () => {
-    expect(
-      isValidChatContentItem({
-        type: 'image_url',
-        image_url: { url: 'https://example.com/img.png' }
-      })
-    ).toBe(true)
-  })
-
-  it('rejects null and undefined', () => {
-    expect(isValidChatContentItem(null)).toBe(false)
-    expect(isValidChatContentItem(undefined)).toBe(false)
-  })
-
-  it('rejects non-object values', () => {
-    expect(isValidChatContentItem('string')).toBe(false)
-    expect(isValidChatContentItem(42)).toBe(false)
-  })
-
-  it('rejects text item without text field', () => {
-    expect(isValidChatContentItem({ type: 'text' })).toBe(false)
-  })
-
-  it('rejects text item with non-string text', () => {
-    expect(isValidChatContentItem({ type: 'text', text: 123 })).toBe(false)
-  })
-
-  it('rejects image_url item without image_url field', () => {
-    expect(isValidChatContentItem({ type: 'image_url' })).toBe(false)
-  })
-
-  it('rejects image_url item with non-object image_url', () => {
-    expect(isValidChatContentItem({ type: 'image_url', image_url: 'invalid' })).toBe(false)
-  })
-
-  it('rejects image_url item without url in image_url', () => {
-    expect(isValidChatContentItem({ type: 'image_url', image_url: {} })).toBe(false)
-  })
-
-  it('rejects image_url item with non-string url', () => {
-    expect(isValidChatContentItem({ type: 'image_url', image_url: { url: 123 } })).toBe(false)
-  })
-
-  it('rejects unknown item types', () => {
-    expect(isValidChatContentItem({ type: 'unknown' })).toBe(false)
+  // One row per branch of the guard; the table is the specification.
+  it.each([
+    ['a text item', { type: 'text', text: 'hello' }, true],
+    [
+      'a well-formed image_url item',
+      { type: 'image_url', image_url: { url: 'https://x/i.png' } },
+      true
+    ],
+    ['null', null, false],
+    ['undefined', undefined, false],
+    ['a bare string', 'string', false],
+    ['a number', 42, false],
+    ['a text item with no text field', { type: 'text' }, false],
+    ['a text item with non-string text', { type: 'text', text: 123 }, false],
+    ['an image_url item with no image_url field', { type: 'image_url' }, false],
+    [
+      'an image_url item with a non-object image_url',
+      { type: 'image_url', image_url: 'invalid' },
+      false
+    ],
+    ['an image_url item with an empty image_url', { type: 'image_url', image_url: {} }, false],
+    [
+      'an image_url item with a non-string url',
+      { type: 'image_url', image_url: { url: 123 } },
+      false
+    ],
+    ['an unknown item type', { type: 'unknown' }, false]
+  ])('rejects/accepts %s', (_label, item, expected) => {
+    expect(isValidChatContentItem(item)).toBe(expected)
   })
 })

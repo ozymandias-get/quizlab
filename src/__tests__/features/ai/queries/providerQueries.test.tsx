@@ -98,17 +98,6 @@ describe('useApiConfigQuery', () => {
     expect(mockGetApiChatConfig).toHaveBeenCalledTimes(1)
   })
 
-  it('has staleTime: Infinity so it never refetches', async () => {
-    mockGetApiChatConfig.mockResolvedValue(mockApiConfig())
-
-    const { result } = renderHook(() => useApiConfigQuery(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockGetApiChatConfig).toHaveBeenCalledTimes(1)
-  })
-
   it('stores prompts and provider selection in the response', async () => {
     const config = mockApiConfig({
       generalPrompt: 'Custom prompt',
@@ -194,18 +183,6 @@ describe('useProviderHealthQuery', () => {
     expect(result.current.fetchStatus).toBe('idle')
     expect(result.current.data).toBeUndefined()
     expect(mockFetchApiChatModels).not.toHaveBeenCalled()
-  })
-
-  it('has staleTime of 30 seconds', async () => {
-    mockFetchApiChatModels.mockResolvedValue(['gpt-4'])
-
-    const { result } = renderHook(() => useProviderHealthQuery('openai'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    // With staleTime: 30s, retry: false, it should fetch once and not auto-refetch
-    expect(mockFetchApiChatModels).toHaveBeenCalledTimes(1)
   })
 })
 

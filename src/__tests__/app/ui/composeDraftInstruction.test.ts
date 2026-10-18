@@ -31,6 +31,10 @@ describe('composeDraftInstruction', () => {
     expect(result).toBe('Bu içeriği özetle\n\nTürkçe yaz')
     // Aynı komut iki kez yazılmaz.
     expect(result?.match(/özetle/g)).toHaveLength(1)
+    // Gövde tam olarak iki parçadan oluşur: kayıtlı prompt burada GEÇMEZ, onu
+    // pipeline `mergePromptText` ile başa ekler (aşağıdaki test).
+    expect(result?.split('\n\n')).toHaveLength(2)
+    expect(result).not.toContain('activePromptText')
   })
 
   it('is deterministic and trims surrounding whitespace', () => {
@@ -39,18 +43,6 @@ describe('composeDraftInstruction', () => {
     const second = composeDraftInstruction(input)
     expect(first).toBe(second)
     expect(first).toBe('Bu içeriği açıkla\n\nodak: mekanizma')
-  })
-
-  it('does not duplicate a saved prompt: the pipeline owns that segment', () => {
-    // Kayıtlı prompt (`activePromptText`) gönderimde pipeline tarafından
-    // mergePromptText ile başa eklenir. UI yalnızca bu iki parçayı kurar;
-    // kayıtlı prompt burada geçerse aynı talimat iki kez görünürdü.
-    const result = composeDraftInstruction({
-      quickActionText: 'Bu içeriği açıkla',
-      noteText: 'kısa tut'
-    })
-    expect(result).not.toContain('activePromptText')
-    expect(result?.split('\n\n')).toHaveLength(2)
   })
 
   /**

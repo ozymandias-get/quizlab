@@ -458,12 +458,10 @@ describe('NativeMessagingManager', () => {
   // dispose
   // -----------------------------------------------------------------------
 
-  describe('dispose', () => {
-    it('delegates to stopServer', () => {
-      manager.dispose()
-      expect(manager.connectionStatus).toBe('disconnected')
-    })
-  })
+  // NOTE: the former `dispose > delegates to stopServer` test asserted only
+  // `connectionStatus === 'disconnected'`, which is the field's initial value,
+  // so it passed even with an empty dispose() body. The delegation itself is
+  // already covered by `stopServer` above.
 
   // -----------------------------------------------------------------------
   // Bridge request origin validation (health endpoint security)
@@ -503,167 +501,77 @@ describe('NativeMessagingManager', () => {
       expect(derived).toBe('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
     })
 
-    it('rejects health requests from arbitrary website origins', () => {
+    // The dev and production policies were previously asserted by two
+    // near-identical tests each. `isPackaged` is the only switch between them,
+    // so every origin case is now a single row driven twice.
+    const PACKAGED = [false, true]
+
+    afterEach(() => {
+      mockApp.isPackaged = false
+    })
+
+    function requestHealth(origin: string | undefined): ReturnType<typeof fakeRes> {
       const handler = getRequestHandler()
       const res = fakeRes()
       handler(
         {
           method: 'GET',
           url: '/api/health',
-          headers: { origin: 'https://evil.example.com' }
+          headers: origin === undefined ? {} : { origin }
         },
         res
       )
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-    })
+      return res
+    }
 
-    it('rejects health requests without an Origin header', () => {
-      const handler = getRequestHandler()
-      const res = fakeRes()
-      handler({ method: 'GET', url: '/api/health', headers: {} }, res)
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-    })
-
-    it('serves the secret to the paired extension origin', () => {
-      const handler = getRequestHandler()
-      const res = fakeRes()
-      handler(
-        {
-          method: 'GET',
-          url: '/api/health',
-          headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
-        },
-        res
-      )
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
-    })
-
-    it('serves the secret to the exact configured dev origin (http://localhost:5173)', () => {
-      const handler = getRequestHandler()
-      const res = fakeRes()
-      handler(
-        {
-          method: 'GET',
-          url: '/api/health',
-          headers: { origin: 'http://localhost:5173' }
-        },
-        res
-      )
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
-    })
-
-    it('rejects localhost origins on any other port in development', () => {
-      const handler = getRequestHandler()
-      const res = fakeRes()
-      handler(
-        {
-          method: 'GET',
-          url: '/api/health',
-          headers: { origin: 'http://localhost:9999' }
-        },
-        res
-      )
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-    })
-
-    it('rejects http://127.0.0.1 dev origins when not configured', () => {
-      const handler = getRequestHandler()
-      const res = fakeRes()
-      handler(
-        {
-          method: 'GET',
-          url: '/api/health',
-          headers: { origin: 'http://127.0.0.1:5173' }
-        },
-        res
-      )
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-    })
-
-    // ---------------------------------------------------------------------
-    // Production policy (app.isPackaged=true): extension origin only.
-    // ---------------------------------------------------------------------
-
-    describe('production policy', () => {
-      afterEach(() => {
-        mockApp.isPackaged = false
-      })
-
-      it('serves the secret to the paired extension origin', () => {
-        mockApp.isPackaged = true
-        const handler = getRequestHandler()
-        const res = fakeRes()
-        handler(
-          {
-            method: 'GET',
-            url: '/api/health',
-            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
-          },
-          res
-        )
+    it.each(PACKAGED)(
+      'serves the secret to the paired extension origin (packaged=%s)',
+      (packaged) => {
+        mockApp.isPackaged = packaged
+        const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
         expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
         expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
-      })
+      }
+    )
 
-      it('rejects http://localhost:5173', () => {
-        mockApp.isPackaged = true
-        const handler = getRequestHandler()
-        const res = fakeRes()
-        handler(
-          {
-            method: 'GET',
-            url: '/api/health',
-            headers: { origin: 'http://localhost:5173' }
-          },
-          res
-        )
-        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-      })
+    it.each(PACKAGED)('rejects arbitrary website origins (packaged=%s)', (packaged) => {
+      mockApp.isPackaged = packaged
+      const res = requestHealth('https://evil.example.com')
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
 
-      it('rejects localhost origins on any other port', () => {
-        mockApp.isPackaged = true
-        const handler = getRequestHandler()
-        const res = fakeRes()
-        handler(
-          {
-            method: 'GET',
-            url: '/api/health',
-            headers: { origin: 'http://localhost:9999' }
-          },
-          res
-        )
-        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      })
+    it.each(PACKAGED)('rejects requests with no Origin header (packaged=%s)', (packaged) => {
+      mockApp.isPackaged = packaged
+      const res = requestHealth(undefined)
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
 
-      it('rejects arbitrary web origins', () => {
-        mockApp.isPackaged = true
-        const handler = getRequestHandler()
-        const res = fakeRes()
-        handler(
-          {
-            method: 'GET',
-            url: '/api/health',
-            headers: { origin: 'https://evil.com' }
-          },
-          res
-        )
-        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-      })
+    it.each(PACKAGED)('rejects localhost origins on any other port (packaged=%s)', (packaged) => {
+      mockApp.isPackaged = packaged
+      const res = requestHealth('http://localhost:9999')
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
 
-      it('rejects requests without an Origin header', () => {
-        mockApp.isPackaged = true
-        const handler = getRequestHandler()
-        const res = fakeRes()
-        handler({ method: 'GET', url: '/api/health', headers: {} }, res)
-        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-      })
+    it.each(PACKAGED)('rejects a non-localhost loopback origin (packaged=%s)', (packaged) => {
+      mockApp.isPackaged = packaged
+      const res = requestHealth('http://127.0.0.1:5173')
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+    })
+
+    it('serves the dev server origin only in development', () => {
+      mockApp.isPackaged = false
+      expect(requestHealth('http://localhost:5173').writeHead).toHaveBeenCalledWith(
+        200,
+        expect.anything()
+      )
+
+      mockApp.isPackaged = true
+      const res = requestHealth('http://localhost:5173')
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
 
     // ---------------------------------------------------------------------

@@ -5,31 +5,27 @@
  * Pre-hardening, a `siteStrategy` hit was used silently: it never counted as
  * a recovery, so it bypassed the ambiguity/confidence/priority gates AND left
  * no evidence. Post-hardening it is classified like the other recoveries.
+ *
+ * The vocabulary membership itself (`siteStrategy` ∈ AUTOMATION_LOOKUP_STRATEGIES
+ * and ∈ RECOVERY_LOOKUP_STRATEGIES) is already pinned by the loops in
+ * selectorRepair.test.ts, so only the two behaviours unique to this file are
+ * kept here.
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  classifyRepairEligibility,
-  isLookupStrategy,
-  isProviderDerivedStrategy,
-  isRecoveryStrategy,
-  normalizeLookupStrategy
-} from '../../../shared/selectorRepair'
+import { classifyRepairEligibility } from '../../../shared/selectorRepair'
+
+const HIGH_CONFIDENCE_BASE = {
+  confidenceScore: 95,
+  confidenceLevel: 'high' as const,
+  stableSelector: 'button[aria-label="Send"]',
+  ambiguous: false,
+  unstableSelector: false,
+  blockedSendControl: false,
+  operationSucceeded: true
+}
 
 describe('siteStrategy recovery classification', () => {
-  it('recognizes siteStrategy as a lookup strategy', () => {
-    expect(isLookupStrategy('siteStrategy')).toBe(true)
-    expect(normalizeLookupStrategy('siteStrategy')).toBe('siteStrategy')
-  })
-
-  it('treats siteStrategy as a recovery (never a silent hit)', () => {
-    expect(isRecoveryStrategy('siteStrategy')).toBe(true)
-  })
-
-  it('holds siteStrategy to the provider-derived bar', () => {
-    expect(isProviderDerivedStrategy('siteStrategy')).toBe(true)
-  })
-
   it('gates an eligible siteStrategy input recovery like other recoveries', () => {
     const verdict = classifyRepairEligibility({
       kind: 'input',
@@ -49,13 +45,7 @@ describe('siteStrategy recovery classification', () => {
     const verdict = classifyRepairEligibility({
       kind: 'button',
       strategy: 'siteStrategy',
-      confidenceScore: 95,
-      confidenceLevel: 'high',
-      stableSelector: 'button[aria-label="Send"]',
-      ambiguous: false,
-      unstableSelector: false,
-      blockedSendControl: false,
-      operationSucceeded: true
+      ...HIGH_CONFIDENCE_BASE
     })
     expect(verdict.eligible).toBe(false)
   })

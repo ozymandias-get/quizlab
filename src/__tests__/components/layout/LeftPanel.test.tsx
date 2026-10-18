@@ -1,6 +1,6 @@
 import LeftPanel from '@ui/layout/LeftPanel'
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockUseSharedDragDrop = vi.fn()
@@ -42,18 +42,14 @@ describe('LeftPanel', () => {
     })
   })
 
-  it('renders PdfViewer inside ErrorBoundary', async () => {
+  it('mounts the PDF viewer inside the panel shell', async () => {
     const { container } = render(<LeftPanel {...defaultProps} />)
 
-    expect(screen.getByTestId('error-boundary')).toBeInTheDocument()
+    // The panel's own surface class, plus the viewer being mounted under it.
+    // The ErrorBoundary wrapper is deliberately not asserted: it is stubbed
+    // here, so asserting it would only test the stub.
     expect(container.querySelector('.glass-tier-1')).toBeInTheDocument()
-
-    await waitFor(
-      () => {
-        expect(screen.getByTestId('pdf-viewer')).toBeInTheDocument()
-      },
-      { timeout: 5000 }
-    )
+    expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument()
   })
 
   it('shows drop overlay when isDragOver is true', () => {

@@ -22,58 +22,47 @@ describe('generateCspNonce', () => {
   })
 })
 
-describe('getStrictCsp', () => {
-  it('includes the nonce in script-src', () => {
-    const nonce = 'test-nonce-value'
-    const csp = getStrictCsp(nonce)
-    expect(csp).toContain(`'nonce-${nonce}'`)
+// The production and development policies differ in exactly one directive.
+// Everything else — default-src, frame-src, connect-src — was asserted with
+// byte-identical strings in both blocks, so it is asserted once per builder
+// here and the script-src difference is a separate case.
+const builders = [
+  ['getStrictCsp', () => getStrictCsp('abc')],
+  ['getDevCsp', () => getDevCsp()]
+] as const
+
+describe('CSP builders', () => {
+  it.each(builders)('%s includes default-src with self and blob', (_name, build) => {
+    expect(build()).toContain("default-src 'self' blob: local-pdf:")
   })
 
-  it('includes default-src with self and blob', () => {
-    const csp = getStrictCsp('abc')
-    expect(csp).toContain("default-src 'self' blob: local-pdf:")
+  it.each(builders)('%s includes frame-src with gemini.google.com', (_name, build) => {
+    expect(build()).toContain('gemini.google.com')
   })
 
-  it('includes frame-src with gemini.google.com', () => {
-    const csp = getStrictCsp('abc')
-    expect(csp).toContain('gemini.google.com')
-  })
-
-  it('does not contain unsafe-inline in script-src', () => {
-    const csp = getStrictCsp('abc')
-    const scriptSrc = csp.split(';').find((s) => s.trim().startsWith('script-src'))
-    expect(scriptSrc).not.toContain("'unsafe-inline'")
-  })
-
-  it('keeps connect-src limited to the PDF pipeline', () => {
-    const csp = getStrictCsp('abc')
-    const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
+  it.each(builders)('%s keeps connect-src limited to the PDF pipeline', (_name, build) => {
+    const connectSrc = build()
+      .split(';')
+      .find((s) => s.trim().startsWith('connect-src'))
     expect(connectSrc).toContain('local-pdf:')
     expect(connectSrc).not.toContain('local-ocr:')
     expect(connectSrc).not.toContain('https://cdn.jsdelivr.net')
   })
 })
 
+describe('getStrictCsp', () => {
+  it('includes the nonce in script-src and forbids unsafe-inline there', () => {
+    const nonce = 'test-nonce-value'
+    const csp = getStrictCsp(nonce)
+    expect(csp).toContain(`'nonce-${nonce}'`)
+
+    const scriptSrc = csp.split(';').find((s) => s.trim().startsWith('script-src'))
+    expect(scriptSrc).not.toContain("'unsafe-inline'")
+  })
+})
+
 describe('getDevCsp', () => {
-  it('contains unsafe-inline in script-src', () => {
-    const csp = getDevCsp()
-    expect(csp).toContain("'unsafe-inline'")
-  })
-
-  it('contains default-src with self and blob', () => {
-    const csp = getDevCsp()
-    expect(csp).toContain("default-src 'self' blob: local-pdf:")
-  })
-
-  it('contains frame-src with gemini.google.com', () => {
-    const csp = getDevCsp()
-    expect(csp).toContain('gemini.google.com')
-  })
-
-  it('keeps connect-src limited to the PDF pipeline', () => {
-    const csp = getDevCsp()
-    const connectSrc = csp.split(';').find((s) => s.trim().startsWith('connect-src'))
-    expect(connectSrc).toContain('local-pdf:')
-    expect(connectSrc).not.toContain('local-ocr:')
+  it('relaxes script-src with unsafe-inline for the dev server', () => {
+    expect(getDevCsp()).toContain("'unsafe-inline'")
   })
 })

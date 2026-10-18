@@ -63,36 +63,37 @@ describe('useGeminiWebSessionApi', () => {
   it('useGeminiWebStatus returns the session status', async () => {
     const { result } = renderHook(() => useGeminiWebStatus(), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(mockGeminiWeb.getStatus).toHaveBeenCalled()
     expect(result.current.data).toEqual({ loggedIn: true, profile: 'gemini' })
   })
 
-  const mutationCases = [
-    ['useGeminiWebResetProfile', useGeminiWebResetProfile, 'resetProfile'] as const
-  ]
-
-  it.each(mutationCases)(
-    '%s calls geminiWeb.%s and invalidates status',
-    async (_name, useHook, method) => {
+  // Every action shares one seam: forward the payload to geminiWeb.<method> and
+  // invalidate the status query. The two "enabled" variants additionally refresh
+  // the AI registry, because the registry reads the same toggle.
+  it.each([
+    ['useGeminiWebResetProfile', useGeminiWebResetProfile, 'resetProfile', undefined, false],
+    ['useGeminiWebSetEnabled', useGeminiWebSetEnabled, 'setEnabled', true, true],
+    [
+      'useGeminiWebSetEnabledApps',
+      useGeminiWebSetEnabledApps,
+      'setEnabledApps',
+      ['gemini', 'aistudio'],
+      true
+    ]
+  ] as const)(
+    '%s forwards its payload to geminiWeb.%s and invalidates the queries it owns',
+    async (_name, useHook, method, payload, invalidatesRegistry) => {
       const { result } = renderHook(() => useHook(), { wrapper })
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-      await result.current.mutateAsync()
-      expect(mockGeminiWeb[method] as any).toHaveBeenCalled()
+
+      await result.current.mutateAsync(payload as never)
+
+      expect(mockGeminiWeb[method] as any).toHaveBeenCalledWith(
+        ...(payload === undefined ? [] : [payload])
+      )
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['gemini-web', 'status'] })
+      if (invalidatesRegistry) {
+        expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['ai', 'registry'] })
+      }
     }
   )
-
-  it('useGeminiWebSetEnabled calls setEnabled with the boolean', async () => {
-    const { result } = renderHook(() => useGeminiWebSetEnabled(), { wrapper })
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await result.current.mutateAsync(true)
-    expect(mockGeminiWeb.setEnabled).toHaveBeenCalledWith(true)
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['ai', 'registry'] })
-  })
-
-  it('useGeminiWebSetEnabledApps calls setEnabledApps with app IDs', async () => {
-    const { result } = renderHook(() => useGeminiWebSetEnabledApps(), { wrapper })
-    await result.current.mutateAsync(['gemini', 'aistudio'])
-    expect(mockGeminiWeb.setEnabledApps).toHaveBeenCalledWith(['gemini', 'aistudio'])
-  })
 })

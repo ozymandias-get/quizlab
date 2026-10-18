@@ -6,7 +6,7 @@
  * temporary directory and measureCacheBreakdown with a mocked
  * electron app path.
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -40,37 +40,20 @@ describe('getDirectorySize', () => {
     expect(result.fileCount).toBe(0)
   })
 
-  it('counts a single file', async () => {
-    writeFileSync(path.join(tempDir, 'test.txt'), 'hello')
-    const result = await getDirectorySize(tempDir)
-    expect(result.fileCount).toBe(1)
-    expect(result.totalBytes).toBe(5)
-  })
-
-  it('counts multiple files', async () => {
-    writeFileSync(path.join(tempDir, 'a.txt'), 'aaa')
-    writeFileSync(path.join(tempDir, 'b.txt'), 'bbbbb')
-    const result = await getDirectorySize(tempDir)
-    expect(result.fileCount).toBe(2)
-    expect(result.totalBytes).toBe(8)
-  })
-
-  it('traverses nested directories', async () => {
+  it('counts and sums files across a nested tree, and accepts a bare file path', async () => {
     const subDir = path.join(tempDir, 'sub')
     mkdirSync(subDir)
-    writeFileSync(path.join(tempDir, 'root.txt'), '12345')
-    writeFileSync(path.join(subDir, 'nested.txt'), '1234567890')
-    const result = await getDirectorySize(tempDir)
-    expect(result.fileCount).toBe(2)
-    expect(result.totalBytes).toBe(15)
-  })
+    writeFileSync(path.join(tempDir, 'a.txt'), 'aaa')
+    writeFileSync(path.join(tempDir, 'b.txt'), 'bbbbb')
+    writeFileSync(path.join(subDir, 'c.txt'), '1234567890')
 
-  it('handles a file path (not directory)', async () => {
-    const filePath = path.join(tempDir, 'single.txt')
-    writeFileSync(filePath, 'data')
-    const result = await getDirectorySize(filePath)
-    expect(result.fileCount).toBe(1)
-    expect(result.totalBytes).toBe(4)
+    const nested = await getDirectorySize(tempDir)
+    expect(nested.fileCount).toBe(3)
+    expect(nested.totalBytes).toBe(18)
+
+    const asFile = await getDirectorySize(path.join(tempDir, 'a.txt'))
+    expect(asFile.fileCount).toBe(1)
+    expect(asFile.totalBytes).toBe(3)
   })
 
   it('handles non-existent paths gracefully', async () => {
@@ -126,14 +109,24 @@ describe('collectExpiredFiles', () => {
     expect(expired[0].absolutePath).toBeTruthy()
   })
 
-  it('skips directories', async () => {
-    mkdirSync(path.join(tempDir, 'subdir'))
-    writeFileSync(path.join(tempDir, 'subdir', 'file.txt'), 'data')
-    const expired = await collectExpiredFiles(tempDir, userDataPath, 0)
-    // Should collect files but not the directory itself
-    for (const entry of expired) {
-      expect(entry.size).toBeGreaterThan(0)
-    }
+  it('collects files at every depth but never returns a directory entry', async () => {
+    const subDir = path.join(tempDir, 'subdir')
+    mkdirSync(subDir)
+    const nestedFile = path.join(subDir, 'file.txt')
+    writeFileSync(nestedFile, 'data')
+    // Backdate the mtime instead of sleeping, so the "old enough" precondition
+    // is deterministic. (The case this replaces passed a maxAge of 0, which
+    // does NOT expire a just-created file — its assertion loop simply never
+    // ran.)
+    const stale = new Date(Date.now() - 60_000)
+    utimesSync(nestedFile, stale, stale)
+
+    const expired = await collectExpiredFiles(tempDir, userDataPath, 1_000)
+
+    expect(expired.length).toBe(1)
+    const [entry] = expired
+    expect(entry.absolutePath).toBe(nestedFile)
+    expect(entry.size).toBeGreaterThan(0)
   })
 })
 

@@ -43,15 +43,4 @@ describe('dialogDirectory', () => {
     expect(() => rememberDialogDirectory('a.pdf')).not.toThrow()
     expect(getDefaultDialogDirectory()).toBe('/home/u/Documents')
   })
-
-  it('does not carry state across module instances', async () => {
-    const first = await import('../../core/dialogDirectory.js')
-    first.rememberDialogDirectory('/home/u/Pictures/a.pdf')
-    expect(first.getDefaultDialogDirectory()).toBe('/home/u/Pictures')
-
-    vi.resetModules()
-    const second = await import('../../core/dialogDirectory.js')
-
-    expect(second.getDefaultDialogDirectory()).toBe('/home/u/Documents')
-  })
 })

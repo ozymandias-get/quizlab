@@ -196,148 +196,131 @@ export type InstallPathDeclaredEverywhere = 'installedPath' extends keyof Instal
 const rendererIsNotNarrower: RendererCoversContract extends true[] ? true : false = true
 const rendererKeysMatch: RendererKeysMatchContract extends true[] ? true : false = true
 
+// Everything below this line is a COMPILE-TIME assertion, not a runtime one:
+// each helper body is an empty function whose only job is to make `tsc -b`
+// (tsconfig.node.test.json, which includes electron/**/*) reject a drift
+// between the contract, the preload and the renderer-facing API. They are
+// therefore evaluated at module scope, so they hold for the whole file
+// regardless of how many runtime `it()` blocks wrap them. Wrapping them in
+// separate `it()`s that ended in `expect(true).toBe(true)` cost nine test
+// slots in the report and could never fail at runtime.
+//
+// If any line in this block stops compiling, preload and contract are out of
+// sync. Event-only channels like SHOW_PDF_CONTEXT_MENU / TRIGGER_* are
+// intentionally absent from the invoke table below.
+assertInvokeChannel(IPC_CHANNELS.GET_AI_REGISTRY)
+assertInvokeChannel(IPC_CHANNELS.SELECT_PDF)
+assertInvokeChannel(IPC_CHANNELS.GET_PDF_STREAM_URL)
+assertInvokeChannel(IPC_CHANNELS.PDF_REGISTER_PATH)
+assertInvokeChannel(IPC_CHANNELS.CAPTURE_SCREEN)
+assertInvokeChannel(IPC_CHANNELS.COPY_IMAGE)
+assertInvokeChannel(IPC_CHANNELS.RESTORE_CLIPBOARD)
+assertInvokeChannel(IPC_CHANNELS.COPY_TEXT)
+assertInvokeChannel(IPC_CHANNELS.OPEN_EXTERNAL)
+assertInvokeChannel(IPC_CHANNELS.AI_VIEW_PASTE)
+assertInvokeChannel(IPC_CHANNELS.CLEAR_CACHE)
+assertInvokeChannel(IPC_CHANNELS.CLEAR_AI_MODEL_DATA)
+assertInvokeChannel(IPC_CHANNELS.CHECK_FOR_UPDATES)
+assertInvokeChannel(IPC_CHANNELS.GET_APP_VERSION)
+assertInvokeChannel(IPC_CHANNELS.SAVE_AI_CONFIG)
+assertInvokeChannel(IPC_CHANNELS.GET_AI_CONFIG)
+assertInvokeChannel(IPC_CHANNELS.DELETE_AI_CONFIG)
+assertInvokeChannel(IPC_CHANNELS.ADD_CUSTOM_AI)
+assertInvokeChannel(IPC_CHANNELS.DELETE_CUSTOM_AI)
+assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_STATUS)
+
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
+assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+assertInvokeChannel(IPC_CHANNELS.CACHE_INFO)
+assertInvokeChannel(IPC_CHANNELS.DEEP_CLEAN_CACHE)
+assertInvokeChannel(IPC_CHANNELS.GET_API_CHAT_CONFIG)
+assertInvokeChannel(IPC_CHANNELS.SAVE_API_CHAT_CONFIG)
+assertInvokeChannel(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
+assertInvokeChannel(IPC_CHANNELS.FETCH_API_CHAT_MODELS)
+assertInvokeChannel(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
+
+// SELECT_PDF's contract is `[options?: PdfSelectOptions]`, so an empty tuple is
+// legal and a bare string is not. The aliases keep the two declarations below
+// under prettier's 100-column width — spelled out inline they run to ~105
+// characters, prettier re-wraps them, the `@ts-expect-error` stays on the
+// `const` line, and TS reports the mismatch on the array-element line instead.
+// That split is what trips TS2578 (unused directive) alongside the real error.
+type SelectPdfArgs = IpcInvokeRequestMap[typeof IPC_CHANNELS.SELECT_PDF]['args']
+type AutomationArgs = IpcInvokeRequestMap[typeof IPC_CHANNELS.GET_AUTOMATION_SCRIPTS]['args']
+
+// @ts-expect-error - intentionally passing invalid args for compile-time contract check
+const invalidSelectPdfArgs: SelectPdfArgs = ['not-an-object']
+
+assertAutomationAction('generateFocusScript', { input: '#prompt' })
+assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 'hello', false, true)
+assertAutomationAction('generateWaitForSubmitReadyScript', { input: '#prompt' }, { timeoutMs: 5 })
+assertAutomationAction('generatePickerScript', { pickInput: 'Pick input' })
+
+// @ts-expect-error - generateAutoSendScript requires string text as second argument
+assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 123, false, true)
+
+// @ts-expect-error - intentionally passing invalid action for compile-time contract check
+const invalidAutomationArgs: AutomationArgs = ['unknown-action']
+
+// Every key of IPC_CHANNELS must be mapped in IpcInvokeRequestMap or IpcEventMap.
+// This line fails to compile when one is not.
+type ChannelValue = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
+const _everyChannelMapped: Record<ChannelValue, true> = {} as Record<
+  IpcInvokeChannel | import('@shared-core/types/ipcContract').IpcEventChannel,
+  true
+> as Record<ChannelValue, true>
+
+// No channel may be both invoke and event. `[Overlap] extends [never]` rather
+// than `Overlap`, because `never` is assignable to every type and would compile
+// either way — the conditional type only resolves to `true` when the
+// intersection is genuinely empty.
+type Overlap = IpcInvokeChannel & import('@shared-core/types/ipcContract').IpcEventChannel
+const _noChannelIsBoth: [Overlap] extends [never] ? true : false = true
+
+type InstallData = Extract<
+  IpcInvokeRequestMap[typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]['result'],
+  { ok: true }
+>['data']
+function assertResultKey<_K extends keyof InstallData>(_key: _K) {
+  // no-op – purely for type checking
+}
+// nativeMessagingManager.installExtension() resolves `installedPath` and the
+// extension wizard reads it. The contract omitted the field while electronApi.ts
+// declared it, so nothing failed to compile; this pins the contract to the
+// real payload.
+assertResultKey('success')
+assertResultKey('installedPath')
+
+// onTriggerScreenshot and onPdfViewerZoom used to hand-roll ipcRenderer.on,
+// which cost them Parameters<Parameters<...>> casts. Routed through onEvent()
+// they are typed by the event map, so both payloads must resolve.
+assertEventArgs(IPC_CHANNELS.TRIGGER_SCREENSHOT, 'full-page')
+assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
+
+void invalidSelectPdfArgs
+void invalidAutomationArgs
+void _everyChannelMapped
+void _noChannelIsBoth
+
 describe('IPC contract', () => {
-  it('covers all invoke-style channels used in preload', () => {
-    // If any of these lines stops compiling, preload and contract are out of sync.
-    assertInvokeChannel(IPC_CHANNELS.GET_AI_REGISTRY)
-    assertInvokeChannel(IPC_CHANNELS.SELECT_PDF)
-    assertInvokeChannel(IPC_CHANNELS.GET_PDF_STREAM_URL)
-    assertInvokeChannel(IPC_CHANNELS.PDF_REGISTER_PATH)
-    assertInvokeChannel(IPC_CHANNELS.CAPTURE_SCREEN)
-    assertInvokeChannel(IPC_CHANNELS.COPY_IMAGE)
-    assertInvokeChannel(IPC_CHANNELS.RESTORE_CLIPBOARD)
-    assertInvokeChannel(IPC_CHANNELS.COPY_TEXT)
-    assertInvokeChannel(IPC_CHANNELS.OPEN_EXTERNAL)
-    assertInvokeChannel(IPC_CHANNELS.AI_VIEW_PASTE)
-    assertInvokeChannel(IPC_CHANNELS.CLEAR_CACHE)
-    assertInvokeChannel(IPC_CHANNELS.CLEAR_AI_MODEL_DATA)
-    assertInvokeChannel(IPC_CHANNELS.CHECK_FOR_UPDATES)
-    assertInvokeChannel(IPC_CHANNELS.GET_APP_VERSION)
-    assertInvokeChannel(IPC_CHANNELS.SAVE_AI_CONFIG)
-    assertInvokeChannel(IPC_CHANNELS.GET_AI_CONFIG)
-    assertInvokeChannel(IPC_CHANNELS.DELETE_AI_CONFIG)
-    assertInvokeChannel(IPC_CHANNELS.ADD_CUSTOM_AI)
-    assertInvokeChannel(IPC_CHANNELS.DELETE_CUSTOM_AI)
-    assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_STATUS)
-
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
-    assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
-    assertInvokeChannel(IPC_CHANNELS.CACHE_INFO)
-    assertInvokeChannel(IPC_CHANNELS.DEEP_CLEAN_CACHE)
-    assertInvokeChannel(IPC_CHANNELS.GET_API_CHAT_CONFIG)
-    assertInvokeChannel(IPC_CHANNELS.SAVE_API_CHAT_CONFIG)
-    assertInvokeChannel(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
-    assertInvokeChannel(IPC_CHANNELS.FETCH_API_CHAT_MODELS)
-    assertInvokeChannel(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST)
-
-    // Event-only channels like SHOW_PDF_CONTEXT_MENU / TRIGGER_* are intentionally excluded.
-    expect(true).toBe(true)
-  })
-
-  it('keeps select-pdf args mapped in invoke contract', () => {
-    // @ts-expect-error - intentionally passing invalid args for compile-time contract check
-    const badArgs: IpcInvokeRequestMap[typeof IPC_CHANNELS.SELECT_PDF]['args'] = ['not-an-object']
-    void badArgs
-    expect(Array.isArray(badArgs)).toBe(true)
-  })
-
-  it('keeps automation actions and args strongly typed', () => {
-    assertAutomationAction('generateFocusScript', { input: '#prompt' })
-    assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 'hello', false, true)
-    assertAutomationAction(
-      'generateWaitForSubmitReadyScript',
-      { input: '#prompt' },
-      { timeoutMs: 5 }
-    )
-    assertAutomationAction('generatePickerScript', { pickInput: 'Pick input' })
-
-    // @ts-expect-error - generateAutoSendScript requires string text as second argument
-    assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 123, false, true)
-
-    const invalidAutomationInvokeArgs: IpcInvokeRequestMap[typeof IPC_CHANNELS.GET_AUTOMATION_SCRIPTS]['args'] =
-      // @ts-expect-error - intentionally passing invalid action for compile-time contract check
-      ['unknown-action']
-    void invalidAutomationInvokeArgs
-    expect(Array.isArray(invalidAutomationInvokeArgs)).toBe(true)
-  })
-
-  it('every IPC_CHANNELS key is either in IpcInvokeRequestMap or IpcEventMap', () => {
-    type ChannelValue = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]
-    type InvokeChannels = IpcInvokeChannel
-    type EventChannels = import('@shared-core/types/ipcContract').IpcEventChannel
-    type AllMapped = InvokeChannels | EventChannels
-
-    // This line will fail to compile if a channel in IPC_CHANNELS is not mapped
-    // in either IpcInvokeRequestMap or IpcEventMap.
-    const _check: Record<ChannelValue, true> = {} as Record<AllMapped, true> as Record<
-      ChannelValue,
-      true
-    >
-    void _check
-    expect(true).toBe(true)
-  })
-
-  it('no channel in IPC_CHANNELS is both invoke and event', () => {
-    type InvokeChannels = IpcInvokeChannel
-    type EventChannels = import('@shared-core/types/ipcContract').IpcEventChannel
-    type Overlap = InvokeChannels & EventChannels
-    // `[Overlap] extends [never]` rather than `Overlap`, because `never` is
-    // assignable to every type: `const x: Overlap = undefined as never` compiles
-    // whether or not Overlap is `never`, which is the trap this file already
-    // guards against twice above. The conditional type only resolves to `true`
-    // when the intersection is genuinely empty.
-    const _check: [Overlap] extends [never] ? true : false = true
-    void _check
-    expect(true).toBe(true)
-  })
-
-  it('keeps the contract result in step with what the handler actually returns', () => {
-    type InstallResult =
-      IpcInvokeRequestMap[typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]['result']
-    type InstallData = Extract<InstallResult, { ok: true }>['data']
-    function assertResultKey<_K extends keyof InstallData>(_key: _K) {
-      // no-op – purely for type checking
-    }
-    // nativeMessagingManager.installExtension() resolves `installedPath` and the
-    // extension wizard reads it. The contract omitted the field while
-    // electronApi.ts declared it, so nothing failed to compile; this pins the
-    // contract to the real payload.
-    assertResultKey('success')
-    assertResultKey('installedPath')
-    expect(true).toBe(true)
-  })
-
-  it('never declares the renderer-facing result narrower than the contract', () => {
-    // electronApi.ts is hand-written and keyed by method name, not channel name,
-    // so this mapping is explicit. The rule: the contract's payload must be
-    // assignable to the renderer-facing result. A wider renderer type (the
-    // deliberate `| null` widening documented on ElectronApi) passes; a missing
-    // payload field or a changed payload type does not.
-    //
-    // That is the direction that matters, and it is what would have caught
-    // NATIVE_MESSAGING_INSTALL_EXTENSION omitting `installedPath` from the
-    // contract while the handler resolved it and the renderer read it.
+  // The two parity checks above resolve to `true` or the file does not compile;
+  // `RendererCoversContract extends true[]` is already proven by the annotated
+  // consts. This is the runtime witness that keeps those consts from being
+  // elided as unused.
+  //
+  // electronApi.ts is hand-written and keyed by method name, not channel name,
+  // so the mapping is explicit. The rule: the contract's payload must be
+  // assignable to the renderer-facing result. A wider renderer type (the
+  // deliberate `| null` widening documented on ElectronApi) passes; a missing
+  // payload field or a changed payload type does not. Key sets are compared in
+  // both directions as well, because assignability alone cannot see a dropped
+  // *optional* field.
+  it('keeps the renderer-facing result in step with the contract payload', () => {
     expect(rendererIsNotNarrower).toBe(true)
-  })
-
-  it('gives the renderer-facing result exactly the contract payload keys', () => {
-    // The assignability check above cannot see a dropped *optional* field,
-    // because `{ a: string }` is assignable to `{ a: string; b?: number }`.
-    // That is exactly the shape of the installedPath drift, so key sets are
-    // compared in both directions as well.
     expect(rendererKeysMatch).toBe(true)
-  })
-
-  it('types the event payloads the preload subscribes to', () => {
-    // onTriggerScreenshot and onPdfViewerZoom used to hand-roll ipcRenderer.on,
-    // which cost them Parameters<Parameters<...>> casts. Routed through
-    // onEvent() they are typed by the event map, so both payloads must resolve.
-    assertEventArgs(IPC_CHANNELS.TRIGGER_SCREENSHOT, 'full-page')
-    assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
-    expect(true).toBe(true)
   })
 })

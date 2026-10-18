@@ -13,35 +13,19 @@ import {
 } from '../../../shared/selectorConfig'
 
 describe('normalizeSubmitMode', () => {
-  it('returns undefined for non-strings', () => {
-    expect(normalizeSubmitMode(null)).toBeUndefined()
-    expect(normalizeSubmitMode(undefined)).toBeUndefined()
-    expect(normalizeSubmitMode(123)).toBeUndefined()
-    expect(normalizeSubmitMode({})).toBeUndefined()
-    expect(normalizeSubmitMode([])).toBeUndefined()
-    expect(normalizeSubmitMode(true)).toBeUndefined()
+  const REJECTED = [null, undefined, 123, {}, [], true, '', '   ', '\t\n'] as const
+
+  it.each(REJECTED)('returns undefined for %j', (value) => {
+    expect(normalizeSubmitMode(value)).toBeUndefined()
   })
 
-  it('returns undefined for empty / whitespace-only strings', () => {
-    expect(normalizeSubmitMode('')).toBeUndefined()
-    expect(normalizeSubmitMode('   ')).toBeUndefined()
-    expect(normalizeSubmitMode('\t\n')).toBeUndefined()
-  })
-
-  it('maps "enter" → "enter_key"', () => {
-    expect(normalizeSubmitMode('enter')).toBe('enter_key')
-  })
-
-  it('accepts "enter_key" verbatim', () => {
-    expect(normalizeSubmitMode('enter_key')).toBe('enter_key')
-  })
-
-  it('accepts "click" verbatim', () => {
-    expect(normalizeSubmitMode('click')).toBe('click')
-  })
-
-  it('accepts "mixed" verbatim', () => {
-    expect(normalizeSubmitMode('mixed')).toBe('mixed')
+  it.each([
+    ['enter', 'enter_key'],
+    ['enter_key', 'enter_key'],
+    ['click', 'click'],
+    ['mixed', 'mixed']
+  ])('maps %j to %j verbatim-or-renamed', (input, expected) => {
+    expect(normalizeSubmitMode(input)).toBe(expected)
   })
 
   it('is case-insensitive and trims whitespace', () => {
@@ -50,12 +34,12 @@ describe('normalizeSubmitMode', () => {
     expect(normalizeSubmitMode('MIXED')).toBe('mixed')
   })
 
-  it('returns undefined for unknown values', () => {
-    expect(normalizeSubmitMode('shift_enter')).toBeUndefined()
-    expect(normalizeSubmitMode('ctrl_enter')).toBeUndefined()
-    expect(normalizeSubmitMode('auto')).toBeUndefined()
-    expect(normalizeSubmitMode('submit')).toBeUndefined()
-  })
+  it.each(['shift_enter', 'ctrl_enter', 'auto', 'submit'])(
+    'returns undefined for the unknown value %j',
+    (value) => {
+      expect(normalizeSubmitMode(value)).toBeUndefined()
+    }
+  )
 })
 
 describe('canonicalizeHostname', () => {
@@ -129,28 +113,12 @@ describe('canonicalizeHostname', () => {
 })
 
 describe('normalizeSelectorHealth', () => {
-  it('accepts "ready"', () => {
-    expect(normalizeSelectorHealth('ready')).toBe('ready')
+  it.each(['ready', 'migrated', 'needs_repick'] as const)('accepts %j', (value) => {
+    expect(normalizeSelectorHealth(value)).toBe(value)
   })
 
-  it('accepts "migrated"', () => {
-    expect(normalizeSelectorHealth('migrated')).toBe('migrated')
-  })
-
-  it('accepts "needs_repick"', () => {
-    expect(normalizeSelectorHealth('needs_repick')).toBe('needs_repick')
-  })
-
-  it('returns undefined for invalid values', () => {
-    expect(normalizeSelectorHealth('unknown')).toBeUndefined()
-    expect(normalizeSelectorHealth('READY')).toBeUndefined() // case sensitive
-    expect(normalizeSelectorHealth('')).toBeUndefined()
-  })
-
-  it('returns undefined for non-strings', () => {
-    expect(normalizeSelectorHealth(null)).toBeUndefined()
-    expect(normalizeSelectorHealth(undefined)).toBeUndefined()
-    expect(normalizeSelectorHealth(123)).toBeUndefined()
+  it.each(['unknown', 'READY', '', null, undefined, 123])('returns undefined for %j', (value) => {
+    expect(normalizeSelectorHealth(value)).toBeUndefined()
   })
 })
 

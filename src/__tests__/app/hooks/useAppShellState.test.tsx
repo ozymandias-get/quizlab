@@ -57,17 +57,6 @@ describe('useAppShellState', () => {
     vi.clearAllMocks()
   })
 
-  it('reports update available false by default', () => {
-    const { result } = renderHook(() => useAppShellState())
-    expect(result.current.updateAvailable).toBe(false)
-    expect(result.current.updateInfo).toBeNull()
-  })
-
-  it('reports layout not swapped by default', () => {
-    const { result } = renderHook(() => useAppShellState())
-    expect(result.current.isLayoutSwapped).toBe(false)
-  })
-
   describe('workspaceState', () => {
     it('starts with bar not hovered', () => {
       const { result } = renderHook(() => useAppShellState())
@@ -99,11 +88,6 @@ describe('useAppShellState', () => {
   })
 
   describe('focus', () => {
-    it('mode is null by default', () => {
-      const { result } = renderHook(() => useAppShellState())
-      expect(result.current.focus.mode).toBeNull()
-    })
-
     it('toggle calls toggleFocusMode', () => {
       const { result } = renderHook(() => useAppShellState())
       act(() => {

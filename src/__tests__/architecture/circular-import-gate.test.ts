@@ -137,16 +137,13 @@ describe('circular gate: madge resolves the whole tree', () => {
     expect(Object.keys(full.obj()).length).toBeGreaterThan(1000)
   })
 
-  it('finds no cycle at all, type-only edges included', () => {
-    // This is the assertion `npm run analyze:circular` makes; restating it here
-    // keeps the test suite and the npm script from disagreeing.
-    expect(full.circular()).toEqual([])
-  })
-
   it('finds no cycle in the runtime graph either', () => {
     // The runtime graph drops `import type`, so it is the one that reflects what
-    // the bundler actually links. Both were empty; keeping both asserted is what
-    // makes "type-only vs runtime" a measured distinction rather than a claim.
+    // the bundler actually links. This is NOT what `analyze:circular` asserts --
+    // that command has no way to drop type-only edges, so the CI step
+    // "Circular Dependency Check" covers the full graph and nothing covers this
+    // one. Both were empty; keeping both asserted is what makes "type-only vs
+    // runtime" a measured distinction rather than a claim.
     expect(runtimeOnly.circular()).toEqual([])
   })
 

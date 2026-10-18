@@ -106,34 +106,22 @@ describe('usePdfZoomShortcuts', () => {
   })
 
   describe('what it must not consume', () => {
-    it('ignores the bindings without a modifier', () => {
+    it.each([
+      ['the bare keys, with no modifier', ['-'], {}],
+      ['Ctrl+Shift+=', ['='], { ...ctrl, shiftKey: true }],
+      ['Ctrl+Alt+-', ['-'], { ...ctrl, altKey: true }],
+      ['an auto-repeating Ctrl+=', ['='], { ...ctrl, repeat: true }],
+      ['an unrelated Ctrl+j', ['j'], ctrl]
+    ])('ignores %s', (_label, keys, init) => {
       setup()
-      key('-')
-      key('=')
-      key('0')
-      expect(zoomOut).not.toHaveBeenCalled()
-      expect(zoomIn).not.toHaveBeenCalled()
-      expect(fit).not.toHaveBeenCalled()
-    })
 
-    it('ignores shift and alt combinations', () => {
-      setup()
-      key('=', { ...ctrl, shiftKey: true })
-      key('-', { ...ctrl, altKey: true })
-      expect(zoomIn).not.toHaveBeenCalled()
-      expect(zoomOut).not.toHaveBeenCalled()
-    })
+      const events = keys.map((k) => key(k, init))
 
-    it('ignores auto-repeat, matching `usePdfShortcuts`', () => {
-      setup()
-      key('=', { ...ctrl, repeat: true })
-      expect(zoomIn).not.toHaveBeenCalled()
-    })
-
-    it('ignores other Ctrl combinations without preventing their default', () => {
-      setup()
-      const event = key('j', ctrl)
-      expect(event.defaultPrevented).toBe(false)
+      // None of these is a PDF zoom, and none of them may have its default
+      // prevented: browser zoom and every other Ctrl binding stay untouched.
+      for (const event of events) {
+        expect(event.defaultPrevented).toBe(false)
+      }
       expect(zoomIn).not.toHaveBeenCalled()
       expect(zoomOut).not.toHaveBeenCalled()
       expect(fit).not.toHaveBeenCalled()
@@ -187,12 +175,6 @@ describe('usePdfZoomShortcuts', () => {
       }
 
       expect(zoomOut).not.toHaveBeenCalled()
-    })
-
-    it('still zooms from a non-field target', () => {
-      setup()
-      key('=', ctrl)
-      expect(zoomIn).toHaveBeenCalledTimes(1)
     })
   })
 

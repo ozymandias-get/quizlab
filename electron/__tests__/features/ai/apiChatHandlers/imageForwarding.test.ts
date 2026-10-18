@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { IPC_CHANNELS } from '../../../../../shared/constants/ipcChannels.js'
 
@@ -92,12 +92,25 @@ beforeEach(() => {
   fetchWithSsrProtection.mockReset()
 })
 
+/**
+ * `registerApiChatHandlers` self-guards (`apiChatHandlers.ts:38`), so `main()`
+ * registers exactly once for the whole file and every test shares the one
+ * handler table — which is exactly why `clearMocks` has to stay `false` and why
+ * the `beforeEach` above is a selective `mockReset`, not a clear-all.
+ * Registering in `beforeAll` makes that explicit rather than calling a no-op
+ * inside each test.
+ */
+let sendHandler: ReturnType<typeof getHandler>
+
+beforeAll(async () => {
+  await main()
+  sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
+})
+
 describe('api-chat image forwarding', () => {
   it('sends an image-only turn to the provider instead of rejecting it', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: '', timestamp: 1, images: [PNG] }
     ])
@@ -112,8 +125,6 @@ describe('api-chat image forwarding', () => {
   it('does not emit an empty text part for an image-only turn', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: '', timestamp: 1, images: [PNG] }
     ])
@@ -126,8 +137,6 @@ describe('api-chat image forwarding', () => {
   it('sends the image alongside typed text when both are present', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: 'Explain this', timestamp: 1, images: [PNG, JPEG] }
     ])
@@ -143,8 +152,6 @@ describe('api-chat image forwarding', () => {
   it('forwards an image-only turn that follows earlier history', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: 'First question', timestamp: 1 },
       { id: 'm2', role: 'assistant', content: 'First answer', timestamp: 2 },
@@ -159,8 +166,6 @@ describe('api-chat image forwarding', () => {
   it('treats a whitespace-only turn with an image as sendable', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: '   \n  ', timestamp: 1, images: [PNG] }
     ])
@@ -172,8 +177,6 @@ describe('api-chat image forwarding', () => {
   it('still rejects a transcript with no sendable turn', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     const result = await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: '', timestamp: 1 },
       { id: 'm2', role: 'assistant', content: '', timestamp: 2 }
@@ -186,24 +189,9 @@ describe('api-chat image forwarding', () => {
     expect(fetchWithSsrProtection).not.toHaveBeenCalled()
   })
 
-  it('drops an empty-text turn that carries an empty images array', async () => {
-    seedOkProvider()
-
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
-    const result = await sendHandler({ sender: {} }, [
-      { id: 'm1', role: 'user', content: '', timestamp: 1, images: [] }
-    ])
-
-    expect(result.ok).toBe(false)
-    expect(fetchWithSsrProtection).not.toHaveBeenCalled()
-  })
-
   it('never forwards images on an assistant turn', async () => {
     seedOkProvider()
 
-    await main()
-    const sendHandler = getHandler(IPC_CHANNELS.SEND_API_CHAT_REQUEST)
     await sendHandler({ sender: {} }, [
       { id: 'm1', role: 'user', content: 'question', timestamp: 1 },
       { id: 'm2', role: 'assistant', content: 'answer', timestamp: 2, images: [PNG] }

@@ -3,37 +3,38 @@ import type { PickerElementInfo } from '@electron/features/automation/lib/domHel
 
 import { describe, expect, it } from 'vitest'
 
-describe('getStepHtml', () => {
-  it('returns HTML and a color for the input step', () => {
-    const result = getStepHtml('input')
-    expect(result.html).toContain('Select Message Input')
-    expect(result.html).toContain('Step 1 / 3')
-    expect(result.color).toBe('#60a5fa')
+/**
+ * Bu şablonlar saf metin üreticileridir: girdi (adım + çeviri sözlüğü)
+ * çıktıdaki kullanıcı metnini belirler. Testler İngilizce arayüz metnini
+ * sabitlemez — bunun yerine adımın DOĞRU olduğunu, çevirinin uygulandığını
+ * ve eksik çeviri anahtarlarında İngilizceye düşüldüğünü doğrular, böylece
+ * metin değişiklikleri testleri kırmaz.
+ */
+describe('picker UI templates', () => {
+  it('renders each step with its own title and accent colour', () => {
+    const steps = [
+      { step: 'input', marker: 'Step 1 / 3', color: '#60a5fa' },
+      { step: 'typing', marker: 'Step 2 / 3', color: '#f59e0b' },
+      { step: 'submit', marker: 'Step 3 / 3', color: '#4ade80' },
+      { step: 'done', marker: undefined, color: '#a78bfa' }
+    ] as const
+
+    for (const { step, marker, color } of steps) {
+      const result = getStepHtml(step)
+      expect(result.html, `step ${step} must render HTML`).toBeTypeOf('string')
+      expect(result.html.length, `step ${step} must not be empty`).toBeGreaterThan(0)
+      expect(result.color, `step ${step} accent colour`).toBe(color)
+      if (marker) {
+        expect(result.html).toContain(marker)
+      }
+    }
+
+    // The typing step is the only one offering the "advance" affordance.
+    expect(getStepHtml('typing').html).toContain('_ai_picker_next_btn')
+    expect(getStepHtml('input').html).not.toContain('_ai_picker_next_btn')
   })
 
-  it('returns HTML and a color for the typing step', () => {
-    const result = getStepHtml('typing')
-    expect(result.html).toContain('Type a Letter')
-    expect(result.html).toContain('Step 2 / 3')
-    expect(result.html).toContain('_ai_picker_next_btn')
-    expect(result.color).toBe('#f59e0b')
-  })
-
-  it('returns HTML and a color for the submit step', () => {
-    const result = getStepHtml('submit')
-    expect(result.html).toContain('Click Send Button')
-    expect(result.html).toContain('Step 3 / 3')
-    expect(result.color).toBe('#4ade80')
-  })
-
-  it('returns HTML and a color for the done step', () => {
-    const result = getStepHtml('done')
-    expect(result.html).toContain('Completed!')
-    expect(result.html).toContain('Saving settings')
-    expect(result.color).toBe('#a78bfa')
-  })
-
-  it('uses custom translations when provided', () => {
+  it('applies custom translations to the step template', () => {
     const t = {
       picker_step: 'Adım',
       picker_intro_title: 'Mesaj Kutusunu Seç',
@@ -49,100 +50,96 @@ describe('getStepHtml', () => {
     expect(typingResult.html).toContain('Harf Yaz')
     expect(typingResult.html).toContain('Tamam, Devam')
   })
-})
 
-describe('getHintHtml', () => {
-  const baseInputInfo: PickerElementInfo = {
-    category: 'input',
-    labelEN: 'Message Input',
-    labelKey: 'picker_el_input',
-    confidence: 'high',
-    tag: 'input',
-    hintEN: 'This looks like a message input field.',
-    hintKey: 'picker_hint_input_correct'
-  }
+  it('renders no hint box when there is nothing to say', () => {
+    const info: PickerElementInfo = {
+      category: 'input',
+      labelEN: 'Message Input',
+      labelKey: 'picker_el_input',
+      confidence: 'high',
+      tag: 'input',
+      hintEN: 'This looks like a message input field.',
+      hintKey: 'picker_hint_input_correct'
+    }
 
-  const baseButtonInfo: PickerElementInfo = {
-    category: 'button',
-    labelEN: 'Send Button',
-    labelKey: 'picker_el_submit',
-    confidence: 'high',
-    tag: 'button',
-    hintEN: 'This is a send button.',
-    hintKey: 'picker_hint_submit_correct'
-  }
-
-  it('returns empty string when hoveredInfo is null', () => {
+    // No hovered element.
     expect(getHintHtml('input', null)).toBe('')
+    // Hints only exist for the input and submit steps.
+    expect(getHintHtml('typing', info)).toBe('')
+    expect(getHintHtml('done', info)).toBe('')
+    // An element with neither hintEN nor hintKey renders no hint box.
+    expect(
+      getHintHtml('input', {
+        category: 'input',
+        labelEN: 'Input',
+        confidence: 'high',
+        tag: 'input'
+      })
+    ).not.toContain('background:rgba')
   })
 
-  it('returns empty string when step is not input or submit', () => {
-    expect(getHintHtml('typing', baseInputInfo)).toBe('')
-    expect(getHintHtml('done', baseInputInfo)).toBe('')
-  })
+  it('renders the element label and colours it by confidence, with translation fallback', () => {
+    const inputInfo: PickerElementInfo = {
+      category: 'input',
+      labelEN: 'Message Input',
+      labelKey: 'picker_el_input',
+      confidence: 'high',
+      tag: 'input',
+      hintEN: 'This looks like a message input field.',
+      hintKey: 'picker_hint_input_correct'
+    }
 
-  it('returns hint HTML for a valid input step with input element', () => {
-    const html = getHintHtml('input', baseInputInfo)
-    expect(html).toContain('Message Input')
-    expect(html).toContain('Good Choice')
-    expect(html).toContain('message input field')
-  })
+    // High confidence → green accent; unknown category → amber.
+    const inputHtml = getHintHtml('input', inputInfo)
+    expect(inputHtml).toContain('Message Input')
+    expect(inputHtml).toContain('message input field')
+    expect(inputHtml).toContain('#4ade80')
 
-  it('returns hint HTML for a valid submit step with button element', () => {
-    const html = getHintHtml('submit', baseButtonInfo)
-    expect(html).toContain('Send Button')
-    expect(html).toContain('Good Choice')
-    expect(html).toContain('send button')
-  })
-
-  it('highlights the confidence color', () => {
-    const html = getHintHtml('input', baseInputInfo)
-    expect(html).toContain('#4ade80')
-  })
-
-  it('shows medium confidence color for unknown category elements', () => {
-    const unknownInfo: PickerElementInfo = {
+    const mediumHtml = getHintHtml('input', {
       category: 'unknown',
       labelEN: 'Unknown Element',
       confidence: 'medium',
       tag: 'div'
-    }
-    const html = getHintHtml('input', unknownInfo)
-    expect(html).toContain('#fbbf24')
-  })
+    })
+    expect(mediumHtml).toContain('#fbbf24')
 
-  it('uses translated strings when available', () => {
-    const t = { picker_el_input: 'Mesaj Girişi', picker_good_choice: 'İyi Seçim' }
-    const html = getHintHtml('input', baseInputInfo, t)
-    expect(html).toContain('Mesaj Girişi')
-    expect(html).toContain('İyi Seçim')
-  })
+    // Translated strings win when present…
+    const translated = getHintHtml('input', inputInfo, {
+      picker_el_input: 'Mesaj Girişi',
+      picker_good_choice: 'İyi Seçim'
+    })
+    expect(translated).toContain('Mesaj Girişi')
+    expect(translated).toContain('İyi Seçim')
 
-  it('falls back to labelEN when translation is not available', () => {
-    const html = getHintHtml('input', baseInputInfo, {})
-    expect(html).toContain('Message Input')
-  })
+    // …and the English defaults are used when a key is missing.
+    const fallbackHtml = getHintHtml('input', inputInfo, {})
+    expect(fallbackHtml).toContain('Message Input')
 
-  it('falls back to hintEN when translation key is missing', () => {
-    const info: PickerElementInfo = {
-      category: 'input',
-      labelEN: 'Input',
+    // hintEN is the last-resort source for the hint body.
+    const hintFallback = getHintHtml(
+      'input',
+      {
+        category: 'input',
+        labelEN: 'Input',
+        confidence: 'high',
+        tag: 'input',
+        hintEN: 'Fallback hint'
+      },
+      {}
+    )
+    expect(hintFallback).toContain('Fallback hint')
+
+    // The submit step renders the same shape for a button element.
+    const submitHtml = getHintHtml('submit', {
+      category: 'button',
+      labelEN: 'Send Button',
+      labelKey: 'picker_el_submit',
       confidence: 'high',
-      tag: 'input',
-      hintEN: 'Fallback hint'
-    }
-    const html = getHintHtml('input', info, {})
-    expect(html).toContain('Fallback hint')
-  })
-
-  it('does not render hint box when both hintEN and hintKey are empty', () => {
-    const info: PickerElementInfo = {
-      category: 'input',
-      labelEN: 'Input',
-      confidence: 'high',
-      tag: 'input'
-    }
-    const html = getHintHtml('input', info)
-    expect(html).not.toContain('background:rgba')
+      tag: 'button',
+      hintEN: 'This is a send button.',
+      hintKey: 'picker_hint_submit_correct'
+    })
+    expect(submitHtml).toContain('Send Button')
+    expect(submitHtml).toContain('send button')
   })
 })

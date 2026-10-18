@@ -115,65 +115,47 @@ describe('registerNativeMessagingHandlers', () => {
     })
   })
 
-  describe('NATIVE_MESSAGING_INSTALL_EXTENSION handler', () => {
-    it('installs extension when sender is trusted', async () => {
+  describe.each([
+    [
+      'NATIVE_MESSAGING_INSTALL_EXTENSION',
+      () => installExtension,
+      { success: true, installedPath: '/ext' }
+    ],
+    ['NATIVE_MESSAGING_REMOVE_EXTENSION', () => removeExtension, { success: true }]
+  ])('%s handler', (channelKey, getSpy, payload) => {
+    it('runs the manager action when the sender is trusted', async () => {
       requireTrustedIpcSender.mockReturnValue(true)
-      installExtension.mockResolvedValue({ success: true, installedPath: '/ext' })
+      const spy = getSpy()
+      spy.mockResolvedValue(payload)
 
       const { registerNativeMessagingHandlers } =
         await import('../../../features/native-messaging/nativeMessagingHandlers.js')
       registerNativeMessagingHandlers()
 
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION)
+      const handler = getHandler(
+        APP_CONFIG.IPC_CHANNELS[channelKey as 'NATIVE_MESSAGING_INSTALL_EXTENSION']
+      )
       const result = await handler({ sender: { id: 1 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: true, data: { success: true, installedPath: '/ext' } })
-      expect(installExtension).toHaveBeenCalledTimes(1)
+      expect(result).toEqual({ ok: true, data: payload })
+      expect(spy).toHaveBeenCalledTimes(1)
     })
 
-    it('returns error when sender is untrusted', async () => {
+    it('refuses and does not call the manager when the sender is untrusted', async () => {
       requireTrustedIpcSender.mockReturnValue(false)
+      const spy = getSpy()
 
       const { registerNativeMessagingHandlers } =
         await import('../../../features/native-messaging/nativeMessagingHandlers.js')
       registerNativeMessagingHandlers()
 
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION)
+      const handler = getHandler(
+        APP_CONFIG.IPC_CHANNELS[channelKey as 'NATIVE_MESSAGING_INSTALL_EXTENSION']
+      )
       const result = await handler({ sender: { id: 404 }, type: 'invoke' })
 
       expect(result).toEqual({ ok: true, data: { success: false, error: 'Unauthorized' } })
-      expect(installExtension).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('NATIVE_MESSAGING_REMOVE_EXTENSION handler', () => {
-    it('removes extension when sender is trusted', async () => {
-      requireTrustedIpcSender.mockReturnValue(true)
-      removeExtension.mockResolvedValue({ success: true })
-
-      const { registerNativeMessagingHandlers } =
-        await import('../../../features/native-messaging/nativeMessagingHandlers.js')
-      registerNativeMessagingHandlers()
-
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION)
-      const result = await handler({ sender: { id: 1 }, type: 'invoke' })
-
-      expect(result).toEqual({ ok: true, data: { success: true } })
-      expect(removeExtension).toHaveBeenCalledTimes(1)
-    })
-
-    it('returns error when sender is untrusted', async () => {
-      requireTrustedIpcSender.mockReturnValue(false)
-
-      const { registerNativeMessagingHandlers } =
-        await import('../../../features/native-messaging/nativeMessagingHandlers.js')
-      registerNativeMessagingHandlers()
-
-      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION)
-      const result = await handler({ sender: { id: 404 }, type: 'invoke' })
-
-      expect(result).toEqual({ ok: true, data: { success: false, error: 'Unauthorized' } })
-      expect(removeExtension).not.toHaveBeenCalled()
+      expect(spy).not.toHaveBeenCalled()
     })
   })
 })

@@ -104,7 +104,7 @@ export const NATIVE_PAGE_TRANSITION_START_OPACITY = 0.95
  * Rounded because `DURATION.normal * 1000` is not exactly 140 in binary floating point,
  * and a duration that reads as `140.00000000000003` in a test is a smell.
  */
-export const NATIVE_PAGE_TRANSITION_DURATION_MS = Math.round(DURATION.normal * 1000)
+const NATIVE_PAGE_TRANSITION_DURATION_MS = Math.round(DURATION.normal * 1000)
 
 /**
  * `--ease-glass`, the project's single easing token, in the form WAAPI accepts.
@@ -112,7 +112,7 @@ export const NATIVE_PAGE_TRANSITION_DURATION_MS = Math.round(DURATION.normal * 1
  * Front-loaded: the page is most of the way home in the first third of the ramp, which is
  * what makes 140 ms read as "settling" instead of "slow".
  */
-export const NATIVE_PAGE_TRANSITION_EASING = 'cubic-bezier(0.2, 0.9, 0.22, 1)'
+const NATIVE_PAGE_TRANSITION_EASING = 'cubic-bezier(0.2, 0.9, 0.22, 1)'
 
 /**
  * The direction a turn went, or `null` when the page did not actually change.

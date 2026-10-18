@@ -116,27 +116,10 @@ describe('pdfProtocol handlers', () => {
     expect(result?.data.streamUrl).toContain('local-pdf://')
   })
 
-  it('opens the picker in the documents directory, then in the last used one', async () => {
-    showOpenDialog.mockResolvedValue({
-      canceled: false,
-      filePaths: ['/home/u/Pictures/a.pdf']
-    })
-    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
-    registerPdfProtocolHandlers()
-
-    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.SELECT_PDF)
-    await handler?.({ sender: {} }, {})
-
-    expect(showOpenDialog).toHaveBeenCalledWith(
-      expect.objectContaining({ defaultPath: '/home/u/Documents' })
-    )
-
-    await handler?.({ sender: {} }, {})
-
-    expect(showOpenDialog).toHaveBeenLastCalledWith(
-      expect.objectContaining({ defaultPath: '/home/u/Pictures' })
-    )
-  })
+  // NOTE: the "picker opens in Documents, then reopens where it last was"
+  // behaviour is asserted once, in pdfProtocolHandler.test.ts
+  // ("starts in the documents directory and reopens the last used one").
+  // It drove the same rememberDialogDirectory branch from both files.
 
   it('returns null for untrusted IPC senders', async () => {
     requireTrustedIpcSender.mockReturnValue(false)

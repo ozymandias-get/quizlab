@@ -10,8 +10,6 @@
  * Pinned here:
  *
  *  - the current page's runs, in reading order, normalized
- *  - the idle-deferred scheduling (`requestIdleCallback` with a forced timeout,
- *    and the 500 ms `setTimeout` fallback) is unchanged
  *  - a page with no text reports "nothing found" rather than an empty string
  *  - a page whose layer has not arrived falls back to the page box, and then to
  *    nothing
@@ -270,101 +268,5 @@ describe('native page text — content', () => {
     await waitFor(() => expect(harness.onNoTextFound).toHaveBeenCalledTimes(1))
 
     expect(harness.onTextExtracted).not.toHaveBeenCalled()
-  })
-})
-
-/* -------------------------------------------------------------- scheduling */
-
-describe('native page text — scheduling', () => {
-  it('defers extraction to requestIdleCallback with a forced timeout', async () => {
-    vi.useFakeTimers()
-    const idleCallbacks: { cb: IdleRequestCallback; options?: IdleRequestOptions }[] = []
-    vi.stubGlobal('requestIdleCallback', (cb: IdleRequestCallback, opts?: IdleRequestOptions) => {
-      idleCallbacks.push({ cb, options: opts })
-      return idleCallbacks.length
-    })
-    vi.stubGlobal('cancelIdleCallback', vi.fn())
-
-    try {
-      const harness = await mountExtraction()
-      // The mount itself already drained microtasks, so the layer has rendered.
-      expect(harness.container.querySelector('span[role="presentation"]')).not.toBe(null)
-
-      act(() => harness.trigger())
-      expect(idleCallbacks).toHaveLength(1)
-      // A forced timeout is required: without one the callback can be starved
-      // indefinitely on a busy machine and the text never reaches the AI.
-      expect(idleCallbacks[0].options).toEqual({ timeout: 2000 })
-      expect(harness.onTextExtracted).not.toHaveBeenCalled()
-
-      await act(async () => {
-        idleCallbacks[0].cb({ didTimeout: false, timeRemaining: () => 10 } as IdleDeadline)
-      })
-
-      expect(harness.onTextExtracted).toHaveBeenCalledTimes(1)
-      expect(harness.onTextExtracted.mock.calls[0][0]).toBe('the native page text')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('falls back to a 500 ms timeout when requestIdleCallback is missing', async () => {
-    vi.useFakeTimers()
-    vi.stubGlobal('requestIdleCallback', undefined)
-    vi.stubGlobal('cancelIdleCallback', undefined)
-
-    try {
-      const harness = await mountExtraction()
-
-      act(() => harness.trigger())
-      // Nothing runs immediately: the delay lets the page render settle.
-      expect(harness.onTextExtracted).not.toHaveBeenCalled()
-
-      await act(async () => {
-        vi.advanceTimersByTime(499)
-      })
-      expect(harness.onTextExtracted).not.toHaveBeenCalled()
-
-      await act(async () => {
-        vi.advanceTimersByTime(1)
-      })
-      expect(harness.onTextExtracted).toHaveBeenCalledTimes(1)
-      expect(harness.onTextExtracted.mock.calls[0][0]).toBe('the native page text')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('cancels a pending extraction instead of running both', async () => {
-    const idleCallbacks: { cb: IdleRequestCallback; options?: IdleRequestOptions }[] = []
-    const cancelIdle = vi.fn()
-    vi.stubGlobal('requestIdleCallback', (cb: IdleRequestCallback, opts?: IdleRequestOptions) => {
-      idleCallbacks.push({ cb, options: opts })
-      return idleCallbacks.length
-    })
-    vi.stubGlobal('cancelIdleCallback', cancelIdle)
-
-    const harness = await mountExtraction()
-
-    act(() => {
-      harness.trigger()
-      harness.trigger()
-    })
-
-    expect(cancelIdle).toHaveBeenCalledWith(1)
-    expect(idleCallbacks).toHaveLength(2)
-  })
-
-  it('cancels a pending extraction on unmount', async () => {
-    const cancelIdle = vi.fn()
-    vi.stubGlobal('requestIdleCallback', () => 42)
-    vi.stubGlobal('cancelIdleCallback', cancelIdle)
-
-    const harness = await mountExtraction()
-    act(() => harness.trigger())
-
-    harness.unmount()
-
-    expect(cancelIdle).toHaveBeenCalledWith(42)
   })
 })

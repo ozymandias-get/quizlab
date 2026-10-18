@@ -35,27 +35,17 @@ describe('ChatWelcome suggestion cards', () => {
     expect(screen.getByText(i18next.t('api_chat_sugg_4_title'))).toBeInTheDocument()
   })
 
-  it('should call onSuggestionClick with correct prompt when a suggestion is clicked', () => {
-    const { onSuggestionClick } = renderChatWelcome()
+  it.each(['api_chat_sugg_1', 'api_chat_sugg_2', 'api_chat_sugg_3', 'api_chat_sugg_4'])(
+    'should call onSuggestionClick with the matching prompt for %s',
+    (key) => {
+      const { onSuggestionClick } = renderChatWelcome()
 
-    const firstSuggestion = screen.getByText(i18next.t('api_chat_sugg_1_title')).closest('button')
-    fireEvent.click(firstSuggestion!)
-
-    expect(onSuggestionClick).toHaveBeenCalledWith(i18next.t('api_chat_sugg_1_prompt'))
-  })
-
-  it('should call onSuggestionClick correctly for each suggestion', () => {
-    const { onSuggestionClick } = renderChatWelcome()
-    const keys = ['api_chat_sugg_1', 'api_chat_sugg_2', 'api_chat_sugg_3', 'api_chat_sugg_4']
-
-    for (const key of keys) {
-      const title = i18next.t(`${key}_title`)
-      const prompt = i18next.t(`${key}_prompt`)
-      const button = screen.getByText(title).closest('button')
+      const button = screen.getByText(i18next.t(`${key}_title`)).closest('button')
       fireEvent.click(button!)
-      expect(onSuggestionClick).toHaveBeenCalledWith(prompt)
+
+      expect(onSuggestionClick).toHaveBeenCalledWith(i18next.t(`${key}_prompt`))
     }
-  })
+  )
 
   it('should not render suggestions grid if onSuggestionClick is not provided', () => {
     render(<ChatWelcome hasProvider activeProviderName="OpenAI" activeModelName="gpt-4o" />)

@@ -21,7 +21,13 @@ const safeStorageMocks = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   safeStorage: {
     isEncryptionAvailable: safeStorageMocks.isEncryptionAvailable,
-    getSelectedStorageBackend: safeStorageMocks.getSelectedStorageBackend,
+    // A getter, not a captured reference: the "backend API is absent" case is
+    // expressed by deleting the property from the hoisted object, and a plain
+    // value copy would keep serving the original probe and never reach the
+    // `typeof probe !== 'function'` branch in sessionEncryptionCapability.ts.
+    get getSelectedStorageBackend() {
+      return safeStorageMocks.getSelectedStorageBackend
+    },
     encryptString: safeStorageMocks.encryptString,
     decryptString: safeStorageMocks.decryptString
   },
@@ -77,23 +83,6 @@ describe('SessionExportImport', () => {
         })
       }) as never
 
-    it('exports session data to file', async () => {
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      const exporter = new SessionExportImport(
-        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-        metadataRepo()
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(true)
-      expect(exportImportMocks.writeFile).toHaveBeenCalledTimes(1)
-      const callArgs = exportImportMocks.writeFile.mock.calls[0]
-      expect(callArgs.length).toBeGreaterThanOrEqual(2)
-      expect(String(callArgs[1])).toContain('"version"')
-    })
-
     it('exports with null storageState when snapshot missing', async () => {
       safeStorageMocks.encryptString.mockImplementation((json: string) => Buffer.from(json))
 
@@ -127,6 +116,95 @@ describe('SessionExportImport', () => {
       expect(result.error).toContain('Permission denied')
     })
 
+    // All three refusals are the same contract — report a stable error code and
+    // write nothing to disk — reached through different keystore states.
+    it.each([
+      [
+        'safeStorage is unavailable',
+        'encryption_unavailable',
+        (m: typeof safeStorageMocks) => m.isEncryptionAvailable.mockReturnValue(false)
+      ],
+      [
+        'Linux reports the basic_text backend',
+        'encryption_weak_backend',
+        // safeStorage says "available", but basic_text keeps its key in a
+        // plaintext file, so the .enc output would be readable by any process.
+        (m: typeof safeStorageMocks) => m.getSelectedStorageBackend.mockReturnValue('basic_text')
+      ],
+      [
+        'the backend probe throws',
+        'encryption_backend_unknown',
+        // The API exists but throws: the keystore is unverifiable, which must
+        // not be treated as "safe to write".
+        (m: typeof safeStorageMocks) =>
+          m.getSelectedStorageBackend.mockImplementation(() => {
+            throw new Error('not supported')
+          })
+      ]
+    ])('refuses to export when %s', async (_label, expectedError, arrange) => {
+      arrange(safeStorageMocks)
+      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
+      const readStorageStateSnapshot = vi.fn().mockResolvedValue({ cookies: [] })
+
+      const exporter = new SessionExportImport(
+        snapshotRepo(readStorageStateSnapshot),
+        metadataRepo()
+      )
+
+      const result = await exporter.exportSession(testExportPath)
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe(expectedError)
+      expect(result.detail).toBeTruthy()
+      expect(exportImportMocks.writeFile).not.toHaveBeenCalled()
+      expect(safeStorageMocks.encryptString).not.toHaveBeenCalled()
+      // Nothing may be written, and the snapshot must not even be read.
+      expect(readStorageStateSnapshot).not.toHaveBeenCalled()
+    })
+
+    it('still exports on backends that are not basic_text', async () => {
+      // kwallet/gnome on Linux, no backend name at all on Windows and macOS,
+      // and an Electron build that does not expose the API. None of these may
+      // be mistaken for a weak or unverifiable keystore.
+      safeStorageMocks.getSelectedStorageBackend.mockReturnValue('kwallet5')
+      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
+
+      const exporter = new SessionExportImport(
+        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
+        metadataRepo()
+      )
+
+      const result = await exporter.exportSession(testExportPath)
+
+      expect(result.success).toBe(true)
+      expect(exportImportMocks.writeFile).toHaveBeenCalledTimes(1)
+      const callArgs = exportImportMocks.writeFile.mock.calls[0]
+      expect(callArgs.length).toBeGreaterThanOrEqual(2)
+      expect(JSON.parse(String(callArgs[1]))).toMatchObject({ version: 2 })
+    })
+
+    it.each([
+      ['an empty backend string (Windows/macOS)', ''],
+      ['an absent backend API', undefined]
+    ])('still exports when safeStorage reports %s', async (_label, backend) => {
+      const mocks = safeStorageMocks as unknown as Record<string, unknown>
+      const original = mocks.getSelectedStorageBackend
+      mocks.getSelectedStorageBackend =
+        backend === undefined ? undefined : vi.fn().mockReturnValue(backend)
+      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
+
+      try {
+        const exporter = new SessionExportImport(
+          snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
+          metadataRepo()
+        )
+
+        expect((await exporter.exportSession(testExportPath)).success).toBe(true)
+      } finally {
+        mocks.getSelectedStorageBackend = original
+      }
+    })
+
     it('never writes plaintext cookies to disk when the file is .enc', async () => {
       safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
 
@@ -143,174 +221,28 @@ describe('SessionExportImport', () => {
       const parsed = JSON.parse(written)
       expect(parsed.version).toBe(2)
       expect(parsed.encrypted).toBeTruthy()
+      expect(typeof parsed.encrypted).toBe('string')
       expect(parsed.storageState).toBeUndefined()
-    })
-
-    it('refuses to export when safeStorage is unavailable', async () => {
-      safeStorageMocks.isEncryptionAvailable.mockReturnValue(false)
-
-      const readStorageStateSnapshot = vi.fn().mockResolvedValue({ cookies: [] })
-      const exporter = new SessionExportImport(
-        snapshotRepo(readStorageStateSnapshot),
-        metadataRepo()
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('encryption_unavailable')
-      expect(result.detail).toBeTruthy()
-      // Nothing may be written, and the snapshot must not even be read.
-      expect(exportImportMocks.writeFile).not.toHaveBeenCalled()
-      expect(readStorageStateSnapshot).not.toHaveBeenCalled()
-      expect(safeStorageMocks.encryptString).not.toHaveBeenCalled()
-    })
-
-    it('refuses to export when Linux reports the basic_text backend', async () => {
-      // safeStorage says "available", but basic_text keeps its key in a
-      // plaintext file, so the .enc output would be readable by any process.
-      safeStorageMocks.getSelectedStorageBackend.mockReturnValue('basic_text')
-
-      const exporter = new SessionExportImport(
-        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-        metadataRepo()
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('encryption_weak_backend')
-      expect(result.detail).toBeTruthy()
-      expect(exportImportMocks.writeFile).not.toHaveBeenCalled()
-      expect(safeStorageMocks.encryptString).not.toHaveBeenCalled()
-    })
-
-    it('still exports on other Linux backends', async () => {
-      safeStorageMocks.getSelectedStorageBackend.mockReturnValue('kwallet5')
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      const exporter = new SessionExportImport(
-        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-        metadataRepo()
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(true)
       expect(exportImportMocks.writeFile).toHaveBeenCalledTimes(1)
-    })
-
-    it('treats an empty backend string as usable', async () => {
-      // Windows and macOS report no backend name; that must not be mistaken
-      // for a weak one.
-      safeStorageMocks.getSelectedStorageBackend.mockReturnValue('')
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      const exporter = new SessionExportImport(
-        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-        metadataRepo()
-      )
-
-      expect((await exporter.exportSession(testExportPath)).success).toBe(true)
-    })
-
-    it('refuses to export when the backend cannot be verified', async () => {
-      // The API exists but throws: the keystore is unverifiable, which must
-      // not be treated as "safe to write".
-      safeStorageMocks.getSelectedStorageBackend.mockImplementation(() => {
-        throw new Error('not supported')
-      })
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      const exporter = new SessionExportImport(
-        snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-        metadataRepo()
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('encryption_backend_unknown')
-      expect(exportImportMocks.writeFile).not.toHaveBeenCalled()
-    })
-
-    it('exports when the backend API is absent', async () => {
-      // Windows and macOS report no backend name at all; the absence of the
-      // API is not itself a reason to refuse. The mock object is shared, so
-      // the property has to be put back for the other tests.
-      const mocks = safeStorageMocks as unknown as Record<string, unknown>
-      const original = mocks.getSelectedStorageBackend
-      mocks.getSelectedStorageBackend = undefined
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      try {
-        const exporter = new SessionExportImport(
-          snapshotRepo(vi.fn().mockResolvedValue({ cookies: [] })),
-          metadataRepo()
-        )
-
-        expect((await exporter.exportSession(testExportPath)).success).toBe(true)
-      } finally {
-        mocks.getSelectedStorageBackend = original
-      }
-    })
-
-    it('exports session data as encrypted v2 when safeStorage is available', async () => {
-      safeStorageMocks.isEncryptionAvailable.mockReturnValue(true)
-      safeStorageMocks.encryptString.mockReturnValue(Buffer.from('encrypted-content'))
-
-      const readStorageStateSnapshot = vi.fn().mockResolvedValue({ cookies: [] })
-      const readMetadata = vi.fn().mockResolvedValue({
-        accountHash: 'abc123',
-        state: 'authenticated',
-        reasonCode: 'none',
-        lastHealthyAt: '2025-01-01T00:00:00.000Z'
-      })
-
-      const exporter = new SessionExportImport(
-        {
-          readStorageStateSnapshot,
-          writeStorageStateSnapshot: vi.fn(),
-          clearSnapshot: vi.fn()
-        } as never,
-        { readMetadata } as never
-      )
-
-      const result = await exporter.exportSession(testExportPath)
-
-      expect(result.success).toBe(true)
-      expect(safeStorageMocks.encryptString).toHaveBeenCalledTimes(1)
-      expect(exportImportMocks.writeFile).toHaveBeenCalledTimes(1)
-      const callArgs = exportImportMocks.writeFile.mock.calls[0]
-      expect(callArgs.length).toBeGreaterThanOrEqual(2)
-      const written = JSON.parse(String(callArgs[1]))
-      expect(written.version).toBe(2)
-      expect(typeof written.encrypted).toBe('string')
-      expect(written.encrypted.length).toBeGreaterThan(0)
     })
   })
 
   describe('importSession', () => {
-    it('imports session from valid export file', async () => {
-      const exportData = {
-        version: 1,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        storageState: { cookies: [] },
-        accountHash: 'abc123',
-        metadata: {
-          state: 'authenticated',
-          reasonCode: 'none',
-          lastHealthyAt: '2025-01-01T00:00:00.000Z'
-        }
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportData))
+    // Every import test needs the same two collaborators. Naming them once here
+    // removes ~10 lines of identical `as never` scaffolding per test.
+    const VALID_V1 = {
+      version: 1,
+      exportedAt: '2025-01-01T00:00:00.000Z',
+      storageState: { cookies: [] },
+      accountHash: 'abc123',
+      metadata: { state: 'authenticated', reasonCode: 'none', lastHealthyAt: null }
+    }
 
+    function createImporter() {
       const writeStorageStateSnapshot = vi.fn().mockResolvedValue(undefined)
-      const writeStatus = vi.fn().mockResolvedValue({
-        state: 'authenticated',
-        accountHash: 'abc123'
-      })
-
+      const writeStatus = vi
+        .fn()
+        .mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' })
       const importer = new SessionExportImport(
         {
           readStorageStateSnapshot: vi.fn(),
@@ -319,6 +251,24 @@ describe('SessionExportImport', () => {
         } as never,
         { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
       )
+      return { importer, writeStorageStateSnapshot, writeStatus }
+    }
+
+    /** A schema-rejected importer: the constructor args are never reached. */
+    function bareImporter() {
+      return new SessionExportImport(null, {} as never)
+    }
+
+    /** A well-formed v2 envelope; the ciphertext body is supplied per test. */
+    const ENCRYPTED_V2 = () => ({
+      version: 2,
+      exportedAt: '2025-01-01T00:00:00.000Z',
+      encrypted: 'dGVzdA=='
+    })
+
+    it('imports session from valid export file', async () => {
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(VALID_V1))
+      const { importer, writeStorageStateSnapshot } = createImporter()
 
       const result = await importer.importSession(testExportPath)
 
@@ -326,64 +276,34 @@ describe('SessionExportImport', () => {
       expect(writeStorageStateSnapshot).toHaveBeenCalledWith({ cookies: [] })
     })
 
-    it('rejects export with wrong version', async () => {
-      exportImportMocks.readFile.mockResolvedValue(
-        JSON.stringify({ version: 99, storageState: null })
-      )
+    it.each([
+      ['an unknown schema version', { version: 99, storageState: null }, 'invalid_session_data'],
+      ['unreadable JSON', 'not json', null],
+      ['a failed file read', new Error('File not found'), 'File not found']
+    ] as const)('rejects %s', async (_label, payload, expectedError) => {
+      if (payload instanceof Error) {
+        exportImportMocks.readFile.mockRejectedValue(payload)
+      } else {
+        exportImportMocks.readFile.mockResolvedValue(
+          typeof payload === 'string' ? payload : JSON.stringify(payload)
+        )
+      }
 
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      // The schema validator now catches wrong version as invalid_session_data
-      expect(result.error).toBe('invalid_session_data')
-    })
-
-    it('returns error when file read fails', async () => {
-      exportImportMocks.readFile.mockRejectedValue(new Error('File not found'))
-
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
+      const result = await bareImporter().importSession(testExportPath)
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('File not found')
-    })
-
-    it('returns error when JSON is invalid', async () => {
-      exportImportMocks.readFile.mockResolvedValue('not json')
-
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBeTruthy()
+      if (expectedError === null) {
+        expect(result.error).toBeTruthy()
+      } else {
+        expect(result.error).toBe(expectedError)
+      }
     })
 
     it('skips snapshot restore when storageState is null', async () => {
-      const exportData = {
-        version: 1,
-        storageState: null,
-        accountHash: 'abc123',
-        metadata: { state: 'authenticated', reasonCode: 'none', lastHealthyAt: null }
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportData))
-
-      const writeStorageStateSnapshot = vi.fn()
-      const writeStatus = vi
-        .fn()
-        .mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' })
-
-      const importer = new SessionExportImport(
-        {
-          readStorageStateSnapshot: vi.fn(),
-          writeStorageStateSnapshot,
-          clearSnapshot: vi.fn()
-        } as never,
-        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
+      exportImportMocks.readFile.mockResolvedValue(
+        JSON.stringify({ ...VALID_V1, storageState: null })
       )
+      const { importer, writeStorageStateSnapshot } = createImporter()
 
       await importer.importSession(testExportPath)
 
@@ -392,39 +312,14 @@ describe('SessionExportImport', () => {
 
     it('imports session from valid v2 (encrypted) export', async () => {
       safeStorageMocks.isEncryptionAvailable.mockReturnValue(true)
-      const innerV1 = {
-        version: 1,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        storageState: { cookies: [] },
-        accountHash: 'abc123',
-        metadata: {
-          state: 'authenticated',
-          reasonCode: 'none',
-          lastHealthyAt: '2025-01-01T00:00:00.000Z'
-        }
-      }
-      const encryptedBase64 = Buffer.from(JSON.stringify(innerV1)).toString('base64')
-      const exportDataV2 = {
-        version: 2,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        encrypted: encryptedBase64
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
-      safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(innerV1))
-
-      const writeStorageStateSnapshot = vi.fn().mockResolvedValue(undefined)
-      const writeStatus = vi
-        .fn()
-        .mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' })
-
-      const importer = new SessionExportImport(
-        {
-          readStorageStateSnapshot: vi.fn(),
-          writeStorageStateSnapshot,
-          clearSnapshot: vi.fn()
-        } as never,
-        { writeStatus, readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] }) } as never
+      exportImportMocks.readFile.mockResolvedValue(
+        JSON.stringify({
+          ...ENCRYPTED_V2(),
+          encrypted: Buffer.from(JSON.stringify(VALID_V1)).toString('base64')
+        })
       )
+      safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(VALID_V1))
+      const { importer, writeStorageStateSnapshot } = createImporter()
 
       const result = await importer.importSession(testExportPath)
 
@@ -435,16 +330,9 @@ describe('SessionExportImport', () => {
 
     it('rejects v2 import when safeStorage is unavailable', async () => {
       safeStorageMocks.isEncryptionAvailable.mockReturnValue(false)
-      const exportDataV2 = {
-        version: 2,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        encrypted: 'dGVzdA=='
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(ENCRYPTED_V2()))
 
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
+      const result = await bareImporter().importSession(testExportPath)
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('encryption_unavailable')
@@ -456,16 +344,9 @@ describe('SessionExportImport', () => {
       // isEncryptionAvailable() is true, but basic_text cannot actually
       // decrypt, so the import must not be attempted at all.
       safeStorageMocks.getSelectedStorageBackend.mockReturnValue('basic_text')
-      const exportDataV2 = {
-        version: 2,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        encrypted: 'dGVzdA=='
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(ENCRYPTED_V2()))
 
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
+      const result = await bareImporter().importSession(testExportPath)
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('encryption_weak_backend')
@@ -473,31 +354,8 @@ describe('SessionExportImport', () => {
     })
 
     it('warns when importing a legacy unencrypted file', async () => {
-      const legacyV1 = {
-        version: 1,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        storageState: { cookies: [] },
-        accountHash: 'abc123',
-        metadata: {
-          state: 'authenticated',
-          reasonCode: 'none',
-          lastHealthyAt: '2025-01-01T00:00:00.000Z'
-        }
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(legacyV1))
-
-      const writeStorageStateSnapshot = vi.fn().mockResolvedValue(undefined)
-      const importer = new SessionExportImport(
-        {
-          readStorageStateSnapshot: vi.fn(),
-          writeStorageStateSnapshot,
-          clearSnapshot: vi.fn()
-        } as never,
-        {
-          writeStatus: vi.fn().mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' }),
-          readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] })
-        } as never
-      )
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(VALID_V1))
+      const { importer } = createImporter()
 
       const result = await importer.importSession(testExportPath)
 
@@ -508,38 +366,9 @@ describe('SessionExportImport', () => {
     })
 
     it('does not warn when importing an encrypted file', async () => {
-      safeStorageMocks.decryptString.mockReturnValue(
-        JSON.stringify({
-          version: 1,
-          exportedAt: '2025-01-01T00:00:00.000Z',
-          storageState: { cookies: [] },
-          accountHash: 'abc123',
-          metadata: {
-            state: 'authenticated',
-            reasonCode: 'none',
-            lastHealthyAt: '2025-01-01T00:00:00.000Z'
-          }
-        })
-      )
-      exportImportMocks.readFile.mockResolvedValue(
-        JSON.stringify({
-          version: 2,
-          exportedAt: '2025-01-01T00:00:00.000Z',
-          encrypted: 'dGVzdA=='
-        })
-      )
-
-      const importer = new SessionExportImport(
-        {
-          readStorageStateSnapshot: vi.fn(),
-          writeStorageStateSnapshot: vi.fn().mockResolvedValue(undefined),
-          clearSnapshot: vi.fn()
-        } as never,
-        {
-          writeStatus: vi.fn().mockResolvedValue({ state: 'authenticated', accountHash: 'abc123' }),
-          readMetadata: vi.fn().mockResolvedValue({ enabledAppIds: [] })
-        } as never
-      )
+      safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(VALID_V1))
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(ENCRYPTED_V2()))
+      const { importer } = createImporter()
 
       const result = await importer.importSession(testExportPath)
 
@@ -549,19 +378,12 @@ describe('SessionExportImport', () => {
 
     it('rejects v2 import when decryption fails', async () => {
       safeStorageMocks.isEncryptionAvailable.mockReturnValue(true)
-      const exportDataV2 = {
-        version: 2,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        encrypted: 'dGVzdA=='
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
+      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(ENCRYPTED_V2()))
       safeStorageMocks.decryptString.mockImplementation(() => {
         throw new Error('Decryption failed')
       })
 
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
+      const result = await bareImporter().importSession(testExportPath)
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('decryption_failed')
@@ -570,102 +392,71 @@ describe('SessionExportImport', () => {
     it('rejects v2 import when decrypted data is not valid v1', async () => {
       safeStorageMocks.isEncryptionAvailable.mockReturnValue(true)
       const badInnerData = { foo: 'bar' }
-      const encryptedBase64 = Buffer.from(JSON.stringify(badInnerData)).toString('base64')
-      const exportDataV2 = {
-        version: 2,
-        exportedAt: '2025-01-01T00:00:00.000Z',
-        encrypted: encryptedBase64
-      }
-      exportImportMocks.readFile.mockResolvedValue(JSON.stringify(exportDataV2))
+      exportImportMocks.readFile.mockResolvedValue(
+        JSON.stringify({
+          version: 2,
+          exportedAt: '2025-01-01T00:00:00.000Z',
+          encrypted: Buffer.from(JSON.stringify(badInnerData)).toString('base64')
+        })
+      )
       safeStorageMocks.decryptString.mockReturnValue(JSON.stringify(badInnerData))
 
-      const importer = new SessionExportImport(null, {} as never)
-
-      const result = await importer.importSession(testExportPath)
+      const result = await bareImporter().importSession(testExportPath)
 
       expect(result.success).toBe(false)
       expect(result.error).toBe('invalid_session_data')
     })
 
+    // All of these payloads go through the same v1 schema validator, so this
+    // is one behaviour with several inputs rather than six behaviours.
     describe('isSessionExportDataV1 edge cases', () => {
-      it('rejects v1 data with __proto__ pollution', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
-          '{"version":1,"__proto__":{"cookies":[]},"storageState":null,"accountHash":null,"metadata":{"state":"requires_login","reasonCode":"none"}}'
-        )
-        const importer = new SessionExportImport(null, {} as never)
-        const result = await importer.importSession(testExportPath)
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('invalid_session_data')
-      })
+      const VALID_TAIL = {
+        storageState: null,
+        accountHash: null,
+        metadata: { state: 'auth_required', reasonCode: 'none' }
+      }
 
-      it('rejects v1 data with constructor pollution', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
+      it.each([
+        [
+          '__proto__ pollution',
+          '{"version":1,"__proto__":{"cookies":[]},"storageState":null,"accountHash":null,"metadata":{"state":"auth_required","reasonCode":"none"}}'
+        ],
+        [
+          'constructor pollution',
           JSON.stringify({
             version: 1,
             constructor: { prototype: {} },
             storageState: null,
             accountHash: null,
-            metadata: { state: 'requires_login', reasonCode: 'none' }
+            metadata: { state: 'auth_required', reasonCode: 'none' }
           })
-        )
-        const importer = new SessionExportImport(null, {} as never)
-        const result = await importer.importSession(testExportPath)
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('invalid_session_data')
-      })
-
-      it('rejects v1 data with non-object metadata', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
+        ],
+        [
+          'non-object metadata',
           JSON.stringify({ version: 1, storageState: null, accountHash: null, metadata: 'invalid' })
-        )
-        const importer = new SessionExportImport(null, {} as never)
-        const result = await importer.importSession(testExportPath)
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('invalid_session_data')
-      })
-
-      it('rejects v1 data with non-string exportedAt', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
-          JSON.stringify({
-            version: 1,
-            exportedAt: 123,
-            storageState: null,
-            accountHash: null,
-            metadata: { state: 'requires_login', reasonCode: 'none' }
-          })
-        )
-        const importer = new SessionExportImport(null, {} as never)
-        const result = await importer.importSession(testExportPath)
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('invalid_session_data')
-      })
-
-      it('rejects v1 data with non-object storageState', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
-          JSON.stringify({
-            version: 1,
-            storageState: 'invalid',
-            accountHash: null,
-            metadata: { state: 'requires_login', reasonCode: 'none' }
-          })
-        )
-        const importer = new SessionExportImport(null, {} as never)
-        const result = await importer.importSession(testExportPath)
-        expect(result.success).toBe(false)
-        expect(result.error).toBe('invalid_session_data')
-      })
-
-      it('rejects v1 data with non-string metadata state', async () => {
-        exportImportMocks.readFile.mockResolvedValue(
+        ],
+        ['non-string exportedAt', JSON.stringify({ ...VALID_TAIL, version: 1, exportedAt: 123 })],
+        [
+          'non-object storageState',
+          JSON.stringify({ ...VALID_TAIL, version: 1, storageState: 'invalid' })
+        ],
+        ['a non-string accountHash', JSON.stringify({ ...VALID_TAIL, version: 1, accountHash: 7 })],
+        [
+          'non-string metadata state',
           JSON.stringify({
             version: 1,
             storageState: null,
             accountHash: null,
             metadata: { state: 123, reasonCode: 'none' }
           })
-        )
+        ],
+        ['an unknown schema version', JSON.stringify({ version: 99, storageState: null })]
+      ])('rejects v1 data with %s', async (_label, rawJson) => {
+        exportImportMocks.readFile.mockResolvedValue(rawJson)
         const importer = new SessionExportImport(null, {} as never)
+
         const result = await importer.importSession(testExportPath)
+
         expect(result.success).toBe(false)
         expect(result.error).toBe('invalid_session_data')
       })

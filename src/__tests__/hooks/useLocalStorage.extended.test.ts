@@ -39,16 +39,16 @@ describe('useLocalStorage - Extended Tests', () => {
       expect(result.current[0]).toEqual({ stored: true })
     })
 
-    it('returns initial value for corrupted localStorage data', () => {
-      window.localStorage.setItem('corrupted-key', '{invalid json')
-      const { result } = renderHook(() => useLocalStorage('corrupted-key', 'fallback'))
-      expect(result.current[0]).toBe('fallback')
-    })
-
-    it('returns initial value when stored shape mismatches', () => {
-      window.localStorage.setItem('shape-key', JSON.stringify([1, 2, 3]))
-      const { result } = renderHook(() => useLocalStorage('shape-key', { expected: 'shape' }))
-      expect(result.current[0]).toEqual({ expected: 'shape' })
+    it.each([
+      ['corrupted', '{invalid json', 'fallback'],
+      ['shape mismatched', JSON.stringify([1, 2, 3]), null]
+    ])('returns initial value when stored data is %s', (_label, stored, fallback) => {
+      const key = `bad-${_label.replaceAll(/\s+/g, '-')}`
+      window.localStorage.setItem(key, stored)
+      const { result } = renderHook(() =>
+        useLocalStorage(key, fallback === null ? { expected: 'shape' } : fallback)
+      )
+      expect(result.current[0]).toEqual(fallback === null ? { expected: 'shape' } : fallback)
     })
   })
 
@@ -228,11 +228,15 @@ describe('useLocalStorageString - Extended Tests', () => {
     expect(result.current[0]).toBe('anything-goes')
   })
 
-  it('resets to initial when stored value becomes invalid', () => {
-    window.localStorage.setItem('str-reset', 'invalid-value')
-    const { result } = renderHook(() => useLocalStorageString('str-reset', 'default', ['valid']))
+  it.each([
+    ['a stored value outside validValues', 'invalid-value', 'default', ['valid'], 'default'],
+    ['empty storage', null, 'default', ['valid'], 'default']
+  ])('resets to the initial value for %s', (_label, stored, initial, valid, expected) => {
+    const key = `str-reset-${_label.replaceAll(/\s+/g, '-')}`
+    if (stored !== null) window.localStorage.setItem(key, stored)
+    const { result } = renderHook(() => useLocalStorageString(key, initial, valid as string[]))
 
-    expect(result.current[0]).toBe('default')
+    expect(result.current[0]).toBe(expected)
   })
 })
 
@@ -241,30 +245,19 @@ describe('useLocalStorageBoolean - Extended Tests', () => {
     window.localStorage.clear()
   })
 
-  it('returns initial value when storage is empty', () => {
-    const { result } = renderHook(() => useLocalStorageBoolean('bool-empty', false))
-    expect(result.current[0]).toBe(false)
+  it.each([
+    ['empty storage', null, false, false],
+    ['the string "true"', 'true', false, true],
+    ['the string "false"', 'false', true, false],
+    ['a non-boolean value', 'not-a-bool', true, true]
+  ])('reads %s as %j', (_label, stored, initial, expected) => {
+    const key = `bool-parse-${_label.replaceAll(/\s+/g, '-')}`
+    if (stored !== null) window.localStorage.setItem(key, stored)
+    const { result } = renderHook(() => useLocalStorageBoolean(key, initial))
+    expect(result.current[0]).toBe(expected)
   })
 
-  it('parses "true" string as boolean true', () => {
-    window.localStorage.setItem('bool-true', 'true')
-    const { result } = renderHook(() => useLocalStorageBoolean('bool-true', false))
-    expect(result.current[0]).toBe(true)
-  })
-
-  it('parses "false" string as boolean false', () => {
-    window.localStorage.setItem('bool-false', 'false')
-    const { result } = renderHook(() => useLocalStorageBoolean('bool-false', true))
-    expect(result.current[0]).toBe(false)
-  })
-
-  it('returns initial for non-boolean stored values', () => {
-    window.localStorage.setItem('bool-invalid', 'not-a-bool')
-    const { result } = renderHook(() => useLocalStorageBoolean('bool-invalid', true))
-    expect(result.current[0]).toBe(true)
-  })
-
-  it('toggle function flips the value', () => {
+  it('toggle function flips the value both ways', () => {
     const { result } = renderHook(() => useLocalStorageBoolean('bool-toggle', false))
 
     act(() => {

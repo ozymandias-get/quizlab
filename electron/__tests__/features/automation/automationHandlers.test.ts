@@ -56,7 +56,7 @@ describe('automationHandlers', () => {
     generatePickerScript.mockReset()
   })
 
-  it('registers automation scripts handler and routes action-specific args', async () => {
+  it('routes action-specific args and normalizes a missing append flag to false', async () => {
     generateAutoSendScript.mockReturnValue('auto-script')
     const { registerAutomationHandlers } =
       await import('../../../features/automation/automationHandlers.js')
@@ -64,7 +64,10 @@ describe('automationHandlers', () => {
 
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
     const config = { input: '#prompt', button: '#send' }
-    const result = await handler?.(
+
+    // `generateAutoSendScript` yalnızca 3 argümanla çağrılır: `append`
+    // dördüncü argümandır ve yoksa `false` olmalıdır.
+    const explicit = await handler?.(
       trustedEvent,
       'generateAutoSendScript',
       config,
@@ -72,9 +75,8 @@ describe('automationHandlers', () => {
       false,
       true
     )
-
-    expect(result).toEqual({ ok: true, data: 'auto-script' })
-    expect(generateAutoSendScript).toHaveBeenCalledWith(
+    expect(explicit).toEqual({ ok: true, data: 'auto-script' })
+    expect(generateAutoSendScript).toHaveBeenLastCalledWith(
       config,
       'hello',
       false,
@@ -82,21 +84,17 @@ describe('automationHandlers', () => {
       undefined,
       undefined
     )
-  })
 
-  it('normalizes missing append flag to false for auto-send action', async () => {
-    generateAutoSendScript.mockReturnValue('auto-script')
-    const { registerAutomationHandlers } =
-      await import('../../../features/automation/automationHandlers.js')
-    registerAutomationHandlers()
-
-    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
-    const config = { input: '#prompt' }
-    const result = await handler?.(trustedEvent, 'generateAutoSendScript', config, 'hello', true)
-
-    expect(result).toEqual({ ok: true, data: 'auto-script' })
-    expect(generateAutoSendScript).toHaveBeenCalledWith(
-      config,
+    const omitted = await handler?.(
+      trustedEvent,
+      'generateAutoSendScript',
+      { input: '#prompt' },
+      'hello',
+      true
+    )
+    expect(omitted).toEqual({ ok: true, data: 'auto-script' })
+    expect(generateAutoSendScript).toHaveBeenLastCalledWith(
+      { input: '#prompt' },
       'hello',
       true,
       false,
@@ -123,12 +121,17 @@ describe('automationHandlers', () => {
       config,
       options
     )
-    const pickerResult = await handler?.(trustedEvent, 'generatePickerScript', translations)
-
     expect(waitResult).toEqual({ ok: true, data: 'wait-script' })
-    expect(generateWaitForSubmitReadyScript).toHaveBeenCalledWith(config, options)
+    expect(generateWaitForSubmitReadyScript).toHaveBeenLastCalledWith(config, options)
+
+    // Options may be omitted entirely.
+    const waitOk = await handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config)
+    expect(waitOk).toEqual({ ok: true, data: 'wait-script' })
+    expect(generateWaitForSubmitReadyScript).toHaveBeenLastCalledWith(config, undefined)
+
+    const pickerResult = await handler?.(trustedEvent, 'generatePickerScript', translations)
     expect(pickerResult).toEqual({ ok: true, data: 'picker-script' })
-    expect(generatePickerScript).toHaveBeenCalledWith(translations, undefined)
+    expect(generatePickerScript).toHaveBeenLastCalledWith(translations, undefined)
 
     // The picker session id is forwarded so emitted results bind to it…
     const sessionResult = await handler?.(
@@ -138,19 +141,19 @@ describe('automationHandlers', () => {
       'session-7'
     )
     expect(sessionResult).toEqual({ ok: true, data: 'picker-script' })
-    expect(generatePickerScript).toHaveBeenCalledWith(translations, 'session-7')
+    expect(generatePickerScript).toHaveBeenLastCalledWith(translations, 'session-7')
 
-    // …while a non-string session id is rejected by the IPC guard.
-    const sessionInvalid = await handler?.(
-      trustedEvent,
-      'generatePickerScript',
-      translations,
-      123 as never
-    )
-    expect(sessionInvalid).toEqual({
-      ok: false,
-      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
-    })
+    // …while malformed payloads are rejected by the IPC guard.
+    for (const invalidCall of [
+      () => handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config, 123 as never),
+      () => handler?.(trustedEvent, 'generatePickerScript', null),
+      () => handler?.(trustedEvent, 'generatePickerScript', translations, 123 as never)
+    ]) {
+      expect(await invalidCall()).toEqual({
+        ok: false,
+        error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+      })
+    }
   })
 
   it('routes focus/click/validate actions to their generators', async () => {
@@ -186,24 +189,18 @@ describe('automationHandlers', () => {
     const config = { input: '#prompt' }
 
     const waitOk = await handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config)
-    const waitInvalid = await handler?.(
-      trustedEvent,
-      'generateWaitForSubmitReadyScript',
-      config,
-      123 as never
-    )
-    const pickerInvalid = await handler?.(trustedEvent, 'generatePickerScript', null)
-
     expect(waitOk).toEqual({ ok: true, data: 'wait-script' })
     expect(generateWaitForSubmitReadyScript).toHaveBeenCalledWith(config, undefined)
-    expect(waitInvalid).toEqual({
-      ok: false,
-      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
-    })
-    expect(pickerInvalid).toEqual({
-      ok: false,
-      error: { code: 'invalid_input', message: 'Invalid action or arguments' }
-    })
+
+    for (const invalidCall of [
+      () => handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config, 123 as never),
+      () => handler?.(trustedEvent, 'generatePickerScript', null)
+    ]) {
+      expect(await invalidCall()).toEqual({
+        ok: false,
+        error: { code: 'invalid_input', message: 'Invalid action or arguments' }
+      })
+    }
   })
 
   it('returns null for unknown automation actions', async () => {
