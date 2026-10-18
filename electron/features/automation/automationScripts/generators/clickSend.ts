@@ -1,12 +1,23 @@
 import type { AutomationConfig } from '@shared-core/types'
 
 import { serializeAutomationConfig } from '../../scripts/config.js'
-import { buildPerformSubmitScript } from '../../scripts/submit.js'
+import { buildPerformSubmitScript, type SubmitBudgetOptions } from '../../scripts/submit.js'
 import { createScriptPreamble } from '../preamble.js'
 
-const generateClickSendScript = (config: AutomationConfig): string => {
+/**
+ * @param budget Test-only wait-budget overrides. Production call sites pass
+ *   nothing, so the emitted script always carries the measured defaults
+ *   (see `SubmitBudgetOptions`).
+ */
+const generateClickSendScript = (
+  config: AutomationConfig,
+  budget?: SubmitBudgetOptions
+): string => {
   const serialized = serializeAutomationConfig(config)
-  const performSubmitScript = buildPerformSubmitScript({ includeInputLookupForEnter: true })
+  const performSubmitScript = buildPerformSubmitScript({
+    includeInputLookupForEnter: true,
+    ...budget
+  })
 
   return `
     ${createScriptPreamble('click_send', serialized, true)}

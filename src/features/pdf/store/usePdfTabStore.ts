@@ -210,9 +210,15 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
 
   renamePdfTab: (tabId, title) => {
     const normalizedTitle = normalizeTitle(title)
+    const targetTab = get().pdfTabs.find((tab) => tab.id === tabId)
+    // Same early return as `setActivePdfTab`/`closePdfTab`: `map` always hands
+    // back a fresh array, so a no-op rename would still swap the `pdfTabs`
+    // reference and re-render every subscriber (FocusPdfBody -> App ->
+    // MainWorkspace -> LeftPanel -> PdfTabStrip -> OverflowMenu).
+    if (!targetTab || targetTab.title === normalizedTitle) return
     set((state) => ({
       pdfTabs: state.pdfTabs.map((tab) =>
-        tab.id === tabId && tab.title !== normalizedTitle ? { ...tab, title: normalizedTitle } : tab
+        tab.id === tabId ? { ...tab, title: normalizedTitle } : tab
       )
     }))
   }

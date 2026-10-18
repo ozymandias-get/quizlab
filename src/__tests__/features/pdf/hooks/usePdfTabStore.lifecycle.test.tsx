@@ -331,10 +331,17 @@ describe('usePdfTabStore - renaming', () => {
     })
     expect(result.current.pdfTabs[0]?.title).toBe('Same')
 
+    const before = result.current.pdfTabs
     act(() => {
       result.current.renamePdfTab(id!, 'Same')
     })
     expect(result.current.pdfTabs[0]?.title).toBe('Same')
+
+    // Re-setting an identical title must not rebuild the array either: `map`
+    // always returns a fresh reference, which re-renders every tab subscriber
+    // (FocusPdfBody -> PdfTabStrip -> OverflowMenu) for nothing. Only
+    // referential identity can see this.
+    expect(result.current.pdfTabs).toBe(before)
 
     // The redundant call must not wedge the store: a later, different rename
     // still has to land.
