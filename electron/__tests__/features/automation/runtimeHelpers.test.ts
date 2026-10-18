@@ -1,6 +1,6 @@
 import { errorClassifierRuntime } from '@electron/features/automation/automationScripts/lib/errorClassifierRuntime'
 import { eventDrivenWaitRuntime } from '@electron/features/automation/automationScripts/lib/eventDrivenWait'
-import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRegistry'
+import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRuntime'
 
 import { describe, expect, it } from 'vitest'
 

@@ -9,7 +9,7 @@ import { interactionHelpers } from './lib/interactionHelpers.js'
 import { selectorEngine } from './lib/selectorEngine.js'
 import { selectorRepairRuntime } from './lib/selectorRepairRuntime.js'
 import { shadowRootRegistryRuntime } from './lib/shadowRootRegistry.js'
-import { siteStrategyRuntime } from './lib/siteStrategyRegistry.js'
+import { siteStrategyRuntime } from './lib/siteStrategyRuntime.js'
 
 export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): string {
   return [
