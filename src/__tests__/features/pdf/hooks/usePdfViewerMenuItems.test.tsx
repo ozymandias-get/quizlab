@@ -11,6 +11,7 @@ describe('usePdfViewerMenuItems', () => {
   const extractCurrentPageText = vi.fn(() => 'page text')
   const handleFullPageScreenshot = vi.fn(async () => {})
   const setContextMenu = vi.fn()
+  const contextMenuPointRef: { current: { x: number; y: number } | null } = { current: null }
 
   let reloadKey = 0
   const setViewerReloadKey = vi.fn((action: SetStateAction<number>) => {
@@ -27,6 +28,7 @@ describe('usePdfViewerMenuItems', () => {
         extractCurrentPageTextRef: { current: extractCurrentPageText },
         handleFullPageScreenshotRef: { current: handleFullPageScreenshot },
         setContextMenu,
+        contextMenuPointRef,
         setViewerReloadKey,
         startTransition
       })
@@ -35,6 +37,7 @@ describe('usePdfViewerMenuItems', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     reloadKey = 0
+    contextMenuPointRef.current = null
   })
 
   it('forwards text and image actions to their refs', () => {
@@ -98,5 +101,33 @@ describe('usePdfViewerMenuItems', () => {
     expect(handleFullPageScreenshot).toHaveBeenCalledTimes(1)
     expect(handleAreaScreenshot).toHaveBeenCalledTimes(1)
     expect(reloadKey).toBe(1)
+  })
+
+  /**
+   * Sağ tık noktası, iki AI öğesinden de aşağı taşınmalı.
+   *
+   * Nokta taşınmazsa karar menüsü (AI'ye Gönder | Taslağa Ekle) nereye
+   * konumlanacağını bilemez ve sayfanın son metin satırına — yani tıklamayla
+   * ilgisi olmayan bir yere — düşer.
+   */
+  it('forwards the right-click point to both AI actions', () => {
+    contextMenuPointRef.current = { x: 420, y: 260 }
+    const { result } = setup()
+
+    result.current.menuItems[0].onClick()
+    expect(extractCurrentPageText).toHaveBeenCalledWith({ x: 420, y: 260 })
+
+    result.current.menuItems[1].onClick()
+    expect(handleFullPageScreenshot).toHaveBeenCalledWith({ x: 420, y: 260 })
+  })
+
+  it('calls both actions with no point when nothing was right-clicked', () => {
+    const { result } = setup()
+
+    result.current.menuItems[0].onClick()
+    result.current.menuItems[1].onClick()
+
+    expect(extractCurrentPageText).toHaveBeenCalledWith(undefined)
+    expect(handleFullPageScreenshot).toHaveBeenCalledWith(undefined)
   })
 })

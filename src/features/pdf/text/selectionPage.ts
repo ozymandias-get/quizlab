@@ -104,7 +104,16 @@ export interface MenuAnchor {
   left: number
 }
 
-const MARGIN = 8
+/**
+ * Seçim bitişi / hedef ile menü arasındaki boşluk **ve** menü ile sınır
+ * arasındaki pay (px).
+ *
+ * Tek sabit, tek kural: `extractSelectedText` de menüye olan boşluğu bundan
+ * bildirir, `computeSelectionMenuAnchor` de aynı değerle kelepçeler. İki
+ * ayrı sabit iki ayrı yerleştirme kuralı doğurur ve zamanla ayrışırlardı.
+ */
+export const SELECTION_MENU_GAP = 8
+const MARGIN = SELECTION_MENU_GAP
 
 /**
  * Menünün gerçek DOM boyutları (PdfSelectionMenu sabit ölçülüdür).

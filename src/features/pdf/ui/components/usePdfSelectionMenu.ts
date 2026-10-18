@@ -151,13 +151,31 @@ export function usePdfSelectionMenu({
         return
       }
 
-      // Aynı içerik/konumda gereksiz yeniden konumlandırma yapma.
+      // Tek konumlandırma kararı: gerçek bitiş rect'i (extractSelectedText'in
+      // DOM Range'den ölçtüğü son satır) + PDF paneli sınırları. Yapay dikdörtgen
+      // ve ikinci tahmin dönüşü yok.
+      const endRect = position.endRect ?? {
+        top: position.top,
+        bottom: position.top,
+        left: position.left,
+        right: position.left
+      }
+      const anchor = anchorFromEndRect(endRect)
+
+      // Aynı içerik **ve aynı menü konumu** için yeniden konumlandırma yapma.
+      //
+      // Karşılaştırılan iki değer de `anchor`. Öncesi burada saklanan konu ile
+      // `position.top/left` karşılaştırılıyordu; o ikisi farklı kurallardan
+      // gelen farklı koordinat sistemleriydi (saklanan: menünün gerçek ölçüsü
+      // ve panel sınırlarıyla kelepçelenmiş konum; gelen: seçimin bittiği nokta).
+      // Bu yüzden guard ya hiç ateşlemiyordu ya da sayılar çakıştığında **yanlış**
+      // ateşleyip menüyü içerikten ayrılmış bir yerde bırakıyordu.
       const prev = menuRef.current
       if (
         prev &&
         prev.text === normalized &&
-        Math.abs(prev.position.top - position.top) < 1 &&
-        Math.abs(prev.position.left - position.left) < 1
+        Math.abs(prev.position.top - anchor.top) < 1 &&
+        Math.abs(prev.position.left - anchor.left) < 1
       ) {
         return
       }
@@ -186,17 +204,6 @@ export function usePdfSelectionMenu({
         totalPages: totalPages >= 1 ? totalPages : undefined,
         captureKind: 'text-selection'
       })
-
-      // Tek konumlandırma kararı: gerçek bitiş rect'i (extractSelectedText'in
-      // DOM Range'den ölçtüğü son satır) + PDF paneli sınırları. Yapay dikdörtgen
-      // ve ikinci tahmin dönüşü yok.
-      const endRect = position.endRect ?? {
-        top: position.top,
-        bottom: position.top,
-        left: position.left,
-        right: position.left
-      }
-      const anchor = anchorFromEndRect(endRect)
 
       const requestId = ++requestIdRef.current
       clearFeedbackTimer()

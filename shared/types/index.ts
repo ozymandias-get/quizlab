@@ -54,6 +54,7 @@ export type {
   NativeMessagingExtensionInfo
 } from './native-messaging.js'
 export type {
+  PdfActionPoint,
   PdfFile,
   PdfSelection,
   PdfSelectOptions,

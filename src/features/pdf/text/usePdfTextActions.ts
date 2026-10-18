@@ -1,3 +1,5 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import { type RefObject, useCallback, useEffect, useRef } from 'react'
 
 import { extractPageTextFromDom, invalidatePageCache } from './extractPageTextFromDom'
@@ -8,7 +10,12 @@ interface UsePdfTextActionsOptions {
   containerRef: RefObject<HTMLElement | null>
   currentPage: number
   onTextSelection?: (text: string, position: SelectionPosition | null) => void
-  onTextExtracted?: (text: string) => void
+  /**
+   * Tam sayfa metni çıkarıldı. `point`, metni **başlatan** eylemin noktasıdır
+   * (sağ tık): karar menüsü bu noktaya konumlanır. Çıkarma ertelendiği için
+   * nokta çağrı anında dondurulur, iş bitince okunmaz.
+   */
+  onTextExtracted?: (text: string, point?: PdfActionPoint | null) => void
   onNoTextFound?: () => void
   textSelectionEnabled?: boolean
 }
@@ -44,8 +51,11 @@ export function usePdfTextActions({
   const idleHandleRef = useRef<number | null>(null)
   const timeoutHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const extractCurrentPageText = useCallback(() => {
+  const extractCurrentPageText = useCallback((point?: PdfActionPoint) => {
     const page = currentPageRef.current
+    // Nokta **çağrı anında** dondurulur: çıkarma ertelendiği için (rIC ya da
+    // 500ms) iş bittiğinde `point` hâlâ o eylemin noktasını göstermelidir.
+    const capturedPoint = point ?? null
     const extract = () => {
       // Guard against stale extraction after navigation/unmount
       if (!onTextExtractedRef.current && !onNoTextFoundRef.current) return null
@@ -56,7 +66,7 @@ export function usePdfTextActions({
         return null
       }
 
-      onTextExtractedRef.current?.(text)
+      onTextExtractedRef.current?.(text, capturedPoint)
       return text
     }
 

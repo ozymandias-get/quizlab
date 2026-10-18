@@ -1,4 +1,5 @@
 import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
+import { computeSelectionMenuAnchor } from '@features/pdf/text/selectionPage'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -168,7 +169,7 @@ describe('extractSelectedText', () => {
     expect((result?.position?.top ?? 0) > 5).toBe(true)
   })
 
-  it('keeps position in bounds horizontally', () => {
+  it('does not clamp horizontally on its own (that is the anchor job)', () => {
     const text = textRunIn(layer, 'edge text')
     const rect = {
       width: 100,
@@ -181,7 +182,68 @@ describe('extractSelectedText', () => {
     const range = createMockRange({ startContainer: text, endContainer: text, rect })
     const selection = createSelection({ text: 'edge', range })
     const result = extractSelectedText(selection, container)
-    // The center of the selection is 60, but should not go below btnWidth/2 + margin (140/2 + 10 = 80)
-    expect((result?.position?.left ?? 0) >= 80).toBe(true)
+    // Bu fonksiyon artık genişlik varsayımıyla (280px "pill") sola itmiyor.
+    // Ekranda kalma garantisi `computeSelectionMenuAnchor`'ın işidir ve
+    // `selectionPage.test.ts` içinde gerçek menü ölçüsüyle sınanır.
+    expect(result?.position?.left).toBe(60)
+    const anchor = computeSelectionMenuAnchor(
+      { top: 300, bottom: 320, left: 10, right: 110 },
+      container.getBoundingClientRect()
+    )
+    expect(anchor.left).toBeGreaterThanOrEqual(8)
+  })
+
+  /**
+   * `position.top/left` bir **konum kararı** değil, seçimin bittiği noktadır.
+   *
+   * Burada kendi kırpmasını uygulayan ikinci bir yerleştirme kuralı vardı
+   * (`pillWidth` 280, `bottomBarHeight` 80) ve bu, menünün tek konumlandırıcısı
+   * olan `computeSelectionMenuAnchor`'ın kuralıyla yarışıyordu. Sınırlara
+   * kelepçeleme tek yerde olmalı; burada yalnızca bitiş noktası bildirilir.
+   */
+  it('reports the selection end point without its own placement policy', () => {
+    const text = textRunIn(layer, 'near the bottom edge')
+    const rect = {
+      width: 100,
+      height: 20,
+      left: 200,
+      top: 690,
+      right: 300,
+      bottom: 710
+    } as DOMRect
+    const range = createMockRange({ startContainer: text, endContainer: text, rect })
+    const selection = createSelection({ text: 'bottom', range })
+    const result = extractSelectedText(selection, container)
+
+    // Pencereye göre 80px'lik alt çubuk payı tutulmuyor: 710 + 8.
+    expect(result?.position?.top).toBe(718)
+    // Yatayda da genişlik varsayımına göre itilmiyor: bitişin ortası.
+    expect(result?.position?.left).toBe(250)
+  })
+
+  it('reports the end point of a multi-line selection, not the whole selection', () => {
+    const text = textRunIn(layer, 'two lines')
+    // `getBoundingClientRect` tüm seçimi sarar; `getClientRects` son satırı verir.
+    const rect = {
+      width: 500,
+      height: 40,
+      left: 100,
+      top: 300,
+      right: 600,
+      bottom: 340
+    } as DOMRect
+    const endRect = { top: 320, bottom: 340, left: 100, right: 250 }
+    const range = {
+      startContainer: text,
+      endContainer: text,
+      commonAncestorContainer: text,
+      getBoundingClientRect: () => rect,
+      getClientRects: () => [endRect]
+    } as unknown as Range
+    const selection = createSelection({ text: 'two lines', range })
+    const result = extractSelectedText(selection, container)
+
+    expect(result?.position?.top).toBe(endRect.bottom + 8)
+    expect(result?.position?.left).toBe((endRect.left + endRect.right) / 2)
   })
 })

@@ -117,6 +117,77 @@ describe('usePdfSelectionMenu — positioning', () => {
     expect(result.current.menu?.position.top).toBe(END_RECT.bottom + 8)
   })
 
+  /**
+   * Aynı içerik **ve aynı seçim** için menü yeniden konumlanmamalı — ama
+   * karşılaştırma iki farklı koordinat sistemi arasında yapılıyordu:
+   * saklanan konu `computeSelectionMenuAnchor`'ın çıktısı (bir `MenuAnchor`),
+   * gelen `position.top/left` ise `extractSelectedText`'in ayrı bir "pill"
+   * hesabı. İkisi çakıştığında guard **yanlış** ateşliyor: panel daraldığı
+   * için menünün kelepçelenmesi gerekirken menü eski yerinde kalıyor ve
+   * içerikle birlikte hareket etmiyordu.
+   */
+  it('follows the container when it shrinks under an unchanged selection', () => {
+    let bounds = { top: 100, bottom: 700, left: 50, right: 600 }
+    const resizable = document.createElement('div')
+    Object.defineProperty(resizable, 'getBoundingClientRect', {
+      value: () => ({ ...bounds, width: 550, height: bounds.bottom - bounds.top })
+    })
+    document.body.appendChild(resizable)
+
+    const { result } = renderHook(() =>
+      usePdfSelectionMenu({
+        containerRef: { current: resizable },
+        pdfFile: { path: 'a.pdf', name: 'a.pdf', streamUrl: 'local://a', size: 100 },
+        currentPage: 11,
+        totalPages: 59,
+        onTextSelection: vi.fn()
+      })
+    )
+
+    // Eski anchor ile **çakışan** bir pill: hatayı tetikleyen koşul tam olarak
+    // bu. Guard "değişmemiş" deyip menüyü yerinde bırakır.
+    const openingAnchor = computeSelectionMenuAnchor(END_RECT, bounds)
+    const coincidingPill: SelectionPosition = {
+      top: openingAnchor.top,
+      left: openingAnchor.left,
+      endRect: END_RECT
+    }
+
+    act(() => {
+      result.current.handleSelection('selected words', coincidingPill)
+    })
+    expect(result.current.menu?.position.top).toBe(openingAnchor.top)
+
+    // Kullanıcı panel ayırıcısını yukarı çekiyor; seçim geometrisi değişmiyor.
+    bounds = { top: 100, bottom: 260, left: 50, right: 600 }
+    act(() => {
+      result.current.handleSelection('selected words', coincidingPill)
+    })
+
+    const expected = computeSelectionMenuAnchor(END_RECT, bounds)
+    expect(result.current.menu?.position.top).toBe(expected.top)
+    expect(result.current.menu?.position.top).not.toBe(openingAnchor.top)
+  })
+
+  /**
+   * Guard gerçekten çalışıyor: aynı seçim, aynı sınırlar → yeni `requestId`
+   * üretilmez (gereksiz yeniden konumlandırma ve geri bildirim sıfırlaması yok).
+   */
+  it('does not reposition for an identical selection in identical bounds', () => {
+    const { result } = setup()
+
+    act(() => {
+      result.current.handleSelection('selected words', position)
+    })
+    const first = result.current.menu
+
+    act(() => {
+      result.current.handleSelection('selected words', position)
+    })
+
+    expect(result.current.menu).toBe(first)
+  })
+
   it('closes the menu when the zoom token changes (text layer is rebuilt)', () => {
     const { result, rerender } = renderHook(
       ({ zoomToken }: { zoomToken: number }) =>

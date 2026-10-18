@@ -27,7 +27,9 @@ import { createPortal } from 'react-dom'
  *
  * - Görsel önizleme galerisi yok; kompakt menü yakalamanın yakınında belirir.
  * - Alan yakalaması: kırpma rect'i gerçek ekran koordinatıdır.
- * - Tam sayfa yakalaması: sayfanın son metin satırının gerçek DOM rect'i.
+ * - Tam sayfa yakalaması ve tam sayfa metni: **eylemin noktası** (sağ tık).
+ *   Nokta taşınmazsa menü tıklamayla ilgisi olmayan bir yere (sayfanın en alt
+ *   metin satırı, yoksa ekranın alt-ortası) düşüyordu.
  * - Konum bulunamazsa sabit bir köşe noktası değil, **ölçülen viewport'tan
  *   türetilmiş** bir yer kullanılır (bkz. `viewportFallbackAnchor`).
  * - Taslağa Ekle hiçbir gönderim tetiklemez; global autoSend'e dokunmaz ve
@@ -199,12 +201,23 @@ function CaptureChoiceMenu() {
         DEFAULT_SELECTION_MENU_SIZE
       )
     }
-    // Tam sayfa yakalaması VE tam sayfa metni: seçim anındaki sayfanın son metin
-    // satırı. İkisi de sayfa çevresinde belirdiği için aynı yer doğru yerdir;
-    // metin için ayrı bir konum kuralı olmasaydı iki yol birbirinden ayrışırdı.
+    // Tam sayfa yakalaması VE tam sayfa metni: konum, kullanıcının **eylemini
+    // doğurduğu nokta** (sağ tık). Nokta varsa DOM'a hiç bakılmaz — menü
+    // tıklandığı yerde açılır, tıkladığın yere.
+    //
+    // Noktasız yollar (Electron kısayolu) sayfanın en alt metnini kullanır:
+    // ikisi de sayfa çevresinde belirdiği için aynı yer doğrudur.
     const fullPageMeta = pendingFullPageCapture?.meta ?? null
     const textMeta = pendingFullPageTextCapture?.meta ?? null
     if (pendingFullPageCapture || pendingFullPageTextCapture) {
+      const point = pendingFullPageCapture?.point ?? pendingFullPageTextCapture?.point ?? null
+      if (point) {
+        return computeSelectionMenuAnchor(
+          toMenuBounds({ top: point.y, bottom: point.y, left: point.x, right: point.x }),
+          null,
+          DEFAULT_SELECTION_MENU_SIZE
+        )
+      }
       // `QueuedImageMeta` sayfayı düz taşır, `QueuedTextMeta` yalnız `source`
       // içinde tutar. İkisi de aynı sayfaya işaret eder.
       const page = fullPageMeta?.source?.page ?? fullPageMeta?.page ?? textMeta?.source?.page

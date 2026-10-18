@@ -25,7 +25,14 @@ export type PdfViewerZoomAction = 'in' | 'out' | 'reset'
  * ıraklar (ve `endRect` gibi bir alan bir tarafta kaybolur).
  */
 export interface SelectionPosition {
-  /** Eski hızlı "pill" konumu (seçim noktasının altı/üstü). */
+  /**
+   * Seçimin **bittiği nokta** (viewport/client koordinatları), hesaplanmış bir
+   * yerleştirme kararı değil.
+   *
+   * Menüyü nereye koyacağına `computeSelectionMenuAnchor` karar verir; burada
+   * yalnızca "seçim nerede bitti" bilgisi taşınır. Dışarıya verilen legacy
+   * `onTextSelection` sözleşmesinin alanı olduğu için alan korunmuştur.
+   */
   top: number
   left: number
   width?: number
@@ -35,7 +42,26 @@ export interface SelectionPosition {
    *
    * İkili eylem menüsünün konumlandırması bu gerçek geometriyi kullanır; menü
    * ölçüsüyle ve panel/viewport sınırlarıyla birlikte TEK konumlandırma kararı
-   * verir.
+   * verir. `top/left` ile karşılaştırılamaz — farklı bir kuralın ürünüdür.
    */
   endRect?: { top: number; bottom: number; left: number; right: number }
+}
+
+/**
+ * PDF yüzeyinde kullanıcının **eylemini doğuran nokta** (sağ tık konumu).
+ *
+ * Karar menüsü (AI'ye Gönder | Taslağa Ekle) nereye konumlanacağını buradan
+ * öğrenir. Nokta, yakalamanın başladığı andan itibaren **zincir boyunca
+ * taşınır**: menü kapanırken state silinse de okunabilir kalmalıdır, çünkü
+ * metin çıkarma `requestIdleCallback` ile, sayfa görseli ise canvas yeniden
+ * deneme merdiveniyle **asenkron** tamamlanır. Nokta kaybolursa menü elinde
+ * gerçek bir hedef kalmaz ve tıklamayla ilgisi olmayan bir yere düşer.
+ *
+ * Taşıyıcıların hepsi `point?: ... | null` kabul eder: `null`, "kullanıcı bir
+ * noktadan tetiklemedi" demektir (ör. Electron kısayolu) ve çağıranın o yolun
+ * kendi varsayılanına düşmesine izin verir.
+ */
+export interface PdfActionPoint {
+  x: number
+  y: number
 }

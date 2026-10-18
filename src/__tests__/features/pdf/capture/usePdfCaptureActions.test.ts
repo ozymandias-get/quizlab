@@ -125,6 +125,38 @@ describe('usePdfCaptureActions fallback ladder', () => {
     )
   }
 
+  /**
+   * Nokta, merdivenin sonuna kadar taşınmalı.
+   *
+   * Render birkaç yüz milisaniye sürebildiği için "kullanıcı nerede tıklamıştı"
+   * sorusu yalnızca çağrı anında yanıtlanabilir. Nokta taşınmazsa karar menüsü
+   * elinde gerçek bir hedef kalmaz ve tıklamayla ilgisi olmayan bir yere düşer.
+   */
+  it('carries the action point through to the choice menu', async () => {
+    mocks.renderPageToImageFallback.mockResolvedValue(rendered())
+    const { result } = mountHook()
+
+    await act(async () => {
+      await result.current.handleFullPageScreenshot({ x: 420, y: 260 })
+    })
+
+    expect(onFullPageCapture).toHaveBeenCalledWith(expect.any(String), expect.anything(), {
+      x: 420,
+      y: 260
+    })
+  })
+
+  it('reports no point for a keyboard-triggered capture', async () => {
+    mocks.renderPageToImageFallback.mockResolvedValue(rendered())
+    const { result } = mountHook()
+
+    await act(async () => {
+      await result.current.handleFullPageScreenshot()
+    })
+
+    expect(onFullPageCapture.mock.calls[0][2]).toBeNull()
+  })
+
   let dataUrlCalls: { mime: string | undefined; quality: unknown }[]
   let createObjectURL: ReturnType<typeof vi.fn>
 
@@ -197,7 +229,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
       // The intermediate blob url must not leak once the data url is queued.
       expect(revokeObjectURL).toHaveBeenCalledWith('blob:rendered-page')
@@ -221,7 +254,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
       // The blob url now belongs to the pending capture, so it is not revoked.
       expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:rendered-page')
@@ -253,7 +287,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
     })
 
@@ -287,7 +322,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
     })
 
@@ -336,7 +372,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
     })
   })
@@ -370,7 +407,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
           expect.objectContaining({
             page: 4,
             captureKind: 'full-page'
-          })
+          }),
+          null
         )
       } finally {
         vi.useRealTimers()
@@ -438,7 +476,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
           expect.objectContaining({
             page: 4,
             captureKind: 'full-page'
-          })
+          }),
+          null
         )
         expect(mocks.showError).not.toHaveBeenCalled()
       } finally {
@@ -588,7 +627,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
-        })
+        }),
+        null
       )
     })
 

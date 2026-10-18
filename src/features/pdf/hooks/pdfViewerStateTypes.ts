@@ -1,4 +1,4 @@
-import type { PdfFile } from '@shared-core/types'
+import type { PdfActionPoint, PdfFile } from '@shared-core/types'
 
 import type { PdfTab, ReadingProgressUpdate } from '@features/pdf/hooks/types'
 import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
@@ -26,7 +26,7 @@ export interface PdfViewerDocumentProps {
    * Tamamlanan tam sayfa yakalaması: doğrudan kuyruğa yazılmaz, menü
    * kararına (AI'ye Gönder | Taslağa Ekle) iletilir.
    */
-  onFullPageCapture: (imageUri: string, meta: ScreenshotMeta) => void
+  onFullPageCapture: (imageUri: string, meta: ScreenshotMeta, point?: PdfActionPoint | null) => void
   isPanelResizing?: boolean
   /**
    * The live page number capture must read.
@@ -66,7 +66,7 @@ export interface UsePdfViewerStateReturn {
   viewerReloadKey: number
   isPanMode: boolean
   isPanDragging: boolean
-  handleFullPageScreenshot: () => Promise<void>
+  handleFullPageScreenshot: (point?: PdfActionPoint) => Promise<void>
   handleAreaScreenshot: () => void
   contextMenu: { x: number; y: number } | null
   handleCloseContextMenu: () => void

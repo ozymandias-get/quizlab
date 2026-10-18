@@ -12,6 +12,7 @@ import { findNativeTextLayer } from '../native/nativePdfDom'
 import { orderTextItems } from './extractPageTextFromDom'
 import { normalizePdfText } from './normalizePdfText'
 import { findTextLayerSource } from './pdfTextLayerSource'
+import { SELECTION_MENU_GAP } from './selectionPage'
 import type { PdfTextItem, SelectionPosition } from './types'
 
 function isNodeInsideContainer(node: Node | null, container: HTMLElement): boolean {
@@ -232,40 +233,22 @@ export function extractSelectedText(
   const clientRects = typeof range.getClientRects === 'function' ? [...range.getClientRects()] : []
   const endRect = clientRects.length > 0 ? clientRects[clientRects.length - 1] : rect
 
-  const pillWidth = 280
-  const pillHeight = 44
-  const margin = 8
-  const bottomBarHeight = 80
-
-  let top = endRect.bottom + margin
-  let left = rect.left + rect.width / 2
-
-  if (top + pillHeight > window.innerHeight - bottomBarHeight - margin) {
-    const topPosition = endRect.top - pillHeight - margin
-    if (topPosition >= margin) {
-      top = topPosition
-    } else {
-      top = Math.max(margin, window.innerHeight - bottomBarHeight - pillHeight - margin)
-    }
-  }
-
-  if (top < margin) {
-    top = endRect.bottom + margin
-  }
-
-  if (left < pillWidth / 2 + margin) {
-    left = pillWidth / 2 + margin
-  }
-
-  if (left > window.innerWidth - pillWidth / 2 - margin) {
-    left = window.innerWidth - pillWidth / 2 - margin
-  }
-
   return {
     text,
     position: {
-      top,
-      left,
+      // Konum **kararı** burada verilmez. `top/left` yalnızca seçimin bittiği
+      // noktayı bildirir; menüyü nereye koyacağına `computeSelectionMenuAnchor`
+      // karar verir (gerçek bitiş rect'i + gerçek menü ölçüsü + panel/viewport
+      // sınırları).
+      //
+      // Burada daha önce ikinci bir kural vardı — `pillWidth` 280 /
+      // `pillHeight` 44 / `bottomBarHeight` 80 varsayımlarıyla kendi
+      // kırpmasını uygulayan bir "pill" hesabı. O kural menünün tek
+      // konumlandırıcısıyla yarışıyordu ve ikisi ayrışınca menü, içeriğin
+      // bulunduğu yere göre değil başka bir yere gidiyordu. Sınırlara
+      // kelepçeleme tek yerde olmalıdır.
+      top: endRect.bottom + SELECTION_MENU_GAP,
+      left: (endRect.left + endRect.right) / 2,
       width: selWidth,
       height: selHeight,
       // Gerçek bitiş geometrisi: menü konumlandırması bundan tek karar üretir.

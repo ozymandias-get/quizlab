@@ -1,3 +1,5 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import { buildPdfSourceMeta } from '@app/providers/ai/pdfSource'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 import { useToastActions } from '@shared/stores/toastStore'
@@ -64,8 +66,10 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { offerFullPageText } = useAppToolActions()
   const { showWarning } = useToastActions()
   const { t: tt } = useTranslation()
-  const handleFullPageScreenshotRef = useRef<() => Promise<void>>(async () => {})
-  const extractCurrentPageTextRef = useRef<() => string | null>(() => null)
+  const handleFullPageScreenshotRef = useRef<(point?: PdfActionPoint) => Promise<void>>(
+    async () => {}
+  )
+  const extractCurrentPageTextRef = useRef<(point?: PdfActionPoint) => string | null>(() => null)
 
   const lastNavigationTimeRef = useLastNavigationTime(0)
   const containerSize = useContainerSize(containerRef, lastNavigationTimeRef, isPanelResizing)
@@ -142,7 +146,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     containerRef,
     currentPage,
     onTextSelection: selectionMenu.handleSelection,
-    onTextExtracted: (text) => {
+    onTextExtracted: (text, point) => {
       // Tam sayfa metni: seçim anındaki gerçek sayfa + toplam ile kaynakla.
       //
       // Öncesi: metin doğrudan `queueTextForAi` ile kuyruğa yazılıyordu, yani
@@ -151,21 +155,27 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
       // tutarsızdı. Artık metin de aynı sözleşmede: karar menüde verilir.
       const page = currentPageRef.current
       const total = nativeViewer.totalPages >= 1 ? nativeViewer.totalPages : undefined
-      offerFullPageText(text, {
-        source: buildPdfSourceMeta({
-          file: pdfFile
-            ? {
-                path: pdfFile.path,
-                streamUrl: pdfFile.streamUrl,
-                name: pdfFile.name,
-                size: pdfFile.size
-              }
-            : null,
-          page,
-          totalPages: total,
-          captureKind: 'full-page-text'
-        })
-      })
+      offerFullPageText(
+        text,
+        {
+          source: buildPdfSourceMeta({
+            file: pdfFile
+              ? {
+                  path: pdfFile.path,
+                  streamUrl: pdfFile.streamUrl,
+                  name: pdfFile.name,
+                  size: pdfFile.size
+                }
+              : null,
+            page,
+            totalPages: total,
+            captureKind: 'full-page-text'
+          })
+        },
+        // Nokta çıkarma başlatıldığında dondurulmuştu: menü, tıklandığı yerde
+        // açılır. Yoksa sayfanın en alt metin satırına düşerdi.
+        point ?? null
+      )
     },
     onNoTextFound: () => {
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
@@ -174,7 +184,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
       !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !isPanMode
   })
 
-  const { contextMenu, setContextMenu } = usePdfContextMenu(containerRef)
+  const { contextMenu, setContextMenu, contextMenuPointRef } = usePdfContextMenu(containerRef)
 
   usePdfViewerElectronScreenshot({
     startScreenshot,
@@ -193,6 +203,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
       extractCurrentPageTextRef,
       handleFullPageScreenshotRef,
       setContextMenu,
+      contextMenuPointRef,
       setViewerReloadKey,
       startTransition
     })

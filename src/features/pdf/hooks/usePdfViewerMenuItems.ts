@@ -1,5 +1,7 @@
+import type { PdfActionPoint } from '@shared-core/types'
+
 import { Crop, Image as ImageIcon, RefreshCw, Type } from 'lucide-react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useCallback, useMemo } from 'react'
 
 import type { MenuItem } from '../ui/components/ContextMenu'
@@ -8,9 +10,17 @@ interface MenuItemsInput {
   t: (key: string) => string
   tt: (key: string) => string
   handleAreaScreenshot: () => void
-  extractCurrentPageTextRef: React.MutableRefObject<() => string | null>
-  handleFullPageScreenshotRef: React.MutableRefObject<() => Promise<void>>
+  /**
+   * `extractCurrentPageText` ve `handleFullPageScreenshot`, kullanıcının
+   * **eylemini doğuran noktayı** opsiyonel olarak alır. Sağ tık menüsünden
+   * gelenlerde bu nokta vardır ve karar menüsü oraya konumlanır; kısayoldan
+   * gelenlerde yoktur.
+   */
+  extractCurrentPageTextRef: MutableRefObject<(point?: PdfActionPoint) => string | null>
+  handleFullPageScreenshotRef: MutableRefObject<(point?: PdfActionPoint) => Promise<void>>
   setContextMenu: (menu: { x: number; y: number } | null) => void
+  /** Kapanmayan son sağ tık noktası — menü öğesi handler'ları buradan okur. */
+  contextMenuPointRef: MutableRefObject<PdfActionPoint | null>
   setViewerReloadKey: Dispatch<SetStateAction<number>>
   startTransition: (fn: () => void) => void
 }
@@ -38,17 +48,24 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
     extractCurrentPageTextRef,
     handleFullPageScreenshotRef,
     setContextMenu,
+    contextMenuPointRef,
     setViewerReloadKey,
     startTransition
   } = input
 
+  /**
+   * Sağ tık noktası, öğeye tıklandığı anda okunur.
+   *
+   * `null` "bu yol bir noktadan tetiklenmedi" demektir (ör. araç çubuğu ya da
+   * kısayol); çağıran o zaman kendi varsayılanına düşer.
+   */
   const handleAddCurrentPageTextToAi = useCallback(
-    () => extractCurrentPageTextRef.current(),
-    [extractCurrentPageTextRef]
+    () => extractCurrentPageTextRef.current(contextMenuPointRef.current ?? undefined),
+    [extractCurrentPageTextRef, contextMenuPointRef]
   )
   const handleSendPageAsImageToAi = useCallback(
-    () => handleFullPageScreenshotRef.current(),
-    [handleFullPageScreenshotRef]
+    () => handleFullPageScreenshotRef.current(contextMenuPointRef.current ?? undefined),
+    [handleFullPageScreenshotRef, contextMenuPointRef]
   )
 
   const handleCloseContextMenu = useCallback(() => setContextMenu(null), [setContextMenu])
