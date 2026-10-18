@@ -438,7 +438,7 @@ describe('siteStrategyRegistry', () => {
 
     it('injected siteStrategyRuntime registers built-in strategies and resolves composer controls', async () => {
       const { siteStrategyRuntime } =
-        await import('@electron/features/automation/automationScripts/lib/siteStrategyRegistry')
+        await import('@electron/features/automation/automationScripts/lib/siteStrategyRuntime')
       document.body.innerHTML = `
         <div data-composer-body>
           <textarea id="composer-input"></textarea>

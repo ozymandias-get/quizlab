@@ -7,7 +7,7 @@
  */
 import { selectorEngine } from '@electron/features/automation/automationScripts/lib/selectorEngine'
 import { selectorRepairRuntime } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
-import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRegistry'
+import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRuntime'
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
