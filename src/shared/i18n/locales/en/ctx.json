@@ -1,6 +1,4 @@
 {
-  "ctx_crop_screenshot": "Crop Screenshot",
   "ctx_crop_screenshot_ai": "Add Area Selection as Image to AI",
-  "ctx_reload": "Reload Page",
-  "full_page_screenshot": "Full Page Screenshot"
+  "ctx_reload": "Reload Page"
 }

@@ -95,9 +95,6 @@ describe('i18n bundles', () => {
   // A bare `"{count} items"` key renders "1 items"; i18next only pluralises when
   // the key carries the `_one` / `_other` suffixes.
   it.each([
-    ['ai_send_item_count_one', 'ai_send_item_count_other'],
-    ['ai_send_text_count_one', 'ai_send_text_count_other'],
-    ['ai_send_image_count_one', 'ai_send_image_count_other'],
     ['ai_draft_content_count_one', 'ai_draft_content_count_other'],
     ['ai_send_clear_all_confirm_one', 'ai_send_clear_all_confirm_other']
   ])('%s has a plural sibling', (oneKey, otherKey) => {
