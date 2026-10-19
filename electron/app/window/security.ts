@@ -36,30 +36,53 @@ export function isSafeExternalUrl(rawUrl: string) {
   return false
 }
 
+const mainFrameUrlCache = new Map<string, boolean>()
+const MAX_MAIN_FRAME_URL_CACHE_SIZE = 32
+
 export function isAllowedMainFrameUrl(rawUrl: string) {
+  const cacheKey = `${isDev ? '1' : '0'}:${rawUrl}`
+  const cached = mainFrameUrlCache.get(cacheKey)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  let allowed = false
+  // A verdict is only cacheable when the check actually ran to completion. A
+  // parse failure or a throw from the path comparison is not a decision about
+  // this URL — it is a failure to decide — and caching it would freeze a
+  // transient failure into a permanent "denied" for the rest of the session.
+  let decided = false
   try {
     const parsed = new URL(rawUrl)
 
     if (isDev) {
-      return DEV_SERVER_ORIGIN !== null && parsed.origin === DEV_SERVER_ORIGIN
+      allowed = DEV_SERVER_ORIGIN !== null && parsed.origin === DEV_SERVER_ORIGIN
+    } else if (parsed.protocol === 'file:') {
+      const targetPath = path.normalize(fileURLToPath(parsed))
+      const distRoot = path.normalize(path.join(app.getAppPath(), 'dist'))
+      const relativePath = path.relative(distRoot, targetPath)
+      allowed =
+        relativePath === '' ||
+        (relativePath !== '..' &&
+          !relativePath.startsWith(`..${path.sep}`) &&
+          !path.isAbsolute(relativePath))
     }
-
-    if (parsed.protocol !== 'file:') {
-      return false
-    }
-
-    const targetPath = path.normalize(fileURLToPath(parsed))
-    const distRoot = path.normalize(path.join(app.getAppPath(), 'dist'))
-    const relativePath = path.relative(distRoot, targetPath)
-    return (
-      relativePath === '' ||
-      (relativePath !== '..' &&
-        !relativePath.startsWith(`..${path.sep}`) &&
-        !path.isAbsolute(relativePath))
-    )
+    decided = true
   } catch {
-    return false
+    allowed = false
+    decided = false
   }
+
+  if (decided) {
+    if (mainFrameUrlCache.size >= MAX_MAIN_FRAME_URL_CACHE_SIZE) {
+      const oldestKey = mainFrameUrlCache.keys().next().value
+      if (oldestKey !== undefined) {
+        mainFrameUrlCache.delete(oldestKey)
+      }
+    }
+    mainFrameUrlCache.set(cacheKey, allowed)
+  }
+  return allowed
 }
 
 async function openExternalUrl(rawUrl: string) {

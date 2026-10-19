@@ -168,6 +168,14 @@ export function useAiViewHost({
   const publish = useCallback(
     (force: boolean): boolean => {
       if (!isHostOwnerRef.current) return false
+      if (
+        !force &&
+        !visibleRef.current &&
+        lastSentRef.current !== null &&
+        !lastSentRef.current.visible
+      ) {
+        return false
+      }
       const client = getAiViewClient()
       if (!client) return true
       const bounds = measure()
@@ -184,6 +192,7 @@ export function useAiViewHost({
   )
 
   const schedule = useCallback(() => {
+    if (!isHostOwnerRef.current && reassertFramesRef.current <= 0) return
     if (frameRef.current !== null) return
     frameRef.current = requestFrame(() => {
       frameRef.current = null
@@ -223,15 +232,22 @@ export function useAiViewHost({
       typeof ResizeObserver === 'function' ? new ResizeObserver(() => schedule()) : null
     observer?.observe(element)
 
+    const handleScroll = (event: Event) => {
+      if (event.target instanceof Node && !event.target.contains(element)) {
+        return
+      }
+      schedule()
+    }
+
     window.addEventListener('resize', schedule)
     // Panels animate their bounds, so scroll/resize ancestors move the host
     // without firing a ResizeObserver entry on the host itself.
-    window.addEventListener('scroll', schedule, true)
+    window.addEventListener('scroll', handleScroll, true)
 
     return () => {
       observer?.disconnect()
       window.removeEventListener('resize', schedule)
-      window.removeEventListener('scroll', schedule, true)
+      window.removeEventListener('scroll', handleScroll, true)
       reassertFramesRef.current = 0
       if (frameRef.current !== null) {
         cancelFrame(frameRef.current)

@@ -46,6 +46,7 @@ function isGoogleCookieDomain(domain: string | null | undefined): boolean {
 
 async function clearGoogleCookies(targetSession: Session): Promise<void> {
   const existingCookies = await targetSession.cookies.get({})
+  const removals: Promise<unknown>[] = []
 
   for (const cookie of existingCookies) {
     if (!isGoogleCookieDomain(cookie.domain)) continue
@@ -61,8 +62,12 @@ async function clearGoogleCookies(targetSession: Session): Promise<void> {
     const secureSchemes = cookie.secure ? ['https'] : ['https', 'http']
     for (const scheme of secureSchemes) {
       const url = `${scheme}://${host}${cookiePath}`
-      await targetSession.cookies.remove(url, cookie.name).catch(() => {})
+      removals.push(targetSession.cookies.remove(url, cookie.name).catch(() => {}))
     }
+  }
+
+  if (removals.length > 0) {
+    await Promise.all(removals)
   }
 }
 
@@ -130,20 +135,27 @@ export async function importExternalCookies(
 ): Promise<void> {
   const incomingByName = new Map<string, ExternalBrowserCookie>()
   const failedCriticalCookies: string[] = []
+  const setOperations: Promise<unknown>[] = []
 
   for (const cookie of cookies) {
     const payload = buildElectronCookiePayload(cookie)
     if (!payload) continue
     incomingByName.set(`${cookie.name}::${cookie.domain}::${cookie.path}`, cookie)
-    await targetSession.cookies.set(payload).catch((error: unknown) => {
-      if (CRITICAL_COOKIE_NAMES.has(cookie.name)) {
-        failedCriticalCookies.push(cookie.name)
-      }
-      Logger.warn(
-        `[SessionCookies] Failed to set cookie "${cookie.name}" for ${cookie.domain}:`,
-        error instanceof Error ? error.message : String(error)
-      )
-    })
+    setOperations.push(
+      targetSession.cookies.set(payload).catch((error: unknown) => {
+        if (CRITICAL_COOKIE_NAMES.has(cookie.name)) {
+          failedCriticalCookies.push(cookie.name)
+        }
+        Logger.warn(
+          `[SessionCookies] Failed to set cookie "${cookie.name}" for ${cookie.domain}:`,
+          error instanceof Error ? error.message : String(error)
+        )
+      })
+    )
+  }
+
+  if (setOperations.length > 0) {
+    await Promise.all(setOperations)
   }
 
   if (failedCriticalCookies.length > 0) {
@@ -153,6 +165,7 @@ export async function importExternalCookies(
   }
 
   const existingCookies = await targetSession.cookies.get({}).catch(() => [])
+  const staleRemovals: Promise<unknown>[] = []
   for (const existing of existingCookies) {
     if (!isGoogleCookieDomain(existing.domain)) continue
     const key = `${existing.name}::${existing.domain}::${existing.path || '/'}`
@@ -164,8 +177,12 @@ export async function importExternalCookies(
     const secureSchemes = existing.secure ? ['https'] : ['https', 'http']
     for (const scheme of secureSchemes) {
       const url = `${scheme}://${host}${cookiePath}`
-      await targetSession.cookies.remove(url, existing.name).catch(() => {})
+      staleRemovals.push(targetSession.cookies.remove(url, existing.name).catch(() => {}))
     }
+  }
+
+  if (staleRemovals.length > 0) {
+    await Promise.all(staleRemovals)
   }
 
   try {

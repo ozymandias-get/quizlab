@@ -481,8 +481,12 @@ export function syncAiViewHost(
   if (!bounds) return false
 
   if (!boundsEqual(entry.bounds, bounds)) {
+    const prevRadius = entry.bounds ? (entry.bounds.borderRadius ?? 0) : undefined
+    const nextRadius = bounds.borderRadius ?? 0
     entry.bounds = bounds
-    applyBorderRadius(entry.view, bounds.borderRadius ?? 0)
+    if (prevRadius !== nextRadius) {
+      applyBorderRadius(entry.view, nextRadius)
+    }
     entry.view.setBounds(bounds)
   }
 

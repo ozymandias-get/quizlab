@@ -1,8 +1,9 @@
 import { useAppearance } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { TooltipProvider } from '@shared/ui/components/primitives'
 
-import { motion, useMotionValue } from 'motion/react'
-import { memo, useCallback, useMemo } from 'react'
+import { motion } from 'motion/react'
+import { memo, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { type DockTooltipAlign, DockTooltipAlignProvider } from './DockTooltipPlacement'
@@ -23,8 +24,6 @@ interface FloatingDockInnerProps {
 const FloatingDockInner = memo(function FloatingDockInner({
   onOpenSettings
 }: FloatingDockInnerProps) {
-  const mouseY = useMotionValue(Infinity)
-
   const {
     visibleTools: rawVisibleTools,
     visibleModels: rawVisibleModels,
@@ -45,43 +44,38 @@ const FloatingDockInner = memo(function FloatingDockInner({
   // overflowing half lands on the PDF panel, where it is actually visible.
   const tooltipAlign: DockTooltipAlign = isLayoutSwapped ? 'start' : 'end'
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => mouseY.set(e.clientY), [mouseY])
-  const handleMouseLeaveReset = useCallback(() => mouseY.set(Infinity), [mouseY])
-
   return (
-    <DockTooltipAlignProvider value={tooltipAlign}>
-      <motion.div
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeaveReset}
-        className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-2 backdrop-blur-md"
-      >
-        <div className="flex w-full flex-col items-center gap-0.5">
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
-            <SettingsToolButton onOpenSettings={onOpenSettings} />
-          )}
+    <TooltipProvider delayDuration={200}>
+      <DockTooltipAlignProvider value={tooltipAlign}>
+        <motion.div className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-2 backdrop-blur-md">
+          <div className="flex w-full flex-col items-center gap-0.5">
+            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
+              <SettingsToolButton onOpenSettings={onOpenSettings} />
+            )}
 
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
+            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
 
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && (
-            <PdfFocusToolButton />
-          )}
+            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && (
+              <PdfFocusToolButton />
+            )}
 
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && (
-            <AiFocusToolButton />
-          )}
+            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && (
+              <AiFocusToolButton />
+            )}
 
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
+            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
 
-          {visibleTools['tool-gemini-web'] !== false && (
-            <GeminiToolButton onOpenSettings={onOpenSettings} />
-          )}
-        </div>
+            {visibleTools['tool-gemini-web'] !== false && (
+              <GeminiToolButton onOpenSettings={onOpenSettings} />
+            )}
+          </div>
 
-        <div className="bg-border/60 my-1 h-px w-5" role="separator" />
+          <div className="bg-border/60 my-1 h-px w-5" role="separator" />
 
-        <ModelIconsList visibleModels={visibleModels} />
-      </motion.div>
-    </DockTooltipAlignProvider>
+          <ModelIconsList visibleModels={visibleModels} />
+        </motion.div>
+      </DockTooltipAlignProvider>
+    </TooltipProvider>
   )
 })
 

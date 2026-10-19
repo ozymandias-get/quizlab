@@ -5,8 +5,7 @@ import { type Container, tsParticles } from '@tsparticles/engine'
 import Particles from '@tsparticles/react'
 import { loadSlim } from '@tsparticles/slim'
 import { motion, useAnimation } from 'motion/react'
-import { useId, useMemo, useRef } from 'react'
-import { useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 import { createSparklesOptions } from './sparklesConfig'
 
@@ -32,7 +31,7 @@ function ensureSlimLoaded(): Promise<void> {
   return slimLoadPromise
 }
 
-const SparklesCore = (props: SparklesCoreProps) => {
+const SparklesCore = memo((props: SparklesCoreProps) => {
   const {
     id,
     className,
@@ -51,6 +50,8 @@ const SparklesCore = (props: SparklesCoreProps) => {
     typeof document !== 'undefined' ? document.hidden : false
   )
   const effectivelyPaused = paused || isPageHidden
+  const effectivelyPausedRef = useRef(effectivelyPaused)
+  effectivelyPausedRef.current = effectivelyPaused
 
   useEffect(() => {
     isMountedRef.current = true
@@ -100,14 +101,19 @@ const SparklesCore = (props: SparklesCoreProps) => {
 
   const controls = useAnimation()
 
-  const particlesLoaded = async (container?: Container) => {
-    containerRef.current = container ?? null
-    if (container) {
-      // Respect initial paused state — pause immediately if needed.
-      if (effectivelyPaused) (container as unknown as { pause?: () => void }).pause?.()
-      controls.start({ opacity: 1, transition: { duration: 1 } })
-    }
-  }
+  const particlesLoaded = useCallback(
+    async (container?: Container) => {
+      containerRef.current = container ?? null
+      if (container) {
+        // Respect initial paused state — pause immediately if needed.
+        if (effectivelyPausedRef.current) {
+          ;(container as unknown as { pause?: () => void }).pause?.()
+        }
+        controls.start({ opacity: 1, transition: { duration: 1 } })
+      }
+    },
+    [controls]
+  )
 
   const options: ISourceOptions = useMemo(
     () =>
@@ -118,7 +124,7 @@ const SparklesCore = (props: SparklesCoreProps) => {
   const generatedId = useId()
   return (
     <motion.div animate={controls} className={cn('opacity-0', className)}>
-      {init && !effectivelyPaused && (
+      {init && (
         <Particles
           id={id || generatedId}
           className={cn('h-full w-full')}
@@ -128,6 +134,8 @@ const SparklesCore = (props: SparklesCoreProps) => {
       )}
     </motion.div>
   )
-}
+})
+
+SparklesCore.displayName = 'SparklesCore'
 
 export default SparklesCore

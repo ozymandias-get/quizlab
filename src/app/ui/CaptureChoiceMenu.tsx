@@ -187,6 +187,9 @@ function CaptureChoiceMenu() {
   }, [hiddenCaptureId, sendingCaptureId])
 
   const anchor = useMemo(() => {
+    if (!pendingAreaCapture && !pendingFullPageCapture && !pendingFullPageTextCapture) {
+      return null
+    }
     // Alan yakalaması: kırpma rect'i (gerçek ekran koordinatı).
     const cropRect = pendingAreaCapture?.rect
     if (hasUsableRect(cropRect) && cropRect) {
@@ -453,7 +456,7 @@ function CaptureChoiceMenu() {
     return null
   // Gönderim sürerken kullanıcı menüyü kapattıysa kaynak yaşamaya devam
   // eder, yalnızca menü çizilmez.
-  if (!hasPending) return null
+  if (!hasPending || !anchor) return null
 
   return createPortal(
     <div ref={surfaceRef}>

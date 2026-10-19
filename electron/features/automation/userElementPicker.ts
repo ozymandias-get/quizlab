@@ -26,29 +26,46 @@ import { buildPickerUiBlock } from './pickerScript/ui.js'
  *
  * @returns {string} Enjekte edilecek JS kodu
  */
+let cachedInjectedPickerDomHelpers: string | null = null
+let cachedStepHtmlSource: string | null = null
+let cachedHintHtmlSource: string | null = null
+let cachedPickerBody: string | null = null
+
 export const generatePickerScript = (
   translations: TranslationMap = {},
   pickerSessionId?: string | null
 ): string => {
+  if (cachedInjectedPickerDomHelpers === null) {
+    cachedInjectedPickerDomHelpers = buildInjectedPickerDomHelpers()
+  }
+  if (cachedStepHtmlSource === null) {
+    cachedStepHtmlSource = getStepHtml.toString()
+  }
+  if (cachedHintHtmlSource === null) {
+    cachedHintHtmlSource = getHintHtml.toString()
+  }
+  if (cachedPickerBody === null) {
+    cachedPickerBody = [
+      buildPickerUiBlock(pickerStyles),
+      buildPickerTargetingBlock(),
+      buildPickerHandlersBlock(),
+      buildPickerIframesBlock(),
+      buildPickerCleanupBlock()
+    ].join('')
+  }
+
   const translationsJSON = JSON.stringify(translations)
   const head = buildPickerScriptHead(
     translationsJSON,
-    buildInjectedPickerDomHelpers(),
-    getStepHtml.toString(),
-    getHintHtml.toString(),
+    cachedInjectedPickerDomHelpers,
+    cachedStepHtmlSource,
+    cachedHintHtmlSource,
     pickerSessionId
   )
-  const body = [
-    buildPickerUiBlock(pickerStyles),
-    buildPickerTargetingBlock(),
-    buildPickerHandlersBlock(),
-    buildPickerIframesBlock(),
-    buildPickerCleanupBlock()
-  ].join('')
 
   return `
     (function() {
-${head}${body}
+${head}${cachedPickerBody}
     })();
     `
 }

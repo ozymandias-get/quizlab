@@ -65,9 +65,18 @@ export function createPdfResponseHeaders(stats: fs.Stats): Record<string, string
 function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      fileStream.on('data', (chunk) => controller.enqueue(new Uint8Array(chunk as Buffer)))
+      fileStream.on('data', (chunk) => {
+        const buf = chunk as Buffer
+        controller.enqueue(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength))
+        if (controller.desiredSize !== null && controller.desiredSize <= 0) {
+          fileStream.pause()
+        }
+      })
       fileStream.on('end', () => controller.close())
       fileStream.on('error', (err) => controller.error(err))
+    },
+    pull() {
+      fileStream.resume()
     },
     cancel() {
       fileStream.destroy()
@@ -78,9 +87,10 @@ function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8A
 export function createPdfStreamResponse(
   filePath: string,
   stats: fs.Stats,
-  rangeHeader: string | null
+  rangeHeader: string | null,
+  baseHeaders?: Record<string, string>
 ): Response {
-  const headers = createPdfResponseHeaders(stats)
+  const headers = baseHeaders ? { ...baseHeaders } : createPdfResponseHeaders(stats)
 
   if (rangeHeader) {
     const range = parseByteRange(rangeHeader, stats.size)

@@ -183,14 +183,12 @@ export function registerPdfProtocol() {
         }
       }
 
-      const response = createPdfStreamResponse(filePath, stats, request.headers.get('range'))
       if (requestOrigin) {
-        const responseHeaders = new Headers(response.headers)
-        responseHeaders.set('Access-Control-Allow-Origin', requestOrigin)
-        responseHeaders.set('Vary', 'Origin')
-        return new Response(response.body, { status: response.status, headers: responseHeaders })
+        headers['Access-Control-Allow-Origin'] = requestOrigin
+        headers['Vary'] = 'Origin'
       }
-      return response
+
+      return createPdfStreamResponse(filePath, stats, request.headers.get('range'), headers)
     } catch (error) {
       Logger.error('[PDFProtocol] Stream Error:', error)
       return new Response('Internal Server Error', { status: 500 })

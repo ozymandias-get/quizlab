@@ -1,6 +1,6 @@
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Tab liveness for the AI panel, hoisted above the workspace / focus-mode split.
@@ -114,13 +114,21 @@ export function useAiViewSurfaceState({
 
   const show = useCallback(() => setShowHome(true), [])
   const hide = useCallback(() => setShowHome(false), [])
+  const showHideHome = useMemo(() => ({ show, hide }), [show, hide])
+  const coldTabIds = useMemo(() => {
+    const aliveSet = new Set(aliveTabIds)
+    return new Set(tabIds.filter((id) => !aliveSet.has(id)))
+  }, [tabIds, aliveTabIds])
 
-  return {
-    aliveTabIds,
-    showHome,
-    showHideHome: { show, hide },
-    coldTabIds: new Set(tabIds.filter((id) => !aliveTabIds.includes(id))),
-    recordTabUrl,
-    getRestoredUrl
-  }
+  return useMemo(
+    () => ({
+      aliveTabIds,
+      showHome,
+      showHideHome,
+      coldTabIds,
+      recordTabUrl,
+      getRestoredUrl
+    }),
+    [aliveTabIds, showHome, showHideHome, coldTabIds, recordTabUrl, getRestoredUrl]
+  )
 }

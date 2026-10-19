@@ -11,8 +11,14 @@ import { selectorRepairRuntime } from './lib/selectorRepairRuntime.js'
 import { shadowRootRegistryRuntime } from './lib/shadowRootRegistry.js'
 import { siteStrategyRuntime } from './lib/siteStrategyRuntime.js'
 
+const commonHelpersCache = new Map<'pick' | 'reject', string>()
+
 export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject'): string {
-  return [
+  const cached = commonHelpersCache.get(ambiguousSelectorBehavior)
+  if (cached !== undefined) {
+    return cached
+  }
+  const built = [
     getBaseHelpers(ambiguousSelectorBehavior),
     // Sıralama önemli: önce error classifier (selectorEngine kullanır),
     // sonra cache, dom arama, güven skoru, self-heal evidence, fallback,
@@ -34,4 +40,6 @@ export function buildCommonHelpers(ambiguousSelectorBehavior: 'pick' | 'reject')
     selectorEngine,
     interactionHelpers
   ].join('\n')
+  commonHelpersCache.set(ambiguousSelectorBehavior, built)
+  return built
 }

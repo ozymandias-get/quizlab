@@ -78,6 +78,7 @@ export function useCanvasGpuCleanup(containerRef: RefObject<HTMLElement | null>)
     if (!container || typeof MutationObserver === 'undefined') return
 
     const observer = new MutationObserver((mutations) => {
+      let sawCanvasAddition = false
       for (const mutation of mutations) {
         for (const node of mutation.removedNodes) {
           if (!(node instanceof HTMLElement)) continue
@@ -85,16 +86,30 @@ export function useCanvasGpuCleanup(containerRef: RefObject<HTMLElement | null>)
             // Synchronous width/height zeroing is what actually drops the
             // WebGL/2D backing store in Chromium; clearRect alone is not enough.
             releaseCanvasGpuMemory(node as HTMLCanvasElement)
-          } else {
+          } else if (node.childElementCount > 0) {
             for (const canvas of node.querySelectorAll('canvas')) {
               releaseCanvasGpuMemory(canvas)
             }
           }
         }
+        if (!sawCanvasAddition) {
+          for (const node of mutation.addedNodes) {
+            if (!(node instanceof HTMLElement)) continue
+            if (
+              node.tagName === 'CANVAS' ||
+              (node.childElementCount > 0 && node.querySelector('canvas') !== null)
+            ) {
+              sawCanvasAddition = true
+              break
+            }
+          }
+        }
       }
-      // Enforce the pixel-area budget on any mutation (page swap, zoom
+      // Enforce the pixel-area budget when canvases are added (page swap, zoom
       // re-render, capture) so an unbounded rasterized area is never retained.
-      enforceCanvasPixelBudget(container)
+      if (sawCanvasAddition) {
+        enforceCanvasPixelBudget(container)
+      }
     })
 
     observer.observe(container, { childList: true, subtree: true })

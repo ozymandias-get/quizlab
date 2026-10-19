@@ -43,11 +43,28 @@ function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
   }
 }
 
+let cachedRawContent: string | null = null
+let cachedDecodedConfig: ApiConfig | null = null
+
+function cloneApiConfig(config: ApiConfig): ApiConfig {
+  return {
+    ...config,
+    providers: config.providers.map((p) => ({
+      ...p,
+      ...(p.models ? { models: [...p.models] } : {})
+    }))
+  }
+}
+
 async function loadConfig(): Promise<ApiConfig> {
   let configPath: string | undefined
   try {
     configPath = getApiChatConfigPath()
     const content = await fs.promises.readFile(configPath, 'utf-8')
+    if (cachedRawContent === content && cachedDecodedConfig !== null) {
+      return cloneApiConfig(cachedDecodedConfig)
+    }
+
     const raw = JSON.parse(content)
 
     const providers: ApiProviderConfig[] = (raw.providers || []).map((p: ApiProviderConfig) => ({
@@ -55,7 +72,7 @@ async function loadConfig(): Promise<ApiConfig> {
       apiKey: decryptValue(p.apiKey || '')
     }))
 
-    return {
+    const resolved: ApiConfig = {
       providers,
       generalPrompt: (raw.generalPrompt || '').slice(0, MAX_PROMPT_LENGTH),
       memoryPrompt: (raw.memoryPrompt || '').slice(0, MAX_PROMPT_LENGTH),
@@ -63,7 +80,13 @@ async function loadConfig(): Promise<ApiConfig> {
       selectedProviderId: raw.selectedProviderId || '',
       selectedModel: raw.selectedModel || ''
     }
+
+    cachedRawContent = content
+    cachedDecodedConfig = resolved
+    return cloneApiConfig(resolved)
   } catch (err) {
+    cachedRawContent = null
+    cachedDecodedConfig = null
     Logger.warn('[apiChatHandlers] Failed to load API chat config, using defaults:', err)
 
     if (configPath) {
@@ -102,8 +125,11 @@ async function saveConfig(config: ApiConfig): Promise<boolean> {
       characterPrompt: (config.characterPrompt || '').slice(0, MAX_PROMPT_LENGTH)
     }
 
+    const serialized = JSON.stringify(trimmedConfig, null, 2)
     await fs.promises.mkdir(path.dirname(configPath), { recursive: true })
-    await fs.promises.writeFile(configPath, JSON.stringify(trimmedConfig, null, 2), { mode: 0o600 })
+    await fs.promises.writeFile(configPath, serialized, { mode: 0o600 })
+    cachedRawContent = null
+    cachedDecodedConfig = null
     return true
   } catch {
     return false

@@ -121,9 +121,15 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
         </div>
       </div>
 
-      <Suspense fallback={null}>
-        <HistoryModal isOpen={isHistoryModalOpen} onClose={handleCloseHistoryModal} tabId={tabId} />
-      </Suspense>
+      {isHistoryModalOpen && (
+        <Suspense fallback={null}>
+          <HistoryModal
+            isOpen={isHistoryModalOpen}
+            onClose={handleCloseHistoryModal}
+            tabId={tabId}
+          />
+        </Suspense>
+      )}
     </div>
   )
 })

@@ -54,11 +54,12 @@ const handlebarBelowDock = (
 )
 
 /** Single shared particles node — one canvas instead of two.
- *  Pauses (unmounts) during resize / reduced-motion / hidden tab to stop
- *  the rAF loop and save GPU/battery. `loadSlim` is globally cached so
- *  remount after resize is cheap (no re-download). */
-const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean }) {
-  if (hidden) return null
+ *  Stays mounted across a resize and pauses in place (`container.pause()`),
+ *  so the tsParticles engine is not torn down and rebuilt on every drag
+ *  frame. It is not rendered at all under `prefers-reduced-motion`, and
+ *  `loadSlim` is globally cached, so the first mount never re-downloads the
+ *  bundle. */
+const SparklesNode = memo(function SparklesNode({ paused = false }: { paused?: boolean }) {
   return (
     <Suspense fallback={null}>
       <SparklesCore
@@ -66,7 +67,7 @@ const SparklesNode = memo(function SparklesNode({ hidden }: { hidden: boolean })
         minSize={0.4}
         maxSize={0.9}
         particleDensity={5}
-        paused={hidden}
+        paused={paused}
         className="motion-normal pointer-events-none absolute inset-0 h-full w-full opacity-20"
         particleColor="#FFFFFF"
       />
@@ -177,8 +178,6 @@ function BottomBar({
     setSettingsInitialTab(undefined)
   }, [])
 
-  const shouldShowSparkles = !prefersReducedMotion && !isResizing
-
   return (
     <>
       <div
@@ -188,9 +187,9 @@ function BottomBar({
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {shouldShowSparkles && (
+        {!prefersReducedMotion && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
-            <SparklesNode hidden={false} />
+            <SparklesNode paused={isResizing} />
           </div>
         )}
         <div
