@@ -39,10 +39,7 @@ export function sanitizeEnabledAppIds(value: unknown): string[] {
  * than to whoever happens to hand the repository a record.
  */
 function normalizeMetadata(raw: SessionMetadata): SessionMetadata {
-  const fallback = createDefaultStatus(
-    FEATURE_ENABLED,
-    FEATURE_ENABLED ? DEFAULT_USER_ENABLED : false
-  )
+  const fallback = createDefaultStatus(FEATURE_ENABLED, DEFAULT_USER_ENABLED)
   return {
     accountHash: typeof raw.accountHash === 'string' ? raw.accountHash : null,
     state: typeof raw.state === 'string' && isSessionState(raw.state) ? raw.state : fallback.state,
@@ -59,8 +56,7 @@ function normalizeMetadata(raw: SessionMetadata): SessionMetadata {
         ? raw.reasonCode
         : fallback.reasonCode,
     featureEnabled: FEATURE_ENABLED,
-    enabled:
-      typeof raw.enabled === 'boolean' ? (FEATURE_ENABLED ? raw.enabled : false) : fallback.enabled,
+    enabled: typeof raw.enabled === 'boolean' ? raw.enabled : fallback.enabled,
     enabledAppIds: sanitizeEnabledAppIds(raw.enabledAppIds)
   }
 }
@@ -135,14 +131,6 @@ export class SessionMetadataRepository {
   }
 
   getDisabledActionResult(current: SessionMetadata): DisabledActionResult | null {
-    if (!FEATURE_ENABLED) {
-      return {
-        success: false,
-        error: 'feature_disabled',
-        status: this.toPublicStatus(current)
-      }
-    }
-
     if (!current.enabled) {
       return {
         success: false,

@@ -4,16 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocked = vi.hoisted(() => {
-  let _featureEnabled = true
-
   return {
-    get FEATURE_ENABLED() {
-      return _featureEnabled
-    },
-    set FEATURE_ENABLED(v: boolean) {
-      _featureEnabled = v
-    },
-
     nowIso: vi.fn(() => '2026-04-07T19:30:00.000Z'),
     toStrictBoolean: vi.fn((v: unknown) => v === true || v === 'true'),
     sanitizeEnabledAppIds: vi.fn((ids: string[]) => ids),
@@ -46,9 +37,7 @@ vi.mock('../../../../electron/features/gemini-web-session/sessionUtils', () => (
 }))
 
 vi.mock('../../../../electron/features/gemini-web-session/sessionConfig', () => ({
-  get FEATURE_ENABLED() {
-    return mocked.FEATURE_ENABLED
-  }
+  FEATURE_ENABLED: true
 }))
 
 vi.mock('../../../../electron/features/gemini-web-session/sessionErrors', () => ({
@@ -68,7 +57,6 @@ describe('MetadataUpdatePolicy', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mocked.FEATURE_ENABLED = true
 
     context = {
       initialize: mocked.initialize,
@@ -109,15 +97,6 @@ describe('MetadataUpdatePolicy', () => {
       )
       expect(mocked.monitor.stop).toHaveBeenCalled()
       expect(mocked.scheduleMonitor).not.toHaveBeenCalled()
-    })
-
-    it('forces enabled=false when feature is disabled', async () => {
-      mocked.FEATURE_ENABLED = false
-      await policy.setEnabled(true)
-      expect(mocked.writeStatus).toHaveBeenCalledWith(
-        expect.objectContaining({ enabled: false, featureEnabled: false }),
-        'hash-1'
-      )
     })
 
     it('returns success with status', async () => {

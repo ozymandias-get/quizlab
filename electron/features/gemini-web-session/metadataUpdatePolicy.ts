@@ -71,7 +71,7 @@ export class MetadataUpdatePolicy {
     await initialize()
     const result = await this.serializedWrite(async () => {
       const current = await metadataRepository.readMetadata()
-      const nextEnabled = FEATURE_ENABLED ? toStrictBoolean(enabled) : false
+      const nextEnabled = toStrictBoolean(enabled)
       const status = await metadataRepository.writeStatus(
         {
           ...current,

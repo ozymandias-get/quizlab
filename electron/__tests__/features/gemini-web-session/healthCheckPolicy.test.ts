@@ -4,15 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocked = vi.hoisted(() => {
-  let _featureEnabled = true
-
   return {
-    get FEATURE_ENABLED() {
-      return _featureEnabled
-    },
-    set FEATURE_ENABLED(v: boolean) {
-      _featureEnabled = v
-    },
     HEALTH_TIMEOUT_MS: 30_000,
 
     nowIso: vi.fn(() => '2026-04-07T19:30:00.000Z'),
@@ -42,9 +34,7 @@ vi.mock('../../../../electron/features/gemini-web-session/sessionUtils', () => (
 }))
 
 vi.mock('../../../../electron/features/gemini-web-session/sessionConfig', () => ({
-  get FEATURE_ENABLED() {
-    return mocked.FEATURE_ENABLED
-  },
+  FEATURE_ENABLED: true,
   HEALTH_TIMEOUT_MS: mocked.HEALTH_TIMEOUT_MS
 }))
 
@@ -61,7 +51,6 @@ describe('HealthCheckPolicy', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mocked.FEATURE_ENABLED = true
 
     context = {
       metadataRepository: {
@@ -86,14 +75,6 @@ describe('HealthCheckPolicy', () => {
       const result = await policy.performHealthCheck()
       expect(result.state).toBe('degraded')
       expect(result.reasonCode).toBe('unknown')
-    })
-
-    it('returns early when the feature flag is off, without running the probe path', async () => {
-      mocked.FEATURE_ENABLED = false
-      mocked.readMetadata.mockResolvedValueOnce({ enabled: true, state: 'uninitialized' })
-      const result = await policy.performHealthCheck()
-      expect(result.state).not.toBe('authenticated')
-      expect(mocked.writeStatus).not.toHaveBeenCalled()
     })
 
     it('returns early when metadata says disabled', async () => {

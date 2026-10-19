@@ -2,7 +2,6 @@ import type { GeminiWebSessionConfig, GeminiWebSessionStatus } from '@shared-cor
 
 import { GOOGLE_AI_WEB_APPS } from '../../../shared/constants/googleAiWebApps.js'
 import type { ProfileLock } from './profileLock.js'
-import { FEATURE_ENABLED } from './sessionConfig.js'
 import type { ReactiveRefreshSignal, RefreshEventEmitter } from './sessionContracts.js'
 import { logSuppressedError, toErrorMessage } from './sessionErrors.js'
 import type { SessionMetadataRepository } from './sessionMetadataRepository.js'
@@ -137,7 +136,7 @@ export class RefreshTriggerPolicy {
   async triggerRefresh(signal: ReactiveRefreshSignal): Promise<void> {
     await this.context.initialize()
     const current = await this.context.metadataRepository.readMetadata()
-    if (!FEATURE_ENABLED || !current.enabled || this.context.getAbortSignal().aborted) return
+    if (!current.enabled || this.context.getAbortSignal().aborted) return
 
     const activeCheck = this.context.getActiveCheck()
     if (activeCheck) {
