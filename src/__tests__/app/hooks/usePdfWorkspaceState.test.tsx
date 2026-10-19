@@ -1,7 +1,7 @@
 /**
  * Tests for src/app/hooks/usePdfWorkspaceState.ts
  *
- * Composes usePdfSelection + useTextSelection into workspace props.
+ * Composes usePdfSelection into workspace props.
  * We mock all dependencies and verify the returned shape + callbacks.
  */
 import { act, renderHook } from '@testing-library/react'
@@ -49,13 +49,6 @@ vi.mock('@features/pdf', () => ({
     goToPdfHome: mockGoToPdfHome,
     openPdfInTab: mockOpenPdfInTab,
     upsertLastReadingInfo: mockUpsertLastReadingInfo
-  })
-}))
-
-const mockHandleTextSelection = vi.fn()
-vi.mock('@app/hooks/useTextSelection', () => ({
-  useTextSelection: () => ({
-    handleTextSelection: mockHandleTextSelection
   })
 }))
 

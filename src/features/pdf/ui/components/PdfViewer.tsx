@@ -21,7 +21,6 @@ interface PdfViewerProps {
   pdfFile: PdfFile | null
   activePdfTab?: PdfTab | null
   onSelectPdf: () => void
-  onTextSelection?: (text: string, position: { top: number; left: number } | null) => void
   t?: (key: string) => string
   initialPage?: number
   onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult
@@ -38,7 +37,6 @@ function PdfViewer({
   pdfFile,
   activePdfTab,
   onSelectPdf,
-  onTextSelection,
   t: propT,
   initialPage,
   onResumePdf,
@@ -104,7 +102,6 @@ function PdfViewer({
             pdfFile={persistentFile}
             pdfUrl={persistentUrl}
             activePdfTab={activePdfTab}
-            onTextSelection={onTextSelection}
             t={t}
             initialPage={persistentInitialPage}
             onReadingProgressChange={onReadingProgressChange}

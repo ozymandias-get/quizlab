@@ -35,7 +35,6 @@ interface UsePdfSelectionMenuOptions {
    * seçim geometrisi geçersizlenir; menü yanlış yerde kalmaz, kapanır.
    */
   zoomToken?: number | string
-  onTextSelection?: (text: string, position: SelectionPosition | null) => void
 }
 
 /**
@@ -65,8 +64,7 @@ export function usePdfSelectionMenu({
   pdfFile,
   currentPage,
   totalPages,
-  zoomToken,
-  onTextSelection
+  zoomToken
 }: UsePdfSelectionMenuOptions) {
   const { queueTextForAi, sendTextDirectToAi } = useAppToolActions()
   const [menu, setMenu] = useState<TextSelectionSnapshot | null>(null)
@@ -77,8 +75,6 @@ export function usePdfSelectionMenu({
   const feedbackRef = useRef(feedback)
   feedbackRef.current = feedback
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const onTextSelectionRef = useRef(onTextSelection)
-  onTextSelectionRef.current = onTextSelection
 
   const clearFeedbackTimer = useCallback(() => {
     if (feedbackTimerRef.current) {
@@ -141,9 +137,6 @@ export function usePdfSelectionMenu({
 
   const handleSelection = useCallback(
     (text: string, position: SelectionPosition | null) => {
-      // Legacy bildirimi koru (testler / dış tüketim).
-      onTextSelectionRef.current?.(text, position)
-
       const normalized = text.trim()
       if (!normalized || !position) {
         // Seçim yapılmayan sıradan tıklamada menü görünmesin; mevcut taslak silinmez.

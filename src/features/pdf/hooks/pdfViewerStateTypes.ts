@@ -16,7 +16,6 @@ export interface PdfViewerDocumentProps {
   pdfFile: PdfFile
   pdfUrl: string
   activePdfTab?: PdfTab | null
-  onTextSelection?: (text: string, position: { top: number; left: number } | null) => void
   t: (key: string) => string
   initialPage?: number
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void

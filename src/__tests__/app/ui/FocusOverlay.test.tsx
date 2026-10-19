@@ -21,10 +21,6 @@ vi.mock('motion/react', () => ({
   useReducedMotion: () => false
 }))
 
-vi.mock('@app/hooks/useTextSelection', () => ({
-  useTextSelection: () => ({ handleTextSelection: vi.fn() })
-}))
-
 const mockUsePdfSelection = vi.fn()
 vi.mock('@features/pdf', () => ({
   usePdfSelection: () => mockUsePdfSelection(),

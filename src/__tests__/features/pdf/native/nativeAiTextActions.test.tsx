@@ -8,7 +8,6 @@
  * - Full-page text stays discoverable via the right-click menu (toolbar AI
  *   controls were removed with the new selection flow).
  */
-import { useTextSelection } from '@app/hooks/useTextSelection'
 import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
 
 import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerState'
@@ -149,15 +148,13 @@ const pdfFile = {
 
 function renderDocument() {
   function Harness() {
-    const { handleTextSelection } = useTextSelection()
     const props: PdfViewerDocumentProps = {
       pdfFile,
       pdfUrl: 'local-pdf://book',
       t: (key: string) => key,
       isInteractionBlocked: false,
       startScreenshot: vi.fn(),
-      onFullPageCapture: vi.fn(),
-      onTextSelection: handleTextSelection
+      onFullPageCapture: vi.fn()
     }
     return (
       <TooltipProvider>

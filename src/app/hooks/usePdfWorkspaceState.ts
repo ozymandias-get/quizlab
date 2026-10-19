@@ -1,6 +1,5 @@
 import { usePdfSelection } from '@features/pdf'
 
-import { useTextSelection } from '@app/hooks/useTextSelection'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
 
@@ -38,7 +37,6 @@ export function usePdfWorkspaceState({
     openPdfInTab,
     upsertLastReadingInfo
   } = usePdfSelection()
-  const { handleTextSelection } = useTextSelection()
 
   const lastReadingInfoRef = useRef(recentReadingInfo)
   lastReadingInfoRef.current = recentReadingInfo
@@ -124,7 +122,6 @@ export function usePdfWorkspaceState({
       onPdfDrop: handlePdfDrop,
       pdfFile,
       onSelectPdf: handleSelectPdf,
-      onTextSelection: handleTextSelection,
       activePdfTab,
       pdfTabs,
       activePdfTabId,
@@ -138,7 +135,6 @@ export function usePdfWorkspaceState({
       handlePdfDrop,
       pdfFile,
       handleSelectPdf,
-      handleTextSelection,
       activePdfTab,
       pdfTabs,
       activePdfTabId,
