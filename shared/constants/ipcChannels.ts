@@ -51,6 +51,12 @@ export const IPC_CHANNELS = {
   DEEP_CLEAN_CACHE: 'deep-clean-cache',
   SET_CACHE_AUTO_CLEAN: 'set-cache-auto-clean',
   SMART_CACHE_ACTION: 'smart-cache-action',
+  // Site oturumları (Chrome eklentisi ile paylaşılan oturumlar)
+  SITE_SESSION_LIST: 'site-session-list',
+  SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
+  SITE_SESSION_CLEAR: 'site-session-clear',
+  /** Main → renderer: hedef listesi ve durumları değişti. */
+  SITE_SESSION_CHANGED: 'site-session-changed',
   GEMINI_WEB_STATUS: 'gemini-web-status',
   GEMINI_WEB_RESET_PROFILE: 'gemini-web-reset-profile',
   GEMINI_WEB_SET_ENABLED: 'gemini-web-set-enabled',

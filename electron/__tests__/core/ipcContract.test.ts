@@ -100,6 +100,7 @@ type RendererParityChecks = [
     ElectronApi['shellIntegration']['getStatus']
   >,
   RendererCovers<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
+  RendererCovers<typeof IPC_CHANNELS.SITE_SESSION_LIST, ElectronApi['siteSession']['list']>,
   RendererCovers<
     typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
     ElectronApi['nativeMessaging']['getStatus']
@@ -159,6 +160,7 @@ type RendererKeyParityChecks = [
     ElectronApi['shellIntegration']['getStatus']
   >,
   RendererKeysMatch<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
+  RendererKeysMatch<typeof IPC_CHANNELS.SITE_SESSION_LIST, ElectronApi['siteSession']['list']>,
   RendererKeysMatch<
     typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
     ElectronApi['nativeMessaging']['getStatus']
@@ -233,6 +235,12 @@ assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
 assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
 assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
 assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
+
+// Per-site Chrome session sharing. The invoke channels read and mutate the
+// per-site switch; the change event pushes a fresh list to the renderer.
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_LIST)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_CLEAR)
 assertInvokeChannel(IPC_CHANNELS.CACHE_INFO)
 assertInvokeChannel(IPC_CHANNELS.DEEP_CLEAN_CACHE)
 assertInvokeChannel(IPC_CHANNELS.GET_API_CHAT_CONFIG)
@@ -299,6 +307,14 @@ assertResultKey('installedPath')
 assertEventArgs(IPC_CHANNELS.TRIGGER_SCREENSHOT, 'full-page')
 assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
 
+// The site-session change event carries the same payload as the list invoke,
+// so the preload callback is typed by the event map instead of by hand.
+assertEventArgs(IPC_CHANNELS.SITE_SESSION_CHANGED, {
+  views: [],
+  extensionConnected: false,
+  extensionVersionOk: false
+})
+
 void invalidSelectPdfArgs
 void invalidAutomationArgs
 void _everyChannelMapped
@@ -320,5 +336,15 @@ describe('IPC contract', () => {
   it('keeps the renderer-facing result in step with the contract payload', () => {
     expect(rendererIsNotNarrower).toBe(true)
     expect(rendererKeysMatch).toBe(true)
+  })
+
+  // The four site-session channels are the seam between the main process and
+  // the settings UI. Their wire names are part of the contract with the
+  // preload, so they are pinned here at runtime as well as at compile time.
+  it('declares the site-session channels with their stable wire names', () => {
+    expect(IPC_CHANNELS.SITE_SESSION_LIST).toBe('site-session-list')
+    expect(IPC_CHANNELS.SITE_SESSION_SET_ENABLED).toBe('site-session-set-enabled')
+    expect(IPC_CHANNELS.SITE_SESSION_CLEAR).toBe('site-session-clear')
+    expect(IPC_CHANNELS.SITE_SESSION_CHANGED).toBe('site-session-changed')
   })
 })

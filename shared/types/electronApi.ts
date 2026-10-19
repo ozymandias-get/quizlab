@@ -31,6 +31,7 @@ import type {
 } from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
+import type { SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
 
 export type CacheInfoResponse = {
@@ -189,6 +190,16 @@ export interface ElectronApi {
       detail?: string
     }>
     onRefreshEvent: (callback: (event: GeminiWebSessionRefreshEvent) => void) => () => void
+  }
+  /**
+   * Per-site Chrome session sharing: the settings list of sites that may pull
+   * their login from the user's Chrome profile.
+   */
+  siteSession: {
+    list: () => Promise<SiteSessionListResult>
+    setEnabled: (siteId: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>
+    clear: (siteId: string) => Promise<{ success: boolean; error?: string }>
+    onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {
     getStatus: () => Promise<NativeMessagingExtensionInfo | null>

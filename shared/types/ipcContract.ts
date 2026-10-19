@@ -30,6 +30,7 @@ import type {
 } from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
+import type { SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
 
 /**
@@ -295,6 +296,22 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<boolean>
   }
 
+  // Site session management (per-site Chrome session import)
+  [IPC_CHANNELS.SITE_SESSION_LIST]: {
+    args: []
+    result: IpcResult<SiteSessionListResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_SET_ENABLED]: {
+    args: [siteId: string, enabled: boolean]
+    result: IpcResult<{ success: boolean; error?: string }>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_CLEAR]: {
+    args: [siteId: string]
+    result: IpcResult<{ success: boolean; error?: string }>
+  }
+
   // Gemini web session management
   [IPC_CHANNELS.GEMINI_WEB_STATUS]: {
     args: []
@@ -361,6 +378,9 @@ export interface IpcInvokeRequestMap {
 }
 
 export interface IpcEventMap {
+  [IPC_CHANNELS.SITE_SESSION_CHANGED]: {
+    args: [result: SiteSessionListResult]
+  }
   [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
     args: [payload: GeminiWebSessionRefreshEvent]
   }
