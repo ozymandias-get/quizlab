@@ -27,6 +27,12 @@ export const SITE_SESSION_COOKIE_DOMAINS = {
 } as const satisfies Record<string, readonly string[]>
 
 export function getSiteSessionCookieDomains(siteId: string): readonly string[] {
+  // `Object.hasOwn` keeps prototype-chain ids ('constructor', '__proto__', …) from
+  // resolving to `Object.prototype` members: the table is a plain object literal, so
+  // a bare lookup would hand back the inherited member instead of an empty list.
+  if (!Object.hasOwn(SITE_SESSION_COOKIE_DOMAINS, siteId)) {
+    return []
+  }
   const domains = (SITE_SESSION_COOKIE_DOMAINS as Record<string, readonly string[] | undefined>)[
     siteId
   ]
