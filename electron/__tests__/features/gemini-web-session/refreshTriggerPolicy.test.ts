@@ -106,12 +106,6 @@ vi.mock('../../../../electron/features/gemini-web-session/sessionErrors', () => 
   )
 }))
 
-vi.mock('../../../../electron/features/gemini-web-session/sessionConfig', () => ({
-  get FEATURE_ENABLED() {
-    return true
-  }
-}))
-
 const { RefreshTriggerPolicy } =
   await import('../../../../electron/features/gemini-web-session/refreshTriggerPolicy.js')
 

@@ -44,7 +44,7 @@ export class HealthCheckPolicy {
       const { metadataRepository, profileLock, recovery, profileHealthChecker } = this.context
       const currentBeforeCheck = await metadataRepository.readMetadata()
 
-      if (!FEATURE_ENABLED || !currentBeforeCheck.enabled) {
+      if (!currentBeforeCheck.enabled) {
         return metadataRepository.toPublicStatus(currentBeforeCheck)
       }
 

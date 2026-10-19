@@ -123,7 +123,7 @@ export class SessionOrchestrator {
     this.initialized = true
 
     const metadata = await this.metadataRepository.readMetadata()
-    if (FEATURE_ENABLED && metadata.enabled) {
+    if (metadata.enabled) {
       this.scheduleMonitor()
       void this.healthCheckPolicy.performHealthCheck().catch((error) => {
         logSuppressedError('initial Gemini health check failed', error)
@@ -185,7 +185,7 @@ export class SessionOrchestrator {
         },
         null
       )
-      if (FEATURE_ENABLED && current.enabled) {
+      if (current.enabled) {
         this.scheduleMonitor()
       }
       return { success: true, status }
@@ -261,7 +261,6 @@ export class SessionOrchestrator {
   }
 
   private scheduleMonitor(): void {
-    if (!FEATURE_ENABLED) return
     this.monitor.schedule(this.config.checkIntervalMs, this.config.jitterPct, async () => {
       try {
         const targetSession = this.resolvePersistentSession()
