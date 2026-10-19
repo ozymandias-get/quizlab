@@ -179,5 +179,4 @@ export type AiModelActions = Pick<
 
 export type AiSessionActions = Pick<AiContextActions, 'setAutoSend' | 'toggleAutoSend'>
 
-export type AiContextType = AiContextState & AiContentState & AiContextActions
 export type SetStoredValue<T> = Dispatch<SetStateAction<T>>

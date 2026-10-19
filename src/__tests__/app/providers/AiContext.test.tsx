@@ -1,8 +1,19 @@
-import { AiProvider, useAi } from '@app/providers/ai-context'
+import {
+  AiProvider,
+  AiRegistryMetaSliceContext,
+  useAiContent,
+  useAiContentHostActions,
+  useAiMessagingActions,
+  useAiModelsCatalog,
+  useAiTabActions,
+  useAiTabFocus,
+  useAiTabsList,
+  useAiViewRequestNonce
+} from '@app/providers/ai-context'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useContext, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockShowSuccess = vi.fn()
@@ -47,6 +58,35 @@ vi.mock('@shared/lib/logger', () => ({
   Logger: { error: vi.fn() }
 }))
 
+/**
+ * Test harness that mirrors the shape the removed wide `useAi()` aggregate hook
+ * used to expose, but built from the narrow per-slice hooks that production
+ * code actually consumes. `AiRegistryMetaSliceContext` has no narrow hook, so
+ * it is read directly through `useContext`.
+ */
+const useAiHarness = () => {
+  const registryMeta = useContext(AiRegistryMetaSliceContext)
+  const tabsList = useAiTabsList()
+  const tabFocus = useAiTabFocus()
+  const viewRequestNonce = useAiViewRequestNonce()
+  const modelsCatalog = useAiModelsCatalog()
+  const tabActions = useAiTabActions()
+  const contentHostActions = useAiContentHostActions()
+  const messagingActions = useAiMessagingActions()
+  const content = useAiContent()
+  return {
+    ...registryMeta,
+    ...tabsList,
+    ...tabFocus,
+    aiViewRequestNonce: viewRequestNonce, // <- the narrow hook returns the NUMBER
+    ...modelsCatalog,
+    ...tabActions,
+    ...contentHostActions,
+    ...messagingActions,
+    ...content
+  }
+}
+
 describe('AiContext', () => {
   const originalElectronAPI = window.electronAPI
   const mockGetAiRegistry = vi.fn()
@@ -88,7 +128,7 @@ describe('AiContext', () => {
   }
 
   it('loads registry on mount', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
 
     await waitFor(() => {
       expect(result.current.isRegistryLoaded).toBe(true)
@@ -100,7 +140,7 @@ describe('AiContext', () => {
   })
 
   it('manages tabs (add, switch)', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     expect(result.current.tabs).toHaveLength(0)
@@ -131,7 +171,7 @@ describe('AiContext', () => {
   })
 
   it('opens the requested AI workspace and bumps the reveal nonce', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     act(() => {
@@ -155,7 +195,7 @@ describe('AiContext', () => {
   })
 
   it('closes tabs and returns to the home state when the last tab closes', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     act(() => {
@@ -190,7 +230,7 @@ describe('AiContext', () => {
   })
 
   it('supports pin/unpin and rename APIs', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     act(() => {
@@ -225,7 +265,7 @@ describe('AiContext', () => {
   })
 
   it('wraps sending text with toast notifications', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     // Simulate normal user flow: open an AI workspace and register the content.
@@ -263,7 +303,7 @@ describe('AiContext', () => {
   })
 
   it('does not let stale content cleanup remove a replacement instance', async () => {
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     act(() => {
@@ -292,7 +332,7 @@ describe('AiContext', () => {
       aiView: { destroy: mockDestroyView }
     } as unknown as Window['electronAPI']
 
-    const { result } = renderHook(() => useAi(), { wrapper: createWrapper() })
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
     await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
 
     act(() => {

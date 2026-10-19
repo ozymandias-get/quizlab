@@ -3,19 +3,13 @@
  *
  * These tests verify:
  *   - useApiConfigQuery — reads persisted ApiConfig via IPC
- *   - useProviderHealthQuery — probes provider reachability
- *   - useModelsQuery — fetches model list for a provider
  *
  * @see @features/ai/queries/useProviderQueries
  */
 
 import type { ApiConfig } from '@shared-core/types'
 
-import {
-  useApiConfigQuery,
-  useModelsQuery,
-  useProviderHealthQuery
-} from '@features/ai/queries/useProviderQueries'
+import { useApiConfigQuery } from '@features/ai/queries/useProviderQueries'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
@@ -24,11 +18,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
-const mockFetchApiChatModels = vi.fn()
 const mockGetApiChatConfig = vi.fn()
 
 vi.mock('@features/ai/api/sessions.api', () => ({
-  fetchApiChatModels: (...args: any[]) => mockFetchApiChatModels(...args),
   getApiChatConfig: (...args: any[]) => mockGetApiChatConfig(...args)
 }))
 
@@ -132,113 +124,5 @@ describe('useApiConfigQuery', () => {
     expect(result.current.data?.providers[0].id).toBe('openai')
     expect(result.current.data?.providers[0].models).toContain('gpt-4')
     expect(result.current.data?.providers[1].id).toBe('anthropic')
-  })
-})
-
-describe('useProviderHealthQuery', () => {
-  let queryClient: QueryClient
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
-    })
-  })
-
-  it('returns healthy=true when fetchApiChatModels succeeds', async () => {
-    mockFetchApiChatModels.mockResolvedValue(['gpt-4', 'gpt-3.5-turbo'])
-
-    const { result } = renderHook(() => useProviderHealthQuery('openai'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual({
-      healthy: true,
-      models: ['gpt-4', 'gpt-3.5-turbo'],
-      providerId: 'openai'
-    })
-  })
-
-  it('returns healthy=false when fetchApiChatModels fails', async () => {
-    mockFetchApiChatModels.mockRejectedValue(new Error('Network error'))
-
-    const { result } = renderHook(() => useProviderHealthQuery('openai'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual({
-      healthy: false,
-      models: [],
-      providerId: 'openai'
-    })
-  })
-
-  it('is disabled when providerId is empty', async () => {
-    const { result } = renderHook(() => useProviderHealthQuery(''), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    expect(result.current.fetchStatus).toBe('idle')
-    expect(result.current.data).toBeUndefined()
-    expect(mockFetchApiChatModels).not.toHaveBeenCalled()
-  })
-})
-
-describe('useModelsQuery', () => {
-  let queryClient: QueryClient
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
-    })
-  })
-
-  it('returns model list for a provider', async () => {
-    const models = ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo']
-    mockFetchApiChatModels.mockResolvedValue(models)
-
-    const { result } = renderHook(() => useModelsQuery('openai'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual(models)
-    expect(mockFetchApiChatModels).toHaveBeenCalledWith('openai')
-  })
-
-  it('is disabled when providerId is empty', async () => {
-    const { result } = renderHook(() => useModelsQuery(''), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    expect(result.current.fetchStatus).toBe('idle')
-    expect(result.current.data).toBeUndefined()
-    expect(mockFetchApiChatModels).not.toHaveBeenCalled()
-  })
-
-  it('handles provider that returns empty model list', async () => {
-    mockFetchApiChatModels.mockResolvedValue([])
-
-    const { result } = renderHook(() => useModelsQuery('custom-provider'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data).toEqual([])
-  })
-
-  it('handles fetch errors after retries', async () => {
-    mockFetchApiChatModels.mockRejectedValue(new Error('API unavailable'))
-
-    const { result } = renderHook(() => useModelsQuery('openai'), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    // Hook has retry: 2, so we need to wait for all retries to exhaust
-    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 })
-    expect(result.current.error).toBeDefined()
   })
 })

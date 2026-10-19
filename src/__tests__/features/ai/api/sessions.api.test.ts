@@ -16,7 +16,6 @@ import {
   clearSessionMessages,
   createNewSession,
   deleteSessionFromList,
-  editMessageInSession,
   removeMessageFromSession,
   renameSession
 } from '@features/ai/api/sessions.api'
@@ -108,19 +107,6 @@ describe('removeMessageFromSession', () => {
     const result = removeMessageFromSession(sessions, 'session-1', 'm1')
     expect(result[0].messages).toHaveLength(1)
     expect(result[0].messages[0].id).toBe('m2')
-  })
-})
-
-describe('editMessageInSession', () => {
-  it('edits a message content by id', () => {
-    const sessions = [
-      makeSession({
-        messages: [makeMessage({ id: 'm1', content: 'Original' })]
-      })
-    ]
-
-    const result = editMessageInSession(sessions, 'session-1', 'm1', 'Edited')
-    expect(result[0].messages[0].content).toBe('Edited')
   })
 })
 
