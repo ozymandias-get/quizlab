@@ -67,23 +67,6 @@ export function removeMessageFromSession(
   )
 }
 
-export function editMessageInSession(
-  sessions: ChatSession[],
-  sessionId: string,
-  messageId: string,
-  content: string
-): ChatSession[] {
-  return sessions.map((s) =>
-    s.id === sessionId
-      ? {
-          ...s,
-          messages: s.messages.map((m) => (m.id === messageId ? { ...m, content } : m)),
-          updatedAt: Date.now()
-        }
-      : s
-  )
-}
-
 export function clearSessionMessages(sessions: ChatSession[], sessionId: string): ChatSession[] {
   return sessions.map((s) =>
     s.id === sessionId
@@ -107,12 +90,6 @@ export function renameSession(
 export function deleteSessionFromList(sessions: ChatSession[], sessionId: string): ChatSession[] {
   const filtered = sessions.filter((s) => s.id !== sessionId)
   return filtered.length === 0 ? [createEmptySession()] : filtered
-}
-
-export async function fetchApiChatModels(providerId: string): Promise<string[] | null> {
-  const api = getElectronApi()
-  if (!api) return null
-  return api.fetchApiChatModels(providerId)
 }
 
 export async function getApiChatConfig(): Promise<ApiConfig | null> {

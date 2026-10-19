@@ -5,7 +5,6 @@ import { useContext, useMemo } from 'react'
 import type {
   AiContentHostActions,
   AiContentPresenceState,
-  AiContextType,
   AiMessagingActions,
   AiModelActions,
   AiModelsCatalogSliceState,
@@ -23,7 +22,6 @@ import {
   AiMessagingActionsContext,
   AiModelActionsContext,
   AiModelsCatalogSliceContext,
-  AiRegistryMetaSliceContext,
   AiSessionActionsContext,
   AiSessionUiPrefsSliceContext,
   AiSitesContext,
@@ -145,65 +143,4 @@ export const useAiContentPresence = (): AiContentPresenceState => {
     throw new Error('useAiContentPresence must be used within AiProvider')
   }
   return context
-}
-
-export const useAi = (): AiContextType => {
-  const tabsList = useContext(AiTabsListContext)
-  const tabFocus = useContext(AiTabFocusContext)
-  const viewRequestNonce = useContext(AiViewRequestNonceContext)
-  const registryMeta = useContext(AiRegistryMetaSliceContext)
-  const modelsCatalog = useContext(AiModelsCatalogSliceContext)
-  const sessionPrefsSlice = useContext(AiSessionUiPrefsSliceContext)
-  const content = useContext(AiContentContext)
-  const tab = useContext(AiTabActionsContext)
-  const model = useContext(AiModelActionsContext)
-  const session = useContext(AiSessionActionsContext)
-  const host = useContext(AiContentHostActionsContext)
-  const messaging = useContext(AiMessagingActionsContext)
-  if (
-    !tabsList ||
-    !tabFocus ||
-    !viewRequestNonce ||
-    !registryMeta ||
-    !modelsCatalog ||
-    !sessionPrefsSlice ||
-    !content ||
-    !tab ||
-    !model ||
-    !session ||
-    !host ||
-    !messaging
-  ) {
-    throw new Error('useAi must be used within AiProvider')
-  }
-  return useMemo(
-    () => ({
-      ...tabsList,
-      ...tabFocus,
-      ...viewRequestNonce,
-      ...registryMeta,
-      ...modelsCatalog,
-      ...sessionPrefsSlice,
-      ...content,
-      ...tab,
-      ...model,
-      ...session,
-      ...host,
-      ...messaging
-    }),
-    [
-      tabsList,
-      tabFocus,
-      viewRequestNonce,
-      registryMeta,
-      modelsCatalog,
-      sessionPrefsSlice,
-      content,
-      tab,
-      model,
-      session,
-      host,
-      messaging
-    ]
-  )
 }

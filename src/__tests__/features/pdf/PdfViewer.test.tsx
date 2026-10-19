@@ -23,12 +23,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@app/providers/ai-context', () => ({
-  useAi: () => ({
-    autoSend: false,
-    toggleAutoSend: vi.fn(),
-    sendImageToAI: vi.fn(),
-    chromeUserAgent: 'mock-user-agent'
-  }),
   useAiState: () => ({
     autoSend: false,
     chromeUserAgent: 'mock-user-agent'
