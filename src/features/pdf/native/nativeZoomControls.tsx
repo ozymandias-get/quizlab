@@ -13,14 +13,15 @@
  * would have put the native path inside the toolbar and duplicated the control
  * markup. The contract is small and already abstracted; this satisfies it.
  *
- * ## Why the components are rebuilt when the scale changes
+ * ## Why the scale readout is rebuilt when the scale changes
  *
  * `PdfToolbar` and `PdfZoomControls` are both memoised, and their props would
  * otherwise be referentially unchanged across a zoom — so the percentage readout
  * would keep showing the pre-zoom value while the canvas was already at the new
- * scale. Rebuilding the three components on a scale change is what makes the
- * zoom level reach the toolbar. The zoom *handlers* stay stable, so a scale
- * change does not re-create anything inside the buttons.
+ * scale. Rebuilding `CurrentScale` on a scale change is what makes the zoom
+ * level reach the toolbar. `ZoomIn`/`ZoomOut` stay referentially stable and
+ * read the current scale from a ref at call time, so a scale change does not
+ * re-create anything inside the buttons.
  */
 import type {
   CurrentScaleComponent,
@@ -41,26 +42,6 @@ export interface NativeZoomControls {
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
-}
-
-export function createNativeZoomControls({
-  scale,
-  zoomIn,
-  zoomOut
-}: NativeZoomControlsSource): NativeZoomControls {
-  // `aria-keyshortcuts` names the modifier as the platform spells it
-  // (`Meta+=` on macOS, `Control+=` elsewhere) so assistive technology advertises
-  // the same shortcut the viewer actually handles in `usePdfZoomShortcuts`.
-  const isMac = isMacPlatform()
-  const modifier = isMac ? 'Meta' : 'Control'
-
-  const ZoomIn: ZoomComponent = ({ children }) =>
-    children({ onClick: zoomIn, scale, ariaKeyShortcuts: `${modifier}+=` })
-  const ZoomOut: ZoomComponent = ({ children }) =>
-    children({ onClick: zoomOut, scale, ariaKeyShortcuts: `${modifier}+-` })
-  const CurrentScale: CurrentScaleComponent = ({ children }) => children({ scale })
-
-  return { ZoomIn, ZoomOut, CurrentScale }
 }
 
 export function useNativeZoomControls(source: NativeZoomControlsSource): NativeZoomControls {
