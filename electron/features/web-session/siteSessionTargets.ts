@@ -23,12 +23,24 @@ import type {
   SiteSessionTarget,
   SiteSessionView
 } from '../../../shared/types/siteSession.js'
+import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
 
 /** The Google family: many apps, one partition, one settings row. */
 const GOOGLE_SITE_ID = 'google'
 const GOOGLE_HOSTNAME = 'accounts.google.com'
+
+/**
+ * The apps that make up the Google site.
+ *
+ * They are excluded from the built-in rows on purpose. Their cookies travel
+ * under the `google` site, and a second row on the same partition would split
+ * the Google session across two entries — one wipe would clear the other's
+ * cookies. The grouping is therefore structural, not a side effect of the
+ * cookie domain table.
+ */
+const GOOGLE_MEMBER_APP_IDS = new Set<string>(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 
 /** A target row plus the fields the renderer needs but the routing does not. */
 export interface SiteSessionTargetRow extends SiteSessionTarget {
@@ -57,17 +69,28 @@ function hostnameOf(url: string | undefined): string | null {
 /**
  * One built-in platform as a session target, or null when it cannot be one.
  *
- * A platform is skipped when it has no partition (the `api-chat` model has
- * none), when its URL cannot be parsed, or when the cookie domain table holds
- * no domain for it — a site without a domain has no cookie to import. The
- * Google-managed platforms are skipped by that last rule: their cookies are
- * keyed under `google`, which owns the shared partition.
+ * A platform is skipped when it belongs to the Google group, when it has no
+ * partition (the `api-chat` model has none), when its URL cannot be parsed, or
+ * when the cookie domain table holds no domain for it — a site without a
+ * domain has no cookie to import.
  */
 function buildPlatformTarget(platform: AiPlatform): SiteSessionTargetRow | null {
+  if (GOOGLE_MEMBER_APP_IDS.has(platform.id)) return null
+
   const partition = platform.partition
   if (!partition) return null
   const hostname = hostnameOf(platform.url)
-  if (!hostname) return null
+  if (!hostname) {
+    // An absent URL is a configuration choice (the `api-chat` model has none),
+    // but an unparsable one is a defect: the site would disappear from the
+    // settings list without a trace.
+    if (platform.url) {
+      Logger.warn(
+        `[Web Session] The platform "${platform.id}" is skipped: its url cannot be parsed.`
+      )
+    }
+    return null
+  }
   const cookieDomains = getSiteSessionCookieDomains(platform.id)
   if (cookieDomains.length === 0) return null
 
@@ -117,9 +140,15 @@ export async function buildSiteSessionTargets(): Promise<SiteSessionTargetRow[]>
   for (const [id, platform] of Object.entries(customPlatforms)) {
     if (!platform.isSite) continue
     const partition = platform.partition
-    if (!partition) continue
+    if (!partition) {
+      Logger.warn(`[Web Session] The custom site "${id}" is skipped: it has no partition.`)
+      continue
+    }
     const hostname = hostnameOf(platform.url)
-    if (!hostname) continue
+    if (!hostname) {
+      Logger.warn(`[Web Session] The custom site "${id}" is skipped: it has no usable url.`)
+      continue
+    }
 
     targets.push({
       siteId: `custom:${id}`,

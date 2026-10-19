@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { Logger } from '../../../core/logger.js'
+import { readCustomPlatforms } from '../../../features/ai/customPlatformStore.js'
 import {
   buildBuiltinSiteSessionTargets,
   buildSiteSessionTargets,
@@ -63,6 +65,42 @@ describe('built-in site session targets', () => {
       expect(ids).toContain(siteId)
     }
   })
+
+  it('derives exactly one row per site the app ships with', () => {
+    // The whole derived list, in order: a platform that loses its partition or
+    // its url would silently drop out of the settings list, and a platform
+    // that gains one would silently join it.
+    expect(targets.map((target) => target.siteId)).toEqual([
+      'google',
+      'chatgpt',
+      'deepseek',
+      'qwen',
+      'claude',
+      'kimi',
+      'm365',
+      'copilot',
+      'grok',
+      'huggingchat',
+      'manus',
+      'mistral',
+      'perplexity'
+    ])
+    expect(targets).toHaveLength(13)
+  })
+
+  it('gives every target its own partition', () => {
+    // Two rows on one partition would split that site's cookies across two
+    // entries: a wipe of one would clear the other's session.
+    const partitions = targets.map((target) => target.partition)
+    expect(new Set(partitions).size).toBe(partitions.length)
+  })
+
+  it('routes only the Google group through the Google partition', () => {
+    const googlePartition = targets.filter(
+      (target) => target.partition === 'persist:gemini_web_profile'
+    )
+    expect(googlePartition.map((target) => target.siteId)).toEqual(['google'])
+  })
 })
 
 describe('custom site session targets', () => {
@@ -79,7 +117,33 @@ describe('custom site session targets', () => {
 
   it('skips custom platforms that are not sites', async () => {
     const targets = await buildSiteSessionTargets()
-    expect(targets.map((target) => target.siteId)).not.toContain('custom:custom_model')
+    const customTargets = targets.filter((target) => target.kind === 'custom')
+    // Two custom platforms are stubbed; only the one added as a site becomes a
+    // target. The count is asserted so the test cannot pass on an empty list.
+    expect(Object.keys(customPlatforms)).toHaveLength(2)
+    expect(customTargets).toHaveLength(1)
+    expect(customTargets.map((target) => target.siteId)).toEqual(['custom:custom_site'])
+  })
+})
+
+describe('unusable sites', () => {
+  it('warns when a user-added site is dropped instead of vanishing silently', async () => {
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
+    vi.mocked(readCustomPlatforms).mockResolvedValueOnce({
+      custom_broken: {
+        id: 'custom_broken',
+        name: 'Broken',
+        url: 'not-a-url',
+        isSite: true,
+        partition: 'persist:ai_custom_custom_broken'
+      }
+    })
+
+    const targets = await buildSiteSessionTargets()
+
+    expect(targets.map((target) => target.siteId)).not.toContain('custom:custom_broken')
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('custom_broken')
   })
 })
 
