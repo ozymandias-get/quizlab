@@ -4,7 +4,7 @@ import { buildPdfSourceMeta, type PdfSourceMeta } from '@app/providers/ai/pdfSou
 import { decorateTextWithSource } from '@app/providers/ai/pdfSource'
 import { useAppToolActions } from '@app/providers/AppToolContext'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   computeSelectionMenuAnchor,
@@ -345,12 +345,15 @@ export function usePdfSelectionMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docKey])
 
-  return {
-    menu,
-    feedback,
-    handleSelection,
-    handleAddToDraft,
-    handleSendDirect,
-    closeMenu
-  }
+  return useMemo(
+    () => ({
+      menu,
+      feedback,
+      handleSelection,
+      handleAddToDraft,
+      handleSendDirect,
+      closeMenu
+    }),
+    [menu, feedback, handleSelection, handleAddToDraft, handleSendDirect, closeMenu]
+  )
 }

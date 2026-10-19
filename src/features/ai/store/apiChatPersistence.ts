@@ -29,13 +29,30 @@ function isChatSession(value: unknown): value is ChatSession {
   )
 }
 
+let lastRawData: string | null = null
+let lastParsedSessions: ChatSession[] = []
+let isInternalWrite = false
+
 export function loadSessionsFromStorage(): ChatSession[] {
   try {
     const data = getStorageItem(LOCAL_STORAGE_KEY)
-    if (!data) return []
+    if (!data) {
+      lastRawData = null
+      lastParsedSessions = []
+      return []
+    }
+    if (data === lastRawData) {
+      // A copy, not the cached array: callers receive this list and may sort
+      // or otherwise reshape it, and the cache has to keep describing what is
+      // actually in storage.
+      return [...lastParsedSessions]
+    }
     const parsed: unknown = JSON.parse(data)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(isChatSession)
+    const sessions = parsed.filter(isChatSession)
+    lastRawData = data
+    lastParsedSessions = sessions
+    return sessions
   } catch (e) {
     Logger.error('[ChatPersistence] Failed to load api chat sessions', e)
     return []
@@ -82,8 +99,18 @@ function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
   try {
     const raw = getStorageItem(LOCAL_STORAGE_KEY)
     if (raw) {
-      const parsed: unknown = JSON.parse(raw)
-      if (Array.isArray(parsed)) stored = parsed.filter(isChatSession)
+      if (raw === lastRawData) {
+        // Same reasoning as `loadSessionsFromStorage`: the cached array is
+        // shared state and is never handed out directly.
+        stored = [...lastParsedSessions]
+      } else {
+        const parsed: unknown = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          stored = parsed.filter(isChatSession)
+          lastRawData = raw
+          lastParsedSessions = stored
+        }
+      }
     }
   } catch {
     stored = []
@@ -130,12 +157,20 @@ function saveSessionsToStorage(sessions: ChatSession[]) {
   const serialized = JSON.stringify(merged)
   // writeStorageItem keeps the raw failure cause so quota errors can be
   // reported with a dedicated message (see notifyStorageFailure).
-  const result = writeStorageItem(LOCAL_STORAGE_KEY, serialized)
+  isInternalWrite = true
+  let result: ReturnType<typeof writeStorageItem>
+  try {
+    result = writeStorageItem(LOCAL_STORAGE_KEY, serialized)
+  } finally {
+    isInternalWrite = false
+  }
   if (!result.ok) {
     Logger.error('[ChatPersistence] Failed to save api chat sessions', result.error ?? undefined)
     notifyStorageFailure(result.error)
     return
   }
+  lastRawData = serialized
+  lastParsedSessions = merged
   storageFailureNotified = false
   // Single source of truth: invalidate the sessions query so any stale
   // in-memory copy (e.g. an open composer holding an old list) is refetched
@@ -159,6 +194,7 @@ if (typeof window !== 'undefined') {
       if (e.key === LOCAL_STORAGE_KEY) handleExternalSessionsChange()
     }
     const handleLocalSync = (e: Event) => {
+      if (isInternalWrite) return
       const detail = (e as CustomEvent<LocalStorageChangeDetail>).detail
       if (detail?.key === LOCAL_STORAGE_KEY) handleExternalSessionsChange()
     }

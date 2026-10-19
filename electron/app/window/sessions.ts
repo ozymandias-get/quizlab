@@ -145,16 +145,6 @@ export function setupAiSession(
   const partitionKey = partition.replace('persist:', '')
   markPartitionActive(partitionKey)
 
-  try {
-    aiSession.webRequest.onCompleted(() => {
-      markPartitionActive(partitionKey)
-    })
-    aiSession.webRequest.onBeforeRequest((_details, callback) => {
-      markPartitionActive(partitionKey)
-      callback({})
-    })
-  } catch {}
-
   aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
     markPartitionActive(partitionKey)
     details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT

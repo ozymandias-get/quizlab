@@ -1,9 +1,4 @@
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@shared/ui/components/primitives'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@shared/ui/components/primitives'
 
 import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'
@@ -67,34 +62,32 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   }, [])
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <motion.div
-            ref={ref}
-            id={id}
-            role="button"
-            tabIndex={0}
-            aria-label={title}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={onClick}
-            onKeyDown={handleKeyDown}
-            style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
-            className="group hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <motion.div
+          ref={ref}
+          id={id}
+          role="button"
+          tabIndex={0}
+          aria-label={title}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={onClick}
+          onKeyDown={handleKeyDown}
+          style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
+          className="group hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <div
+            className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"
+            style={ICON_CONTAINER_STYLE}
           >
-            <div
-              className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"
-              style={ICON_CONTAINER_STYLE}
-            >
-              {children}
-            </div>
-          </motion.div>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={12} align={tooltipAlign}>
-          {title}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+            {children}
+          </div>
+        </motion.div>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={12} align={tooltipAlign}>
+        {title}
+      </TooltipContent>
+    </Tooltip>
   )
 })

@@ -192,14 +192,40 @@ export function migrateConfigMap(map: AiConfigMap): { data: AiConfigMap; changed
   return { data: next, changed }
 }
 
+/**
+ * Migrated config maps, keyed by the raw object the manager handed back.
+ *
+ * `ConfigManager.read()` returns the same object reference until the file
+ * changes, so a raw→migrated pair can be remembered instead of re-running
+ * `migrateConfigMap` (and its `JSON.stringify` comparison) on every IPC read.
+ * A `WeakMap` ties the entry to the lifetime of the raw object: it disappears
+ * with it rather than pinning a config map in memory for the process lifetime.
+ */
+const migratedConfigMaps = new WeakMap<AiConfigMap, AiConfigMap>()
+
 export async function readMigratedConfigMap(
   manager: ConfigManager<AiConfigMap>
 ): Promise<AiConfigMap> {
   const raw = await manager.read()
+  const cached = migratedConfigMaps.get(raw)
+  if (cached) {
+    return cached
+  }
   const migrated = migrateConfigMap(raw)
   if (migrated.changed) {
-    await manager.write(migrated.data)
+    const written = await manager.write(migrated.data)
+    // A failed write leaves the manager's cache on `raw`. Recording the
+    // migration now would make the next read short-circuit and skip the
+    // retry, so the mapping is only remembered once the write landed.
+    if (!written) {
+      return migrated.data
+    }
   }
+  // Both directions are recorded: `raw` is what a read returns until the
+  // write replaces the manager's cache, and `migrated.data` is what it
+  // returns afterwards.
+  migratedConfigMaps.set(raw, migrated.data)
+  migratedConfigMaps.set(migrated.data, migrated.data)
   return migrated.data
 }
 

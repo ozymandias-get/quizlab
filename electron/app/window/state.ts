@@ -13,9 +13,14 @@ export interface WindowState {
   isMaximized: boolean
 }
 
+let windowStateManager: ConfigManager<WindowState> | null = null
+
 function getWindowStateManager(): ConfigManager<WindowState> {
-  const filePath = path.join(app.getPath('userData'), 'window-state.json')
-  return new ConfigManager<WindowState>(filePath)
+  if (!windowStateManager) {
+    const filePath = path.join(app.getPath('userData'), 'window-state.json')
+    windowStateManager = new ConfigManager<WindowState>(filePath)
+  }
+  return windowStateManager
 }
 
 function toFiniteNumber(value: unknown, fallback: number): number {

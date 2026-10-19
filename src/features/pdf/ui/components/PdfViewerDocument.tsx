@@ -43,10 +43,12 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const { pdfFile } = props
   const selectionMenuRef = useRef<HTMLDivElement | null>(null)
 
+  const { menu: activeSelectionMenu, closeMenu: closeSelectionMenu } = selectionMenu
+
   // Menü dışına tıklanınca menü kapansın (taslak silinmez). Sağ tık menüsüyle
   // görsel/işlevsel engelleme olmasın: sağ tık menüsü açıksa seçim menüsü kapanır.
   useEffect(() => {
-    if (!selectionMenu.menu) return
+    if (!activeSelectionMenu) return
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null
       // Menünün kendi mousedown'u preventDefault yapar; burada yalnızca dış
@@ -58,12 +60,12 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       // tıklamaları yanlış yüzeye yönlendirilirdi.
       const surface = selectionMenuRef.current
       if (surface && target && surface.contains(target)) return
-      selectionMenu.closeMenu()
+      closeSelectionMenu()
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       // Escape yalnızca geçici seçim menüsünü kapatır.
       if (event.key === 'Escape') {
-        selectionMenu.closeMenu()
+        closeSelectionMenu()
       }
     }
     document.addEventListener('pointerdown', handlePointerDown, true)
@@ -72,7 +74,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       document.removeEventListener('pointerdown', handlePointerDown, true)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selectionMenu])
+  }, [activeSelectionMenu, closeSelectionMenu])
 
   // Sağ tık açıldığında seçim menüsünü kapat (birbirini engellemesin).
   useEffect(() => {

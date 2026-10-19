@@ -148,11 +148,18 @@ function pdfFileKey(a: PdfFile | null): string | null {
 }
 
 export default memo(PdfViewer, (prev, next) => {
-  if (pdfFileKey(prev.pdfFile) !== pdfFileKey(next.pdfFile)) return false
-  if (prev.initialPage !== next.initialPage) return false
+  const prevKey = pdfFileKey(prev.pdfFile)
+  const nextKey = pdfFileKey(next.pdfFile)
+  if (prevKey !== nextKey) return false
   if (prev.activePdfTab?.kind !== next.activePdfTab?.kind) return false
   if (prev.isInteractionBlocked !== next.isInteractionBlocked) return false
   if (prev.isPanelResizing !== next.isPanelResizing) return false
-  if (prev.lastReadingInfo !== next.lastReadingInfo) return false
+
+  const isSameVisiblePdf =
+    prevKey !== null && prev.activePdfTab?.kind !== 'drive' && next.activePdfTab?.kind !== 'drive'
+  if (!isSameVisiblePdf) {
+    if (prev.initialPage !== next.initialPage) return false
+    if (prev.lastReadingInfo !== next.lastReadingInfo) return false
+  }
   return true
 })

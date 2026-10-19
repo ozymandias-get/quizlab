@@ -58,15 +58,16 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   // filtering catches up ~180ms after the user stops.
   const debouncedSearch = useDebouncedValue(modalSearch, SEARCH_DEBOUNCE_MS)
 
-  const filteredSessions = useMemo(
-    () =>
-      sessions.filter(
-        (s) =>
-          s.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-          s.messages.some((m) => m.content.toLowerCase().includes(debouncedSearch.toLowerCase()))
-      ),
-    [sessions, debouncedSearch]
-  )
+  const filteredSessions = useMemo(() => {
+    if (!isOpen) return []
+    const query = debouncedSearch.trim().toLowerCase()
+    if (!query) return sessions
+    return sessions.filter(
+      (s) =>
+        s.title.toLowerCase().includes(query) ||
+        s.messages.some((m) => m.content.toLowerCase().includes(query))
+    )
+  }, [isOpen, sessions, debouncedSearch])
 
   // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)

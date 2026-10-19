@@ -93,8 +93,9 @@ function App() {
   // focus switch repositions the managed views instead of rebuilding them.
   const { tabs: aiTabs, activeTabId: activeAiTabId } = useAiTabsSliceState()
   const aiViewRequestNonce = useAiViewRequestNonce()
+  const aiTabIds = useMemo(() => aiTabs.map((tab) => tab.id), [aiTabs])
   const aiViewSurfaceState = useAiViewSurfaceState({
-    tabIds: aiTabs.map((tab) => tab.id),
+    tabIds: aiTabIds,
     activeTabId: activeAiTabId,
     aiViewRequestNonce
   })
@@ -107,6 +108,8 @@ function App() {
   // and focus overlay) under one view id.
   useDriveViewRetirement()
   const isAiFocusSurface = isFocusActive && focus.mode === 'ai'
+  const shouldShowUpdateBanner =
+    updateAvailable && Boolean(updateInfo) && updateBanner.isVisible && !isFocusActive
 
   return (
     <LayoutGroup>
@@ -116,15 +119,17 @@ function App() {
       >
         <ToastContainer />
 
-        <Suspense fallback={null}>
-          <UpdateBanner
-            updateAvailable={updateAvailable}
-            updateInfo={updateInfo}
-            isVisible={updateBanner.isVisible && !isFocusActive}
-            onClose={updateBanner.close}
-            t={t}
-          />
-        </Suspense>
+        {shouldShowUpdateBanner && (
+          <Suspense fallback={null}>
+            <UpdateBanner
+              updateAvailable={updateAvailable}
+              updateInfo={updateInfo}
+              isVisible
+              onClose={updateBanner.close}
+              t={t}
+            />
+          </Suspense>
+        )}
 
         {!isFocusActive && (
           <div>
@@ -180,9 +185,7 @@ function App() {
           <CaptureChoiceMenu />
         </Suspense>
 
-        <Suspense fallback={null}>
-          <ScreenshotToolLayer />
-        </Suspense>
+        <ScreenshotToolLayer />
 
         {!isOnboardingDone && (
           <Suspense fallback={null}>
@@ -229,12 +232,16 @@ const ScreenshotToolLayer = memo(function ScreenshotToolLayer() {
   const { isScreenshotMode } = useAppToolScreenshotState()
   const { handleCapture, closeScreenshot } = useAppToolActions()
 
+  if (!isScreenshotMode) return null
+
   return (
-    <ScreenshotTool
-      isActive={isScreenshotMode}
-      onCapture={handleCapture}
-      onClose={closeScreenshot}
-    />
+    <Suspense fallback={null}>
+      <ScreenshotTool
+        isActive={isScreenshotMode}
+        onCapture={handleCapture}
+        onClose={closeScreenshot}
+      />
+    </Suspense>
   )
 })
 

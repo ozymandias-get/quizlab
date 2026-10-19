@@ -32,6 +32,7 @@ function safeParse<T>(raw: string, fallback: T): T {
 export class ConfigManager<T extends object> {
   private filePath: string
   private cache: T | null = null
+  private fileEnsured = false
   /**
    * Single operation queue that serializes all read and write operations.
    * This prevents race conditions where a read and write could interleave.
@@ -43,8 +44,10 @@ export class ConfigManager<T extends object> {
   }
 
   private async ensureFile(): Promise<void> {
+    if (this.fileEnsured) return
     try {
       await fs.access(this.filePath)
+      this.fileEnsured = true
     } catch {
       const dir = path.dirname(this.filePath)
       try {
@@ -53,6 +56,7 @@ export class ConfigManager<T extends object> {
         await fs.mkdir(dir, { recursive: true })
       }
       await fs.writeFile(this.filePath, JSON.stringify({}, null, 2), 'utf8')
+      this.fileEnsured = true
     }
   }
 
@@ -73,12 +77,16 @@ export class ConfigManager<T extends object> {
   public async read(force: boolean = false): Promise<T> {
     return this.enqueue(async () => {
       if (this.cache && !force) return this.cache
+      if (force) {
+        this.fileEnsured = false
+      }
       try {
         await this.ensureFile()
         const data = await fs.readFile(this.filePath, 'utf8')
         this.cache = safeParse<T>(data || '{}', (this.cache || {}) as T)
         return this.cache
       } catch (error) {
+        this.fileEnsured = false
         Logger.error(`[ConfigManager] Failed to read ${this.filePath}:`, error)
         return (this.cache || {}) as T
       }
@@ -96,8 +104,10 @@ export class ConfigManager<T extends object> {
         await fs.rename(tempPath, this.filePath)
 
         this.cache = config
+        this.fileEnsured = true
         return true
       } catch (error) {
+        this.fileEnsured = false
         Logger.error(`[ConfigManager] Failed to write ${this.filePath}:`, error)
         return false
       }
@@ -124,8 +134,10 @@ export class ConfigManager<T extends object> {
         await fs.rename(tempPath, this.filePath)
 
         this.cache = updated
+        this.fileEnsured = true
         return true
       } catch (error) {
+        this.fileEnsured = false
         Logger.error(`[ConfigManager] Failed to update ${this.filePath}:`, error)
         return false
       }

@@ -53,31 +53,35 @@ export interface CacheFileEntry {
  * the walk and ~26% of its heap churn, and this walk runs on every cache
  * scheduler tick — so it was pure overhead on the hottest background path.
  */
-export async function getDirectorySize(dirPath: string): Promise<DirectorySizeResult> {
+export async function getDirectorySize(
+  dirPath: string,
+  isKnownDirectory: boolean = false
+): Promise<DirectorySizeResult> {
   const result: DirectorySizeResult = { totalBytes: 0, fileCount: 0 }
 
   try {
-    const stat = await fs.stat(dirPath)
-    if (!stat.isDirectory()) {
-      if (stat.isFile()) {
-        result.totalBytes = stat.size
-        result.fileCount = 1
+    if (!isKnownDirectory) {
+      const stat = await fs.stat(dirPath)
+      if (!stat.isDirectory()) {
+        if (stat.isFile()) {
+          result.totalBytes = stat.size
+          result.fileCount = 1
+        }
+        return result
       }
-      return result
     }
 
     const entries = await fs.readdir(dirPath, { withFileTypes: true })
     for (const entry of entries) {
+      if (entry.isSymbolicLink()) continue
       const fullPath = path.join(dirPath, entry.name)
       try {
-        const entryStat = await fs.lstat(fullPath)
-        if (entryStat.isSymbolicLink()) continue
-
-        if (entryStat.isDirectory()) {
-          const sub = await getDirectorySize(fullPath)
+        if (entry.isDirectory()) {
+          const sub = await getDirectorySize(fullPath, true)
           result.totalBytes += sub.totalBytes
           result.fileCount += sub.fileCount
-        } else if (entryStat.isFile()) {
+        } else if (entry.isFile()) {
+          const entryStat = await fs.stat(fullPath)
           result.totalBytes += entryStat.size
           result.fileCount++
         }
@@ -92,29 +96,34 @@ export async function getDirectorySize(dirPath: string): Promise<DirectorySizeRe
   return result
 }
 
-async function collectCacheFiles(dirPath: string, userDataPath: string): Promise<CacheFileEntry[]> {
+async function collectCacheFiles(
+  dirPath: string,
+  userDataPath: string,
+  isKnownDirectory: boolean = false
+): Promise<CacheFileEntry[]> {
   const entries: CacheFileEntry[] = []
 
   try {
-    const stat = await fs.stat(dirPath)
-    if (!stat.isDirectory()) return entries
+    if (!isKnownDirectory) {
+      const stat = await fs.stat(dirPath)
+      if (!stat.isDirectory()) return entries
+    }
 
     const dirEntries = await fs.readdir(dirPath, { withFileTypes: true })
     for (const entry of dirEntries) {
+      if (entry.isSymbolicLink()) continue
       const fullPath = path.join(dirPath, entry.name)
       try {
-        const entryStat = await fs.lstat(fullPath)
-        if (entryStat.isSymbolicLink()) continue
-
-        if (entryStat.isDirectory()) {
-          const subEntries = await collectCacheFiles(fullPath, userDataPath)
+        if (entry.isDirectory()) {
+          const subEntries = await collectCacheFiles(fullPath, userDataPath, true)
           // Not push(...subEntries): a variadic spread of a large cache
           // directory can exceed the argument limit and throws RangeError,
           // which the catch below would turn into a silently truncated result.
           for (const subEntry of subEntries) {
             entries.push(subEntry)
           }
-        } else if (entryStat.isFile()) {
+        } else if (entry.isFile()) {
+          const entryStat = await fs.stat(fullPath)
           entries.push({
             absolutePath: fullPath,
             relativePath: path.relative(userDataPath, fullPath),
@@ -148,16 +157,20 @@ export async function measureCacheBreakdown(): Promise<CacheBreakdown> {
   try {
     const partitionsDir = path.join(userDataPath, 'Partitions')
     const partitionEntries = await fs.readdir(partitionsDir, { withFileTypes: true })
-    for (const entry of partitionEntries) {
-      if (!entry.isDirectory()) continue
-      const partitionPath = path.join(partitionsDir, entry.name)
-      let partitionTotal = 0
-      for (const cacheDir of ['Cache', 'Code Cache', 'GPUCache']) {
-        const dirSize = await getDirectorySize(path.join(partitionPath, cacheDir))
-        partitionTotal += dirSize.totalBytes
-      }
-      partitionCaches[entry.name] = partitionTotal
-    }
+    await Promise.all(
+      partitionEntries
+        .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+        .map(async (entry) => {
+          const partitionPath = path.join(partitionsDir, entry.name)
+          const [cacheSize, codeCacheSize, gpuCacheSize] = await Promise.all([
+            getDirectorySize(path.join(partitionPath, 'Cache')),
+            getDirectorySize(path.join(partitionPath, 'Code Cache')),
+            getDirectorySize(path.join(partitionPath, 'GPUCache'))
+          ])
+          partitionCaches[entry.name] =
+            cacheSize.totalBytes + codeCacheSize.totalBytes + gpuCacheSize.totalBytes
+        })
+    )
   } catch {
     // Partitions dir not accessible
   }

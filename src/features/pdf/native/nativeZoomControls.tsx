@@ -29,7 +29,7 @@ import type {
 
 import { isMacPlatform } from '@shared/lib/shortcutUtils'
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 
 interface NativeZoomControlsSource {
   scale: number
@@ -65,11 +65,28 @@ export function createNativeZoomControls({
 
 export function useNativeZoomControls(source: NativeZoomControlsSource): NativeZoomControls {
   const { scale, zoomIn, zoomOut } = source
-  return useMemo(
-    () => createNativeZoomControls({ scale, zoomIn, zoomOut }),
-    // `scale` is a dependency on purpose: see the note above about the memoised
-    // toolbar. `zoomIn`/`zoomOut` are stable, so a scale change is the only
-    // thing that rebuilds these.
-    [scale, zoomIn, zoomOut]
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+
+  const { ZoomIn, ZoomOut } = useMemo(() => {
+    const isMac = isMacPlatform()
+    const modifier = isMac ? 'Meta' : 'Control'
+    const ZoomInControl: ZoomComponent = ({ children }) =>
+      children({ onClick: zoomIn, scale: scaleRef.current, ariaKeyShortcuts: `${modifier}+=` })
+    const ZoomOutControl: ZoomComponent = ({ children }) =>
+      children({ onClick: zoomOut, scale: scaleRef.current, ariaKeyShortcuts: `${modifier}+-` })
+    return { ZoomIn: ZoomInControl, ZoomOut: ZoomOutControl }
+  }, [zoomIn, zoomOut])
+
+  const CurrentScale = useMemo<CurrentScaleComponent>(
+    () =>
+      // `scale` is a dependency on purpose: see the note above about the memoised
+      // toolbar. `zoomIn`/`zoomOut` are stable, so a scale change rebuilds
+      // `CurrentScale` while keeping `ZoomIn`/`ZoomOut` mounted in the DOM.
+      ({ children }) =>
+        children({ scale }),
+    [scale]
   )
+
+  return useMemo(() => ({ ZoomIn, ZoomOut, CurrentScale }), [ZoomIn, ZoomOut, CurrentScale])
 }
