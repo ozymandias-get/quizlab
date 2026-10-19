@@ -17,8 +17,8 @@
 # a backlog of stuck majors crowds out the patch+minor group.
 #
 # The `github-actions` entry covers `.github/workflows/build.yml`, which pins
-# third-party actions by mutable tag (`actions/checkout@v5`,
-# `softprops/action-gh-release@v2`, ...); untracked, those drift silently, which
+# third-party actions by mutable tag (`actions/checkout@v7`,
+# `softprops/action-gh-release@v3`, ...); untracked, those drift silently, which
 # would defeat the point of tracking npm at all.
 version: 2
 updates:
