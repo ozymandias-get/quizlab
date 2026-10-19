@@ -6,7 +6,6 @@ import crypto from 'crypto'
 // decryptValue surface with `isEncryptionAvailable` forced false. Asserting a
 // re-implementation of the cipher here would only prove that copy correct.
 
-// --- Mocks ---
 const mockEncryptString = vi.fn()
 const mockDecryptString = vi.fn()
 const mockIsEncryptionAvailable = vi.fn()

@@ -143,8 +143,6 @@ interface Control {
   } | null
 }
 
-/* ------------------------------------------------------------ mount + shape */
-
 describe('native text layer — mount and shape', () => {
   it('mounts one text layer for the current page, inside the page box', async () => {
     serveDocument(createFakeDocument({ numPages: 12, textItems: { 1: ['hello', 'world'] } }))

@@ -319,8 +319,6 @@ describe('native text layer — selection enablement', () => {
   })
 })
 
-/* ------------------------------------------------------------ reading order */
-
 describe('native text layer — reading order', () => {
   it('rebuilds two-column text in column order from the run geometry', async () => {
     // PDF.js emits runs in content-stream order, so on a two-column page the DOM

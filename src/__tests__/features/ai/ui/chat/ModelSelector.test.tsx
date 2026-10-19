@@ -41,7 +41,6 @@ describe('ModelSelector', () => {
 
     expect(screen.getByText('gpt-4o')).toBeInTheDocument()
 
-    // Click to open
     fireEvent.click(screen.getByText('gpt-4o'))
 
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument()

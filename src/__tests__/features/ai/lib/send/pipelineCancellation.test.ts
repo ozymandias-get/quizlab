@@ -59,7 +59,6 @@ describe('per-content cancellation', () => {
         expect(result.error.diagnostics?.classification?.category).toBe('unknown')
         expect(result.error.diagnostics?.classification?.retry).toBe('never')
       }
-      // Script should never have been called
       expect(content.executeJavaScript).not.toHaveBeenCalled()
     })
 

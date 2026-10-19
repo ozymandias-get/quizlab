@@ -160,8 +160,6 @@ interface Control {
   } | null
 }
 
-/* ------------------------------------------------------------ mount + shape */
-
 describe('native annotation layer — mount and shape', () => {
   it('mounts one annotation layer for the current page, inside the page box', async () => {
     serveDocument(createFakeDocument({ numPages: 12, annotations: { 1: [internalLink('a', 0)] } }))
@@ -276,8 +274,6 @@ describe('native annotation layer — mount and shape', () => {
     expect(container.querySelector('canvas')).not.toBe(null)
   })
 })
-
-/* -------------------------------------------------------------- supersede */
 
 describe('native annotation layer — supersede and cleanup', () => {
   it('replaces the layer on a page change and destroys the previous one', async () => {
@@ -500,8 +496,6 @@ describe('native annotation layer — supersede and cleanup', () => {
   })
 })
 
-/* ------------------------------------------------------------------ races */
-
 describe('native annotation layer — races', () => {
   it('never lets a superseded document write annotations into the new page', async () => {
     const first = createFakeDocument({
@@ -591,8 +585,6 @@ describe('native annotation layer — races', () => {
     expect(annotationLayerOf(container)?.querySelector('[data-annotation-id="pageOne"]')).toBeNull()
   })
 })
-
-/* ------------------------------------------------------------ link clicks */
 
 describe('native annotation layer — link clicks', () => {
   it('navigates the page through the controller for an internal destination', async () => {

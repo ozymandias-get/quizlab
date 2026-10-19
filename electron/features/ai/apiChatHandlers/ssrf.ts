@@ -103,9 +103,7 @@ function validateProviderUrl(baseUrl: string, options?: SsrProtectionOptions): s
 }
 
 export { fetchWithSsrProtection, validateProviderUrl }
-// ─────────────────────────────────────────────────────────────────────────────
 // DNS rebinding (TOCTOU) protection
-// ─────────────────────────────────────────────────────────────────────────────
 
 const MAX_RESPONSE_BODY_BYTES = 50 * 1024 * 1024 // 50 MB
 

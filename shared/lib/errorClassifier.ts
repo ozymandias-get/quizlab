@@ -1,6 +1,5 @@
 /**
  * Error Classifier
- * ─────────────────────────────────────────────────────────────────────────────
  * Tek bir sınıflandırıcı, otomasyon hatalarını kategoriye ayırır ve her
  * kategori için deterministik bir "sonraki adım" politikası üretir.
  *

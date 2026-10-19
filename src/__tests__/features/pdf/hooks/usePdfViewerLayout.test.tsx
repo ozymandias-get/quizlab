@@ -7,9 +7,6 @@ import {
 import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// useLastNavigationTime
-// ---------------------------------------------------------------------------
 describe('useLastNavigationTime', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -42,9 +39,6 @@ describe('useLastNavigationTime', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useContainerSize
-// ---------------------------------------------------------------------------
 describe('useContainerSize', () => {
   it('starts at {w:0, h:0} for an element the ref has not seen yet', () => {
     const ref = { current: null as HTMLDivElement | null }
@@ -53,9 +47,6 @@ describe('useContainerSize', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useFitScale
-// ---------------------------------------------------------------------------
 describe('useFitScale', () => {
   const pageDimensions = { width: 612, height: 792 } // US Letter @ 72 DPI
 
@@ -84,9 +75,6 @@ describe('useFitScale', () => {
     expect(result.current).toBe(0.5)
   })
 
-  // -----------------------------------------------------------------------
-  // Dead-zone / quantization (the core fix for Issue 4)
-  // -----------------------------------------------------------------------
   describe('quantization dead-zone', () => {
     // The dead-zone is a single property — a sub-threshold jitter must not move
     // the quantized scale — so every shape of that jitter is driven through one

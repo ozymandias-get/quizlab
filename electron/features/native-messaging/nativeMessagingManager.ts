@@ -68,12 +68,10 @@ class NativeMessagingManager {
     return 'waiting'
   }
 
-  // -------------------------------------------------------------------------
   // Native Messaging stdio protocol - stream chunking (pendingBuffer)
   // Native Messaging spec: 4-byte LE uint32 length prefix + UTF-8 JSON body.
   // stdin chunks may be arbitrarily fragmented (TCP/pipe buffering), so we
   // accumulate into pendingBuffer and only parse when a full frame is available.
-  // -------------------------------------------------------------------------
 
   /**
    * Accumulate incoming raw bytes and extract complete native messages.

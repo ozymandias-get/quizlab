@@ -7,8 +7,7 @@
  * paths cannot drift apart, and every branch is unit-testable without
  * booting Electron.
  *
- * Threat model
- * ------------
+ * ## Threat model
  * AI providers render inside main-process owned WebContentsViews, each with its own
  * persistent session partition. A session-level grant is NOT scoped to an
  * origin: once `setPermissionRequestHandler` answers `true`, *every* document

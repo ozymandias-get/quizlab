@@ -62,9 +62,6 @@ function parseReleasePayload(raw: unknown): LatestReleaseResult {
   }
 }
 
-/**
- * Fetch latest release from GitHub
- */
 async function getLatestRelease(): Promise<LatestReleaseResult> {
   const { OWNER, REPO } = APP_CONFIG.GITHUB
   const url = `https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`
@@ -144,9 +141,6 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
   }
 }
 
-/**
- * Initialize Updater IPC
- */
 export function initUpdater() {
   const { IPC_CHANNELS } = APP_CONFIG
 

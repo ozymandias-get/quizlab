@@ -45,7 +45,6 @@ function stubBitmap(width: number, height: number) {
 
 describe('estimateDataUrlBytes', () => {
   it.each([
-    // 4 base64 chars -> 3 bytes
     ['4 base64 chars decode to 3 bytes', 'data:image/png;base64,AAAA', 3],
     [
       'a longer header does not change the payload length',

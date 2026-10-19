@@ -8,9 +8,6 @@ import { useElectronMutation, useElectronQuery } from '../useElectron'
 
 const SYSTEM_UPDATE_KEY = ['system', 'update']
 
-/**
- * Check For Updates Query
- */
 export function useCheckForUpdates(enabled: boolean = false) {
   return useElectronQuery<UpdateCheckResult>({
     key: SYSTEM_UPDATE_KEY,
@@ -22,9 +19,6 @@ export function useCheckForUpdates(enabled: boolean = false) {
   })
 }
 
-/**
- * Open External Link Mutation
- */
 export function useOpenExternal() {
   const { t } = useTranslation()
   return useElectronMutation<boolean, string>((api, url) => api.openExternal(url), {
@@ -33,8 +27,6 @@ export function useOpenExternal() {
 }
 
 /**
- * Copy Image To Clipboard Mutation
- *
  * `scope` panodaki snapshot'ın sahibini işaretler: çoklu görsel gönderiminin
  * tüm kopyaları aynı kapsamı taşır ve tek bir `restoreClipboard(scope)` çağrısı
  * kullanıcının panosunu geri getirir. Eşzamanlı gönderimler birbirinin
@@ -55,9 +47,6 @@ export function useCopyImageToClipboard() {
   )
 }
 
-/**
- * Capture Screen Mutation
- */
 export function useCaptureScreen() {
   const { showSuccess } = useToastActions()
   const { t } = useTranslation()

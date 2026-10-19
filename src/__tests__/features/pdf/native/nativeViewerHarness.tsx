@@ -57,8 +57,6 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve, reject }
 }
 
-/* ------------------------------------------------------------------ render */
-
 interface FakeRenderTask {
   promise: Promise<void>
   cancel: () => void
@@ -162,8 +160,6 @@ interface FakePage {
    */
   settleAllTextContent: () => void
 }
-
-/* ---------------------------------------------------------------- document */
 
 export interface FakeDocument {
   numPages: number
@@ -361,8 +357,6 @@ export function createFakeDocument(options: CreateDocumentOptions): FakeDocument
   }
 }
 
-/* ------------------------------------------------------------ loading task */
-
 export interface FakeLoadingTask {
   promise: Promise<unknown>
   destroy: ReturnType<typeof vi.fn>
@@ -391,8 +385,6 @@ export function createLoadingTask(options: { abortOnDestroy?: boolean } = {}): F
     })
   }
 }
-
-/* ------------------------------------------------------------------ harness */
 
 export interface HarnessProps {
   enabled?: boolean

@@ -2,9 +2,6 @@ import type { AutomationConfig, TextInputMode } from '@shared-core/types'
 
 import { useElectronMutation } from '../useElectron'
 
-/**
- * Generate Focus Script Mutation
- */
 export function useGenerateFocusScript() {
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateFocusScript(config),
@@ -12,9 +9,6 @@ export function useGenerateFocusScript() {
   )
 }
 
-/**
- * Generate Click & Send Script Mutation
- */
 export function useGenerateClickSendScript() {
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateClickSendScript(config),
@@ -22,9 +16,6 @@ export function useGenerateClickSendScript() {
   )
 }
 
-/**
- * Generate Auto Send Script Mutation
- */
 export function useGenerateAutoSendScript() {
   return useElectronMutation<
     string | null,
@@ -50,9 +41,6 @@ export function useGenerateAutoSendScript() {
   )
 }
 
-/**
- * Generate Validate Selectors Script Mutation
- */
 export function useGenerateValidateSelectorsScript() {
   return useElectronMutation<string | null, AutomationConfig>(
     (api, config) => api.automation.generateValidateSelectorsScript(config),
@@ -60,9 +48,6 @@ export function useGenerateValidateSelectorsScript() {
   )
 }
 
-/**
- * Generate submit-ready wait script
- */
 export function useGenerateWaitForSubmitReadyScript() {
   return useElectronMutation<
     string | null,
@@ -76,9 +61,6 @@ export function useGenerateWaitForSubmitReadyScript() {
   )
 }
 
-/**
- * Generate Picker Script Mutation
- */
 export function useGeneratePickerScript() {
   return useElectronMutation<
     string | null,
