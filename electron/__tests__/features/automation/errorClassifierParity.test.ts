@@ -19,8 +19,9 @@ import { describe, expect, it } from 'vitest'
  * BİLİNÇLİ FARKLILIKLAR (eşitsizlik değil, tasarım kararı):
  * - `description` ve `isUserActionable` yalnızca host'tadır; guest toast
  *   göstermez, yalnızca retry/fallback kararı üretir.
- * - Host `isRetryable()` (boolean politika), guest `__retryBudgetFor()`
- *   (sayısal bütçe 0/1/2) sunar; ikisi de aynı `retry` stratejisinden türer.
+ * - Host `classifyAutomationError().retry` (strateji alanı), guest
+ *   `__retryBudgetFor()` (sayısal bütçe 0/1/2) sunar; ikisi de aynı
+ *   `retry` stratejisinden türer.
  */
 describe('error classifier parity (host vs guest runtime)', () => {
   const harness = `() => {

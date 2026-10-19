@@ -368,30 +368,3 @@ export function normalizeErrorCode(raw: unknown): string {
   if (typeof raw === 'number') return String(raw)
   return 'unknown'
 }
-
-/**
- * Kısaltılmış sürüm: yalnızca kategoriyi döndürür (log, metrik).
- */
-export function errorCategoryOf(raw: unknown): AutomationErrorCategory {
-  return classifyAutomationError(raw).category
-}
-
-/**
- * Verilen hatanın "selector yeniden seçim" gerektirip gerektirmediğini söyler.
- * Çağrı yerlerinde `if (shouldRequestRepick(err)) showRepickDialog()` gibi
- * deterministik kararlar almak için kullanılır.
- */
-export function shouldRequestRepick(raw: unknown): boolean {
-  return classifyAutomationError(raw).retry === 'after-repick'
-}
-
-/**
- * Verilen hatanın `after-repick` dışında bir stratejiyle yeniden denenip
- * denenemeyeceğini söyler.
- */
-export function isRetryable(raw: unknown): boolean {
-  const c = classifyAutomationError(raw)
-  return (
-    c.retry === 'same-strategy' || c.retry === 'different-strategy' || c.retry === 'after-backoff'
-  )
-}

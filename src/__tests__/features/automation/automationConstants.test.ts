@@ -1,6 +1,5 @@
 import {
   PICKER_SCRIPTS,
-  PICKER_TIMING,
   PICKER_TRANSLATION_KEYS
 } from '@features/automation/lib/automationConstants'
 import '@shared/i18n/i18next'
@@ -43,17 +42,6 @@ describe('PICKER_SCRIPTS', () => {
     for (const [name, script] of Object.entries(PICKER_SCRIPTS)) {
       expect(typeof script, `${name} should be a string`).toBe('string')
       expect(script.length, `${name} should not be empty`).toBeGreaterThan(0)
-    }
-  })
-})
-
-describe('PICKER_TIMING', () => {
-  // Every entry feeds a `setTimeout`; a missing or zero value collapses the
-  // picker's teardown steps into the same tick.
-  it('exposes only positive numeric delays', () => {
-    for (const [key, value] of Object.entries(PICKER_TIMING)) {
-      expect(typeof value, `${key} should be a number`).toBe('number')
-      expect(value, `${key} should be > 0`).toBeGreaterThan(0)
     }
   })
 })

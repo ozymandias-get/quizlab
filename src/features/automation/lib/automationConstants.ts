@@ -2,26 +2,6 @@
  * Constants and templates for automation features.
  */
 
-/**
- * Timing constants for the element picker lifecycle.
- * Centralized so tests and tweaks stay in sync and magic numbers don't drift
- * between the renderer hook and the injected script.
- */
-export const PICKER_TIMING = {
-  /** Delay between submit-click and final cleanup so the user sees the "done" state. */
-  CLEANUP_DELAY_MS: 300,
-  /** Delay between save success and final teardown so the user sees the green flash. */
-  POST_SAVE_DELAY_MS: 500,
-  /** Wait after input typing before advancing to the submit step. */
-  TYPING_ADVANCE_MS: 120,
-  /** Mouse-move label-box rAF coalescing window. */
-  LABEL_RAF_FALLBACK_MS: 16,
-  /** CSS transition for the click flash effect. */
-  CLICK_FLASH_DURATION_MS: 300,
-  /** Click flash box-shadow blur radius. */
-  CLICK_FLASH_BLUR_PX: 30
-} as const
-
 export const PICKER_TRANSLATION_KEYS = [
   'picker_step',
   'picker_done_btn',
