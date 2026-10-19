@@ -5,10 +5,7 @@
  * toolbar unchanged: no toolbar rewrite, no second set of buttons, and a
  * percentage readout that tracks the effective scale.
  */
-import {
-  createNativeZoomControls,
-  useNativeZoomControls
-} from '@features/pdf/native/nativeZoomControls'
+import { useNativeZoomControls } from '@features/pdf/native/nativeZoomControls'
 import type {
   CurrentScaleComponent,
   ZoomComponent
@@ -37,9 +34,16 @@ function capture(Component: ZoomComponent | CurrentScaleComponent): CapturedChil
   return captured
 }
 
-describe('createNativeZoomControls', () => {
+describe('useNativeZoomControls (control contract)', () => {
+  // The live hook is the only implementation left: the render-prop components it
+  // hands to the toolbar must keep the same contract the toolbar was built
+  // against — the effective scale, the zoom handlers and the advertised
+  // shortcut.
+  const renderControls = (props: { scale: number; zoomIn: () => void; zoomOut: () => void }) =>
+    renderHook(() => useNativeZoomControls(props)).result.current
+
   it('reports the effective scale to the current-scale readout', () => {
-    const controls = createNativeZoomControls({
+    const controls = renderControls({
       scale: 1.67,
       zoomIn: vi.fn(),
       zoomOut: vi.fn()
@@ -50,7 +54,7 @@ describe('createNativeZoomControls', () => {
 
   it('routes the zoom-out button to the native zoom-out action', () => {
     const zoomOut = vi.fn()
-    const controls = createNativeZoomControls({ scale: 1.2, zoomIn: vi.fn(), zoomOut })
+    const controls = renderControls({ scale: 1.2, zoomIn: vi.fn(), zoomOut })
 
     const child = capture(controls.ZoomOut)
 
@@ -60,7 +64,7 @@ describe('createNativeZoomControls', () => {
 
   it('routes the zoom-in button to the native zoom-in action', () => {
     const zoomIn = vi.fn()
-    const controls = createNativeZoomControls({ scale: 1.2, zoomIn, zoomOut: vi.fn() })
+    const controls = renderControls({ scale: 1.2, zoomIn, zoomOut: vi.fn() })
 
     const child = capture(controls.ZoomIn)
 
@@ -73,7 +77,7 @@ describe('createNativeZoomControls', () => {
   // The native viewer owns those bindings now, so the affordance has to move with
   // them.
   it('advertises the zoom keyboard shortcut on both buttons', () => {
-    const controls = createNativeZoomControls({
+    const controls = renderControls({
       scale: 1.2,
       zoomIn: vi.fn(),
       zoomOut: vi.fn()
@@ -84,7 +88,7 @@ describe('createNativeZoomControls', () => {
   })
 
   it('does not advertise a shortcut on the current-scale readout', () => {
-    const controls = createNativeZoomControls({
+    const controls = renderControls({
       scale: 1.2,
       zoomIn: vi.fn(),
       zoomOut: vi.fn()
