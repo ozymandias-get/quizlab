@@ -1,7 +1,5 @@
 {
   "auto_send": "Auto Send",
   "auto_send_off": "Auto Send: OFF",
-  "auto_send_on": "Auto Send: ON",
-  "auto_send_state_on": "On",
-  "auto_send_hint_on": "Selections go straight to the active AI tab."
+  "auto_send_on": "Auto Send: ON"
 }

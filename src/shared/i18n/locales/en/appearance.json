@@ -4,9 +4,6 @@
   "selection_color_desc": "Personalize text selection and AI send button color.",
   "selection_color_preview_hint": "Preview (Check by selecting text)",
   "selection_color_settings": "Selector Color",
-  "ai_added_success": "AI Added Successfully",
-  "ai_delete_failed": "Failed to delete AI",
-  "ai_deleted_success": "AI Deleted",
   "ai_error_title": "Error: {name}",
   "custom_prompts": "Custom Prompts"
 }

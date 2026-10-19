@@ -4,9 +4,6 @@
   "selection_color_desc": "Metin seçme ve AI gönder butonu rengini kişiselleştirin.",
   "selection_color_preview_hint": "Önizleme (Metin seçerek kontrol edebilirsiniz)",
   "selection_color_settings": "Seçici Rengi",
-  "ai_added_success": "Yapay Zeka Başarıyla Eklendi",
-  "ai_delete_failed": "Yapay Zeka silinemedi",
-  "ai_deleted_success": "Yapay Zeka Silindi",
   "ai_error_title": "{name} Hatası",
   "custom_prompts": "Özel Promptlar"
 }

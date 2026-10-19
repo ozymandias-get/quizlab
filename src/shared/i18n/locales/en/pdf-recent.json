@@ -11,7 +11,6 @@
   "recent_group_week": "This week",
   "recent_invalid_hint": "File was not found. You can remove this entry or re-open the file manually.",
   "recent_list_cleared": "History cleared",
-  "recent_pdf_not_found": "\"{fileName}\" could not be found",
   "remove_from_history": "Remove from history",
   "resume_empty_desc": "It will appear here after you open a PDF.",
   "resume_empty_title": "No reading history yet",
