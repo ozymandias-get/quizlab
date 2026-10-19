@@ -2,8 +2,8 @@
  * Wiping the session of one site.
  *
  * When the user turns "pull the session from Chrome" off, the app must forget
- * that site: its cookies go, the storage of its origin goes, and the next
- * visit asks for a login again.
+ * that site: its cookies go, the storage of its origin goes, the credentials
+ * its origin authenticated with go, and the next visit asks for a login again.
  *
  * The wipe is deliberately narrow. It touches the cookies of the domains the
  * target owns and the storage of the target's own origin — nothing else. A
@@ -23,7 +23,8 @@ import {
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
- * Removes the cookies of one site and clears the storage of its origin.
+ * Removes the cookies of one site, clears the storage of its origin and the
+ * credentials it authenticated with.
  *
  * The domain rule lives with the importer: both decide what belongs to a site,
  * and the two must not drift apart.
@@ -32,7 +33,9 @@ export async function wipeSiteSession(
   targetSession: Session,
   target: SiteSessionTargetRow
 ): Promise<void> {
-  const existingCookies = await targetSession.cookies.get({})
+  // A cookie store that cannot be read must not stop the wipe: the storage of
+  // the origin has to go as well, otherwise the site keeps its session.
+  const existingCookies = await targetSession.cookies.get({}).catch(() => [])
   const removals: { domain: string; removal: Promise<unknown> }[] = []
 
   for (const cookie of existingCookies) {
@@ -63,6 +66,10 @@ export async function wipeSiteSession(
       origin: `https://${target.hostname}`,
       storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
     })
+    // A site that authenticates with HTTP basic auth keeps its credentials in
+    // the auth cache of the partition. Without this the next visit would
+    // still be signed in.
+    await targetSession.clearAuthCache()
   } finally {
     try {
       targetSession.flushStorageData()
