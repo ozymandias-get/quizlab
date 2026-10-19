@@ -10,11 +10,21 @@ import {
 
 const MANIFEST_PATH = path.join(process.cwd(), 'extensions/quizlab-session-extension/manifest.json')
 
+interface SessionExtensionManifest {
+  host_permissions?: string[]
+  optional_host_permissions?: string[]
+}
+
+function readManifest(): SessionExtensionManifest {
+  return JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as SessionExtensionManifest
+}
+
 function manifestHostPermissions(): string[] {
-  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as {
-    host_permissions?: string[]
-  }
-  return manifest.host_permissions ?? []
+  return readManifest().host_permissions ?? []
+}
+
+function manifestOptionalHostPermissions(): string[] {
+  return readManifest().optional_host_permissions ?? []
 }
 
 /** A Chrome match pattern host covers the bare host and every subdomain of it. */
@@ -44,6 +54,12 @@ describe('site session cookie domains', () => {
     expect(getSiteSessionCookieDomains('does-not-exist')).toEqual([])
   })
 
+  it('returns an empty list for prototype-chain ids', () => {
+    for (const siteId of ['constructor', 'toString', '__proto__', 'valueOf', 'hasOwnProperty']) {
+      expect(getSiteSessionCookieDomains(siteId), siteId).toEqual([])
+    }
+  })
+
   it('declares a host permission for every cookie domain', () => {
     const patterns = manifestHostPermissions()
     for (const [siteId, domains] of Object.entries(SITE_SESSION_COOKIE_DOMAINS)) {
@@ -56,5 +72,11 @@ describe('site session cookie domains', () => {
         expect(covered, `${siteId} -> ${domain} has no host permission`).toBe(true)
       }
     }
+  })
+
+  it('declares the wildcard optional host permissions for user-added sites', () => {
+    const optional = manifestOptionalHostPermissions()
+    expect(optional).toContain('http://*/*')
+    expect(optional).toContain('https://*/*')
   })
 })
