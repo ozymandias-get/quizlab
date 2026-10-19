@@ -7,7 +7,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// --- Mocks ---
 const mockRunIdleCleanup = vi.fn().mockResolvedValue(undefined)
 const mockRunQuickCheck = vi.fn().mockResolvedValue(undefined)
 const mockStartIdleDetection = vi.fn()

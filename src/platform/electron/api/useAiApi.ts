@@ -13,9 +13,6 @@ const AI_REGISTRY_KEY = ['ai', 'registry']
 export const AI_CONFIG_KEY = (hostname?: string) =>
   hostname ? ['ai', 'config', hostname] : ['ai', 'config']
 
-/**
- * AI Registry Query
- */
 export function useAiRegistry() {
   return useElectronQuery<AiRegistryResponse | null>({
     key: AI_REGISTRY_KEY,
@@ -28,8 +25,6 @@ export function useAiRegistry() {
 }
 
 /**
- * Save AI Config Mutation
- *
  * Pass `{ suppressErrorToast: true }` when the caller wants to handle the
  * failure path itself with a domain-specific message (e.g. the picker flow
  * shows `picker_save_failed` with the underlying error).

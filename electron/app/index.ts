@@ -216,7 +216,6 @@ function handleSeriousError(type: string, error: unknown) {
   // Flush logs to disk before showing error dialog
   flushToDisk().catch(() => {})
 
-  // Save crash report
   saveCrashReport(type, error).catch(() => {})
 
   if (app.isReady()) {

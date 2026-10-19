@@ -158,8 +158,6 @@ function pageOf(container: HTMLElement): HTMLElement | null {
   return container.querySelector<HTMLElement>('[data-native-pdf-page]')
 }
 
-/* ------------------------------------------------------- document lifecycle */
-
 describe('NativePdfViewer — document lifecycle', () => {
   it('shows a loading state before the document resolves', async () => {
     const document = createFakeDocument({ numPages: 12 })
@@ -464,8 +462,6 @@ describe('NativePdfViewer — document lifecycle', () => {
   })
 })
 
-/* ------------------------------------------------------------- page state */
-
 describe('NativePdfViewer — page state', () => {
   function mountWith(document: FakeDocument, initialPage?: number) {
     serveDocument(document)
@@ -693,8 +689,6 @@ describe('NativePdfViewer — scale state', () => {
     await waitForFrames(() => expect(control.current?.scale).toBe(0.1))
   })
 })
-
-/* --------------------------------------------------------- render lifecycle */
 
 describe('NativePdfViewer — render lifecycle', () => {
   /**

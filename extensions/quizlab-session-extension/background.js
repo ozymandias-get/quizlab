@@ -13,7 +13,7 @@ let connected = false
 let cookieDebounceTimer = null
 let bridgeSecret = null
 
-// --- Alarm-based reconnect (survives SW termination in MV3) ---
+// Alarm-based reconnect (survives SW termination in MV3)
 // RULE: At least one alarm is always active so the SW can be woken.
 //   - Not connected: SCAN_ALARM fires every 30s to check for bridge
 //   - Connected:     HEARTBEAT_ALARM fires every 1min to keep alive
@@ -233,7 +233,7 @@ async function scanForBridge() {
   }
 }
 
-// === Event listeners registered synchronously at top level (MV3 requirement) ===
+// Event listeners registered synchronously at top level (MV3 requirement)
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SCAN_ALARM) {

@@ -10,7 +10,7 @@
  * without enumerating every checkpoint.
  */
 export const VISION_MODEL_PATTERNS = [
-  // --- OpenAI ---
+  // OpenAI
   // gpt-4o, gpt-4o-mini, gpt-4o-2024-08-06, chatgpt-4o-latest
   /^gpt-4o/i,
   // gpt-4-turbo, gpt-4.0-turbo, gpt-4-1106-turbo, gpt-4.1-turbo, gpt-4.2-turbo
@@ -23,16 +23,16 @@ export const VISION_MODEL_PATTERNS = [
   // o1, o1-mini, o1-preview, o3, o3-mini, o4-mini
   /^o[134](?:[-.]|$)/i,
 
-  // --- Anthropic ---
+  // Anthropic
   // claude-3, claude-3.5, claude-3.7, claude-4, claude-sonnet-4-5,
   // claude-opus-4-1, claude-haiku-4-5. `claude-2.x` stays excluded.
   /^claude-(?:[34]|sonnet|opus|haiku)/i,
 
-  // --- Google ---
+  // Google
   // gemini-1.5-pro/flash, gemini-2.0/2.5/3.x
   /^gemini-(?:1\.5|[23])/i,
 
-  // --- Open-weight / local vision models ---
+  // Open-weight / local vision models
   // llava, llava-llama3, bakllava, moondream, moondream2, pixtral
   /^(?:llava|bakllava|moondream|moondream2|pixtral)/i,
   // llama3.2-vision, llama-3.2-11b-vision-instruct

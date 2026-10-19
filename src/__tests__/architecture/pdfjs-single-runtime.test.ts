@@ -207,8 +207,6 @@ describe('single runtime: no legacy import survives in production code', () => {
   })
 })
 
-/* ---------------------------------------------------------------- the worker */
-
 describe('single runtime: one worker', () => {
   it('the engine addresses the 6.x ESM worker, and never through the dev transform', () => {
     const engine = codeOf(repoPath('src/features/pdf/engine/pdfWorker.ts'))
@@ -364,8 +362,6 @@ describe('single runtime: the search overlay keeps its own vocabulary', () => {
   })
 })
 
-/* ------------------------------------------------------------------ registry */
-
 describe('single runtime: the capture registry has one producer', () => {
   it('accepts handles only, with no raw-proxy compatibility shim', () => {
     // It used to take either a real handle or a pdfjs-3 proxy normalized through
@@ -393,8 +389,6 @@ describe('single runtime: the capture registry has one producer', () => {
     )
   })
 })
-
-/* ------------------------------------------------------------------ the flag */
 
 describe('single runtime: no feature flag remains', () => {
   it('no production file reads VITE_NATIVE_PDF_VIEWER', () => {

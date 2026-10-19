@@ -4,12 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 
 import { fetchApiChatModels, getApiChatConfig } from '../api/sessions.api'
 
-// ---------------------------------------------------------------------------
-// Provider health — checks if a given provider is reachable by probing its
-// model list endpoint. Short staleTime so the UI stays responsive to network
-// changes without excessive refetching.
-// ---------------------------------------------------------------------------
-
 export function useProviderHealthQuery(providerId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.AI.PROVIDER_HEALTH(providerId),
@@ -30,11 +24,6 @@ export function useProviderHealthQuery(providerId: string) {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Provider model list — the available models for a given provider.
-// Longer staleTime because model lists change infrequently.
-// ---------------------------------------------------------------------------
-
 export function useModelsQuery(providerId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.AI.MODELS(providerId),
@@ -45,11 +34,6 @@ export function useModelsQuery(providerId: string) {
     enabled: !!providerId
   })
 }
-
-// ---------------------------------------------------------------------------
-// AI Config — the persisted ApiConfig (prompts, selected provider/model).
-// This is the replacement for reading config from the old store.
-// ---------------------------------------------------------------------------
 
 export function useApiConfigQuery() {
   return useQuery({

@@ -1,6 +1,5 @@
 /**
  * Site Strategy Runtime — injected guest-page block.
- * ─────────────────────────────────────────────────────────────────────────────
  * `siteStrategyRegistry.ts` birbirine karışan iki sorumluluğu taşıyordu: host
  * tarafındaki registry API'si (kayıt/eşleştirme/built-in stratejiler) ve
  * uzak sayfaya enjekte edilen saf string bloğu (`siteStrategyRuntime`). İkisi

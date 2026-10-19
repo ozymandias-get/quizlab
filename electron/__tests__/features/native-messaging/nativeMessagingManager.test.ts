@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---------------------------------------------------------------------------
-// Hoisted mock factories
-// ---------------------------------------------------------------------------
-
 const mockAppGetPath = vi.hoisted(() =>
   vi.fn((name: string) => {
     if (name === 'userData') return '/tmp/quizlab-userdata'
@@ -69,10 +65,6 @@ const mockExecFile = vi.hoisted(() =>
     }
   )
 )
-
-// ---------------------------------------------------------------------------
-// Module mocks
-// ---------------------------------------------------------------------------
 
 vi.mock('electron', () => ({
   app: mockApp,
@@ -155,10 +147,6 @@ vi.mock('../../../core/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function expectedBridgeInfo(port: number) {
   return JSON.stringify(
     {
@@ -170,10 +158,6 @@ function expectedBridgeInfo(port: number) {
     2
   )
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('NativeMessagingManager', () => {
   let manager: typeof import('../../../features/native-messaging/nativeMessagingManager.js').nativeMessagingManager
@@ -217,10 +201,6 @@ describe('NativeMessagingManager', () => {
     manager = mod.nativeMessagingManager
   })
 
-  // -----------------------------------------------------------------------
-  // Getters - initial state
-  // -----------------------------------------------------------------------
-
   describe('getters', () => {
     it('connectionStatus starts as disconnected', () => {
       expect(manager.connectionStatus).toBe('disconnected')
@@ -245,10 +225,6 @@ describe('NativeMessagingManager', () => {
       })
     })
   })
-
-  // -----------------------------------------------------------------------
-  // installExtension
-  // -----------------------------------------------------------------------
 
   describe('installExtension', () => {
     beforeEach(() => {
@@ -365,10 +341,6 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // removeExtension
-  // -----------------------------------------------------------------------
-
   describe('removeExtension', () => {
     it('removes files and resets state', async () => {
       const result = await manager.removeExtension()
@@ -423,10 +395,6 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // stopServer
-  // -----------------------------------------------------------------------
-
   describe('stopServer', () => {
     beforeEach(async () => {
       await manager.initialize()
@@ -454,18 +422,10 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  // -----------------------------------------------------------------------
-  // dispose
-  // -----------------------------------------------------------------------
-
   // NOTE: the former `dispose > delegates to stopServer` test asserted only
   // `connectionStatus === 'disconnected'`, which is the field's initial value,
   // so it passed even with an empty dispose() body. The delegation itself is
   // already covered by `stopServer` above.
-
-  // -----------------------------------------------------------------------
-  // Bridge request origin validation (health endpoint security)
-  // -----------------------------------------------------------------------
 
   describe('bridge origin validation', () => {
     // Verified key->ID pair (JSONView extension): the derived ID must be
@@ -574,9 +534,7 @@ describe('NativeMessagingManager', () => {
       expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
 
-    // ---------------------------------------------------------------------
     // CORS headers (never a wildcard; OPTIONS obeys the origin policy).
-    // ---------------------------------------------------------------------
 
     describe('CORS headers', () => {
       function acaoValues(res: ReturnType<typeof fakeRes>) {
@@ -662,10 +620,6 @@ describe('NativeMessagingManager', () => {
       })
     })
   })
-
-  // -----------------------------------------------------------------------
-  // getExtensionInfo - new fields
-  // -----------------------------------------------------------------------
 
   describe('getExtensionInfo new fields', () => {
     it('sets waitingSince after initialize (connecting state)', async () => {

@@ -12,7 +12,6 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// --- Mocks for measureCacheBreakdown ---
 const mockGetPath = vi.fn().mockReturnValue('/tmp/mock-user-data')
 vi.mock('electron', () => ({
   app: {

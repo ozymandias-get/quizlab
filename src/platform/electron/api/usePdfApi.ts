@@ -3,7 +3,6 @@ import type { PdfSelection, PdfSelectOptions } from '@shared-core/types'
 import { useElectronMutation } from '../useElectron'
 
 /**
- * Select PDF Mutation
  * User interaction is required (file dialog), so this is a mutation.
  */
 export function useSelectPdf() {
@@ -16,7 +15,6 @@ export function useSelectPdf() {
 }
 
 /**
- * Register PDF Path Mutation
  * Used for drag-and-drop or resuming last session
  */
 export function useRegisterPdfPath() {

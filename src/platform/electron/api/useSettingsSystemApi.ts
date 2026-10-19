@@ -7,9 +7,6 @@ import { useElectronMutation, useElectronQuery } from '../useElectron'
 
 const SYSTEM_VERSION_KEY = ['system', 'version']
 
-/**
- * App Version Query
- */
 export function useAppVersion() {
   return useElectronQuery<string>({
     key: SYSTEM_VERSION_KEY,
@@ -20,9 +17,6 @@ export function useAppVersion() {
   })
 }
 
-/**
- * Clear Cache Mutation
- */
 export function useClearCache() {
   const queryClient = useQueryClient()
   const { showSuccess } = useToastActions()
@@ -37,9 +31,6 @@ export function useClearCache() {
   })
 }
 
-/**
- * Deep Clean Cache Mutation
- */
 export function useDeepCleanCache() {
   const queryClient = useQueryClient()
   const { showSuccess } = useToastActions()
@@ -54,9 +45,6 @@ export function useDeepCleanCache() {
   })
 }
 
-/**
- * Cache Info Query (smart enriched)
- */
 export function useCacheInfo() {
   return useElectronQuery({
     key: ['system', 'cache-info'],
@@ -122,8 +110,6 @@ export function useClearPartitionCache() {
 }
 
 /**
- * Open External Link Mutation.
- *
  * Re-exported rather than duplicated: `useSystemApi` owns the implementation
  * and `UpdateBanner` consumes it there, while the settings tier imports it
  * through this module. Two byte-identical implementations of one IPC mutation

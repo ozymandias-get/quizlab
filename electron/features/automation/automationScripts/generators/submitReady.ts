@@ -5,7 +5,6 @@ import { createScriptPreamble, normalizeMs } from '../preamble.js'
 
 /**
  * Wait-for-submit-ready script
- * ─────────────────────────────────────────────────────────────────────────────
  * Önceki tasarım: 250ms sabit polling + MutationObserver (yalnızca "is settled" takibi)
  * Yeni tasarım:     event-driven wait (MutationObserver → microtask wake)
  *

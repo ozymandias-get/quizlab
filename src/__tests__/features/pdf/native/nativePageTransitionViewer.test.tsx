@@ -250,8 +250,6 @@ function enteredFrom(turn: PresentedTurn): string {
   return String(turn.keyframes[0]?.transform)
 }
 
-/* ------------------------------------------------------------------ a turn */
-
 describe('native page transition — one turn, in its own direction', () => {
   it('presents nothing when the document first opens', async () => {
     const { container } = await mountViewer()
@@ -666,8 +664,6 @@ describe('native page transition — document lifecycle events are not turns', (
     expect(turns).toHaveLength(presentedBeforeSwitch)
   })
 })
-
-/* ------------------------------------------------------------ reduced motion */
 
 describe('native page transition — reduced motion', () => {
   it('navigates without presenting anything when the reader asked for reduced motion', async () => {

@@ -67,7 +67,6 @@ describe('SPA-aware cache invalidation', () => {
     ).__quizlabSpaProbeInstalled
     expect(probeStateAfterFirst).toBe(true)
 
-    // Save current pushState reference
     const pushStateRef = window.history.pushState
     await window.eval(script)
     // Probe should not have replaced pushState twice

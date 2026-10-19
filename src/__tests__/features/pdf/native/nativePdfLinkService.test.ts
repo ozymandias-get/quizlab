@@ -93,8 +93,6 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-/* -------------------------------------------------- internal destinations */
-
 describe('native link service — internal destinations', () => {
   // One conversion, one place. These are the three positions that matter: the first
   // page, mid-document, and the last — the endpoints are where an off-by-one hides.
@@ -317,8 +315,6 @@ describe('native link service — a resolution that lands after supersede', () =
     expect(openExternal).not.toHaveBeenCalled()
   })
 })
-
-/* ---------------------------------------------------------- external URLs */
 
 describe('native link service — external URLs', () => {
   it('hands an https URL to the app pathway exactly once', () => {

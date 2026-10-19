@@ -61,7 +61,6 @@ describe('formatDate', () => {
   })
 
   it('returns a formatted date for older dates', () => {
-    // 5 days ago
     const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000
     const result = formatDate(fiveDaysAgo)
     // Should NOT be Today or Yesterday
@@ -71,7 +70,6 @@ describe('formatDate', () => {
   })
 
   it('includes the year when the date is in a different year', () => {
-    // One year ago
     const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000
     const result = formatDate(oneYearAgo)
     // Should contain a 4-digit year

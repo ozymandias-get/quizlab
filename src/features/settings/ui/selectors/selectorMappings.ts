@@ -1,8 +1,6 @@
 import type { HealthTone, SelectorHealthState } from './types'
 
 /**
- * Health tone.
- *
  * `border` drives the card surface, so it follows the interactive-card recipe
  * (idle `bg-card` + `hover:bg-muted/50`) and only the border colour carries the
  * state. `badge` / `icon` stay semantic — they encode health, not decoration.

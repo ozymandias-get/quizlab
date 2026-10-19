@@ -17,9 +17,6 @@ import { AI_CONFIG_KEY } from './useAiApi'
 
 const AI_REGISTRY_KEY = ['ai', 'registry']
 
-/**
- * AI Config Query
- */
 export function useAiConfig(hostname?: string) {
   return useElectronQuery<AiSelectorConfig | Record<string, AiSelectorConfig> | null>({
     key: AI_CONFIG_KEY(hostname),
@@ -31,9 +28,6 @@ export function useAiConfig(hostname?: string) {
   })
 }
 
-/**
- * Delete AI Config Mutation
- */
 export function useDeleteAiConfig() {
   const queryClient = useQueryClient()
   const { showSuccess } = useToastActions()
@@ -54,9 +48,6 @@ export function useDeleteAiConfig() {
   })
 }
 
-/**
- * Add Custom AI Mutation
- */
 export function useAddCustomAi() {
   const queryClient = useQueryClient()
   const { showSuccess, showError } = useToastActions()
@@ -81,9 +72,6 @@ export function useAddCustomAi() {
   )
 }
 
-/**
- * Delete Custom AI Mutation
- */
 export function useDeleteCustomAi() {
   const queryClient = useQueryClient()
   const { showSuccess } = useToastActions()
@@ -98,9 +86,6 @@ export function useDeleteCustomAi() {
   })
 }
 
-/**
- * Clear AI Model Data Mutation
- */
 export function useClearAiModelData() {
   const queryClient = useQueryClient()
   const { showSuccess } = useToastActions()

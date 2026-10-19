@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
 
-// ---- Module mocks (hoisted) ----
 const protocolHandleMock = vi.fn()
 const ipcHandleMock = vi.fn()
 const showOpenDialogMock = vi.fn()
@@ -51,7 +50,6 @@ vi.mock('fs', () => ({
   }
 }))
 
-// ---- Helpers ----
 type ProtocolHandler = (request: { url: string; headers: Headers }) => Promise<Response>
 
 function getProtocolHandler(): ProtocolHandler {

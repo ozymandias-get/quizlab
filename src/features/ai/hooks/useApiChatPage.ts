@@ -24,7 +24,7 @@ const EMPTY_ATTACH: string[] = []
 
 export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const { t } = useTranslation()
-  // ---- UI state from chatUiStore ----
+  // UI state from chatUiStore
   const activeSessionId = useChatUiStore((s) => s.activeSessionIdByTab[tabId])
   const inputValue = useChatUiStore((s) => s.inputValueByTab[tabId]) ?? ''
   const attachments = useChatUiStore((s) => s.attachmentsByTab[tabId]) ?? EMPTY_ATTACH
@@ -39,7 +39,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const setConfigPrompts = useChatUiStore((s) => s.setConfigPrompts)
   const setActiveSessionId = useChatUiStore((s) => s.setActiveSessionId)
 
-  // ---- Server state from TanStack Query ----
+  // Server state from TanStack Query
   const { data: messages = EMPTY_MSGS } = useMessagesQuery(activeSessionId)
   const { data: sessions = [], isSuccess: sessionsLoaded } = useSessionsQuery()
   const { mutateAsync: sendMsgMutation } = useSendMessageMutation()
@@ -49,12 +49,12 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const { mutateAsync: createSessionMutation } = useCreateSessionMutation()
   const { mutateAsync: clearSessionMutation } = useClearSessionMutation()
   const { data: config } = useApiConfigQuery()
-  // ---- Local state ----
+  // Local state
   const [isScrolledUp, setIsScrolledUp] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  // ---- Refs ----
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -72,7 +72,6 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const messagesRef = useRef(messages)
   messagesRef.current = messages
 
-  // ---- Session initialization ----
   useApiChatSessionInit({
     tabId,
     activeSessionId,
@@ -82,7 +81,6 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     enabled: sessionsLoaded
   })
 
-  // ---- Config init from TanStack Query ----
   useEffect(() => {
     if (!config) return
     setConfigPrompts({

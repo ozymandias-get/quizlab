@@ -53,7 +53,6 @@ type AssertNever<T extends never> = T
 // Exported so the assertion is evaluated and retained; never used at runtime.
 export type AllIpcChannelsCovered = AssertNever<UncoveredIpcChannels>
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Contract ↔ ElectronApi payload parity
 //
 // electronApi.ts is hand-written and keyed by method name rather than channel
@@ -65,7 +64,6 @@ export type AllIpcChannelsCovered = AssertNever<UncoveredIpcChannels>
 // ElectronApi) is fine and is excluded below. A missing payload field, a renamed
 // field or a changed payload type resolves to `never` and breaks the build — which
 // is exactly the NATIVE_MESSAGING_INSTALL_EXTENSION `installedPath` drift.
-// ─────────────────────────────────────────────────────────────────────────────
 
 /** The success payload the main process resolves for an invoke channel. */
 type ChannelData<C extends IpcInvokeChannel> = Extract<

@@ -109,7 +109,6 @@ describe('getCachedAiConfig', () => {
 
     // Override should win
     expect(result.config.input).toBe('remote-input')
-    // domainRegex should be a RegExp
     expect(result.regex).toBeInstanceOf(RegExp)
     // Cache should be populated
     expect(cache.key).toContain('chatgpt')

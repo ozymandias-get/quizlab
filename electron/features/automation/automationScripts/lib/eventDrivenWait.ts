@@ -1,6 +1,5 @@
 /**
  * Event-Driven Wait Helpers
- * ─────────────────────────────────────────────────────────────────────────────
  * Önceki tasarım (submitReady.ts):
  *
  *     while (now() - waitStartedAt < ${timeoutMs}) {

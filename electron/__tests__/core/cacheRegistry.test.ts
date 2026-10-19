@@ -7,7 +7,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// --- Module-level mocks ---
 const mockGetPath = vi.fn().mockReturnValue('/mock/user-data')
 
 vi.mock('electron', () => ({

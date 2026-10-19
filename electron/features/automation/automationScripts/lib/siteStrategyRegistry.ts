@@ -1,6 +1,5 @@
 /**
  * Site Strategy Registry
- * ─────────────────────────────────────────────────────────────────────────────
  * Önceki tasarımda (selectorEngine.ts):
  *   - tryClaudeStrategy, tryDeepSeekStrategy, tryQwenStrategy, tryKimiStrategy
  *     hostname includes() karşılaştırmasıyla çağrılıyordu.
