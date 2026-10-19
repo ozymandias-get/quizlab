@@ -1,5 +1,5 @@
 import { getHintHtml, getStepHtml } from '@electron/features/automation/lib/uiTemplates'
-import type { PickerElementInfo } from '@electron/features/automation/lib/domHelpers'
+import type { PickerElementInfo } from '@electron/features/automation/lib/dom/pickerTypes'
 
 import { describe, expect, it } from 'vitest'
 

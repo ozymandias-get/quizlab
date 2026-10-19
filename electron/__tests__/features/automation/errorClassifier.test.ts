@@ -1,9 +1,6 @@
 import {
   classifyAutomationError,
-  errorCategoryOf,
-  isRetryable,
-  normalizeErrorCode,
-  shouldRequestRepick
+  normalizeErrorCode
 } from '../../../../shared/lib/errorClassifier.js'
 
 import { describe, expect, it } from 'vitest'
@@ -167,25 +164,5 @@ describe('errorClassifier', () => {
     for (const raw of ['Illegal invocation', '', '   ', null, undefined, {}, []]) {
       expect(normalizeErrorCode(raw)).toBe('unknown')
     }
-  })
-
-  it('derives shouldRequestRepick / isRetryable / errorCategoryOf consistently', () => {
-    expect(shouldRequestRepick('input_not_found')).toBe(true)
-    expect(shouldRequestRepick('button_not_found')).toBe(true)
-    expect(shouldRequestRepick('ambiguous_match')).toBe(true)
-    expect(shouldRequestRepick('submit_failed')).toBe(false)
-    expect(shouldRequestRepick('submit_not_ready')).toBe(false)
-    expect(shouldRequestRepick('selector_repick_required')).toBe(false) // 'never'
-
-    expect(isRetryable('submit_failed')).toBe(true) // same-strategy
-    expect(isRetryable('submit_not_ready')).toBe(true) // different-strategy
-    expect(isRetryable('clipboard_failed')).toBe(true) // after-backoff
-    expect(isRetryable('input_not_found')).toBe(false) // after-repick
-    expect(isRetryable('webview_destroyed')).toBe(false) // never
-    expect(isRetryable('mystery_xyz')).toBe(true) // unknown → same-strategy
-
-    expect(errorCategoryOf('input_not_found')).toBe('selector')
-    expect(errorCategoryOf('paste_failed')).toBe('paste')
-    expect(errorCategoryOf('totally_random')).toBe('unknown')
   })
 })
