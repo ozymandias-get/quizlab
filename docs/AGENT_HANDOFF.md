@@ -12,6 +12,8 @@ Not an execution diary — current state, decisions, invariants, next step. Deep
 technical reasoning lives in `docs/pdfjs-migration-plan.md`, the authoritative
 migration plan.
 
+> Historical: the AI-send v2 audit report (v6.7.2 era) is kept verbatim at `docs/ai-send-v2-audit-report.md`.
+
 ## Current State
 
 | Field                | Value                                                                                                    |
