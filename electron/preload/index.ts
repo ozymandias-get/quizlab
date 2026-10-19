@@ -150,6 +150,14 @@ const electronApi: ElectronApi = {
     }
   },
 
+  siteSession: {
+    list: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_LIST)),
+    setEnabled: (siteId, enabled) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ENABLED, siteId, enabled)),
+    clear: (siteId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR, siteId)),
+    onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
+  },
+
   nativeMessaging: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_STATUS)),
     installExtension: () =>

@@ -244,6 +244,14 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       importSession: async () => webDevOnlyError(),
       onRefreshEvent: () => () => {}
     },
+    // Chrome session sharing needs the extension bridge, which the browser dev
+    // server has no equivalent for: the list is empty and every action fails.
+    siteSession: {
+      list: stubReturn({ views: [], extensionConnected: false, extensionVersionOk: false }),
+      setEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      clear: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      onChanged: () => () => {}
+    },
     nativeMessaging: {
       getStatus: stubReturn({
         status: 'disconnected',
