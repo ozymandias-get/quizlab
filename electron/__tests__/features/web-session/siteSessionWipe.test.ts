@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { wipeSiteSession } from '../../../features/web-session/siteSessionWipe.js'
 
-const remove = vi.fn().mockResolvedValue({})
-const clearStorageData = vi.fn().mockResolvedValue(undefined)
+const remove = vi.fn()
+const clearStorageData = vi.fn()
+const clearAuthCache = vi.fn()
 const flushStorageData = vi.fn()
-const get = vi.fn().mockResolvedValue([
-  { name: 'session', domain: '.chatgpt.com', path: '/', secure: true },
-  { name: 'session', domain: '.openai.com', path: '/', secure: true }
-])
+const get = vi.fn()
 
 const TARGET = {
   siteId: 'chatgpt',
@@ -21,25 +19,31 @@ const TARGET = {
 }
 
 function fakeSession() {
-  return { cookies: { get, remove }, clearStorageData, flushStorageData } as never
+  return { cookies: { get, remove }, clearStorageData, clearAuthCache, flushStorageData } as never
 }
 
 describe('wipeSiteSession', () => {
   beforeEach(() => {
-    remove.mockClear()
-    clearStorageData.mockClear()
-    flushStorageData.mockClear()
-    get.mockClear()
+    // Every test starts from a known state: `mockClear` would keep the
+    // implementation the previous test left behind.
+    remove.mockReset().mockResolvedValue({})
+    clearStorageData.mockReset().mockResolvedValue(undefined)
+    clearAuthCache.mockReset().mockResolvedValue(undefined)
+    flushStorageData.mockReset()
+    get.mockReset().mockResolvedValue([
+      { name: 'session', domain: '.chatgpt.com', path: '/', secure: true },
+      { name: 'session', domain: '.openai.com', path: '/', secure: true }
+    ])
   })
 
   it('removes the cookies of every listed domain', async () => {
-    await wipeSiteSession({ cookies: { get, remove }, clearStorageData } as never, TARGET)
+    await wipeSiteSession(fakeSession(), TARGET)
     expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
     expect(remove).toHaveBeenCalledWith('https://openai.com/', 'session')
   })
 
   it('clears the storage of the target origin only', async () => {
-    await wipeSiteSession({ cookies: { get, remove }, clearStorageData } as never, TARGET)
+    await wipeSiteSession(fakeSession(), TARGET)
     expect(clearStorageData).toHaveBeenCalledWith(
       expect.objectContaining({ origin: 'https://chatgpt.com' })
     )
@@ -64,6 +68,23 @@ describe('wipeSiteSession', () => {
       origin: 'https://chatgpt.com',
       storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
     })
+  })
+
+  it('clears the auth cache of the partition', async () => {
+    // A site that authenticates with HTTP basic auth keeps its credentials
+    // there; without this the next visit would still be signed in.
+    await wipeSiteSession(fakeSession(), TARGET)
+    expect(clearAuthCache).toHaveBeenCalled()
+  })
+
+  it('clears the storage even when the cookie store cannot be read', async () => {
+    get.mockRejectedValue(new Error('cookie store unavailable'))
+
+    await wipeSiteSession(fakeSession(), TARGET)
+
+    expect(clearStorageData).toHaveBeenCalledWith(
+      expect.objectContaining({ origin: 'https://chatgpt.com' })
+    )
   })
 
   it('flushes the storage data when the session is done', async () => {

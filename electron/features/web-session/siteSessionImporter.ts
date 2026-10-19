@@ -33,6 +33,15 @@ export interface ExternalBrowserCookie {
 }
 
 /**
+ * The scope of a cookie: a host-only cookie or a domain-wide one.
+ *
+ * The scope is part of the identity of a cookie: a host-only cookie and a
+ * domain-wide cookie of the same name and path are two different cookies, and
+ * Chromium sends both of them.
+ */
+type CookieScope = 'host' | 'domain'
+
+/**
  * The domain of a cookie in its comparable form: trimmed and lowercased.
  *
  * The leading dot survives, because it is what tells a domain-wide cookie
@@ -93,6 +102,50 @@ export function cookieRemovalUrls(
   return schemes.map((scheme) => `${scheme}://${host}${cookiePath}`)
 }
 
+/**
+ * The scope of a cookie the browser sends.
+ *
+ * The browser marks a domain-wide cookie with a leading dot in its domain; a
+ * host-only cookie carries the bare host.
+ */
+function packetScope(domain: string): CookieScope {
+  return domain.startsWith('.') ? 'domain' : 'host'
+}
+
+/**
+ * The scope of a cookie the session holds.
+ *
+ * Electron reports the scope in `hostOnly`. When the flag is missing the two
+ * scopes cannot be told apart, and the caller keeps the cookie rather than
+ * deleting a session the user may still need.
+ */
+function sessionScope(cookie: Electron.Cookie): CookieScope | 'unknown' {
+  if (cookie.hostOnly === true) return 'host'
+  if (cookie.hostOnly === false) return 'domain'
+  return 'unknown'
+}
+
+/**
+ * The identity of a cookie inside a session: host, name and path.
+ *
+ * The host drops the leading dot of the domain, because the scope carries that
+ * difference on its own and the two sides of the transfer do not have to
+ * agree on how they spell it.
+ */
+function cookieIdentity(host: string, name: string | undefined, path: string | undefined): string {
+  return `${host}::${(name ?? '').trim()}::${path || '/'}`
+}
+
+/** The identity of a cookie including its scope. */
+function cookieKey(
+  host: string,
+  name: string | undefined,
+  path: string | undefined,
+  scope: CookieScope
+): string {
+  return `${cookieIdentity(host, name, path)}::${scope}`
+}
+
 function normalizeSameSite(
   sameSite: ExternalBrowserCookie['sameSite']
 ): Electron.CookiesSetDetails['sameSite'] {
@@ -103,11 +156,11 @@ function normalizeSameSite(
 }
 
 /**
- * The Electron payload of a browser cookie, or null when the cookie must not
- * be written.
+ * The Electron payload of a browser cookie, or null when the cookie cannot be
+ * written.
  *
- * A null payload is a refusal in both cases: the domain is not one of the
- * site's own domains, or the cookie carries no usable name.
+ * A null payload is a refusal: the cookie carries no usable name, or it is
+ * not one of the site's own cookies.
  */
 function buildElectronCookiePayload(
   cookie: ExternalBrowserCookie,
@@ -150,25 +203,6 @@ function buildElectronCookiePayload(
   return payload
 }
 
-/**
- * The identity of a cookie inside a session: host, name and path.
- *
- * The leading dot of the domain is dropped on both sides. Electron reports
- * every domain with a preceding dot, while the browser reports a host-only
- * cookie without one; comparing the raw strings would make the cookie that
- * was just written look like a different one, and the stale cleanup would
- * delete it right away.
- */
-function cookieKey(
-  name: string,
-  domain: string | null | undefined,
-  path: string | undefined
-): string {
-  const normalized = normalizeCookieDomain(domain)
-  const host = normalized ? domainHost(normalized) : ''
-  return `${host}::${name.trim()}::${path || '/'}`
-}
-
 /** Writes one cookie and reports whether it made it into the session. */
 async function writeCookie(
   targetSession: Session,
@@ -208,14 +242,41 @@ async function removeCookie(
 }
 
 /**
+ * Whether the browser still sends the cookie the session holds.
+ *
+ * The scope decides: only the cookie the packet carries with the same scope is
+ * still sent. A host-only cookie and a domain-wide cookie of the same name and
+ * path are two different cookies, and the browser sends one of them now.
+ */
+function isStillSent(
+  existing: Electron.Cookie,
+  host: string,
+  incoming: ReadonlySet<string>
+): boolean {
+  const scope = sessionScope(existing)
+  if (scope === 'unknown') {
+    // The scope cannot be told apart: keep the cookie rather than delete a
+    // session the user may still need.
+    return (
+      incoming.has(cookieKey(host, existing.name, existing.path, 'host')) ||
+      incoming.has(cookieKey(host, existing.name, existing.path, 'domain'))
+    )
+  }
+  return incoming.has(cookieKey(host, existing.name, existing.path, scope))
+}
+
+/**
  * Drops the cookies of this site that the browser no longer sends.
  *
  * Only the domains of the site are touched: a neighbour's cookie that shares
- * the partition is none of this site's business.
+ * the partition is none of this site's business. A cookie whose write was
+ * rejected is kept as well: the packet did not make it into the session, so
+ * the session's cookie is all the user has left.
  */
 async function removeStaleCookies(
   targetSession: Session,
   incoming: ReadonlySet<string>,
+  failedIdentities: ReadonlySet<string>,
   allowedDomains: readonly string[]
 ): Promise<void> {
   const existingCookies = await targetSession.cookies.get({}).catch(() => [])
@@ -223,7 +284,12 @@ async function removeStaleCookies(
 
   for (const existing of existingCookies) {
     if (!isCookieDomainAllowed(existing.domain, allowedDomains)) continue
-    if (incoming.has(cookieKey(existing.name, existing.domain, existing.path))) continue
+
+    const host = domainHost(normalizeCookieDomain(existing.domain) ?? '')
+    if (!host) continue
+
+    if (failedIdentities.has(cookieIdentity(host, existing.name, existing.path))) continue
+    if (isStillSent(existing, host, incoming)) continue
 
     const domain = normalizeCookieDomain(existing.domain) ?? ''
     for (const url of cookieRemovalUrls(existing.domain, existing.path, existing.secure)) {
@@ -241,21 +307,41 @@ async function removeStaleCookies(
  * outside it is not written at all — not written elsewhere, not logged.
  *
  * The return value counts the outcome: `imported` cookies made it into the
- * session, `failed` ones were rejected by Chromium.
+ * session, `failed` ones were rejected by Chromium. A cookie the app refuses
+ * before the write is not one of them; it is reported in the log instead.
  */
 export async function importExternalCookies(
   targetSession: Session,
   cookies: ExternalBrowserCookie[],
   allowedDomains: readonly string[]
 ): Promise<{ imported: number; failed: number }> {
-  const incoming = new Set<string>()
-  const writes: { payload: Electron.CookiesSetDetails; domain: string }[] = []
+  const writes: { payload: Electron.CookiesSetDetails; domain: string; key: string }[] = []
+  const refusedByDomain = new Map<string, number>()
 
   for (const cookie of cookies) {
+    const domain = normalizeCookieDomain(cookie.domain)
+    // A cookie of another site is not ours: it is neither written nor logged.
+    if (!domain || !isCookieDomainAllowed(domain, allowedDomains)) continue
+
     const payload = buildElectronCookiePayload(cookie, allowedDomains)
-    if (!payload) continue
-    incoming.add(cookieKey(cookie.name, cookie.domain, cookie.path))
-    writes.push({ payload, domain: normalizeCookieDomain(cookie.domain) ?? '' })
+    if (!payload) {
+      // The cookie belongs to the site but cannot be written.
+      refusedByDomain.set(domain, (refusedByDomain.get(domain) ?? 0) + 1)
+      continue
+    }
+
+    const host = domainHost(domain)
+    writes.push({
+      payload,
+      domain,
+      key: cookieKey(host, payload.name, payload.path, packetScope(domain))
+    })
+  }
+
+  for (const [domain, count] of refusedByDomain) {
+    Logger.warn(
+      `[SiteSessionImporter] ${count} cookie(s) of "${domain}" were refused: they carry no usable name.`
+    )
   }
 
   const outcomes = await Promise.all(
@@ -264,17 +350,30 @@ export async function importExternalCookies(
   const imported = outcomes.filter(Boolean).length
   const failed = outcomes.length - imported
 
+  const incoming = new Set<string>()
+  const failedIdentities = new Set<string>()
+  for (const [index, outcome] of outcomes.entries()) {
+    const write = writes[index]
+    if (outcome) {
+      incoming.add(write.key)
+      continue
+    }
+    const host = domainHost(write.domain)
+    failedIdentities.add(cookieIdentity(host, write.payload.name, write.payload.path))
+  }
+
   if (failed > 0) {
     Logger.warn(
       `[SiteSessionImporter] ${failed} of ${writes.length} cookie(s) could not be written.`
     )
   }
 
-  // The stale cleanup runs only when the packet actually carried a cookie of
-  // this site. An empty packet — or one that carried nothing but foreign
-  // domains — must never delete the session the user has in the app.
-  if (writes.length > 0) {
-    await removeStaleCookies(targetSession, incoming, allowedDomains)
+  // The stale cleanup runs only when a cookie actually made it into the
+  // session. A packet whose writes were all rejected must not leave the user
+  // signed out with nothing imported, and an empty packet must not delete
+  // anything at all.
+  if (imported > 0) {
+    await removeStaleCookies(targetSession, incoming, failedIdentities, allowedDomains)
   }
 
   try {
