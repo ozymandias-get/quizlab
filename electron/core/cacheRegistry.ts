@@ -4,16 +4,9 @@ import path from 'path'
 import { APP_CONFIG } from '../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager.js'
 
-type CacheCategory = 'temp' | 'cache' | 'session-cache'
-
 export interface CacheRule {
   relativePath: string
-  category: CacheCategory
   ttlMs: number | null
-  maxBytes: number | null
-  cleanupOnStartup: boolean
-  cleanupOnIdle: boolean
-  description: string
 }
 
 /**
@@ -107,15 +100,9 @@ const { SAFE_CACHE_DIRS, CACHE_FILE_TTL_MS } = APP_CONFIG.CLEANUP
 function partitionCacheRules(partitionKey: string): CacheRule[] {
   // Aktivite bazlı TTL: soğuk partition'lar daha hızlı temizlenir
   const ttlMs = getEffectiveTtl(partitionKey)
-  const category = getActivityCategory(partitionKey)
   return SAFE_CACHE_DIRS.map((dir) => ({
     relativePath: path.join('Partitions', partitionKey, dir),
-    category: 'cache' as CacheCategory,
-    ttlMs,
-    maxBytes: null,
-    cleanupOnStartup: false,
-    cleanupOnIdle: true,
-    description: `Partition ${partitionKey} ${dir} (${category}, TTL=${ttlMs / 1000 / 60 / 60}h)`
+    ttlMs
   }))
 }
 
@@ -155,12 +142,7 @@ const PROTECTED_PARTITION_STORAGE = new Set([
 
 const BASE_RULES: CacheRule[] = SAFE_CACHE_DIRS.map((dir) => ({
   relativePath: dir,
-  category: 'cache' as CacheCategory,
-  ttlMs: CACHE_FILE_TTL_MS,
-  maxBytes: null,
-  cleanupOnStartup: false,
-  cleanupOnIdle: true,
-  description: `Root ${dir}`
+  ttlMs: CACHE_FILE_TTL_MS
 }))
 
 /**
