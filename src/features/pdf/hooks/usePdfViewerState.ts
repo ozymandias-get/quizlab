@@ -49,7 +49,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     pdfFile,
     pdfUrl,
     activePdfTab,
-    onTextSelection,
     t,
     onReadingProgressChange,
     isInteractionBlocked,
@@ -126,8 +125,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     pdfFile,
     currentPage,
     totalPages: nativeViewer.totalPages,
-    zoomToken: nativeViewer.scale,
-    onTextSelection
+    zoomToken: nativeViewer.scale
   })
 
   const { handleFullPageScreenshot, handleAreaScreenshot } = usePdfCaptureActions({

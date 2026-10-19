@@ -25,7 +25,6 @@ describe('LeftPanel', () => {
     onPdfDrop: vi.fn(),
     pdfFile: null,
     onSelectPdf: vi.fn(),
-    onTextSelection: vi.fn(),
     width: 300,
     t: (key: string) => key,
     onResumePdf: vi.fn(),

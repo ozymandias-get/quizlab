@@ -30,8 +30,8 @@ export interface SelectionPosition {
    * yerleştirme kararı değil.
    *
    * Menüyü nereye koyacağına `computeSelectionMenuAnchor` karar verir; burada
-   * yalnızca "seçim nerede bitti" bilgisi taşınır. Dışarıya verilen legacy
-   * `onTextSelection` sözleşmesinin alanı olduğu için alan korunmuştur.
+   * yalnızca "seçim nerede bitti" bilgisi taşınır. Bu nokta metin çıkarma
+   * akışı ve karar menüsü tarafından okunduğu için korunmuştur.
    */
   top: number
   left: number

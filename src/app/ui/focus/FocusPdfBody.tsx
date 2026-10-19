@@ -3,7 +3,6 @@ import { usePdfOpenActions } from '@features/pdf'
 import { useReadingProgressPersistence } from '@features/pdf'
 import { usePdfTabStore } from '@features/pdf'
 
-import { useTextSelection } from '@app/hooks/useTextSelection'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 
 import { lazy, memo, useCallback, useMemo, useRef } from 'react'
@@ -16,7 +15,6 @@ const PdfViewer = lazy(() => import('@features/pdf/viewer').then((m) => ({ defau
 
 const FocusPdfBody = memo(function FocusPdfBody() {
   const { t } = useTranslation()
-  const { handleTextSelection } = useTextSelection()
 
   const pdfTabs = usePdfTabStore((s) => s.pdfTabs)
   const activePdfTabId = usePdfTabStore((s) => s.activePdfTabId)
@@ -107,7 +105,6 @@ const FocusPdfBody = memo(function FocusPdfBody() {
             pdfFile={pdfFile}
             activePdfTab={activePdfTab}
             onSelectPdf={handleSelectPdf}
-            onTextSelection={handleTextSelection}
             t={t}
             initialPage={activeTabInitialPage}
             onResumePdf={handleResumePdf}

@@ -30,7 +30,6 @@ interface LeftPanelProps {
   onPdfDrop: (file: File) => void
   pdfFile: PdfFile | null
   onSelectPdf: () => void
-  onTextSelection?: (text: string, position: { top: number; left: number } | null) => void
   onResumePdf?: (path?: string) => Promise<ResumePdfResult> | ResumePdfResult
   onClearResumePdf?: (path?: string) => void
   onRestoreResumePdf?: (info: LastReadingInfo, index?: number) => void
@@ -70,7 +69,6 @@ function LeftPanel({
   onPdfDrop,
   pdfFile,
   onSelectPdf,
-  onTextSelection,
   onResumePdf,
   onClearResumePdf,
   onRestoreResumePdf,
@@ -135,7 +133,6 @@ function LeftPanel({
                       pdfFile={pdfFile}
                       activePdfTab={activePdfTab}
                       onSelectPdf={onSelectPdf}
-                      onTextSelection={onTextSelection}
                       t={t}
                       initialPage={initialPage}
                       onResumePdf={onResumePdf}

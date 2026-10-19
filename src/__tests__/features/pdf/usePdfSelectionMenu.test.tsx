@@ -69,8 +69,7 @@ describe('usePdfSelectionMenu — positioning', () => {
         pdfFile: { path: 'a.pdf', name: 'a.pdf', streamUrl: 'local://a', size: 100 },
         currentPage: 11,
         totalPages: 59,
-        zoomToken: props.zoomToken,
-        onTextSelection: vi.fn()
+        zoomToken: props.zoomToken
       })
     )
   }
@@ -139,8 +138,7 @@ describe('usePdfSelectionMenu — positioning', () => {
         containerRef: { current: resizable },
         pdfFile: { path: 'a.pdf', name: 'a.pdf', streamUrl: 'local://a', size: 100 },
         currentPage: 11,
-        totalPages: 59,
-        onTextSelection: vi.fn()
+        totalPages: 59
       })
     )
 
@@ -196,8 +194,7 @@ describe('usePdfSelectionMenu — positioning', () => {
           pdfFile: { path: 'a.pdf', name: 'a.pdf', streamUrl: 'local://a', size: 100 },
           currentPage: 11,
           totalPages: 59,
-          zoomToken,
-          onTextSelection: vi.fn()
+          zoomToken
         }),
       { initialProps: { zoomToken: 1 } }
     )
@@ -270,8 +267,7 @@ describe('usePdfSelectionMenu — action contract', () => {
         containerRef: { current: container },
         pdfFile: { path: 'a.pdf', name: 'a.pdf', streamUrl: 'local://a', size: 100 },
         currentPage: 11,
-        totalPages: 59,
-        onTextSelection: vi.fn()
+        totalPages: 59
       })
     )
   }
