@@ -38,7 +38,7 @@
     "analyze:types": "type-coverage --strict --project tsconfig.app.json --detail --ignore-files \"**/*.test.*\" --ignore-files \"**/*.spec.*\" --ignore-files \"**/__tests__/**\"",
     "analyze:types:ci": "node scripts/check-type-coverage.mjs",
     "analyze:mutation": "stryker run",
-    "analyze:css": "stylelint \"src/**/*.css\" \"electron/**/*.css\"",
+    "analyze:css": "stylelint \"src/**/*.css\"",
     "analyze:spell:ci": "cspell --no-progress --show-context --no-exit-code \"src/**/*.{ts,tsx}\" \"electron/**/*.{ts,tsx}\" \"shared/**/*.ts\"",
     "analyze:file-sizes": "node scripts/check-file-sizes.mjs",
     "analyze:all": "npm run analyze:deadcode && npm run analyze:duplicates && npm run analyze:circular && npm run analyze:architecture && npm run analyze:security && npm run analyze:types",

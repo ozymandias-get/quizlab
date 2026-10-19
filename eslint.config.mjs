@@ -386,12 +386,6 @@ export default [
     }
   },
   {
-    files: ['src/shared/i18n/locales/_index.ts'],
-    rules: {
-      'no-console': ['error', { allow: ['warn'] }]
-    }
-  },
-  {
     files: ['**/*.test.*', '**/*.spec.*', '**/__tests__/**'],
     rules: {
       'no-console': 'off',

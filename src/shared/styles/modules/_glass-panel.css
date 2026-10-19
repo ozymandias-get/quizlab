@@ -1,7 +1,6 @@
 /* Glass tiers mapped to oklch theme tokens */
 
 .glass-tier-1,
-.glass-tier-2,
 .glass-tier-3 {
   position: relative;
   isolation: isolate;
@@ -16,14 +15,6 @@
 .glass-tier-1 {
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-ambient-md);
-}
-
-.glass-tier-2 {
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-ambient-lg);
-  background-color: oklch(var(--popover) / 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .glass-tier-3 {
