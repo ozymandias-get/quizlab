@@ -1,5 +1,14 @@
 export const GOOGLE_AI_WEB_SESSION_PARTITION = 'persist:gemini_web_profile'
 
+/**
+ * The site id of the Google group.
+ *
+ * The Google apps are one site: they share a partition, a cookie set and a
+ * settings row. The id belongs here, so the target list and the state file
+ * cannot drift apart.
+ */
+export const GOOGLE_AI_WEB_SITE_ID = 'google'
+
 export type GoogleWebSessionAppId = 'gemini' | 'aistudio' | 'youtube' | 'gdrive'
 type GoogleWebSessionSurface = 'ai' | 'site' | 'pdf'
 

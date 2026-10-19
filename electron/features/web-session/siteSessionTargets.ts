@@ -13,6 +13,7 @@
 
 import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
+  GOOGLE_AI_WEB_SITE_ID,
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
 import { getSiteSessionCookieDomains } from '../../../shared/constants/siteSessionCookieDomains.js'
@@ -28,7 +29,6 @@ import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
 
 /** The Google family: many apps, one partition, one settings row. */
-const GOOGLE_SITE_ID = 'google'
 const GOOGLE_HOSTNAME = 'accounts.google.com'
 
 /**
@@ -109,10 +109,10 @@ function buildPlatformTarget(platform: AiPlatform): SiteSessionTargetRow | null 
 export function buildBuiltinSiteSessionTargets(): SiteSessionTargetRow[] {
   const targets: SiteSessionTargetRow[] = [
     {
-      siteId: GOOGLE_SITE_ID,
+      siteId: GOOGLE_AI_WEB_SITE_ID,
       hostname: GOOGLE_HOSTNAME,
       partition: GOOGLE_AI_WEB_SESSION_PARTITION,
-      cookieDomains: getSiteSessionCookieDomains(GOOGLE_SITE_ID),
+      cookieDomains: getSiteSessionCookieDomains(GOOGLE_AI_WEB_SITE_ID),
       labelKey: 'ws_target_google',
       kind: 'google',
       memberAppIds: GOOGLE_WEB_SESSION_APPS.map((app) => app.id)

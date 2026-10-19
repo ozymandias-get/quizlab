@@ -7,12 +7,15 @@
  * when a switch really changes, so the extension pushes cookies when the user
  * asked for it and not on every tick.
  *
- * Two rules hold the file together:
+ * Three rules hold the file together:
  *
  *   - Every mutation goes through `ConfigManager.update(...)`, which writes the
  *     *whole* state. A write that carried only the changed site would drop
  *     every other site — the migrated Google switch would silently fall back
  *     to "off" the moment the user switched another site on.
+ *   - The migration merges into whatever the file holds at that moment; it
+ *     never replaces the file with a state built from scratch. A replacement
+ *     would drop a switch that was set while the legacy file was being read.
  *   - `read()` never writes once the file exists. A version that advanced on
  *     every read would look like a change to the extension on every poll.
  */
@@ -22,8 +25,8 @@ import path from 'node:path'
 
 import { app } from 'electron'
 
+import { GOOGLE_AI_WEB_SITE_ID } from '../../../shared/constants/googleAiWebApps.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
-import { Logger } from '../../core/logger.js'
 
 /** The file this feature writes its state into. */
 const CONFIG_FILE_NAME = 'site-sessions.json'
@@ -31,10 +34,7 @@ const CONFIG_FILE_NAME = 'site-sessions.json'
 /** The file the old Google-only feature wrote its state into. */
 const LEGACY_CONFIG_FILE_NAME = 'gemini-web-session.json'
 
-/** The site id of the Google group: the one row the legacy file maps onto. */
-const GOOGLE_SITE_ID = 'google'
-
-/** The state version this build writes and understands. */
+/** The state version this build writes. */
 const CONFIG_VERSION = 1
 
 /** The keys a config file may not carry, mirroring `ConfigManager`'s guard. */
@@ -50,7 +50,13 @@ export interface SiteSessionTargetState {
 }
 
 export interface SiteSessionConfigFile {
-  version: 1
+  /**
+   * The format version of the file.
+   *
+   * A number rather than the literal `1`: a file written by a newer build
+   * keeps its version instead of being silently downgraded by this one.
+   */
+  version: number
   configVersion: number
   targets: Record<string, SiteSessionTargetState>
 }
@@ -98,17 +104,42 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
 }
 
 /**
+ * The counter the extension polls.
+ *
+ * The counter is clamped, not zeroed: a file that holds `"3"` as a string
+ * still counts as three, so the next write does not move it backwards.
+ */
+function normalizeConfigVersion(value: unknown): number {
+  const parsed =
+    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  if (!Number.isFinite(parsed)) return 0
+  return Math.max(0, Math.floor(parsed))
+}
+
+/**
+ * The format version of a file.
+ *
+ * A newer version is kept: this build must not pretend it understands a
+ * format it does not know. An older or broken one becomes this build's.
+ */
+function normalizeFormatVersion(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number.NaN
+  if (!Number.isFinite(parsed)) return CONFIG_VERSION
+  return Math.max(CONFIG_VERSION, Math.floor(parsed))
+}
+
+/**
  * One target's state, read from a file that may have been edited by hand.
  *
  * Every value is checked before it reaches the caller: a corrupt file must
  * not be able to put the app into a state the rest of the feature cannot
- * describe.
+ * describe. The fields this build does not know are kept, so a file written
+ * by a newer build does not lose them on the next write.
  */
 function normalizeTargetState(raw: unknown): SiteSessionTargetState {
-  const source = (
-    typeof raw === 'object' && raw !== null ? raw : {}
-  ) as Partial<SiteSessionTargetState>
+  const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   return {
+    ...source,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
     expiresAt: typeof source.expiresAt === 'string' ? source.expiresAt : null,
@@ -119,9 +150,7 @@ function normalizeTargetState(raw: unknown): SiteSessionTargetState {
 
 /** The whole file, normalized. An empty or missing file is an empty state. */
 function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
-  const source = (
-    typeof raw === 'object' && raw !== null ? raw : {}
-  ) as Partial<SiteSessionConfigFile>
+  const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const targets: Record<string, SiteSessionTargetState> = {}
 
   const rawTargets = source.targets
@@ -132,29 +161,42 @@ function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
     }
   }
 
-  const configVersion = source.configVersion
   return {
-    version: CONFIG_VERSION,
-    configVersion:
-      typeof configVersion === 'number' && Number.isFinite(configVersion) ? configVersion : 0,
+    ...source,
+    version: normalizeFormatVersion(source.version),
+    configVersion: normalizeConfigVersion(source.configVersion),
     targets
   }
 }
 
 /**
- * The state a fresh profile starts with.
+ * The migrated Google switch, merged into the state that is already there.
  *
- * Every switch is off. The one exception is the migration: a legacy profile
- * that had the Google feature on keeps it on.
+ * The migration adds a switch; it never replaces the state. A state built
+ * from scratch would drop every switch that was set while the legacy file
+ * was being read, and would roll the version back.
  */
-function buildInitialState(legacyEnabled: boolean | undefined): SiteSessionConfigFile {
-  const targets: Record<string, SiteSessionTargetState> = {}
-  if (legacyEnabled === true) {
-    targets[GOOGLE_SITE_ID] = createTargetState(true)
+export function mergeLegacyGoogleState(
+  state: SiteSessionConfigFile,
+  legacyEnabled: boolean | undefined
+): SiteSessionConfigFile {
+  if (legacyEnabled !== true || state.targets[GOOGLE_AI_WEB_SITE_ID]) return state
+  return {
+    ...state,
+    targets: {
+      ...state.targets,
+      [GOOGLE_AI_WEB_SITE_ID]: createTargetState(true)
+    }
   }
-  return { version: CONFIG_VERSION, configVersion: 0, targets }
 }
 
+/**
+ * The persisted state of the per-site session import.
+ *
+ * One instance per file: the class keeps the state it read in memory, so two
+ * instances over the same file write over each other. The app uses
+ * `getSiteSessionConfig()`; the constructor stays open for tests.
+ */
 export class SiteSessionConfig {
   private readonly configuredPath: string | null
   private resolvedPath: string | null = null
@@ -217,12 +259,38 @@ export class SiteSessionConfig {
    */
   private async loadState(): Promise<SiteSessionConfigFile> {
     if (await this.fileExists()) {
-      return normalizeConfigFile(await this.store.read())
+      // The file is read from disk, not from the store's cache: another
+      // instance — or another program — may have written it since the last
+      // read, and the cache would hide that.
+      return normalizeConfigFile(await this.store.read(true))
     }
 
-    const initial = buildInitialState(migrateLegacyGoogleEnabled(await this.readLegacyState()))
-    await this.store.write(initial)
-    return initial
+    return this.migrateLegacyState()
+  }
+
+  /**
+   * The one-time migration: the legacy Google switch becomes the switch of
+   * the Google site.
+   *
+   * The merge runs inside the store's queue and merges into whatever the
+   * file holds at that moment. Writing a state built from scratch would
+   * replace a switch that was set while the legacy file was being read, and
+   * would roll the version back.
+   */
+  private async migrateLegacyState(): Promise<SiteSessionConfigFile> {
+    const legacyEnabled = migrateLegacyGoogleEnabled(await this.readLegacyState())
+
+    // The file may have appeared while the legacy file was being read: read
+    // it from disk so the merge starts from what is really there.
+    if (await this.fileExists()) {
+      await this.store.read(true)
+    }
+
+    await this.store.update((current) =>
+      mergeLegacyGoogleState(normalizeConfigFile(current), legacyEnabled)
+    )
+
+    return normalizeConfigFile(await this.store.read(true))
   }
 
   /** The whole state: the switches, the import history and the version. */
@@ -242,25 +310,35 @@ export class SiteSessionConfig {
    * The whole state is written, not only the site that changed, and the
    * version advances only when the switch really changed: the extension reads
    * the version to learn that the list of sites it should push for changed.
+   *
+   * @throws when the state could not be written. A switch that was not
+   *   persisted must not be reported to the user as done.
    */
   async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionConfigFile> {
-    await this.loadState()
+    const state = await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) {
+      // A prohibited id never reaches the file; the read path drops it too.
+      return state
+    }
 
     const written = await this.store.update((current) => {
-      const state = normalizeConfigFile(current)
-      const existing = state.targets[siteId] ?? createTargetState(false)
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId] ?? createTargetState(false)
       return {
-        version: CONFIG_VERSION,
-        configVersion: existing.enabled === enabled ? state.configVersion : state.configVersion + 1,
+        ...currentState,
+        configVersion:
+          existing.enabled === enabled
+            ? currentState.configVersion
+            : currentState.configVersion + 1,
         targets: {
-          ...state.targets,
+          ...currentState.targets,
           [siteId]: { ...existing, enabled }
         }
       }
     })
 
     if (!written) {
-      Logger.error(`[Web Session] The switch of "${siteId}" could not be written.`)
+      throw new Error(`[Web Session] The switch of "${siteId}" could not be written.`)
     }
 
     return this.loadState()
@@ -271,6 +349,8 @@ export class SiteSessionConfig {
    *
    * The switch itself does not change, so the version stays: the extension
    * has nothing new to push.
+   *
+   * @throws when the state could not be written.
    */
   async recordResult(
     siteId: string,
@@ -278,15 +358,16 @@ export class SiteSessionConfig {
     error?: string
   ): Promise<void> {
     await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
 
     const written = await this.store.update((current) => {
-      const state = normalizeConfigFile(current)
-      const existing = state.targets[siteId] ?? createTargetState(false)
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId] ?? createTargetState(false)
       return {
-        version: CONFIG_VERSION,
-        configVersion: state.configVersion,
+        ...currentState,
+        configVersion: currentState.configVersion,
         targets: {
-          ...state.targets,
+          ...currentState.targets,
           [siteId]: {
             ...existing,
             importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
@@ -298,7 +379,7 @@ export class SiteSessionConfig {
     })
 
     if (!written) {
-      Logger.error(`[Web Session] The import result of "${siteId}" could not be written.`)
+      throw new Error(`[Web Session] The import result of "${siteId}" could not be written.`)
     }
   }
 
@@ -307,4 +388,18 @@ export class SiteSessionConfig {
     const state = await this.loadState()
     return state.configVersion
   }
+}
+
+let sharedConfig: SiteSessionConfig | null = null
+
+/**
+ * The instance the app uses.
+ *
+ * The class keeps the file's state in memory, so two instances over the same
+ * file write over each other. The app shares this one; the constructor stays
+ * open for tests.
+ */
+export function getSiteSessionConfig(): SiteSessionConfig {
+  sharedConfig ??= new SiteSessionConfig()
+  return sharedConfig
 }

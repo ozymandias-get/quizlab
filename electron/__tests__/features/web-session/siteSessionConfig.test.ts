@@ -1,4 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  promises as fs,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -6,9 +13,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   SiteSessionConfig,
+  getSiteSessionConfig,
   getSiteSessionConfigPath,
+  mergeLegacyGoogleState,
   migrateLegacyGoogleEnabled
 } from '../../../features/web-session/siteSessionConfig.js'
+import type { SiteSessionConfigFile } from '../../../features/web-session/siteSessionConfig.js'
 import { deriveSiteSessionStatus } from '../../../features/web-session/siteSessionStatus.js'
 
 /** The user data folder the app keeps its state in. */
@@ -136,6 +146,57 @@ describe('legacy google migration', () => {
   })
 })
 
+describe('legacy google merge', () => {
+  const stateWithChatgpt: SiteSessionConfigFile = {
+    version: 1,
+    configVersion: 1,
+    targets: {
+      chatgpt: {
+        enabled: true,
+        importedAt: null,
+        expiresAt: null,
+        lastResult: null,
+        lastError: null
+      }
+    }
+  }
+
+  it('adds the migrated switch to the state that is already there', () => {
+    const merged = mergeLegacyGoogleState(stateWithChatgpt, true)
+
+    expect(merged.targets.google.enabled).toBe(true)
+    expect(merged.targets.chatgpt.enabled).toBe(true)
+    expect(merged.configVersion).toBe(1)
+  })
+
+  it('leaves a state that already has a Google switch alone', () => {
+    const state: SiteSessionConfigFile = {
+      ...stateWithChatgpt,
+      targets: {
+        ...stateWithChatgpt.targets,
+        google: {
+          enabled: false,
+          importedAt: null,
+          expiresAt: null,
+          lastResult: null,
+          lastError: null
+        }
+      }
+    }
+
+    const merged = mergeLegacyGoogleState(state, true)
+
+    // The user turned the Google switch off in the new app; the legacy file
+    // may not turn it back on.
+    expect(merged.targets.google.enabled).toBe(false)
+  })
+
+  it('leaves the state alone when the legacy profile had no switch', () => {
+    expect(mergeLegacyGoogleState(stateWithChatgpt, undefined)).toEqual(stateWithChatgpt)
+    expect(mergeLegacyGoogleState(stateWithChatgpt, false)).toEqual(stateWithChatgpt)
+  })
+})
+
 describe('site session config', () => {
   let tempDir: string
 
@@ -155,6 +216,10 @@ describe('site session config', () => {
     writeFileSync(path.join(tempDir, 'gemini-web-session.json'), JSON.stringify(contents), 'utf8')
   }
 
+  function writeRawConfig(contents: unknown): void {
+    writeFileSync(configPath(), JSON.stringify(contents), 'utf8')
+  }
+
   function readRawConfig(): {
     version: number
     configVersion: number
@@ -165,6 +230,10 @@ describe('site session config', () => {
 
   it('keeps the state file in the user data folder', () => {
     expect(getSiteSessionConfigPath()).toBe(path.join(USER_DATA, 'site-sessions.json'))
+  })
+
+  it('shares one instance for the app', () => {
+    expect(getSiteSessionConfig()).toBe(getSiteSessionConfig())
   })
 
   it('starts every switch off on a fresh profile', async () => {
@@ -218,6 +287,41 @@ describe('site session config', () => {
     expect(await config.isEnabled('google')).toBe(true)
   })
 
+  it('does not read the legacy file again once the state file exists', async () => {
+    writeLegacy({ enabled: true })
+    const config = new SiteSessionConfig(configPath())
+    await config.read()
+
+    // The legacy file is not the authority any more: the state file is.
+    writeLegacy({ enabled: false })
+    await config.read()
+
+    expect(await config.isEnabled('google')).toBe(true)
+  })
+
+  it('keeps the merged map when the migrated Google switch is turned off', async () => {
+    writeLegacy({ enabled: true })
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+
+    await config.setEnabled('google', false)
+
+    const raw = readRawConfig()
+    expect(raw.targets.google.enabled).toBe(false)
+    expect(raw.targets.chatgpt.enabled).toBe(true)
+  })
+
+  it('keeps every site that was switched on', async () => {
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('claude', true)
+
+    const raw = readRawConfig()
+    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.targets.claude.enabled).toBe(true)
+  })
+
   it('keeps the migrated Google switch when another site is switched on', async () => {
     writeLegacy({ enabled: true })
     const config = new SiteSessionConfig(configPath())
@@ -235,6 +339,62 @@ describe('site session config', () => {
     const config = new SiteSessionConfig(configPath())
 
     await config.setEnabled('chatgpt', true)
+
+    const raw = readRawConfig()
+    expect(raw.targets.google.enabled).toBe(true)
+    expect(raw.targets.chatgpt.enabled).toBe(true)
+  })
+
+  it('keeps a switch that was set while the first read was still running', async () => {
+    // The migration and the first write race each other: neither may replace
+    // the state the other one wrote.
+    writeLegacy({ enabled: true })
+    const config = new SiteSessionConfig(configPath())
+
+    await Promise.all([config.read(), config.setEnabled('chatgpt', true)])
+
+    const raw = readRawConfig()
+    expect(raw.targets.google.enabled).toBe(true)
+    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.configVersion).toBe(1)
+  })
+
+  it('does not replace the state that was written while the legacy file was read', async () => {
+    writeLegacy({ enabled: true })
+    const config = new SiteSessionConfig(configPath())
+
+    // The legacy file is read slowly, so the migration lands *after* the
+    // switch was written. The migration may not replace it.
+    const realReadFile = fs.readFile
+    let delayed = false
+    const spy = vi.spyOn(fs, 'readFile').mockImplementation(async (file, encoding) => {
+      if (!delayed && String(file).endsWith('gemini-web-session.json')) {
+        delayed = true
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      return realReadFile(file, encoding)
+    })
+
+    try {
+      await Promise.all([config.read(), config.setEnabled('chatgpt', true)])
+    } finally {
+      spy.mockRestore()
+    }
+
+    const raw = readRawConfig()
+    expect(raw.targets.google.enabled).toBe(true)
+    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.configVersion).toBe(1)
+  })
+
+  it('does not let a second instance drop what the first one wrote', async () => {
+    const first = new SiteSessionConfig(configPath())
+    const second = new SiteSessionConfig(configPath())
+
+    // The second instance reads the file before the first one writes it.
+    await second.read()
+    await first.setEnabled('google', true)
+    await second.setEnabled('chatgpt', true)
 
     const raw = readRawConfig()
     expect(raw.targets.google.enabled).toBe(true)
@@ -277,5 +437,53 @@ describe('site session config', () => {
     expect(state.targets.chatgpt.enabled).toBe(false)
     expect(state.targets.chatgpt.lastResult).toBe('failed')
     expect(state.targets.chatgpt.lastError).toBe('the bridge is gone')
+  })
+
+  it('never writes a site id the file may not carry', async () => {
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setEnabled('__proto__', true)
+    await config.recordResult('constructor', 'imported')
+
+    expect(Object.keys(readRawConfig().targets)).toEqual([])
+  })
+
+  it('keeps the counter of a file that holds it as a string', async () => {
+    writeRawConfig({ version: 1, configVersion: '3', targets: {} })
+    const config = new SiteSessionConfig(configPath())
+
+    expect(await config.getConfigVersion()).toBe(3)
+
+    await config.setEnabled('chatgpt', true)
+    expect(await config.getConfigVersion()).toBe(4)
+  })
+
+  it('keeps the version of a file written by a newer build', async () => {
+    writeRawConfig({ version: 2, configVersion: 0, targets: {} })
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setEnabled('chatgpt', true)
+
+    const raw = JSON.parse(readFileSync(configPath(), 'utf8'))
+    expect(raw.version).toBe(2)
+  })
+
+  it('keeps the fields this build does not know', async () => {
+    writeRawConfig({ version: 1, configVersion: 0, targets: {}, future: { keep: true } })
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setEnabled('chatgpt', true)
+
+    const raw = JSON.parse(readFileSync(configPath(), 'utf8'))
+    expect(raw.future).toEqual({ keep: true })
+  })
+
+  it('reports a failed write instead of pretending the switch was set', async () => {
+    // A folder where the state file should be: every write fails.
+    mkdirSync(configPath(), { recursive: true })
+    const config = new SiteSessionConfig(configPath())
+
+    await expect(config.setEnabled('chatgpt', true)).rejects.toThrow(/could not be written/)
+    await expect(config.recordResult('chatgpt', 'imported')).rejects.toThrow(/could not be written/)
   })
 })
