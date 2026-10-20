@@ -99,7 +99,6 @@ type RendererParityChecks = [
     typeof IPC_CHANNELS.SHELL_INTEGRATION_STATUS,
     ElectronApi['shellIntegration']['getStatus']
   >,
-  RendererCovers<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
   RendererCovers<typeof IPC_CHANNELS.SITE_SESSION_LIST, ElectronApi['siteSession']['list']>,
   RendererCovers<
     typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
@@ -159,7 +158,6 @@ type RendererKeyParityChecks = [
     typeof IPC_CHANNELS.SHELL_INTEGRATION_STATUS,
     ElectronApi['shellIntegration']['getStatus']
   >,
-  RendererKeysMatch<typeof IPC_CHANNELS.GEMINI_WEB_STATUS, ElectronApi['geminiWeb']['getStatus']>,
   RendererKeysMatch<typeof IPC_CHANNELS.SITE_SESSION_LIST, ElectronApi['siteSession']['list']>,
   RendererKeysMatch<
     typeof IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
@@ -228,13 +226,6 @@ assertInvokeChannel(IPC_CHANNELS.DELETE_AI_CONFIG)
 assertInvokeChannel(IPC_CHANNELS.ADD_CUSTOM_AI)
 assertInvokeChannel(IPC_CHANNELS.DELETE_CUSTOM_AI)
 assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_STATUS)
-
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED)
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS)
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)
-assertInvokeChannel(IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)
 
 // Per-site Chrome session sharing. The invoke channels read and mutate the
 // per-site switch; the change event pushes a fresh list to the renderer.

@@ -3,8 +3,6 @@
   "toast_opened": "\"{fileName}\" successfully opened",
   "toast_config_saved": "Configuration Saved",
   "toast_config_deleted": "Configuration Deleted",
-  "toast_gws_reset_failed": "Google AI web profile reset failed",
-  "toast_gws_toggle_failed": "Google AI web enable/disable update failed",
   "toast_cache_cleared": "Application cache cleared",
   "toast_cache_cleared_failed": "Failed to clear cache",
   "quick_preset_reset_done": "Quick presets reset",

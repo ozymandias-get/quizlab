@@ -5,16 +5,10 @@ export interface AppToolMockState {
 
   showWarning: any
 
-  invalidateQueries: any
-
   startPicker: any
 
-  onRefreshEvent: any
-
-  mutateAsync: any
   contentController: Element | null
   autoSend: boolean
-  geminiLoginPending: boolean
 
   sendTextToAI: any
 
@@ -26,13 +20,9 @@ export interface AppToolMockState {
 export const mockState: AppToolMockState = {
   showError: vi.fn(),
   showWarning: vi.fn(),
-  invalidateQueries: vi.fn().mockResolvedValue(undefined),
   startPicker: vi.fn(),
-  onRefreshEvent: vi.fn(),
-  mutateAsync: vi.fn(),
   contentController: null,
   autoSend: false,
-  geminiLoginPending: false,
   sendTextToAI: vi.fn(),
   sendImageToAI: vi.fn(),
   sendBulkToAI: vi.fn()

@@ -3,8 +3,6 @@
   "toast_opened": "\"{fileName}\" başarıyla açıldı",
   "toast_config_saved": "Yapılandırma Kaydedildi",
   "toast_config_deleted": "Yapılandırma Silindi",
-  "toast_gws_reset_failed": "Google AI web profil sıfırlama başarısız",
-  "toast_gws_toggle_failed": "Google AI web aç/kapat güncellenemedi",
   "toast_cache_cleared": "Uygulama önbelleği temizlendi",
   "toast_cache_cleared_failed": "Önbellek temizlenemedi",
   "quick_preset_reset_done": "Hazır komutlar sıfırlandı",

@@ -4,12 +4,9 @@
  * removed constant will silently break IPC, so we pin them down here.
  */
 import {
-  DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS,
-  GOOGLE_AI_WEB_APPS,
   GOOGLE_DRIVE_WEB_APP,
   GOOGLE_WEB_SESSION_APPS,
-  GOOGLE_WEB_SESSION_REGISTRY_IDS,
-  PRIMARY_GOOGLE_AI_WEB_APP
+  GOOGLE_WEB_SESSION_REGISTRY_IDS
 } from '@shared-core/constants/googleAiWebApps'
 import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 
@@ -142,36 +139,10 @@ describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {
     }
   })
 
-  it('every registryEligible and healthCheckEligible is a boolean', () => {
+  it('every registryEligible is a boolean', () => {
     for (const app of GOOGLE_WEB_SESSION_APPS) {
       expect(typeof app.registryEligible).toBe('boolean')
-      expect(typeof app.healthCheckEligible).toBe('boolean')
     }
-  })
-
-  it('healthPathPrefixes is always an array', () => {
-    for (const app of GOOGLE_WEB_SESSION_APPS) {
-      expect(Array.isArray(app.healthPathPrefixes)).toBe(true)
-    }
-  })
-})
-
-describe('GOOGLE_AI_WEB_APPS - filtered subset', () => {
-  it('contains only apps that are healthCheckEligible', () => {
-    for (const app of GOOGLE_AI_WEB_APPS) {
-      expect(app.healthCheckEligible).toBe(true)
-    }
-  })
-
-  it('is a subset of GOOGLE_WEB_SESSION_APPS', () => {
-    const fullIds = new Set(GOOGLE_WEB_SESSION_APPS.map((a) => a.id))
-    for (const app of GOOGLE_AI_WEB_APPS) {
-      expect(fullIds.has(app.id)).toBe(true)
-    }
-  })
-
-  it('PRIMARY_GOOGLE_AI_WEB_APP is the first entry', () => {
-    expect(PRIMARY_GOOGLE_AI_WEB_APP).toBe(GOOGLE_AI_WEB_APPS[0])
   })
 })
 
@@ -184,13 +155,6 @@ describe('GOOGLE_WEB_SESSION_REGISTRY_IDS', () => {
 
   it('does not include registry-ineligible apps (e.g. gdrive)', () => {
     expect(GOOGLE_WEB_SESSION_REGISTRY_IDS).not.toContain('gdrive')
-  })
-})
-
-describe('DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS', () => {
-  it('includes all web session app ids by default', () => {
-    const allIds = GOOGLE_WEB_SESSION_APPS.map((a) => a.id).sort()
-    expect([...DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS].sort()).toEqual(allIds)
   })
 })
 

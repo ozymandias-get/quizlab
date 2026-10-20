@@ -74,10 +74,6 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
   readCustomPlatforms: async () => ({})
 }))
 
-vi.mock('../../../features/gemini-web-session/sessionConfig.js', () => ({
-  PROFILE_PARTITION: 'persist:gemini_web_profile'
-}))
-
 const manager = await import('../../../features/ai-view/aiWebContentsViewManager.js')
 vi.mock('../../../features/ai-view/aiWebContentsViewManager.js', async () => {
   const actual = await vi.importActual<

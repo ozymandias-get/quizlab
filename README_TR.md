@@ -85,9 +85,7 @@ ve tanılama araçları:
   DeepSeek, Qwen, Claude, Kimi ve M365 Copilot hazır olarak kayıtlıdır; kendi
   siteleriniz de eklenebilir. Her site kendi kalıcı oturumunda çalışır, böylece
   girişler yeniden başlatmalardan sonra korunur. `API Chat` sekmesi ise uygulama
-  içinde çizilen yerel bir sohbet yüzeyi sunar. Gemini, AI Studio ve YouTube
-  yalnızca Google oturumu **Ayarlar → Google AI Web Oturumu** bölümünde etkinken
-  listelenir.
+  içinde çizilen yerel bir sohbet yüzeyi sunar.
 - **Gönderme bileşeni** — seçilen metin, sayfanın tamamı görüntü olarak, seçim
   dikdörtgeni ya da kırpılmış ekran görüntüsü kuyruğa alınır ve sırayla
   iletilir. Otomatik Gönderim genel bir tercihtir: kapalıyken uygulama yalnızca
@@ -105,10 +103,12 @@ ve tanılama araçları:
   OpenAI, Anthropic, Google ve NVIDIA için hazır sağlayıcı şablonları gelir;
   `custom` ise uyumlu herhangi bir geçidi kapsar. İstekler SSRF doğrulaması ve
   DNS sabitleme ile ana süreçten yapılır.
-- **Google AI web oturumu** — Gemini, AI Studio ve YouTube, ayrılmış bir oturum
-  bölümünde tutulan tek bir Google oturumunu paylaşır; periyodik sağlık
-  kontrolleri ve şifrelenmiş dışa/içe aktarma desteklenir. Paketlenmiş Chrome
-  eklentisi mevcut Google çerezlerini yerel köprü üzerinden devredebilir.
+- **Site oturumları** — kullandığınız her sitenin **Ayarlar → Oturum Aktarımı**
+  bölümünde kendi "Chrome'dan çek" anahtarı vardır. Anahtar açıkken paketlenmiş
+  Chrome eklentisi sitenin çerezlerini kendi Chrome profilinizden yerel köprü
+  üzerinden devreder; anahtar kapalıyken site uygulama içinde giriş ister.
+  Google ailesi (Gemini, AI Studio, YouTube, Google Drive) tek hesabı paylaşır ve
+  tek satırdır.
 - **Görünüm** — animasyonlu veya düz arka planlar, cam ölçeği, seçim rengi, vurgu
   rengi ve gerçekten kullandığınız araçlar için yapılandırılabilir merkez (hub).
 - **Dil** — İngilizce ve Türkçe; ilk çalıştırmada seçilir, ayarlardan değiştirilir.
@@ -161,7 +161,7 @@ ve tanılama araçları:
   aralığından gelir ve Vite ile Vitest'in yayımladığı aralıklardan daha katıdır)
 - npm — kilit dosyası `package-lock.json`, CI `npm ci` kullanır
 - Git
-- Yalnızca Google AI web oturumunu istiyorsanız Google hesabı
+- Yalnızca Google sitelerini (Gemini, AI Studio, YouTube, Google Drive) kullanacaksanız Google hesabı
 - Yalnızca doğrudan API sohbetini istiyorsanız API anahtarları
 - Yalnızca oturum köprüsü eklentisini istiyorsanız Google Chrome
 
@@ -198,7 +198,6 @@ geliştirmede önemli olanlar:
 | `QUIZLAB_USER_DATA_DIR`         | Kullanıcı verisi için mutlak yol geçersiz kılma                                        |
 | `QUIZLAB_DISABLE_GPU=1`         | Donanım hızlandırmayı kapat                                                            |
 | `QUIZLAB_EXTENSION_BRIDGE_PORT` | Chrome çerez köprüsü için yerel port (varsayılan `51999`)                              |
-| `GEMINI_WEB_*`                  | Google oturumu sağlık kontrol aralıkları ve zaman aşımları                             |
 
 `stable` dışında bir `QUIZLAB_PROFILE` kullanmak tek örnekli kilidi de devre dışı
 bırakır; bu, iki profili yan yana çalıştırmak için kullanışlıdır.
@@ -257,8 +256,8 @@ Preload (electron/preload/)
         v
 Main (electron/)
   ipcMain handler'ları, her çağrıda güvenilir gönderici kontrolü
-  özellik modülleri: ai-view, ai, automation, gemini-web-session, native-messaging,
-                     pdf, screenshot, settings, shell-open
+  özellik modülleri: ai-view, ai, automation, native-messaging,
+                     pdf, screenshot, settings, shell-open, web-session
   core: yapılandırma deposu, şifreleme, CSP, günlükleme, önbellek, güncelleyici
         |
         +--> local-pdf:// protokolü -> yerel PDF dosyaları (izin listesi, bayt aralıkları)
@@ -297,8 +296,9 @@ dosyasına bakın.
 electron/            Ana süreç
   app/               Giriş noktası, pencere oluşturma, oturum/CSP/güvenlik, IPC bağlantısı
   core/              Yapılandırma deposu, şifreleme, günlükleme, önbellek, güncelleyici, tipli IPC
-  features/          Özellik handler'ları (ai, automation, gemini-web-session,
-                     native-messaging, pdf, screenshot, settings, shell-open)
+  features/          Özellik handler'ları (ai, automation,
+                     native-messaging, pdf, screenshot, settings, shell-open,
+                     web-session)
   preload/           contextBridge yüzeyi
   __tests__/         Ana süreç testleri
 shared/              Süreçler arası sözleşmeler: IPC kanalları, tipler, sabitler
@@ -308,7 +308,7 @@ src/                 Renderer
   platform/electron/ Uygulama ile window.electronAPI arasındaki adaptörler
   shared/            Paylaşılan arayüz, hook'lar, i18n, stiller, store'lar, lib
   __tests__/         Renderer testleri
-extensions/          Google oturum köprüsü için Chrome eklentisi
+extensions/          Site oturum köprüsü için Chrome eklentisi
 installer/           NSIS özel yükleyici mantığı
 scripts/             Geliştirme ve derleme otomasyonu
 docs/                Mimari, kodlama standardı, terminoloji, yol haritası
@@ -381,7 +381,7 @@ Vitest her iki süreci de çalıştırır: `src/__tests__/` jsdom'da,
 kasıtlı olarak tekrarlanmıyor.
 
 Coverage eşikleri `vitest.config.mts` içinde kapsam başına uygulanır — genel
-olarak satır için %50, ayrıca `electron/features/gemini-web-session`,
+olarak satır için %50, ayrıca `electron/features/web-session`,
 `electron/features/automation`, `electron/core`,
 `electron/features/ai/apiChatHandlers` ve PDF özelliği için ayrı tabanlar.
 `npm run analyze:mutation` ile Stryker çalıştırılır.

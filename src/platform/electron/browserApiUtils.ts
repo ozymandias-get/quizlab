@@ -1,5 +1,4 @@
-import type { GoogleWebSessionAppId } from '@shared-core/constants/googleAiWebApps'
-import type { GeminiWebSessionStatus, PdfSelection } from '@shared-core/types'
+import type { PdfSelection } from '@shared-core/types'
 
 const objectUrls = new Set<string>()
 let beforeUnloadListenerRegistered = false
@@ -11,20 +10,6 @@ export const getPlatform = (): string => {
   if (platform.includes('linux')) return 'linux'
   return 'web'
 }
-
-export const createGeminiStatus = (
-  enabled: boolean,
-  enabledAppIds: GoogleWebSessionAppId[]
-): GeminiWebSessionStatus => ({
-  state: enabled ? 'auth_required' : 'uninitialized',
-  lastHealthyAt: null,
-  lastCheckAt: new Date().toISOString(),
-  consecutiveFailures: 0,
-  reasonCode: 'none',
-  featureEnabled: enabled,
-  enabled,
-  enabledAppIds
-})
 
 export const toMapRecord = <T>(map: Map<string, T>): Record<string, T> => {
   const record: Record<string, T> = {}

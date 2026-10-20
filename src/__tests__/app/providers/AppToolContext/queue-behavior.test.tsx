@@ -49,36 +49,6 @@ vi.mock('@app/providers/app-tool/aiContentPickerReadiness', () => ({
   waitForContentReady: vi.fn().mockResolvedValue(undefined)
 }))
 
-vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
-  GEMINI_WEB_REQUIRES_LOGIN_ERROR: 'error_refresh_failed_requires_login',
-  GEMINI_WEB_STATUS_KEY: ['gemini-web', 'status'],
-  useGeminiWebOpenLogin: () => ({
-    mutateAsync: (...args: any[]) => (mockState.mutateAsync as any)(...args),
-    isPending: mockState.geminiLoginPending
-  })
-}))
-
-vi.mock('@shared/lib/electronApi', () => ({
-  getElectronApi: () => ({
-    geminiWeb: {
-      onRefreshEvent: (callback: (...args: any[]) => void) => {
-        mockState.onRefreshEvent(callback)
-        return () => {} // return a proper unsubscribe function
-      }
-    }
-  })
-}))
-
-vi.mock('@tanstack/react-query', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-query')>()
-  return {
-    ...actual,
-    useQueryClient: () => ({
-      invalidateQueries: (...args: any[]) => (mockState.invalidateQueries as any)(...args)
-    })
-  }
-})
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))

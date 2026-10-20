@@ -5,7 +5,6 @@ import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-import { GOOGLE_WEB_SESSION_REGISTRY_IDS } from '../../../shared/constants/googleAiWebApps.js'
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import {
@@ -16,7 +15,6 @@ import { setupAiSession } from '../../app/window/sessions.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
-import { geminiWebSessionManager } from '../gemini-web-session/sessionManager.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
 import { getCustomPlatformStore } from './customPlatformStore.js'
 
@@ -185,23 +183,6 @@ export function registerAiRegistryHandlers() {
             setupAiSession(platform.partition)
           } catch (error) {
             Logger.warn('[AI] Failed to configure custom session permissions:', error)
-          }
-        }
-
-        try {
-          const geminiStatus = await geminiWebSessionManager.getStatus()
-          const isGoogleWebEnabled = geminiStatus.featureEnabled && geminiStatus.enabled
-          const enabledAppIds = new Set(geminiStatus.enabledAppIds)
-
-          for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
-            if (!isGoogleWebEnabled || !enabledAppIds.has(appId)) {
-              delete mergedRegistry[appId]
-            }
-          }
-        } catch (error) {
-          Logger.warn('[IPC] Failed to resolve gemini session status for AI registry:', error)
-          for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
-            delete mergedRegistry[appId]
           }
         }
 

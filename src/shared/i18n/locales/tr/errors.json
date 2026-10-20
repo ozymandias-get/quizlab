@@ -34,8 +34,6 @@
   "error_web_dev_mode_only": "Bu işlem yalnızca masaüstü uygulamasında kullanılabilir.",
   "error_wrong_url": "Yanlış AI sitesindesiniz",
   "error_invalid_pdf": "Geçerli bir PDF dosyası değil",
-  "error_gws_disabled": "Google AI web uygulamaları kapalı. Ayarlardan etkinleştirin.",
-  "error_refresh_failed_requires_login": "Google oturumu yenilenemedi. Devam etmek için Google'a yeniden giriş yapın.",
   "browser_fallback_title": "Masaüstü Ortamı Gerekli",
   "browser_fallback_description": "Bu uygulama, dosya sistemine ve yerel entegrasyonlara erişebilmek için yalnızca Electron veya masaüstü ortamında çalışacak şekilde tasarlanmıştır. Tarayıcı önizlemesi desteklenmez.",
   "browser_fallback_download": "İndir ve Kur",

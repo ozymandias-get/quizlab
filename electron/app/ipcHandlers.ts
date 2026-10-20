@@ -4,7 +4,6 @@ import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers/apiChatHandlers.js'
 import { registerAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
-import { registerGeminiWebSessionHandlers } from '../features/gemini-web-session/geminiWebSessionHandlers.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
 import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
@@ -29,7 +28,6 @@ export function registerGeneralHandlers() {
   registerAiRegistryHandlers()
   registerApiChatHandlers()
   registerAutomationHandlers()
-  registerGeminiWebSessionHandlers()
   registerSiteSessionHandlers()
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()

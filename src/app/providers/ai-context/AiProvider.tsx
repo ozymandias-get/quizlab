@@ -1,5 +1,4 @@
 import { useAiRegistry } from '@platform/electron/api/useAiApi'
-import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
 
 import { useChatUiStore } from '@features/ai'
 
@@ -34,7 +33,6 @@ import { useAiProviderContexts } from './useAiProviderContexts'
 function AiProvider({ children }: { children: ReactNode }) {
   const { showWarning } = useToastActions()
   const { data: registryData, isLoading, isError } = useAiRegistry()
-  const { data: geminiWebStatus } = useGeminiWebStatus()
   const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
 
   const {
@@ -57,8 +55,7 @@ function AiProvider({ children }: { children: ReactNode }) {
   } = useAiModelPreferences({
     registryData,
     isLoading,
-    isError,
-    geminiWebStatus
+    isError
   })
 
   const {

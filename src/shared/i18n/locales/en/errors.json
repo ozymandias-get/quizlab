@@ -34,8 +34,6 @@
   "error_web_dev_mode_only": "This action is only available in the desktop app.",
   "error_wrong_url": "Wrong AI platform URL",
   "error_invalid_pdf": "Not a valid PDF file",
-  "error_gws_disabled": "Google AI web apps are disabled. Enable them from settings.",
-  "error_refresh_failed_requires_login": "Google session refresh failed. Sign in to Google again to continue.",
   "browser_fallback_title": "Desktop Environment Required",
   "browser_fallback_description": "This app is designed to run only inside Electron or a desktop environment so it can access the file system and local integrations. Browser preview is not supported.",
   "browser_fallback_download": "Download & Install",

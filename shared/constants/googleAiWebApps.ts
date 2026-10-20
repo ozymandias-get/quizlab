@@ -21,8 +21,6 @@ interface GoogleWebSessionAppDefinition {
   color: string
   surface: GoogleWebSessionSurface
   registryEligible: boolean
-  healthCheckEligible: boolean
-  healthPathPrefixes: string[]
 }
 
 export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
@@ -34,9 +32,7 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
     icon: 'gemini',
     color: '#f9ab00',
     surface: 'ai',
-    registryEligible: true,
-    healthCheckEligible: true,
-    healthPathPrefixes: ['/app']
+    registryEligible: true
   },
   {
     id: 'aistudio',
@@ -46,9 +42,7 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
     icon: 'aistudio',
     color: '#4285f4',
     surface: 'ai',
-    registryEligible: true,
-    healthCheckEligible: true,
-    healthPathPrefixes: ['/prompts/']
+    registryEligible: true
   },
   {
     id: 'youtube',
@@ -58,9 +52,7 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
     icon: 'youtube',
     color: '#ff0033',
     surface: 'site',
-    registryEligible: true,
-    healthCheckEligible: false,
-    healthPathPrefixes: []
+    registryEligible: true
   },
   {
     id: 'gdrive',
@@ -70,19 +62,12 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
     icon: 'gdrive',
     color: '#1a73e8',
     surface: 'pdf',
-    registryEligible: false,
-    healthCheckEligible: false,
-    healthPathPrefixes: []
+    registryEligible: false
   }
 ]
 
-export const GOOGLE_AI_WEB_APPS = GOOGLE_WEB_SESSION_APPS.filter((app) => app.healthCheckEligible)
-export const DEFAULT_GOOGLE_WEB_SESSION_ENABLED_APP_IDS = GOOGLE_WEB_SESSION_APPS.map(
-  (app) => app.id
-)
 export const GOOGLE_WEB_SESSION_REGISTRY_IDS = GOOGLE_WEB_SESSION_APPS.filter(
   (app) => app.registryEligible
 ).map((app) => app.id)
 export const GOOGLE_DRIVE_WEB_APP =
   GOOGLE_WEB_SESSION_APPS.find((app) => app.id === 'gdrive') || GOOGLE_WEB_SESSION_APPS[0]
-export const PRIMARY_GOOGLE_AI_WEB_APP = GOOGLE_AI_WEB_APPS[0]

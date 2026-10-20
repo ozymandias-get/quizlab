@@ -1,15 +1,9 @@
-import {
-  GOOGLE_WEB_SESSION_REGISTRY_IDS,
-  type GoogleWebSessionAppId
-} from '@shared-core/constants/googleAiWebApps'
 import type {
   AiPlatform,
   AiRegistryResponse,
   AiSelectorConfig,
   CustomAiInput,
   CustomAiResult,
-  GeminiWebSessionActionResult,
-  GeminiWebSessionStatus,
   NativeMessagingExtensionInfo,
   UpdateCheckResult
 } from '@shared-core/types'
@@ -17,7 +11,6 @@ import type {
 import { parseUrlWithAllowedProtocols } from '@shared/lib/urlUtils'
 
 import {
-  createGeminiStatus,
   getPlatform,
   registerBeforeUnloadCleanup,
   selectPdfInBrowser,
@@ -29,11 +22,6 @@ const stubReturn =
   <T>(val: T) =>
   async () =>
     val
-
-const webDevOnlyError = (): GeminiWebSessionActionResult => ({
-  success: false,
-  error: 'web_dev_mode_only'
-})
 
 const writeToClipboard = async (text: string): Promise<boolean> => {
   try {
@@ -91,8 +79,6 @@ const writeImageToClipboard = async (dataUrl: string): Promise<boolean> => {
 export function createBrowserElectronApi(): Window['electronAPI'] {
   const aiConfigs = new Map<string, AiSelectorConfig>()
   const customPlatforms = new Map<string, AiPlatform>()
-  let geminiWebEnabled = false
-  let geminiWebEnabledAppIds: GoogleWebSessionAppId[] = [...GOOGLE_WEB_SESSION_REGISTRY_IDS]
 
   registerBeforeUnloadCleanup()
 
@@ -100,13 +86,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     const aiRegistry: Record<string, AiPlatform> = {
       ...WEB_AI_REGISTRY,
       ...toMapRecord(customPlatforms)
-    }
-
-    const enabledAppIds = new Set(geminiWebEnabledAppIds)
-    for (const appId of GOOGLE_WEB_SESSION_REGISTRY_IDS) {
-      if (!geminiWebEnabled || !enabledAppIds.has(appId)) {
-        delete aiRegistry[appId]
-      }
     }
 
     const allAiIds = Object.keys(aiRegistry)
@@ -118,9 +97,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       chromeUserAgent: navigator.userAgent
     }
   }
-
-  const getGeminiStatus = (): GeminiWebSessionStatus =>
-    createGeminiStatus(geminiWebEnabled, geminiWebEnabledAppIds)
 
   return {
     getAiRegistry,
@@ -220,30 +196,6 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     getAppSettings: stubReturn(null),
     saveAppSetting: stubReturn(true),
 
-    geminiWeb: {
-      getStatus: async () => getGeminiStatus(),
-      resetProfile: async () => ({ success: true, status: getGeminiStatus() }),
-      setEnabled: async (enabled: boolean) => {
-        geminiWebEnabled = enabled
-        return { success: true, status: getGeminiStatus() }
-      },
-      setEnabledApps: async (enabledAppIds: GoogleWebSessionAppId[]) => {
-        const validIds = new Set(GOOGLE_WEB_SESSION_REGISTRY_IDS)
-        const nextIds: GoogleWebSessionAppId[] = []
-
-        for (const appId of enabledAppIds) {
-          if (!validIds.has(appId)) continue
-          if (nextIds.includes(appId)) continue
-          nextIds.push(appId)
-        }
-
-        geminiWebEnabledAppIds = nextIds
-        return { success: true, status: getGeminiStatus() }
-      },
-      exportSession: async () => webDevOnlyError(),
-      importSession: async () => webDevOnlyError(),
-      onRefreshEvent: () => () => {}
-    },
     // Chrome session sharing needs the extension bridge, which the browser dev
     // server has no equivalent for: the list is empty and every action fails.
     siteSession: {

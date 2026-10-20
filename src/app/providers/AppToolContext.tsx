@@ -22,7 +22,6 @@ import {
 } from './app-tool/useAiDraftQueue'
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
 import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
-import { useGeminiSessionRefreshListeners } from './app-tool/useGeminiSessionRefreshListeners'
 import type {
   PendingAreaCapture,
   PendingFullPageCapture,
@@ -191,8 +190,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
 
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
     useElementPickerLifecycle(getContentController)
-
-  useGeminiSessionRefreshListeners({ showError })
 
   const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),

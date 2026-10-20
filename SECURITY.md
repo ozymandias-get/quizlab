@@ -107,8 +107,9 @@ regressed:
 - The machine-derived AES fallback key is derived from publicly readable machine
   identifiers, so it protects against casual inspection, not against someone
   with access to your user profile.
-- The Google AI web session uses ordinary web sign-in and browser-profile
-  persistence, not an official API. Google's own terms apply to that use.
+- The site session import uses ordinary web sign-in and browser-profile
+  persistence, not an official API. Google's own terms apply to the Google
+  sites, and every other site's terms apply to it.
 
 ## For Contributors
 

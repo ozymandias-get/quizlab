@@ -127,29 +127,6 @@ const electronApi: ElectronApi = {
   cancelApiChatRequest: (requestId?) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.CANCEL_API_CHAT_REQUEST, requestId)),
 
-  geminiWeb: {
-    getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_STATUS)),
-
-    resetProfile: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE)),
-    setEnabled: (enabled) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED, enabled)),
-    setEnabledApps: (enabledAppIds) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS, enabledAppIds)),
-    exportSession: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION)),
-    importSession: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION)),
-    onRefreshEvent: (callback) => {
-      const channels = [
-        IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED,
-        IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS,
-        IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED
-      ] as const
-      const cleanups = channels.map((ch) => onEvent(ch, (payload) => callback(payload)))
-      return () => {
-        for (const c of cleanups) c()
-      }
-    }
-  },
-
   siteSession: {
     list: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_LIST)),
     setEnabled: (siteId, enabled) =>

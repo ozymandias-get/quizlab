@@ -9,31 +9,31 @@ authoritative sources for the strings themselves are
 
 ## Core Concepts
 
-| EN                    | TR                    | Notes                                                        |
-| --------------------- | --------------------- | ------------------------------------------------------------ |
-| Workspace             | Çalışma Alanı         | The split-screen work area (settings group "AI & WORKSPACE") |
-| PDF panel             | PDF paneli            | Left side of the workspace                                   |
-| AI panel              | AI paneli             | Right side of the workspace                                  |
-| Hub                   | Merkez                | The floating tool dock between the two panels                |
-| Tab                   | Sekme                 | PDF tabs and AI tabs                                         |
-| Document              | Belge                 | An opened PDF                                                |
-| Reading history       | Okuma geçmişi         | Recently opened files and their last page                    |
-| Focus mode            | Odak modu             | Expands one panel to full width                              |
-| Prompt                | Prompt                | Instruction text sent to an AI (untranslated)                |
-| Prompt Library        | Prompt Kütüphanesi    | Saved prompts, Settings → Prompts                            |
-| Quick preset          | Hızlı istem           | One-tap prompt chips in the send composer                    |
-| Send composer         | Gönderme bileşeni     | The floating draft queue dock                                |
-| Send to AI            | AI'ya Gönder          | Primary send action                                          |
-| Auto Send             | Otomatik Gönder       | Deliver instead of only staging content                      |
-| Draft                 | Taslak                | An item waiting in the send composer                         |
-| Selector              | Selektör              | CSS selector used for automation                             |
-| Magic Picker          | Sihirli Seçici        | The in-page element picker (the only name for this tool)     |
-| Session               | Oturum                | A signed-in AI web session                                   |
-| Google AI Web Session | Google AI Web Oturumu | Shared Google sign-in across Gemini/AI Studio/YouTube        |
-| Model                 | Model                 | A site or API model shortcut (untranslated)                  |
-| Provider              | Sağlayıcı             | An API Chat provider (OpenAI, Anthropic, …)                  |
-| API Chat              | API Sohbet            | The native renderer-drawn chat surface                       |
-| Web session           | Web oturumu           | An AI session hosted in a managed WebContentsView            |
+| EN              | TR                 | Notes                                                        |
+| --------------- | ------------------ | ------------------------------------------------------------ |
+| Workspace       | Çalışma Alanı      | The split-screen work area (settings group "AI & WORKSPACE") |
+| PDF panel       | PDF paneli         | Left side of the workspace                                   |
+| AI panel        | AI paneli          | Right side of the workspace                                  |
+| Hub             | Merkez             | The floating tool dock between the two panels                |
+| Tab             | Sekme              | PDF tabs and AI tabs                                         |
+| Document        | Belge              | An opened PDF                                                |
+| Reading history | Okuma geçmişi      | Recently opened files and their last page                    |
+| Focus mode      | Odak modu          | Expands one panel to full width                              |
+| Prompt          | Prompt             | Instruction text sent to an AI (untranslated)                |
+| Prompt Library  | Prompt Kütüphanesi | Saved prompts, Settings → Prompts                            |
+| Quick preset    | Hızlı istem        | One-tap prompt chips in the send composer                    |
+| Send composer   | Gönderme bileşeni  | The floating draft queue dock                                |
+| Send to AI      | AI'ya Gönder       | Primary send action                                          |
+| Auto Send       | Otomatik Gönder    | Deliver instead of only staging content                      |
+| Draft           | Taslak             | An item waiting in the send composer                         |
+| Selector        | Selektör           | CSS selector used for automation                             |
+| Magic Picker    | Sihirli Seçici     | The in-page element picker (the only name for this tool)     |
+| Session         | Oturum             | A signed-in AI web session                                   |
+| Site session    | Site oturumu       | One site's login, taken from Chrome or made in the app       |
+| Model           | Model              | A site or API model shortcut (untranslated)                  |
+| Provider        | Sağlayıcı          | An API Chat provider (OpenAI, Anthropic, …)                  |
+| API Chat        | API Sohbet         | The native renderer-drawn chat surface                       |
+| Web session     | Web oturumu        | An AI session hosted in a managed WebContentsView            |
 
 ## Managed remote content
 
@@ -58,9 +58,9 @@ their `tour-target-*` spelling because they are persisted user preferences.
 - **Magic Picker**, not "Element Picker", "Picker" or "Magic Selector". The
   underlying CSS artifacts are "selectors"; the tool that captures them is the
   Magic Picker.
-- **Google AI Web Session**, not "Gemini Web Session". The session is shared by
-  several Google surfaces; "Gemini Web" is the name of the dock button that
-  opens it, and that name is fine when referring to that button.
+- **Site session**, not "Google session" or "Gemini Web Session". Every site has
+  its own switch; the Google apps are one row of that list because they share
+  one account.
 - **Send composer** / **Auto Send**, not "handoff pipeline" or "send dock".
 - **Selector repair** (or "auto-repaired") for the self-healing behaviour, not
   "selector healing" or "self-healing selectors" in user-facing text.
@@ -133,7 +133,7 @@ Translation keys in `src/shared/i18n/locales/` use **flat `snake_case` with a
 domain prefix**:
 
 ```
-<domain>_<feature>_<action>   e.g.  toast_unhandled_error, api_chat_save, gws_extension_title
+<domain>_<feature>_<action>   e.g.  toast_unhandled_error, api_chat_save, ws_extension_title
 ```
 
 Rules:
@@ -141,11 +141,11 @@ Rules:
 - **New keys must use this format.** Do not introduce `nested.dot.notation` for
   new features; existing dotted keys are grandfathered and will be migrated
   gradually.
-- The prefix identifies the owning domain (`api_chat_*`, `gws_*`, `pdf_*`,
+- The prefix identifies the owning domain (`api_chat_*`, `ws_*`, `pdf_*`,
   `toast_*`, `error_*`, `selectors_*`, …) so `src/__tests__/i18n.test.ts`
   and simple `rg` searches reliably find missing translations.
 - Keep the flat JSON structure — one file per domain (`ai-chat.json`,
-  `errors.json`, `gws.json`, …) already groups keys; nesting inside the JSON is
+  `errors.json`, `ws.json`, …) already groups keys; nesting inside the JSON is
   unnecessary.
 - The 19 per-domain files are merged into a single flat `translation` namespace
   in `src/shared/i18n/i18next.ts`, so key names must be globally unique across

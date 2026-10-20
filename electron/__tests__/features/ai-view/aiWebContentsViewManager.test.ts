@@ -200,10 +200,6 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
   })
 }))
 
-vi.mock('../../../features/gemini-web-session/sessionConfig.js', () => ({
-  PROFILE_PARTITION: 'persist:gemini_web_profile'
-}))
-
 const manager = await import('../../../features/ai-view/aiWebContentsViewManager.js')
 
 const CHATGPT = { kind: 'ai-platform' as const, modelId: 'chatgpt' }
