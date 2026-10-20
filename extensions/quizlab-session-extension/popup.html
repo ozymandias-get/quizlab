@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Quizlab site oturumları</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 12px;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+
+      #status {
+        margin: 0 0 8px;
+        color: #666;
+      }
+
+      #sites {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .site {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 0;
+        border-top: 1px solid rgba(128, 128, 128, 0.35);
+      }
+
+      .site-name {
+        font-weight: 600;
+      }
+
+      .site-domains,
+      .site-state {
+        color: #666;
+      }
+
+      .grant {
+        align-self: flex-start;
+        margin-top: 4px;
+        padding: 4px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Quizlab site oturumları</h1>
+    <p id="status"></p>
+    <ul id="sites"></ul>
+    <script src="popup.js"></script>
+  </body>
+</html>
