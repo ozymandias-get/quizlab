@@ -30,6 +30,10 @@ const GOOGLE_VIEW: SiteSessionView = {
 const t = (key: string, params?: Record<string, string>) =>
   params ? `${key} ${Object.values(params).join(' ')}` : key
 
+/** The id of the switch a card rendered. */
+const switchIdOf = (container: HTMLElement): string | null | undefined =>
+  container.querySelector('button[role="switch"]')?.getAttribute('id')
+
 describe('SiteSessionCard', () => {
   it('shows the import switch', () => {
     render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
@@ -96,5 +100,74 @@ describe('SiteSessionCard', () => {
   it('locks the switch while an action is running', () => {
     render(<SiteSessionCard view={VIEW} disabled onToggle={() => {}} t={t} />)
     expect(screen.getByRole('switch')).toBeDisabled()
+  })
+
+  it('shows why the last import failed', () => {
+    render(
+      <SiteSessionCard
+        view={{ ...VIEW, status: 'import_failed', lastError: 'write_failed' }}
+        disabled={false}
+        onToggle={() => {}}
+        t={t}
+      />
+    )
+    expect(screen.getByText('ws_error_write_failed')).toBeInTheDocument()
+  })
+
+  it('gives every switch an accessible name of its own', () => {
+    render(
+      <>
+        <SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />
+        <SiteSessionCard
+          view={{ ...VIEW, siteId: 'claude', labelKey: 'ws_target_claude', hostname: 'claude.ai' }}
+          disabled={false}
+          onToggle={() => {}}
+          t={t}
+        />
+      </>
+    )
+
+    expect(screen.getByRole('switch', { name: /chatgpt\.com/ })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: /claude\.ai/ })).toBeInTheDocument()
+  })
+
+  // `custom:a.b` and `custom:a-b` differ, but a flattened id would not.
+  it('gives two custom sites different element ids', () => {
+    const dotted = render(
+      <SiteSessionCard
+        view={{ ...VIEW, siteId: 'custom:a.b', labelKey: 'ws_target_custom' }}
+        disabled={false}
+        onToggle={() => {}}
+        t={t}
+      />
+    )
+    const dashed = render(
+      <SiteSessionCard
+        view={{ ...VIEW, siteId: 'custom:a-b', labelKey: 'ws_target_custom' }}
+        disabled={false}
+        onToggle={() => {}}
+        t={t}
+      />
+    )
+
+    const dottedId = switchIdOf(dotted.container)
+    const dashedId = switchIdOf(dashed.container)
+
+    expect(dottedId).toBeTruthy()
+    expect(dashedId).toBeTruthy()
+    expect(dottedId).not.toBe(dashedId)
+  })
+
+  it('points the label at the switch of its own row', () => {
+    const { container } = render(
+      <SiteSessionCard
+        view={{ ...VIEW, siteId: 'custom:a.b', labelKey: 'ws_target_custom' }}
+        disabled={false}
+        onToggle={() => {}}
+        t={t}
+      />
+    )
+
+    expect(container.querySelector('label')?.getAttribute('for')).toBe(switchIdOf(container))
   })
 })

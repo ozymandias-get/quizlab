@@ -18,13 +18,14 @@ export const SITE_SESSION_LIST_KEY = ['site-sessions'] as const
  * The states a site cannot get past on its own.
  *
  * Every one of them asks the user for something: an installed extension, a
- * reloaded extension, a granted permission or a look at why the import
- * failed.
+ * reloaded extension, a granted permission, a sign-in in Chrome, or a look
+ * at why the import failed.
  */
 const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
   'extension_missing',
   'extension_outdated',
   'permission_missing',
+  'no_cookies_in_browser',
   'import_failed'
 ])
 

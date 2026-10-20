@@ -16,17 +16,32 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 type Dict = Record<string, unknown>
 
-const SITE_SESSIONS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  '..',
-  '..',
-  'features',
-  'settings',
-  'ui',
-  'siteSessions'
-)
+const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..')
+const REPO_ROOT = join(SRC_ROOT, '..')
+
+/**
+ * The files the site-session UI reads its keys from.
+ *
+ * The tab itself is one folder, but the toolbar button, the tab definitions
+ * and the bottom-bar settings live outside it and carry keys of their own.
+ */
+const SCANNED_PATHS = [
+  join(SRC_ROOT, 'features', 'settings', 'ui', 'siteSessions'),
+  join(SRC_ROOT, 'app', 'ui', 'BottomBar', 'FloatingDockToolButtons.tsx'),
+  join(SRC_ROOT, 'features', 'settings', 'ui', 'modal', 'settingsTabDefinitions.tsx'),
+  join(SRC_ROOT, 'features', 'settings', 'ui', 'BottomBarSettingsTab.tsx')
+]
+
+const LOCALE_FILES = {
+  en: join(SRC_ROOT, 'shared', 'i18n', 'locales', 'en', 'ws.json'),
+  tr: join(SRC_ROOT, 'shared', 'i18n', 'locales', 'tr', 'ws.json')
+}
+
+/** The main process answers a refusal with one of these codes. */
+const MAIN_PROCESS_DIR = join(REPO_ROOT, 'electron', 'features', 'web-session')
+
+/** The browser-dev stub answers every action with one code. */
+const BROWSER_STUB = join(SRC_ROOT, 'platform', 'electron', 'createBrowserElectronApi.ts')
 
 /** The statuses a row can show. */
 const STATUS_CODES = [
@@ -59,7 +74,12 @@ const TARGET_IDS = [
   'manus'
 ]
 
-/** The error codes the service and the IPC handlers can produce. */
+/**
+ * The error codes the service and the IPC handlers can produce.
+ *
+ * `web_dev_mode_only` comes from the browser-dev stub, which has no bridge to
+ * import from; the rest are read from the main process itself.
+ */
 const ERROR_CODES = [
   'unknown_target',
   'write_failed',
@@ -67,7 +87,8 @@ const ERROR_CODES = [
   'switch_off_wipe_failed',
   'invalid_site_id',
   'invalid_enabled',
-  'Unauthorized'
+  'Unauthorized',
+  'web_dev_mode_only'
 ]
 
 let en: Dict = {}
@@ -79,10 +100,11 @@ beforeAll(async () => {
   tr = i18next.getResourceBundle('tr', 'translation') as Dict
 })
 
-function sourceFiles(dir: string): string[] {
+function sourceFiles(path: string): string[] {
+  if (!statSync(path).isDirectory()) return [path]
   const out: string[] = []
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry)
+  for (const entry of readdirSync(path)) {
+    const full = join(path, entry)
     if (statSync(full).isDirectory()) {
       out.push(...sourceFiles(full))
     } else if (/\.tsx?$/.test(entry)) {
@@ -92,13 +114,35 @@ function sourceFiles(dir: string): string[] {
   return out
 }
 
-/** The translation keys the source names literally. */
+/**
+ * The translation keys the sources name.
+ *
+ * A key is named either by a call of the translation function or by one of the
+ * `*Key` props of a tab or a tool definition.
+ */
 function literalKeys(): string[] {
   const found = new Set<string>()
-  for (const file of sourceFiles(SITE_SESSIONS_DIR)) {
+  for (const file of SCANNED_PATHS.flatMap(sourceFiles)) {
     const src = readFileSync(file, 'utf8')
-    for (const [, key] of src.matchAll(/['"`](ws_[a-zA-Z0-9_]+)['"`]/g)) {
+    for (const [, key] of src.matchAll(/\bt\(\s*'([a-z][a-z0-9_]*)'/g)) {
       found.add(key)
+    }
+    for (const [, key] of src.matchAll(
+      /\b(?:labelKey|descriptionKey|nameKey):\s*'([a-z][a-z0-9_]*)'/g
+    )) {
+      found.add(key)
+    }
+  }
+  return [...found].sort()
+}
+
+/** The error codes the main process can answer with. */
+function mainProcessErrorCodes(): string[] {
+  const found = new Set<string>()
+  for (const file of [...sourceFiles(MAIN_PROCESS_DIR), BROWSER_STUB]) {
+    const src = readFileSync(file, 'utf8')
+    for (const [, code] of src.matchAll(/\berror:\s*'([A-Za-z][A-Za-z0-9_]*)'/g)) {
+      found.add(code)
     }
   }
   return [...found].sort()
@@ -136,5 +180,25 @@ describe('site session translations', () => {
       (key) => typeof en[key] !== 'string' || typeof tr[key] !== 'string'
     )
     expect(missing).toEqual([])
+  })
+
+  it('finds the error codes of the main process to check', () => {
+    // Guards the scan itself: if this drops to zero the gate below is vacuous.
+    expect(mainProcessErrorCodes().length).toBeGreaterThan(3)
+  })
+
+  it('translates every error code the main process can answer with', () => {
+    const missing = mainProcessErrorCodes()
+      .map((code) => `ws_error_${code}`)
+      .filter((key) => typeof en[key] !== 'string' || typeof tr[key] !== 'string')
+    expect(missing).toEqual([])
+  })
+
+  it('carries the same keys in both locales', () => {
+    const enKeys = Object.keys(JSON.parse(readFileSync(LOCALE_FILES.en, 'utf8')) as Dict)
+    const trKeys = Object.keys(JSON.parse(readFileSync(LOCALE_FILES.tr, 'utf8')) as Dict)
+
+    expect(enKeys.filter((key) => !trKeys.includes(key))).toEqual([])
+    expect(trKeys.filter((key) => !enKeys.includes(key))).toEqual([])
   })
 })

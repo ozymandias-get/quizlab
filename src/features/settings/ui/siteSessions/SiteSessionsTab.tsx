@@ -65,18 +65,22 @@ const SiteSessionsTab = memo(() => {
 
       <SiteSessionList views={views} disabled={isBusy} onToggle={onToggle} t={t} />
 
-      <div className="flex justify-start">
-        <Button
-          type="button"
-          variant="destructive-outline"
-          size="sm"
-          onClick={onClearAll}
-          disabled={isBusy || !canClearAll}
-          className="gap-2"
-        >
-          <XIcon className="h-4 w-4" />
-          <span className="text-ql-12 font-semibold">{t('ws_clear_all_btn')}</span>
-        </Button>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-start">
+          <Button
+            type="button"
+            variant="destructive-outline"
+            size="sm"
+            onClick={onClearAll}
+            disabled={isBusy || !canClearAll}
+            className="gap-2"
+          >
+            <XIcon className="h-4 w-4" />
+            <span className="text-ql-12 font-semibold">{t('ws_clear_all_btn')}</span>
+          </Button>
+        </div>
+
+        <p className="text-ql-11 text-muted-foreground leading-relaxed">{t('ws_clear_all_hint')}</p>
       </div>
 
       {wizardOpen && wizardMode && (
