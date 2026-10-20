@@ -31,7 +31,7 @@ import type {
 } from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
-import type { SiteSessionListResult } from './siteSession.js'
+import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
 
 export type CacheInfoResponse = {
@@ -197,8 +197,8 @@ export interface ElectronApi {
    */
   siteSession: {
     list: () => Promise<SiteSessionListResult>
-    setEnabled: (siteId: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>
-    clear: (siteId: string) => Promise<{ success: boolean; error?: string }>
+    setEnabled: (siteId: string, enabled: boolean) => Promise<SiteSessionActionResult>
+    clear: (siteId: string) => Promise<SiteSessionActionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {

@@ -30,7 +30,7 @@ import type {
 } from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
-import type { SiteSessionListResult } from './siteSession.js'
+import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
 
 /**
@@ -304,12 +304,12 @@ export interface IpcInvokeRequestMap {
 
   [IPC_CHANNELS.SITE_SESSION_SET_ENABLED]: {
     args: [siteId: string, enabled: boolean]
-    result: IpcResult<{ success: boolean; error?: string }>
+    result: IpcResult<SiteSessionActionResult>
   }
 
   [IPC_CHANNELS.SITE_SESSION_CLEAR]: {
     args: [siteId: string]
-    result: IpcResult<{ success: boolean; error?: string }>
+    result: IpcResult<SiteSessionActionResult>
   }
 
   // Gemini web session management

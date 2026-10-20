@@ -38,13 +38,43 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 
+/**
+ * The protocol version the extension names in its requests.
+ *
+ * The header is the extension's own answer to "which protocol do you speak?".
+ * A request without it comes from an extension that predates the handshake.
+ */
+function readProtocolVersion(header: string | string[] | undefined): number | null {
+  const raw = Array.isArray(header) ? header[0] : header
+  if (typeof raw !== 'string') return null
+  const parsed = Number(raw.trim())
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return Math.floor(parsed)
+}
+
+/**
+ * Remembers the protocol version the extension reported.
+ *
+ * The manager holds it, so that the settings page can tell an extension that
+ * is too old from one that is not there at all.
+ */
+function recordProtocolVersion(manager: unknown, req: IncomingMessage): void {
+  const version = readProtocolVersion(req.headers['x-protocol-version' as never])
+  if (version === null) return
+  const mgr = manager as unknown as { _extensionProtocolVersion: number | null }
+  mgr._extensionProtocolVersion = version
+}
+
 export function createBridgeRequestHandler(manager: unknown) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
     const originAllowed = isAllowedBridgeOrigin(requestOrigin, getOriginPolicy(manager))
 
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-hmac-signature, x-bridge-secret')
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, x-hmac-signature, x-bridge-secret, x-protocol-version'
+    )
     res.setHeader('Vary', 'Origin')
     if (originAllowed && requestOrigin) {
       res.setHeader('Access-Control-Allow-Origin', requestOrigin)
@@ -64,6 +94,11 @@ export function createBridgeRequestHandler(manager: unknown) {
       rejectDisallowedOrigin(res, requestOrigin)
       return
     }
+
+    // The extension names the protocol it speaks in every request it makes to
+    // the bridge. The version is remembered before the request is answered,
+    // so that the settings page knows how old the extension is.
+    recordProtocolVersion(manager, req)
 
     if (req.method === 'GET' && req.url === '/api/health') {
       const mgr = manager as unknown as {

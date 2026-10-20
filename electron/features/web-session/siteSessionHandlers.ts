@@ -6,6 +6,10 @@
  * from the trusted main window and validates its payload before it reaches
  * the service.
  *
+ * A payload that is not what the action needs is refused with a code of its
+ * own — `invalid_site_id`, `invalid_enabled` — and changes nothing: a switch
+ * that was turned off by accident wipes the session of a site.
+ *
  * After a switch is turned or a session is cleared the fresh list is sent to
  * the renderer, so the row shows the new state without waiting for a poll.
  */
@@ -14,7 +18,6 @@ import { BrowserWindow } from 'electron'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
-import { toStrictBoolean } from '../../core/ipcPayloadGuards.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -60,8 +63,14 @@ export function registerSiteSessionHandlers(): void {
       if (typeof siteId !== 'string' || siteId.length === 0) {
         return success({ success: false, error: 'invalid_site_id' })
       }
+      // Only a real boolean may turn a site on or off. A malformed payload
+      // must not reach the service: switching a site off wipes its session,
+      // and a payload that lost its flag on the way must not destroy it.
+      if (typeof enabled !== 'boolean') {
+        return success({ success: false, error: 'invalid_enabled' })
+      }
 
-      const result = await siteSessionService.setEnabled(siteId, toStrictBoolean(enabled))
+      const result = await siteSessionService.setEnabled(siteId, enabled)
       // The list is sent even when the action failed: the switch may have been
       // written before the session could be cleared, and the row has to show
       // what the app really holds.
