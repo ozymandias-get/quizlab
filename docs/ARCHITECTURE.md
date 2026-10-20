@@ -695,7 +695,9 @@ The feature lives in `electron/features/web-session/`:
 | `siteSessionCookieRouter.ts` | refuses a packet that is not for an enabled site or carries a foreign domain                 |
 | `siteSessionImporter.ts`     | writes the cookies into the site's own partition and drops the stale ones                    |
 | `siteSessionWipe.ts`         | clears the cookies and the origin storage of one site                                        |
-| `siteSessionService.ts`      | the renderer-facing orchestration: list, switch, clear, import                               |
+| `siteSessionLock.ts`         | one lock per site: the import and the switch of a site never overlap                         |
+| `siteSessionBroadcast.ts`    | sends the fresh list to the renderer after a change                                          |
+| `siteSessionService.ts`      | the renderer-facing orchestration: list, switch, clear                                       |
 | `siteSessionBridge.ts`       | the bridge core the HTTP bridge and the service both go through                              |
 | `siteSessionHandlers.ts`     | the typed IPC handlers (`SITE_SESSION_LIST`, `…_SET_ENABLED`, `…_CLEAR`, `…_CHANGED`)        |
 
@@ -706,9 +708,14 @@ before it writes a cookie. The renderer reaches the feature through
 `src/platform/electron/api/useSiteSessionApi.ts` and renders it in
 `src/features/settings/ui/siteSessions/`.
 
+The extension pushes a packet only when something changed, so the app learns
+that it is alive from the requests themselves: a request from the paired
+extension's origin marks the bridge as connected.
+
 The Google family is the one group: Gemini, AI Studio, YouTube and Google Drive
 share one account and one partition, so they are **one row**
-(`siteId: 'google'`) — see `shared/constants/googleAiWebApps.ts`.
+(`siteId: 'google'`) — see `shared/constants/googleAiWebApps.ts`. The row owns
+the four origins of its apps, so a wipe clears the storage of all of them.
 
 ### F.6 Automation and selector self-healing
 
