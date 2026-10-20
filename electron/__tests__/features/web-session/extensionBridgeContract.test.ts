@@ -19,6 +19,7 @@ const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
+const HEALTH_PATH = '/api/health'
 
 interface FakeCookie {
   name: string
@@ -53,6 +54,11 @@ interface Packet {
   targetId: string
   status: string
   cookies: FakeCookie[]
+}
+
+interface LogEntry {
+  level: string
+  message: string
 }
 
 const DEFAULT_SITE_LIST: SiteList = {
@@ -101,16 +107,25 @@ interface HarnessOptions {
   storage?: Record<string, unknown>
   /** How many of the first cookie packets the app refuses. */
   failPackets?: number
+  /** The port the bridge answers on; every other port refuses the connection. */
+  bridgePort?: number
+  /** The permissions API fails instead of answering. */
+  permissionsThrow?: boolean
 }
 
 interface Harness {
   readonly fetchCalls: FetchCall[]
   readonly cookieQueries: string[]
+  /** Every packet the extension sent, accepted or not. */
+  readonly attempts: Packet[]
+  /** The packets the app accepted. */
   readonly packets: Packet[]
-  readonly logs: string[]
+  readonly permissionQueries: string[]
+  readonly logs: LogEntry[]
   readonly storage: Map<string, unknown>
   bridgePort: number | null
   setSiteList(siteList: SiteList): void
+  failNextPackets(count: number): void
   fireAlarm(name: string): void
   fireCookieChanged(cookie: FakeCookie): void
   runTimers(): Promise<void>
@@ -137,8 +152,10 @@ function jsonResponse(payload: unknown, status = 200) {
 function createHarness(options: HarnessOptions = {}): Harness {
   const fetchCalls: FetchCall[] = []
   const cookieQueries: string[] = []
+  const attempts: Packet[] = []
   const packets: Packet[] = []
-  const logs: string[] = []
+  const permissionQueries: string[] = []
+  const logs: LogEntry[] = []
   const storage = new Map<string, unknown>(Object.entries(options.storage ?? {}))
   const timers = new Map<number, () => void>()
   const alarmListeners: ((alarm: { name: string }) => void)[] = []
@@ -151,6 +168,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
   let siteList = options.siteList ?? DEFAULT_SITE_LIST
   const cookies = options.cookies ?? DEFAULT_COOKIES
   const granted = options.grantedOrigins ?? 'all'
+  const bridgePortOption = options.bridgePort ?? null
+  const permissionsThrow = options.permissionsThrow === true
   let failingPackets = options.failPackets ?? 0
   let timerId = 0
   let bridgePort: number | null = null
@@ -201,6 +220,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
     permissions: {
       contains: async (query: { origins?: string[] }) => {
         const origins = query.origins ?? []
+        permissionQueries.push(...origins)
+        if (permissionsThrow) throw new Error('the permissions API is not available')
         if (granted === 'all') return true
         if (granted === 'none') return false
         return origins.every((origin) => granted.includes(origin))
@@ -217,19 +238,27 @@ function createHarness(options: HarnessOptions = {}): Harness {
     const method = init?.method ?? 'GET'
     fetchCalls.push({ url: target, method, headers, body: String(init?.body ?? '') })
 
+    const port = Number(new URL(target).port)
+    if (bridgePortOption !== null && port !== bridgePortOption) {
+      // Nothing listens on that port: the connection is refused.
+      throw new Error(`connect ECONNREFUSED 127.0.0.1:${port}`)
+    }
+
     if (target.endsWith(SITE_LIST_PATH)) {
       return jsonResponse(siteList)
     }
     if (target.endsWith(COOKIE_PATH)) {
+      const packet = JSON.parse(String(init?.body ?? '{}')) as Packet
+      attempts.push(packet)
       if (failingPackets > 0) {
         failingPackets -= 1
         return jsonResponse({ error: 'Internal error' }, 500)
       }
-      packets.push(JSON.parse(String(init?.body ?? '{}')) as Packet)
+      packets.push(packet)
       return jsonResponse({ success: true })
     }
-    if (target.endsWith('/api/health')) {
-      bridgePort = Number(new URL(target).port)
+    if (target.endsWith(HEALTH_PATH)) {
+      bridgePort = port
       return jsonResponse({
         status: 'ok',
         timestamp: '2026-01-01T00:00:00.000Z',
@@ -247,9 +276,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
     TextEncoder: globalThis.TextEncoder,
     AbortSignal: globalThis.AbortSignal,
     console: {
-      warn: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
-      error: (...args: unknown[]) => logs.push(args.map(String).join(' ')),
-      log: (...args: unknown[]) => logs.push(args.map(String).join(' '))
+      log: (...args: unknown[]) => logs.push({ level: 'log', message: args.map(String).join(' ') }),
+      warn: (...args: unknown[]) =>
+        logs.push({ level: 'warn', message: args.map(String).join(' ') }),
+      error: (...args: unknown[]) =>
+        logs.push({ level: 'error', message: args.map(String).join(' ') })
     },
     setTimeout: (callback: () => void) => {
       const id = ++timerId
@@ -272,7 +303,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
   return {
     fetchCalls,
     cookieQueries,
+    attempts,
     packets,
+    permissionQueries,
     logs,
     storage,
     get bridgePort() {
@@ -280,6 +313,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
     },
     setSiteList(next: SiteList) {
       siteList = next
+    },
+    failNextPackets(count: number) {
+      failingPackets = count
     },
     fireAlarm(name: string) {
       for (const listener of alarmListeners) listener({ name })
@@ -303,6 +339,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
 /** The signature the app expects for a payload. */
 function sign(payload: string): string {
   return createHmac('sha256', BRIDGE_SECRET).update(payload).digest('hex')
+}
+
+/** The requests the extension sent to a path. */
+function callsTo(harness: Harness, pathname: string): FetchCall[] {
+  return harness.fetchCalls.filter((entry) => entry.url.endsWith(pathname))
 }
 
 describe('extension bridge contract', () => {
@@ -334,7 +375,7 @@ describe('extension bridge behaviour', () => {
     const harness = createHarness()
     await harness.settle()
 
-    const call = harness.fetchCalls.find((entry) => entry.url.endsWith(SITE_LIST_PATH))
+    const call = callsTo(harness, SITE_LIST_PATH)[0]
     expect(call, 'the site list was never requested').toBeDefined()
     expect(call?.method).toBe('GET')
     expect(call?.headers['x-protocol-version']).toBe('2')
@@ -349,7 +390,7 @@ describe('extension bridge behaviour', () => {
     expect(harness.packets).toHaveLength(2)
     expect(harness.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
 
-    const call = harness.fetchCalls.find((entry) => entry.url.endsWith(COOKIE_PATH))
+    const call = callsTo(harness, COOKIE_PATH)[0]
     expect(call?.method).toBe('POST')
     expect(call?.headers['x-protocol-version']).toBe('2')
     expect(call?.headers['Origin']).toBe(EXTENSION_ORIGIN)
@@ -374,6 +415,20 @@ describe('extension bridge behaviour', () => {
     expect(harness.cookieQueries).toContain('chatgpt.com')
     expect(harness.cookieQueries).toContain('.claude.ai')
     expect(harness.cookieQueries).toContain('claude.ai')
+  })
+
+  it('reads a domain that is written without a leading dot in both spellings too', async () => {
+    const harness = createHarness({
+      siteList: {
+        protocolVersion: 2,
+        configVersion: 7,
+        targets: [{ siteId: 'custom', cookieDomains: ['example.org'] }]
+      }
+    })
+    await harness.settle()
+
+    expect(harness.cookieQueries).toContain('example.org')
+    expect(harness.cookieQueries).toContain('.example.org')
   })
 
   it('keeps the host-only and the domain-wide cookie of the same name apart', async () => {
@@ -403,6 +458,36 @@ describe('extension bridge behaviour', () => {
     expect(chatgpt?.status).toBe('permission_missing')
   })
 
+  it('asks for the host and the wildcard pattern of a site', async () => {
+    const harness = createHarness({ grantedOrigins: ['https://*.chatgpt.com/*'] })
+    await harness.settle()
+
+    expect(harness.permissionQueries).toContain('https://chatgpt.com/*')
+    expect(harness.permissionQueries).toContain('https://*.chatgpt.com/*')
+  })
+
+  it('reports a site it may not read completely as missing, not as read', async () => {
+    const harness = createHarness({ grantedOrigins: ['https://*.chatgpt.com/*'] })
+    await harness.settle()
+
+    // The chatgpt target has two domains and only one of them may be read:
+    // the session of the site is not complete, so it is not imported at all.
+    const chatgpt = harness.packets.find((packet) => packet.targetId === 'chatgpt')
+    expect(chatgpt?.status).toBe('permission_missing')
+    expect(chatgpt?.cookies).toEqual([])
+
+    const claude = harness.packets.find((packet) => packet.targetId === 'claude')
+    expect(claude?.status).toBe('permission_missing')
+  })
+
+  it('reports a site it may not read when the permission check fails', async () => {
+    const harness = createHarness({ permissionsThrow: true })
+    await harness.settle()
+
+    const chatgpt = harness.packets.find((packet) => packet.targetId === 'chatgpt')
+    expect(chatgpt?.status).toBe('permission_missing')
+  })
+
   it('does not push when nothing changed', async () => {
     const harness = createHarness()
     await harness.settle()
@@ -411,6 +496,51 @@ describe('extension bridge behaviour', () => {
     harness.fireAlarm(HEARTBEAT_ALARM)
     await harness.settle()
     expect(harness.packets).toHaveLength(2)
+  })
+
+  it('asks the bridge it knows and not the first port of the scan', async () => {
+    const harness = createHarness({ bridgePort: 52000 })
+    // The worker wakes up: the alarm fires before the scan found the bridge.
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+
+    const siteListCalls = callsTo(harness, SITE_LIST_PATH)
+    expect(siteListCalls.length).toBeGreaterThan(0)
+    expect(siteListCalls.every((entry) => entry.url.includes(':52000/'))).toBe(true)
+  })
+
+  it('asks the bridge it remembers after a worker restart', async () => {
+    const first = createHarness({ bridgePort: 52000 })
+    await first.settle()
+
+    const second = createHarness({
+      bridgePort: 52000,
+      storage: Object.fromEntries(first.storage)
+    })
+    second.fireAlarm(HEARTBEAT_ALARM)
+    await second.settle()
+
+    const siteListCalls = callsTo(second, SITE_LIST_PATH)
+    expect(siteListCalls.length).toBeGreaterThan(0)
+    expect(siteListCalls.every((entry) => entry.url.includes(':52000/'))).toBe(true)
+    // The app did not change anything, so the sites are not pushed again.
+    expect(second.packets).toHaveLength(0)
+  })
+
+  it('does not push again after a worker restart when the app did not change', async () => {
+    const first = createHarness({ bridgePort: 52000 })
+    await first.settle()
+    expect(first.packets).toHaveLength(2)
+
+    const second = createHarness({
+      bridgePort: 52000,
+      storage: Object.fromEntries(first.storage)
+    })
+    await second.settle()
+    second.fireAlarm(HEARTBEAT_ALARM)
+    await second.settle()
+
+    expect(second.packets).toHaveLength(0)
   })
 
   it('repeats a push the app refused', async () => {
@@ -423,20 +553,37 @@ describe('extension bridge behaviour', () => {
     expect(harness.packets).toHaveLength(2)
   })
 
+  it('repeats a cookie change push the app refused', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    expect(harness.packets).toHaveLength(2)
+
+    harness.failNextPackets(1)
+    harness.fireCookieChanged({
+      name: '__Secure-1PSID',
+      value: 'chatgpt-host-only',
+      domain: 'chatgpt.com',
+      path: '/'
+    })
+    await harness.runTimers()
+    expect(harness.attempts).toHaveLength(3)
+    expect(harness.packets).toHaveLength(2)
+
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.attempts).toHaveLength(4)
+    expect(harness.packets).toHaveLength(3)
+  })
+
   it('looks for the bridge again when the scan alarm fires', async () => {
     const harness = createHarness()
     await harness.settle()
-    const healthCallsBefore = harness.fetchCalls.filter((entry) =>
-      entry.url.endsWith('/api/health')
-    ).length
+    const healthCallsBefore = callsTo(harness, HEALTH_PATH).length
 
     harness.fireAlarm(SCAN_ALARM)
     await harness.settle()
 
-    const healthCallsAfter = harness.fetchCalls.filter((entry) =>
-      entry.url.endsWith('/api/health')
-    ).length
-    expect(healthCallsAfter).toBeGreaterThan(healthCallsBefore)
+    expect(callsTo(harness, HEALTH_PATH).length).toBeGreaterThan(healthCallsBefore)
   })
 
   it('pushes again when the site list of the app changed', async () => {
@@ -481,6 +628,19 @@ describe('extension bridge behaviour', () => {
     expect(harness.packets).toHaveLength(2)
   })
 
+  it('tells an app that speaks an older protocol only once', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, protocolVersion: 1 }
+    })
+    await harness.settle()
+    expect(harness.packets).toHaveLength(2)
+    expect(harness.packets.every((packet) => packet.status === 'permission_missing')).toBe(true)
+
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.packets).toHaveLength(2)
+  })
+
   it('keeps the last seen version in the session storage', async () => {
     const harness = createHarness()
     await harness.settle()
@@ -494,15 +654,11 @@ describe('extension bridge behaviour', () => {
     await first.settle()
     expect(first.packets).toHaveLength(2)
 
-    const second = createHarness({
-      storage: {
-        bridgePort: first.bridgePort,
-        lastConfigVersion: DEFAULT_SITE_LIST.configVersion,
-        knownTargets: DEFAULT_SITE_LIST.targets
-      }
-    })
+    // The session storage is all that survives a restart of the worker.
+    const second = createHarness({ storage: Object.fromEntries(first.storage) })
     await second.settle()
 
+    expect(second.storage.get('lastConfigVersion')).toBe(DEFAULT_SITE_LIST.configVersion)
     expect(second.packets).toHaveLength(0)
   })
 
@@ -510,10 +666,18 @@ describe('extension bridge behaviour', () => {
     const harness = createHarness()
     await harness.settle()
 
-    const logged = harness.logs.join('\n')
+    const logged = harness.logs.map((entry) => entry.message).join('\n')
     expect(logged).not.toContain('chatgpt-domain-wide')
     expect(logged).not.toContain('chatgpt-host-only')
     expect(logged).not.toContain('claude-domain-wide')
+  })
+
+  it('logs an outcome as an outcome and not as a warning', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    const outcome = harness.logs.find((entry) => entry.message.includes('chatgpt'))
+    expect(outcome?.level).toBe('log')
   })
 
   it('keeps the alarm loop and the navigation wake-up alive', () => {

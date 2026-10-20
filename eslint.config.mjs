@@ -386,6 +386,15 @@ export default [
     }
   },
   {
+    // The Chrome extension runs in the browser, has no logger and leaves the
+    // only trace it can leave in the console of its service worker. A
+    // successful outcome is a `log`; a failure stays a `warn`.
+    files: ['extensions/**/*.js'],
+    rules: {
+      'no-console': 'off'
+    }
+  },
+  {
     files: ['**/*.test.*', '**/*.spec.*', '**/__tests__/**'],
     rules: {
       'no-console': 'off',
