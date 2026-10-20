@@ -48,7 +48,15 @@ export interface SiteSessionView {
  */
 export interface SiteSessionTarget {
   siteId: string
-  hostname: string
+  /**
+   * The origins whose storage belongs to this site.
+   *
+   * A site may live on more than one origin: the Google group is four apps on
+   * four hosts, and a wipe has to clear the storage of every one of them.
+   * Electron's storage filter matches an origin exactly, so a host that is not
+   * listed here keeps its data.
+   */
+  origins: readonly string[]
   partition: string
   /** The cookie domains that may be transferred for this site. */
   cookieDomains: readonly string[]

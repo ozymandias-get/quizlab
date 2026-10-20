@@ -46,7 +46,8 @@ describe('site session cookie domains', () => {
     expect(getSiteSessionCookieDomains('m365')).toEqual([
       '.microsoft.com',
       '.microsoftonline.com',
-      '.live.com'
+      '.live.com',
+      '.cloud.microsoft'
     ])
   })
 

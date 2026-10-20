@@ -11,11 +11,12 @@
  * Two rules matter here:
  *
  *   - Turning a site's switch off writes the switch *first* and wipes the
- *     session afterwards, so that the site is signed out again. A packet
- *     that arrives after the switch was written is refused by the bridge
- *     core, which reads the switch once more right before it writes a
- *     cookie. An import that was already running may still finish after the
- *     wipe — the row then shows the session the app still holds.
+ *     session afterwards, so that the site is signed out again. The wipe runs
+ *     under the lock of the site, and so does the import of that site: the
+ *     wipe therefore always happens after the last write to the site, and a
+ *     packet that arrives after the switch was written is refused by the
+ *     bridge core, which reads the switch once more right before it writes a
+ *     cookie.
  *   - A switch that could not be written is reported as a failure. The app
  *     must not tell the user that a site was switched off while it is still
  *     importing it.
@@ -30,13 +31,9 @@ import type {
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import {
-  acceptSiteSessionPacket,
-  hasLocalSessionForTarget,
-  SITE_SESSION_PROTOCOL_VERSION
-} from './siteSessionBridge.js'
+import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
-import type { CookiePacket, CookiePacketRejection } from './siteSessionCookieRouter.js'
+import { withSiteSessionLock } from './siteSessionLock.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
@@ -111,100 +108,90 @@ export class SiteSessionService {
    * by the app, the extension pushes the session within its next round.
    *
    * Switching it off writes the switch first and wipes the session after it:
-   * the site has to be signed in again the next time it is used.
+   * the site has to be signed in again the next time it is used. The wipe runs
+   * under the lock of the site, so an import that is already running finishes
+   * before the wipe and cannot undo it.
    */
   async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionActionResult> {
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
-    try {
-      await this.deps.config.setEnabled(siteId, enabled)
-    } catch (error) {
-      // The switch was not written. Reporting a success here would tell the
-      // user that a site was switched off while the app keeps importing it.
-      Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
-      return { success: false, error: 'write_failed' }
-    }
-
-    if (!enabled) {
+    if (enabled) {
       try {
-        await this.wipe(target)
+        await this.deps.config.setEnabled(siteId, true)
       } catch (error) {
-        // The switch *was* written: the site is switched off, but the session
-        // it held is still there. Saying "failed" alone would hide that
-        // half of the work was done.
-        Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
-        return {
-          success: false,
-          error: 'switch_off_wipe_failed',
-          detail: 'The switch was turned off, but the session could not be cleared.'
-        }
+        // The switch was not written. Reporting a success here would tell the
+        // user that a site was switched on while the app never heard of it.
+        Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
+        return { success: false, error: 'write_failed' }
       }
+      return { success: true }
     }
 
-    return { success: true }
+    return withSiteSessionLock(siteId, () => this.switchOff(target))
   }
 
   /**
    * Forgets the session of one site without touching its switch.
    *
    * This is the "I sign in myself" path: the site keeps its place in the
-   * settings, only the session the app holds for it is gone.
+   * settings, only the session the app holds for it is gone. The wipe runs
+   * under the lock of the site, for the same reason the switch-off does.
    */
   async clear(siteId: string): Promise<SiteSessionActionResult> {
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
-    try {
-      await this.wipe(target)
-    } catch (error) {
-      Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
-      return { success: false, error: 'wipe_failed' }
-    }
+    return withSiteSessionLock(siteId, async () => {
+      try {
+        await this.wipe(target)
+      } catch (error) {
+        Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
+        return { success: false, error: 'wipe_failed' }
+      }
 
-    return { success: true }
-  }
-
-  /**
-   * Handles one packet of the extension.
-   *
-   * The production path of a packet is the bridge core: the extension talks
-   * to the native messaging bridge, which hands the packet to
-   * `acceptSiteSessionPacket`. This method does not sit in that path — it
-   * exists for the callers of the service and for its tests.
-   *
-   * The packet is not interpreted here either: the bridge core decides
-   * whether it belongs to a site that is switched on and whether every cookie
-   * in it belongs to that site. The service only hands over the state it
-   * works on, so that the switch it wrote is the switch the packet is judged
-   * by.
-   */
-  async importPacket(
-    packet: CookiePacket
-  ): Promise<{ accepted: boolean; reason?: CookiePacketRejection }> {
-    const outcome = await acceptSiteSessionPacket(packet, {
-      config: this.deps.config,
-      loadTargets: this.deps.loadTargets,
-      resolveSession: this.deps.resolveSession
+      return { success: true }
     })
-    return { accepted: outcome.accepted, reason: outcome.reason }
-  }
-
-  /**
-   * Releases what the service holds.
-   *
-   * The service keeps no listener and no timer of its own: the state it works
-   * on belongs to the config and to the sessions. The method exists so that
-   * the app can shut the feature down with a single call.
-   */
-  dispose(): void {
-    // Nothing to release.
   }
 
   /** The site with this id, or null when the app does not know it. */
   private async findTarget(siteId: string): Promise<SiteSessionTargetRow | null> {
     const targets = await this.deps.loadTargets()
     return targets.find((target) => target.siteId === siteId) ?? null
+  }
+
+  /**
+   * Turns the switch of a site off and wipes the session it held.
+   *
+   * The order is the invariant: the switch is written first, so a packet that
+   * arrives while the wipe is running is refused, and the wipe runs last, so
+   * the site ends up without a session.
+   */
+  private async switchOff(target: SiteSessionTargetRow): Promise<SiteSessionActionResult> {
+    try {
+      await this.deps.config.setEnabled(target.siteId, false)
+    } catch (error) {
+      // The switch was not written. Reporting a success here would tell the
+      // user that a site was switched off while the app keeps importing it.
+      Logger.warn(`[SiteSession] The switch of "${target.siteId}" could not be written:`, error)
+      return { success: false, error: 'write_failed' }
+    }
+
+    try {
+      await this.wipe(target)
+    } catch (error) {
+      // The switch *was* written: the site is switched off, but the session
+      // it held is still there. Saying "failed" alone would hide that
+      // half of the work was done.
+      Logger.warn(`[SiteSession] The session of "${target.siteId}" could not be cleared:`, error)
+      return {
+        success: false,
+        error: 'switch_off_wipe_failed',
+        detail: 'The switch was turned off, but the session could not be cleared.'
+      }
+    }
+
+    return { success: true }
   }
 
   /** Removes the session the app holds for one site. */

@@ -32,6 +32,7 @@ const HOST_PERMISSIONS = [
   'https://*.microsoft.com/*',
   'https://*.microsoftonline.com/*',
   'https://*.live.com/*',
+  'https://*.cloud.microsoft/*',
   'https://*.grok.com/*',
   'https://*.x.com/*',
   'https://*.mistral.ai/*',

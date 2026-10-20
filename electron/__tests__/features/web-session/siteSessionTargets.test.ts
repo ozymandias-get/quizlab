@@ -101,6 +101,47 @@ describe('built-in site session targets', () => {
     )
     expect(googlePartition.map((target) => target.siteId)).toEqual(['google'])
   })
+
+  it('gives the Google group the origins of its four apps', () => {
+    // The group is four apps on four hosts. A wipe has to clear the storage
+    // of every one of them, or the site keeps its session.
+    const google = targets.find((target) => target.siteId === 'google')
+    expect(google?.origins).toEqual([
+      'https://gemini.google.com',
+      'https://aistudio.google.com',
+      'https://www.youtube.com',
+      'https://drive.google.com'
+    ])
+  })
+
+  it('does not pretend that the Google group lives on accounts.google.com', () => {
+    // None of the four apps uses that host: a wipe that cleared its storage
+    // would clear nothing, and the storage of the four apps would survive.
+    const google = targets.find((target) => target.siteId === 'google')
+    expect(google?.origins).not.toContain('https://accounts.google.com')
+    expect(google?.hostname).not.toContain('accounts.google.com')
+  })
+})
+
+describe('the cookie domains of a site', () => {
+  it('covers the host of every site with one of its cookie domains', async () => {
+    // A site whose own host is not covered by its cookie domains can never
+    // work: the extension never reads the site's own cookie, the app never
+    // finds the session, and the wipe never signs the user out.
+    const targets = await buildSiteSessionTargets()
+    expect(targets.length).toBeGreaterThan(0)
+
+    for (const target of targets) {
+      for (const origin of target.origins) {
+        const host = new URL(origin).hostname
+        const covered = target.cookieDomains.some((allowed) => {
+          const allowedHost = allowed.replace(/^\.+/, '')
+          return host === allowedHost || host.endsWith(`.${allowedHost}`)
+        })
+        expect(covered, `${target.siteId} -> ${host}`).toBe(true)
+      }
+    }
+  })
 })
 
 describe('custom site session targets', () => {
@@ -157,7 +198,7 @@ describe('site session view', () => {
     ).toEqual({
       siteId: 'google',
       labelKey: 'ws_target_google',
-      hostname: 'accounts.google.com',
+      hostname: 'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com',
       kind: 'google',
       memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive'],
       enabled: true,

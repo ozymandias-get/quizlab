@@ -6,7 +6,7 @@
  * its origin authenticated with go, and the next visit asks for a login again.
  *
  * The wipe is deliberately narrow. It touches the cookies of the domains the
- * target owns and the storage of the target's own origin — nothing else. A
+ * target owns and the storage of the target's own origins — nothing else. A
  * partition-wide `clearStorageData()` would throw away the data of every
  * other origin that lives in the same partition, and a cookie sweep that
  * ignores the domain list would sign the user out of a neighbour as well.
@@ -61,11 +61,15 @@ export async function wipeSiteSession(
 
   try {
     // The wipe is per origin: the partition can hold the data of other
-    // origins, and clearing the whole partition would take them down too.
-    await targetSession.clearStorageData({
-      origin: `https://${target.hostname}`,
-      storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
-    })
+    // origins, and clearing the whole partition would take them down too. A
+    // site may live on more than one origin — the Google group on four — and
+    // every one of them has to be cleared, or the site keeps its session.
+    for (const origin of target.origins) {
+      await targetSession.clearStorageData({
+        origin,
+        storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
+      })
+    }
     // A site that authenticates with HTTP basic auth keeps its credentials in
     // the auth cache of the partition. Without this the next visit would
     // still be signed in.

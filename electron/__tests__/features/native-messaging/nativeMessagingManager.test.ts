@@ -609,6 +609,68 @@ describe('NativeMessagingManager', () => {
     })
   })
 
+  describe('the liveness of the extension', () => {
+    const EXTENSION_ORIGIN = 'chrome-extension://quizlab-liveness-extension'
+
+    beforeEach(async () => {
+      // The manager is a singleton: the state of a previous test has to go
+      // before the next one looks at it.
+      const state = manager as unknown as {
+        _connectionStatus: string
+        _waitingSince: number | null
+        _extensionLastSeenAt: number
+        _expectedExtensionOrigin: string | null
+      }
+      state._connectionStatus = 'connecting'
+      state._waitingSince = Date.now()
+      state._extensionLastSeenAt = 0
+      mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
+      mockFsStat.mockRejectedValue(new Error('ENOENT'))
+      await manager.initialize()
+      state._expectedExtensionOrigin = EXTENSION_ORIGIN
+    })
+
+    function request(url: string, origin: string | undefined) {
+      const createCall = mockCreateServer.mock.calls.find((call) => typeof call[0] === 'function')
+      const handler = createCall![0] as (req: unknown, res: unknown) => void
+      const res = { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+      handler(
+        {
+          method: 'GET',
+          url,
+          headers: origin === undefined ? {} : { origin }
+        },
+        res
+      )
+      return res
+    }
+
+    it('marks the extension as connected when a request comes from its origin', () => {
+      // The extension pushes a packet only when something changed, so the
+      // requests of its poll are the only proof that it is alive. Without
+      // them the app would say "the extension is not installed" to an
+      // extension that is running perfectly.
+      expect(manager.connectionStatus).toBe('connecting')
+
+      request('/api/health', EXTENSION_ORIGIN)
+
+      expect(manager.connectionStatus).toBe('connected')
+    })
+
+    it('keeps the extension connected while it asks for the site list', () => {
+      request('/api/health', EXTENSION_ORIGIN)
+      request('/api/sites', EXTENSION_ORIGIN)
+
+      expect(manager.connectionStatus).toBe('connected')
+    })
+
+    it('does not mark the extension as connected for a foreign origin', () => {
+      request('/api/health', 'https://evil.example.com')
+
+      expect(manager.connectionStatus).toBe('connecting')
+    })
+  })
+
   describe('getExtensionInfo new fields', () => {
     it('sets waitingSince after initialize (connecting state)', async () => {
       await manager.initialize()

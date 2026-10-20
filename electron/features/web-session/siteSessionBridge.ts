@@ -17,6 +17,7 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 import { type Session, session as electronSession } from 'electron'
 
 import { Logger } from '../../core/logger.js'
+import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type {
   CookiePacket,
@@ -25,6 +26,7 @@ import type {
 } from './siteSessionCookieRouter.js'
 import { routeCookiePacket } from './siteSessionCookieRouter.js'
 import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
+import { withSiteSessionLock } from './siteSessionLock.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
@@ -241,11 +243,33 @@ function earliestExpiryIso(cookies: CookiePacket['cookies']): string | null {
  * that arrives after the user turned the site off is refused, and only an
  * import that is already running can still finish after the wipe.
  *
+ * The whole handling runs under the lock of the site, so that a switch that
+ * is turned off while the packet is on its way waits for the import and
+ * wipes afterwards: the session the user cancelled cannot come back.
+ *
  * A packet that reports no cookies — or no permission — is not a failure: it
  * only records what the extension saw. The session the user may already have
  * inside the app is left alone.
  */
 export async function acceptSiteSessionPacket(
+  packet: CookiePacket,
+  environment?: SiteSessionImportEnvironment
+): Promise<SiteSessionPacketOutcome> {
+  const outcome = await withSiteSessionLock(packet.targetId, () =>
+    handleSiteSessionPacket(packet, environment)
+  )
+
+  if (outcome.accepted) {
+    // The renderer has to learn that an import happened: without the event the
+    // row keeps the state it had and the feature looks like it did nothing.
+    await broadcastSiteSessionsChanged()
+  }
+
+  return outcome
+}
+
+/** The handling of one packet, under the lock of its site. */
+async function handleSiteSessionPacket(
   packet: CookiePacket,
   environment?: SiteSessionImportEnvironment
 ): Promise<SiteSessionPacketOutcome> {

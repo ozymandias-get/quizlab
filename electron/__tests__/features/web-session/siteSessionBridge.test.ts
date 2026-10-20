@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const TARGET = {
   siteId: 'chatgpt',
   hostname: 'chatgpt.com',
+  origins: ['https://chatgpt.com'],
   partition: 'persist:ai_chatgpt',
   cookieDomains: ['.chatgpt.com', '.openai.com'],
   labelKey: 'ws_target_chatgpt',
@@ -14,6 +15,7 @@ const set = vi.fn().mockResolvedValue({})
 const remove = vi.fn().mockResolvedValue({})
 const get = vi.fn().mockResolvedValue([])
 const clearStorageData = vi.fn().mockResolvedValue(undefined)
+const send = vi.fn()
 
 const fakeSession = {
   cookies: { get, set, remove },
@@ -27,6 +29,14 @@ const recordResult = vi.fn()
 vi.mock('electron', () => ({
   session: {
     fromPartition: () => fakeSession
+  },
+  BrowserWindow: {
+    getAllWindows: () => [
+      {
+        isDestroyed: () => false,
+        webContents: { isDestroyed: () => false, send }
+      }
+    ]
   }
 }))
 
@@ -41,6 +51,7 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: async () => [TARGET]
 }))
 
+import { APP_CONFIG } from '../../../app/constants.js'
 import { Logger } from '../../../core/logger.js'
 import {
   SITE_SESSION_PROTOCOL_VERSION,
@@ -49,6 +60,7 @@ import {
   listEnabledSiteSessionTargets,
   parseSiteSessionPacket
 } from '../../../features/web-session/siteSessionBridge.js'
+import { setSiteSessionListReader } from '../../../features/web-session/siteSessionBroadcast.js'
 
 function stateWith(enabled: boolean, configVersion = 3) {
   return {
@@ -268,6 +280,46 @@ describe('site session bridge', () => {
     expect(outcome.accepted).toBe(true)
     expect(set).not.toHaveBeenCalled()
     expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined, undefined)
+  })
+})
+
+describe('the renderer', () => {
+  beforeEach(() => {
+    send.mockClear()
+    setSiteSessionListReader(async () => ({
+      views: [],
+      extensionConnected: true,
+      extensionVersionOk: true
+    }))
+  })
+
+  it('tells the renderer that an import happened', async () => {
+    // Without the event the row keeps the state it had, and the feature looks
+    // like it did nothing.
+    read.mockResolvedValue(stateWith(true))
+
+    await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(send).toHaveBeenCalledWith(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED,
+      expect.objectContaining({ extensionConnected: true })
+    )
+  })
+
+  it('does not tell the renderer about a refused packet', async () => {
+    read.mockResolvedValue(stateWith(false))
+
+    await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(send).not.toHaveBeenCalled()
   })
 })
 

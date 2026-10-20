@@ -30,10 +30,12 @@ import {
   isExtensionVersionOk,
   SiteSessionService
 } from '../../../features/web-session/siteSessionService.js'
+import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
   hostname: 'chatgpt.com',
+  origins: ['https://chatgpt.com'],
   partition: 'persist:ai_chatgpt',
   cookieDomains: ['.chatgpt.com', '.openai.com'],
   labelKey: 'ws_target_chatgpt',
@@ -127,27 +129,46 @@ describe('SiteSessionService', () => {
     expect(result.views[0].status).toBe('signed_out')
   })
 
-  it('rejects a cookie packet for a disabled target', async () => {
-    const { service, set, config } = makeService({ enabled: false })
-    const result = await service.importPacket({
-      targetId: 'chatgpt',
-      status: 'ok',
-      cookies: [{ name: 's', value: 'v', domain: '.chatgpt.com' }]
+  it('reports an outdated extension instead of a missing one', async () => {
+    // The extension is connected but speaks an older protocol: the user has
+    // to reload it. The connection is what tells the two apart, and the
+    // connection is only known when the extension really talks to the app.
+    const { service } = makeService({
+      enabled: true,
+      extensionConnected: true,
+      extensionVersionOk: false
     })
-    expect(result.accepted).toBe(false)
-    expect(result.reason).toBe('target_disabled')
-    expect(set).not.toHaveBeenCalled()
-    expect(config.recordResult).not.toHaveBeenCalled()
+    const result = await service.list()
+    expect(result.views[0].status).toBe('extension_outdated')
+  })
+
+  it('reports a missing extension when it does not talk to the app', async () => {
+    const { service } = makeService({
+      enabled: true,
+      extensionConnected: false,
+      extensionVersionOk: false
+    })
+    const result = await service.list()
+    expect(result.views[0].status).toBe('extension_missing')
   })
 
   it('writes the cookies of an enabled site into its own session', async () => {
-    const { service, set, config } = makeService({ enabled: true })
-    const result = await service.importPacket({
-      targetId: 'chatgpt',
-      status: 'ok',
-      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
-    })
-    expect(result.accepted).toBe(true)
+    // The import itself is the bridge core's business; the bridge's own tests
+    // cover the routing, the domain check and the empty packet.
+    const { config, session, set } = makeService({ enabled: true })
+    const outcome = await acceptSiteSessionPacket(
+      {
+        targetId: 'chatgpt',
+        status: 'ok',
+        cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+      },
+      {
+        config: config as never,
+        loadTargets: async () => [CHATGPT],
+        resolveSession: () => session as never
+      }
+    )
+    expect(outcome.accepted).toBe(true)
     expect(set).toHaveBeenCalledTimes(1)
     expect(set.mock.calls[0][0]).toMatchObject({
       name: 'session',
@@ -156,20 +177,48 @@ describe('SiteSessionService', () => {
     expect(config.recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined, null)
   })
 
-  it('keeps the local session when the browser has no cookies for the site', async () => {
-    const { service, remove, clearStorageData, config } = makeService({
+  it('wipes the session only after the import that is running has written', async () => {
+    // The import and the toggle of the same site may not overlap: a cookie
+    // that is written after the wipe brings the session the user just
+    // cancelled back, and nothing corrects it afterwards.
+    const { service, config, session, set, remove } = makeService({
       enabled: true,
       localCookies: [LOCAL_COOKIE]
     })
-    const result = await service.importPacket({
-      targetId: 'chatgpt',
-      status: 'no_cookies',
-      cookies: []
+
+    let releaseWrite: () => void = () => {}
+    const writeGate = new Promise<void>((resolve) => {
+      releaseWrite = resolve
     })
-    expect(result.accepted).toBe(true)
+    set.mockImplementation(async () => {
+      await writeGate
+      return {}
+    })
+
+    const importing = acceptSiteSessionPacket(
+      {
+        targetId: 'chatgpt',
+        status: 'ok',
+        cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+      },
+      {
+        config: config as never,
+        loadTargets: async () => [CHATGPT],
+        resolveSession: () => session as never
+      }
+    )
+
+    const toggling = service.setEnabled('chatgpt', false)
+
+    // The toggle has to wait for the import: the wipe must be the last thing
+    // that happens to the site.
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(remove).not.toHaveBeenCalled()
-    expect(clearStorageData).not.toHaveBeenCalled()
-    expect(config.recordResult).toHaveBeenCalledWith('chatgpt', 'no_cookies', undefined, undefined)
+
+    releaseWrite()
+    await Promise.all([importing, toggling])
+
+    expect(set.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0])
   })
 
   it('clears the session when the import is switched off', async () => {
