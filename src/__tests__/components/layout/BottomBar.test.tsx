@@ -30,8 +30,10 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiTabActions: () => ({ openAiWorkspace: vi.fn() })
 }))
 
-vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
-  useGeminiWebStatus: () => ({ data: null, isLoading: false })
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
+  useSiteSessionListQuery: () => ({ data: null, isLoading: false }),
+  hasEnabledSiteSession: () => false,
+  hasSiteSessionNeedingAttention: () => false
 }))
 
 vi.mock('@features/pdf', () => ({
@@ -66,7 +68,7 @@ vi.mock('@ui/components/Icons', () => ({
   ExpandIcon: (props: any) => <svg {...props} data-testid="expand-icon" />,
   SparklesExpandIcon: (props: any) => <svg {...props} data-testid="sparkles-expand-icon" />,
   MagicWandIcon: (props: any) => <svg {...props} data-testid="magic-wand" />,
-  GeminiIcon: (props: any) => <svg {...props} data-testid="gemini-icon" />,
+  GlobeIcon: (props: any) => <svg {...props} data-testid="globe-icon" />,
   LoaderIcon: (props: any) => <svg {...props} data-testid="loader-icon" />,
   getAiIcon: () => null
 }))

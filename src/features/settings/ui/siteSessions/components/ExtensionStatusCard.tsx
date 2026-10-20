@@ -34,32 +34,32 @@ function ExtensionStatusCard({
   }
 
   const statusKey = (info: NativeMessagingExtensionInfo | null): string => {
-    if (!info) return 'gws_extension_status_disconnected'
+    if (!info) return 'ws_extension_status_disconnected'
 
     if (info.status === 'connected') {
-      return 'gws_extension_status_connected'
+      return 'ws_extension_status_connected'
     }
 
     if (info.status === 'error') {
-      return 'gws_extension_status_error'
+      return 'ws_extension_status_error'
     }
 
     if (info.status === 'connecting' && info.installed) {
       const hint = info.userHint
       if (hint === 'waiting_long') {
-        return 'gws_extension_status_waiting_long'
+        return 'ws_extension_status_waiting_long'
       }
       if (hint === 'waiting') {
-        return 'gws_extension_status_waiting'
+        return 'ws_extension_status_waiting'
       }
-      return 'gws_extension_status_connecting'
+      return 'ws_extension_status_connecting'
     }
 
     if (info.status === 'connecting' && !info.installed) {
-      return 'gws_extension_status_not_installed'
+      return 'ws_extension_status_not_installed'
     }
 
-    return 'gws_extension_status_disconnected'
+    return 'ws_extension_status_disconnected'
   }
 
   const dotColor = (info: NativeMessagingExtensionInfo | null): string => {
@@ -70,7 +70,7 @@ function ExtensionStatusCard({
   }
 
   return (
-    <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('gws_extension_title')}>
+    <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
       <div className="border-border/60 bg-background/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`} />
@@ -88,7 +88,7 @@ function ExtensionStatusCard({
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
               className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
             >
-              <span className="text-ql-11 font-semibold">{t('gws_extension_wake_btn')}</span>
+              <span className="text-ql-11 font-semibold">{t('ws_extension_wake_btn')}</span>
             </Button>
           )}
           {extensionInfo?.installed ? (
@@ -99,7 +99,7 @@ function ExtensionStatusCard({
               onClick={onRemoveExtension}
               className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
-              <span className="text-ql-11 font-semibold">{t('gws_extension_remove_btn')}</span>
+              <span className="text-ql-11 font-semibold">{t('ws_extension_remove_btn')}</span>
             </Button>
           ) : (
             <Button
@@ -114,7 +114,7 @@ function ExtensionStatusCard({
               ) : (
                 <SettingsIcon className="h-3.5 w-3.5" />
               )}
-              <span className="text-ql-11 font-semibold">{t('gws_extension_install_btn')}</span>
+              <span className="text-ql-11 font-semibold">{t('ws_extension_install_btn')}</span>
             </Button>
           )}
         </div>

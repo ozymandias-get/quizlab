@@ -82,10 +82,10 @@ function ExtensionWizardPanel({
         setSuccess(true)
         if (result.installedPath) setInstalledPath(result.installedPath)
       } else {
-        setError(result?.error ?? t('gws_extension_wizard_error_default'))
+        setError(result?.error ?? t('ws_extension_wizard_error_default'))
       }
     } catch (err) {
-      setError(ensureErrorMessage(err, t('gws_extension_wizard_error_default')))
+      setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
       setLoading(false)
@@ -99,9 +99,9 @@ function ExtensionWizardPanel({
     try {
       const result = await onRemove()
       if (result?.success) setSuccess(true)
-      else setError(result?.error ?? t('gws_extension_wizard_error_default'))
+      else setError(result?.error ?? t('ws_extension_wizard_error_default'))
     } catch (err) {
-      setError(ensureErrorMessage(err, t('gws_extension_wizard_error_default')))
+      setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
       setLoading(false)

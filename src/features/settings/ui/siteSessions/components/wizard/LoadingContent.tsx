@@ -15,8 +15,8 @@ function LoadingContent({ mode }: LoadingContentProps) {
       <InlineSpinner size="xl" className="text-primary" />
       <p className="text-ql-13 text-muted-foreground">
         {mode === 'install'
-          ? t('gws_extension_wizard_installing')
-          : t('gws_extension_wizard_removing')}
+          ? t('ws_extension_wizard_installing')
+          : t('ws_extension_wizard_removing')}
       </p>
     </div>
   )
