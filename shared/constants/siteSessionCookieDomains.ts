@@ -17,7 +17,11 @@ export const SITE_SESSION_COOKIE_DOMAINS = {
   deepseek: ['.deepseek.com'],
   qwen: ['.qwenlm.ai', '.qwen.ai'],
   kimi: ['.kimi.com', '.moonshot.cn'],
-  m365: ['.microsoft.com', '.microsoftonline.com', '.live.com'],
+  // `m365.cloud.microsoft` is NOT a subdomain of `microsoft.com`: the site
+  // lives under `cloud.microsoft`, and without that domain the extension
+  // never reads the site's own cookie and the switch-off never signs the
+  // user out.
+  m365: ['.microsoft.com', '.microsoftonline.com', '.live.com', '.cloud.microsoft'],
   copilot: ['.microsoft.com', '.microsoftonline.com', '.live.com'],
   grok: ['.grok.com', '.x.com'],
   mistral: ['.mistral.ai'],

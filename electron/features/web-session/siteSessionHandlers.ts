@@ -14,41 +14,25 @@
  * the renderer, so the row shows the new state without waiting for a poll.
  */
 
-import { BrowserWindow } from 'electron'
-
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
-import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { broadcastSiteSessionsChanged, setSiteSessionListReader } from './siteSessionBroadcast.js'
 import { siteSessionService } from './siteSessionService.js'
 
 const { IPC_CHANNELS } = APP_CONFIG
 
 let handlersRegistered = false
 
-/**
- * Sends the fresh list to every window.
- *
- * The list is built again instead of being patched: the state of a site can
- * have changed in more than one way — the switch, the last import or the
- * session the app holds — and the renderer should not have to know which.
- */
-async function broadcastSiteSessionsChanged(): Promise<void> {
-  try {
-    const result = await siteSessionService.list()
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (win.isDestroyed() || win.webContents.isDestroyed()) continue
-      win.webContents.send(IPC_CHANNELS.SITE_SESSION_CHANGED, result)
-    }
-  } catch (error) {
-    Logger.warn('[SiteSession] The changed list could not be sent:', error)
-  }
-}
-
 export function registerSiteSessionHandlers(): void {
   if (handlersRegistered) return
   handlersRegistered = true
+
+  // The broadcast module sends the fresh list to the renderer, and it does not
+  // know how the list is built: the service owns the state of the sites, so
+  // the service is the one that reads it.
+  setSiteSessionListReader(() => siteSessionService.list())
 
   registerIpcHandler(
     IPC_CHANNELS.SITE_SESSION_LIST,

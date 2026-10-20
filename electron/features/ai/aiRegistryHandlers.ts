@@ -1,7 +1,7 @@
 import type { AiPlatform, CustomAiResult } from '@shared-core/types'
 
 import crypto from 'crypto'
-import { app } from 'electron'
+import { app, session as electronSession } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
@@ -15,6 +15,9 @@ import { setupAiSession } from '../../app/window/sessions.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
+import { buildSiteSessionTargets } from '../web-session/siteSessionTargets.js'
+import { wipeSiteSession } from '../web-session/siteSessionWipe.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
 import { getCustomPlatformStore } from './customPlatformStore.js'
 
@@ -57,6 +60,38 @@ export const normalizeCustomAiUrl = (url: unknown): string | null => {
 }
 
 let handlersRegistered = false
+
+/**
+ * The session of a site the user deleted.
+ *
+ * Two things have to go with the site: the session the app holds for it and
+ * the state that says the site takes its session from Chrome. The first is
+ * wiped through the session target the app derives from the registry, the
+ * second through the site session state.
+ *
+ * Neither of them may keep the site from being deleted: a failure is logged
+ * and the delete goes on.
+ */
+async function clearDeletedSiteSession(siteId: string): Promise<void> {
+  try {
+    // The target has to be looked up before the platform is deleted: the
+    // target list is derived from the registry, and the deleted site is no
+    // longer in it afterwards.
+    const targets = await buildSiteSessionTargets()
+    const target = targets.find((candidate) => candidate.siteId === siteId)
+    if (target) {
+      await wipeSiteSession(electronSession.fromPartition(target.partition), target)
+    }
+  } catch (error) {
+    Logger.warn('[AI] The session of the deleted site could not be cleared:', error)
+  }
+
+  try {
+    await getSiteSessionConfig().forget(siteId)
+  } catch (error) {
+    Logger.warn('[AI] The session state of the deleted site could not be removed:', error)
+  }
+}
 
 export function registerAiRegistryHandlers() {
   const { IPC_CHANNELS } = APP_CONFIG
@@ -145,6 +180,14 @@ export function registerAiRegistryHandlers() {
         return success(false)
       }
       try {
+        const siteId = `custom:${id}`
+
+        // The session of a site the user deletes goes with it. Deleting the
+        // partition directory on disk is not enough: the session Electron
+        // already holds in memory would survive, and the site would still be
+        // signed in the next time the app opened it.
+        await clearDeletedSiteSession(siteId)
+
         const deleted = await manager.deleteItem(id)
 
         try {

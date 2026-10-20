@@ -28,9 +28,6 @@ import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
 
-/** The Google family: many apps, one partition, one settings row. */
-const GOOGLE_HOSTNAME = 'accounts.google.com'
-
 /**
  * The apps that make up the Google site.
  *
@@ -42,6 +39,12 @@ const GOOGLE_HOSTNAME = 'accounts.google.com'
  */
 const GOOGLE_MEMBER_APP_IDS = new Set<string>(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 
+/** The origins of the four Google apps: one per app, one partition. */
+const GOOGLE_ORIGINS = GOOGLE_WEB_SESSION_APPS.map((app) => new URL(app.url).origin)
+
+/** The hosts of the four Google apps, as the settings row shows them. */
+const GOOGLE_HOSTS = GOOGLE_WEB_SESSION_APPS.map((app) => new URL(app.url).hostname).join(', ')
+
 /** A target row plus the fields the renderer needs but the routing does not. */
 export interface SiteSessionTargetRow extends SiteSessionTarget {
   /** i18n key of the site label; the renderer resolves it. */
@@ -49,6 +52,29 @@ export interface SiteSessionTargetRow extends SiteSessionTarget {
   kind: SiteSessionKind
   /** The AI app ids that belong to this site. */
   memberAppIds: string[]
+  /**
+   * The hosts the settings row shows for this site.
+   *
+   * A site may live on several hosts — the Google group on four — so this is
+   * a label and not an origin: the origins that a wipe clears live in
+   * `origins`.
+   */
+  hostname: string
+}
+
+/**
+ * The origin of a platform URL, or null when the URL is unusable.
+ *
+ * A platform without a parsable URL has no site to route cookies to, so it
+ * cannot become a target.
+ */
+function originOf(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).origin
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -79,8 +105,9 @@ function buildPlatformTarget(platform: AiPlatform): SiteSessionTargetRow | null 
 
   const partition = platform.partition
   if (!partition) return null
+  const origin = originOf(platform.url)
   const hostname = hostnameOf(platform.url)
-  if (!hostname) {
+  if (!origin || !hostname) {
     // An absent URL is a configuration choice (the `api-chat` model has none),
     // but an unparsable one is a defect: the site would disappear from the
     // settings list without a trace.
@@ -97,6 +124,7 @@ function buildPlatformTarget(platform: AiPlatform): SiteSessionTargetRow | null 
   return {
     siteId: platform.id,
     hostname,
+    origins: [origin],
     partition,
     cookieDomains,
     labelKey: `ws_target_${platform.id}`,
@@ -110,7 +138,8 @@ export function buildBuiltinSiteSessionTargets(): SiteSessionTargetRow[] {
   const targets: SiteSessionTargetRow[] = [
     {
       siteId: GOOGLE_AI_WEB_SITE_ID,
-      hostname: GOOGLE_HOSTNAME,
+      hostname: GOOGLE_HOSTS,
+      origins: GOOGLE_ORIGINS,
       partition: GOOGLE_AI_WEB_SESSION_PARTITION,
       cookieDomains: getSiteSessionCookieDomains(GOOGLE_AI_WEB_SITE_ID),
       labelKey: 'ws_target_google',
@@ -144,8 +173,9 @@ export async function buildSiteSessionTargets(): Promise<SiteSessionTargetRow[]>
       Logger.warn(`[Web Session] The custom site "${id}" is skipped: it has no partition.`)
       continue
     }
+    const origin = originOf(platform.url)
     const hostname = hostnameOf(platform.url)
-    if (!hostname) {
+    if (!origin || !hostname) {
       Logger.warn(`[Web Session] The custom site "${id}" is skipped: it has no usable url.`)
       continue
     }
@@ -153,6 +183,7 @@ export async function buildSiteSessionTargets(): Promise<SiteSessionTargetRow[]>
     targets.push({
       siteId: `custom:${id}`,
       hostname,
+      origins: [origin],
       partition,
       cookieDomains: [`.${hostname}`],
       labelKey: 'ws_target_custom',

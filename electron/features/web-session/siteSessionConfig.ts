@@ -389,6 +389,40 @@ export class SiteSessionConfig {
     }
   }
 
+  /**
+   * Removes the state of a site that does not exist any more.
+   *
+   * A user-added site the user deleted leaves an entry behind otherwise, and
+   * an entry that says "switched on" for a site that is gone would keep the
+   * extension pushing a site the app does not know.
+   *
+   * The version advances: the extension polls it, and a site that is gone has
+   * to leave the list it polls.
+   *
+   * @throws when the state could not be written.
+   */
+  async forget(siteId: string): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      if (!currentState.targets[siteId]) return currentState
+
+      const targets: Record<string, SiteSessionTargetState> = { ...currentState.targets }
+      delete targets[siteId]
+      return {
+        ...currentState,
+        configVersion: currentState.configVersion + 1,
+        targets
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The state of "${siteId}" could not be removed.`)
+    }
+  }
+
   /** The counter the extension polls to learn that something changed. */
   async getConfigVersion(): Promise<number> {
     const state = await this.loadState()

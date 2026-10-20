@@ -161,20 +161,18 @@ class NativeMessagingManager {
 
   private async handleNativeMessage(message: unknown): Promise<void> {
     try {
+      // A message on the native host pipe is the proof that the extension is
+      // alive: only the paired extension may write to that pipe. The check
+      // happens before the packet is read, because a message the app cannot
+      // use still says that the extension is there.
+      this.markExtensionSeen()
+
       const packet = parseSiteSessionPacket(JSON.stringify(message))
       if (!packet) {
         Logger.warn('[NativeMessaging] Received a native message that is not a site session packet')
         this.sendNativeMessage({ success: false, error: 'Malformed packet' })
         return
       }
-
-      if (this._connectionStatus !== 'connected') {
-        this._connectionStatus = 'connected'
-        this._waitingSince = null
-        this._extensionLastSeenAt = Date.now()
-        this.broadcastExtensionConnected()
-      }
-      this._extensionLastSeenAt = Date.now()
 
       const outcome = await acceptSiteSessionPacket(packet)
       if (!outcome.accepted) {
@@ -186,6 +184,25 @@ class NativeMessagingManager {
       Logger.error('[NativeMessaging] Failed to handle native message:', err)
       this.sendNativeMessage({ success: false, error: 'Internal error' })
     }
+  }
+
+  /**
+   * Remembers that the extension is talking to the app.
+   *
+   * The connection is kept alive by the traffic itself: the extension pushes
+   * its packets only when something changed, so the app learns that the
+   * extension is there from the requests that arrive, not from a heartbeat of
+   * its own. The bridge calls this for every request that passed the origin
+   * check.
+   */
+  markExtensionSeen(): void {
+    const wasConnected = this._connectionStatus === 'connected'
+    this._extensionLastSeenAt = Date.now()
+    if (wasConnected) return
+
+    this._connectionStatus = 'connected'
+    this._waitingSince = null
+    this.broadcastExtensionConnected()
   }
 
   private sendNativeMessage(message: unknown): void {

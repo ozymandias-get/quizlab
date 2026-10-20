@@ -486,4 +486,38 @@ describe('site session config', () => {
     await expect(config.setEnabled('chatgpt', true)).rejects.toThrow(/could not be written/)
     await expect(config.recordResult('chatgpt', 'imported')).rejects.toThrow(/could not be written/)
   })
+
+  it('removes the state of a site that does not exist any more', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('custom:custom_1', true)
+
+    await config.forget('custom:custom_1')
+
+    const state = await config.read()
+    expect(state.targets['custom:custom_1']).toBeUndefined()
+    expect(state.targets.chatgpt.enabled).toBe(true)
+  })
+
+  it('advances the version when a site is removed', async () => {
+    // The extension polls the version: a site that is gone has to leave the
+    // list it polls.
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('custom:custom_1', true)
+    const version = await config.getConfigVersion()
+
+    await config.forget('custom:custom_1')
+
+    expect(await config.getConfigVersion()).toBe(version + 1)
+  })
+
+  it('leaves the version alone when there was nothing to remove', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    const version = await config.getConfigVersion()
+
+    await config.forget('custom:custom_1')
+
+    expect(await config.getConfigVersion()).toBe(version)
+  })
 })

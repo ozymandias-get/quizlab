@@ -65,6 +65,21 @@ function recordProtocolVersion(manager: unknown, req: IncomingMessage): void {
   mgr._extensionProtocolVersion = version
 }
 
+/**
+ * Remembers that the extension is talking to the app.
+ *
+ * A request from the paired extension's origin is the proof that the
+ * extension is alive. The old heartbeat that posted cookies every minute is
+ * gone — the extension pushes only when something changed — so without this
+ * the app would keep saying "the extension is not installed" to an extension
+ * that is running perfectly, and the row of an outdated extension would say
+ * "not installed" instead of "reload the extension".
+ */
+function markExtensionSeen(manager: unknown): void {
+  const mgr = manager as unknown as { markExtensionSeen(): void }
+  mgr.markExtensionSeen()
+}
+
 export function createBridgeRequestHandler(manager: unknown) {
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
@@ -94,6 +109,12 @@ export function createBridgeRequestHandler(manager: unknown) {
       rejectDisallowedOrigin(res, requestOrigin)
       return
     }
+
+    // The request passed the origin check, so the extension is alive. This
+    // happens before the routing: a request that is refused further down — a
+    // packet for a site that is switched off, an old extension that still
+    // speaks the old protocol — still proves that the extension is there.
+    markExtensionSeen(manager)
 
     // The extension names the protocol it speaks in every request it makes to
     // the bridge. The version is remembered before the request is answered,
@@ -138,8 +159,15 @@ export function createBridgeRequestHandler(manager: unknown) {
  *
  * The list is signed like the cookie packets are: the health endpoint hands
  * the secret to the paired extension, and every later request proves it holds
- * that secret. A local process that forges the origin header therefore still
- * gets nothing it could use.
+ * that secret.
+ *
+ * The signature is not the boundary that keeps a local process out. The
+ * health endpoint hands the secret to any request that carries the expected
+ * `Origin` header, and a local process can forge that header and sign
+ * perfectly. The signature only raises the bar.
+ *
+ * The real bound is the router: a packet is written only into a site that is
+ * switched on, and every cookie in it has to belong to that site.
  */
 function handleSiteListRequest(req: IncomingMessage, res: ServerResponse, manager: unknown): void {
   const mgr = manager as unknown as { _sharedSecret: string }
@@ -170,10 +198,6 @@ function isValidSignature(payload: string, signature: string | undefined, secret
 function handleCookiePost(req: IncomingMessage, res: ServerResponse, manager: unknown): void {
   const mgr = manager as unknown as {
     _sharedSecret: string
-    _connectionStatus: string
-    _waitingSince: number | null
-    _extensionLastSeenAt: number
-    broadcastExtensionConnected(): void
   }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
   if (!signature) {
@@ -209,14 +233,6 @@ function handleCookiePost(req: IncomingMessage, res: ServerResponse, manager: un
         sendJson(res, 400, { error: 'Malformed packet' })
         return
       }
-
-      if (mgr._connectionStatus !== 'connected') {
-        mgr._connectionStatus = 'connected'
-        mgr._waitingSince = null
-        mgr._extensionLastSeenAt = Date.now()
-        mgr.broadcastExtensionConnected()
-      }
-      mgr._extensionLastSeenAt = Date.now()
 
       const outcome = await acceptSiteSessionPacket(packet)
       if (!outcome.accepted) {

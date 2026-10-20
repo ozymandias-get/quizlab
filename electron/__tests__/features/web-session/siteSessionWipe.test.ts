@@ -11,6 +11,7 @@ const get = vi.fn()
 const TARGET = {
   siteId: 'chatgpt',
   hostname: 'chatgpt.com',
+  origins: ['https://chatgpt.com'],
   partition: 'persist:ai_chatgpt',
   cookieDomains: ['.chatgpt.com', '.openai.com'],
   labelKey: 'ws_target_chatgpt',
@@ -47,6 +48,37 @@ describe('wipeSiteSession', () => {
     expect(clearStorageData).toHaveBeenCalledWith(
       expect.objectContaining({ origin: 'https://chatgpt.com' })
     )
+  })
+
+  it('clears the storage of every origin the site lives on', async () => {
+    // A site may live on more than one origin: the Google group is four apps
+    // on four hosts, and a wipe that missed one of them would leave the site
+    // signed in.
+    await wipeSiteSession(fakeSession(), {
+      ...TARGET,
+      siteId: 'google',
+      origins: [
+        'https://gemini.google.com',
+        'https://aistudio.google.com',
+        'https://www.youtube.com',
+        'https://drive.google.com'
+      ]
+    })
+
+    const clearedOrigins = clearStorageData.mock.calls.map(([options]) => options.origin)
+    expect(clearedOrigins).toEqual([
+      'https://gemini.google.com',
+      'https://aistudio.google.com',
+      'https://www.youtube.com',
+      'https://drive.google.com'
+    ])
+  })
+
+  it('never clears the storage of an origin the site does not live on', async () => {
+    await wipeSiteSession(fakeSession(), TARGET)
+    const clearedOrigins = clearStorageData.mock.calls.map(([options]) => options.origin)
+    expect(clearedOrigins).not.toContain('https://accounts.google.com')
+    expect(clearedOrigins).not.toContain('https://claude.ai')
   })
 
   it('leaves the cookies of another site untouched', async () => {

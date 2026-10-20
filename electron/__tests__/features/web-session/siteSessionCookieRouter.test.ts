@@ -8,6 +8,7 @@ import {
 const CHATGPT = {
   siteId: 'chatgpt',
   hostname: 'chatgpt.com',
+  origins: ['https://chatgpt.com'],
   partition: 'persist:ai_chatgpt',
   cookieDomains: ['.chatgpt.com', '.openai.com'],
   labelKey: 'ws_target_chatgpt',
