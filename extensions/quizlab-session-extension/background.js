@@ -30,16 +30,36 @@ const PROTOCOL_VERSION = 2
 const HEALTH_PATH = '/api/health'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
-const STORAGE_KEYS = ['bridgeSecret', 'lastConfigVersion', 'knownTargets', 'bridgePort']
+const STORAGE_KEYS = [
+  'bridgeSecret',
+  'lastConfigVersion',
+  'knownTargets',
+  'bridgePort',
+  'pendingSiteIds',
+  'outdatedState'
+]
 
-let currentPort = PORT_START
+/** The sync with the app went through. */
+const SYNC_OK = 'ok'
+/** The bridge did not answer at all. */
+const SYNC_UNREACHABLE = 'unreachable'
+/** The bridge answered but refused a packet. */
+const SYNC_REFUSED = 'refused'
+
 let connected = false
 let cookieDebounceTimer = null
 let bridgeSecret = null
 let lastConfigVersion = null
 let knownTargets = []
+/** The port the bridge was last seen on. */
 let bridgePort = null
-let pendingSend = Promise.resolve(true)
+/** The sites whose packet the app refused; they are pushed again. */
+let pendingSiteIds = new Set()
+/** The state the app was last told about while it speaks an older protocol. */
+let outdatedState = null
+/** What the last push sent, so that the same state is not sent twice. */
+let lastPush = null
+let pendingSend = Promise.resolve(SYNC_OK)
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -128,6 +148,12 @@ async function readPersistedState() {
     if (typeof stored.bridgePort === 'number') {
       bridgePort = stored.bridgePort
     }
+    if (Array.isArray(stored.pendingSiteIds)) {
+      pendingSiteIds = new Set(stored.pendingSiteIds.filter((id) => typeof id === 'string'))
+    }
+    if (typeof stored.outdatedState === 'string') {
+      outdatedState = stored.outdatedState
+    }
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
   }
@@ -185,8 +211,6 @@ async function fetchSiteList(port) {
         protocolVersion,
         'and cannot read the per-site packets'
       )
-      knownTargets = []
-      await persistState({ knownTargets: [] })
       return { protocolVersion, configVersion: 0, targets, outdated: true }
     }
     return {
@@ -254,13 +278,15 @@ function cookieIdentity(cookie) {
  * Chrome matches the domain attribute of a cookie exactly: a query for
  * `.chatgpt.com` returns the domain-wide cookies of the site and nothing else.
  * The host-only cookies of the same site only come back when the host is
- * queried without the leading dot.
+ * queried without the leading dot. Both spellings are therefore always asked
+ * for — a domain that is written without a leading dot still has a
+ * domain-wide spelling.
  */
 function domainSpellings(domain) {
   const trimmed = typeof domain === 'string' ? domain.trim().toLowerCase() : ''
   const host = trimmed.replace(/^\.+/, '')
   if (!host) return []
-  return trimmed.startsWith('.') ? [trimmed, host] : [host]
+  return trimmed.startsWith('.') ? [trimmed, host] : [host, `.${host}`]
 }
 
 async function readCookies(domain) {
@@ -278,15 +304,24 @@ async function readCookies(domain) {
   }
 }
 
-/** Whether the extension may read a host at all. */
+/**
+ * Whether the extension may read a host at all.
+ *
+ * A check that fails is a check that did not pass: a throwing permissions API
+ * means that the permission could not be proven, not that it is there.
+ */
 async function containsAnyOrigin(patterns) {
   for (const pattern of patterns) {
     try {
       if (await chrome.permissions.contains({ origins: [pattern] })) return true
-    } catch {
-      // Without the permissions API the host permissions of the manifest are
-      // the answer, and they are granted when the extension is installed.
-      return true
+    } catch (error) {
+      console.warn(
+        '[Quizlab Bridge] The permission of',
+        pattern,
+        'could not be read:',
+        errorMessage(error)
+      )
+      return false
     }
   }
   return false
@@ -299,7 +334,11 @@ async function containsAnyOrigin(patterns) {
  * tell it apart from a site the browser simply holds no session for.
  */
 async function hasPermission(domains) {
-  if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') return true
+  if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') {
+    // Without the permissions API the host permissions of the manifest are
+    // the answer, and they are granted when the extension is installed.
+    return true
+  }
   for (const domain of domains) {
     const host = typeof domain === 'string' ? domain.trim().toLowerCase().replace(/^\.+/, '') : ''
     if (!host) continue
@@ -339,6 +378,10 @@ function normalizeCookie(cookie) {
  *
  * A packet carries the cookies of a single site, because the app refuses a
  * packet that carries the cookie of another one.
+ *
+ * A site the extension may not read *completely* is reported as such even when
+ * some of its cookies were read: the app would otherwise import the session it
+ * could see and delete the cookies of the domain it could not.
  */
 async function collectTargetPacket(target) {
   const collected = new Map()
@@ -352,20 +395,18 @@ async function collectTargetPacket(target) {
   }
 
   const cookies = [...collected.values()]
+  const permitted = await hasPermission(target.cookieDomains)
+  if (!permitted) {
+    return { targetId: target.siteId, status: 'permission_missing', cookies: [] }
+  }
   if (cookies.length > 0) {
     return { targetId: target.siteId, status: 'ok', cookies: cookies.map(normalizeCookie) }
   }
-
-  const permitted = await hasPermission(target.cookieDomains)
-  return {
-    targetId: target.siteId,
-    status: permitted ? 'no_cookies' : 'permission_missing',
-    cookies: []
-  }
+  return { targetId: target.siteId, status: 'no_cookies', cookies: [] }
 }
 
 /** Sends the packet of one site to the app. */
-async function postPacket(packet) {
+async function postPacket(packet, port) {
   try {
     const body = JSON.stringify(packet)
     const headers = {
@@ -378,7 +419,7 @@ async function postPacket(packet) {
       headers['x-hmac-signature'] = await computeHmac(body, bridgeSecret)
     }
 
-    const response = await fetch(`http://${BRIDGE_HOST}:${currentPort}${COOKIE_PATH}`, {
+    const response = await fetch(`http://${BRIDGE_HOST}:${port}${COOKIE_PATH}`, {
       method: 'POST',
       headers,
       body
@@ -432,27 +473,63 @@ function isKnownDomain(domain) {
   return knownTargets.some((target) => targetCoversDomain(target, domain))
 }
 
-/** Sends one packet per site and reports whether all of them arrived. */
-async function pushTargets(targets) {
-  let succeeded = true
+/**
+ * Whether this state was already pushed to this bridge.
+ *
+ * The app only has to be told once: a second push of the same state would
+ * rewrite every session of the app for nothing.
+ */
+function statePushedTo(list, fingerprint) {
+  return (
+    lastPush !== null &&
+    lastPush.secret === bridgeSecret &&
+    lastPush.configVersion === list.configVersion &&
+    lastPush.fingerprint === fingerprint
+  )
+}
+
+/**
+ * Sends one packet per site.
+ *
+ * A site whose packet the app refused is remembered: it is pushed again with
+ * the next poll, because the app may have refused it for a reason that is
+ * gone by then.
+ */
+async function pushTargets(targets, port) {
+  let refused = false
   for (const target of targets) {
     const packet = await collectTargetPacket(target)
-    const sent = await postPacket(packet)
-    if (!sent) succeeded = false
+    const sent = await postPacket(packet, port)
+    if (sent) {
+      pendingSiteIds.delete(target.siteId)
+    } else {
+      pendingSiteIds.add(target.siteId)
+      refused = true
+    }
     // Only the site, the domains, the outcome and the count are logged. A
     // cookie value never reaches the log.
-    console.warn(
+    console.log(
       `[Quizlab Bridge] ${target.siteId} (${target.cookieDomains.join(', ')}): ` +
         `${packet.status}, ${packet.cookies.length} cookies`
     )
   }
-  return succeeded
+  return refused
 }
 
-/** Tells the app that the sites cannot be read at all. */
-async function reportOutdated(targets) {
-  for (const target of targets) {
-    await postPacket({ targetId: target.siteId, status: 'permission_missing', cookies: [] })
+/**
+ * Tells the app that the sites cannot be read at all.
+ *
+ * The app speaks an older protocol, so it cannot read the packets anyway. The
+ * state is reported once and not on every poll: a report per poll would be a
+ * packet every 30 seconds for an app that will never understand them.
+ */
+async function reportOutdatedOnce(list, port) {
+  const key = `${list.protocolVersion}:${targetsFingerprint(list.targets)}`
+  if (outdatedState === key) return
+  outdatedState = key
+  await persistState({ outdatedState: key })
+  for (const target of list.targets) {
+    await postPacket({ targetId: target.siteId, status: 'permission_missing', cookies: [] }, port)
   }
 }
 
@@ -461,50 +538,83 @@ async function reportOutdated(targets) {
  *
  * The cookies are only pushed when something actually changed: the app asked
  * for a different set of sites, the app changed its configuration, the browser
- * changed a cookie of one of the sites or the connection was just established.
- * A poll that finds nothing new sends nothing.
+ * changed a cookie of one of the sites, the app refused an earlier packet or
+ * the bridge is a new one. A poll that finds nothing new sends nothing.
  */
 async function sendCookiesToApp(options) {
   const settings = options || {}
   await stateReady
 
+  const port = typeof settings.port === 'number' ? settings.port : bridgePort
+  if (!port) return SYNC_UNREACHABLE
+
   if (!bridgeSecret) {
-    const health = await fetchHealth(currentPort)
-    if (!health) return false
+    const health = await fetchHealth(port)
+    if (!health) return SYNC_UNREACHABLE
     await rememberSecret(health.secret)
   }
 
-  const list = await fetchSiteList(currentPort)
-  if (!list) return false
+  const list = await fetchSiteList(port)
+  if (!list) return SYNC_UNREACHABLE
 
   if (list.outdated) {
-    await reportOutdated(list.targets)
-    return true
+    await reportOutdatedOnce(list, port)
+    return SYNC_OK
   }
 
-  const changed =
-    list.configVersion !== lastConfigVersion ||
-    targetsFingerprint(list.targets) !== targetsFingerprint(knownTargets)
+  if (outdatedState !== null) {
+    outdatedState = null
+    await persistState({ outdatedState: null })
+  }
 
+  const fingerprint = targetsFingerprint(list.targets)
+  const changed =
+    list.configVersion !== lastConfigVersion || fingerprint !== targetsFingerprint(knownTargets)
+
+  // The sites that have to be pushed: the ones the app refused, the ones the
+  // browser changed and — when the bridge is a new one — all of them.
+  const wanted = new Set(pendingSiteIds)
+  for (const target of list.targets) {
+    if (changed) wanted.add(target.siteId)
+    if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
+      if (targetCoversDomain(target, settings.changedDomain)) wanted.add(target.siteId)
+    }
+  }
+  if (settings.connect === true && !statePushedTo(list, fingerprint)) {
+    for (const target of list.targets) wanted.add(target.siteId)
+  }
+
+  // A site the app does not ask for anymore is not pushed again.
+  const asked = new Set(list.targets.map((target) => target.siteId))
+  for (const siteId of pendingSiteIds) {
+    if (!asked.has(siteId)) pendingSiteIds.delete(siteId)
+  }
+
+  const targets = list.targets.filter((target) => wanted.has(target.siteId))
+  if (targets.length === 0) {
+    if (changed) {
+      lastConfigVersion = list.configVersion
+      knownTargets = list.targets
+      await persistState({ lastConfigVersion, knownTargets })
+    }
+    return SYNC_OK
+  }
+
+  const refused = await pushTargets(targets, port)
   if (changed) {
-    // The state is only remembered once the packets are through: a push that
-    // failed has to be repeated by the next poll.
-    const sent = await pushTargets(list.targets)
-    if (!sent) return false
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
-    await persistState({ lastConfigVersion, knownTargets })
-    return true
   }
-
-  if (settings.force !== true) return true
-
-  const changedDomain = typeof settings.changedDomain === 'string' ? settings.changedDomain : ''
-  const targets = changedDomain
-    ? list.targets.filter((target) => targetCoversDomain(target, changedDomain))
-    : list.targets
-  if (targets.length === 0) return true
-  return pushTargets(targets)
+  if (!refused && targets.length === list.targets.length) {
+    // The whole state reached the bridge: it does not have to be sent again.
+    lastPush = { secret: bridgeSecret, configVersion: list.configVersion, fingerprint }
+  }
+  await persistState({
+    lastConfigVersion,
+    knownTargets,
+    pendingSiteIds: [...pendingSiteIds]
+  })
+  return refused ? SYNC_REFUSED : SYNC_OK
 }
 
 /**
@@ -516,11 +626,11 @@ async function sendCookiesToApp(options) {
  */
 function queueSend(options) {
   pendingSend = pendingSend
-    .catch(() => false)
+    .catch(() => SYNC_UNREACHABLE)
     .then(() => sendCookiesToApp(options))
     .catch((error) => {
       console.warn('[Quizlab Bridge] The site session sync failed:', errorMessage(error))
-      return false
+      return SYNC_UNREACHABLE
     })
   return pendingSend
 }
@@ -531,11 +641,6 @@ function enterScanMode() {
   connected = false
   chrome.alarms.clear(HEARTBEAT_ALARM).catch(() => {})
   chrome.alarms.create(SCAN_ALARM, { delayInMinutes: SCAN_INTERVAL_MS / 60000 })
-  if (bridgePort !== null) {
-    // The bridge is gone: the next connection is a new one.
-    bridgePort = null
-    void persistState({ bridgePort: null })
-  }
 }
 
 function setupHeartbeat() {
@@ -552,20 +657,23 @@ async function scanForBridge() {
       const health = await fetchHealth(port)
       if (!health) continue
 
-      currentPort = port
+      // The secret identifies the bridge: a bridge that answers with another
+      // secret is a new one, and the app may have lost its session in the
+      // meantime. A bridge that could not be reached for a moment does not
+      // make the next one a new one.
+      const justConnected = health.secret !== bridgeSecret
       await rememberSecret(health.secret)
-      const justConnected = bridgePort !== port
       bridgePort = port
       connected = true
       await persistState({ bridgePort: port })
 
-      const sent = await queueSend({ force: justConnected })
-      if (sent) {
-        setupHeartbeat()
-      } else {
-        // Bridge is up but refused the payload — keep scanning so the
-        // next alarm retries instead of hanging in a fake "connected".
+      const result = await queueSend({ port, connect: justConnected })
+      if (result === SYNC_UNREACHABLE) {
+        // Bridge is up but did not answer — keep scanning so the next alarm
+        // retries instead of hanging in a fake "connected".
         enterScanMode()
+      } else {
+        setupHeartbeat()
       }
       return
     }
@@ -591,7 +699,7 @@ async function handleCookieChange(changeInfo) {
   if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer)
   cookieDebounceTimer = setTimeout(() => {
     cookieDebounceTimer = null
-    void queueSend({ force: true, changedDomain: domain })
+    void queueSend({ changedDomain: domain })
   }, 2000)
 }
 
@@ -601,10 +709,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === SCAN_ALARM) {
     void scanForBridge()
   } else if (alarm.name === HEARTBEAT_ALARM) {
-    // The heartbeat polls the site list. It only pushes when the app asked
-    // for something else than it did the last time.
-    void queueSend({ force: false }).then((sent) => {
-      if (sent !== true) {
+    // The heartbeat polls the site list of the bridge it knows. It only
+    // pushes when the app asked for something else than it did the last time.
+    void queueSend({}).then((result) => {
+      if (result === SYNC_UNREACHABLE) {
         // Re-enter scan mode when the bridge is gone so the reconnect loop
         // keeps running instead of silently stopping the session sync.
         enterScanMode()
