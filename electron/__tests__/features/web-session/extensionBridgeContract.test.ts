@@ -174,6 +174,43 @@ function createHarness(options: HarnessOptions = {}): Harness {
   let timerId = 0
   let bridgePort: number | null = null
 
+  /**
+   * The signatures the extension has in flight.
+   *
+   * The real WebCrypto is used — the test pins the exact HMAC the extension
+   * sends — but it resolves on the thread pool, so the harness has to know
+   * whether a signature is still on its way.
+   */
+  let pendingSignatures = 0
+  const harnessCrypto = {
+    subtle: {
+      importKey: (
+        format: 'raw',
+        keyData: BufferSource,
+        algorithm: HmacImportParams,
+        extractable: boolean,
+        keyUsages: readonly KeyUsage[]
+      ): Promise<CryptoKey> => {
+        pendingSignatures += 1
+        return globalThis.crypto.subtle
+          .importKey(format, keyData, algorithm, extractable, keyUsages)
+          .finally(() => {
+            pendingSignatures -= 1
+          })
+      },
+      sign: (
+        algorithm: AlgorithmIdentifier,
+        key: CryptoKey,
+        data: BufferSource
+      ): Promise<ArrayBuffer> => {
+        pendingSignatures += 1
+        return globalThis.crypto.subtle.sign(algorithm, key, data).finally(() => {
+          pendingSignatures -= 1
+        })
+      }
+    }
+  }
+
   const fakeChrome = {
     runtime: {
       id: EXTENSION_ID,
@@ -272,7 +309,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const context = vm.createContext({
     chrome: fakeChrome,
     fetch: fakeFetch,
-    crypto: globalThis.crypto,
+    crypto: harnessCrypto,
     TextEncoder: globalThis.TextEncoder,
     AbortSignal: globalThis.AbortSignal,
     console: {
@@ -295,8 +332,14 @@ function createHarness(options: HarnessOptions = {}): Harness {
   vm.runInContext(source, context, { filename: BACKGROUND_PATH })
 
   const settle = async (): Promise<void> => {
-    for (let turn = 0; turn < 3; turn++) {
-      await new Promise((resolve) => setTimeout(resolve, 0))
+    // The extension signs every request with WebCrypto, and that resolves on
+    // the thread pool. Waiting for a fixed number of event loop turns can end
+    // before the signature arrives, so the number of packets the extension had
+    // sent then depended on how busy the machine was. Waiting for the pending
+    // signatures instead makes the settle independent of the load.
+    for (let turn = 0; turn < 100; turn++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      if (pendingSignatures === 0) return
     }
   }
 
