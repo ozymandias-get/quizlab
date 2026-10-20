@@ -115,14 +115,31 @@ async function missingHosts(hosts) {
 }
 
 /**
+ * The storage area the site list is read from.
+ *
+ * The service worker writes the list into the session storage and falls back
+ * to the local storage when the browser has no session storage. The popup
+ * reads it from the same place, or it would not find the list at all.
+ */
+function storageArea() {
+  try {
+    return chrome.storage.session || chrome.storage.local || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * The site list the service worker persisted, or null when there is none.
  *
  * The popup cannot ask the app itself: the app only answers a signed request
  * and the secret of the signature lives in the memory of the service worker.
  */
 async function readTargets() {
+  const area = storageArea()
+  if (!area) return null
   try {
-    const stored = await chrome.storage.session.get(TARGETS_KEY)
+    const stored = await area.get(TARGETS_KEY)
     const targets = stored ? stored[TARGETS_KEY] : undefined
     if (!Array.isArray(targets)) return null
     return targets
@@ -145,6 +162,18 @@ function clearList() {
 }
 
 /**
+ * The name of a site.
+ *
+ * A user-added site carries an internal id (`custom:<id>`) that the user
+ * never sees in the app, so the host of the site is its name. A built-in site
+ * already has a readable id.
+ */
+function titleOf(site) {
+  if (site.siteId.startsWith('custom:')) return site.hosts[0]
+  return site.siteId
+}
+
+/**
  * The row of one site.
  *
  * A site that already has its permission says so and offers no button: there
@@ -156,7 +185,7 @@ function renderRow(site) {
 
   const name = document.createElement('span')
   name.className = 'site-name'
-  name.textContent = site.siteId
+  name.textContent = titleOf(site)
 
   const domains = document.createElement('span')
   domains.className = 'site-domains'
@@ -181,9 +210,15 @@ function renderRow(site) {
   button.addEventListener('click', () => {
     // The request has to be made inside the click handler: Chrome only grants
     // a runtime permission to a request that comes from a user gesture.
-    const request = chrome.permissions.request({
-      origins: site.missing.map(wildcardPattern)
-    })
+    let request
+    try {
+      request = chrome.permissions.request({
+        origins: site.missing.map(wildcardPattern)
+      })
+    } catch (error) {
+      onFailed(error)
+      return
+    }
     void Promise.resolve(request).then(onGranted, onFailed)
   })
 
