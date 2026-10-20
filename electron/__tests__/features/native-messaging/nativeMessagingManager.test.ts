@@ -645,4 +645,66 @@ describe('NativeMessagingManager', () => {
       expect(info.userHint).toBeNull()
     })
   })
+
+  describe('the protocol version of the extension', () => {
+    const EXTENSION_ORIGIN = 'chrome-extension://quizlab-test-extension'
+
+    beforeEach(async () => {
+      // The manager is a singleton: the version of a previous test has to go
+      // before the next one looks at it.
+      ;(
+        manager as unknown as { _extensionProtocolVersion: number | null }
+      )._extensionProtocolVersion = null
+      mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
+      mockFsStat.mockRejectedValue(new Error('ENOENT'))
+      await manager.initialize()
+      // The request has to carry the origin the manager expects.
+      ;(
+        manager as unknown as { _expectedExtensionOrigin: string | null }
+      )._expectedExtensionOrigin = EXTENSION_ORIGIN
+    })
+
+    function requestHealth(version?: string) {
+      const createCall = mockCreateServer.mock.calls.find((call) => typeof call[0] === 'function')
+      const handler = createCall![0] as (req: unknown, res: unknown) => void
+      const res = { writeHead: vi.fn(), end: vi.fn(), setHeader: vi.fn() }
+      handler(
+        {
+          method: 'GET',
+          url: '/api/health',
+          headers: {
+            origin: EXTENSION_ORIGIN,
+            ...(version === undefined ? {} : { 'x-protocol-version': version })
+          }
+        },
+        res
+      )
+      return res
+    }
+
+    it('knows no version before the extension says one', () => {
+      expect(manager.getExtensionProtocolVersion()).toBeNull()
+    })
+
+    it('remembers the version the extension reported', () => {
+      requestHealth('2')
+      expect(manager.getExtensionProtocolVersion()).toBe(2)
+    })
+
+    it('ignores a version that is not a number', () => {
+      requestHealth('two')
+      expect(manager.getExtensionProtocolVersion()).toBeNull()
+    })
+
+    it('forgets the version when the extension is removed', async () => {
+      requestHealth('2')
+      expect(manager.getExtensionProtocolVersion()).toBe(2)
+
+      await manager.removeExtension()
+
+      // A version that outlived its extension would tell the settings page
+      // that an extension is ready while none is talking to the app.
+      expect(manager.getExtensionProtocolVersion()).toBeNull()
+    })
+  })
 })

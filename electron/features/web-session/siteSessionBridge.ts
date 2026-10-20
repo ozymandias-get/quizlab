@@ -236,6 +236,11 @@ function earliestExpiryIso(cookies: CookiePacket['cookies']): string | null {
  * and every cookie in it belongs to that site. A refused packet writes
  * nothing and changes nothing.
  *
+ * The switch is read twice: once for the routing, and once more right
+ * before the import. The second read is what makes the race small: a packet
+ * that arrives after the user turned the site off is refused, and only an
+ * import that is already running can still finish after the wipe.
+ *
  * A packet that reports no cookies — or no permission — is not a failure: it
  * only records what the extension saw. The session the user may already have
  * inside the app is left alone.
@@ -247,7 +252,12 @@ export async function acceptSiteSessionPacket(
   const config = environment?.config ?? getSiteSessionConfig()
   const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
   const resolveSession = environment?.resolveSession ?? defaultResolveSession
-  const [state, targets] = await Promise.all([config.read(), loadTargets()])
+
+  // The targets are built first and the switch state is read afterwards: the
+  // snapshot has to be as late as possible, because the router asks the
+  // question "is this site switched on?" synchronously.
+  const targets = await loadTargets()
+  const state = await config.read()
 
   const enabledSiteIds = new Set(
     Object.entries(state.targets)
@@ -269,6 +279,14 @@ export async function acceptSiteSessionPacket(
     return { accepted: true }
   }
 
+  // The switch is read once more right before the import: the user may have
+  // turned the site off while the packet was on its way, and a session that
+  // is written after that would outlive the wipe that follows the switch.
+  if (!(await isStillEnabled(config, target.siteId))) {
+    Logger.warn(`[SiteSessionBridge] Refused a packet: the switch of "${target.siteId}" is off.`)
+    return { accepted: false, reason: 'target_disabled' }
+  }
+
   const targetSession = resolveSession(target.partition)
   const { imported, failed } = await importExternalCookies(
     targetSession,
@@ -285,6 +303,20 @@ export async function acceptSiteSessionPacket(
   )
 
   return { accepted: true, imported, failed }
+}
+
+/**
+ * Whether the site is still switched on.
+ *
+ * The state is read from the disk again: the file is the truth, and a switch
+ * that was turned in the meantime has to be seen before a cookie is written.
+ */
+async function isStillEnabled(
+  config: Pick<SiteSessionConfig, 'read'>,
+  siteId: string
+): Promise<boolean> {
+  const state = await config.read()
+  return state.targets[siteId]?.enabled === true
 }
 
 /**

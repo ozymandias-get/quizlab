@@ -11,6 +11,9 @@ const fakeSession = {
   flushStorageData: vi.fn()
 }
 
+/** The protocol version the mocked extension reported. */
+const extensionProtocolVersion = { value: 2 as number | null }
+
 vi.mock('electron', () => ({
   session: { fromPartition: () => fakeSession },
   BrowserWindow: { getAllWindows: () => [] }
@@ -18,11 +21,15 @@ vi.mock('electron', () => ({
 
 vi.mock('../../../features/native-messaging/nativeMessagingManager.js', () => ({
   nativeMessagingManager: {
-    getExtensionInfo: () => ({ status: 'connected', installed: true })
+    getExtensionInfo: () => ({ status: 'connected', installed: true }),
+    getExtensionProtocolVersion: () => extensionProtocolVersion.value
   }
 }))
 
-import { SiteSessionService } from '../../../features/web-session/siteSessionService.js'
+import {
+  isExtensionVersionOk,
+  SiteSessionService
+} from '../../../features/web-session/siteSessionService.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -177,6 +184,53 @@ describe('SiteSessionService', () => {
     expect(clearStorageData).toHaveBeenCalled()
   })
 
+  it('writes the switch before it wipes the session', async () => {
+    const { service, config, remove } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+
+    await service.setEnabled('chatgpt', false)
+
+    // The order is the invariant: a wipe that ran first would be undone by a
+    // packet that arrives while the switch is still on.
+    expect(config.setEnabled.mock.invocationCallOrder[0]).toBeLessThan(
+      remove.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('does not wipe the session when the switch could not be written', async () => {
+    const { service, config, remove, clearStorageData } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+    config.setEnabled.mockRejectedValue(new Error('the disk is full'))
+
+    const result = await service.setEnabled('chatgpt', false)
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('write_failed')
+    expect(remove).not.toHaveBeenCalled()
+    expect(clearStorageData).not.toHaveBeenCalled()
+  })
+
+  it('tells the user that the switch was written but the session stayed', async () => {
+    const { service, config, clearStorageData } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+    clearStorageData.mockRejectedValue(new Error('the session is locked'))
+
+    const result = await service.setEnabled('chatgpt', false)
+
+    // The switch was written, so the action did not fail as a whole — the
+    // user has to know that the session is still there.
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('switch_off_wipe_failed')
+    expect(result.detail).toBeTruthy()
+    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', false)
+  })
+
   it('writes only the switch when the import is switched on', async () => {
     const { service, config, set, remove, clearStorageData } = makeService({ enabled: false })
     const result = await service.setEnabled('chatgpt', true)
@@ -221,5 +275,27 @@ describe('SiteSessionService', () => {
     const result = await service.clear('nope')
     expect(result.success).toBe(false)
     expect(result.error).toBe('unknown_target')
+  })
+})
+
+describe('the extension version', () => {
+  beforeEach(() => {
+    extensionProtocolVersion.value = 2
+  })
+
+  it('accepts an extension that speaks the protocol of this build', () => {
+    expect(isExtensionVersionOk()).toBe(true)
+  })
+
+  it('refuses an extension that is older than this build', () => {
+    extensionProtocolVersion.value = 1
+    expect(isExtensionVersionOk()).toBe(false)
+  })
+
+  it('refuses an extension that never named its version', () => {
+    // An extension that reports no version is an extension the user has to
+    // reload — it may be an old copy that predates the handshake.
+    extensionProtocolVersion.value = null
+    expect(isExtensionVersionOk()).toBe(false)
   })
 })

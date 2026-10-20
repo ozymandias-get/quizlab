@@ -1,4 +1,4 @@
-import type { SiteSessionListResult } from '@shared-core/types/siteSession'
+import type { SiteSessionActionResult, SiteSessionListResult } from '@shared-core/types/siteSession'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
@@ -8,13 +8,6 @@ import { useEffect } from 'react'
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 
 export const SITE_SESSION_LIST_KEY = ['site-sessions'] as const
-
-/** The outcome of an action on one site's session. */
-export interface SiteSessionActionResult {
-  success: boolean
-  /** A stable code the settings page can translate. */
-  error?: string
-}
 
 /**
  * The sites and their states.

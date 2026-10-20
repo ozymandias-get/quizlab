@@ -163,6 +163,23 @@ describe('site session bridge', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('refuses a packet whose switch was turned off while it was on its way', async () => {
+    // The routing reads the switch first, the import reads it once more: the
+    // second read is what catches a packet that the user outran.
+    read.mockResolvedValueOnce(stateWith(true)).mockResolvedValueOnce(stateWith(false))
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome.accepted).toBe(false)
+    expect(outcome.reason).toBe('target_disabled')
+    expect(set).not.toHaveBeenCalled()
+    expect(recordResult).not.toHaveBeenCalled()
+  })
+
   it('writes the cookies of an enabled site into its own session', async () => {
     read.mockResolvedValue(stateWith(true))
     const outcome = await acceptSiteSessionPacket({

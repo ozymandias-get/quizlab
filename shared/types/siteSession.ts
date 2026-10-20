@@ -62,3 +62,25 @@ export interface SiteSessionListResult {
   /** Whether the connected extension is new enough to be used. */
   extensionVersionOk: boolean
 }
+
+/**
+ * The outcome of an action on one site's session.
+ *
+ * `error` is a stable code that the renderer can translate. Every code the
+ * app can produce:
+ *
+ *   - `unknown_target`: the app does not know the site the action was for
+ *   - `write_failed`: the switch could not be written; nothing else happened
+ *   - `wipe_failed`: the session could not be cleared; the switch was not touched
+ *   - `switch_off_wipe_failed`: the switch was written, the session could not
+ *     be cleared — `detail` says so
+ *   - `invalid_site_id`: the site id was not a string
+ *   - `invalid_enabled`: the switch was not a boolean
+ *   - `Unauthorized`: the request did not come from the trusted window
+ */
+export interface SiteSessionActionResult {
+  success: boolean
+  error?: string
+  /** A human readable note about a failure that happened partly. */
+  detail?: string
+}

@@ -8,11 +8,14 @@
  * rules about the state live in the config, and the rules about what a wipe
  * touches live in the wipe.
  *
- * Two orderings matter and are the reason the service exists at all:
+ * Two rules matter here:
  *
  *   - Turning a site's switch off writes the switch *first* and wipes the
- *     session afterwards. A cookie packet that arrives in between is refused
- *     on the spot, and the session that is left behind goes after it.
+ *     session afterwards, so that the site is signed out again. A packet
+ *     that arrives after the switch was written is refused by the bridge
+ *     core, which reads the switch once more right before it writes a
+ *     cookie. An import that was already running may still finish after the
+ *     wipe — the row then shows the session the app still holds.
  *   - A switch that could not be written is reported as a failure. The app
  *     must not tell the user that a site was switched off while it is still
  *     importing it.
@@ -21,10 +24,17 @@
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
-import type { SiteSessionListResult } from '../../../shared/types/siteSession.js'
+import type {
+  SiteSessionActionResult,
+  SiteSessionListResult
+} from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import { acceptSiteSessionPacket, hasLocalSessionForTarget } from './siteSessionBridge.js'
+import {
+  acceptSiteSessionPacket,
+  hasLocalSessionForTarget,
+  SITE_SESSION_PROTOCOL_VERSION
+} from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type { CookiePacket, CookiePacketRejection } from './siteSessionCookieRouter.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
@@ -34,17 +44,6 @@ import {
   toSiteSessionView
 } from './siteSessionTargets.js'
 import { wipeSiteSession } from './siteSessionWipe.js'
-
-/** The outcome of an action on one site's session. */
-export interface SiteSessionActionResult {
-  success: boolean
-  /**
-   * A stable code the renderer can translate: `unknown_target` for a site the
-   * app does not know, `write_failed` when the switch could not be written
-   * and `wipe_failed` when the session could not be cleared.
-   */
-  error?: string
-}
 
 /**
  * The parts of the app the service works with.
@@ -131,8 +130,15 @@ export class SiteSessionService {
       try {
         await this.wipe(target)
       } catch (error) {
+        // The switch *was* written: the site is switched off, but the session
+        // it held is still there. Saying "failed" alone would hide that
+        // half of the work was done.
         Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
-        return { success: false, error: 'wipe_failed' }
+        return {
+          success: false,
+          error: 'switch_off_wipe_failed',
+          detail: 'The switch was turned off, but the session could not be cleared.'
+        }
       }
     }
 
@@ -162,10 +168,16 @@ export class SiteSessionService {
   /**
    * Handles one packet of the extension.
    *
-   * The packet is not interpreted here: the bridge core decides whether it
-   * belongs to a site that is switched on and whether every cookie in it
-   * belongs to that site. The service only hands over the state it works on,
-   * so that the switch it wrote is the switch the packet is judged by.
+   * The production path of a packet is the bridge core: the extension talks
+   * to the native messaging bridge, which hands the packet to
+   * `acceptSiteSessionPacket`. This method does not sit in that path — it
+   * exists for the callers of the service and for its tests.
+   *
+   * The packet is not interpreted here either: the bridge core decides
+   * whether it belongs to a site that is switched on and whether every cookie
+   * in it belongs to that site. The service only hands over the state it
+   * works on, so that the switch it wrote is the switch the packet is judged
+   * by.
    */
   async importPacket(
     packet: CookiePacket
@@ -214,16 +226,15 @@ function isExtensionConnected(): boolean {
 /**
  * Whether the extension speaks the protocol of this build.
  *
- * The extension pulls the app's protocol version when it asks for the site
- * list and stays silent when it does not understand it, so an extension that
- * is too old never reaches the app: it is reported as missing rather than as
- * outdated. The extension that does talk to us therefore speaks the protocol.
- *
- * The extension does not report its own version yet — it only reads the one
- * of the app. The flag stays in the contract for the day it does.
+ * The extension names the protocol it speaks in every request it makes to the
+ * bridge, and the manager remembers the last one it reported. An extension
+ * that reports nothing is an extension the user has to reload: it may be an
+ * old copy that predates the handshake, and it would sit there connected
+ * without ever pushing a session.
  */
-function isExtensionVersionOk(): boolean {
-  return isExtensionConnected()
+export function isExtensionVersionOk(): boolean {
+  const reported = nativeMessagingManager.getExtensionProtocolVersion()
+  return reported !== null && reported >= SITE_SESSION_PROTOCOL_VERSION
 }
 
 /** The service the app uses. */

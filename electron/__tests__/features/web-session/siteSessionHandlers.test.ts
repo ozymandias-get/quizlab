@@ -91,11 +91,26 @@ describe('site session handlers', () => {
 
     const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
     await setEnabledHandler?.(trustedEvent, 'chatgpt', true)
-    await setEnabledHandler?.(trustedEvent, 'chatgpt', 'true')
+    await setEnabledHandler?.(trustedEvent, 'chatgpt', false)
 
     expect(setEnabled).toHaveBeenNthCalledWith(1, 'chatgpt', true)
-    // Only a real boolean turns a site on: a truthy string is not one.
     expect(setEnabled).toHaveBeenNthCalledWith(2, 'chatgpt', false)
+  })
+
+  it('refuses a switch that is not a boolean', async () => {
+    const { registerSiteSessionHandlers } =
+      await import('../../../features/web-session/siteSessionHandlers.js')
+    registerSiteSessionHandlers()
+
+    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
+    // A payload that lost its flag must not turn the import off: that would
+    // wipe the session of the site.
+    const result = await setEnabledHandler?.(trustedEvent, 'chatgpt', 'true')
+    const missing = await setEnabledHandler?.(trustedEvent, 'chatgpt', undefined)
+
+    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_enabled' } })
+    expect(missing).toEqual({ ok: true, data: { success: false, error: 'invalid_enabled' } })
+    expect(setEnabled).not.toHaveBeenCalled()
   })
 
   it('refuses a site id that is not a string', async () => {

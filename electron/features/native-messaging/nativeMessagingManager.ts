@@ -28,6 +28,7 @@ class NativeMessagingManager {
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
   private _extensionLastSeenAt: number = 0
+  private _extensionProtocolVersion: number | null = null
   private _expectedExtensionOrigin: string | null = null
   private pendingBuffer: Buffer = Buffer.alloc(0)
   private readonly MAX_NATIVE_MESSAGE_SIZE = MAX_COOKIE_BODY_SIZE
@@ -53,6 +54,27 @@ class NativeMessagingManager {
       waitingSince: this._waitingSince,
       userHint: this.computeUserHint()
     }
+  }
+
+  /**
+   * The protocol version the extension reported, or null when it reported none.
+   *
+   * The extension names the protocol it speaks in every request it makes to
+   * the bridge. An extension that reports nothing is an extension the user
+   * has to reload: it may be an old copy that predates the handshake.
+   */
+  getExtensionProtocolVersion(): number | null {
+    return this._extensionProtocolVersion
+  }
+
+  /**
+   * Forgets the protocol version of the extension that is gone.
+   *
+   * A version that outlived its extension would tell the settings page that
+   * an extension is ready while none is talking to the app.
+   */
+  private forgetExtensionProtocolVersion(): void {
+    this._extensionProtocolVersion = null
   }
 
   private computeUserHint(): string | null {
@@ -242,6 +264,7 @@ class NativeMessagingManager {
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
     this._bridgeInfoExists = false
+    this.forgetExtensionProtocolVersion()
     return NativeMessagingInstaller.remove()
   }
 
@@ -301,6 +324,7 @@ class NativeMessagingManager {
     }
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
+    this.forgetExtensionProtocolVersion()
     this.stopNativeMessagingListener()
   }
 
@@ -314,6 +338,7 @@ class NativeMessagingManager {
       if (this._connectionStatus === 'connected' && elapsed > 120000) {
         this._connectionStatus = 'connecting'
         this._waitingSince = Date.now()
+        this.forgetExtensionProtocolVersion()
         this.broadcastExtensionDisconnected()
       }
 
