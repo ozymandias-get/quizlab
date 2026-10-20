@@ -45,6 +45,12 @@ type ExposedApi = {
       callback: (event: { phase: 'started' | 'success' | 'failed'; reason: string }) => void
     ) => () => void
   }
+  siteSession: {
+    list: () => Promise<unknown>
+    setEnabled: (siteId: string, enabled: boolean) => Promise<unknown>
+    clear: (siteId: string) => Promise<unknown>
+    onChanged: (callback: (result: unknown) => void) => () => void
+  }
 }
 
 describe('preload electronAPI', () => {
@@ -172,6 +178,44 @@ describe('preload electronAPI', () => {
       IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED,
       handler
     )
+  })
+
+  it('exposes the site session surface as an allow-list', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+
+    await api.siteSession.list()
+    await api.siteSession.setEnabled('chatgpt', true)
+    await api.siteSession.clear('chatgpt')
+
+    expect(invoke).toHaveBeenNthCalledWith(1, IPC_CHANNELS.SITE_SESSION_LIST)
+    expect(invoke).toHaveBeenNthCalledWith(
+      2,
+      IPC_CHANNELS.SITE_SESSION_SET_ENABLED,
+      'chatgpt',
+      true
+    )
+    expect(invoke).toHaveBeenNthCalledWith(3, IPC_CHANNELS.SITE_SESSION_CLEAR, 'chatgpt')
+  })
+
+  it('subscribes and unsubscribes site session change events', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const callback = vi.fn()
+
+    const unsubscribe = api.siteSession.onChanged(callback)
+
+    expect(on).toHaveBeenCalledWith(IPC_CHANNELS.SITE_SESSION_CHANGED, expect.any(Function))
+
+    const handler = on.mock.calls.find(
+      ([channel]) => channel === IPC_CHANNELS.SITE_SESSION_CHANGED
+    )?.[1] as ((event: unknown, payload: unknown) => void) | undefined
+    const payload = { views: [], extensionConnected: true, extensionVersionOk: true }
+    handler?.({}, payload)
+    expect(callback).toHaveBeenCalledWith(payload)
+
+    unsubscribe()
+    expect(removeListener).toHaveBeenCalledWith(IPC_CHANNELS.SITE_SESSION_CHANGED, handler)
   })
 
   it('safeInvoke rejects payloads exceeding 512KB size limit', async () => {
