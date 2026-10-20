@@ -11,6 +11,7 @@ import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
 import { registerScreenshotHandlers } from '../features/screenshot/screenshotHandlers.js'
 import { registerAppSettingsHandlers } from '../features/settings/appSettingsHandlers.js'
 import { registerShellOpenHandlers } from '../features/shell-open/shellOpenHandlers.js'
+import { registerSiteSessionHandlers } from '../features/web-session/siteSessionHandlers.js'
 
 let handlersRegistered = false
 
@@ -29,6 +30,7 @@ export function registerGeneralHandlers() {
   registerApiChatHandlers()
   registerAutomationHandlers()
   registerGeminiWebSessionHandlers()
+  registerSiteSessionHandlers()
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
   registerAiViewHandlers()

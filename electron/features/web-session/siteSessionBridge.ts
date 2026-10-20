@@ -14,10 +14,10 @@
 
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
-import { session as electronSession } from 'electron'
+import { type Session, session as electronSession } from 'electron'
 
 import { Logger } from '../../core/logger.js'
-import { getSiteSessionConfig } from './siteSessionConfig.js'
+import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type {
   CookiePacket,
   CookiePacketRejection,
@@ -40,6 +40,28 @@ export const SITE_SESSION_PROTOCOL_VERSION = 2
 interface SiteSessionBridgeTarget {
   siteId: string
   cookieDomains: string[]
+}
+
+/**
+ * The parts of the app a packet is handled in.
+ *
+ * The defaults are the app's own: the shared config, the target list and the
+ * Electron sessions. A caller that works on a state of its own — the
+ * renderer-facing service, which knows its own config and its own sessions —
+ * passes them in instead of letting the bridge reach for the singletons.
+ */
+export interface SiteSessionImportEnvironment {
+  /** The persisted state of the import switches. */
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult'>
+  /** The sites the app knows about. */
+  loadTargets: () => Promise<SiteSessionTargetRow[]>
+  /** The session of a partition. */
+  resolveSession: (partition: string) => Session
+}
+
+/** The session of a partition, as the app itself resolves it. */
+function defaultResolveSession(partition: string): Session {
+  return electronSession.fromPartition(partition)
 }
 
 /** The answer to the extension's question "which sites should I push?". */
@@ -168,9 +190,15 @@ export async function listEnabledSiteSessionTargets(): Promise<SiteSessionBridge
  *
  * The switch may be off — the user may have logged into the site inside the
  * app instead — and the row then says "logged in" rather than "logged out".
+ *
+ * The session is resolved by the caller so that a caller which works on a
+ * state of its own reads the session it knows about.
  */
-export async function hasLocalSessionForTarget(target: SiteSessionTargetRow): Promise<boolean> {
-  const targetSession = electronSession.fromPartition(target.partition)
+export async function hasLocalSessionForTarget(
+  target: SiteSessionTargetRow,
+  resolveSession: (partition: string) => Session = defaultResolveSession
+): Promise<boolean> {
+  const targetSession = resolveSession(target.partition)
   const cookies = await targetSession.cookies.get({}).catch(() => [])
   return cookies.some((cookie) => {
     const cookieHost = (cookie.domain ?? '').replace(/^\.+/, '').toLowerCase()
@@ -213,10 +241,13 @@ function earliestExpiryIso(cookies: CookiePacket['cookies']): string | null {
  * inside the app is left alone.
  */
 export async function acceptSiteSessionPacket(
-  packet: CookiePacket
+  packet: CookiePacket,
+  environment?: SiteSessionImportEnvironment
 ): Promise<SiteSessionPacketOutcome> {
-  const config = getSiteSessionConfig()
-  const [state, targets] = await Promise.all([config.read(), buildSiteSessionTargets()])
+  const config = environment?.config ?? getSiteSessionConfig()
+  const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
+  const resolveSession = environment?.resolveSession ?? defaultResolveSession
+  const [state, targets] = await Promise.all([config.read(), loadTargets()])
 
   const enabledSiteIds = new Set(
     Object.entries(state.targets)
@@ -234,11 +265,11 @@ export async function acceptSiteSessionPacket(
 
   if (packet.status !== 'ok') {
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
-    await recordResult(target.siteId, result)
+    await recordResult(config, target.siteId, result)
     return { accepted: true }
   }
 
-  const targetSession = electronSession.fromPartition(target.partition)
+  const targetSession = resolveSession(target.partition)
   const { imported, failed } = await importExternalCookies(
     targetSession,
     packet.cookies.map(toImporterCookie),
@@ -246,6 +277,7 @@ export async function acceptSiteSessionPacket(
   )
 
   await recordResult(
+    config,
     target.siteId,
     imported > 0 ? 'imported' : 'failed',
     undefined,
@@ -263,13 +295,14 @@ export async function acceptSiteSessionPacket(
  * outcome of the *last* import, not a promise about the next one.
  */
 async function recordResult(
+  config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
   error?: string,
   expiresAt?: string | null
 ): Promise<void> {
   try {
-    await getSiteSessionConfig().recordResult(siteId, result, error, expiresAt)
+    await config.recordResult(siteId, result, error, expiresAt)
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +
