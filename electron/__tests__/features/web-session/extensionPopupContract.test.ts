@@ -185,6 +185,10 @@ interface PopupHarnessOptions {
   requestAnswer?: boolean
   /** The permissions API fails instead of answering. */
   permissionsThrow?: boolean
+  /** The request throws instead of answering. */
+  requestThrows?: boolean
+  /** The browser has no session storage; the list is in the local storage. */
+  localStorageOnly?: boolean
 }
 
 interface PermissionRequest {
@@ -233,6 +237,8 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
   const targets = options.targets === undefined ? DEFAULT_TARGETS : options.targets
   const requestAnswer = options.requestAnswer ?? true
   const permissionsThrow = options.permissionsThrow === true
+  const requestThrows = options.requestThrows === true
+  const localStorageOnly = options.localStorageOnly === true
   let gestureActive = false
 
   const status = createElement('p')
@@ -242,16 +248,36 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
     ['sites', list]
   ])
 
-  const fakeChrome = {
-    runtime: { id: 'quizlab-popup-test' },
-    storage: {
-      session: {
+  /**
+   * The storage areas of the browser.
+   *
+   * The service worker writes the site list into the session storage and falls
+   * back to the local storage when the browser has no session storage. The
+   * local store therefore holds the list only in that case.
+   */
+  function buildStorage(): Record<string, unknown> {
+    const stores: Record<string, unknown> = {}
+    if (!localStorageOnly) {
+      stores.session = {
         get: async (key: string) => {
           storageQueries.push(key)
           return targets === null ? {} : { [key]: targets }
         }
       }
-    },
+    }
+    stores.local = {
+      get: async (key: string) => {
+        storageQueries.push(`local:${key}`)
+        if (!localStorageOnly || targets === null) return {}
+        return { [key]: targets }
+      }
+    }
+    return stores
+  }
+
+  const fakeChrome = {
+    runtime: { id: 'quizlab-popup-test' },
+    storage: buildStorage(),
     permissions: {
       contains: async (query: { origins?: string[] }) => {
         const origins = query.origins ?? []
@@ -259,12 +285,13 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
         if (permissionsThrow) throw new Error('the permissions API is not available')
         return origins.some((origin) => granted.some((pattern) => covers(pattern, origin)))
       },
-      request: async (query: { origins?: string[] }) => {
+      request: (query: { origins?: string[] }) => {
         const origins = query.origins ?? []
         requestCalls.push({ origins: [...origins], duringGesture: gestureActive })
-        if (!requestAnswer) return false
+        if (requestThrows) throw new Error('the permission request failed')
+        if (!requestAnswer) return Promise.resolve(false)
         for (const origin of origins) granted.push(origin)
-        return true
+        return Promise.resolve(true)
       }
     },
     get cookies() {
@@ -328,6 +355,12 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
 /** The buttons the popup rendered. */
 function buttonsOf(element: FakeElement): FakeElement[] {
   return findAll(element, (candidate) => candidate.tagName === 'BUTTON')
+}
+
+/** The title of a rendered site row. */
+function titleOf(element: FakeElement): string {
+  const title = findAll(element, (candidate) => candidate.className === 'site-name')[0]
+  return title?.textContent ?? ''
 }
 
 describe('extension permission popup', () => {
@@ -475,6 +508,52 @@ describe('extension permission popup behaviour', () => {
     expect(harness.status.textContent).toContain('İzin verilmedi')
     // The site still misses its permission, so the button is still there.
     expect(buttonsOf(harness.list)).toHaveLength(1)
+  })
+
+  it('tells the user when the permission request fails', async () => {
+    const harness = createHarness({ requestThrows: true })
+    await harness.settle()
+
+    harness.click(buttonsOf(harness.list)[0])
+    await harness.settle()
+
+    expect(harness.status.textContent).toContain('İzin verilemedi')
+    expect(harness.logs.some((entry) => entry.level === 'warn')).toBe(true)
+  })
+
+  it('never renders the internal id of a user-added site', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    // `custom:<id>` is a key of the app, not a name the user knows.
+    const custom = harness.list.children[1]
+    expect(titleOf(custom)).toBe('wiki.example.com')
+    expect(textOf(custom)).not.toContain('custom:wiki')
+  })
+
+  it('keeps the readable id of a built-in site', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    expect(titleOf(harness.list.children[0])).toBe('chatgpt')
+  })
+
+  it('finds the site list in the local storage when the browser has no session storage', async () => {
+    const harness = createHarness({ localStorageOnly: true })
+    await harness.settle()
+
+    expect(harness.storageQueries).toContain('local:knownTargets')
+    expect(harness.list.children).toHaveLength(2)
+  })
+
+  it('reads the session storage when the browser has one', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    // The service worker writes the list into the session storage, so the
+    // popup reads it from there and not from the local storage.
+    expect(harness.storageQueries).toContain('knownTargets')
+    expect(harness.storageQueries).not.toContain('local:knownTargets')
   })
 
   it('treats a permission it could not read as a missing one', async () => {
