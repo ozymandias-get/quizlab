@@ -53,14 +53,8 @@ export function isAllowedBridgeOrigin(
   return policy.allowedDevOrigins.includes(origin)
 }
 
-const ALLOWED_COOKIE_DOMAINS = ['.google.com', '.youtube.com']
-
-// SECURITY: Only accept cookies from known Google domains so a compromised
-// extension cannot inject cookies for arbitrary domains.
-export function validateCookieDomains(cookies: { domain?: string }[]): boolean {
-  return !cookies.some((c) => {
-    if (!c.domain) return true
-    const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain
-    return !ALLOWED_COOKIE_DOMAINS.some((d) => domain.endsWith(d))
-  })
-}
+// The list of domains a cookie may belong to is no longer written down here.
+// A packet is checked against the domain list of the site it claims to be
+// for, and that list comes from the site registry — see
+// `electron/features/web-session/siteSessionCookieRouter.ts`. A hand-written
+// list would only be a second thing that can drift from the registry.

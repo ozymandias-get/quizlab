@@ -350,12 +350,17 @@ export class SiteSessionConfig {
    * The switch itself does not change, so the version stays: the extension
    * has nothing new to push.
    *
+   * `expiresAt` is informational: it is the earliest expiry among the
+   * imported cookies, so the settings row can say when the session the app
+   * holds is likely to run out.
+   *
    * @throws when the state could not be written.
    */
   async recordResult(
     siteId: string,
     result: SiteSessionTargetState['lastResult'],
-    error?: string
+    error?: string,
+    expiresAt?: string | null
   ): Promise<void> {
     await this.loadState()
     if (PROHIBITED_KEYS.has(siteId)) return
@@ -371,6 +376,7 @@ export class SiteSessionConfig {
           [siteId]: {
             ...existing,
             importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
+            expiresAt: expiresAt === undefined ? existing.expiresAt : expiresAt,
             lastResult: result,
             lastError: error ?? null
           }
