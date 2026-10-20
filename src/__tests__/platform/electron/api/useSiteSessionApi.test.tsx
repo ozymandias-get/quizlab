@@ -4,7 +4,11 @@
  * Covers the list query, the change event that refreshes it and the two
  * actions the settings page offers.
  */
+import type { SiteSessionView } from '@shared-core/types/siteSession'
+
 import {
+  hasEnabledSiteSession,
+  hasSiteSessionNeedingAttention,
   SITE_SESSION_LIST_KEY,
   useClearSiteSessionMutation,
   useSetSiteSessionEnabledMutation,
@@ -115,5 +119,64 @@ describe('useSiteSessionApi', () => {
     // The switch may have been written before the action failed, so the row
     // has to be read again.
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
+  })
+})
+
+describe('the site session helpers', () => {
+  const view = (overrides: Partial<SiteSessionView> = {}): SiteSessionView => ({
+    siteId: 'chatgpt',
+    labelKey: 'ws_target_chatgpt',
+    hostname: 'chatgpt.com',
+    kind: 'builtin',
+    memberAppIds: ['chatgpt'],
+    enabled: false,
+    status: 'signed_out',
+    importedAt: null,
+    lastError: null,
+    ...overrides
+  })
+
+  it('knows that a site pulls its session from Chrome', () => {
+    expect(hasEnabledSiteSession([view()])).toBe(false)
+    expect(hasEnabledSiteSession([view({ enabled: true })])).toBe(true)
+  })
+
+  it('asks for attention when Chrome has no session for the site', () => {
+    expect(
+      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'no_cookies_in_browser' })])
+    ).toBe(true)
+  })
+
+  it('asks for attention when the extension or the permission is missing', () => {
+    expect(
+      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'extension_missing' })])
+    ).toBe(true)
+    expect(
+      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'extension_outdated' })])
+    ).toBe(true)
+    expect(
+      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'permission_missing' })])
+    ).toBe(true)
+    expect(hasSiteSessionNeedingAttention([view({ enabled: true, status: 'import_failed' })])).toBe(
+      true
+    )
+  })
+
+  it('stays quiet about a site whose import is off', () => {
+    expect(
+      hasSiteSessionNeedingAttention([
+        view({ enabled: false, status: 'permission_missing' }),
+        view({ enabled: false, status: 'no_cookies_in_browser' })
+      ])
+    ).toBe(false)
+  })
+
+  it('stays quiet about a site that works', () => {
+    expect(
+      hasSiteSessionNeedingAttention([
+        view({ enabled: true, status: 'imported' }),
+        view({ enabled: true, status: 'extension_connected' })
+      ])
+    ).toBe(false)
   })
 })

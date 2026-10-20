@@ -1,4 +1,4 @@
-import { GOOGLE_WEB_SESSION_APPS } from '@shared-core/constants/googleAiWebApps'
+import { getSiteSessionMemberAppName } from '@shared-core/constants/siteSessionMemberApps'
 
 import i18next from 'i18next'
 import { memo } from 'react'
@@ -7,18 +7,19 @@ import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import type { SiteSessionCardProps } from './types'
 
 /**
- * The names of the apps a row covers.
+ * A short, stable hash of a site id.
  *
- * Only the Google row has more than one: the Google apps share one account
- * and therefore one row. The ids come from the main process, so they are
- * resolved against the app definitions; an unknown id keeps its raw form
- * instead of disappearing from the card.
+ * The site id is flattened for the DOM, and two different ids can flatten to
+ * the same string (`custom:a.b` and `custom:a-b`), so the hash keeps the
+ * element ids apart.
  */
-function memberAppNames(memberAppIds: string[]): string[] {
-  return memberAppIds.map(
-    (memberAppId) =>
-      GOOGLE_WEB_SESSION_APPS.find((app) => app.id === memberAppId)?.name ?? memberAppId
-  )
+function idHash(value: string): string {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0).toString(36)
 }
 
 /**
@@ -26,25 +27,24 @@ function memberAppNames(memberAppIds: string[]): string[] {
  * switch that pulls the login from Chrome.
  */
 function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) {
-  // A custom site id carries a colon, which is legal in an id but awkward in
-  // a selector, so the id is flattened for the label that names the switch.
-  const idBase = `site-session-${view.siteId.replaceAll(/[^a-zA-Z0-9_-]/g, '-')}`
+  const idBase = `site-session-${idHash(view.siteId)}`
   const switchId = `${idBase}-switch`
-  const hostId = `${idBase}-host`
-  const memberNames = view.kind === 'google' ? memberAppNames(view.memberAppIds) : []
+  const memberNames =
+    view.kind === 'google' ? view.memberAppIds.map(getSiteSessionMemberAppName) : []
   const importedAt =
     view.status === 'imported' && view.importedAt
       ? new Date(view.importedAt).toLocaleString(i18next.language === 'tr' ? 'tr-TR' : 'en-US')
       : null
+  // Every row carries the same visible label, so the switch names its own row:
+  // a screen reader has to tell the sites apart.
+  const switchLabel = `${t('ws_toggle_label')} — ${t(view.labelKey)} (${view.hostname})`
 
   return (
     <div className="border-border/60 bg-background/40 flex flex-col gap-2.5 rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-ql-13 text-foreground font-semibold">{t(view.labelKey)}</p>
-          <p id={hostId} className="text-ql-11 text-muted-foreground mt-0.5">
-            {view.hostname}
-          </p>
+          <p className="text-ql-11 text-muted-foreground mt-0.5">{view.hostname}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -53,7 +53,7 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
           </label>
           <SettingsToggleSwitch
             id={switchId}
-            aria-describedby={hostId}
+            aria-label={switchLabel}
             checked={view.enabled}
             onChange={() => onToggle(view.siteId)}
             disabled={disabled}
@@ -63,6 +63,10 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
       </div>
 
       <p className="text-ql-12 text-muted-foreground">{t(`ws_status_${view.status}`)}</p>
+
+      {view.lastError && (
+        <p className="text-ql-11 text-destructive">{t(`ws_error_${view.lastError}`)}</p>
+      )}
 
       {importedAt && (
         <p className="text-ql-11 text-muted-foreground">

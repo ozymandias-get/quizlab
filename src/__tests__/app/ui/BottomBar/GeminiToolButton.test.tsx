@@ -86,6 +86,14 @@ describe('GeminiToolButton', () => {
     expect(screen.getByRole('button', { name: 'ws_toolbar_attention' })).toBeInTheDocument()
   })
 
+  it('asks for attention when Chrome has no session for the site', () => {
+    mockViews = [{ ...SIGNED_OUT_VIEW, enabled: true, status: 'no_cookies_in_browser' }]
+
+    renderButton()
+
+    expect(screen.getByRole('button', { name: 'ws_toolbar_attention' })).toBeInTheDocument()
+  })
+
   it('stays quiet about a site whose import is off', () => {
     mockViews = [
       { ...SIGNED_OUT_VIEW, enabled: true, status: 'imported' },

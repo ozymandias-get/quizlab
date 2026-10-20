@@ -13,6 +13,8 @@ interface SettingsToggleSwitchProps {
   className?: string
   /** Lets a <Label htmlFor> name the control, which is what a role="switch" needs. */
   id?: string
+  /** Names the control itself when the visible label is the same on every row. */
+  'aria-label'?: string
   'aria-describedby'?: string
 }
 
@@ -23,11 +25,13 @@ function SettingsToggleSwitch({
   size = 'md',
   className,
   id,
+  'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy
 }: SettingsToggleSwitchProps) {
   return (
     <Switch
       id={id}
+      aria-label={ariaLabel}
       aria-describedby={ariaDescribedBy}
       checked={checked}
       onCheckedChange={onChange}

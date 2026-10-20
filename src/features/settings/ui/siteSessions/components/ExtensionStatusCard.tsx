@@ -85,6 +85,8 @@ function ExtensionStatusCard({
               type="button"
               variant="link"
               size="xs"
+              // Any supported site makes the extension talk to the app; Gemini
+              // is the one the button has always opened, and the label says so.
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
               className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
             >
