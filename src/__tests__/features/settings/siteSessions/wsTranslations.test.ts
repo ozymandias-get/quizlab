@@ -87,6 +87,7 @@ const ERROR_CODES = [
   'switch_off_wipe_failed',
   'invalid_site_id',
   'invalid_enabled',
+  'import_failed',
   'Unauthorized',
   'web_dev_mode_only'
 ]

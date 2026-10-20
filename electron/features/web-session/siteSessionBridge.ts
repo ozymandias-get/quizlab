@@ -294,11 +294,15 @@ export async function acceptSiteSessionPacket(
     target.cookieDomains
   )
 
+  // An import that wrote nothing is a failure the user has to see: without a
+  // reason code the row would show the outcome without saying what went wrong,
+  // and `lastError` would stay empty.
+  const wroteSomething = imported > 0
   await recordResult(
     config,
     target.siteId,
-    imported > 0 ? 'imported' : 'failed',
-    undefined,
+    wroteSomething ? 'imported' : 'failed',
+    wroteSomething ? undefined : 'import_failed',
     earliestExpiryIso(packet.cookies)
   )
 

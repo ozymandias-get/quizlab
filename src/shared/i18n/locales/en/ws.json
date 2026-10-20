@@ -36,6 +36,7 @@
   "ws_error_unknown_target": "The app does not know this site.",
   "ws_error_write_failed": "The setting could not be saved.",
   "ws_error_wipe_failed": "The session could not be cleared.",
+  "ws_error_import_failed": "The session was not imported; no cookie could be written.",
   "ws_error_switch_off_wipe_failed": "The switch was turned off but the session could not be cleared.",
   "ws_error_invalid_site_id": "Invalid site.",
   "ws_error_invalid_enabled": "Invalid switch value.",
