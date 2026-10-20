@@ -1,23 +1,22 @@
 import type {
-  ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo
 } from '@shared-core/types'
 
 import crypto from 'crypto'
-import { BrowserWindow, session as electronSession } from 'electron'
+import { BrowserWindow } from 'electron'
 import { promises as fs } from 'fs'
 import http from 'http'
 import type { AddressInfo } from 'net'
 
 import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
-import { PROFILE_PARTITION } from '../gemini-web-session/sessionConfig.js'
-import { importExternalCookies } from '../gemini-web-session/sessionCookies.js'
+import {
+  acceptSiteSessionPacket,
+  parseSiteSessionPacket
+} from '../web-session/siteSessionBridge.js'
 import { createBridgeRequestHandler } from './nativeMessagingBridgeHandler.js'
-import { toExternalBrowserCookie } from './nativeMessagingCookieUtils.js'
 import { NativeMessagingInstaller } from './nativeMessagingInstaller.js'
-import { validateCookieDomains } from './nativeMessagingOrigin.js'
 import { BRIDGE_PORT, MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
 class NativeMessagingManager {
@@ -140,16 +139,10 @@ class NativeMessagingManager {
 
   private async handleNativeMessage(message: unknown): Promise<void> {
     try {
-      const data = message as { cookies?: ChromeExtensionCookie[] }
-      if (!data || !Array.isArray(data.cookies) || data.cookies.length === 0) {
-        Logger.warn('[NativeMessaging] Received native message with no cookies')
-        this.sendNativeMessage({ success: false, error: 'No cookies provided' })
-        return
-      }
-
-      if (!validateCookieDomains(data.cookies)) {
-        Logger.warn('[NativeMessaging] Rejected native message: invalid domain')
-        this.sendNativeMessage({ success: false, error: 'Invalid cookie domain' })
+      const packet = parseSiteSessionPacket(JSON.stringify(message))
+      if (!packet) {
+        Logger.warn('[NativeMessaging] Received a native message that is not a site session packet')
+        this.sendNativeMessage({ success: false, error: 'Malformed packet' })
         return
       }
 
@@ -161,10 +154,12 @@ class NativeMessagingManager {
       }
       this._extensionLastSeenAt = Date.now()
 
-      const externalCookies = data.cookies.map(toExternalBrowserCookie)
-      const targetSession = electronSession.fromPartition(PROFILE_PARTITION)
-      await importExternalCookies(targetSession, externalCookies)
-      this.sendNativeMessage({ success: true, imported: data.cookies.length })
+      const outcome = await acceptSiteSessionPacket(packet)
+      if (!outcome.accepted) {
+        this.sendNativeMessage({ success: false, error: outcome.reason })
+        return
+      }
+      this.sendNativeMessage({ success: true, imported: outcome.imported ?? 0 })
     } catch (err) {
       Logger.error('[NativeMessaging] Failed to handle native message:', err)
       this.sendNativeMessage({ success: false, error: 'Internal error' })
