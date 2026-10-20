@@ -41,6 +41,7 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: async () => [TARGET]
 }))
 
+import { Logger } from '../../../core/logger.js'
 import {
   SITE_SESSION_PROTOCOL_VERSION,
   acceptSiteSessionPacket,
@@ -213,6 +214,35 @@ describe('site session bridge', () => {
       ]
     })
     expect(set.mock.calls[0][0]).toMatchObject({ sameSite: 'no_restriction' })
+  })
+
+  it('records a reason code when the import writes nothing', async () => {
+    // The row renders `lastError` through the `ws_error_*` keys. Without a
+    // reason code the outcome would be shown without saying what went wrong.
+    read.mockResolvedValue(stateWith(true))
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
+    set.mockRejectedValueOnce(new Error('cookie rejected'))
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    warn.mockRestore()
+
+    expect(outcome.accepted).toBe(true)
+    expect(outcome.imported).toBe(0)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'import_failed', null)
+  })
+
+  it('records no reason code when the import wrote a cookie', async () => {
+    read.mockResolvedValue(stateWith(true))
+    await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined, null)
   })
 
   it('records an empty browser session without touching the session', async () => {

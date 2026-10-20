@@ -36,6 +36,7 @@
   "ws_error_unknown_target": "Uygulama bu siteyi tanımıyor.",
   "ws_error_write_failed": "Ayar kaydedilemedi.",
   "ws_error_wipe_failed": "Oturum temizlenemedi.",
+  "ws_error_import_failed": "Oturum içe aktarılamadı; hiçbir çerez yazılamadı.",
   "ws_error_switch_off_wipe_failed": "Anahtar kapatıldı ama oturum temizlenemedi.",
   "ws_error_invalid_site_id": "Geçersiz site.",
   "ws_error_invalid_enabled": "Geçersiz anahtar değeri.",
