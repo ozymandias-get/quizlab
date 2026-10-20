@@ -2,7 +2,7 @@ import { AiIcon } from '@shared/ui/components/icons/AiIcon'
 import {
   BellIcon,
   EyeIcon,
-  GeminiIcon,
+  GlobeIcon,
   GridIcon,
   InfoIcon,
   KeyboardIcon,
@@ -93,11 +93,11 @@ export const SETTINGS_TABS = [
     glow: '#f59e0b'
   },
   {
-    id: 'gemini-web',
+    id: 'site-sessions',
     group: 'integration',
-    labelKey: 'gws_title',
-    descriptionKey: 'gws_state_authenticated',
-    icon: GeminiIcon,
+    labelKey: 'ws_title',
+    descriptionKey: 'ws_description',
+    icon: GlobeIcon,
     accent: 'from-violet-300/28 via-indigo-200/12 to-transparent',
     glow: '#8b5cf6'
   },

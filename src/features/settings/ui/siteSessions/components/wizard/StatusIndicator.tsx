@@ -28,16 +28,16 @@ function StatusIndicator({ isConnected, mode }: StatusIndicatorProps) {
       )}
       <div className="text-left">
         <span className="text-ql-12 text-foreground mb-0.5 block font-semibold">
-          {t('gws_extension_wizard_status_label')}
+          {t('ws_extension_wizard_status_label')}
         </span>
         <p className="text-ql-12 text-muted-foreground">
           {isConnected
             ? mode === 'install'
-              ? t('gws_extension_wizard_status_connected')
-              : t('gws_extension_wizard_status_active')
+              ? t('ws_extension_wizard_status_connected')
+              : t('ws_extension_wizard_status_active')
             : mode === 'install'
-              ? t('gws_extension_wizard_status_waiting')
-              : t('gws_extension_wizard_status_removed')}
+              ? t('ws_extension_wizard_status_waiting')
+              : t('ws_extension_wizard_status_removed')}
         </p>
         {!isConnected && mode === 'install' && (
           <Button
@@ -47,7 +47,7 @@ function StatusIndicator({ isConnected, mode }: StatusIndicatorProps) {
             onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
             className="mt-1 text-amber-600 dark:text-amber-400"
           >
-            <span className="text-ql-11 font-semibold">{t('gws_extension_wake_btn')}</span>
+            <span className="text-ql-11 font-semibold">{t('ws_extension_wake_btn')}</span>
           </Button>
         )}
       </div>

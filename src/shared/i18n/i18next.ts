@@ -9,7 +9,6 @@ import enAutoSend from './locales/en/auto-send.json'
 import enCommon from './locales/en/common.json'
 import enCtx from './locales/en/ctx.json'
 import enErrors from './locales/en/errors.json'
-import enGws from './locales/en/gws.json'
 import enLoader from './locales/en/loader.json'
 import enNavigation from './locales/en/navigation.json'
 import enNotifications from './locales/en/notifications.json'
@@ -19,6 +18,7 @@ import enPicker from './locales/en/picker.json'
 import enSelectors from './locales/en/selectors.json'
 import enSettings from './locales/en/settings.json'
 import enToasts from './locales/en/toasts.json'
+import enWs from './locales/en/ws.json'
 import trAi from './locales/tr/ai.json'
 import trAiChat from './locales/tr/ai-chat.json'
 import trAiSend from './locales/tr/ai-send.json'
@@ -27,7 +27,6 @@ import trAutoSend from './locales/tr/auto-send.json'
 import trCommon from './locales/tr/common.json'
 import trCtx from './locales/tr/ctx.json'
 import trErrors from './locales/tr/errors.json'
-import trGws from './locales/tr/gws.json'
 import trLoader from './locales/tr/loader.json'
 import trNavigation from './locales/tr/navigation.json'
 import trNotifications from './locales/tr/notifications.json'
@@ -37,6 +36,7 @@ import trPicker from './locales/tr/picker.json'
 import trSelectors from './locales/tr/selectors.json'
 import trSettings from './locales/tr/settings.json'
 import trToasts from './locales/tr/toasts.json'
+import trWs from './locales/tr/ws.json'
 
 const enResources = {
   ...enCommon,
@@ -50,7 +50,7 @@ const enResources = {
   ...enAiChat,
   ...enSelectors,
   ...enPicker,
-  ...enGws,
+  ...enWs,
   ...enErrors,
   ...enToasts,
   ...enLoader,
@@ -71,7 +71,7 @@ const trResources = {
   ...trAiChat,
   ...trSelectors,
   ...trPicker,
-  ...trGws,
+  ...trWs,
   ...trErrors,
   ...trToasts,
   ...trLoader,

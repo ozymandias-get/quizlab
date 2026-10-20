@@ -11,13 +11,7 @@ export {
   TrashIcon,
   XIcon
 } from './icons/IconsAction'
-export {
-  GeminiIcon,
-  GithubIcon,
-  MagicWandIcon,
-  SparklesExpandIcon,
-  UpdateIcon
-} from './icons/IconsAI'
+export { GithubIcon, MagicWandIcon, SparklesExpandIcon, UpdateIcon } from './icons/IconsAI'
 export {
   BellIcon,
   ChevronRightIcon,

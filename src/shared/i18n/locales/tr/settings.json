@@ -63,7 +63,7 @@
   "model_visibility": "Model Görünürlüğü",
   "model_visibility_desc": "Merkez çubukta hangi yapay zeka modellerinin gösterileceğini seçin.",
   "tool_settings": "Ayarlar",
-  "tool_gemini": "Gemini Web",
+  "tool_site_sessions": "Oturumlar",
   "tool_swap": "Panelleri Değiştir",
   "tool_pdf_focus": "PDF Odak",
   "tool_ai_focus": "YZ Odak",

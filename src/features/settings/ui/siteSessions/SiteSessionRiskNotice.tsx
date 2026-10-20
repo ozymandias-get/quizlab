@@ -1,24 +1,24 @@
 import { SettingsSection } from '@shared/ui/components/primitives'
 import { CheckIcon, InfoIcon } from '@ui/components/Icons'
 
-interface GeminiWebRiskNoticeProps {
+interface SiteSessionRiskNoticeProps {
   t: (key: string) => string
   riskItems: string[]
   mitigationItems: string[]
 }
 
-function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNoticeProps) {
+function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRiskNoticeProps) {
   return (
     <SettingsSection
       icon={<InfoIcon className="h-4 w-4" />}
-      title={t('gws_warning_title')}
-      detail={t('gws_warning_intro')}
+      title={t('ws_warning_title')}
+      detail={t('ws_warning_intro')}
     >
       <div className="border-border/60 bg-background/40 flex flex-col gap-5 rounded-xl border p-4">
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
             <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-600 uppercase dark:text-amber-400">
-              {t('gws_risk_list_title')}
+              {t('ws_risk_list_title')}
             </span>
             <span aria-hidden className="bg-border h-px flex-1" />
           </div>
@@ -41,7 +41,7 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
             <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-emerald-600 uppercase dark:text-emerald-400">
-              {t('gws_mitigation_title')}
+              {t('ws_mitigation_title')}
             </span>
             <span aria-hidden className="bg-border h-px flex-1" />
           </div>
@@ -63,11 +63,11 @@ function GeminiWebRiskNotice({ t, riskItems, mitigationItems }: GeminiWebRiskNot
 
         <p className="text-ql-12 text-muted-foreground leading-relaxed">
           <span className="text-foreground font-semibold">{t('gcli_note')}</span>{' '}
-          {t('gws_official_warning')}
+          {t('ws_official_warning')}
         </p>
       </div>
     </SettingsSection>
   )
 }
 
-export default GeminiWebRiskNotice
+export default SiteSessionRiskNotice

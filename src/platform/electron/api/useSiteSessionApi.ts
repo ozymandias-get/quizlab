@@ -1,4 +1,9 @@
-import type { SiteSessionActionResult, SiteSessionListResult } from '@shared-core/types/siteSession'
+import type {
+  SiteSessionActionResult,
+  SiteSessionListResult,
+  SiteSessionStatusCode,
+  SiteSessionView
+} from '@shared-core/types/siteSession'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
@@ -8,6 +13,30 @@ import { useEffect } from 'react'
 import { useElectronMutation, useElectronQuery } from '../useElectron'
 
 export const SITE_SESSION_LIST_KEY = ['site-sessions'] as const
+
+/**
+ * The states a site cannot get past on its own.
+ *
+ * Every one of them asks the user for something: an installed extension, a
+ * reloaded extension, a granted permission or a look at why the import
+ * failed.
+ */
+const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
+  'extension_missing',
+  'extension_outdated',
+  'permission_missing',
+  'import_failed'
+])
+
+/** Whether any site pulls its session from Chrome. */
+export function hasEnabledSiteSession(views: SiteSessionView[]): boolean {
+  return views.some((view) => view.enabled)
+}
+
+/** Whether a site whose import is on is waiting for the user. */
+export function hasSiteSessionNeedingAttention(views: SiteSessionView[]): boolean {
+  return views.some((view) => view.enabled && ATTENTION_STATUSES.has(view.status))
+}
 
 /**
  * The sites and their states.

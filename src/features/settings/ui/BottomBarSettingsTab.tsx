@@ -1,4 +1,7 @@
-import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
+import {
+  hasEnabledSiteSession,
+  useSiteSessionListQuery
+} from '@platform/electron/api/useSiteSessionApi'
 
 import { useAppearance } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
@@ -27,7 +30,7 @@ interface ToolItem {
 
 const TOOL_LIST: ToolItem[] = [
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS, nameKey: 'tool_settings' },
-  { id: 'tool-gemini-web', nameKey: 'tool_gemini' },
+  { id: 'tool-gemini-web', nameKey: 'tool_site_sessions' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP, nameKey: 'tool_swap' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS, nameKey: 'tool_pdf_focus' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS, nameKey: 'tool_ai_focus' },
@@ -71,8 +74,8 @@ function SectionCaption({ children }: { children: ReactNode }) {
 const BottomBarSettingsTab = memo(() => {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const { data: webSessionData } = useGeminiWebStatus()
-  const isGeminiWebEnabled = !!webSessionData?.featureEnabled && !!webSessionData?.enabled
+  const { data: siteSessionData } = useSiteSessionListQuery()
+  const isSiteSessionEnabled = hasEnabledSiteSession(siteSessionData?.views ?? [])
   const { enabledModels, aiSites } = useAiModelsCatalog()
   const { setEnabledModels } = useAiModelActions()
 
@@ -86,8 +89,8 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   const visibleToolsFiltered = useMemo(
-    () => TOOL_LIST.filter((tool) => tool.id !== 'tool-gemini-web' || isGeminiWebEnabled),
-    [isGeminiWebEnabled]
+    () => TOOL_LIST.filter((tool) => tool.id !== 'tool-gemini-web' || isSiteSessionEnabled),
+    [isSiteSessionEnabled]
   )
 
   const handleToggleTool = useCallback(

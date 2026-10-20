@@ -63,7 +63,7 @@
   "model_visibility": "Model Visibility",
   "model_visibility_desc": "Choose which AI models are shown in the hub.",
   "tool_settings": "Settings",
-  "tool_gemini": "Gemini Web",
+  "tool_site_sessions": "Site Sessions",
   "tool_swap": "Swap Panels",
   "tool_pdf_focus": "PDF Focus",
   "tool_ai_focus": "AI Focus",

@@ -33,7 +33,7 @@ const NotificationsTab = lazy(() => import('../NotificationsTab'))
 const AiLifecycleTab = lazy(() => import('../AiLifecycleTab'))
 const BottomBarSettingsTab = lazy(() => import('../BottomBarSettingsTab'))
 const TextInputModeTab = lazy(() => import('../TextInputModeTab'))
-const GeminiWebSessionTab = lazy(() => import('../GeminiWebSessionTab'))
+const SiteSessionsTab = lazy(() => import('../siteSessions/SiteSessionsTab'))
 const StorageTab = lazy(() => import('../StorageTab'))
 
 export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<SettingsContext>> = {
@@ -42,7 +42,7 @@ export const SETTINGS_TAB_COMPONENTS: Record<SettingsTabId, ComponentType<Settin
   sites: SitesTab,
   'ai-lifecycle': AiLifecycleTab,
   'text-input-mode': TextInputModeTab,
-  'gemini-web': GeminiWebSessionTab,
+  'site-sessions': SiteSessionsTab,
   selectors: SelectorsTabWrapper,
   notifications: NotificationsTab,
   appearance: AppearanceTab,

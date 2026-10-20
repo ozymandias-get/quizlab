@@ -30,14 +30,14 @@ function RiskStepContent({
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
         <h3 id={titleId} className="text-ql-14 text-foreground font-semibold">
-          {t('gws_extension_wizard_risk_title')}
+          {t('ws_extension_wizard_risk_title')}
         </h3>
       </div>
-      <p className="text-ql-13 text-muted-foreground">{t('gws_extension_wizard_risk_desc')}</p>
+      <p className="text-ql-13 text-muted-foreground">{t('ws_extension_wizard_risk_desc')}</p>
 
       <div className="mt-1 flex flex-col gap-2.5">
         <p className="text-ql-10 tracking-ql-label font-semibold text-amber-600 uppercase dark:text-amber-400">
-          {t('gws_extension_wizard_risk_list_title')}
+          {t('ws_extension_wizard_risk_list_title')}
         </p>
         {riskItems.map((item, i) => (
           <div key={item} className="flex items-start gap-2.5">
@@ -54,7 +54,7 @@ function RiskStepContent({
 
       <div className="mt-1 flex flex-col gap-2.5">
         <p className="text-ql-10 tracking-ql-label font-semibold text-emerald-600 uppercase dark:text-emerald-400">
-          {t('gws_extension_wizard_mitigation_title')}
+          {t('ws_extension_wizard_mitigation_title')}
         </p>
         {mitigationItems.map((item) => (
           <div key={`mit-${item}`} className="flex items-start gap-2.5">
@@ -77,16 +77,16 @@ function RiskStepContent({
           className="border-border text-primary focus-visible:ring-ring h-4 w-4 rounded focus-visible:ring-offset-0"
         />
         <span className="text-ql-13 text-foreground font-medium">
-          {t('gws_extension_wizard_confirm_label')}
+          {t('ws_extension_wizard_confirm_label')}
         </span>
       </label>
 
       <div className="mt-2 flex items-center justify-end gap-2.5">
         <Button type="button" variant="outline" onClick={onClose}>
-          <span className="text-ql-12">{t('gws_extension_wizard_cancel_btn')}</span>
+          <span className="text-ql-12">{t('ws_extension_wizard_cancel_btn')}</span>
         </Button>
         <Button type="button" onClick={onNext} disabled={!confirmed}>
-          <span className="text-ql-12">{t('gws_extension_wizard_next_btn')}</span>
+          <span className="text-ql-12">{t('ws_extension_wizard_next_btn')}</span>
         </Button>
       </div>
     </div>

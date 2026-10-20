@@ -1,6 +1,8 @@
-import type { GeminiWebSessionState } from '@shared-core/types'
-
-import { useGeminiWebStatus } from '@platform/electron/api/useGeminiWebSessionApi'
+import {
+  hasEnabledSiteSession,
+  hasSiteSessionNeedingAttention,
+  useSiteSessionListQuery
+} from '@platform/electron/api/useSiteSessionApi'
 
 import { usePdfTabStore } from '@features/pdf'
 
@@ -8,8 +10,7 @@ import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/pr
 import { useAiModelsCatalog, useAiTabActions } from '@app/providers/ai-context'
 import {
   ExpandIcon,
-  GeminiIcon,
-  LoaderIcon,
+  GlobeIcon,
   MagicWandIcon,
   SettingsIcon,
   SparklesExpandIcon,
@@ -113,29 +114,25 @@ export const GeminiToolButton = memo(function GeminiToolButton({
   onOpenSettings: (tab?: string) => void
 }) {
   const { t } = useTranslation()
-  const { data: webSessionData, isLoading: isGeminiWebStatusLoading } = useGeminiWebStatus()
+  const { data: siteSessionData } = useSiteSessionListQuery()
 
   const handleClick = useCallback(() => {
-    onOpenSettings('gemini-web')
+    onOpenSettings('site-sessions')
   }, [onOpenSettings])
 
-  const isGeminiWebEnabled = !!webSessionData?.featureEnabled && !!webSessionData?.enabled
-  const geminiWebState: GeminiWebSessionState = webSessionData?.state ?? 'uninitialized'
-  const isGeminiAuthRequired =
-    geminiWebState === 'auth_required' || geminiWebState === 'reauth_required'
+  const views = siteSessionData?.views ?? []
+  // The button belongs to the feature, not to one site: it shows up as soon as
+  // a single site pulls its session from Chrome.
+  if (!hasEnabledSiteSession(views)) return null
 
-  if (!isGeminiWebEnabled) return null
+  const needsAttention = hasSiteSessionNeedingAttention(views)
 
   return (
     <FloatingDockIcon
-      title={isGeminiAuthRequired ? t('gws_toolbar_auth_required') : t('gws_toolbar_title')}
+      title={needsAttention ? t('ws_toolbar_attention') : t('ws_toolbar_title')}
       onClick={handleClick}
     >
-      {isGeminiWebStatusLoading ? (
-        <LoaderIcon className="h-5 w-5" />
-      ) : (
-        <GeminiIcon className="h-5 w-5" />
-      )}
+      <GlobeIcon className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })
