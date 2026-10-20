@@ -8,7 +8,6 @@ import { startCacheScheduler, stopCacheScheduler } from '../core/cacheScheduler.
 import { createIssueLogReport, flushToDisk, initLogger, Logger } from '../core/logger.js'
 import { initUpdater } from '../core/updater.js'
 import { disposeAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
-import { shutdownGeminiWebSessionHandlers } from '../features/gemini-web-session/geminiWebSessionHandlers.js'
 import {
   clearAllPdfPaths,
   registerPdfProtocol,
@@ -133,7 +132,6 @@ async function initializeApp() {
     stopCacheScheduler()
     clearAllPdfPaths()
     await disposeAiViewHandlers()
-    await shutdownGeminiWebSessionHandlers()
     await shutdownNativeMessaging()
     await flushToDisk()
   })

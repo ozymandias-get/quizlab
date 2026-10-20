@@ -36,7 +36,7 @@ export default defineConfig({
       ['electron/__tests__/features/pdf/**', 'node'],
       ['electron/__tests__/features/screenshot/**', 'node'],
       ['electron/__tests__/features/ai/**', 'node'],
-      ['electron/__tests__/features/gemini-web-session/**', 'node'],
+      ['electron/__tests__/features/web-session/**', 'node'],
       ['electron/__tests__/features/native-messaging/**', 'node'],
       ['electron/__tests__/features/shell-open/**', 'node'],
       ['electron/__tests__/preload/**', 'node']
@@ -58,7 +58,7 @@ export default defineConfig({
         statements: 48,
         functions: 47,
         branches: 41,
-        'electron/features/gemini-web-session/**/*.ts': {
+        'electron/features/web-session/**/*.ts': {
           lines: 60,
           statements: 59,
           branches: 56,

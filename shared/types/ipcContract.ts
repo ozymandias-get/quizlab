@@ -1,4 +1,3 @@
-import type { GoogleWebSessionAppId } from '../constants/googleAiWebApps.js'
 import type { IPC_CHANNELS } from '../constants/ipcChannels.js'
 import type { IpcResult } from '../lib/typedIpc.js'
 import type {
@@ -23,11 +22,6 @@ import type {
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'
-import type {
-  GeminiWebSessionActionResult,
-  GeminiWebSessionRefreshEvent,
-  GeminiWebSessionStatus
-} from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
 import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
@@ -312,43 +306,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<SiteSessionActionResult>
   }
 
-  // Gemini web session management
-  [IPC_CHANNELS.GEMINI_WEB_STATUS]: {
-    args: []
-    result: IpcResult<GeminiWebSessionStatus>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_RESET_PROFILE]: {
-    args: []
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_SET_ENABLED]: {
-    args: [enabled: boolean]
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_SET_ENABLED_APPS]: {
-    args: [enabledAppIds: GoogleWebSessionAppId[]]
-    result: IpcResult<GeminiWebSessionActionResult>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_EXPORT_SESSION]: {
-    args: []
-    result: IpcResult<{ success: boolean; error?: string; detail?: string }>
-  }
-
-  [IPC_CHANNELS.GEMINI_WEB_IMPORT_SESSION]: {
-    args: []
-    result: IpcResult<{
-      success: boolean
-      error?: string
-      status?: GeminiWebSessionStatus
-      warning?: string
-      detail?: string
-    }>
-  }
-
   // App settings sync (renderer localStorage <-> main ConfigManager)
   [IPC_CHANNELS.GET_APP_SETTINGS]: {
     args: []
@@ -380,15 +337,6 @@ export interface IpcInvokeRequestMap {
 export interface IpcEventMap {
   [IPC_CHANNELS.SITE_SESSION_CHANGED]: {
     args: [result: SiteSessionListResult]
-  }
-  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_STARTED]: {
-    args: [payload: GeminiWebSessionRefreshEvent]
-  }
-  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_SUCCESS]: {
-    args: [payload: GeminiWebSessionRefreshEvent]
-  }
-  [IPC_CHANNELS.GEMINI_WEB_SESSION_REFRESH_FAILED]: {
-    args: [payload: GeminiWebSessionRefreshEvent]
   }
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED]: {
     args: []

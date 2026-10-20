@@ -122,18 +122,6 @@ vi.mock('http', () => ({
   createServer: mockCreateServer
 }))
 
-vi.mock('../../../features/gemini-web-session/sessionCookies', () => ({
-  importExternalCookies: vi.fn()
-}))
-
-vi.mock('../../../features/gemini-web-session/sessionConfig', () => ({
-  PROFILE_PARTITION: 'partition-test'
-}))
-
-vi.mock('../../../features/gemini-web-session/sessionManager', () => ({
-  geminiWebSessionManager: {}
-}))
-
 vi.mock('../../../app/constants', () => ({
   APP_CONFIG: {
     IPC_CHANNELS: {

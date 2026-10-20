@@ -25,7 +25,7 @@ Thank you for your interest in contributing. This guide reflects the current rep
   range, which is stricter than the ranges Vite and Vitest publish)
 - **npm**
 - **Git**
-- **Google account** (optional, for the Google AI web session)
+- **Google account** (optional, for the Google sites: Gemini, AI Studio, YouTube, Google Drive)
 - **API keys** (optional, for the direct API chat)
 
 ### Initial Setup
@@ -57,7 +57,6 @@ defaults; the ones you are most likely to want:
 | `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                                                  |
 | `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                                                         |
 | `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)                                         |
-| `GEMINI_WEB_*`                  | Google session health-check intervals and timeouts (see `.env.example`)                               |
 
 On Windows PowerShell:
 

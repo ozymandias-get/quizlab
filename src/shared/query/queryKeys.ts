@@ -11,8 +11,5 @@ export const QUERY_KEYS = {
     VERSION: ['system', 'version'] as const,
     UPDATE: ['system', 'update'] as const,
     CACHE_INFO: ['system', 'cache-info'] as const
-  },
-  GEMINI_WEB: {
-    STATUS: ['gemini-web', 'status'] as const
   }
 } as const

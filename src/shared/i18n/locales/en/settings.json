@@ -7,7 +7,7 @@
   "models": "Models",
   "models_count": "models",
   "models_description": "You can turn on/off the AI models you want to use. At least one model must be active.",
-  "google_models_managed_separately": "Google models are managed from the Google Session section.",
+  "google_models_managed_separately": "Google models are managed from the Session Import section.",
   "ai_sites": "Sites",
   "sites_description": "Add regular websites here. These sites will not have selector saving, they will only open as web views.",
   "sites_count": "sites",

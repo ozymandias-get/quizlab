@@ -36,17 +36,6 @@ export type {
   TextInputMode
 } from './automation.js'
 export { TEXT_INPUT_MODE_VALUES } from './automation.js'
-export type {
-  GeminiWebSessionActionResult,
-  GeminiWebSessionConfig,
-  GeminiWebSessionReasonCode,
-  GeminiWebSessionRefreshEvent,
-  GeminiWebSessionRefreshReason,
-  GeminiWebSessionState,
-  GeminiWebSessionStatus,
-  HealthCheckResult,
-  SessionActionLike
-} from './gemini-web.js'
 export type { CacheInfoResponse } from './ipcContract.js'
 export type {
   ChromeExtensionCookie,

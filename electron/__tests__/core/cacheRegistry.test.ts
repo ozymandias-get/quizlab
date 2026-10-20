@@ -81,11 +81,12 @@ describe('cacheRegistry', () => {
     it.each([
       'window-state.json',
       'pdf-allowlist.json',
-      // The three files that hold state a cache sweep must never be able to
-      // delete: the Magic Selector's saved selectors, the AI provider config,
-      // and the Gemini web session archive.
+      // The files that hold state a cache sweep must never be able to delete:
+      // the Magic Selector's saved selectors, the AI provider config, the
+      // per-site import switches and the legacy file they are migrated from.
       'ai_custom_selectors.json',
       'api_chat_config.json',
+      'site-sessions.json',
       'gemini-web-session.json'
     ])('protects %s', (file) => {
       expect(getProtectedFiles().has(file)).toBe(true)

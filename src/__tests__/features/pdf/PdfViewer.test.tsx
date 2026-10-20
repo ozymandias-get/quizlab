@@ -60,15 +60,6 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-vi.mock('@platform/electron/api/useGeminiWebSessionApi', () => ({
-  useGeminiWebStatus: () => ({
-    data: {
-      featureEnabled: false,
-      enabled: false
-    }
-  })
-}))
-
 vi.mock('@features/pdf/ui/components/PdfPlaceholder', () => ({
   default: () => <div>PDF Placeholder</div>
 }))

@@ -5,7 +5,6 @@
  * is excluded because it requires real DOM interaction.
  */
 import {
-  createGeminiStatus,
   getPlatform,
   registerBeforeUnloadCleanup,
   selectPdfInBrowser,
@@ -53,35 +52,6 @@ describe('getPlatform', () => {
       configurable: true
     })
     expect(getPlatform()).toBe('web')
-  })
-})
-
-describe('createGeminiStatus', () => {
-  it('returns auth_required state when enabled', () => {
-    const status = createGeminiStatus(true, ['gemini'])
-    expect(status.state).toBe('auth_required')
-    expect(status.featureEnabled).toBe(true)
-    expect(status.enabled).toBe(true)
-    expect(status.enabledAppIds).toEqual(['gemini'])
-    expect(status.consecutiveFailures).toBe(0)
-    expect(status.reasonCode).toBe('none')
-  })
-
-  it('returns uninitialized state when disabled', () => {
-    const status = createGeminiStatus(false, [])
-    expect(status.state).toBe('uninitialized')
-    expect(status.featureEnabled).toBe(false)
-    expect(status.enabled).toBe(false)
-    expect(status.lastHealthyAt).toBeNull()
-  })
-
-  it('sets lastCheckAt to current ISO string', () => {
-    const before = Date.now()
-    const status = createGeminiStatus(true, [])
-    const after = Date.now()
-    const parsed = new Date(status.lastCheckAt!).getTime()
-    expect(parsed).toBeGreaterThanOrEqual(before)
-    expect(parsed).toBeLessThanOrEqual(after)
   })
 })
 

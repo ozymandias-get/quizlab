@@ -81,8 +81,6 @@ diagnostics:
   Claude, Kimi and M365 Copilot are registered out of the box, and custom sites
   can be added. Each site runs in its own persistent session, so logins survive
   restarts. An `API Chat` tab provides a native, renderer-drawn chat surface.
-  Gemini, AI Studio and YouTube are only listed while their Google session is
-  enabled in **Settings → Google AI Web Session**.
 - **Send composer** — selected text, a whole page as an image, a selection
   rectangle, or a cropped screenshot are queued and then delivered in order.
   Auto Send is a global preference: with it off, the app only stages content and
@@ -100,10 +98,11 @@ diagnostics:
   templates ship for OpenAI, Anthropic, Google and NVIDIA, and `custom` covers
   any compatible gateway. Requests are made from the main process with SSRF
   validation and DNS pinning.
-- **Google AI web session** — Gemini, AI Studio and YouTube share one Google
-  sign-in held in a dedicated session partition, with periodic health checks
-  and encrypted export/import. A bundled Chrome extension can hand over existing
-  Google cookies over a localhost bridge.
+- **Site sessions** — every site you use has its own "Pull from Chrome" switch in
+  **Settings → Session Import**. With it on, the bundled Chrome extension hands
+  the site the cookies of your own Chrome profile over a localhost bridge; with
+  it off, the site asks you to sign in inside the app. The Google family
+  (Gemini, AI Studio, YouTube, Google Drive) shares one account and is one row.
 - **Appearance** — animated or solid backgrounds, glass scaling, selection
   colour, accent colour, and a configurable hub/dock for the tools you actually
   use.
@@ -156,7 +155,8 @@ diagnostics:
   range, which is stricter than the ranges Vite and Vitest publish)
 - npm — the lockfile is `package-lock.json` and CI uses `npm ci`
 - Git
-- A Google account, only if you want the Google AI web session
+- A Google account, only if you want to use the Google sites (Gemini, AI Studio,
+  YouTube, Google Drive)
 - API keys, only if you want the direct API chat
 - Google Chrome, only if you want the session-bridge extension
 
@@ -192,7 +192,6 @@ documents the full list with defaults; the ones that matter in development are:
 | `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                   |
 | `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                          |
 | `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)          |
-| `GEMINI_WEB_*`                  | Google session health-check intervals and timeouts                     |
 
 Using a `QUIZLAB_PROFILE` other than `stable` also disables the single-instance
 lock, which is useful for running two profiles side by side.
@@ -247,8 +246,8 @@ Preload (electron/preload/)
         v
 Main (electron/)
   ipcMain handlers, trusted-sender check on every call
-  feature modules: ai-view, ai, automation, gemini-web-session, native-messaging,
-                   pdf, screenshot, settings, shell-open
+  feature modules: ai-view, ai, automation, native-messaging,
+                   pdf, screenshot, settings, shell-open, web-session
   core: config store, encryption, CSP, logging, cache accounting, updater
         |
         +--> local-pdf:// protocol  -> local PDF files (allowlist, byte ranges)
@@ -285,8 +284,9 @@ import rules enforced by dependency-cruiser, and the selector self-healing flow.
 electron/            Main process
   app/               Entry point, window creation, session/CSP/security, IPC wiring
   core/              Config store, encryption, logging, cache, updater, typed IPC
-  features/          Feature handlers (ai, automation, gemini-web-session,
-                     native-messaging, pdf, screenshot, settings, shell-open)
+  features/          Feature handlers (ai, automation,
+                     native-messaging, pdf, screenshot, settings, shell-open,
+                     web-session)
   preload/           contextBridge surface
   __tests__/         Main-process tests
 shared/              Cross-process contracts: IPC channels, types, constants
@@ -296,7 +296,7 @@ src/                 Renderer
   platform/electron/ Adapters between the app and window.electronAPI
   shared/            Shared UI, hooks, i18n, styles, stores, lib
   __tests__/         Renderer tests
-extensions/          Chrome extension for the Google session bridge
+extensions/          Chrome extension for the site session bridge
 installer/           NSIS custom installer logic
 scripts/             Dev and build automation
 docs/                Architecture, coding standard, terminology, roadmap
@@ -367,7 +367,7 @@ current file and test count run `npm test` — the totals move with every commit
 so they are deliberately not restated here.
 
 Coverage thresholds are enforced per scope in `vitest.config.mts` — globally
-50% lines, with separate floors for `electron/features/gemini-web-session`,
+50% lines, with separate floors for `electron/features/web-session`,
 `electron/features/automation`, `electron/core`, `electron/features/ai/apiChatHandlers`
 and the PDF feature. `npm run analyze:mutation` runs Stryker.
 

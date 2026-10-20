@@ -2,7 +2,6 @@
 // the renderer's spelling of this same tree (docs/CODING_STANDARD.md:117), and
 // a cross-process module depending on a renderer alias would be resolvable
 // only because the renderer tsconfigs happen to declare it.
-import type { GoogleWebSessionAppId } from '../constants/googleAiWebApps.js'
 import type {
   AiRegistryResponse,
   ClearAiModelDataInput,
@@ -24,11 +23,6 @@ import type {
 } from './aiView.js'
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
-import type {
-  GeminiWebSessionActionResult,
-  GeminiWebSessionRefreshEvent,
-  GeminiWebSessionStatus
-} from './gemini-web.js'
 import type { NativeMessagingExtensionInfo } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
 import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
@@ -173,24 +167,6 @@ export interface ElectronApi {
     requestId?: string
   ) => Promise<ApiChatMessage | null>
   fetchApiChatModels: (providerId: string) => Promise<string[] | null>
-  geminiWeb: {
-    getStatus: () => Promise<GeminiWebSessionStatus | null>
-
-    resetProfile: () => Promise<GeminiWebSessionActionResult>
-    setEnabled: (enabled: boolean) => Promise<GeminiWebSessionActionResult>
-    setEnabledApps: (
-      enabledAppIds: GoogleWebSessionAppId[]
-    ) => Promise<GeminiWebSessionActionResult>
-    exportSession: () => Promise<{ success: boolean; error?: string; detail?: string }>
-    importSession: () => Promise<{
-      success: boolean
-      error?: string
-      status?: GeminiWebSessionStatus
-      warning?: string
-      detail?: string
-    }>
-    onRefreshEvent: (callback: (event: GeminiWebSessionRefreshEvent) => void) => () => void
-  }
   /**
    * Per-site Chrome session sharing: the settings list of sites that may pull
    * their login from the user's Chrome profile.

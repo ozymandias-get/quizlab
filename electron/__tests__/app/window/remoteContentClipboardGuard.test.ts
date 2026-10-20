@@ -1,6 +1,6 @@
 /**
  * Security boundary tests for the remote-content guard applied to every embedded
- * surface (AI provider sites, Google Drive panel, Gemini web session apps).
+ * surface (AI provider sites, Google Drive panel, Google web apps).
  *
  * The guard stops a malicious remote page from reading the system clipboard. It
  * previously blocked ALL clipboard events, which also blocked the app's own

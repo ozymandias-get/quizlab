@@ -7,7 +7,7 @@
   "models": "Modeller",
   "models_count": "model",
   "models_description": "Kullanmak istediğiniz AI modellerini açıp kapatabilirsiniz. En az bir model aktif olmalıdır.",
-  "google_models_managed_separately": "Google modelleri Google Oturumu bölümünden yönetilir.",
+  "google_models_managed_separately": "Google modelleri Oturum Aktarımı bölümünden yönetilir.",
   "ai_sites": "Siteler",
   "sites_description": "Normal web sitelerini buradan ekleyebilirsiniz. Bu siteler için selektör kaydedilmez, sadece web görünümü olarak açılır.",
   "sites_count": "site",

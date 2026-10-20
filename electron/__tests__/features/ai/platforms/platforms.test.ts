@@ -95,7 +95,7 @@ describe('AI platform input selectors', () => {
 })
 
 describe('AI platform partitions', () => {
-  it.each(googlePartitions)('%s shares the Google AI web session partition', (id) => {
+  it.each(googlePartitions)('%s shares the Google session partition', (id) => {
     expect(platforms[id].partition).toBe(GOOGLE_AI_WEB_SESSION_PARTITION)
   })
 

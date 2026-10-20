@@ -1,12 +1,12 @@
 import { shell, type WebContents } from 'electron'
 
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/googleAiWebApps.js'
 import { Logger } from '../../core/logger.js'
 import { resolveExternalLink } from '../../core/systemHandlers/externalLinkPolicy.js'
-import { PROFILE_PARTITION } from '../../features/gemini-web-session/sessionConfig.js'
 
 /**
  * Security policy shared by every remote surface the app embeds (AI provider
- * sites, the Google Drive panel, Gemini web session apps).
+ * sites, the Google Drive panel, the Google web apps).
  *
  * These surfaces run untrusted third-party pages. The renderer never reaches
  * their `WebContents` directly — it addresses them by view id through
@@ -155,7 +155,7 @@ export function applyRemoteContentSecurity({
     return { action: 'deny' }
   })
 
-  const isGoogleWebSessionPartition = partition === PROFILE_PARTITION
+  const isGoogleWebSessionPartition = partition === GOOGLE_AI_WEB_SESSION_PARTITION
 
   // SECURITY: Prevent an embedded page from navigating to an auth domain.
   // For Google web session apps the URL is handed to the system browser so the
