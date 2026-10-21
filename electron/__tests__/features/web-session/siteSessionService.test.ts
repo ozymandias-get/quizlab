@@ -37,6 +37,7 @@ import {
 } from '../../../features/web-session/siteSessionService.js'
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -72,14 +73,21 @@ function makeService(
   }
   const config = {
     read: vi.fn().mockResolvedValue({
-      version: 1 as const,
+      version: 2 as const,
       configVersion: 3,
-      targets: {
+      sites: {
         chatgpt: {
-          enabled: overrides.enabled ?? false,
-          importedAt: null,
-          lastResult: null,
-          lastError: null
+          accounts: {
+            [PRIMARY_ACCOUNT_ID]: {
+              name: null,
+              enabled: overrides.enabled ?? false,
+              importedAt: null,
+              lastResult: null,
+              lastError: null,
+              fingerprints: []
+            }
+          },
+          activeAccountId: PRIMARY_ACCOUNT_ID
         }
       }
     }),
@@ -182,7 +190,12 @@ describe('SiteSessionService', () => {
       name: 'session',
       url: 'https://chatgpt.com/'
     })
-    expect(config.recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
+    expect(config.recordResult).toHaveBeenCalledWith(
+      'chatgpt',
+      PRIMARY_ACCOUNT_ID,
+      'imported',
+      undefined
+    )
   })
 
   it('wipes the session only after the import that is running has written', async () => {
@@ -236,7 +249,7 @@ describe('SiteSessionService', () => {
     })
     const result = await service.setEnabled('chatgpt', false)
     expect(result.success).toBe(true)
-    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', false)
+    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, false)
     expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
     expect(clearStorageData).toHaveBeenCalled()
   })
@@ -285,14 +298,14 @@ describe('SiteSessionService', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe('switch_off_wipe_failed')
     expect(result.detail).toBeTruthy()
-    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', false)
+    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, false)
   })
 
   it('writes only the switch when the import is switched on', async () => {
     const { service, config, set, remove, clearStorageData } = makeService({ enabled: false })
     const result = await service.setEnabled('chatgpt', true)
     expect(result.success).toBe(true)
-    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', true)
+    expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, true)
     expect(set).not.toHaveBeenCalled()
     expect(remove).not.toHaveBeenCalled()
     expect(clearStorageData).not.toHaveBeenCalled()
@@ -388,14 +401,21 @@ describe('the list of the sites', () => {
       {
         config: {
           read: vi.fn().mockResolvedValue({
-            version: 1,
+            version: 2,
             configVersion: 3,
-            targets: {
+            sites: {
               chatgpt: {
-                enabled: true,
-                importedAt: null,
-                lastResult: null,
-                lastError: null
+                accounts: {
+                  [PRIMARY_ACCOUNT_ID]: {
+                    name: null,
+                    enabled: true,
+                    importedAt: null,
+                    lastResult: null,
+                    lastError: null,
+                    fingerprints: []
+                  }
+                },
+                activeAccountId: PRIMARY_ACCOUNT_ID
               }
             }
           }),

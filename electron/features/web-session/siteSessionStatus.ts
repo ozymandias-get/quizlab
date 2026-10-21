@@ -13,13 +13,13 @@
  */
 
 import type { SiteSessionStatusCode } from '../../../shared/types/siteSession.js'
-import type { SiteSessionTargetState } from './siteSessionConfig.js'
+import type { SiteSessionAccountState } from './siteSessionMigration.js'
 
 export function deriveSiteSessionStatus(input: {
   enabled: boolean
   extensionConnected: boolean
   extensionVersionOk: boolean
-  lastResult: SiteSessionTargetState['lastResult']
+  lastResult: SiteSessionAccountState['lastResult']
   hasLocalSession: boolean
 }): SiteSessionStatusCode {
   if (!input.enabled) {

@@ -29,6 +29,7 @@ import type {
   SiteSessionActionResult,
   SiteSessionListResult
 } from '../../../shared/types/siteSession.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
@@ -98,7 +99,7 @@ export class SiteSessionService {
 
     const views = await Promise.all(
       targets.map(async (target) => {
-        const targetState = state.targets[target.siteId]
+        const targetState = state.sites[target.siteId]?.accounts[PRIMARY_ACCOUNT_ID]
         const enabled = targetState?.enabled === true
         const hasLocalSession = await hasLocalSessionForTarget(target, this.deps.resolveSession)
         const status = deriveSiteSessionStatus({
@@ -142,7 +143,7 @@ export class SiteSessionService {
 
     if (enabled) {
       try {
-        await this.deps.config.setEnabled(siteId, true)
+        await this.deps.config.setEnabled(siteId, PRIMARY_ACCOUNT_ID, true)
       } catch (error) {
         // The switch was not written. Reporting a success here would tell the
         // user that a site was switched on while the app never heard of it.
@@ -197,7 +198,7 @@ export class SiteSessionService {
    */
   private async switchOff(target: SiteSessionTargetRow): Promise<SiteSessionActionResult> {
     try {
-      await this.deps.config.setEnabled(target.siteId, false)
+      await this.deps.config.setEnabled(target.siteId, PRIMARY_ACCOUNT_ID, false)
     } catch (error) {
       // The switch was not written. Reporting a success here would tell the
       // user that a site was switched off while the app keeps importing it.

@@ -18,8 +18,12 @@ import {
   mergeLegacyGoogleState,
   migrateLegacyGoogleEnabled
 } from '../../../features/web-session/siteSessionConfig.js'
-import type { SiteSessionConfigFile } from '../../../features/web-session/siteSessionConfig.js'
+import type {
+  SiteSessionAccountState,
+  SiteSessionConfigFile
+} from '../../../features/web-session/siteSessionMigration.js'
 import { deriveSiteSessionStatus } from '../../../features/web-session/siteSessionStatus.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 
 /** The user data folder the app keeps its state in. */
 const USER_DATA = path.join(os.tmpdir(), 'quizlab-user-data')
@@ -29,6 +33,19 @@ vi.mock('electron', () => ({
     getPath: () => USER_DATA
   }
 }))
+
+/** An account that was never touched: named by its position, off, no history. */
+function account(overrides: Partial<SiteSessionAccountState> = {}): SiteSessionAccountState {
+  return {
+    name: null,
+    enabled: false,
+    importedAt: null,
+    lastResult: null,
+    lastError: null,
+    fingerprints: [],
+    ...overrides
+  }
+}
 
 describe('site session status', () => {
   it('reports a signed out site when the import is off and no local session exists', () => {
@@ -148,14 +165,12 @@ describe('legacy google migration', () => {
 
 describe('legacy google merge', () => {
   const stateWithChatgpt: SiteSessionConfigFile = {
-    version: 1,
+    version: 2,
     configVersion: 1,
-    targets: {
+    sites: {
       chatgpt: {
-        enabled: true,
-        importedAt: null,
-        lastResult: null,
-        lastError: null
+        accounts: { [PRIMARY_ACCOUNT_ID]: account({ enabled: true }) },
+        activeAccountId: PRIMARY_ACCOUNT_ID
       }
     }
   }
@@ -163,21 +178,20 @@ describe('legacy google merge', () => {
   it('adds the migrated switch to the state that is already there', () => {
     const merged = mergeLegacyGoogleState(stateWithChatgpt, true)
 
-    expect(merged.targets.google.enabled).toBe(true)
-    expect(merged.targets.chatgpt.enabled).toBe(true)
+    expect(merged.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(merged.sites.google.activeAccountId).toBe(PRIMARY_ACCOUNT_ID)
+    expect(merged.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
     expect(merged.configVersion).toBe(1)
   })
 
   it('leaves a state that already has a Google switch alone', () => {
     const state: SiteSessionConfigFile = {
       ...stateWithChatgpt,
-      targets: {
-        ...stateWithChatgpt.targets,
+      sites: {
+        ...stateWithChatgpt.sites,
         google: {
-          enabled: false,
-          importedAt: null,
-          lastResult: null,
-          lastError: null
+          accounts: { [PRIMARY_ACCOUNT_ID]: account() },
+          activeAccountId: PRIMARY_ACCOUNT_ID
         }
       }
     }
@@ -186,7 +200,7 @@ describe('legacy google merge', () => {
 
     // The user turned the Google switch off in the new app; the legacy file
     // may not turn it back on.
-    expect(merged.targets.google.enabled).toBe(false)
+    expect(merged.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(false)
   })
 
   it('leaves the state alone when the legacy profile had no switch', () => {
@@ -218,11 +232,7 @@ describe('site session config', () => {
     writeFileSync(configPath(), JSON.stringify(contents), 'utf8')
   }
 
-  function readRawConfig(): {
-    version: number
-    configVersion: number
-    targets: Record<string, { enabled: boolean }>
-  } {
+  function readRawConfig(): SiteSessionConfigFile {
     return JSON.parse(readFileSync(configPath(), 'utf8'))
   }
 
@@ -237,28 +247,32 @@ describe('site session config', () => {
   it('starts every switch off on a fresh profile', async () => {
     const config = new SiteSessionConfig(configPath())
 
-    expect(await config.isEnabled('google')).toBe(false)
-    expect(await config.isEnabled('chatgpt')).toBe(false)
+    expect(await config.isEnabled('google', PRIMARY_ACCOUNT_ID)).toBe(false)
+    expect(await config.isEnabled('chatgpt', PRIMARY_ACCOUNT_ID)).toBe(false)
 
     const state = await config.read()
-    expect(state.version).toBe(1)
+    expect(state.version).toBe(2)
     expect(state.configVersion).toBe(0)
-    expect(state.targets).toEqual({})
+    expect(state.sites).toEqual({})
   })
 
   it('carries the legacy Google switch over', async () => {
     writeLegacy({ enabled: true })
     const config = new SiteSessionConfig(configPath())
 
-    expect(await config.isEnabled('google')).toBe(true)
-    expect(await config.isEnabled('chatgpt')).toBe(false)
+    expect(await config.isEnabled('google', PRIMARY_ACCOUNT_ID)).toBe(true)
+    expect(await config.isEnabled('chatgpt', PRIMARY_ACCOUNT_ID)).toBe(false)
+
+    const state = await config.read()
+    expect(state.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(state.sites.google.activeAccountId).toBe(PRIMARY_ACCOUNT_ID)
   })
 
   it('keeps a legacy profile that was switched off switched off', async () => {
     writeLegacy({ enabled: false })
     const config = new SiteSessionConfig(configPath())
 
-    expect(await config.isEnabled('google')).toBe(false)
+    expect(await config.isEnabled('google', PRIMARY_ACCOUNT_ID)).toBe(false)
   })
 
   it('does not write when the state file already exists', async () => {
@@ -282,7 +296,7 @@ describe('site session config', () => {
     await config.read()
 
     expect(readFileSync(configPath(), 'utf8')).toBe(migrated)
-    expect(await config.isEnabled('google')).toBe(true)
+    expect(await config.isEnabled('google', PRIMARY_ACCOUNT_ID)).toBe(true)
   })
 
   it('does not read the legacy file again once the state file exists', async () => {
@@ -294,30 +308,30 @@ describe('site session config', () => {
     writeLegacy({ enabled: false })
     await config.read()
 
-    expect(await config.isEnabled('google')).toBe(true)
+    expect(await config.isEnabled('google', PRIMARY_ACCOUNT_ID)).toBe(true)
   })
 
   it('keeps the merged map when the migrated Google switch is turned off', async () => {
     writeLegacy({ enabled: true })
     const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
-    await config.setEnabled('google', false)
+    await config.setEnabled('google', PRIMARY_ACCOUNT_ID, false)
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(false)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(false)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('keeps every site that was switched on', async () => {
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('chatgpt', true)
-    await config.setEnabled('claude', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
+    await config.setEnabled('claude', PRIMARY_ACCOUNT_ID, true)
 
     const raw = readRawConfig()
-    expect(raw.targets.chatgpt.enabled).toBe(true)
-    expect(raw.targets.claude.enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.claude.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('keeps the migrated Google switch when another site is switched on', async () => {
@@ -325,22 +339,22 @@ describe('site session config', () => {
     const config = new SiteSessionConfig(configPath())
     await config.read()
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(true)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('keeps the migrated Google switch when the first call is a write', async () => {
     writeLegacy({ enabled: true })
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(true)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('keeps a switch that was set while the first read was still running', async () => {
@@ -349,11 +363,11 @@ describe('site session config', () => {
     writeLegacy({ enabled: true })
     const config = new SiteSessionConfig(configPath())
 
-    await Promise.all([config.read(), config.setEnabled('chatgpt', true)])
+    await Promise.all([config.read(), config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)])
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(true)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
     expect(raw.configVersion).toBe(1)
   })
 
@@ -374,14 +388,14 @@ describe('site session config', () => {
     })
 
     try {
-      await Promise.all([config.read(), config.setEnabled('chatgpt', true)])
+      await Promise.all([config.read(), config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)])
     } finally {
       spy.mockRestore()
     }
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(true)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
     expect(raw.configVersion).toBe(1)
   })
 
@@ -391,59 +405,62 @@ describe('site session config', () => {
 
     // The second instance reads the file before the first one writes it.
     await second.read()
-    await first.setEnabled('google', true)
-    await second.setEnabled('chatgpt', true)
+    await first.setEnabled('google', PRIMARY_ACCOUNT_ID, true)
+    await second.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
     const raw = readRawConfig()
-    expect(raw.targets.google.enabled).toBe(true)
-    expect(raw.targets.chatgpt.enabled).toBe(true)
+    expect(raw.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(raw.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('advances the version only when a switch really changes', async () => {
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     expect(await config.getConfigVersion()).toBe(1)
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     expect(await config.getConfigVersion()).toBe(1)
 
-    await config.setEnabled('chatgpt', false)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, false)
     expect(await config.getConfigVersion()).toBe(2)
   })
 
   it('records the import result without changing the version or the switch', async () => {
     const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     const version = await config.getConfigVersion()
 
-    await config.recordResult('chatgpt', 'imported')
+    await config.recordResult('chatgpt', PRIMARY_ACCOUNT_ID, 'imported')
 
     const state = await config.read()
     expect(state.configVersion).toBe(version)
-    expect(state.targets.chatgpt.enabled).toBe(true)
-    expect(state.targets.chatgpt.lastResult).toBe('imported')
-    expect(state.targets.chatgpt.importedAt).not.toBeNull()
+    const record = state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID]
+    expect(record.enabled).toBe(true)
+    expect(record.lastResult).toBe('imported')
+    expect(record.importedAt).not.toBeNull()
   })
 
   it('records a failed import with its error', async () => {
     const config = new SiteSessionConfig(configPath())
 
-    await config.recordResult('chatgpt', 'failed', 'the bridge is gone')
+    await config.recordResult('chatgpt', PRIMARY_ACCOUNT_ID, 'failed', 'the bridge is gone')
 
     const state = await config.read()
-    expect(state.targets.chatgpt.enabled).toBe(false)
-    expect(state.targets.chatgpt.lastResult).toBe('failed')
-    expect(state.targets.chatgpt.lastError).toBe('the bridge is gone')
+    const record = state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID]
+    expect(record.enabled).toBe(false)
+    expect(record.lastResult).toBe('failed')
+    expect(record.lastError).toBe('the bridge is gone')
   })
 
-  it('never writes a site id the file may not carry', async () => {
+  it('never writes a site or account id the file may not carry', async () => {
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('__proto__', true)
-    await config.recordResult('constructor', 'imported')
+    await config.setEnabled('__proto__', PRIMARY_ACCOUNT_ID, true)
+    await config.recordResult('constructor', PRIMARY_ACCOUNT_ID, 'imported')
+    await config.setEnabled('google', '__proto__', true)
 
-    expect(Object.keys(readRawConfig().targets)).toEqual([])
+    expect(Object.keys(readRawConfig().sites)).toEqual([])
   })
 
   it('keeps the counter of a file that holds it as a string', async () => {
@@ -452,25 +469,25 @@ describe('site session config', () => {
 
     expect(await config.getConfigVersion()).toBe(3)
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     expect(await config.getConfigVersion()).toBe(4)
   })
 
   it('keeps the version of a file written by a newer build', async () => {
-    writeRawConfig({ version: 2, configVersion: 0, targets: {} })
+    writeRawConfig({ version: 3, configVersion: 0, sites: {} })
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
     const raw = JSON.parse(readFileSync(configPath(), 'utf8'))
-    expect(raw.version).toBe(2)
+    expect(raw.version).toBe(3)
   })
 
   it('keeps the fields this build does not know', async () => {
     writeRawConfig({ version: 1, configVersion: 0, targets: {}, future: { keep: true } })
     const config = new SiteSessionConfig(configPath())
 
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
     const raw = JSON.parse(readFileSync(configPath(), 'utf8'))
     expect(raw.future).toEqual({ keep: true })
@@ -481,8 +498,12 @@ describe('site session config', () => {
     mkdirSync(configPath(), { recursive: true })
     const config = new SiteSessionConfig(configPath())
 
-    await expect(config.setEnabled('chatgpt', true)).rejects.toThrow(/could not be written/)
-    await expect(config.recordResult('chatgpt', 'imported')).rejects.toThrow(/could not be written/)
+    await expect(config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)).rejects.toThrow(
+      /could not be written/
+    )
+    await expect(config.recordResult('chatgpt', PRIMARY_ACCOUNT_ID, 'imported')).rejects.toThrow(
+      /could not be written/
+    )
   })
 
   it('reports a failed migration instead of losing the legacy switch silently', async () => {
@@ -496,21 +517,22 @@ describe('site session config', () => {
 
   it('removes the state of a site that does not exist any more', async () => {
     const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('chatgpt', true)
-    await config.setEnabled('custom:custom_1', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
+    await config.setEnabled('custom:custom_1', PRIMARY_ACCOUNT_ID, true)
+    await config.createAccount('custom:custom_1', 'a1', 'fp-1')
 
     await config.forget('custom:custom_1')
 
     const state = await config.read()
-    expect(state.targets['custom:custom_1']).toBeUndefined()
-    expect(state.targets.chatgpt.enabled).toBe(true)
+    expect(state.sites['custom:custom_1']).toBeUndefined()
+    expect(state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
   })
 
   it('advances the version when a site is removed', async () => {
     // The extension polls the version: a site that is gone has to leave the
     // list it polls.
     const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('custom:custom_1', true)
+    await config.setEnabled('custom:custom_1', PRIMARY_ACCOUNT_ID, true)
     const version = await config.getConfigVersion()
 
     await config.forget('custom:custom_1')
@@ -520,11 +542,156 @@ describe('site session config', () => {
 
   it('leaves the version alone when there was nothing to remove', async () => {
     const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('chatgpt', true)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     const version = await config.getConfigVersion()
 
     await config.forget('custom:custom_1')
 
     expect(await config.getConfigVersion()).toBe(version)
+  })
+
+  it('writes the switch of one account without touching the other accounts', async () => {
+    const filePath = configPath()
+    const config = new SiteSessionConfig(filePath)
+    await config.setEnabled('google', PRIMARY_ACCOUNT_ID, true)
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.setEnabled('google', 'a1', true)
+    await config.setEnabled('google', PRIMARY_ACCOUNT_ID, false)
+    const state = await config.read()
+    expect(state.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(false)
+    expect(state.sites.google.accounts.a1.enabled).toBe(true)
+  })
+
+  it('migrates an old file once and keeps the config version', async () => {
+    const filePath = configPath()
+    await fs.writeFile(
+      filePath,
+      JSON.stringify({
+        version: 1,
+        configVersion: 4,
+        targets: {
+          google: { enabled: true, importedAt: null, lastResult: null, lastError: null }
+        }
+      })
+    )
+    const config = new SiteSessionConfig(filePath)
+    const state = await config.read()
+    expect(state.version).toBe(2)
+    expect(state.configVersion).toBe(4)
+    expect(state.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    const written = JSON.parse(await fs.readFile(filePath, 'utf8'))
+    expect(written.version).toBe(2)
+  })
+
+  it('does not migrate a file that is already in the new shape', async () => {
+    const filePath = configPath()
+    const contents = {
+      version: 2,
+      configVersion: 1,
+      sites: {
+        google: {
+          accounts: { a1: account({ name: 'İş', enabled: true, fingerprints: ['fp-1'] }) },
+          activeAccountId: 'a1'
+        }
+      }
+    }
+    writeRawConfig(contents)
+    const config = new SiteSessionConfig(filePath)
+
+    const state = await config.read()
+
+    expect(state).toEqual(contents)
+    expect(JSON.parse(readFileSync(filePath, 'utf8'))).toEqual(contents)
+  })
+
+  it('advances the config version when an account appears and when one is deleted', async () => {
+    const filePath = configPath()
+    const config = new SiteSessionConfig(filePath)
+    const before = await config.getConfigVersion()
+    await config.createAccount('google', 'a1', 'fp-1')
+    expect(await config.getConfigVersion()).toBe(before + 1)
+    await config.deleteAccount('google', 'a1')
+    expect(await config.getConfigVersion()).toBe(before + 2)
+  })
+
+  it('does not advance the config version when an account is renamed', async () => {
+    const filePath = configPath()
+    const config = new SiteSessionConfig(filePath)
+    await config.createAccount('google', 'a1', 'fp-1')
+    const before = await config.getConfigVersion()
+    await config.renameAccount('google', 'a1', 'İş')
+    expect(await config.getConfigVersion()).toBe(before)
+  })
+
+  it('renames an account and turns an empty name into no name', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+
+    await config.renameAccount('google', 'a1', 'İş')
+    expect((await config.read()).sites.google.accounts.a1.name).toBe('İş')
+
+    await config.renameAccount('google', 'a1', '')
+    expect((await config.read()).sites.google.accounts.a1.name).toBeNull()
+  })
+
+  it('refuses to delete the primary account', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('google', PRIMARY_ACCOUNT_ID, true)
+
+    await expect(config.deleteAccount('google', PRIMARY_ACCOUNT_ID)).rejects.toThrow(
+      'primary account cannot be deleted'
+    )
+  })
+
+  it('records the import result on the account it belongs to', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    const version = await config.getConfigVersion()
+
+    await config.recordResult('google', 'a1', 'imported')
+
+    const state = await config.read()
+    expect(state.configVersion).toBe(version)
+    expect(state.sites.google.accounts.a1.lastResult).toBe('imported')
+    expect(state.sites.google.accounts[PRIMARY_ACCOUNT_ID]).toBeUndefined()
+  })
+
+  it('writes the active account without changing the version', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    const version = await config.getConfigVersion()
+
+    await config.setActiveAccount('google', 'a1')
+
+    const state = await config.read()
+    expect(state.sites.google.activeAccountId).toBe('a1')
+    expect(state.configVersion).toBe(version)
+  })
+
+  it('clears the active account when that account is deleted', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.setActiveAccount('google', 'a1')
+
+    await config.deleteAccount('google', 'a1')
+
+    expect((await config.read()).sites.google).toBeUndefined()
+  })
+
+  it('keeps at most five fingerprints of an account, dropping the oldest', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+
+    for (const fingerprint of ['fp-2', 'fp-3', 'fp-4', 'fp-5', 'fp-6']) {
+      await config.createAccount('google', 'a1', fingerprint)
+    }
+
+    expect((await config.read()).sites.google.accounts.a1.fingerprints).toEqual([
+      'fp-2',
+      'fp-3',
+      'fp-4',
+      'fp-5',
+      'fp-6'
+    ])
   })
 })
