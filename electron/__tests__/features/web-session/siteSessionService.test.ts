@@ -211,7 +211,12 @@ describe('SiteSessionService', () => {
     const writeGate = new Promise<void>((resolve) => {
       releaseWrite = resolve
     })
+    let startedWrite: () => void = () => {}
+    const writing = new Promise<void>((resolve) => {
+      startedWrite = resolve
+    })
     set.mockImplementation(async () => {
+      startedWrite()
       await writeGate
       return {}
     })
@@ -229,10 +234,14 @@ describe('SiteSessionService', () => {
       }
     )
 
+    // The toggle arrives while the import is writing. A packet that has not
+    // reached its write yet is refused by the second switch read instead of
+    // being serialised, so the lock is what this test is about.
+    await writing
     const toggling = service.setEnabled('chatgpt', false)
 
     // The toggle has to wait for the import: the wipe must be the last thing
-    // that happens to the site.
+    // that happens to the account.
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(remove).not.toHaveBeenCalled()
 

@@ -157,7 +157,7 @@ export class SiteSessionService {
       return { success: true }
     }
 
-    return withSiteSessionLock(siteId, () => this.switchOff(target))
+    return withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, () => this.switchOff(target))
   }
 
   /**
@@ -175,7 +175,7 @@ export class SiteSessionService {
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
-    return withSiteSessionLock(siteId, async () => {
+    return withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, async () => {
       try {
         await this.wipe(target)
       } catch (error) {

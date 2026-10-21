@@ -6,6 +6,7 @@ import fs from 'fs'
 import path from 'path'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import {
   registerCustomPlatformOrigin,
@@ -85,7 +86,7 @@ async function clearDeletedSiteSession(siteId: string): Promise<void> {
     const targets = await buildSiteSessionTargets()
     const target = targets.find((candidate) => candidate.siteId === siteId)
     if (target) {
-      await withSiteSessionLock(siteId, () =>
+      await withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, () =>
         wipeSiteSession(electronSession.fromPartition(target.partition), target)
       )
     }
