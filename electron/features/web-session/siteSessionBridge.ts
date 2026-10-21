@@ -336,25 +336,34 @@ async function handleSiteSessionPacket(
   const resolveSession = environment?.resolveSession ?? defaultResolveSession
 
   // The targets are built first and the switch state is read afterwards: the
-  // snapshot has to be as late as possible, because the router asks the
-  // question "is this site switched on?" synchronously. The targets of a
-  // round are the ones the round was opened with: they do not have to be
-  // built again for every packet of the round.
+  // snapshot has to be as late as possible, because the packet is routed
+  // against the accounts that read returned. The targets of a round are the
+  // ones the round was opened with: they do not have to be built again for
+  // every packet of the round.
   const targets = environment?.targets ?? (await loadTargets())
   const state = await config.read()
 
   // TODO(task 6): the packet routing checks the primary account only until
-  // the bridge knows which account a packet belongs to.
-  const enabledSiteIds = new Set(
-    Object.entries(state.sites)
-      .filter(([, site]) => site.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true)
-      .map(([siteId]) => siteId)
-  )
+  // the bridge knows which account a packet belongs to; the fingerprint that
+  // tells the accounts apart is computed there too.
+  const siteTarget = targets.find((candidate) => candidate.siteId === packet.targetId) ?? null
+  const primary = siteTarget
+    ? state.sites[siteTarget.siteId]?.accounts[PRIMARY_ACCOUNT_ID]
+    : undefined
+  const candidates =
+    primary?.enabled === true
+      ? [{ accountId: PRIMARY_ACCOUNT_ID, fingerprints: primary.fingerprints }]
+      : []
 
-  const routed = routeCookiePacket(packet, targets, (siteId) => enabledSiteIds.has(siteId))
-  if (!routed.ok) {
-    Logger.warn(`[SiteSessionBridge] Refused a packet: ${routed.reason}.`)
-    return { accepted: false, reason: routed.reason }
+  const routed = routeCookiePacket(packet, siteTarget, candidates, null)
+
+  // With at most one candidate and no fingerprint the router can only answer
+  // `account` or `refused`; `new_account` and `ambiguous` arrive with the
+  // account-level bridge of Task 6.
+  if (!routed.ok || routed.kind !== 'account') {
+    const reason = !routed.ok && routed.kind === 'refused' ? routed.reason : 'target_disabled'
+    Logger.warn(`[SiteSessionBridge] Refused a packet: ${reason}.`)
+    return { accepted: false, reason }
   }
 
   const { target } = routed
