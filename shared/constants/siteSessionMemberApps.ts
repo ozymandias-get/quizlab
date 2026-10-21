@@ -6,6 +6,10 @@
  * process sends the app ids of a row, so the renderer needs a name for each
  * of them; the map lives here so the site-session UI does not depend on the
  * Google registry that the retired feature owned.
+ *
+ * These are the product names of the apps. They are proper nouns and are
+ * deliberately not translated: a translation key per app would only spell the
+ * same names differently in every language.
  */
 const SITE_SESSION_MEMBER_APP_NAMES = {
   gemini: 'Gemini',

@@ -31,6 +31,15 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
   const switchId = `${idBase}-switch`
   const memberNames =
     view.kind === 'google' ? view.memberAppIds.map(getSiteSessionMemberAppName) : []
+  /**
+   * The line under the name of the site.
+   *
+   * A host is the address of its own site and belongs there, but the Google
+   * row stands for four apps: the design says the card names the apps it
+   * covers, so that row names them instead of listing four addresses.
+   */
+  const subtitle =
+    view.kind === 'google' && memberNames.length > 0 ? memberNames.join(', ') : view.hostname
   const importedAt =
     view.status === 'imported' && view.importedAt
       ? new Date(view.importedAt).toLocaleString(i18next.language === 'tr' ? 'tr-TR' : 'en-US')
@@ -44,7 +53,7 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-ql-13 text-foreground font-semibold">{t(view.labelKey)}</p>
-          <p className="text-ql-11 text-muted-foreground mt-0.5">{view.hostname}</p>
+          <p className="text-ql-11 text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">

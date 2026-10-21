@@ -939,6 +939,12 @@ their minimal mocks). `quitApp`, `geminiWeb.export/import`, `aiView.getUrl`
 and the stdio `startNativeMessagingListener` were audited and deliberately
 kept (DEFER) — see the round report for the per-channel evidence.
 
+> **Historical, not live architecture.** That audit belongs to the PDF
+> migration branch and describes the tree as it was then. `geminiWeb.export/import`
+> has since been **removed** — the Google-only session feature was retired and
+> the per-site Chrome session import replaced it. It is named here only as a
+> record of that audit round, not as a feature the tree still has.
+
 Phase commits, oldest first:
 
 ```
