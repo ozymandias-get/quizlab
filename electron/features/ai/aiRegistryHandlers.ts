@@ -71,9 +71,9 @@ let handlersRegistered = false
  * wiped through the session target the app derives from the registry, the
  * second through the site session state.
  *
- * The wipe runs under the lock of the site — the same lock the import of
- * that site runs under — so an import that is already on its way writes its
- * cookies before the wipe and not after it.
+ * The wipe runs under the lock of the site's primary account — the same lock
+ * an import into that account runs under — so an import that is already on
+ * its way writes its cookies before the wipe and not after it.
  *
  * Neither of them may keep the site from being deleted: a failure is logged
  * and the delete goes on.

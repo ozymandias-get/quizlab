@@ -340,6 +340,58 @@ export class SiteSessionConfig {
   }
 
   /**
+   * Remembers the identity digest of a session an account has held.
+   *
+   * The fingerprint is what tells the accounts apart when the session comes
+   * back; the account's *session* is not touched. It survives the account
+   * being switched off, because switching the account off empties its cookie
+   * jar, not its identity. A null fingerprint names no identity, and an
+   * account that does not exist is never created by this path.
+   *
+   * The version stays: the extension has nothing new to push.
+   *
+   * @throws when the state could not be written.
+   */
+  async rememberFingerprint(
+    siteId: string,
+    accountId: string,
+    fingerprint: string | null
+  ): Promise<void> {
+    if (!fingerprint) return
+
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = readConfigFile(current)
+      const site = currentState.sites[siteId]
+      const existing = site?.accounts[accountId]
+      if (!site || !existing || existing.fingerprints.includes(fingerprint)) return currentState
+
+      return {
+        ...currentState,
+        sites: {
+          ...currentState.sites,
+          [siteId]: {
+            ...site,
+            accounts: {
+              ...site.accounts,
+              [accountId]: {
+                ...existing,
+                fingerprints: addFingerprint(existing.fingerprints, fingerprint)
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The fingerprint of "${accountId}" could not be written.`)
+    }
+  }
+
+  /**
    * Adds an account the bridge found in Chrome.
    *
    * A new account is open from the start: the session that opened it came

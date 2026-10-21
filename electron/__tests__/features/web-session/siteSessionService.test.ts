@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fakeSession = {
   cookies: {
@@ -37,6 +37,11 @@ import {
 } from '../../../features/web-session/siteSessionService.js'
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
+import {
+  clearPendingSiteSession,
+  getPendingSiteSession,
+  setPendingSiteSession
+} from '../../../features/web-session/siteSessionPendingSessions.js'
 import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 
 const CHATGPT = {
@@ -110,6 +115,10 @@ describe('SiteSessionService', () => {
     // The list is kept for a couple of seconds: every test starts with an
     // empty cache, or it would read the list of the test before it.
     invalidateSiteSessionListCache()
+  })
+
+  afterEach(() => {
+    clearPendingSiteSession('chatgpt')
   })
 
   it('lists every target with the import switched off by default', async () => {
@@ -261,6 +270,37 @@ describe('SiteSessionService', () => {
     expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, false)
     expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
     expect(clearStorageData).toHaveBeenCalled()
+  })
+
+  it('forgets a pending session when the last account is switched off', async () => {
+    const { service, config } = makeService({ enabled: true })
+    const state = await config.read()
+    config.setEnabled.mockImplementation(async () => {
+      state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled = false
+    })
+    setPendingSiteSession('chatgpt', [{ name: 'session', value: 'v', domain: '.chatgpt.com' }])
+
+    const result = await service.setEnabled('chatgpt', false)
+
+    expect(result.success).toBe(true)
+    expect(getPendingSiteSession('chatgpt')).toBeNull()
+  })
+
+  it('keeps a pending session while another account is still switched on', async () => {
+    const { service, config } = makeService({ enabled: true })
+    const state = await config.read()
+    state.sites.chatgpt.accounts.a1 = {
+      ...state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID],
+      enabled: true
+    }
+    config.setEnabled.mockImplementation(async () => {
+      state.sites.chatgpt.accounts[PRIMARY_ACCOUNT_ID].enabled = false
+    })
+    setPendingSiteSession('chatgpt', [{ name: 'session', value: 'v', domain: '.chatgpt.com' }])
+
+    await service.setEnabled('chatgpt', false)
+
+    expect(getPendingSiteSession('chatgpt')).not.toBeNull()
   })
 
   it('writes the switch before it wipes the session', async () => {
