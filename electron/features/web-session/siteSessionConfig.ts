@@ -1,23 +1,26 @@
 /**
  * The persisted state of the per-site session import.
  *
- * One entry per site holds three things: whether the site takes its session
- * from Chrome, when it was last imported and what the last import reported.
- * `configVersion` is the counter the Chrome extension polls: it advances only
- * when a switch really changes, so the extension pushes cookies when the user
- * asked for it and not on every tick.
+ * One entry per site holds the accounts of that site: the name, whether it
+ * takes its session from Chrome, when it was last imported, what the last
+ * import reported and the fingerprints that tell the accounts apart. The
+ * site also remembers its active account. `configVersion` is the counter the
+ * Chrome extension polls: it advances only when a switch or the set of
+ * accounts really changes, so the extension pushes on the user's request and
+ * not on every tick.
  *
  * Three rules hold the file together:
  *
- *   - Every mutation goes through `ConfigManager.update(...)`, which writes the
- *     *whole* state. A write that carried only the changed site would drop
- *     every other site — the migrated Google switch would silently fall back
- *     to "off" the moment the user switched another site on.
- *   - The migration merges into whatever the file holds at that moment; it
- *     never replaces the file with a state built from scratch. A replacement
- *     would drop a switch that was set while the legacy file was being read.
- *   - `read()` never writes once the file exists. A version that advanced on
- *     every read would look like a change to the extension on every poll.
+ *   - Every mutation goes through `ConfigManager.update(...)`, which writes
+ *     the *whole* state. A write that carried only the changed account would
+ *     drop every other account — the primary account would fall back to "off"
+ *     the moment the user switched a second one on.
+ *   - The migrations merge into whatever the file holds at that moment; they
+ *     never replace it with a state built from scratch, which would drop a
+ *     switch that was set while the legacy file was being read.
+ *   - `read()` never writes once the file is in the new format: a version
+ *     that advanced on every poll would look like a change to the extension.
+ *     An old file is the exception — it is migrated once and written back.
  */
 
 import { promises as fs } from 'node:fs'
@@ -26,7 +29,17 @@ import path from 'node:path'
 import { app } from 'electron'
 
 import { GOOGLE_AI_WEB_SITE_ID } from '../../../shared/constants/googleAiWebApps.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
+import {
+  isLastResult,
+  migrateSiteSessionStateV1,
+  normalizeConfigVersion,
+  PROHIBITED_KEYS,
+  type SiteSessionAccountState,
+  type SiteSessionConfigFile,
+  type SiteSessionSiteState
+} from './siteSessionMigration.js'
 
 /** The file this feature writes its state into. */
 const CONFIG_FILE_NAME = 'site-sessions.json'
@@ -35,28 +48,14 @@ const CONFIG_FILE_NAME = 'site-sessions.json'
 const LEGACY_CONFIG_FILE_NAME = 'gemini-web-session.json'
 
 /** The state version this build writes. */
-const CONFIG_VERSION = 1
+const CONFIG_VERSION = 2
 
-/** The keys a config file may not carry, mirroring `ConfigManager`'s guard. */
-const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+/** How many fingerprints an account keeps: the newest ones. */
+const MAX_FINGERPRINTS = 5
 
-export interface SiteSessionTargetState {
-  enabled: boolean
-  importedAt: string | null
-  lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
-  lastError: string | null
-}
-
-export interface SiteSessionConfigFile {
-  /**
-   * The format version of the file.
-   *
-   * A number rather than the literal `1`: a file written by a newer build
-   * keeps its version instead of being silently downgraded by this one.
-   */
-  version: number
-  configVersion: number
-  targets: Record<string, SiteSessionTargetState>
+/** Whether a value is an object whose fields may be read one by one. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /** The file the per-site import state lives in. */
@@ -78,39 +77,24 @@ export function migrateLegacyGoogleEnabled(legacy: unknown): boolean | undefined
   return typeof enabled === 'boolean' ? enabled : undefined
 }
 
-/** The last results an import can report. */
-const LAST_RESULTS: ReadonlySet<string> = new Set([
-  'imported',
-  'no_cookies',
-  'permission_missing',
-  'failed'
-])
-
-function isLastResult(value: unknown): value is SiteSessionTargetState['lastResult'] {
-  return typeof value === 'string' && LAST_RESULTS.has(value)
-}
-
-/** A target that was never touched: off, never imported, no error. */
-function createTargetState(enabled: boolean): SiteSessionTargetState {
+/** An account that was never touched: unnamed, off, no history. */
+function createAccountState(enabled: boolean): SiteSessionAccountState {
   return {
+    name: null,
     enabled,
     importedAt: null,
     lastResult: null,
-    lastError: null
+    lastError: null,
+    fingerprints: []
   }
 }
 
-/**
- * The counter the extension polls.
- *
- * The counter is clamped, not zeroed: a file that holds `"3"` as a string
- * still counts as three, so the next write does not move it backwards.
- */
-function normalizeConfigVersion(value: unknown): number {
-  const parsed =
-    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
-  if (!Number.isFinite(parsed)) return 0
-  return Math.max(0, Math.floor(parsed))
+/** A site that was never touched: no accounts and no active one. */
+function createSiteState(): SiteSessionSiteState {
+  return {
+    accounts: {},
+    activeAccountId: null
+  }
 }
 
 /**
@@ -126,62 +110,143 @@ function normalizeFormatVersion(value: unknown): number {
 }
 
 /**
- * One target's state, read from a file that may have been edited by hand.
- *
- * Every value is checked before it reaches the caller: a corrupt file must
- * not be able to put the app into a state the rest of the feature cannot
- * describe. The fields this build does not know are kept, so a file written
- * by a newer build does not lose them on the next write.
+ * The fingerprints of an account, newest last, capped at five: a token that
+ * renews on every session refresh would otherwise grow the file forever.
  */
-function normalizeTargetState(raw: unknown): SiteSessionTargetState {
-  const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+function normalizeFingerprints(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((entry): entry is string => typeof entry === 'string').slice(-MAX_FINGERPRINTS)
+}
+
+/** The account's history with one more fingerprint, capped at the newest five. */
+function addFingerprint(history: readonly string[], fingerprint: string): string[] {
+  return [...history, fingerprint].slice(-MAX_FINGERPRINTS)
+}
+
+/**
+ * One account, read from a file that may have been edited by hand. Every
+ * value is checked, and the fields this build does not know are kept so that
+ * a newer build does not lose them on the next write.
+ */
+function normalizeAccountState(raw: unknown): SiteSessionAccountState {
+  const source = isRecord(raw) ? raw : {}
   return {
     ...source,
+    name: typeof source.name === 'string' ? source.name : null,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
     lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
-    lastError: typeof source.lastError === 'string' ? source.lastError : null
+    lastError: typeof source.lastError === 'string' ? source.lastError : null,
+    fingerprints: normalizeFingerprints(source.fingerprints)
   }
 }
 
-/** The whole file, normalized. An empty or missing file is an empty state. */
-function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
-  const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-  const targets: Record<string, SiteSessionTargetState> = {}
+/**
+ * The active account of a site. A dangling id is repaired: the site has no
+ * active account until one the site really holds is picked.
+ */
+function normalizeActiveAccountId(
+  value: unknown,
+  accounts: Record<string, SiteSessionAccountState>
+): string | null {
+  if (typeof value !== 'string') return null
+  // `Object.hasOwn` keeps prototype-chain ids ('constructor', '__proto__', …)
+  // from resolving to an inherited member of the accounts.
+  return Object.hasOwn(accounts, value) ? value : null
+}
 
-  const rawTargets = source.targets
-  if (typeof rawTargets === 'object' && rawTargets !== null) {
-    for (const [siteId, state] of Object.entries(rawTargets)) {
-      if (PROHIBITED_KEYS.has(siteId)) continue
-      targets[siteId] = normalizeTargetState(state)
+/** One site with its accounts, read from a file that may have been edited by hand. */
+function normalizeSiteState(raw: unknown): SiteSessionSiteState {
+  const source = isRecord(raw) ? raw : {}
+  const accounts: Record<string, SiteSessionAccountState> = {}
+
+  if (isRecord(source.accounts)) {
+    for (const [accountId, account] of Object.entries(source.accounts)) {
+      if (PROHIBITED_KEYS.has(accountId)) continue
+      accounts[accountId] = normalizeAccountState(account)
     }
   }
 
   return {
     ...source,
+    accounts,
+    activeAccountId: normalizeActiveAccountId(source.activeAccountId, accounts)
+  }
+}
+
+/** The whole file, normalized. An empty or missing file is an empty state. */
+function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
+  const source = isRecord(raw) ? raw : {}
+  const sites: Record<string, SiteSessionSiteState> = {}
+
+  if (isRecord(source.sites)) {
+    for (const [siteId, site] of Object.entries(source.sites)) {
+      if (PROHIBITED_KEYS.has(siteId)) continue
+      sites[siteId] = normalizeSiteState(site)
+    }
+  }
+
+  // The old `targets` dictionary is not part of the new shape: a file that
+  // still carries it must not keep it alive on the next write.
+  const normalized: Record<string, unknown> = { ...source }
+  delete normalized.targets
+
+  return {
+    ...normalized,
     version: normalizeFormatVersion(source.version),
     configVersion: normalizeConfigVersion(source.configVersion),
-    targets
+    sites
   }
+}
+
+/**
+ * Whether a file is in the old site-level shape. A numeric version decides;
+ * a version that is not a number says nothing, so a non-empty `targets`
+ * dictionary decides instead. This mirrors `migrateSiteSessionStateV1` and
+ * only answers whether the migrated state has to be written back.
+ */
+function isOldFormatFile(raw: unknown): boolean {
+  if (!isRecord(raw)) return true
+
+  const version = raw.version
+  if (typeof version === 'number' && Number.isFinite(version)) {
+    return Math.floor(version) < CONFIG_VERSION
+  }
+
+  return isRecord(raw.targets) && Object.keys(raw.targets).length > 0
+}
+
+/**
+ * An old file, migrated and normalized in one step. The fields this build
+ * does not know are copied over the migrated state, and the old `targets`
+ * dictionary is dropped on the way.
+ */
+function migrateConfigFile(raw: unknown): SiteSessionConfigFile {
+  const source = isRecord(raw) ? raw : {}
+  return normalizeConfigFile({ ...source, ...migrateSiteSessionStateV1(raw) })
 }
 
 /**
  * The migrated Google switch, merged into the state that is already there.
  *
- * The migration adds a switch; it never replaces the state. A state built
- * from scratch would drop every switch that was set while the legacy file
- * was being read, and would roll the version back.
+ * The migration adds the primary account of the Google site; it never
+ * replaces the state. A state built from scratch would drop every switch
+ * that was set while the legacy file was being read, and would roll the
+ * version back.
  */
 export function mergeLegacyGoogleState(
   state: SiteSessionConfigFile,
   legacyEnabled: boolean | undefined
 ): SiteSessionConfigFile {
-  if (legacyEnabled !== true || state.targets[GOOGLE_AI_WEB_SITE_ID]) return state
+  if (legacyEnabled !== true || state.sites[GOOGLE_AI_WEB_SITE_ID]) return state
   return {
     ...state,
-    targets: {
-      ...state.targets,
-      [GOOGLE_AI_WEB_SITE_ID]: createTargetState(true)
+    sites: {
+      ...state.sites,
+      [GOOGLE_AI_WEB_SITE_ID]: {
+        accounts: { [PRIMARY_ACCOUNT_ID]: createAccountState(true) },
+        activeAccountId: PRIMARY_ACCOUNT_ID
+      }
     }
   }
 }
@@ -246,35 +311,38 @@ export class SiteSessionConfig {
   }
 
   /**
-   * The merged state, with the migration applied.
+   * The state, with the migrations applied.
    *
-   * The migration runs before the first read: `ConfigManager.ensureFile()`
-   * creates the file with `{}` when it is missing, so the question "is there
-   * a new file yet" has to be asked with `fs.access` directly. Once the file
-   * exists this only reads it.
+   * `ConfigManager.ensureFile()` writes `{}` for a missing file, so existence
+   * is checked with `fs.access` directly; an old file is migrated once.
    */
   private async loadState(): Promise<SiteSessionConfigFile> {
-    if (await this.fileExists()) {
-      // The file is read from disk, not from the store's cache: another
-      // instance — or another program — may have written it since the last
-      // read, and the cache would hide that.
-      return normalizeConfigFile(await this.store.read(true))
+    if (!(await this.fileExists())) {
+      return this.migrateLegacyState()
     }
 
-    return this.migrateLegacyState()
+    // Read from disk, not from the store's cache: another instance may have
+    // written the file since the cache was filled.
+    const raw = await this.store.read(true)
+    if (!isOldFormatFile(raw)) return normalizeConfigFile(raw)
+
+    // Migrate inside the store's queue so a switch set in between is kept.
+    const written = await this.store.update((current) => migrateConfigFile(current))
+    if (!written) {
+      throw new Error('[Web Session] The old state file could not be migrated.')
+    }
+
+    return normalizeConfigFile(await this.store.read(true))
   }
 
   /**
-   * The one-time migration: the legacy Google switch becomes the switch of
-   * the Google site.
+   * The one-time migration of the legacy Google switch.
    *
-   * The merge runs inside the store's queue and merges into whatever the
-   * file holds at that moment. Writing a state built from scratch would
-   * replace a switch that was set while the legacy file was being read, and
-   * would roll the version back.
+   * The merge runs inside the store's queue, into whatever the file holds at
+   * that moment, so a switch set meanwhile is neither replaced nor rolled
+   * back.
    *
-   * @throws when the state could not be written. A migration that failed
-   *   silently would look like a profile that never had the Google switch.
+   * @throws when the state could not be written.
    */
   private async migrateLegacyState(): Promise<SiteSessionConfigFile> {
     const legacyEnabled = migrateLegacyGoogleEnabled(await this.readLegacyState())
@@ -286,7 +354,7 @@ export class SiteSessionConfig {
     }
 
     const written = await this.store.update((current) =>
-      mergeLegacyGoogleState(normalizeConfigFile(current), legacyEnabled)
+      mergeLegacyGoogleState(migrateConfigFile(current), legacyEnabled)
     )
 
     if (!written) {
@@ -296,46 +364,57 @@ export class SiteSessionConfig {
     return normalizeConfigFile(await this.store.read(true))
   }
 
-  /** The whole state: the switches, the import history and the version. */
+  /** The whole state: the accounts, the switches and the version. */
   async read(): Promise<SiteSessionConfigFile> {
     return this.loadState()
   }
 
-  /** Whether the site takes its session from Chrome. */
-  async isEnabled(siteId: string): Promise<boolean> {
+  /** Whether the account takes its session from Chrome. */
+  async isEnabled(siteId: string, accountId: string): Promise<boolean> {
     const state = await this.loadState()
-    return state.targets[siteId]?.enabled === true
+    return state.sites[siteId]?.accounts[accountId]?.enabled === true
   }
 
   /**
-   * Turns a site's switch on or off.
+   * Turns the switch of one account on or off.
    *
-   * The whole state is written, not only the site that changed, and the
-   * version advances only when the switch really changed: the extension reads
-   * the version to learn that the list of sites it should push for changed.
+   * A missing account is created off — the primary one when the caller names
+   * the primary — and the switch is written on top. The version advances only
+   * when the switch really changed: the extension reads it to learn that the
+   * list of sites to push for changed.
    *
-   * @throws when the state could not be written. A switch that was not
-   *   persisted must not be reported to the user as done.
+   * @throws when the state could not be written.
    */
-  async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionConfigFile> {
+  async setEnabled(
+    siteId: string,
+    accountId: string,
+    enabled: boolean
+  ): Promise<SiteSessionConfigFile> {
     const state = await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) {
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) {
       // A prohibited id never reaches the file; the read path drops it too.
       return state
     }
 
     const written = await this.store.update((current) => {
       const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId] ?? createTargetState(false)
+      const site = currentState.sites[siteId] ?? createSiteState()
+      const existing = site.accounts[accountId] ?? createAccountState(false)
       return {
         ...currentState,
         configVersion:
           existing.enabled === enabled
             ? currentState.configVersion
             : currentState.configVersion + 1,
-        targets: {
-          ...currentState.targets,
-          [siteId]: { ...existing, enabled }
+        sites: {
+          ...currentState.sites,
+          [siteId]: {
+            ...site,
+            accounts: {
+              ...site.accounts,
+              [accountId]: { ...existing, enabled }
+            }
+          }
         }
       }
     })
@@ -348,34 +427,39 @@ export class SiteSessionConfig {
   }
 
   /**
-   * Records what the last import of a site reported.
-   *
-   * The switch itself does not change, so the version stays: the extension
-   * has nothing new to push.
+   * Records what the last import of one account reported. The version stays:
+   * the extension has nothing new to push.
    *
    * @throws when the state could not be written.
    */
   async recordResult(
     siteId: string,
-    result: SiteSessionTargetState['lastResult'],
+    accountId: string,
+    result: SiteSessionAccountState['lastResult'],
     error?: string
   ): Promise<void> {
     await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) return
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
 
     const written = await this.store.update((current) => {
       const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId] ?? createTargetState(false)
+      const site = currentState.sites[siteId] ?? createSiteState()
+      const existing = site.accounts[accountId] ?? createAccountState(false)
       return {
         ...currentState,
-        configVersion: currentState.configVersion,
-        targets: {
-          ...currentState.targets,
+        sites: {
+          ...currentState.sites,
           [siteId]: {
-            ...existing,
-            importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
-            lastResult: result,
-            lastError: error ?? null
+            ...site,
+            accounts: {
+              ...site.accounts,
+              [accountId]: {
+                ...existing,
+                importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
+                lastResult: result,
+                lastError: error ?? null
+              }
+            }
           }
         }
       }
@@ -387,7 +471,180 @@ export class SiteSessionConfig {
   }
 
   /**
-   * Removes the state of a site that does not exist any more.
+   * Adds an account the bridge found in Chrome.
+   *
+   * The account is open from the start: the session that opened it came from
+   * Chrome. When the same account id is written again, its fingerprint
+   * history is carried over and capped at the newest five entries.
+   *
+   * The version advances: the extension pushes a session for a new account,
+   * and the settings list has to show it.
+   *
+   * @throws when the state could not be written.
+   */
+  async createAccount(
+    siteId: string,
+    accountId: string,
+    fingerprint: string | null
+  ): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const site = currentState.sites[siteId] ?? createSiteState()
+      const existing = site.accounts[accountId]
+      return {
+        ...currentState,
+        configVersion: currentState.configVersion + 1,
+        sites: {
+          ...currentState.sites,
+          [siteId]: {
+            ...site,
+            accounts: {
+              ...site.accounts,
+              [accountId]: {
+                name: null,
+                enabled: true,
+                importedAt: null,
+                lastResult: null,
+                lastError: null,
+                fingerprints: fingerprint
+                  ? addFingerprint(existing?.fingerprints ?? [], fingerprint)
+                  : []
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(
+        `[Web Session] The account "${accountId}" of "${siteId}" could not be written.`
+      )
+    }
+  }
+
+  /**
+   * Gives an account the user's name for it. An empty name means "no name";
+   * the settings list falls back to the position of the account. The version
+   * stays — the extension does not know about names.
+   *
+   * @throws when the state could not be written.
+   */
+  async renameAccount(siteId: string, accountId: string, name: string): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const site = currentState.sites[siteId]
+      const existing = site?.accounts[accountId]
+      if (!site || !existing) return currentState
+
+      return {
+        ...currentState,
+        sites: {
+          ...currentState.sites,
+          [siteId]: {
+            ...site,
+            accounts: {
+              ...site.accounts,
+              [accountId]: { ...existing, name: name === '' ? null : name }
+            }
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The name of "${accountId}" could not be written.`)
+    }
+  }
+
+  /**
+   * Removes an additional account of a site.
+   *
+   * The primary account cannot be deleted: it holds the platform's own
+   * partition and the login the user typed there by hand. Its switch is the
+   * way to empty it.
+   *
+   * The version advances, and a site that loses its last account is removed
+   * with it.
+   *
+   * @throws when the account is the primary one, or when the state could not
+   *   be written.
+   */
+  async deleteAccount(siteId: string, accountId: string): Promise<void> {
+    if (accountId === PRIMARY_ACCOUNT_ID) {
+      throw new Error('primary account cannot be deleted')
+    }
+
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const site = currentState.sites[siteId]
+      if (!site || !Object.hasOwn(site.accounts, accountId)) return currentState
+
+      const accounts = { ...site.accounts }
+      delete accounts[accountId]
+
+      const sites = { ...currentState.sites }
+      if (Object.keys(accounts).length === 0) {
+        delete sites[siteId]
+      } else {
+        sites[siteId] = {
+          ...site,
+          accounts,
+          activeAccountId: site.activeAccountId === accountId ? null : site.activeAccountId
+        }
+      }
+
+      return {
+        ...currentState,
+        configVersion: currentState.configVersion + 1,
+        sites
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The account "${accountId}" could not be removed.`)
+    }
+  }
+
+  /**
+   * Marks the account the panels of the site open with. The extension does
+   * not know about accounts, so the version stays; only the user changes it.
+   *
+   * @throws when the state could not be written.
+   */
+  async setActiveAccount(siteId: string, accountId: string): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || PROHIBITED_KEYS.has(accountId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const site = currentState.sites[siteId] ?? createSiteState()
+      return {
+        ...currentState,
+        sites: {
+          ...currentState.sites,
+          [siteId]: { ...site, activeAccountId: accountId }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The active account of "${siteId}" could not be written.`)
+    }
+  }
+
+  /**
+   * Removes the state of a site that does not exist any more, with every
+   * account it held.
    *
    * A user-added site the user deleted leaves an entry behind otherwise, and
    * an entry that says "switched on" for a site that is gone would keep the
@@ -404,14 +661,14 @@ export class SiteSessionConfig {
 
     const written = await this.store.update((current) => {
       const currentState = normalizeConfigFile(current)
-      if (!currentState.targets[siteId]) return currentState
+      if (!currentState.sites[siteId]) return currentState
 
-      const targets: Record<string, SiteSessionTargetState> = { ...currentState.targets }
-      delete targets[siteId]
+      const sites = { ...currentState.sites }
+      delete sites[siteId]
       return {
         ...currentState,
         configVersion: currentState.configVersion + 1,
-        targets
+        sites
       }
     })
 

@@ -16,8 +16,13 @@ import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 /** The format version the migration writes. */
 const MIGRATED_VERSION = 2
 
-/** The keys a state file may not carry, mirroring `ConfigManager`'s guard. */
-const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+/**
+ * The keys a state file may not carry, mirroring `ConfigManager`'s guard.
+ *
+ * Exported so that the config, which validates the file it reads, guards the
+ * ids with the same set instead of keeping a second copy of the rule.
+ */
+export const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
 /** The last results an import can report. */
 const LAST_RESULTS: ReadonlySet<string> = new Set([
@@ -52,7 +57,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isLastResult(value: unknown): value is SiteSessionAccountState['lastResult'] {
+/** Whether a value is one of the outcomes an import can report. */
+export function isLastResult(value: unknown): value is SiteSessionAccountState['lastResult'] {
   return typeof value === 'string' && LAST_RESULTS.has(value)
 }
 
@@ -98,8 +104,11 @@ function isNumericVersion(value: unknown): value is number {
  *
  * The counter is clamped, not zeroed: a file that holds `"3"` as a string
  * still counts as three, so the next write does not move it backwards.
+ *
+ * Exported so that the config reads the counter with the same rule the
+ * migration uses; two readers of the same file would drift apart.
  */
-function normalizeConfigVersion(value: unknown): number {
+export function normalizeConfigVersion(value: unknown): number {
   const parsed = readNumber(value)
   if (!Number.isFinite(parsed)) return 0
   return Math.max(0, Math.floor(parsed))

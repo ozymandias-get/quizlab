@@ -16,6 +16,7 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { type Session, session as electronSession } from 'electron'
 
+import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
@@ -236,7 +237,7 @@ export async function listEnabledSiteSessionTargets(
   ])
 
   const enabledTargets = targets
-    .filter((target) => state.targets[target.siteId]?.enabled === true)
+    .filter((target) => state.sites[target.siteId]?.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true)
     .map((target) => ({
       siteId: target.siteId,
       cookieDomains: [...target.cookieDomains]
@@ -341,8 +342,8 @@ async function handleSiteSessionPacket(
   const state = await config.read()
 
   const enabledSiteIds = new Set(
-    Object.entries(state.targets)
-      .filter(([, targetState]) => targetState.enabled)
+    Object.entries(state.sites)
+      .filter(([, site]) => site.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true)
       .map(([siteId]) => siteId)
   )
 
@@ -356,7 +357,7 @@ async function handleSiteSessionPacket(
 
   if (packet.status !== 'ok') {
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
-    await recordResult(config, target.siteId, result)
+    await recordResult(config, target.siteId, PRIMARY_ACCOUNT_ID, result)
     return { accepted: true }
   }
 
@@ -382,6 +383,7 @@ async function handleSiteSessionPacket(
   await recordResult(
     config,
     target.siteId,
+    PRIMARY_ACCOUNT_ID,
     wroteSomething ? 'imported' : 'failed',
     wroteSomething ? undefined : 'import_failed'
   )
@@ -400,7 +402,7 @@ async function isStillEnabled(
   siteId: string
 ): Promise<boolean> {
   const state = await config.read()
-  return state.targets[siteId]?.enabled === true
+  return state.sites[siteId]?.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true
 }
 
 /**
@@ -421,7 +423,7 @@ export const PACKET_TOO_LARGE = 'packet_too_large'
  * the row of the site changed.
  */
 export async function recordOversizedSiteSessionPacket(siteId: string): Promise<void> {
-  await recordResult(getSiteSessionConfig(), siteId, 'failed', PACKET_TOO_LARGE)
+  await recordResult(getSiteSessionConfig(), siteId, PRIMARY_ACCOUNT_ID, 'failed', PACKET_TOO_LARGE)
   await broadcastSiteSessionsChanged()
 }
 
@@ -435,11 +437,12 @@ export async function recordOversizedSiteSessionPacket(siteId: string): Promise<
 async function recordResult(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
+  accountId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
   error?: string
 ): Promise<void> {
   try {
-    await config.recordResult(siteId, result, error)
+    await config.recordResult(siteId, accountId, result, error)
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +

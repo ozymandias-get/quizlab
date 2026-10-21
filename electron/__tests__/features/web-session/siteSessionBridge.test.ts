@@ -71,17 +71,25 @@ import {
   recordOversizedSiteSessionPacket
 } from '../../../features/web-session/siteSessionBridge.js'
 import { setSiteSessionListReader } from '../../../features/web-session/siteSessionBroadcast.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 
 function stateWith(enabled: boolean, configVersion = 3) {
   return {
-    version: 1,
+    version: 2,
     configVersion,
-    targets: {
+    sites: {
       chatgpt: {
-        enabled,
-        importedAt: null,
-        lastResult: null,
-        lastError: null
+        accounts: {
+          [PRIMARY_ACCOUNT_ID]: {
+            name: null,
+            enabled,
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            fingerprints: []
+          }
+        },
+        activeAccountId: PRIMARY_ACCOUNT_ID
       }
     }
   }
@@ -216,7 +224,7 @@ describe('site session bridge', () => {
       name: 'session',
       url: 'https://chatgpt.com/'
     })
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, 'imported', undefined)
   })
 
   it('translates the same site attribute of the extension into the importer spelling', async () => {
@@ -253,7 +261,12 @@ describe('site session bridge', () => {
 
     expect(outcome.accepted).toBe(true)
     expect(outcome.imported).toBe(0)
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'import_failed')
+    expect(recordResult).toHaveBeenCalledWith(
+      'chatgpt',
+      PRIMARY_ACCOUNT_ID,
+      'failed',
+      'import_failed'
+    )
   })
 
   it('records no reason code when the import wrote a cookie', async () => {
@@ -263,7 +276,7 @@ describe('site session bridge', () => {
       status: 'ok',
       cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
     })
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, 'imported', undefined)
   })
 
   it('records an empty browser session without touching the session', async () => {
@@ -276,7 +289,12 @@ describe('site session bridge', () => {
     expect(outcome.accepted).toBe(true)
     expect(set).not.toHaveBeenCalled()
     expect(remove).not.toHaveBeenCalled()
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'no_cookies', undefined)
+    expect(recordResult).toHaveBeenCalledWith(
+      'chatgpt',
+      PRIMARY_ACCOUNT_ID,
+      'no_cookies',
+      undefined
+    )
   })
 
   it('records a missing permission without touching the session', async () => {
@@ -288,7 +306,12 @@ describe('site session bridge', () => {
     })
     expect(outcome.accepted).toBe(true)
     expect(set).not.toHaveBeenCalled()
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined)
+    expect(recordResult).toHaveBeenCalledWith(
+      'chatgpt',
+      PRIMARY_ACCOUNT_ID,
+      'permission_missing',
+      undefined
+    )
   })
 
   it('records a packet that did not fit into the bridge as a failed import', async () => {
@@ -297,7 +320,12 @@ describe('site session bridge', () => {
     read.mockResolvedValue(stateWith(true))
     await recordOversizedSiteSessionPacket('chatgpt')
 
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'packet_too_large')
+    expect(recordResult).toHaveBeenCalledWith(
+      'chatgpt',
+      PRIMARY_ACCOUNT_ID,
+      'failed',
+      'packet_too_large'
+    )
     expect(set).not.toHaveBeenCalled()
   })
 })
