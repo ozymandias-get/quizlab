@@ -1,4 +1,14 @@
 /**
+ * The domains the two Microsoft sites share.
+ *
+ * `m365` and `copilot` are two platforms on two partitions, but they
+ * authenticate against the same Microsoft account: they read the same
+ * cookies. The shared part is written once, so an edit to one of them cannot
+ * leave the other behind.
+ */
+const MICROSOFT_COOKIE_DOMAINS = ['.microsoft.com', '.microsoftonline.com', '.live.com'] as const
+
+/**
  * Site başına çerez alan adları.
  *
  * Bu tablo **elle** yazılmış tek kaynaktır: eklentinin `manifest.json`
@@ -21,8 +31,8 @@ export const SITE_SESSION_COOKIE_DOMAINS = {
   // lives under `cloud.microsoft`, and without that domain the extension
   // never reads the site's own cookie and the switch-off never signs the
   // user out.
-  m365: ['.microsoft.com', '.microsoftonline.com', '.live.com', '.cloud.microsoft'],
-  copilot: ['.microsoft.com', '.microsoftonline.com', '.live.com'],
+  m365: [...MICROSOFT_COOKIE_DOMAINS, '.cloud.microsoft'],
+  copilot: MICROSOFT_COOKIE_DOMAINS,
   grok: ['.grok.com', '.x.com'],
   mistral: ['.mistral.ai'],
   perplexity: ['.perplexity.ai'],
