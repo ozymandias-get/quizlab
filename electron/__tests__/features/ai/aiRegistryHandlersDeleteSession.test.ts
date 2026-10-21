@@ -193,7 +193,7 @@ describe('deleting a user-added site', () => {
   })
 
   it('waits for an import that is running before it wipes the session', async () => {
-    // The import of the site holds the lock of the site: a wipe that ran
+    // The import holds the lock of the site's primary account: a wipe that ran
     // while the import was still writing would be undone by it, and the
     // deleted site would keep its session.
     let releaseImport: () => void = () => {}

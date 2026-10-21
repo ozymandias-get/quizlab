@@ -17,7 +17,6 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 import { type Session, session as electronSession } from 'electron'
 
 import { getSiteSessionIdentityCookies } from '../../../shared/constants/siteSessionIdentityCookies.js'
-import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import {
   accountPartitionFor,
@@ -36,8 +35,9 @@ import { computeSessionFingerprint } from './siteSessionFingerprint.js'
 import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
+import type { SiteSessionConfigFile } from './siteSessionMigration.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { setPendingSiteSession } from './siteSessionPendingSessions.js'
+import { clearPendingSiteSession, setPendingSiteSession } from './siteSessionPendingSessions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
@@ -65,7 +65,7 @@ interface SiteSessionBridgeTarget {
  */
 export interface SiteSessionImportEnvironment {
   /** The persisted state of the import switches and the accounts. */
-  config: Pick<SiteSessionConfig, 'read' | 'recordResult' | 'createAccount'>
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult' | 'createAccount' | 'rememberFingerprint'>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -376,6 +376,7 @@ export async function acceptSiteSessionPacket(
  */
 type SiteSessionPacketPlan =
   | { kind: 'refused'; reason: CookiePacketRejection }
+  | { kind: 'ignore' }
   | {
       kind: 'record'
       siteRow: SiteSessionTargetRow
@@ -393,6 +394,7 @@ type SiteSessionPacketPlan =
       kind: 'import'
       siteRow: SiteSessionTargetRow
       accountRow: SiteSessionAccountRow
+      fingerprint: string | null
       cookies: ChromeExtensionCookie[]
     }
 
@@ -411,7 +413,9 @@ async function planSiteSessionPacket(
   // of the active account records what the extension saw, so the user sees it
   // where the site is; no account is opened and no session is held.
   if (packet.status !== 'ok') {
-    const activeAccountId = state.sites[siteRow.siteId]?.activeAccountId ?? PRIMARY_ACCOUNT_ID
+    const activeAccountId = activeAccountIdForSite(state, siteRow.siteId)
+    if (!activeAccountId) return { kind: 'ignore' }
+
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
     return { kind: 'record', siteRow, accountId: activeAccountId, result }
   }
@@ -426,6 +430,16 @@ async function planSiteSessionPacket(
     packet.cookies,
     getSiteSessionIdentityCookies(siteRow.siteId)
   )
+
+  // A cancelled session keeps its identity. Writing it into another account
+  // would undo the user's decision, and asking "which account?" would put the
+  // question in the wrong place: the answer is already known.
+  if (
+    fingerprint &&
+    siteAccounts.some((row) => !row.state.enabled && row.state.fingerprints.includes(fingerprint))
+  ) {
+    return { kind: 'refused', reason: 'account_disabled' }
+  }
 
   const routed = routeCookiePacket(packet, siteRow, candidates, fingerprint)
   if (!routed.ok) {
@@ -442,11 +456,51 @@ async function planSiteSessionPacket(
   const accountRow = siteAccounts.find((row) => row.accountId === routed.accountId) ?? null
   if (!accountRow) return { kind: 'refused', reason: 'account_disabled' }
 
-  return { kind: 'import', siteRow, accountRow, cookies: routed.cookies }
+  return { kind: 'import', siteRow, accountRow, fingerprint, cookies: routed.cookies }
 }
 
-/** Applies a prepared packet, under the lock of the account it belongs to. */
+/**
+ * The account the site opens its panels with, when it still exists. Without
+ * one there is no row to record on; the primary fallback would make
+ * `recordResult` create a phantom account.
+ */
+function activeAccountIdForSite(state: SiteSessionConfigFile, siteId: string): string | null {
+  const site = state.sites[siteId]
+  const activeAccountId = site?.activeAccountId
+  if (!activeAccountId || !site.accounts[activeAccountId]) return null
+  return activeAccountId
+}
+
+/**
+ * Applies a packet after its lock is taken. Create and pending plans were
+ * decided before the lock, so they re-read the state and route again: another
+ * packet may have opened the account, or the last account may have been
+ * switched off. A re-routed account is written under its own lock.
+ */
 async function handleSiteSessionPacket(
+  packet: CookiePacket,
+  plan: SiteSessionPacketPlan,
+  environment: SiteSessionImportEnvironment
+): Promise<SiteSessionPacketOutcome> {
+  if (plan.kind === 'create' || plan.kind === 'pending') {
+    const targets = environment.targets ?? (await environment.loadTargets())
+    const freshPlan = await planSiteSessionPacket(packet, environment.config, targets)
+    const application = { ...environment, targets }
+
+    if (freshPlan.kind === 'import') {
+      return withSiteSessionLock(packet.targetId, freshPlan.accountRow.accountId, () =>
+        applySiteSessionPacket(packet, freshPlan, application)
+      )
+    }
+
+    return applySiteSessionPacket(packet, freshPlan, application)
+  }
+
+  return applySiteSessionPacket(packet, plan, environment)
+}
+
+/** Applies a plan that is already decided. */
+async function applySiteSessionPacket(
   packet: CookiePacket,
   plan: SiteSessionPacketPlan,
   environment: SiteSessionImportEnvironment
@@ -457,6 +511,9 @@ async function handleSiteSessionPacket(
     case 'refused':
       Logger.warn(`[SiteSessionBridge] Refused a packet: ${plan.reason}.`)
       return { accepted: false, reason: plan.reason }
+
+    case 'ignore':
+      return { accepted: true }
 
     case 'pending':
       setPendingSiteSession(packet.targetId, plan.cookies)
@@ -477,7 +534,7 @@ async function handleSiteSessionPacket(
       })
     }
 
-    case 'import':
+    case 'import': {
       // The switch is read once more right before the import: the user may
       // have turned the account off while the packet was on its way, and a
       // session that is written after that would outlive the wipe that follows
@@ -489,12 +546,27 @@ async function handleSiteSessionPacket(
         return { accepted: false, reason: 'account_disabled' }
       }
 
-      return importIntoAccount(config, resolveSession, {
+      const outcome = await importIntoAccount(config, resolveSession, {
         siteRow: plan.siteRow,
         accountId: plan.accountRow.accountId,
         partition: plan.accountRow.partition,
         cookies: plan.cookies
       })
+
+      // The identity has to outlive the session: the next packet of the same
+      // account has to find it by its history instead of falling into the
+      // "sole empty candidate" rule and overwriting another identity.
+      if (outcome.imported && plan.fingerprint) {
+        await rememberMatchedFingerprint(
+          config,
+          plan.siteRow.siteId,
+          plan.accountRow.accountId,
+          plan.fingerprint
+        )
+      }
+
+      return outcome
+    }
   }
 }
 
@@ -526,6 +598,8 @@ async function importIntoAccount(
   )
 
   const wroteSomething = imported > 0
+  if (wroteSomething) clearPendingSiteSession(target.siteRow.siteId)
+
   await recordResult(
     config,
     target.siteRow.siteId,
@@ -535,6 +609,27 @@ async function importIntoAccount(
   )
 
   return { accepted: true, imported, failed }
+}
+
+/**
+ * Remembers the identity of a session the bridge has written. The import
+ * already happened, so a state file that cannot be written must not turn the
+ * packet into a failure; the session is not lost.
+ */
+async function rememberMatchedFingerprint(
+  config: Pick<SiteSessionConfig, 'rememberFingerprint'>,
+  siteId: string,
+  accountId: string,
+  fingerprint: string
+): Promise<void> {
+  try {
+    await config.rememberFingerprint(siteId, accountId, fingerprint)
+  } catch (writeError) {
+    Logger.warn(
+      `[SiteSessionBridge] The fingerprint of "${accountId}" could not be recorded: ` +
+        `${writeError instanceof Error ? writeError.message : String(writeError)}`
+    )
+  }
 }
 
 /**
@@ -570,7 +665,11 @@ export const PACKET_TOO_LARGE = 'packet_too_large'
  * the row of the site changed.
  */
 export async function recordOversizedSiteSessionPacket(siteId: string): Promise<void> {
-  await recordResult(getSiteSessionConfig(), siteId, PRIMARY_ACCOUNT_ID, 'failed', PACKET_TOO_LARGE)
+  const config = getSiteSessionConfig()
+  const accountId = activeAccountIdForSite(await config.read(), siteId)
+  if (!accountId) return
+
+  await recordResult(config, siteId, accountId, 'failed', PACKET_TOO_LARGE)
   await broadcastSiteSessionsChanged()
 }
 

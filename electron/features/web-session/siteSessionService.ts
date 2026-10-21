@@ -12,9 +12,10 @@
  *
  *   - Turning a site's switch off writes the switch *first* and wipes the
  *     session afterwards, so that the site is signed out again. The wipe runs
- *     under the lock of the site, and so does the import of that site: the
- *     wipe therefore always happens after the last write to the site, and a
- *     packet that arrives after the switch was written is refused by the
+ *     under the lock of the account it empties (the primary account until the
+ *     service takes an account id), and so does an import into that account:
+ *     the wipe therefore always happens after the last write to the account,
+ *     and a packet that arrives after the switch was written is refused by the
  *     bridge core, which reads the switch once more right before it writes a
  *     cookie.
  *   - A switch that could not be written is reported as a failure. The app
@@ -40,6 +41,7 @@ import {
   writeCachedSiteSessionList
 } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
+import { clearPendingSiteSession } from './siteSessionPendingSessions.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
@@ -132,8 +134,8 @@ export class SiteSessionService {
    *
    * Switching it off writes the switch first and wipes the session after it:
    * the site has to be signed in again the next time it is used. The wipe runs
-   * under the lock of the site, so an import that is already running finishes
-   * before the wipe and cannot undo it.
+   * under the lock of the account, so an import that is already running
+   * finishes before the wipe and cannot undo it.
    */
   async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionActionResult> {
     // The switch changes what the list shows, so the list that is kept is
@@ -165,7 +167,7 @@ export class SiteSessionService {
    *
    * This is the "I sign in myself" path: the site keeps its place in the
    * settings, only the session the app holds for it is gone. The wipe runs
-   * under the lock of the site, for the same reason the switch-off does.
+   * under the lock of the account, for the same reason the switch-off does.
    */
   async clear(siteId: string): Promise<SiteSessionActionResult> {
     // The session that is forgotten changes what the list shows, so the list
@@ -210,6 +212,22 @@ export class SiteSessionService {
       // user that a site was switched off while the app keeps importing it.
       Logger.warn(`[SiteSession] The switch of "${target.siteId}" could not be written:`, error)
       return { success: false, error: 'write_failed' }
+    }
+
+    // A pending session belongs to the state the site had before the switch.
+    // Once the last account is off there is no account left the question could
+    // be asked about, so the stale packet has to go with the switch.
+    try {
+      const state = await this.deps.config.read()
+      const accounts = state.sites[target.siteId]?.accounts
+      if (!accounts || !Object.values(accounts).some((account) => account.enabled)) {
+        clearPendingSiteSession(target.siteId)
+      }
+    } catch (error) {
+      Logger.warn(
+        `[SiteSession] The pending session of "${target.siteId}" could not be checked:`,
+        error
+      )
     }
 
     try {

@@ -801,6 +801,40 @@ describe('site session config', () => {
     expect(state.configVersion).toBe(version)
   })
 
+  it('remembers a matched session fingerprint without advancing the version', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    const version = await config.getConfigVersion()
+
+    await config.rememberFingerprint('google', 'a1', 'fp-2')
+    await config.rememberFingerprint('google', 'a1', 'fp-2')
+    await config.rememberFingerprint('google', 'a1', null)
+
+    const state = await config.read()
+    expect(state.sites.google.accounts.a1.fingerprints).toEqual(['fp-1', 'fp-2'])
+    expect(state.configVersion).toBe(version)
+  })
+
+  it('keeps at most five remembered fingerprints and never invents an account', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+
+    for (const fingerprint of ['fp-2', 'fp-3', 'fp-4', 'fp-5', 'fp-6']) {
+      await config.rememberFingerprint('google', 'a1', fingerprint)
+    }
+    await config.rememberFingerprint('google', 'ghost', 'fp-7')
+
+    const state = await config.read()
+    expect(state.sites.google.accounts.a1.fingerprints).toEqual([
+      'fp-2',
+      'fp-3',
+      'fp-4',
+      'fp-5',
+      'fp-6'
+    ])
+    expect(state.sites.google.accounts.ghost).toBeUndefined()
+  })
+
   it('reports a failed write from every account mutation', async () => {
     const filePath = configPath()
     const config = new SiteSessionConfig(filePath)
@@ -813,6 +847,9 @@ describe('site session config', () => {
     mkdirSync(filePath, { recursive: true })
 
     await expect(config.createAccount('google', 'a1', 'fp-3')).rejects.toThrow(
+      /could not be written/
+    )
+    await expect(config.rememberFingerprint('google', 'a1', 'fp-9')).rejects.toThrow(
       /could not be written/
     )
     await expect(config.renameAccount('google', 'a1', 'İş')).rejects.toThrow(/could not be written/)
