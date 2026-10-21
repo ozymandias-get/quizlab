@@ -107,6 +107,10 @@ interface HarnessOptions {
   storage?: Record<string, unknown>
   /** How many of the first cookie packets the app refuses. */
   failPackets?: number
+  /** How many of the first cookie packets the app refuses as too large. */
+  tooLargePackets?: number
+  /** How many of the first cookie packets never reach the app. */
+  failPosts?: number
   /** The port the bridge answers on; every other port refuses the connection. */
   bridgePort?: number
   /** The permissions API fails instead of answering. */
@@ -126,6 +130,8 @@ interface Harness {
   bridgePort: number | null
   setSiteList(siteList: SiteList): void
   failNextPackets(count: number): void
+  /** The hosts the navigation wake-up listens for at the moment. */
+  wakeUpHosts(): string[]
   fireAlarm(name: string): void
   fireCookieChanged(cookie: FakeCookie): void
   runTimers(): Promise<void>
@@ -164,6 +170,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
     removed: boolean
     cause: string
   }) => void)[] = []
+  const navigationListeners: {
+    listener: (details: unknown) => void
+    filter: { url?: { hostSuffix?: string }[] } | undefined
+  }[] = []
 
   let siteList = options.siteList ?? DEFAULT_SITE_LIST
   const cookies = options.cookies ?? DEFAULT_COOKIES
@@ -171,6 +181,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const bridgePortOption = options.bridgePort ?? null
   const permissionsThrow = options.permissionsThrow === true
   let failingPackets = options.failPackets ?? 0
+  let tooLargePackets = options.tooLargePackets ?? 0
+  let failingPosts = options.failPosts ?? 0
   let timerId = 0
   let bridgePort: number | null = null
 
@@ -265,7 +277,18 @@ function createHarness(options: HarnessOptions = {}): Harness {
       }
     },
     webNavigation: {
-      onCompleted: { addListener: () => {} }
+      onCompleted: {
+        addListener: (
+          listener: (details: unknown) => void,
+          filter?: { url?: { hostSuffix?: string }[] }
+        ) => {
+          navigationListeners.push({ listener, filter })
+        },
+        removeListener: (listener: (details: unknown) => void) => {
+          const index = navigationListeners.findIndex((entry) => entry.listener === listener)
+          if (index >= 0) navigationListeners.splice(index, 1)
+        }
+      }
     }
   }
 
@@ -287,6 +310,15 @@ function createHarness(options: HarnessOptions = {}): Harness {
     if (target.endsWith(COOKIE_PATH)) {
       const packet = JSON.parse(String(init?.body ?? '{}')) as Packet
       attempts.push(packet)
+      if (failingPosts > 0) {
+        failingPosts -= 1
+        // The request never reaches the app.
+        throw new Error(`connect ECONNREFUSED 127.0.0.1:${port}`)
+      }
+      if (tooLargePackets > 0) {
+        tooLargePackets -= 1
+        return jsonResponse({ error: 'packet_too_large' }, 413)
+      }
       if (failingPackets > 0) {
         failingPackets -= 1
         return jsonResponse({ error: 'Internal error' }, 500)
@@ -359,6 +391,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
     },
     failNextPackets(count: number) {
       failingPackets = count
+    },
+    wakeUpHosts() {
+      const current = navigationListeners[navigationListeners.length - 1]
+      return (current?.filter?.url ?? []).map((entry) => entry.hostSuffix ?? '')
     },
     fireAlarm(name: string) {
       for (const listener of alarmListeners) listener({ name })
@@ -678,10 +714,139 @@ describe('extension bridge behaviour', () => {
     await harness.settle()
     expect(harness.packets).toHaveLength(2)
     expect(harness.packets.every((packet) => packet.status === 'permission_missing')).toBe(true)
+    // The report went through, so the app is not told about it again.
+    expect(harness.storage.get('outdatedState')).toBeDefined()
 
     harness.fireAlarm(HEARTBEAT_ALARM)
     await harness.settle()
     expect(harness.packets).toHaveLength(2)
+  })
+
+  it('repeats the outdated report when it did not reach the app', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, protocolVersion: 1 },
+      failPosts: 1
+    })
+    await harness.settle()
+
+    // The report did not go through, so it is not marked as reported: the
+    // user is told to reload the extension with the next poll.
+    expect(harness.storage.get('outdatedState')).toBeUndefined()
+
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.storage.get('outdatedState')).toBeDefined()
+
+    // The report that went through is not repeated.
+    const attempts = harness.attempts.length
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.attempts).toHaveLength(attempts)
+  })
+
+  it('says that the report did not reach the app', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, protocolVersion: 1 },
+      failPosts: 1
+    })
+    await harness.settle()
+
+    const warning = harness.logs.find((entry) => entry.message.includes('report is repeated'))
+    expect(warning?.level).toBe('warn')
+  })
+
+  it('does not push a packet the app refused as too large again', async () => {
+    const harness = createHarness({ tooLargePackets: 1 })
+    await harness.settle()
+
+    // The first packet did not fit into the app: only the other one was taken.
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['claude'])
+
+    // The browser changes a cookie of the site whose packet did not fit: the
+    // site is not pushed again, because the packet cannot get smaller by
+    // waiting.
+    harness.fireCookieChanged({
+      name: '__Secure-1PSID',
+      value: 'chatgpt-host-only',
+      domain: 'chatgpt.com',
+      path: '/'
+    })
+    await harness.runTimers()
+
+    expect(harness.attempts.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['claude'])
+  })
+
+  it('says that a packet did not fit into the app', async () => {
+    const harness = createHarness({ tooLargePackets: 1 })
+    await harness.settle()
+
+    const warning = harness.logs.find((entry) => entry.message.includes('too large'))
+    expect(warning?.level).toBe('warn')
+  })
+
+  it('remembers the site whose packet did not fit into the app', async () => {
+    const harness = createHarness({ tooLargePackets: 1 })
+    await harness.settle()
+
+    expect(harness.storage.get('tooLargeSiteIds')).toEqual(['chatgpt'])
+  })
+
+  it('does not push a site whose packet did not fit after a worker restart', async () => {
+    const first = createHarness({ tooLargePackets: 1 })
+    await first.settle()
+
+    const second = createHarness({ storage: Object.fromEntries(first.storage) })
+    await second.settle()
+    second.fireCookieChanged({
+      name: '__Secure-1PSID',
+      value: 'chatgpt-host-only',
+      domain: 'chatgpt.com',
+      path: '/'
+    })
+    await second.runTimers()
+
+    expect(second.attempts).toHaveLength(0)
+  })
+
+  it('gives a site another chance when the app asks for something new', async () => {
+    const harness = createHarness({ tooLargePackets: 1 })
+    await harness.settle()
+
+    harness.setSiteList({ ...DEFAULT_SITE_LIST, configVersion: 8 })
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+
+    // The user may have changed something in the app, so the site is pushed
+    // once more.
+    expect(harness.attempts.map((packet) => packet.targetId)).toEqual([
+      'chatgpt',
+      'claude',
+      'chatgpt',
+      'claude'
+    ])
+  })
+
+  it('wakes up for the sites the app asks for', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    expect(harness.wakeUpHosts()).toEqual(['chatgpt.com', 'openai.com', 'claude.ai'])
+  })
+
+  it('wakes up for the sites of the saved list after a worker restart', async () => {
+    const first = createHarness()
+    await first.settle()
+
+    const second = createHarness({ storage: Object.fromEntries(first.storage) })
+    await second.settle()
+
+    expect(second.wakeUpHosts()).toEqual(['chatgpt.com', 'openai.com', 'claude.ai'])
+  })
+
+  it('does not wake up for Google alone any more', () => {
+    expect(source).not.toContain('gemini.google.com')
+    expect(source).not.toContain('aistudio.google.com')
   })
 
   it('keeps the last seen version in the session storage', async () => {

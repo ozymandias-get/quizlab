@@ -7,7 +7,9 @@ import { Logger } from '../../core/logger.js'
 import {
   listEnabledSiteSessionTargets,
   openSiteSessionRound,
+  PACKET_TOO_LARGE,
   parseSiteSessionPacket,
+  recordOversizedSiteSessionPacket,
   SITE_SESSION_PROTOCOL_VERSION,
   type SiteSessionRound
 } from '../web-session/siteSessionBridge.js'
@@ -17,6 +19,15 @@ import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
 /** The payload the extension signs when it asks for the site list. */
 const SITE_LIST_SIGNING_PAYLOAD = '/api/sites'
+
+/**
+ * The status a packet that does not fit into the bridge is answered with.
+ *
+ * The status tells the extension that the packet was too large: a broken
+ * connection would look like a network that is down, and the extension would
+ * push the same packet again and again.
+ */
+const STATUS_PACKET_TOO_LARGE = 413
 
 function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
   const isDev = !app.isPackaged
@@ -217,9 +228,34 @@ function handleSiteListRequest(
 
 /** Whether a signature matches the payload it is supposed to cover. */
 function isValidSignature(payload: string, signature: string | undefined, secret: string): boolean {
-  if (!signature || !/^[0-9a-f]{64}$/i.test(signature)) return false
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex')
-  return crypto.timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expected))
+  return matchesSignature(expected, signature)
+}
+
+/**
+ * Whether a signature matches a digest that was computed over a body.
+ *
+ * The digest is computed while the body comes in, so a body that does not fit
+ * into the bridge can be signed as well — the signature covers the whole body,
+ * not only the part that was kept.
+ */
+function matchesSignature(expected: string, signature: string | undefined): boolean {
+  if (!signature || !/^[0-9a-f]{64}$/i.test(signature)) return false
+  return crypto.timingSafeEqual(
+    Buffer.from(expected.toLowerCase()),
+    Buffer.from(signature.toLowerCase())
+  )
+}
+
+/**
+ * The site a packet belongs to, read out of a body that is too large to parse.
+ *
+ * The site id is the first field of a packet, so it can be read out of the
+ * beginning of the body even when the rest of it does not fit into the bridge.
+ */
+function readTargetId(body: string): string | null {
+  const match = /"targetId"\s*:\s*"([^"]*)"/.exec(body)
+  return match ? match[1] : null
 }
 
 function handleCookiePost(
@@ -238,27 +274,47 @@ function handleCookiePost(
     return
   }
 
-  let body = ''
   let bodySize = 0
+  let oversized = false
+  const chunks: Buffer[] = []
+  // The signature covers the whole body, so it is hashed while the body comes
+  // in: a body that does not fit is never kept in memory as a whole, and it
+  // is still signed.
+  const digest = crypto.createHmac('sha256', mgr._sharedSecret)
 
   req.on('data', (chunk: Buffer) => {
     bodySize += chunk.length
+    digest.update(chunk)
     if (bodySize > MAX_COOKIE_BODY_SIZE) {
-      req.destroy()
-      Logger.warn('[NativeMessaging] Rejected oversized cookie payload')
+      oversized = true
       return
     }
-    body += chunk.toString()
+    chunks.push(chunk)
   })
 
   req.on('end', async () => {
     try {
-      if (!isValidSignature(body, signature, mgr._sharedSecret)) {
+      if (!matchesSignature(digest.digest('hex'), signature)) {
         Logger.warn('[NativeMessaging] Rejected cookie POST: invalid HMAC signature')
         sendJson(res, 401, { error: 'Invalid signature' })
         return
       }
 
+      if (oversized) {
+        // The packet is bigger than the bridge reads, so it can never be
+        // imported. The extension is told so instead of seeing a broken
+        // connection: a broken connection looks like a network that is down,
+        // and the extension would push the same packet again and again.
+        Logger.warn('[NativeMessaging] Rejected an oversized cookie payload')
+        const siteId = readTargetId(Buffer.concat(chunks).toString('utf8'))
+        if (siteId) {
+          await recordOversizedSiteSessionPacket(siteId)
+        }
+        sendJson(res, STATUS_PACKET_TOO_LARGE, { error: PACKET_TOO_LARGE })
+        return
+      }
+
+      const body = Buffer.concat(chunks).toString('utf8')
       const packet = parseSiteSessionPacket(body)
       if (!packet) {
         Logger.warn('[NativeMessaging] Rejected cookie POST: malformed packet')

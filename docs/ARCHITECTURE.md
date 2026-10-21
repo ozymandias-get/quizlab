@@ -720,6 +720,13 @@ that round and share its target list, so a round with N sites reads the list
 once instead of N times. The stdio path of the native messaging host handles
 one packet at a time and opens no round.
 
+A packet that is bigger than the bridge reads (512 KB) is answered with
+**413** and not with a broken connection: the extension has to be able to tell
+"too large" from "the network is down", or it would push the same packet every
+30 seconds for ever. The site of such a packet is recorded as a failed import
+with the reason code `packet_too_large`, and the extension does not push that
+site again — a packet that does not fit cannot get smaller by waiting.
+
 The Google family is the one group: Gemini, AI Studio, YouTube and Google Drive
 share one account and one partition, so they are **one row**
 (`siteId: 'google'`) — see `shared/constants/googleAiWebApps.ts`. The row owns
