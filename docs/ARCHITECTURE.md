@@ -693,10 +693,13 @@ The feature lives in `electron/features/web-session/`:
 | `siteSessionConfig.ts`       | `site-sessions.json`: the switches, the import history and the `configVersion` counter       |
 | `siteSessionStatus.ts`       | derives the status a row shows from the switch, the extension and the last import            |
 | `siteSessionCookieRouter.ts` | refuses a packet that is not for an enabled site or carries a foreign domain                 |
+| `siteSessionCookies.ts`      | the cookie rules the writer, the reader and the eraser of a session share                    |
 | `siteSessionImporter.ts`     | writes the cookies into the site's own partition and drops the stale ones                    |
 | `siteSessionWipe.ts`         | clears the cookies and the origin storage of one site                                        |
 | `siteSessionLock.ts`         | one lock per site: the import and the switch of a site never overlap                         |
+| `siteSessionPartitions.ts`   | where the data of a partition lives: a partition that was never used is not there            |
 | `siteSessionBroadcast.ts`    | sends the fresh list to the renderer after a change                                          |
+| `siteSessionListCache.ts`    | the short-lived cache of the list; a switch, a clear and an import drop it                   |
 | `siteSessionService.ts`      | the renderer-facing orchestration: list, switch, clear                                       |
 | `siteSessionBridge.ts`       | the bridge core the HTTP bridge and the service both go through                              |
 | `siteSessionHandlers.ts`     | the typed IPC handlers (`SITE_SESSION_LIST`, `…_SET_ENABLED`, `…_CLEAR`, `…_CHANGED`)        |
@@ -711,6 +714,11 @@ before it writes a cookie. The renderer reaches the feature through
 The extension pushes a packet only when something changed, so the app learns
 that it is alive from the requests themselves: a request from the paired
 extension's origin marks the bridge as connected.
+
+The site list request opens a **round**: the packets that follow it belong to
+that round and share its target list, so a round with N sites reads the list
+once instead of N times. The stdio path of the native messaging host handles
+one packet at a time and opens no round.
 
 The Google family is the one group: Gemini, AI Studio, YouTube and Google Drive
 share one account and one partition, so they are **one row**

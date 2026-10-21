@@ -26,6 +26,10 @@ const fakeSession = {
 const read = vi.fn()
 const recordResult = vi.fn()
 
+const { partitionExistsOnDisk } = vi.hoisted(() => ({
+  partitionExistsOnDisk: vi.fn(async () => true)
+}))
+
 vi.mock('electron', () => ({
   session: {
     fromPartition: () => fakeSession
@@ -51,6 +55,10 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: async () => [TARGET]
 }))
 
+vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
+  partitionExistsOnDisk
+}))
+
 import { APP_CONFIG } from '../../../app/constants.js'
 import { Logger } from '../../../core/logger.js'
 import {
@@ -58,6 +66,7 @@ import {
   acceptSiteSessionPacket,
   hasLocalSessionForTarget,
   listEnabledSiteSessionTargets,
+  openSiteSessionRound,
   parseSiteSessionPacket
 } from '../../../features/web-session/siteSessionBridge.js'
 import { setSiteSessionListReader } from '../../../features/web-session/siteSessionBroadcast.js'
@@ -70,7 +79,6 @@ function stateWith(enabled: boolean, configVersion = 3) {
       chatgpt: {
         enabled,
         importedAt: null,
-        expiresAt: null,
         lastResult: null,
         lastError: null
       }
@@ -207,7 +215,7 @@ describe('site session bridge', () => {
       name: 'session',
       url: 'https://chatgpt.com/'
     })
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined, null)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
   })
 
   it('translates the same site attribute of the extension into the importer spelling', async () => {
@@ -244,7 +252,7 @@ describe('site session bridge', () => {
 
     expect(outcome.accepted).toBe(true)
     expect(outcome.imported).toBe(0)
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'import_failed', null)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'import_failed')
   })
 
   it('records no reason code when the import wrote a cookie', async () => {
@@ -254,7 +262,7 @@ describe('site session bridge', () => {
       status: 'ok',
       cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
     })
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined, null)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
   })
 
   it('records an empty browser session without touching the session', async () => {
@@ -267,7 +275,7 @@ describe('site session bridge', () => {
     expect(outcome.accepted).toBe(true)
     expect(set).not.toHaveBeenCalled()
     expect(remove).not.toHaveBeenCalled()
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'no_cookies', undefined, undefined)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'no_cookies', undefined)
   })
 
   it('records a missing permission without touching the session', async () => {
@@ -279,7 +287,7 @@ describe('site session bridge', () => {
     })
     expect(outcome.accepted).toBe(true)
     expect(set).not.toHaveBeenCalled()
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined, undefined)
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined)
   })
 })
 
@@ -326,6 +334,7 @@ describe('the renderer', () => {
 describe('local session detection', () => {
   beforeEach(() => {
     get.mockReset()
+    partitionExistsOnDisk.mockResolvedValue(true)
   })
 
   it('finds a session the app already holds for the site', async () => {
@@ -341,5 +350,76 @@ describe('local session detection', () => {
   it('does not mistake a lookalike domain for a session', async () => {
     get.mockResolvedValue([{ name: 'session', domain: '.notchatgpt.com' }])
     await expect(hasLocalSessionForTarget(TARGET)).resolves.toBe(false)
+  })
+
+  it('does not read the session of a site whose partition was never used', async () => {
+    // Asking Electron for the session of a partition that is not there
+    // creates it: a user who never opened a platform would get an empty
+    // folder for it.
+    partitionExistsOnDisk.mockResolvedValue(false)
+    const resolveSession = vi.fn(() => fakeSession as never)
+
+    await expect(hasLocalSessionForTarget(TARGET, resolveSession)).resolves.toBe(false)
+    expect(resolveSession).not.toHaveBeenCalled()
+  })
+})
+
+describe('a round of packets', () => {
+  beforeEach(() => {
+    read.mockReset()
+    recordResult.mockReset()
+    get.mockReset()
+    get.mockResolvedValue([])
+    read.mockResolvedValue(stateWith(true))
+  })
+
+  it('builds the target list once for the packets of the round', async () => {
+    // The extension pushes one packet per site: the sites of the round do
+    // not change while it pushes them, so the list is read once.
+    const loadTargets = vi.fn(async () => [TARGET])
+    const round = await openSiteSessionRound({
+      config: { read, recordResult } as never,
+      loadTargets,
+      resolveSession: () => fakeSession as never
+    })
+
+    await round.accept({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    await round.accept({
+      targetId: 'chatgpt',
+      status: 'no_cookies',
+      cookies: []
+    })
+
+    expect(loadTargets).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads the target list again for every packet when there is no round', async () => {
+    // The stdio path handles one packet at a time: there is nothing to share
+    // between them.
+    const loadTargets = vi.fn(async () => [TARGET])
+    const environment = {
+      config: { read, recordResult } as never,
+      loadTargets,
+      resolveSession: () => fakeSession as never
+    }
+
+    await acceptSiteSessionPacket(
+      {
+        targetId: 'chatgpt',
+        status: 'ok',
+        cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+      },
+      environment
+    )
+    await acceptSiteSessionPacket(
+      { targetId: 'chatgpt', status: 'no_cookies', cookies: [] },
+      environment
+    )
+
+    expect(loadTargets).toHaveBeenCalledTimes(2)
   })
 })

@@ -186,6 +186,36 @@ describe('unusable sites', () => {
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0][0]).toContain('custom_broken')
   })
+
+  it('warns when a built-in platform carries an url that cannot be parsed', async () => {
+    // The registry is replaced so that one platform carries an url the parser
+    // refuses. A built-in site that vanishes from the settings list without a
+    // trace is a defect the user cannot report.
+    vi.resetModules()
+    vi.doMock('../../../features/ai/aiManager.js', () => ({
+      AI_REGISTRY: {
+        broken: {
+          id: 'broken',
+          name: 'Broken',
+          url: 'not-a-url',
+          partition: 'persist:ai_broken'
+        }
+      },
+      INACTIVE_PLATFORMS: {}
+    }))
+    const warn = vi.fn()
+    vi.doMock('../../../core/logger.js', () => ({ Logger: { warn } }))
+
+    const { buildBuiltinSiteSessionTargets } =
+      await import('../../../features/web-session/siteSessionTargets.js')
+
+    const targets = buildBuiltinSiteSessionTargets()
+
+    expect(targets.map((target) => target.siteId)).not.toContain('broken')
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('broken')
+    expect(warn.mock.calls[0][0]).toContain('url cannot be parsed')
+  })
 })
 
 describe('site session view', () => {

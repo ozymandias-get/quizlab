@@ -3,6 +3,7 @@ import path from 'path'
 
 import { APP_CONFIG } from '../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../features/ai/aiManager.js'
+import { getPartitionDirectoryName } from './partitionPaths.js'
 
 export interface CacheRule {
   relativePath: string
@@ -100,8 +101,11 @@ const { SAFE_CACHE_DIRS, CACHE_FILE_TTL_MS } = APP_CONFIG.CLEANUP
 function partitionCacheRules(partitionKey: string): CacheRule[] {
   // Aktivite bazlı TTL: soğuk partition'lar daha hızlı temizlenir
   const ttlMs = getEffectiveTtl(partitionKey)
+  // The folder Chromium keeps the data in: the same name the cache rules of
+  // the system handlers address, so the sweep and the app agree on it.
+  const directory = getPartitionDirectoryName(partitionKey)
   return SAFE_CACHE_DIRS.map((dir) => ({
-    relativePath: path.join('Partitions', partitionKey, dir),
+    relativePath: path.join('Partitions', directory, dir),
     ttlMs
   }))
 }

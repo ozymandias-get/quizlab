@@ -26,7 +26,9 @@ import type {
 } from './siteSessionCookieRouter.js'
 import { routeCookiePacket } from './siteSessionCookieRouter.js'
 import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
+import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
+import { partitionExistsOnDisk } from './siteSessionPartitions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
@@ -59,6 +61,14 @@ export interface SiteSessionImportEnvironment {
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
   resolveSession: (partition: string) => Session
+  /**
+   * The sites of the round the packet belongs to.
+   *
+   * A round of packets shares one target list: the sites of a round do not
+   * change while the extension pushes them, so the list is built once for
+   * the round instead of once for every packet.
+   */
+  targets?: SiteSessionTargetRow[]
 }
 
 /** The session of a partition, as the app itself resolves it. */
@@ -71,6 +81,47 @@ export interface SiteSessionBridgeList {
   protocolVersion: number
   configVersion: number
   targets: SiteSessionBridgeTarget[]
+}
+
+/**
+ * One round of packets from the extension.
+ *
+ * The extension pushes one packet per site, and the sites of a round do not
+ * change while it pushes them: the target list is built once for the round
+ * and shared by its packets, so a round with N sites reads the list once
+ * instead of N times.
+ *
+ * The round has no lifetime of its own: the site list request opens the next
+ * one, and the packets of a round arrive right after it.
+ */
+export interface SiteSessionRound {
+  /** The sites of the round: one partition and one cookie set per site. */
+  readonly targets: SiteSessionTargetRow[]
+  /** Handles one packet of the round. */
+  accept(packet: CookiePacket): Promise<SiteSessionPacketOutcome>
+}
+
+/**
+ * Opens a round of packets.
+ *
+ * The caller that serves a round — the HTTP bridge — keeps the round and
+ * hands it to every packet of the round. The stdio path handles one packet
+ * at a time, so it has nothing to share and opens no round.
+ */
+export async function openSiteSessionRound(
+  environment?: SiteSessionImportEnvironment
+): Promise<SiteSessionRound> {
+  const config = environment?.config ?? getSiteSessionConfig()
+  const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
+  const resolveSession = environment?.resolveSession ?? defaultResolveSession
+
+  const targets = await loadTargets()
+
+  return {
+    targets,
+    accept: (packet) =>
+      acceptSiteSessionPacket(packet, { config, loadTargets, resolveSession, targets })
+  }
 }
 
 /**
@@ -168,10 +219,21 @@ export function parseSiteSessionPacket(body: string): CookiePacket | null {
   }
 }
 
-/** The sites whose session may be taken from Chrome right now. */
-export async function listEnabledSiteSessionTargets(): Promise<SiteSessionBridgeList> {
+/**
+ * The sites whose session may be taken from Chrome right now.
+ *
+ * The round that is given brings the target list with it: the extension is
+ * told about the sites of the round and pushes a packet for every one of
+ * them, so the list is read once for the whole round.
+ */
+export async function listEnabledSiteSessionTargets(
+  round?: SiteSessionRound
+): Promise<SiteSessionBridgeList> {
   const config = getSiteSessionConfig()
-  const [state, targets] = await Promise.all([config.read(), buildSiteSessionTargets()])
+  const [state, targets] = await Promise.all([
+    config.read(),
+    round ? Promise.resolve(round.targets) : buildSiteSessionTargets()
+  ])
 
   const enabledTargets = targets
     .filter((target) => state.targets[target.siteId]?.enabled === true)
@@ -193,6 +255,11 @@ export async function listEnabledSiteSessionTargets(): Promise<SiteSessionBridge
  * The switch may be off — the user may have logged into the site inside the
  * app instead — and the row then says "logged in" rather than "logged out".
  *
+ * A partition that was never used holds no session, and asking Electron for
+ * it would create it: a user who never opened a platform should not get an
+ * empty `persist:ai_*` folder for it. The check is skipped for such a
+ * partition.
+ *
  * The session is resolved by the caller so that a caller which works on a
  * state of its own reads the session it knows about.
  */
@@ -200,6 +267,8 @@ export async function hasLocalSessionForTarget(
   target: SiteSessionTargetRow,
   resolveSession: (partition: string) => Session = defaultResolveSession
 ): Promise<boolean> {
+  if (!(await partitionExistsOnDisk(target.partition))) return false
+
   const targetSession = resolveSession(target.partition)
   const cookies = await targetSession.cookies.get({}).catch(() => [])
   return cookies.some((cookie) => {
@@ -211,24 +280,6 @@ export async function hasLocalSessionForTarget(
       return cookieHost === allowedHost || cookieHost.endsWith(`.${allowedHost}`)
     })
   })
-}
-
-/**
- * The earliest expiry among the cookies of a packet, as an ISO timestamp.
- *
- * Informational only: it tells the settings row when the session the app
- * holds is likely to expire. A cookie without an expiry is a session cookie
- * and does not shorten the estimate.
- */
-function earliestExpiryIso(cookies: CookiePacket['cookies']): string | null {
-  const expiries = cookies
-    .map((cookie) => cookie.expires)
-    .filter((expires): expires is number => typeof expires === 'number' && Number.isFinite(expires))
-    .filter((expires) => expires > 0)
-    .map((expires) => (expires > 1e12 ? Math.floor(expires / 1000) : Math.floor(expires)))
-
-  if (expiries.length === 0) return null
-  return new Date(Math.min(...expiries) * 1000).toISOString()
 }
 
 /**
@@ -260,6 +311,10 @@ export async function acceptSiteSessionPacket(
   )
 
   if (outcome.accepted) {
+    // The import changed what the settings row shows, so the list that is
+    // kept is dropped before the fresh one is sent.
+    invalidateSiteSessionListCache()
+
     // The renderer has to learn that an import happened: without the event the
     // row keeps the state it had and the feature looks like it did nothing.
     await broadcastSiteSessionsChanged()
@@ -279,8 +334,10 @@ async function handleSiteSessionPacket(
 
   // The targets are built first and the switch state is read afterwards: the
   // snapshot has to be as late as possible, because the router asks the
-  // question "is this site switched on?" synchronously.
-  const targets = await loadTargets()
+  // question "is this site switched on?" synchronously. The targets of a
+  // round are the ones the round was opened with: they do not have to be
+  // built again for every packet of the round.
+  const targets = environment?.targets ?? (await loadTargets())
   const state = await config.read()
 
   const enabledSiteIds = new Set(
@@ -326,8 +383,7 @@ async function handleSiteSessionPacket(
     config,
     target.siteId,
     wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : 'import_failed',
-    earliestExpiryIso(packet.cookies)
+    wroteSomething ? undefined : 'import_failed'
   )
 
   return { accepted: true, imported, failed }
@@ -358,11 +414,10 @@ async function recordResult(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
-  error?: string,
-  expiresAt?: string | null
+  error?: string
 ): Promise<void> {
   try {
-    await config.recordResult(siteId, result, error, expiresAt)
+    await config.recordResult(siteId, result, error)
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +

@@ -154,7 +154,6 @@ describe('legacy google merge', () => {
       chatgpt: {
         enabled: true,
         importedAt: null,
-        expiresAt: null,
         lastResult: null,
         lastError: null
       }
@@ -177,7 +176,6 @@ describe('legacy google merge', () => {
         google: {
           enabled: false,
           importedAt: null,
-          expiresAt: null,
           lastResult: null,
           lastError: null
         }
@@ -485,6 +483,15 @@ describe('site session config', () => {
 
     await expect(config.setEnabled('chatgpt', true)).rejects.toThrow(/could not be written/)
     await expect(config.recordResult('chatgpt', 'imported')).rejects.toThrow(/could not be written/)
+  })
+
+  it('reports a failed migration instead of losing the legacy switch silently', async () => {
+    // The folder the state file should be in is a file: every write fails.
+    const blocker = path.join(tempDir, 'blocker')
+    writeFileSync(blocker, 'not a folder', 'utf8')
+    const config = new SiteSessionConfig(path.join(blocker, 'site-sessions.json'))
+
+    await expect(config.read()).rejects.toThrow(/could not be migrated/)
   })
 
   it('removes the state of a site that does not exist any more', async () => {

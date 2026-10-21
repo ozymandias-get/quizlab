@@ -5,10 +5,11 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
 import { Logger } from '../../core/logger.js'
 import {
-  acceptSiteSessionPacket,
   listEnabledSiteSessionTargets,
+  openSiteSessionRound,
   parseSiteSessionPacket,
-  SITE_SESSION_PROTOCOL_VERSION
+  SITE_SESSION_PROTOCOL_VERSION,
+  type SiteSessionRound
 } from '../web-session/siteSessionBridge.js'
 import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin } from './nativeMessagingOrigin.js'
@@ -81,6 +82,21 @@ function markExtensionSeen(manager: unknown): void {
 }
 
 export function createBridgeRequestHandler(manager: unknown) {
+  /**
+   * The round of the extension.
+   *
+   * The extension asks which sites it should push and then sends one packet
+   * per site: the sites of that round do not change while it pushes them, so
+   * the round holds the target list and every packet of the round shares it.
+   */
+  let round: SiteSessionRound | null = null
+
+  /** The round of the packets that are on their way. */
+  async function currentRound(): Promise<SiteSessionRound> {
+    round ??= await openSiteSessionRound()
+    return round
+  }
+
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
     const originAllowed = isAllowedBridgeOrigin(requestOrigin, getOriginPolicy(manager))
@@ -140,12 +156,17 @@ export function createBridgeRequestHandler(manager: unknown) {
     }
 
     if (req.method === 'GET' && req.url === '/api/sites') {
-      handleSiteListRequest(req, res, manager)
+      handleSiteListRequest(req, res, manager, async () => {
+        // The site list request opens the round: the packets that follow it
+        // belong to it and share its target list.
+        round = await openSiteSessionRound()
+        return round
+      })
       return
     }
 
     if (req.method === 'POST' && req.url === '/api/cookies') {
-      handleCookiePost(req, res, manager)
+      handleCookiePost(req, res, manager, currentRound)
       return
     }
 
@@ -169,7 +190,12 @@ export function createBridgeRequestHandler(manager: unknown) {
  * The real bound is the router: a packet is written only into a site that is
  * switched on, and every cookie in it has to belong to that site.
  */
-function handleSiteListRequest(req: IncomingMessage, res: ServerResponse, manager: unknown): void {
+function handleSiteListRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  manager: unknown,
+  openRound: () => Promise<SiteSessionRound>
+): void {
   const mgr = manager as unknown as { _sharedSecret: string }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
   if (!isValidSignature(SITE_LIST_SIGNING_PAYLOAD, signature, mgr._sharedSecret)) {
@@ -178,7 +204,8 @@ function handleSiteListRequest(req: IncomingMessage, res: ServerResponse, manage
     return
   }
 
-  void listEnabledSiteSessionTargets()
+  void openRound()
+    .then((round) => listEnabledSiteSessionTargets(round))
     .then((list) => {
       sendJson(res, 200, list)
     })
@@ -195,7 +222,12 @@ function isValidSignature(payload: string, signature: string | undefined, secret
   return crypto.timingSafeEqual(Buffer.from(signature.toLowerCase()), Buffer.from(expected))
 }
 
-function handleCookiePost(req: IncomingMessage, res: ServerResponse, manager: unknown): void {
+function handleCookiePost(
+  req: IncomingMessage,
+  res: ServerResponse,
+  manager: unknown,
+  currentRound: () => Promise<SiteSessionRound>
+): void {
   const mgr = manager as unknown as {
     _sharedSecret: string
   }
@@ -234,7 +266,7 @@ function handleCookiePost(req: IncomingMessage, res: ServerResponse, manager: un
         return
       }
 
-      const outcome = await acceptSiteSessionPacket(packet)
+      const outcome = await (await currentRound()).accept(packet)
       if (!outcome.accepted) {
         Logger.warn(`[NativeMessaging] Refused a cookie packet: ${outcome.reason}`)
         sendJson(res, outcome.reason === 'domain_mismatch' ? 400 : 403, {

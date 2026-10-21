@@ -5,6 +5,7 @@ import { APP_CONFIG } from '../../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
 import { getActivityCategory } from '../cacheRegistry.js'
+import { getPartitionDirectory, getPartitionDirectoryName } from '../partitionPaths.js'
 
 const SAFE_CACHE_DIRS = APP_CONFIG.CLEANUP.SAFE_CACHE_DIRS
 const MODEL_STORAGE_TYPES = [...APP_CONFIG.CLEANUP.PARTITION_STORAGE_TYPES] as const
@@ -47,14 +48,10 @@ export function setCachedCacheInfo(
 }
 
 function getPartitionCacheRoot(userDataPath: string, partition: string): string | null {
-  const partitionKey = partition.startsWith('persist:')
-    ? partition.slice('persist:'.length)
-    : partition
-  if (!partitionKey) return null
+  // A partition without a name addresses no folder at all.
+  if (!getPartitionDirectoryName(partition)) return null
 
-  const sanitized = partitionKey.replaceAll(/["*/:<>?\\|]/g, '_')
-
-  return path.join(userDataPath, 'Partitions', sanitized)
+  return getPartitionDirectory(userDataPath, partition)
 }
 
 async function fsRetry<T>(
