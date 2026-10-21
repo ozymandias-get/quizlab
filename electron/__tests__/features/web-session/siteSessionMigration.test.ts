@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { migrateSiteSessionStateV1 } from '../../../features/web-session/siteSessionMigration.js'
+import {
+  migrateSiteSessionStateV1,
+  readConfigFile
+} from '../../../features/web-session/siteSessionMigration.js'
 import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 
 describe('migrateSiteSessionStateV1', () => {
@@ -278,6 +281,58 @@ describe('migrateSiteSessionStateV1', () => {
     expect(Object.hasOwn(migrated.sites.google.accounts.primary, '__proto__')).toBe(false)
     expect(Object.hasOwn(migrated.sites.google.accounts.primary, 'constructor')).toBe(false)
     expect(Object.getPrototypeOf(migrated.sites.google.accounts.primary)).toBe(Object.prototype)
+  })
+
+  it('turns an empty account name into no name', () => {
+    const migrated = migrateSiteSessionStateV1({
+      version: 2,
+      configVersion: 0,
+      sites: {
+        google: {
+          accounts: { a1: { name: '', enabled: true } },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+    expect(migrated.sites.google.accounts.a1.name).toBeNull()
+  })
+
+  it('keeps at most the newest five fingerprints of an account', () => {
+    const migrated = migrateSiteSessionStateV1({
+      version: 2,
+      configVersion: 0,
+      sites: {
+        google: {
+          accounts: { a1: { enabled: true, fingerprints: ['1', '2', '3', '4', '5', '6'] } },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+    expect(migrated.sites.google.accounts.a1.fingerprints).toEqual(['2', '3', '4', '5', '6'])
+  })
+
+  it('keeps the fields of the file this build does not know, without a prohibited key', () => {
+    // JSON.parse creates own `__proto__` and `constructor` properties; the
+    // normalizer has to drop them without dropping the fields it does not know.
+    const raw = JSON.parse(
+      '{"version":2,"configVersion":3,"sites":{},"future":{"keep":true},"__proto__":{"polluted":true},"constructor":{"polluted":true}}'
+    )
+    const state = readConfigFile(raw)
+    expect(state.version).toBe(2)
+    expect(state.configVersion).toBe(3)
+    expect(Object.entries(state)).toContainEqual(['future', { keep: true }])
+    expect(Object.hasOwn(state, '__proto__')).toBe(false)
+    expect(Object.hasOwn(state, 'constructor')).toBe(false)
+  })
+
+  it('drops the old targets dictionary when it normalizes a file', () => {
+    const state = readConfigFile({
+      version: 1,
+      configVersion: 0,
+      targets: { google: { enabled: true } }
+    })
+    expect(Object.hasOwn(state, 'targets')).toBe(false)
+    expect(state.sites.google.accounts.primary.enabled).toBe(true)
   })
 
   it('survives a file that is not an object', () => {

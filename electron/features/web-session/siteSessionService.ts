@@ -99,6 +99,8 @@ export class SiteSessionService {
 
     const views = await Promise.all(
       targets.map(async (target) => {
+        // TODO(task 7): the list reads the primary account only until it
+        // builds the account views from every account of the site.
         const targetState = state.sites[target.siteId]?.accounts[PRIMARY_ACCOUNT_ID]
         const enabled = targetState?.enabled === true
         const hasLocalSession = await hasLocalSessionForTarget(target, this.deps.resolveSession)
@@ -143,6 +145,8 @@ export class SiteSessionService {
 
     if (enabled) {
       try {
+        // TODO(task 7): the switch belongs to the primary account only until
+        // the service takes an account id.
         await this.deps.config.setEnabled(siteId, PRIMARY_ACCOUNT_ID, true)
       } catch (error) {
         // The switch was not written. Reporting a success here would tell the
@@ -198,6 +202,8 @@ export class SiteSessionService {
    */
   private async switchOff(target: SiteSessionTargetRow): Promise<SiteSessionActionResult> {
     try {
+      // TODO(task 7): the switch belongs to the primary account only until
+      // the service takes an account id.
       await this.deps.config.setEnabled(target.siteId, PRIMARY_ACCOUNT_ID, false)
     } catch (error) {
       // The switch was not written. Reporting a success here would tell the
