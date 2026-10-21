@@ -7,7 +7,9 @@
  *
  * The folder matters for one reason: a partition that was never used is not
  * there, and asking Electron for its session creates it. A user who never
- * opened a platform should not get an empty folder for it.
+ * opened a platform should not get an empty folder for it. When an additional
+ * account is removed, its folder is deleted through the same convention, so
+ * the session does not outlive the account it belonged to.
  */
 
 import { promises as fs } from 'node:fs'
@@ -38,4 +40,21 @@ export async function partitionExistsOnDisk(partition: string): Promise<boolean>
     const code = (error as NodeJS.ErrnoException)?.code
     return code !== 'ENOENT' && code !== 'ENOTDIR'
   }
+}
+
+/**
+ * Deletes the folder a partition keeps its data in.
+ *
+ * A removed additional account must not leave its cookie jar on disk: the
+ * partition holds the session the account was logged in with. A folder that
+ * was never created is not an error — a partition the user never opened has
+ * nothing to delete.
+ *
+ * @throws when the folder exists but cannot be removed.
+ */
+export async function removePartitionDirectory(partition: string): Promise<void> {
+  await fs.rm(getPartitionDirectory(app.getPath('userData'), partition), {
+    recursive: true,
+    force: true
+  })
 }
