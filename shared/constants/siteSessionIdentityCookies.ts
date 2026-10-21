@@ -6,7 +6,7 @@
  * rotate on every refresh and would make every session look like a new
  * account.
  */
-export const SITE_SESSION_IDENTITY_COOKIES = {
+const SITE_SESSION_IDENTITY_COOKIES = {
   google: ['__Secure-1PSID', '__Secure-3PSID']
 } as const satisfies Record<string, readonly string[]>
 
