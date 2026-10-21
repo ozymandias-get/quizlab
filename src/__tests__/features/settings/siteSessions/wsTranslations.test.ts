@@ -24,12 +24,15 @@ const REPO_ROOT = join(SRC_ROOT, '..')
  *
  * The tab itself is one folder, but the toolbar button, the tab definitions
  * and the bottom-bar settings live outside it and carry keys of their own.
+ * The shared constant that names the member apps of a row lives outside the
+ * renderer as well, so it is scanned here too.
  */
 const SCANNED_PATHS = [
   join(SRC_ROOT, 'features', 'settings', 'ui', 'siteSessions'),
   join(SRC_ROOT, 'app', 'ui', 'BottomBar', 'FloatingDockToolButtons.tsx'),
   join(SRC_ROOT, 'features', 'settings', 'ui', 'modal', 'settingsTabDefinitions.tsx'),
-  join(SRC_ROOT, 'features', 'settings', 'ui', 'BottomBarSettingsTab.tsx')
+  join(SRC_ROOT, 'features', 'settings', 'ui', 'BottomBarSettingsTab.tsx'),
+  join(REPO_ROOT, 'shared', 'constants', 'siteSessionMemberApps.ts')
 ]
 
 const LOCALE_FILES = {
@@ -78,7 +81,9 @@ const TARGET_IDS = [
  * The error codes the service and the IPC handlers can produce.
  *
  * `web_dev_mode_only` comes from the browser-dev stub, which has no bridge to
- * import from; the rest are read from the main process itself.
+ * import from; the rest are read from the main process itself. The list also
+ * holds the reason codes a site is recorded with, because the renderer shows
+ * them through the same `ws_error_*` keys.
  */
 const ERROR_CODES = [
   'unknown_target',
@@ -88,6 +93,7 @@ const ERROR_CODES = [
   'invalid_site_id',
   'invalid_enabled',
   'import_failed',
+  'packet_too_large',
   'Unauthorized',
   'web_dev_mode_only'
 ]
@@ -201,5 +207,18 @@ describe('site session translations', () => {
 
     expect(enKeys.filter((key) => !trKeys.includes(key))).toEqual([])
     expect(trKeys.filter((key) => !enKeys.includes(key))).toEqual([])
+  })
+
+  // The clear button forgets the sites whose import switch is on. A sign-in
+  // made inside the app belongs to a site whose switch is off, so it is not
+  // forgotten - the hint must not promise the opposite.
+  it('does not promise that a sign-in made inside the app is cleared', () => {
+    expect(String(en.ws_clear_all_hint)).not.toMatch(/sign-in made inside the app is cleared/i)
+    expect(String(tr.ws_clear_all_hint)).not.toMatch(/girişler de temizlenir/i)
+  })
+
+  it('ties the hint to the sites whose switch is on', () => {
+    expect(String(en.ws_clear_all_hint)).toMatch(/switch/i)
+    expect(String(tr.ws_clear_all_hint)).toMatch(/anahtar/i)
   })
 })

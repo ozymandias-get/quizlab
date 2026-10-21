@@ -21,7 +21,7 @@ const GOOGLE_VIEW: SiteSessionView = {
   ...VIEW,
   siteId: 'google',
   labelKey: 'ws_target_google',
-  hostname: 'accounts.google.com',
+  hostname: 'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com',
   kind: 'google',
   memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive']
 }
@@ -86,6 +86,20 @@ describe('SiteSessionCard', () => {
     expect(screen.getByText('AI Studio')).toBeInTheDocument()
     expect(screen.getByText('YouTube')).toBeInTheDocument()
     expect(screen.getByText('Google Drive')).toBeInTheDocument()
+  })
+
+  // The Google row stands for four apps, so its line under the name names
+  // them; a row of its own keeps the host, because a host is that site's
+  // address.
+  it('names the apps of the Google row instead of their hosts', () => {
+    render(<SiteSessionCard view={GOOGLE_VIEW} disabled={false} onToggle={() => {}} t={t} />)
+
+    expect(screen.getByText('Gemini, AI Studio, YouTube, Google Drive')).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com'
+      )
+    ).not.toBeInTheDocument()
   })
 
   it('reports the site id when the switch is flipped', () => {
