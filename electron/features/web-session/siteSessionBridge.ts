@@ -236,6 +236,8 @@ export async function listEnabledSiteSessionTargets(
     round ? Promise.resolve(round.targets) : buildSiteSessionTargets()
   ])
 
+  // TODO(task 6): the bridge pushes the primary account only until it carries
+  // every enabled account of a site.
   const enabledTargets = targets
     .filter((target) => state.sites[target.siteId]?.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true)
     .map((target) => ({
@@ -341,6 +343,8 @@ async function handleSiteSessionPacket(
   const targets = environment?.targets ?? (await loadTargets())
   const state = await config.read()
 
+  // TODO(task 6): the packet routing checks the primary account only until
+  // the bridge knows which account a packet belongs to.
   const enabledSiteIds = new Set(
     Object.entries(state.sites)
       .filter(([, site]) => site.accounts[PRIMARY_ACCOUNT_ID]?.enabled === true)

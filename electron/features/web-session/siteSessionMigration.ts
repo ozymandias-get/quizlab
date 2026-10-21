@@ -16,11 +16,14 @@ import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 /** The format version the migration writes. */
 const MIGRATED_VERSION = 2
 
+/** How many fingerprints an account keeps: the newest ones. */
+const MAX_FINGERPRINTS = 5
+
 /**
  * The keys a state file may not carry, mirroring `ConfigManager`'s guard.
  *
- * Exported so that the config, which validates the file it reads, guards the
- * ids with the same set instead of keeping a second copy of the rule.
+ * Exported so that the config guards the ids it writes with the same set
+ * instead of keeping a second copy of the rule.
  */
 export const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
@@ -58,7 +61,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Whether a value is one of the outcomes an import can report. */
-export function isLastResult(value: unknown): value is SiteSessionAccountState['lastResult'] {
+function isLastResult(value: unknown): value is SiteSessionAccountState['lastResult'] {
   return typeof value === 'string' && LAST_RESULTS.has(value)
 }
 
@@ -104,11 +107,8 @@ function isNumericVersion(value: unknown): value is number {
  *
  * The counter is clamped, not zeroed: a file that holds `"3"` as a string
  * still counts as three, so the next write does not move it backwards.
- *
- * Exported so that the config reads the counter with the same rule the
- * migration uses; two readers of the same file would drift apart.
  */
-export function normalizeConfigVersion(value: unknown): number {
+function normalizeConfigVersion(value: unknown): number {
   const parsed = readNumber(value)
   if (!Number.isFinite(parsed)) return 0
   return Math.max(0, Math.floor(parsed))
@@ -132,8 +132,12 @@ function hasTargets(value: unknown): boolean {
  * own: a version written as a string has no say at all, so it can neither
  * turn an old file into a migrated one nor the other way round - what the
  * file holds decides.
+ *
+ * Exported so that the config asks the migration itself whether a write is
+ * needed, instead of keeping a second answer that can disagree with it.
  */
-function isMigratedFile(source: Record<string, unknown>): boolean {
+export function isMigratedFile(source: unknown): boolean {
+  if (!isRecord(source)) return false
   if (isNumericVersion(source.version)) return Math.floor(source.version) >= MIGRATED_VERSION
   return isRecord(source.sites) && !hasTargets(source.targets)
 }
@@ -165,6 +169,28 @@ export function migrateSiteSessionStateV1(raw: unknown): SiteSessionConfigFile {
     version: MIGRATED_VERSION,
     configVersion,
     sites: migrateTargets(source.targets)
+  }
+}
+
+/**
+ * The whole file in the new shape, with the fields this build does not know.
+ *
+ * The migration decides which sites the file has; the fields it does not
+ * describe are copied over it one by one, so a newer build does not lose
+ * them on the next write. The old `targets` dictionary is not one of them:
+ * it belongs to the format that was just migrated and must not survive.
+ */
+export function readConfigFile(raw: unknown): SiteSessionConfigFile {
+  const source = isRecord(raw) ? raw : {}
+  const migrated = migrateSiteSessionStateV1(source)
+  const fields = readUnknownFields(source)
+  delete fields.targets
+
+  return {
+    ...fields,
+    version: migrated.version,
+    configVersion: migrated.configVersion,
+    sites: migrated.sites
   }
 }
 
@@ -287,7 +313,7 @@ function readAccount(raw: unknown): SiteSessionAccountState {
   const source = isRecord(raw) ? raw : {}
   return {
     ...readUnknownFields(source),
-    name: typeof source.name === 'string' ? source.name : null,
+    name: typeof source.name === 'string' && source.name !== '' ? source.name : null,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
     lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
@@ -299,5 +325,17 @@ function readAccount(raw: unknown): SiteSessionAccountState {
 /** The fingerprints of an account: the digests that tell accounts apart. */
 function readFingerprints(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
-  return raw.filter((entry): entry is string => typeof entry === 'string')
+  return raw.filter((entry): entry is string => typeof entry === 'string').slice(-MAX_FINGERPRINTS)
+}
+
+/**
+ * The account's history with one more fingerprint, capped at the newest five.
+ *
+ * A fingerprint that is already in the history is not added again: a token
+ * that renews with the same value would otherwise fill the history with
+ * copies of itself and evict a distinct older one.
+ */
+export function addFingerprint(history: readonly string[], fingerprint: string): string[] {
+  if (history.includes(fingerprint)) return history.slice(-MAX_FINGERPRINTS)
+  return [...history, fingerprint].slice(-MAX_FINGERPRINTS)
 }

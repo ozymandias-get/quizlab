@@ -483,6 +483,26 @@ describe('site session config', () => {
     expect(raw.version).toBe(3)
   })
 
+  it('keeps the version of a newer build that wrote it as a string', async () => {
+    writeRawConfig({ version: '3', configVersion: 0, sites: {} })
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
+
+    const raw = JSON.parse(readFileSync(configPath(), 'utf8'))
+    expect(raw.version).toBe(3)
+  })
+
+  it('writes the new format when the state file is empty', async () => {
+    writeRawConfig({})
+    const config = new SiteSessionConfig(configPath())
+
+    const state = await config.read()
+
+    expect(state).toEqual({ version: 2, configVersion: 0, sites: {} })
+    expect(JSON.parse(readFileSync(configPath(), 'utf8'))).toEqual(state)
+  })
+
   it('keeps the fields this build does not know', async () => {
     writeRawConfig({ version: 1, configVersion: 0, targets: {}, future: { keep: true } })
     const config = new SiteSessionConfig(configPath())
@@ -494,11 +514,15 @@ describe('site session config', () => {
   })
 
   it('reports a failed write instead of pretending the switch was set', async () => {
-    // A folder where the state file should be: every write fails.
-    mkdirSync(configPath(), { recursive: true })
-    const config = new SiteSessionConfig(configPath())
+    const filePath = configPath()
+    const config = new SiteSessionConfig(filePath)
+    await config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
 
-    await expect(config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)).rejects.toThrow(
+    // A folder where the state file should be: every write fails.
+    rmSync(filePath)
+    mkdirSync(filePath, { recursive: true })
+
+    await expect(config.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, false)).rejects.toThrow(
       /could not be written/
     )
     await expect(config.recordResult('chatgpt', PRIMARY_ACCOUNT_ID, 'imported')).rejects.toThrow(
@@ -623,6 +647,22 @@ describe('site session config', () => {
     expect(await config.getConfigVersion()).toBe(before)
   })
 
+  it('keeps an empty account name as no name', async () => {
+    writeRawConfig({
+      version: 2,
+      configVersion: 0,
+      sites: {
+        google: {
+          accounts: { a1: account({ name: '' }) },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+    const config = new SiteSessionConfig(configPath())
+
+    expect((await config.read()).sites.google.accounts.a1.name).toBeNull()
+  })
+
   it('renames an account and turns an empty name into no name', async () => {
     const config = new SiteSessionConfig(configPath())
     await config.createAccount('google', 'a1', 'fp-1')
@@ -668,14 +708,117 @@ describe('site session config', () => {
     expect(state.configVersion).toBe(version)
   })
 
+  it('does not point a site at an account it does not have', async () => {
+    const config = new SiteSessionConfig(configPath())
+
+    await config.setActiveAccount('google', 'ghost')
+    expect((await config.read()).sites).toEqual({})
+
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.setActiveAccount('google', 'a1')
+    await config.setActiveAccount('google', 'ghost')
+
+    expect((await config.read()).sites.google.activeAccountId).toBe('a1')
+  })
+
   it('clears the active account when that account is deleted', async () => {
     const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('google', PRIMARY_ACCOUNT_ID, true)
     await config.createAccount('google', 'a1', 'fp-1')
     await config.setActiveAccount('google', 'a1')
 
     await config.deleteAccount('google', 'a1')
 
+    const state = await config.read()
+    expect(state.sites.google.accounts[PRIMARY_ACCOUNT_ID].enabled).toBe(true)
+    expect(state.sites.google.activeAccountId).toBeNull()
+  })
+
+  it('removes the site when its last account is deleted', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+
+    await config.deleteAccount('google', 'a1')
+
     expect((await config.read()).sites.google).toBeUndefined()
+  })
+
+  it('keeps an existing account when it is written again', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.renameAccount('google', 'a1', 'İş')
+    await config.setEnabled('google', 'a1', false)
+    await config.recordResult('google', 'a1', 'imported')
+    const version = await config.getConfigVersion()
+
+    await config.createAccount('google', 'a1', 'fp-2')
+
+    const state = await config.read()
+    const existing = state.sites.google.accounts.a1
+    expect(existing.name).toBe('İş')
+    expect(existing.enabled).toBe(false)
+    expect(existing.importedAt).not.toBeNull()
+    expect(existing.lastResult).toBe('imported')
+    expect(existing.fingerprints).toEqual(['fp-1', 'fp-2'])
+    expect(state.configVersion).toBe(version)
+  })
+
+  it('keeps the fields of an existing account that this build does not know', async () => {
+    writeRawConfig({
+      version: 2,
+      configVersion: 0,
+      sites: {
+        google: {
+          accounts: { a1: { ...account({ enabled: true }), futureField: 'kept' } },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+    const config = new SiteSessionConfig(configPath())
+
+    await config.createAccount('google', 'a1', 'fp-2')
+
+    expect((await config.read()).sites.google.accounts.a1).toMatchObject({ futureField: 'kept' })
+  })
+
+  it('does not add a fingerprint twice', async () => {
+    const config = new SiteSessionConfig(configPath())
+    for (const fingerprint of ['fp-1', 'fp-2', 'fp-3', 'fp-4', 'fp-5']) {
+      await config.createAccount('google', 'a1', fingerprint)
+    }
+    const version = await config.getConfigVersion()
+
+    await config.createAccount('google', 'a1', 'fp-3')
+
+    const state = await config.read()
+    expect(state.sites.google.accounts.a1.fingerprints).toEqual([
+      'fp-1',
+      'fp-2',
+      'fp-3',
+      'fp-4',
+      'fp-5'
+    ])
+    expect(state.configVersion).toBe(version)
+  })
+
+  it('reports a failed write from every account mutation', async () => {
+    const filePath = configPath()
+    const config = new SiteSessionConfig(filePath)
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.createAccount('google', 'a2', 'fp-2')
+    await config.setActiveAccount('google', 'a1')
+
+    // A folder where the state file should be: every write fails.
+    rmSync(filePath)
+    mkdirSync(filePath, { recursive: true })
+
+    await expect(config.createAccount('google', 'a1', 'fp-3')).rejects.toThrow(
+      /could not be written/
+    )
+    await expect(config.renameAccount('google', 'a1', 'İş')).rejects.toThrow(/could not be written/)
+    await expect(config.setActiveAccount('google', 'a2')).rejects.toThrow(/could not be written/)
+    await expect(config.deleteAccount('google', 'a1')).rejects.toThrow(/could not be removed/)
+    await expect(config.forget('google')).rejects.toThrow(/could not be removed/)
   })
 
   it('keeps at most five fingerprints of an account, dropping the oldest', async () => {
