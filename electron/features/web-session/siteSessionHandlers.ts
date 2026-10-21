@@ -15,6 +15,7 @@
  */
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -54,7 +55,9 @@ export function registerSiteSessionHandlers(): void {
         return success({ success: false, error: 'invalid_enabled' })
       }
 
-      const result = await siteSessionService.setEnabled(siteId, enabled)
+      // The old channel predates the accounts: its switch is the primary
+      // account's switch, which is the one the old settings card shows.
+      const result = await siteSessionService.setEnabled(siteId, PRIMARY_ACCOUNT_ID, enabled)
       // The list is sent even when the action failed: the switch may have been
       // written before the session could be cleared, and the row has to show
       // what the app really holds.
@@ -72,7 +75,7 @@ export function registerSiteSessionHandlers(): void {
         return success({ success: false, error: 'invalid_site_id' })
       }
 
-      const result = await siteSessionService.clear(siteId)
+      const result = await siteSessionService.clear(siteId, PRIMARY_ACCOUNT_ID)
       await broadcastSiteSessionsChanged()
       return success(result)
     },

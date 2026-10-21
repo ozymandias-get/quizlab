@@ -7,8 +7,11 @@
  * every site the app knows — so the answer is kept for a couple of seconds
  * and the second reader is served from it.
  *
- * The cache never survives a change. A switch that was turned, a session that
- * was cleared and an import that happened all drop it, so the next reader
+ * The cache never survives a change. The account is the unit the state lives
+ * in, so every account action — a switch that was turned, a session that was
+ * cleared, a name or the active account that changed, an account that was
+ * added or removed, a pending session that was resolved — drops the kept list
+ * as a whole: it holds every account of every site. The next reader therefore
  * gets the state the app really has.
  *
  * The cache lives in its own module because the two sides of the feature
@@ -43,7 +46,7 @@ export function writeCachedSiteSessionList(list: SiteSessionListResult): void {
   cached = { list, at: Date.now() }
 }
 
-/** Drops the list: something changed that the list would not show. */
+/** Drops the list: an account changed in a way the list would not show. */
 export function invalidateSiteSessionListCache(): void {
   cached = null
 }

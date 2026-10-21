@@ -302,6 +302,7 @@ assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
 // so the preload callback is typed by the event map instead of by hand.
 assertEventArgs(IPC_CHANNELS.SITE_SESSION_CHANGED, {
   views: [],
+  accountViews: [],
   extensionConnected: false,
   extensionVersionOk: false
 })

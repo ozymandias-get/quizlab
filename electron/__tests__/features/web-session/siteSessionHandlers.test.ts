@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../../app/constants.js'
 
 const ipcHandle = vi.fn()
@@ -39,6 +40,7 @@ vi.mock('../../../app/windowManager', () => ({
 
 const LIST_RESULT = {
   views: [],
+  accountViews: [],
   extensionConnected: true,
   extensionVersionOk: true
 }
@@ -93,8 +95,8 @@ describe('site session handlers', () => {
     await setEnabledHandler?.(trustedEvent, 'chatgpt', true)
     await setEnabledHandler?.(trustedEvent, 'chatgpt', false)
 
-    expect(setEnabled).toHaveBeenNthCalledWith(1, 'chatgpt', true)
-    expect(setEnabled).toHaveBeenNthCalledWith(2, 'chatgpt', false)
+    expect(setEnabled).toHaveBeenNthCalledWith(1, 'chatgpt', PRIMARY_ACCOUNT_ID, true)
+    expect(setEnabled).toHaveBeenNthCalledWith(2, 'chatgpt', PRIMARY_ACCOUNT_ID, false)
   })
 
   it('refuses a switch that is not a boolean', async () => {
@@ -144,7 +146,7 @@ describe('site session handlers', () => {
     const clearHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CLEAR)
     await clearHandler?.(trustedEvent, 'chatgpt')
 
-    expect(clear).toHaveBeenCalledWith('chatgpt')
+    expect(clear).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID)
     expect(send).toHaveBeenCalledWith(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED, LIST_RESULT)
   })
 

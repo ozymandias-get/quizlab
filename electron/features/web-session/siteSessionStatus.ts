@@ -1,12 +1,15 @@
 /**
- * The status of one site, derived from what the app knows about it.
+ * The status of one account of a site, derived from what the app knows.
  *
- * The derivation is a pure function of its input: no clock, no I/O, no
- * hidden state. The settings row renders the code it returns, so the order of
- * the checks is the order of the meaning:
+ * The service calls this once per account: each one has its own switch, its
+ * own last import and its own cookie jar, so one row of a site may say
+ * "imported" while the next one is signed out. The derivation is a pure
+ * function of its input: no clock, no I/O, no hidden state. The settings row
+ * renders the code it returns, so the order of the checks is the order of the
+ * meaning:
  *
- *   - A switch that is off is the loudest fact: the app will not touch the
- *     site's cookies, no matter what the extension or the last import says.
+ *   - A switch that is off is the loudest fact: the app will not touch that
+ *     account's cookies, no matter what the extension or the last import says.
  *   - An extension that is missing or too old makes every later result
  *     meaningless, so it outranks them.
  *   - Only then does the last import result speak.

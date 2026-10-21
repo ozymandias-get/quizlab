@@ -1,47 +1,62 @@
 /**
  * The renderer-facing side of the per-site session import.
  *
- * The settings page asks this service three questions: which sites exist and
- * what state they are in, may a site take its session from Chrome, and may
- * the session of a site be forgotten. The service answers them and nothing
- * else: the rules about what may be imported live in the bridge core, the
- * rules about the state live in the config, and the rules about what a wipe
- * touches live in the wipe.
+ * The settings page asks this service which sites exist and what state their
+ * accounts are in, and it carries out the user's actions on one account at a
+ * time. The service answers and acts; the rules about what may be imported
+ * live in the bridge core, the rules about the state live in the config, and
+ * the rules about what a wipe touches live in the wipe.
  *
- * Two rules matter here:
+ * Three rules matter here:
  *
- *   - Turning a site's switch off writes the switch *first* and wipes the
- *     session afterwards, so that the site is signed out again. The wipe runs
- *     under the lock of the account it empties (the primary account until the
- *     service takes an account id), and so does an import into that account:
- *     the wipe therefore always happens after the last write to the account,
- *     and a packet that arrives after the switch was written is refused by the
- *     bridge core, which reads the switch once more right before it writes a
- *     cookie.
+ *   - Turning an account's switch off writes the switch *first* and wipes the
+ *     session afterwards, both under the lock of that account, so that the
+ *     account is signed out again. An import into the same account waits for
+ *     the wipe and cannot undo it, and a packet that arrives after the switch
+ *     was written is refused by the bridge core, which reads the switch once
+ *     more right before it writes a cookie.
  *   - A switch that could not be written is reported as a failure. The app
- *     must not tell the user that a site was switched off while it is still
- *     importing it.
+ *     must not tell the user that an account was switched off while it is
+ *     still importing it.
+ *   - The account is the unit of every action. The old site-level list stays
+ *     next to the account views until the settings page reads the accounts:
+ *     it is always the primary account's summary, so the old switch and the
+ *     old switch action keep meaning the same thing.
  */
 
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
 import type {
+  SiteSessionAccountView,
   SiteSessionActionResult,
-  SiteSessionListResult
+  SiteSessionListResult,
+  SiteSessionSiteView
 } from '../../../shared/types/siteSession.js'
-import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
+import {
+  accountPartitionFor,
+  buildAccountRows,
+  isPrimaryAccount,
+  type SiteSessionAccountRow
+} from './siteSessionAccounts.js'
+import {
+  hasLocalSessionForTarget,
+  SITE_SESSION_PROTOCOL_VERSION,
+  toImporterCookie
+} from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
+import { importExternalCookies } from './siteSessionImporter.js'
 import {
   invalidateSiteSessionListCache,
   readCachedSiteSessionList,
   writeCachedSiteSessionList
 } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
-import { clearPendingSiteSession } from './siteSessionPendingSessions.js'
+import type { SiteSessionConfigFile } from './siteSessionMigration.js'
+import { removePartitionDirectory } from './siteSessionPartitions.js'
+import { clearPendingSiteSession, getPendingSiteSession } from './siteSessionPendingSessions.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
@@ -58,7 +73,10 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  * where it is read from.
  */
 export interface SiteSessionServiceDeps {
-  config: Pick<SiteSessionConfig, 'read' | 'setEnabled'>
+  config: Pick<
+    SiteSessionConfig,
+    'read' | 'setEnabled' | 'setActiveAccount' | 'renameAccount' | 'deleteAccount' | 'createAccount'
+  >
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -73,16 +91,16 @@ export class SiteSessionService {
   }
 
   /**
-   * The sites and their states.
+   * The sites, their accounts and their states.
    *
-   * The partition of a site never leaves this method: the renderer gets the
-   * label, the hostname, the switch and the status — nothing that would let
-   * it address a session of its own.
+   * The partition of an account never leaves this method: the renderer gets
+   * the label, the hostname, the switch and the status — nothing that would
+   * let it address a session of its own.
    *
    * The answer is kept for a couple of seconds: the settings page and the
    * button in the bottom bar ask for the list at the same time, and building
-   * it reads the session of every site. The cache is dropped by everything
-   * that changes the answer — a switch, a clear, an import.
+   * it reads the session of every account. The cache is dropped by everything
+   * that changes the answer — an account action, an import.
    */
   async list(): Promise<SiteSessionListResult> {
     const cached = readCachedSiteSessionList()
@@ -98,90 +116,140 @@ export class SiteSessionService {
     const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
     const extensionConnected = this.deps.isExtensionConnected()
     const extensionVersionOk = this.deps.isExtensionVersionOk()
+    const rows = buildAccountRows(targets, state)
 
-    const views = await Promise.all(
-      targets.map(async (target) => {
-        // TODO(task 7): the list reads the primary account only until it
-        // builds the account views from every account of the site.
-        const targetState = state.sites[target.siteId]?.accounts[PRIMARY_ACCOUNT_ID]
-        const enabled = targetState?.enabled === true
-        const hasLocalSession = await hasLocalSessionForTarget(target, this.deps.resolveSession)
-        const status = deriveSiteSessionStatus({
-          enabled,
-          extensionConnected,
-          extensionVersionOk,
-          lastResult: targetState?.lastResult ?? null,
-          hasLocalSession
-        })
-        return toSiteSessionView(
-          target,
-          enabled,
-          status,
-          targetState?.importedAt ?? null,
-          targetState?.lastError ?? null
-        )
+    // Every site answers with the accounts it holds and with the old
+    // site-level row. The old row is the primary account's summary: the card
+    // that still reads it shows the switch that has always been there.
+    const siteViews = await Promise.all(
+      targets.map((target): Promise<SiteSessionSiteView> =>
+        this.buildSiteView(target, rows, state, extensionConnected, extensionVersionOk)
+      )
+    )
+
+    const views = targets.map((target, index) => {
+      const primary = siteViews[index].accounts[0]
+      return toSiteSessionView(
+        target,
+        primary.enabled,
+        primary.status,
+        primary.importedAt,
+        primary.lastError
+      )
+    })
+
+    return {
+      views,
+      accountViews: siteViews,
+      extensionConnected,
+      extensionVersionOk
+    }
+  }
+
+  /** One site with the view of every account it holds. */
+  private async buildSiteView(
+    target: SiteSessionTargetRow,
+    rows: readonly SiteSessionAccountRow[],
+    state: SiteSessionConfigFile,
+    extensionConnected: boolean,
+    extensionVersionOk: boolean
+  ): Promise<SiteSessionSiteView> {
+    const activeAccountId = state.sites[target.siteId]?.activeAccountId ?? null
+
+    const siteRows = rows.filter((row) => row.siteId === target.siteId)
+    const accounts = await Promise.all(
+      siteRows.map(async (row, index): Promise<SiteSessionAccountView> => {
+        const hasLocalSession = await hasLocalSessionForTarget(row, this.deps.resolveSession)
+        return {
+          accountId: row.accountId,
+          name: row.state.name,
+          index: index + 1,
+          enabled: row.state.enabled,
+          status: deriveSiteSessionStatus({
+            enabled: row.state.enabled,
+            extensionConnected,
+            extensionVersionOk,
+            lastResult: row.state.lastResult,
+            hasLocalSession
+          }),
+          importedAt: row.state.importedAt,
+          lastError: row.state.lastError,
+          isActive: activeAccountId === row.accountId,
+          isPrimary: isPrimaryAccount(row.accountId)
+        }
       })
     )
 
-    return { views, extensionConnected, extensionVersionOk }
+    return {
+      siteId: target.siteId,
+      labelKey: target.labelKey,
+      hostname: target.hostname,
+      kind: target.kind,
+      memberAppIds: [...target.memberAppIds],
+      accounts,
+      activeAccountId,
+      hasPendingSession: getPendingSiteSession(target.siteId) !== null
+    }
   }
 
   /**
-   * Turns the import of one site on or off.
+   * Turns the import of one account on or off.
    *
    * Switching it on writes the switch and nothing else: no cookie is written
    * by the app, the extension pushes the session within its next round.
    *
    * Switching it off writes the switch first and wipes the session after it:
-   * the site has to be signed in again the next time it is used. The wipe runs
+   * the account has to be signed in again the next time it is used. Both run
    * under the lock of the account, so an import that is already running
    * finishes before the wipe and cannot undo it.
    */
-  async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionActionResult> {
+  async setEnabled(
+    siteId: string,
+    accountId: string,
+    enabled: boolean
+  ): Promise<SiteSessionActionResult> {
     // The switch changes what the list shows, so the list that is kept is
     // dropped before anything is written.
     invalidateSiteSessionListCache()
 
-    const target = await this.findTarget(siteId)
-    if (!target) return { success: false, error: 'unknown_target' }
+    const row = await this.findAccount(siteId, accountId)
+    if (!row) return { success: false, error: 'unknown_target' }
 
     if (enabled) {
       try {
-        // TODO(task 7): the switch belongs to the primary account only until
-        // the service takes an account id.
-        await this.deps.config.setEnabled(siteId, PRIMARY_ACCOUNT_ID, true)
+        await this.deps.config.setEnabled(siteId, accountId, true)
       } catch (error) {
         // The switch was not written. Reporting a success here would tell the
-        // user that a site was switched on while the app never heard of it.
-        Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
+        // user that an account was switched on while the app never heard of it.
+        Logger.warn(`[SiteSession] The switch of "${accountId}" could not be written:`, error)
         return { success: false, error: 'write_failed' }
       }
       return { success: true }
     }
 
-    return withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, () => this.switchOff(target))
+    return withSiteSessionLock(siteId, accountId, () => this.switchOff(row))
   }
 
   /**
-   * Forgets the session of one site without touching its switch.
+   * Forgets the session of one account without touching its switch.
    *
-   * This is the "I sign in myself" path: the site keeps its place in the
+   * This is the "I sign in myself" path: the account keeps its place in the
    * settings, only the session the app holds for it is gone. The wipe runs
    * under the lock of the account, for the same reason the switch-off does.
    */
-  async clear(siteId: string): Promise<SiteSessionActionResult> {
+  async clear(siteId: string, accountId: string): Promise<SiteSessionActionResult> {
     // The session that is forgotten changes what the list shows, so the list
     // that is kept is dropped before the wipe starts.
     invalidateSiteSessionListCache()
 
-    const target = await this.findTarget(siteId)
-    if (!target) return { success: false, error: 'unknown_target' }
+    const row = await this.findAccount(siteId, accountId)
+    if (!row) return { success: false, error: 'unknown_target' }
 
-    return withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, async () => {
+    return withSiteSessionLock(siteId, accountId, async () => {
       try {
-        await this.wipe(target)
+        await this.wipe(row)
       } catch (error) {
-        Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
+        Logger.warn(`[SiteSession] The session of "${accountId}" could not be cleared:`, error)
         return { success: false, error: 'wipe_failed' }
       }
 
@@ -189,28 +257,257 @@ export class SiteSessionService {
     })
   }
 
-  /** The site with this id, or null when the app does not know it. */
+  /**
+   * Marks the account the panels of the site open with.
+   *
+   * No session is touched: the choice only changes which cookie jar the panel
+   * uses, and the renderer rebuilds the panel when the list changes.
+   */
+  async setActiveAccount(siteId: string, accountId: string): Promise<SiteSessionActionResult> {
+    invalidateSiteSessionListCache()
+
+    const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
+    const row = buildAccountRows(targets, state).find(
+      (entry) => entry.siteId === siteId && entry.accountId === accountId
+    )
+    if (!row) return { success: false, error: 'unknown_target' }
+
+    const failure = await this.storeSyntheticAccount(row, state)
+    if (failure) return failure
+
+    try {
+      await this.deps.config.setActiveAccount(siteId, accountId)
+    } catch (error) {
+      Logger.warn(`[SiteSession] The active account of "${siteId}" could not be written:`, error)
+      return { success: false, error: 'write_failed' }
+    }
+
+    return { success: true }
+  }
+
+  /**
+   * Gives an account the user's name for it.
+   *
+   * A name has to be unique inside its site: two rows with the same name would
+   * make the account the user means unclear. The account may keep the name it
+   * already has, and an empty name means "no name".
+   */
+  async renameAccount(
+    siteId: string,
+    accountId: string,
+    name: string
+  ): Promise<SiteSessionActionResult> {
+    invalidateSiteSessionListCache()
+
+    const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
+    const rows = buildAccountRows(targets, state)
+    const row = rows.find((entry) => entry.siteId === siteId && entry.accountId === accountId)
+    if (!row) return { success: false, error: 'unknown_target' }
+
+    const normalizedName = name === '' ? null : name
+    if (
+      normalizedName !== null &&
+      rows.some(
+        (entry) =>
+          entry.siteId === siteId &&
+          entry.accountId !== accountId &&
+          entry.state.name === normalizedName
+      )
+    ) {
+      return { success: false, error: 'duplicate_name' }
+    }
+
+    const failure = await this.storeSyntheticAccount(row, state)
+    if (failure) return failure
+
+    try {
+      await this.deps.config.renameAccount(siteId, accountId, name)
+    } catch (error) {
+      Logger.warn(`[SiteSession] The name of "${accountId}" could not be written:`, error)
+      return { success: false, error: 'write_failed' }
+    }
+
+    return { success: true }
+  }
+
+  /**
+   * Removes an additional account and everything it holds.
+   *
+   * The primary account cannot be deleted: it lives in the platform's own
+   * partition, and its switch is the way to empty it. An additional account is
+   * wiped, removed from the state and then taken off the disk, in that order:
+   * the folder must not outlive the account, and a wipe that failed leaves the
+   * account in place so the user can try again.
+   */
+  async deleteAccount(siteId: string, accountId: string): Promise<SiteSessionActionResult> {
+    invalidateSiteSessionListCache()
+
+    if (isPrimaryAccount(accountId)) return { success: false, error: 'primary_account' }
+
+    const row = await this.findAccount(siteId, accountId)
+    if (!row) return { success: false, error: 'unknown_target' }
+
+    return withSiteSessionLock(siteId, accountId, async () => {
+      try {
+        await this.wipe(row)
+      } catch (error) {
+        Logger.warn(`[SiteSession] The session of "${accountId}" could not be cleared:`, error)
+        return { success: false, error: 'wipe_failed' }
+      }
+
+      try {
+        await this.deps.config.deleteAccount(siteId, accountId)
+      } catch (error) {
+        Logger.warn(`[SiteSession] The account "${accountId}" could not be removed:`, error)
+        return { success: false, error: 'write_failed' }
+      }
+
+      try {
+        await removePartitionDirectory(row.partition)
+      } catch (error) {
+        Logger.warn(`[SiteSession] The data folder of "${accountId}" could not be removed:`, error)
+        return {
+          success: false,
+          error: 'wipe_failed',
+          detail: 'The account was removed, but its data folder could not be deleted.'
+        }
+      }
+
+      return { success: true }
+    })
+  }
+
+  /**
+   * Writes a session the bridge could not attribute into an account.
+   *
+   * `accountId` is the account the user picked; null asks for a new one. A
+   * selected account that is switched off is opened first: writing a session
+   * into a closed account would undo the user's decision to cancel it. The
+   * pending session is forgotten only once at least one cookie was written, so
+   * a write that failed can be retried.
+   */
+  async resolvePendingSession(
+    siteId: string,
+    accountId: string | null
+  ): Promise<SiteSessionActionResult> {
+    invalidateSiteSessionListCache()
+
+    const pending = getPendingSiteSession(siteId)
+    if (!pending) return { success: false, error: 'unknown_target' }
+
+    const target = await this.findTarget(siteId)
+    if (!target) return { success: false, error: 'unknown_target' }
+
+    const resolvedAccountId = accountId ?? crypto.randomUUID()
+
+    return withSiteSessionLock(siteId, resolvedAccountId, async () => {
+      let partition: string
+
+      if (accountId === null) {
+        try {
+          await this.deps.config.createAccount(siteId, resolvedAccountId, null)
+        } catch (error) {
+          Logger.warn(
+            `[SiteSession] The account "${resolvedAccountId}" could not be opened:`,
+            error
+          )
+          return { success: false, error: 'write_failed' }
+        }
+        partition = accountPartitionFor(siteId, resolvedAccountId)
+      } else {
+        const row = await this.findAccount(siteId, accountId)
+        if (!row) return { success: false, error: 'unknown_target' }
+
+        if (!row.state.enabled) {
+          try {
+            await this.deps.config.setEnabled(siteId, accountId, true)
+          } catch (error) {
+            Logger.warn(`[SiteSession] The switch of "${accountId}" could not be written:`, error)
+            return { success: false, error: 'write_failed' }
+          }
+        }
+        partition = row.partition
+      }
+
+      try {
+        const outcome = await importExternalCookies(
+          this.deps.resolveSession(partition),
+          pending.cookies.map(toImporterCookie),
+          target.cookieDomains
+        )
+        if (outcome.imported === 0) {
+          Logger.warn(`[SiteSession] None of the pending cookies of "${siteId}" could be written.`)
+          return { success: false, error: 'import_failed' }
+        }
+      } catch (error) {
+        Logger.warn(`[SiteSession] The pending session of "${siteId}" could not be written:`, error)
+        return { success: false, error: 'import_failed' }
+      }
+
+      clearPendingSiteSession(siteId)
+      return { success: true }
+    })
+  }
+
+  /** The target with this id, or null when the app does not know it. */
   private async findTarget(siteId: string): Promise<SiteSessionTargetRow | null> {
     const targets = await this.deps.loadTargets()
     return targets.find((target) => target.siteId === siteId) ?? null
   }
 
+  /** The account of a site, with the partition its session lives in. */
+  private async findAccount(
+    siteId: string,
+    accountId: string
+  ): Promise<SiteSessionAccountRow | null> {
+    const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
+    return (
+      buildAccountRows(targets, state).find(
+        (row) => row.siteId === siteId && row.accountId === accountId
+      ) ?? null
+    )
+  }
+
   /**
-   * Turns the switch of a site off and wipes the session it held.
+   * Writes a primary account the file does not hold yet into the state.
+   *
+   * `buildAccountRows` always shows a primary, even on a site the user never
+   * touched, while the config can only rename or mark an account the file
+   * already holds. The two actions that need one call this first, so the
+   * primary they show can actually be named and made active. The account is
+   * written with its current switch, which is off for a synthetic primary, so
+   * the config version does not move.
+   */
+  private async storeSyntheticAccount(
+    row: SiteSessionAccountRow,
+    state: SiteSessionConfigFile
+  ): Promise<SiteSessionActionResult | null> {
+    const accounts = state.sites[row.siteId]?.accounts ?? {}
+    if (Object.hasOwn(accounts, row.accountId)) return null
+
+    try {
+      await this.deps.config.setEnabled(row.siteId, row.accountId, row.state.enabled)
+      return null
+    } catch (error) {
+      Logger.warn(`[SiteSession] The account "${row.accountId}" could not be opened:`, error)
+      return { success: false, error: 'write_failed' }
+    }
+  }
+
+  /**
+   * Turns the switch of an account off and wipes the session it held.
    *
    * The order is the invariant: the switch is written first, so a packet that
    * arrives while the wipe is running is refused, and the wipe runs last, so
-   * the site ends up without a session.
+   * the account ends up without a session.
    */
-  private async switchOff(target: SiteSessionTargetRow): Promise<SiteSessionActionResult> {
+  private async switchOff(row: SiteSessionAccountRow): Promise<SiteSessionActionResult> {
     try {
-      // TODO(task 7): the switch belongs to the primary account only until
-      // the service takes an account id.
-      await this.deps.config.setEnabled(target.siteId, PRIMARY_ACCOUNT_ID, false)
+      await this.deps.config.setEnabled(row.siteId, row.accountId, false)
     } catch (error) {
       // The switch was not written. Reporting a success here would tell the
-      // user that a site was switched off while the app keeps importing it.
-      Logger.warn(`[SiteSession] The switch of "${target.siteId}" could not be written:`, error)
+      // user that an account was switched off while the app keeps importing it.
+      Logger.warn(`[SiteSession] The switch of "${row.accountId}" could not be written:`, error)
       return { success: false, error: 'write_failed' }
     }
 
@@ -219,24 +516,24 @@ export class SiteSessionService {
     // be asked about, so the stale packet has to go with the switch.
     try {
       const state = await this.deps.config.read()
-      const accounts = state.sites[target.siteId]?.accounts
+      const accounts = state.sites[row.siteId]?.accounts
       if (!accounts || !Object.values(accounts).some((account) => account.enabled)) {
-        clearPendingSiteSession(target.siteId)
+        clearPendingSiteSession(row.siteId)
       }
     } catch (error) {
       Logger.warn(
-        `[SiteSession] The pending session of "${target.siteId}" could not be checked:`,
+        `[SiteSession] The pending session of "${row.siteId}" could not be checked:`,
         error
       )
     }
 
     try {
-      await this.wipe(target)
+      await this.wipe(row)
     } catch (error) {
-      // The switch *was* written: the site is switched off, but the session
-      // it held is still there. Saying "failed" alone would hide that
-      // half of the work was done.
-      Logger.warn(`[SiteSession] The session of "${target.siteId}" could not be cleared:`, error)
+      // The switch *was* written: the account is switched off, but the session
+      // it held is still there. Saying "failed" alone would hide that half of
+      // the work was done.
+      Logger.warn(`[SiteSession] The session of "${row.accountId}" could not be cleared:`, error)
       return {
         success: false,
         error: 'switch_off_wipe_failed',
@@ -247,9 +544,9 @@ export class SiteSessionService {
     return { success: true }
   }
 
-  /** Removes the session the app holds for one site. */
-  private async wipe(target: SiteSessionTargetRow): Promise<void> {
-    await wipeSiteSession(this.deps.resolveSession(target.partition), target)
+  /** Removes the session the app holds for one account. */
+  private async wipe(row: SiteSessionAccountRow): Promise<void> {
+    await wipeSiteSession(this.deps.resolveSession(row.partition), row)
   }
 }
 

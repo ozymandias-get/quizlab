@@ -199,7 +199,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     // Chrome session sharing needs the extension bridge, which the browser dev
     // server has no equivalent for: the list is empty and every action fails.
     siteSession: {
-      list: stubReturn({ views: [], extensionConnected: false, extensionVersionOk: false }),
+      list: stubReturn({
+        views: [],
+        accountViews: [],
+        extensionConnected: false,
+        extensionVersionOk: false
+      }),
       setEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       clear: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       onChanged: () => () => {}
