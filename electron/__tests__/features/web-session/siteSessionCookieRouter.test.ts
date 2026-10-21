@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
+import type { ChromeExtensionCookie } from '@shared-core/types'
+
 import { isCookieDomainAllowed } from '../../../features/web-session/siteSessionCookies.js'
-import { routeCookiePacket } from '../../../features/web-session/siteSessionCookieRouter.js'
+import {
+  type CookiePacket,
+  routeCookiePacket
+} from '../../../features/web-session/siteSessionCookieRouter.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -14,20 +19,24 @@ const CHATGPT = {
   memberAppIds: ['chatgpt']
 }
 
-const CLAUDE = {
-  ...CHATGPT,
-  siteId: 'claude',
-  hostname: 'claude.ai',
-  partition: 'persist:ai_claude',
-  cookieDomains: ['.claude.ai', '.anthropic.com'],
-  memberAppIds: ['claude']
+const GOOGLE = {
+  siteId: 'google',
+  hostname: 'google.com',
+  origins: ['https://google.com'],
+  partition: 'persist:ai_google',
+  cookieDomains: ['.google.com'],
+  labelKey: 'ws_target_google',
+  kind: 'google' as const,
+  memberAppIds: ['google']
 }
 
-function packetFor(targetId: string, domain: string) {
+const foreignCookie = { name: 'session', value: 'y', domain: '.claude.ai' }
+
+function packet(targetId: string, ...cookies: ChromeExtensionCookie[]): CookiePacket {
   return {
     targetId,
-    status: 'ok' as const,
-    cookies: [{ name: 'session', value: 'x', domain }]
+    status: 'ok',
+    cookies: cookies.length > 0 ? cookies : [{ name: 'session', value: 'x', domain: '.google.com' }]
   }
 }
 
@@ -58,53 +67,110 @@ describe('cookie domain matching', () => {
 })
 
 describe('cookie packet routing', () => {
-  it('routes a packet to its own target', () => {
-    const result = routeCookiePacket(
-      packetFor('chatgpt', '.chatgpt.com'),
-      [CHATGPT, CLAUDE],
-      () => true
+  it('routes a packet to its own target and account', () => {
+    const route = routeCookiePacket(
+      packet('chatgpt', { name: 'session', value: 'x', domain: '.chatgpt.com' }),
+      CHATGPT,
+      [{ accountId: 'primary', fingerprints: [] }],
+      null
     )
-    expect(result.ok).toBe(true)
-    if (result.ok) expect(result.target.partition).toBe('persist:ai_chatgpt')
+    expect(route.ok).toBe(true)
+    if (route.ok) {
+      expect(route.kind).toBe('account')
+      expect(route.target.partition).toBe('persist:ai_chatgpt')
+    }
   })
 
-  it('rejects a packet for an unknown target', () => {
-    const result = routeCookiePacket(packetFor('nope', '.chatgpt.com'), [CHATGPT], () => true)
-    expect(result).toEqual({ ok: false, reason: 'unknown_target' })
+  it('refuses a packet whose site is unknown', () => {
+    const route = routeCookiePacket(packet('chatgpt'), null, [], null)
+    expect(route).toEqual({ ok: false, kind: 'refused', reason: 'unknown_target' })
   })
 
-  it('rejects a packet for a disabled target', () => {
-    const result = routeCookiePacket(packetFor('chatgpt', '.chatgpt.com'), [CHATGPT], () => false)
-    expect(result).toEqual({ ok: false, reason: 'target_disabled' })
+  it('refuses a packet whose site has no open account', () => {
+    const route = routeCookiePacket(packet('google'), GOOGLE, [], null)
+    expect(route).toEqual({ ok: false, kind: 'refused', reason: 'target_disabled' })
   })
 
-  it('rejects a packet that carries another site domain', () => {
-    const result = routeCookiePacket(packetFor('chatgpt', '.claude.ai'), [CHATGPT], () => true)
-    expect(result).toEqual({ ok: false, reason: 'domain_mismatch' })
+  it('refuses a packet that carries a cookie of another site', () => {
+    const route = routeCookiePacket(
+      packet('google', foreignCookie),
+      GOOGLE,
+      [{ accountId: 'primary', fingerprints: [] }],
+      null
+    )
+    expect(route).toEqual({ ok: false, kind: 'refused', reason: 'domain_mismatch' })
   })
 
   it('rejects a packet that carries one foreign cookie among its own', () => {
-    const result = routeCookiePacket(
-      {
-        targetId: 'chatgpt',
-        status: 'ok',
-        cookies: [
-          { name: 'session', value: 'x', domain: '.chatgpt.com' },
-          { name: 'session', value: 'y', domain: '.claude.ai' }
-        ]
-      },
-      [CHATGPT],
-      () => true
+    const route = routeCookiePacket(
+      packet('google', { name: 'session', value: 'x', domain: '.google.com' }, foreignCookie),
+      GOOGLE,
+      [{ accountId: 'primary', fingerprints: [] }],
+      null
     )
-    expect(result).toEqual({ ok: false, reason: 'domain_mismatch' })
+    expect(route).toEqual({ ok: false, kind: 'refused', reason: 'domain_mismatch' })
   })
 
-  it('accepts an empty packet for an enabled target', () => {
-    const result = routeCookiePacket(
-      { targetId: 'chatgpt', status: 'no_cookies', cookies: [] },
-      [CHATGPT],
-      () => true
+  it('routes the packet to the account whose history holds the fingerprint', () => {
+    const route = routeCookiePacket(
+      packet('google'),
+      GOOGLE,
+      [{ accountId: 'a1', fingerprints: ['fp'] }],
+      'fp'
     )
-    expect(result.ok).toBe(true)
+    expect(route.ok && route.kind === 'account' ? route.accountId : null).toBe('a1')
+  })
+
+  it('asks for a new account when no open account can take the session', () => {
+    const route = routeCookiePacket(
+      packet('google'),
+      GOOGLE,
+      [{ accountId: 'a1', fingerprints: ['other'] }],
+      'fp'
+    )
+    expect(route.ok && route.kind).toBe('new_account')
+  })
+
+  it('holds the packet when the session has no fingerprint and several accounts are open', () => {
+    const route = routeCookiePacket(
+      packet('google'),
+      GOOGLE,
+      [
+        { accountId: 'a1', fingerprints: [] },
+        { accountId: 'a2', fingerprints: [] }
+      ],
+      null
+    )
+    expect(route.ok).toBe(false)
+    expect(route.ok === false && route.kind).toBe('ambiguous')
+  })
+
+  it('keeps the target and the cookies of a packet it holds', () => {
+    const held = packet('google')
+    const route = routeCookiePacket(
+      held,
+      GOOGLE,
+      [
+        { accountId: 'a1', fingerprints: [] },
+        { accountId: 'a2', fingerprints: [] }
+      ],
+      null
+    )
+    expect(route).toEqual({
+      ok: false,
+      kind: 'ambiguous',
+      target: GOOGLE,
+      cookies: held.cookies
+    })
+  })
+
+  it('accepts an empty packet for a site with an open account', () => {
+    const route = routeCookiePacket(
+      { targetId: 'chatgpt', status: 'no_cookies', cookies: [] },
+      CHATGPT,
+      [{ accountId: 'primary', fingerprints: [] }],
+      null
+    )
+    expect(route.ok).toBe(true)
   })
 })
