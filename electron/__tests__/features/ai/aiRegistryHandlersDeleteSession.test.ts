@@ -134,6 +134,7 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   ]
 }))
 
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../../app/constants.js'
 import { withSiteSessionLock } from '../../../features/web-session/siteSessionLock.js'
 
@@ -199,7 +200,7 @@ describe('deleting a user-added site', () => {
     const importGate = new Promise<void>((resolve) => {
       releaseImport = resolve
     })
-    const importing = withSiteSessionLock(`custom:${DELETED_ID}`, async () => {
+    const importing = withSiteSessionLock(`custom:${DELETED_ID}`, PRIMARY_ACCOUNT_ID, async () => {
       await importGate
     })
 

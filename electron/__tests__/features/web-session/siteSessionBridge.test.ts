@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { ChromeExtensionCookie } from '@shared-core/types'
 
 const TARGET = {
   siteId: 'chatgpt',
@@ -45,9 +47,18 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
+  createAccountState: (enabled: boolean) => ({
+    name: null,
+    enabled,
+    importedAt: null,
+    lastResult: null,
+    lastError: null,
+    fingerprints: []
+  }),
   getSiteSessionConfig: () => ({
     read,
-    recordResult
+    recordResult,
+    createAccount: vi.fn()
   })
 }))
 
@@ -59,10 +70,13 @@ vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
   partitionExistsOnDisk
 }))
 
+import { getSiteSessionIdentityCookies } from '../../../../shared/constants/siteSessionIdentityCookies.js'
+import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../../app/constants.js'
 import { Logger } from '../../../core/logger.js'
 import {
   SITE_SESSION_PROTOCOL_VERSION,
+  type SiteSessionImportEnvironment,
   acceptSiteSessionPacket,
   hasLocalSessionForTarget,
   listEnabledSiteSessionTargets,
@@ -71,7 +85,15 @@ import {
   recordOversizedSiteSessionPacket
 } from '../../../features/web-session/siteSessionBridge.js'
 import { setSiteSessionListReader } from '../../../features/web-session/siteSessionBroadcast.js'
-import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
+import { computeSessionFingerprint } from '../../../features/web-session/siteSessionFingerprint.js'
+import type {
+  SiteSessionAccountState,
+  SiteSessionConfigFile
+} from '../../../features/web-session/siteSessionMigration.js'
+import {
+  clearPendingSiteSession,
+  getPendingSiteSession
+} from '../../../features/web-session/siteSessionPendingSessions.js'
 
 function stateWith(enabled: boolean, configVersion = 3) {
   return {
@@ -92,6 +114,121 @@ function stateWith(enabled: boolean, configVersion = 3) {
         activeAccountId: PRIMARY_ACCOUNT_ID
       }
     }
+  }
+}
+
+/** The ids the bridge generates for the accounts it opens in these tests. */
+const NEW_ACCOUNT_ID = 'a1111111-1111-4111-8111-111111111111'
+const RETURNING_ACCOUNT_ID = 'b2222222-2222-4222-8222-222222222222'
+
+const GOOGLE = {
+  siteId: 'google',
+  hostname: 'google.com',
+  origins: ['https://google.com'],
+  partition: 'persist:ai_google',
+  cookieDomains: ['.google.com'],
+  labelKey: 'ws_target_google',
+  kind: 'google' as const,
+  memberAppIds: ['google']
+}
+
+/** One account state, with the fields a test does not care about filled in. */
+function accountState(overrides: Partial<SiteSessionAccountState> = {}): SiteSessionAccountState {
+  return {
+    name: null,
+    enabled: true,
+    importedAt: null,
+    lastResult: null,
+    lastError: null,
+    fingerprints: [],
+    ...overrides
+  }
+}
+
+/** The state of the Google site with the accounts a test needs. */
+function googleState(
+  accounts: Record<string, SiteSessionAccountState>,
+  activeAccountId: string | null = 'a1'
+): SiteSessionConfigFile {
+  return {
+    version: 2,
+    configVersion: 3,
+    sites: { google: { accounts, activeAccountId } }
+  }
+}
+
+/** The identity cookie of the Google site, one value per account. */
+function identityCookie(value: string): ChromeExtensionCookie {
+  return { name: '__Secure-1PSID', value, domain: '.google.com', secure: true }
+}
+
+/** The digest the bridge computes for the identity cookies of a packet. */
+function fingerprintOf(cookies: ChromeExtensionCookie[]): string {
+  const fingerprint = computeSessionFingerprint(
+    cookies,
+    getSiteSessionIdentityCookies(GOOGLE.siteId)
+  )
+  if (!fingerprint) throw new Error('the packet carries no identity cookie')
+  return fingerprint
+}
+
+/**
+ * The parts a packet is handled in, with the side effects it causes recorded.
+ *
+ * The state is mutable: an account the bridge opens is really added to it, so
+ * the packet that comes after is routed against the accounts the site has by
+ * then.
+ */
+function makeImportHarness(state: SiteSessionConfigFile) {
+  const writes: { partition: string; names: string[] }[] = []
+  const created: string[] = []
+  const recorded: { accountId: string; result: SiteSessionAccountState['lastResult'] }[] = []
+
+  const config = {
+    read: vi.fn(async () => state),
+    createAccount: vi.fn(async (siteId: string, accountId: string, fingerprint: string | null) => {
+      created.push(accountId)
+      const site = state.sites[siteId] ?? { accounts: {}, activeAccountId: null }
+      state.sites[siteId] = {
+        ...site,
+        accounts: {
+          ...site.accounts,
+          [accountId]: accountState({ fingerprints: fingerprint ? [fingerprint] : [] })
+        }
+      }
+    }),
+    recordResult: vi.fn(
+      async (_siteId: string, accountId: string, result: SiteSessionAccountState['lastResult']) => {
+        recorded.push({ accountId, result })
+      }
+    )
+  }
+
+  const resolveSession = (partition: string) => {
+    const session = {
+      cookies: {
+        get: vi.fn(async () => []),
+        set: vi.fn(async (details: { name: string }) => {
+          writes.push({ partition, names: [details.name] })
+        }),
+        remove: vi.fn(async () => undefined)
+      },
+      clearStorageData: vi.fn(async () => undefined),
+      flushStorageData: vi.fn()
+    }
+    return session as never
+  }
+
+  return { state, config, resolveSession, writes, created, recorded }
+}
+
+function environmentFor(
+  harness: ReturnType<typeof makeImportHarness>
+): SiteSessionImportEnvironment {
+  return {
+    config: harness.config,
+    loadTargets: async () => [GOOGLE],
+    resolveSession: harness.resolveSession
   }
 }
 
@@ -170,6 +307,28 @@ describe('site session bridge', () => {
     expect(list.targets).toEqual([])
   })
 
+  it('lists a site while one of its accounts is switched on', async () => {
+    read.mockResolvedValue({
+      version: 2,
+      configVersion: 3,
+      sites: {
+        chatgpt: {
+          accounts: {
+            [PRIMARY_ACCOUNT_ID]: accountState({ enabled: false }),
+            a1: accountState()
+          },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+
+    const list = await listEnabledSiteSessionTargets()
+
+    expect(list.targets).toEqual([
+      { siteId: 'chatgpt', cookieDomains: ['.chatgpt.com', '.openai.com'] }
+    ])
+  })
+
   it('refuses a packet for a site whose switch is off', async () => {
     const outcome = await acceptSiteSessionPacket({
       targetId: 'chatgpt',
@@ -193,7 +352,7 @@ describe('site session bridge', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
-  it('refuses a packet whose switch was turned off while it was on its way', async () => {
+  it('refuses a packet that arrives after the account was switched off', async () => {
     // The routing reads the switch first, the import reads it once more: the
     // second read is what catches a packet that the user outran.
     read.mockResolvedValueOnce(stateWith(true)).mockResolvedValueOnce(stateWith(false))
@@ -205,7 +364,7 @@ describe('site session bridge', () => {
     })
 
     expect(outcome.accepted).toBe(false)
-    expect(outcome.reason).toBe('target_disabled')
+    expect(outcome.reason).toBe('account_disabled')
     expect(set).not.toHaveBeenCalled()
     expect(recordResult).not.toHaveBeenCalled()
   })
@@ -327,6 +486,148 @@ describe('site session bridge', () => {
       'packet_too_large'
     )
     expect(set).not.toHaveBeenCalled()
+  })
+})
+
+describe('the account a session belongs to', () => {
+  afterEach(() => {
+    clearPendingSiteSession('google')
+    vi.restoreAllMocks()
+  })
+
+  it('writes the session into the account whose fingerprint matches', async () => {
+    const cookie = identityCookie('token-a1')
+    const harness = makeImportHarness(
+      googleState({ a1: accountState({ fingerprints: [fingerprintOf([cookie])] }) })
+    )
+
+    const outcome = await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookie] },
+      environmentFor(harness)
+    )
+
+    expect(outcome.accepted).toBe(true)
+    expect(harness.writes).toEqual([
+      { partition: 'persist:ai_google_a1', names: ['__Secure-1PSID'] }
+    ])
+  })
+
+  it('opens a new account when no open account can take the session', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(NEW_ACCOUNT_ID)
+    const other = identityCookie('token-other')
+    const cookie = identityCookie('token-new')
+    const harness = makeImportHarness(
+      googleState({ a1: accountState({ fingerprints: [fingerprintOf([other])] }) })
+    )
+
+    const outcome = await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookie] },
+      environmentFor(harness)
+    )
+
+    expect(outcome.accepted).toBe(true)
+    expect(harness.created).toEqual([NEW_ACCOUNT_ID])
+    expect(harness.writes).toEqual([
+      { partition: `persist:ai_google_${NEW_ACCOUNT_ID}`, names: ['__Secure-1PSID'] }
+    ])
+    expect(harness.recorded).toEqual([{ accountId: NEW_ACCOUNT_ID, result: 'imported' }])
+  })
+
+  it('holds the session and writes nothing when the account is ambiguous', async () => {
+    const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+    const harness = makeImportHarness(googleState({ a1: accountState(), a2: accountState() }, 'a1'))
+
+    const outcome = await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookie] },
+      environmentFor(harness)
+    )
+
+    expect(outcome.accepted).toBe(false)
+    expect(outcome.reason).toBe('ambiguous_account')
+    expect(harness.writes).toEqual([])
+    expect(getPendingSiteSession('google')?.cookies).toEqual([cookie])
+  })
+
+  it('refuses a packet that arrives after the account was switched off', async () => {
+    const cookie = identityCookie('token-a1')
+    const fingerprint = fingerprintOf([cookie])
+    const enabled = googleState({ a1: accountState({ fingerprints: [fingerprint] }) })
+    const disabled = googleState({
+      a1: accountState({ enabled: false, fingerprints: [fingerprint] })
+    })
+    const harness = makeImportHarness(enabled)
+    harness.config.read.mockResolvedValueOnce(enabled).mockResolvedValueOnce(disabled)
+
+    const outcome = await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookie] },
+      environmentFor(harness)
+    )
+
+    expect(outcome.accepted).toBe(false)
+    expect(outcome.reason).toBe('account_disabled')
+    expect(harness.writes).toEqual([])
+    expect(harness.recorded).toEqual([])
+  })
+
+  it('records a packet without cookies on the active account and opens no account', async () => {
+    const harness = makeImportHarness(googleState({ a1: accountState(), a2: accountState() }, 'a2'))
+
+    const outcome = await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'no_cookies', cookies: [] },
+      environmentFor(harness)
+    )
+
+    expect(outcome.accepted).toBe(true)
+    expect(harness.recorded).toEqual([{ accountId: 'a2', result: 'no_cookies' }])
+    expect(harness.created).toEqual([])
+    expect(harness.writes).toEqual([])
+    expect(getPendingSiteSession('google')).toBeNull()
+  })
+
+  it('writes a returning session back into the account it came from', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(RETURNING_ACCOUNT_ID)
+    const cookieA = identityCookie('token-a1')
+    const cookieB = identityCookie('token-b1')
+    const harness = makeImportHarness(
+      googleState({ a1: accountState({ fingerprints: [fingerprintOf([cookieA])] }) })
+    )
+    const environment = environmentFor(harness)
+
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookieA] },
+      environment
+    )
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookieB] },
+      environment
+    )
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookieA] },
+      environment
+    )
+
+    expect(harness.writes.map((write) => write.partition)).toEqual([
+      'persist:ai_google_a1',
+      `persist:ai_google_${RETURNING_ACCOUNT_ID}`,
+      'persist:ai_google_a1'
+    ])
+    expect(harness.created).toEqual([RETURNING_ACCOUNT_ID])
+  })
+
+  it('does not change the active account when a session arrives', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(RETURNING_ACCOUNT_ID)
+    const cookieA = identityCookie('token-a1')
+    const cookieB = identityCookie('token-b1')
+    const harness = makeImportHarness(
+      googleState({ a1: accountState({ fingerprints: [fingerprintOf([cookieA])] }) }, 'a1')
+    )
+
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookieB] },
+      environmentFor(harness)
+    )
+
+    expect(harness.state.sites.google.activeAccountId).toBe('a1')
   })
 })
 
