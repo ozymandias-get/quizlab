@@ -70,16 +70,27 @@ function readNumber(value: unknown): number {
 }
 
 /**
- * The format version of a file.
+ * The version of a file as a number, or null when it does not hold one.
  *
- * A file that does not say which version it is is an old one: it is migrated.
- * A newer version is kept, because this build must not pretend it understands
- * a format it does not know.
+ * A version written as a string is read here for the number that is written
+ * back when the file is kept, but it does not decide which format the file is
+ * in - only a number does; see `isMigratedFile`.
  */
-function readFormatVersion(value: unknown): number {
+function readVersion(value: unknown): number | null {
   const parsed = readNumber(value)
-  if (!Number.isFinite(parsed)) return 1
+  if (!Number.isFinite(parsed)) return null
   return Math.floor(parsed)
+}
+
+/**
+ * Whether a version is a number.
+ *
+ * Only a number is authoritative: it says which format the file is in. A
+ * version written as a string, or one that was hand-edited into nonsense,
+ * says nothing about the format; the shape of the file decides instead.
+ */
+function isNumericVersion(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
 }
 
 /**
@@ -94,19 +105,28 @@ function normalizeConfigVersion(value: unknown): number {
   return Math.max(0, Math.floor(parsed))
 }
 
+/** Whether an old-shape `targets` dictionary holds a site that has to be migrated. */
+function hasTargets(value: unknown): boolean {
+  return isRecord(value) && Object.keys(value).length > 0
+}
+
 /**
  * Whether the file is already in the new shape.
  *
- * A version that is a number is believed: a file that says it is an old one
- * is migrated, whatever else it holds. A version that is missing or was
- * hand-edited into nonsense is judged by the shape of the file instead: one
- * that holds `sites` and no `targets` is a migrated file, and migrating it
- * again would throw the accounts of the user away.
+ * A version that is a number is believed: it says which format the file is
+ * in, and it alone decides. A version that is missing, written as a string
+ * or hand-edited into nonsense says nothing, so the shape of the file
+ * decides instead: one that holds `sites` and has no `targets` left to
+ * migrate is a migrated file.
+ *
+ * The type of the version must not change what happens to the data on its
+ * own: a version written as a string has no say at all, so it can neither
+ * turn an old file into a migrated one nor the other way round - what the
+ * file holds decides.
  */
-function isMigratedFile(source: Record<string, unknown>, version: number): boolean {
-  if (typeof source.version === 'number') return version >= MIGRATED_VERSION
-  if (version >= MIGRATED_VERSION) return true
-  return isRecord(source.sites) && !isRecord(source.targets)
+function isMigratedFile(source: Record<string, unknown>): boolean {
+  if (isNumericVersion(source.version)) return Math.floor(source.version) >= MIGRATED_VERSION
+  return isRecord(source.sites) && !hasTargets(source.targets)
 }
 
 /**
@@ -119,12 +139,14 @@ function isMigratedFile(source: Record<string, unknown>, version: number): boole
  */
 export function migrateSiteSessionStateV1(raw: unknown): SiteSessionConfigFile {
   const source = isRecord(raw) ? raw : {}
-  const version = readFormatVersion(source.version)
+  const version = readVersion(source.version)
   const configVersion = normalizeConfigVersion(source.configVersion)
 
-  if (isMigratedFile(source, version)) {
+  if (isMigratedFile(source)) {
     return {
-      version: Math.max(MIGRATED_VERSION, version),
+      // A newer version is kept: this build must not pretend it understands
+      // a format it does not know.
+      version: version === null ? MIGRATED_VERSION : Math.max(MIGRATED_VERSION, version),
       configVersion,
       sites: readSites(source.sites)
     }
@@ -160,6 +182,23 @@ function migrateTargets(raw: unknown): Record<string, SiteSessionSiteState> {
 }
 
 /**
+ * A copy of a source object without the keys a state file may not carry.
+ *
+ * The fields this build knows are written after this copy and win over it;
+ * what is left is what a newer build may have added, kept so that the next
+ * save does not lose it. A plain spread would copy an own `__proto__` key as
+ * data, and the object would write that key back.
+ */
+function readUnknownFields(source: Record<string, unknown>): Record<string, unknown> {
+  const fields: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(source)) {
+    if (PROHIBITED_KEYS.has(key)) continue
+    fields[key] = value
+  }
+  return fields
+}
+
+/**
  * The primary account of a site of the old file.
  *
  * The old values are copied one by one. The account has no name and no
@@ -170,7 +209,7 @@ function migrateTargets(raw: unknown): Record<string, SiteSessionSiteState> {
 function readPrimaryAccount(raw: unknown): SiteSessionAccountState {
   const source = isRecord(raw) ? raw : {}
   return {
-    ...source,
+    ...readUnknownFields(source),
     name: null,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
@@ -211,7 +250,7 @@ function readSite(raw: unknown): SiteSessionSiteState {
   }
 
   return {
-    ...source,
+    ...readUnknownFields(source),
     accounts,
     activeAccountId: readActiveAccountId(source.activeAccountId, accounts)
   }
@@ -238,7 +277,7 @@ function readActiveAccountId(
 function readAccount(raw: unknown): SiteSessionAccountState {
   const source = isRecord(raw) ? raw : {}
   return {
-    ...source,
+    ...readUnknownFields(source),
     name: typeof source.name === 'string' ? source.name : null,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
