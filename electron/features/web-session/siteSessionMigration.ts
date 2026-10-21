@@ -57,6 +57,19 @@ function isLastResult(value: unknown): value is SiteSessionAccountState['lastRes
 }
 
 /**
+ * A number a file may hold: a number, or a string that holds one.
+ *
+ * A file that was edited by hand may hold `"3"` where a `3` belongs; it
+ * still means three. A value that is not a number at all is `NaN`, and the
+ * caller decides what it means.
+ */
+function readNumber(value: unknown): number {
+  const parsed =
+    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  return Number.isFinite(parsed) ? parsed : Number.NaN
+}
+
+/**
  * The format version of a file.
  *
  * A file that does not say which version it is is an old one: it is migrated.
@@ -64,7 +77,7 @@ function isLastResult(value: unknown): value is SiteSessionAccountState['lastRes
  * a format it does not know.
  */
 function readFormatVersion(value: unknown): number {
-  const parsed = typeof value === 'number' ? value : Number.NaN
+  const parsed = readNumber(value)
   if (!Number.isFinite(parsed)) return 1
   return Math.floor(parsed)
 }
@@ -76,10 +89,24 @@ function readFormatVersion(value: unknown): number {
  * still counts as three, so the next write does not move it backwards.
  */
 function normalizeConfigVersion(value: unknown): number {
-  const parsed =
-    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
+  const parsed = readNumber(value)
   if (!Number.isFinite(parsed)) return 0
   return Math.max(0, Math.floor(parsed))
+}
+
+/**
+ * Whether the file is already in the new shape.
+ *
+ * A version that is a number is believed: a file that says it is an old one
+ * is migrated, whatever else it holds. A version that is missing or was
+ * hand-edited into nonsense is judged by the shape of the file instead: one
+ * that holds `sites` and no `targets` is a migrated file, and migrating it
+ * again would throw the accounts of the user away.
+ */
+function isMigratedFile(source: Record<string, unknown>, version: number): boolean {
+  if (typeof source.version === 'number') return version >= MIGRATED_VERSION
+  if (version >= MIGRATED_VERSION) return true
+  return isRecord(source.sites) && !isRecord(source.targets)
 }
 
 /**
@@ -95,9 +122,9 @@ export function migrateSiteSessionStateV1(raw: unknown): SiteSessionConfigFile {
   const version = readFormatVersion(source.version)
   const configVersion = normalizeConfigVersion(source.configVersion)
 
-  if (version >= MIGRATED_VERSION) {
+  if (isMigratedFile(source, version)) {
     return {
-      version,
+      version: Math.max(MIGRATED_VERSION, version),
       configVersion,
       sites: readSites(source.sites)
     }
@@ -136,11 +163,14 @@ function migrateTargets(raw: unknown): Record<string, SiteSessionSiteState> {
  * The primary account of a site of the old file.
  *
  * The old values are copied one by one. The account has no name and no
- * fingerprint yet, because the old file held neither.
+ * fingerprint yet, because the old file held neither. The fields this build
+ * does not know are kept, so that a file written by a newer build does not
+ * lose them on the next write.
  */
 function readPrimaryAccount(raw: unknown): SiteSessionAccountState {
   const source = isRecord(raw) ? raw : {}
   return {
+    ...source,
     name: null,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
@@ -183,8 +213,25 @@ function readSite(raw: unknown): SiteSessionSiteState {
   return {
     ...source,
     accounts,
-    activeAccountId: typeof source.activeAccountId === 'string' ? source.activeAccountId : null
+    activeAccountId: readActiveAccountId(source.activeAccountId, accounts)
   }
+}
+
+/**
+ * The active account of a site.
+ *
+ * A file that names an account the site does not have is repaired: the site
+ * has no active account until one is picked, and a dangling id would send
+ * the app after an account that does not exist.
+ */
+function readActiveAccountId(
+  value: unknown,
+  accounts: Record<string, SiteSessionAccountState>
+): string | null {
+  if (typeof value !== 'string') return null
+  // `Object.hasOwn` keeps prototype-chain ids ('constructor', '__proto__', …)
+  // from resolving to an inherited member of the accounts.
+  return Object.hasOwn(accounts, value) ? value : null
 }
 
 /** One account of a file that is already in the new shape. */
