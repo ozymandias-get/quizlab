@@ -108,13 +108,8 @@ export interface SiteSessionListResult {
    * and the old switch action keep meaning the same thing.
    */
   views: SiteSessionView[]
-  /**
-   * The accounts of every site.
-   *
-   * The field is filled once the main process builds the account rows. It is
-   * optional until then, so the old site rows keep answering on their own.
-   */
-  accountViews?: SiteSessionSiteView[]
+  /** The accounts of every site, one row per account and cookie jar. */
+  accountViews: SiteSessionSiteView[]
   /** Whether the Chrome extension is currently connected to the app. */
   extensionConnected: boolean
   /** Whether the connected extension is new enough to be used. */
@@ -127,11 +122,15 @@ export interface SiteSessionListResult {
  * `error` is a stable code that the renderer can translate. Every code the
  * app can produce:
  *
- *   - `unknown_target`: the app does not know the site the action was for
- *   - `write_failed`: the switch could not be written; nothing else happened
+ *   - `unknown_target`: the app does not know the site or the account the
+ *     action was for, or the site holds no pending session to resolve
+ *   - `write_failed`: the setting could not be written; nothing else happened
  *   - `wipe_failed`: the session could not be cleared; the switch was not touched
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
  *     be cleared — `detail` says so
+ *   - `primary_account`: the primary account cannot be deleted
+ *   - `duplicate_name`: another account of the same site already has that name
+ *   - `import_failed`: the pending session could not be written into an account
  *   - `invalid_site_id`: the site id was not a string
  *   - `invalid_enabled`: the switch was not a boolean
  *   - `Unauthorized`: the request did not come from the trusted window

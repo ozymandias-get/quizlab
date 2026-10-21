@@ -150,7 +150,7 @@ const SAME_SITE_FROM_CHROME: Record<string, ExternalBrowserCookie['sameSite']> =
 }
 
 /** The importer's shape of a cookie the extension sent. */
-function toImporterCookie(cookie: ChromeExtensionCookie): ExternalBrowserCookie {
+export function toImporterCookie(cookie: ChromeExtensionCookie): ExternalBrowserCookie {
   const sameSite = cookie.sameSite ? SAME_SITE_FROM_CHROME[cookie.sameSite] : undefined
   return {
     name: cookie.name,
