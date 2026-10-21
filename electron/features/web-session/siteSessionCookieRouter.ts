@@ -18,7 +18,7 @@
 
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
-import { isCookieDomainAllowed } from './siteSessionImporter.js'
+import { isCookieDomainAllowed } from './siteSessionCookies.js'
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /** Why a packet was refused. */
@@ -50,20 +50,6 @@ export type CookiePacketRoute =
   | { ok: false; reason: CookiePacketRejection }
 
 /**
- * Whether a cookie domain belongs to the site that owns `allowedDomains`.
- *
- * Re-exported from the importer so that the writer and the reader of a
- * session agree on one rule: `.chatgpt.com` allows `chatgpt.com` and
- * `mail.chatgpt.com`, but never `notchatgpt.com`.
- */
-export function isDomainAllowedForTarget(
-  cookieDomain: string | null | undefined,
-  allowedDomains: readonly string[]
-): boolean {
-  return isCookieDomainAllowed(cookieDomain, allowedDomains)
-}
-
-/**
  * Routes a packet to the site it belongs to.
  *
  * `isEnabled` is asked synchronously so that a packet that arrives right
@@ -85,7 +71,7 @@ export function routeCookiePacket(
   }
 
   const carriesForeignCookie = packet.cookies.some(
-    (cookie) => !isDomainAllowedForTarget(cookie.domain, target.cookieDomains)
+    (cookie) => !isCookieDomainAllowed(cookie.domain, target.cookieDomains)
   )
   if (carriesForeignCookie) {
     return { ok: false, reason: 'domain_mismatch' }

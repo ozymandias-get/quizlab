@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  isDomainAllowedForTarget,
-  routeCookiePacket
-} from '../../../features/web-session/siteSessionCookieRouter.js'
+import { isCookieDomainAllowed } from '../../../features/web-session/siteSessionCookies.js'
+import { routeCookiePacket } from '../../../features/web-session/siteSessionCookieRouter.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -35,27 +33,27 @@ function packetFor(targetId: string, domain: string) {
 
 describe('cookie domain matching', () => {
   it('accepts a domain listed for the target', () => {
-    expect(isDomainAllowedForTarget('.chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
+    expect(isCookieDomainAllowed('.chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
   })
 
   it('accepts a host-only cookie of a listed domain', () => {
-    expect(isDomainAllowedForTarget('chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
+    expect(isCookieDomainAllowed('chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
   })
 
   it('accepts a subdomain of a listed domain', () => {
-    expect(isDomainAllowedForTarget('mail.chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
+    expect(isCookieDomainAllowed('mail.chatgpt.com', CHATGPT.cookieDomains)).toBe(true)
   })
 
   it('rejects a domain of another site', () => {
-    expect(isDomainAllowedForTarget('.claude.ai', CHATGPT.cookieDomains)).toBe(false)
+    expect(isCookieDomainAllowed('.claude.ai', CHATGPT.cookieDomains)).toBe(false)
   })
 
   it('rejects a lookalike domain that merely ends with the target host', () => {
-    expect(isDomainAllowedForTarget('.notchatgpt.com', CHATGPT.cookieDomains)).toBe(false)
+    expect(isCookieDomainAllowed('.notchatgpt.com', CHATGPT.cookieDomains)).toBe(false)
   })
 
   it('rejects a domain that only starts with the target host', () => {
-    expect(isDomainAllowedForTarget('.chatgpt.com.evil.com', CHATGPT.cookieDomains)).toBe(false)
+    expect(isCookieDomainAllowed('.chatgpt.com.evil.com', CHATGPT.cookieDomains)).toBe(false)
   })
 })
 

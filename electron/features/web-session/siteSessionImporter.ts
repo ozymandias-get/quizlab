@@ -9,7 +9,8 @@
  * when its domain belongs to the site that is being imported. The allowed
  * domains are a parameter and never a global — the caller passes the target's
  * own domain list — so a cookie of another site can neither be written into
- * this session nor be deleted from it.
+ * this session nor be deleted from it. The rule itself lives in
+ * `siteSessionCookies.ts`, which the router and the wipe read as well.
  *
  * The rules about how a cookie is written (host-only vs. domain-wide, the
  * scheme, the expiry) come from the Google-only implementation this module
@@ -19,6 +20,12 @@
 import type { Session } from 'electron'
 
 import { Logger } from '../../core/logger.js'
+import {
+  cookieRemovalUrls,
+  domainHost,
+  isCookieDomainAllowed,
+  normalizeCookieDomain
+} from './siteSessionCookies.js'
 
 /** A cookie as the Chrome extension reports it. */
 export interface ExternalBrowserCookie {
@@ -40,67 +47,6 @@ export interface ExternalBrowserCookie {
  * Chromium sends both of them.
  */
 type CookieScope = 'host' | 'domain'
-
-/**
- * The domain of a cookie in its comparable form: trimmed and lowercased.
- *
- * The leading dot survives, because it is what tells a domain-wide cookie
- * apart from a host-only one — the payload builder needs that difference.
- */
-export function normalizeCookieDomain(domain: string | null | undefined): string | null {
-  if (typeof domain !== 'string') return null
-  const normalized = domain.trim().toLowerCase()
-  return normalized || null
-}
-
-/** The host of a domain: the leading dots of a domain-wide cookie are dropped. */
-function domainHost(domain: string): string {
-  return domain.replace(/^\.+/, '')
-}
-
-/**
- * Whether a cookie domain belongs to the site that owns `allowedDomains`.
- *
- * A domain belongs when it is the allowed domain itself or a subdomain of it:
- * `.chatgpt.com` allows `chatgpt.com` and `mail.chatgpt.com`, but never
- * `notchatgpt.com` or `chatgpt.com.evil.com`.
- */
-export function isCookieDomainAllowed(
-  domain: string | null | undefined,
-  allowedDomains: readonly string[]
-): boolean {
-  const normalized = normalizeCookieDomain(domain)
-  if (!normalized) return false
-  const host = domainHost(normalized)
-  if (!host) return false
-
-  return allowedDomains.some((allowed) => {
-    const allowedHost = domainHost(normalizeCookieDomain(allowed) ?? '')
-    if (!allowedHost) return false
-    return host === allowedHost || host.endsWith(`.${allowedHost}`)
-  })
-}
-
-/**
- * The URLs a cookie of this domain and path may be stored under.
- *
- * A secure cookie only ever lives under https; a plain one is looked up under
- * both schemes, because the browser may have stored it either way.
- */
-export function cookieRemovalUrls(
-  domain: string | null | undefined,
-  path: string | undefined,
-  secure: boolean | undefined
-): string[] {
-  const normalized = normalizeCookieDomain(domain)
-  if (!normalized) return []
-  const host = domainHost(normalized)
-  if (!host) return []
-
-  const cookiePath = path || '/'
-  const schemes = secure ? ['https'] : ['https', 'http']
-  return schemes.map((scheme) => `${scheme}://${host}${cookiePath}`)
-}
 
 /**
  * The scope of a cookie the browser sends.

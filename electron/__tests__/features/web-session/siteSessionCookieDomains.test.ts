@@ -1,5 +1,5 @@
-import { readFileSync } from 'fs'
-import path from 'path'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -13,6 +13,29 @@ const MANIFEST_PATH = path.join(process.cwd(), 'extensions/quizlab-session-exten
 interface SessionExtensionManifest {
   host_permissions?: string[]
   optional_host_permissions?: string[]
+}
+
+/**
+ * The domains of every site, site by site.
+ *
+ * The table is pinned as a whole: a row that gains or loses a domain changes
+ * what the extension may read and what the wipe may delete, so the change has
+ * to be a deliberate one. A site that is added has to be added here as well.
+ */
+const EXPECTED_COOKIE_DOMAINS: Record<string, readonly string[]> = {
+  chatgpt: ['.chatgpt.com', '.openai.com'],
+  claude: ['.claude.ai', '.anthropic.com'],
+  google: ['.google.com', '.gemini.google.com', '.aistudio.google.com', '.youtube.com'],
+  deepseek: ['.deepseek.com'],
+  qwen: ['.qwenlm.ai', '.qwen.ai'],
+  kimi: ['.kimi.com', '.moonshot.cn'],
+  m365: ['.microsoft.com', '.microsoftonline.com', '.live.com', '.cloud.microsoft'],
+  copilot: ['.microsoft.com', '.microsoftonline.com', '.live.com'],
+  grok: ['.grok.com', '.x.com'],
+  mistral: ['.mistral.ai'],
+  perplexity: ['.perplexity.ai'],
+  huggingchat: ['.huggingface.co'],
+  manus: ['.manus.im']
 }
 
 function readManifest(): SessionExtensionManifest {
@@ -34,15 +57,20 @@ function hostIsCovered(host: string, patternHost: string): boolean {
 }
 
 describe('site session cookie domains', () => {
-  it('covers every built-in site with its identity domains', () => {
+  it('pins the domains of every site', () => {
+    expect(SITE_SESSION_COOKIE_DOMAINS).toEqual(EXPECTED_COOKIE_DOMAINS)
+  })
+
+  it('never lists the same domain twice in a row', () => {
+    // A domain that is listed twice is read twice and removed twice: the
+    // extension collects it twice and the table says nothing about it.
+    for (const [siteId, domains] of Object.entries(SITE_SESSION_COOKIE_DOMAINS)) {
+      expect(new Set(domains).size, `${siteId} lists a domain twice`).toBe(domains.length)
+    }
+  })
+
+  it('returns the domains of a site', () => {
     expect(getSiteSessionCookieDomains('chatgpt')).toEqual(['.chatgpt.com', '.openai.com'])
-    expect(getSiteSessionCookieDomains('claude')).toEqual(['.claude.ai', '.anthropic.com'])
-    expect(getSiteSessionCookieDomains('google')).toEqual([
-      '.google.com',
-      '.gemini.google.com',
-      '.aistudio.google.com',
-      '.youtube.com'
-    ])
     expect(getSiteSessionCookieDomains('m365')).toEqual([
       '.microsoft.com',
       '.microsoftonline.com',

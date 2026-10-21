@@ -19,15 +19,16 @@ import {
   cookieRemovalUrls,
   isCookieDomainAllowed,
   normalizeCookieDomain
-} from './siteSessionImporter.js'
+} from './siteSessionCookies.js'
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
  * Removes the cookies of one site, clears the storage of its origin and the
  * credentials it authenticated with.
  *
- * The domain rule lives with the importer: both decide what belongs to a site,
- * and the two must not drift apart.
+ * The domain rule lives in `siteSessionCookies.ts`: the writer of a session,
+ * the reader of one and this eraser all decide what belongs to a site, and
+ * the three must not drift apart.
  */
 export async function wipeSiteSession(
   targetSession: Session,
