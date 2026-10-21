@@ -66,8 +66,13 @@ export function migrateLegacyGoogleEnabled(legacy: unknown): boolean | undefined
   return typeof enabled === 'boolean' ? enabled : undefined
 }
 
-/** An account that was never touched: unnamed, off, no history. */
-function createAccountState(enabled: boolean): SiteSessionAccountState {
+/**
+ * An account that was never touched: unnamed, off, no history.
+ *
+ * Exported so the account rows build a synthetic primary from the same shape
+ * the config writes: a field added to the state belongs in one place only.
+ */
+export function createAccountState(enabled: boolean): SiteSessionAccountState {
   return {
     name: null,
     enabled,

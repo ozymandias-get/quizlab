@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, promises as fs, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -16,9 +16,14 @@ vi.mock('electron', () => ({
   }
 }))
 
-vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
-  getSiteSessionConfig: () => ({ read: configRead })
-}))
+vi.mock('../../../features/web-session/siteSessionConfig.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../features/web-session/siteSessionConfig.js')>()
+  return {
+    ...actual,
+    getSiteSessionConfig: () => ({ read: configRead })
+  }
+})
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: vi.fn(async () => targetRows)
@@ -61,6 +66,14 @@ describe('accountPartitionFor', () => {
     expect(accountPartitionFor('google', 'a1')).toBe('persist:ai_google_a1')
     expect(accountPartitionFor('custom:custom_abc', 'a1')).toBe('persist:ai_custom_custom_abc_a1')
     expect(accountPartitionFor('google', 'a1')).toMatch(/^persist:ai_[\w-]+$/)
+    expect(accountPartitionFor('custom:custom_abc', 'a1')).toMatch(/^persist:ai_[\w-]+$/)
+  })
+
+  it('sanitises an account id the cache whitelist would reject', () => {
+    const partition = accountPartitionFor('google', 'a:b')
+
+    expect(partition).toBe('persist:ai_google_a_b')
+    expect(partition).toMatch(/^persist:ai_[\w-]+$/)
   })
 })
 
@@ -128,6 +141,17 @@ describe('buildAccountRows', () => {
     })
   })
 
+  it('does not mutate the state it reads', () => {
+    const state = emptyState()
+    Object.freeze(state.sites)
+    Object.freeze(state)
+
+    const rows = buildAccountRows(sites, state)
+
+    expect(rows).toHaveLength(1)
+    expect(state.sites).toEqual({})
+  })
+
   it('treats a site entry without accounts as a site without a state', () => {
     const state: SiteSessionConfigFile = {
       ...emptyState(),
@@ -135,6 +159,33 @@ describe('buildAccountRows', () => {
     }
     const rows = buildAccountRows(sites, state)
     expect(rows.map((row) => row.accountId)).toEqual([PRIMARY_ACCOUNT_ID])
+  })
+
+  it('synthesises a primary account when the state holds only an additional one', () => {
+    const state: SiteSessionConfigFile = {
+      ...emptyState(),
+      sites: {
+        google: {
+          accounts: { a1: primaryState({ enabled: true }) },
+          activeAccountId: 'a1'
+        }
+      }
+    }
+    const rows = buildAccountRows(sites, state)
+
+    expect(rows.map((row) => row.accountId)).toEqual(['primary', 'a1'])
+    expect(rows.map((row) => row.partition)).toEqual([
+      'persist:gemini_web_profile',
+      'persist:ai_google_a1'
+    ])
+    expect(rows[0].state).toEqual({
+      name: null,
+      enabled: false,
+      importedAt: null,
+      lastResult: null,
+      lastError: null,
+      fingerprints: []
+    })
   })
 
   it('keeps the primary account first and the additional ones in insertion order', () => {
@@ -229,6 +280,19 @@ describe('resolveActiveAccountPartition', () => {
     await expect(resolveActiveAccountPartition('google')).resolves.toBeNull()
   })
 
+  it('returns null when the site is not one of the targets', async () => {
+    const state: SiteSessionConfigFile = {
+      ...emptyState(),
+      sites: {
+        google: { accounts: { primary: primaryState() }, activeAccountId: PRIMARY_ACCOUNT_ID }
+      }
+    }
+    configRead.mockResolvedValue(state)
+    targetRows.length = 0
+
+    await expect(resolveActiveAccountPartition('google')).resolves.toBeNull()
+  })
+
   it('returns null when the active account is gone from the state', async () => {
     const state: SiteSessionConfigFile = {
       ...emptyState(),
@@ -259,5 +323,16 @@ describe('removePartitionDirectory', () => {
 
   it('does not throw when the partition was never used', async () => {
     await expect(removePartitionDirectory('persist:ai_google_a1')).resolves.toBeUndefined()
+  })
+
+  it('propagates a failed deletion instead of swallowing it', async () => {
+    const failure = new Error('EPERM: operation not permitted')
+    const remove = vi.spyOn(fs, 'rm').mockRejectedValueOnce(failure)
+
+    try {
+      await expect(removePartitionDirectory('persist:ai_google_a1')).rejects.toBe(failure)
+    } finally {
+      remove.mockRestore()
+    }
   })
 })

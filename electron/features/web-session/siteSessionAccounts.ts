@@ -9,7 +9,7 @@
  */
 
 import { PRIMARY_ACCOUNT_ID, type SiteSessionKind } from '../../../shared/types/siteSession.js'
-import { getSiteSessionConfig } from './siteSessionConfig.js'
+import { createAccountState, getSiteSessionConfig } from './siteSessionConfig.js'
 import type { SiteSessionAccountState, SiteSessionConfigFile } from './siteSessionMigration.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
@@ -35,28 +35,22 @@ export function isPrimaryAccount(accountId: string): boolean {
   return accountId === PRIMARY_ACCOUNT_ID
 }
 
+/** The characters a partition name may carry; everything else becomes `_`. */
+function sanitizePartitionPart(value: string): string {
+  return value.replaceAll(/[^A-Za-z0-9_-]/g, '_')
+}
+
 /**
  * The partition of an additional account.
  *
- * The id is sanitised because a site id may carry a colon (`custom:custom_…`)
- * and a partition name is used as a folder name: only word characters and
- * dashes survive the cache whitelist and the path rules. The primary account
- * never uses this: it keeps the platform's partition.
+ * Both ids are sanitised: a site id may carry a colon (`custom:custom_…`) and
+ * an account id may come from a hand-edited file, while a partition name is
+ * used as a folder name and has to match the cache whitelist
+ * (`persist:ai_[\w-]+`). The primary account never uses this: it keeps the
+ * platform's partition.
  */
 export function accountPartitionFor(siteId: string, accountId: string): string {
-  return `persist:ai_${siteId.replaceAll(/[^A-Za-z0-9_-]/g, '_')}_${accountId}`
-}
-
-/** An account that was never touched: unnamed, off, no history. */
-function createEmptyAccountState(): SiteSessionAccountState {
-  return {
-    name: null,
-    enabled: false,
-    importedAt: null,
-    lastResult: null,
-    lastError: null,
-    fingerprints: []
-  }
+  return `persist:ai_${sanitizePartitionPart(siteId)}_${sanitizePartitionPart(accountId)}`
 }
 
 /**
@@ -90,10 +84,11 @@ function buildAccountRow(
 /**
  * The account rows of every site.
  *
- * A site without a state has never been touched by the user; it still has its
- * primary account, off, on the platform's partition. A site with a state
- * contributes the accounts the file holds: the primary first, then the
- * additional accounts in the order they were added.
+ * Every site carries a primary account, even when the user never touched it:
+ * when the state has none — no entry at all, or one that holds only additional
+ * accounts — the primary is synthesised off and on the platform's partition.
+ * The primary comes first; the additional accounts follow in the order they
+ * were added.
  */
 export function buildAccountRows(
   sites: readonly SiteSessionTargetRow[],
@@ -103,14 +98,13 @@ export function buildAccountRows(
 
   for (const site of sites) {
     const accounts = state.sites[site.siteId]?.accounts
-    if (!accounts || Object.keys(accounts).length === 0) {
-      rows.push(buildAccountRow(site, PRIMARY_ACCOUNT_ID, createEmptyAccountState()))
-      continue
-    }
+    const primaryState =
+      accounts && Object.hasOwn(accounts, PRIMARY_ACCOUNT_ID)
+        ? accounts[PRIMARY_ACCOUNT_ID]
+        : createAccountState(false)
+    rows.push(buildAccountRow(site, PRIMARY_ACCOUNT_ID, primaryState))
+    if (!accounts) continue
 
-    if (Object.hasOwn(accounts, PRIMARY_ACCOUNT_ID)) {
-      rows.push(buildAccountRow(site, PRIMARY_ACCOUNT_ID, accounts[PRIMARY_ACCOUNT_ID]))
-    }
     for (const [accountId, accountState] of Object.entries(accounts)) {
       if (accountId === PRIMARY_ACCOUNT_ID) continue
       rows.push(buildAccountRow(site, accountId, accountState))
