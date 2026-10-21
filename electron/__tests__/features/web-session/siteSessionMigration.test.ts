@@ -163,6 +163,52 @@ describe('migrateSiteSessionStateV1', () => {
     expect(migrated.sites.google.accounts.a1.name).toBe('İş')
   })
 
+  it('keeps the sites of an old file whose version was written as a string', () => {
+    // A numeric string is not a version this build can trust: the file holds
+    // `targets`, so it is an old file whatever its version field says.
+    const migrated = migrateSiteSessionStateV1({
+      version: '2',
+      configVersion: 3,
+      targets: {
+        google: {
+          enabled: true,
+          importedAt: '2026-10-19T10:00:00.000Z',
+          lastResult: 'imported',
+          lastError: null
+        }
+      }
+    })
+    expect(migrated.version).toBe(2)
+    expect(migrated.sites.google.accounts.primary.enabled).toBe(true)
+    expect(migrated.sites.google.accounts.primary.importedAt).toBe('2026-10-19T10:00:00.000Z')
+    expect(migrated.sites.google.accounts.primary.lastResult).toBe('imported')
+    expect(migrated.sites.google.activeAccountId).toBe(PRIMARY_ACCOUNT_ID)
+  })
+
+  it('keeps the accounts of a file that still carries an empty targets dictionary', () => {
+    const migrated = migrateSiteSessionStateV1({
+      configVersion: 3,
+      targets: {},
+      sites: {
+        google: {
+          accounts: {
+            a1: {
+              name: 'İş',
+              enabled: true,
+              importedAt: null,
+              lastResult: null,
+              lastError: null,
+              fingerprints: []
+            }
+          },
+          activeAccountId: 'a1'
+        }
+      }
+    })
+    expect(migrated.version).toBe(2)
+    expect(migrated.sites.google.accounts.a1.name).toBe('İş')
+  })
+
   it('keeps a file whose version is missing or was hand-edited into nonsense', () => {
     for (const version of [undefined, 'two']) {
       const migrated = migrateSiteSessionStateV1({
@@ -220,6 +266,18 @@ describe('migrateSiteSessionStateV1', () => {
       targets: { google: { enabled: true, futureField: 'kept' } }
     })
     expect(migrated.sites.google.accounts.primary).toMatchObject({ futureField: 'kept' })
+  })
+
+  it('does not carry a prohibited key of the old target into the account', () => {
+    // JSON.parse creates an own `__proto__` property; a spread would copy it
+    // into the account as data and the next save would write it back.
+    const raw = JSON.parse(
+      '{"version":1,"configVersion":0,"targets":{"google":{"enabled":true,"__proto__":{"polluted":true},"constructor":{"polluted":true}}}}'
+    )
+    const migrated = migrateSiteSessionStateV1(raw)
+    expect(Object.hasOwn(migrated.sites.google.accounts.primary, '__proto__')).toBe(false)
+    expect(Object.hasOwn(migrated.sites.google.accounts.primary, 'constructor')).toBe(false)
+    expect(Object.getPrototypeOf(migrated.sites.google.accounts.primary)).toBe(Object.prototype)
   })
 
   it('survives a file that is not an object', () => {
