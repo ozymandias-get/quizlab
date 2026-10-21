@@ -43,8 +43,6 @@ const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 export interface SiteSessionTargetState {
   enabled: boolean
   importedAt: string | null
-  /** En erken süreli çerezin bitiş zamanı (ISO) — yalnızca bilgi amaçlı. */
-  expiresAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
 }
@@ -97,7 +95,6 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
   return {
     enabled,
     importedAt: null,
-    expiresAt: null,
     lastResult: null,
     lastError: null
   }
@@ -142,7 +139,6 @@ function normalizeTargetState(raw: unknown): SiteSessionTargetState {
     ...source,
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
-    expiresAt: typeof source.expiresAt === 'string' ? source.expiresAt : null,
     lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
     lastError: typeof source.lastError === 'string' ? source.lastError : null
   }
@@ -276,6 +272,9 @@ export class SiteSessionConfig {
    * file holds at that moment. Writing a state built from scratch would
    * replace a switch that was set while the legacy file was being read, and
    * would roll the version back.
+   *
+   * @throws when the state could not be written. A migration that failed
+   *   silently would look like a profile that never had the Google switch.
    */
   private async migrateLegacyState(): Promise<SiteSessionConfigFile> {
     const legacyEnabled = migrateLegacyGoogleEnabled(await this.readLegacyState())
@@ -286,9 +285,13 @@ export class SiteSessionConfig {
       await this.store.read(true)
     }
 
-    await this.store.update((current) =>
+    const written = await this.store.update((current) =>
       mergeLegacyGoogleState(normalizeConfigFile(current), legacyEnabled)
     )
+
+    if (!written) {
+      throw new Error('[Web Session] The legacy state could not be migrated.')
+    }
 
     return normalizeConfigFile(await this.store.read(true))
   }
@@ -350,17 +353,12 @@ export class SiteSessionConfig {
    * The switch itself does not change, so the version stays: the extension
    * has nothing new to push.
    *
-   * `expiresAt` is informational: it is the earliest expiry among the
-   * imported cookies, so the settings row can say when the session the app
-   * holds is likely to run out.
-   *
    * @throws when the state could not be written.
    */
   async recordResult(
     siteId: string,
     result: SiteSessionTargetState['lastResult'],
-    error?: string,
-    expiresAt?: string | null
+    error?: string
   ): Promise<void> {
     await this.loadState()
     if (PROHIBITED_KEYS.has(siteId)) return
@@ -376,7 +374,6 @@ export class SiteSessionConfig {
           [siteId]: {
             ...existing,
             importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
-            expiresAt: expiresAt === undefined ? existing.expiresAt : expiresAt,
             lastResult: result,
             lastError: error ?? null
           }

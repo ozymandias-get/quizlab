@@ -26,11 +26,17 @@ vi.mock('../../../features/native-messaging/nativeMessagingManager.js', () => ({
   }
 }))
 
+vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
+  // Every partition of this test is one the app has used before.
+  partitionExistsOnDisk: vi.fn(async () => true)
+}))
+
 import {
   isExtensionVersionOk,
   SiteSessionService
 } from '../../../features/web-session/siteSessionService.js'
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
+import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -72,7 +78,6 @@ function makeService(
         chatgpt: {
           enabled: overrides.enabled ?? false,
           importedAt: null,
-          expiresAt: null,
           lastResult: null,
           lastError: null
         }
@@ -94,6 +99,9 @@ function makeService(
 describe('SiteSessionService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // The list is kept for a couple of seconds: every test starts with an
+    // empty cache, or it would read the list of the test before it.
+    invalidateSiteSessionListCache()
   })
 
   it('lists every target with the import switched off by default', async () => {
@@ -174,7 +182,7 @@ describe('SiteSessionService', () => {
       name: 'session',
       url: 'https://chatgpt.com/'
     })
-    expect(config.recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined, null)
+    expect(config.recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
   })
 
   it('wipes the session only after the import that is running has written', async () => {
@@ -324,6 +332,83 @@ describe('SiteSessionService', () => {
     const result = await service.clear('nope')
     expect(result.success).toBe(false)
     expect(result.error).toBe('unknown_target')
+  })
+})
+
+describe('the list of the sites', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    invalidateSiteSessionListCache()
+  })
+
+  it('serves the second reader the list it already built', async () => {
+    // The button in the bottom bar and the settings behind it ask for the
+    // list at the same time: the state of the sites is read once.
+    const { service, config } = makeService()
+
+    await service.list()
+    await service.list()
+
+    expect(config.read).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not keep the list after a switch was turned', async () => {
+    const { service, config } = makeService()
+
+    await service.list()
+    await service.setEnabled('chatgpt', true)
+    await service.list()
+
+    expect(config.read).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not keep the list after a session was cleared', async () => {
+    const { service, config } = makeService({ enabled: true, localCookies: [LOCAL_COOKIE] })
+
+    await service.list()
+    await service.clear('chatgpt')
+    await service.list()
+
+    expect(config.read).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not keep the list after an import', async () => {
+    // The import happens in the bridge: the row shows the outcome of the
+    // last import, so the list that is kept may not survive it.
+    const { service, config, session } = makeService({ enabled: true })
+
+    await service.list()
+
+    await acceptSiteSessionPacket(
+      {
+        targetId: 'chatgpt',
+        status: 'ok',
+        cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+      },
+      {
+        config: {
+          read: vi.fn().mockResolvedValue({
+            version: 1,
+            configVersion: 3,
+            targets: {
+              chatgpt: {
+                enabled: true,
+                importedAt: null,
+                lastResult: null,
+                lastError: null
+              }
+            }
+          }),
+          recordResult: vi.fn()
+        } as never,
+        loadTargets: async () => [CHATGPT],
+        resolveSession: () => session as never
+      }
+    )
+
+    await service.list()
+
+    expect(config.read).toHaveBeenCalledTimes(2)
   })
 })
 

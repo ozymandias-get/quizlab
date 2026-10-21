@@ -94,6 +94,21 @@ vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
   getSiteSessionConfig: () => ({ forget })
 }))
 
+/**
+ * The real lock, captured once.
+ *
+ * The handler is imported again for every test, and a lock that is captured
+ * again with it would be a different lock: the test and the handler have to
+ * share the one they both take.
+ */
+const { sharedLock } = await vi.hoisted(async () => ({
+  sharedLock: await vi.importActual<
+    typeof import('../../../features/web-session/siteSessionLock.js')
+  >('../../../features/web-session/siteSessionLock.js')
+}))
+
+vi.mock('../../../features/web-session/siteSessionLock.js', () => sharedLock)
+
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: async () => [
     {
@@ -120,6 +135,7 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
 }))
 
 import { APP_CONFIG } from '../../../app/constants.js'
+import { withSiteSessionLock } from '../../../features/web-session/siteSessionLock.js'
 
 describe('deleting a user-added site', () => {
   beforeEach(() => {
@@ -173,5 +189,28 @@ describe('deleting a user-added site', () => {
     await deleteSite(DELETED_ID)
 
     expect(forget).not.toHaveBeenCalledWith(`custom:${KEPT_ID}`)
+  })
+
+  it('waits for an import that is running before it wipes the session', async () => {
+    // The import of the site holds the lock of the site: a wipe that ran
+    // while the import was still writing would be undone by it, and the
+    // deleted site would keep its session.
+    let releaseImport: () => void = () => {}
+    const importGate = new Promise<void>((resolve) => {
+      releaseImport = resolve
+    })
+    const importing = withSiteSessionLock(`custom:${DELETED_ID}`, async () => {
+      await importGate
+    })
+
+    const deleting = deleteSite(DELETED_ID)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(sessionOf(`persist:ai_custom_${DELETED_ID}`).cookies.remove).not.toHaveBeenCalled()
+
+    releaseImport()
+    await Promise.all([importing, deleting])
+
+    expect(sessionOf(`persist:ai_custom_${DELETED_ID}`).cookies.remove).toHaveBeenCalled()
   })
 })

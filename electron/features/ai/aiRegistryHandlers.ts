@@ -16,6 +16,7 @@ import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
+import { withSiteSessionLock } from '../web-session/siteSessionLock.js'
 import { buildSiteSessionTargets } from '../web-session/siteSessionTargets.js'
 import { wipeSiteSession } from '../web-session/siteSessionWipe.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
@@ -69,6 +70,10 @@ let handlersRegistered = false
  * wiped through the session target the app derives from the registry, the
  * second through the site session state.
  *
+ * The wipe runs under the lock of the site — the same lock the import of
+ * that site runs under — so an import that is already on its way writes its
+ * cookies before the wipe and not after it.
+ *
  * Neither of them may keep the site from being deleted: a failure is logged
  * and the delete goes on.
  */
@@ -80,7 +85,9 @@ async function clearDeletedSiteSession(siteId: string): Promise<void> {
     const targets = await buildSiteSessionTargets()
     const target = targets.find((candidate) => candidate.siteId === siteId)
     if (target) {
-      await wipeSiteSession(electronSession.fromPartition(target.partition), target)
+      await withSiteSessionLock(siteId, () =>
+        wipeSiteSession(electronSession.fromPartition(target.partition), target)
+      )
     }
   } catch (error) {
     Logger.warn('[AI] The session of the deleted site could not be cleared:', error)

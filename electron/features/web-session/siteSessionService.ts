@@ -33,6 +33,11 @@ import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
+import {
+  invalidateSiteSessionListCache,
+  readCachedSiteSessionList,
+  writeCachedSiteSessionList
+} from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
@@ -50,7 +55,7 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  * where it is read from.
  */
 export interface SiteSessionServiceDeps {
-  config: Pick<SiteSessionConfig, 'read' | 'setEnabled' | 'recordResult'>
+  config: Pick<SiteSessionConfig, 'read' | 'setEnabled'>
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -70,8 +75,23 @@ export class SiteSessionService {
    * The partition of a site never leaves this method: the renderer gets the
    * label, the hostname, the switch and the status — nothing that would let
    * it address a session of its own.
+   *
+   * The answer is kept for a couple of seconds: the settings page and the
+   * button in the bottom bar ask for the list at the same time, and building
+   * it reads the session of every site. The cache is dropped by everything
+   * that changes the answer — a switch, a clear, an import.
    */
   async list(): Promise<SiteSessionListResult> {
+    const cached = readCachedSiteSessionList()
+    if (cached) return cached
+
+    const list = await this.buildList()
+    writeCachedSiteSessionList(list)
+    return list
+  }
+
+  /** The list of the sites, read from the state and from the sessions. */
+  private async buildList(): Promise<SiteSessionListResult> {
     const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
     const extensionConnected = this.deps.isExtensionConnected()
     const extensionVersionOk = this.deps.isExtensionVersionOk()
@@ -113,6 +133,10 @@ export class SiteSessionService {
    * before the wipe and cannot undo it.
    */
   async setEnabled(siteId: string, enabled: boolean): Promise<SiteSessionActionResult> {
+    // The switch changes what the list shows, so the list that is kept is
+    // dropped before anything is written.
+    invalidateSiteSessionListCache()
+
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
@@ -139,6 +163,10 @@ export class SiteSessionService {
    * under the lock of the site, for the same reason the switch-off does.
    */
   async clear(siteId: string): Promise<SiteSessionActionResult> {
+    // The session that is forgotten changes what the list shows, so the list
+    // that is kept is dropped before the wipe starts.
+    invalidateSiteSessionListCache()
+
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
