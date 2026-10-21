@@ -36,7 +36,8 @@ const STORAGE_KEYS = [
   'knownTargets',
   'bridgePort',
   'pendingSiteIds',
-  'outdatedState'
+  'outdatedState',
+  'tooLargeSiteIds'
 ]
 
 /** The sync with the app went through. */
@@ -45,6 +46,15 @@ const SYNC_OK = 'ok'
 const SYNC_UNREACHABLE = 'unreachable'
 /** The bridge answered but refused a packet. */
 const SYNC_REFUSED = 'refused'
+
+/** The app took the packet. */
+const PACKET_SENT = 'sent'
+/** The app refused the packet because it was too large to read. */
+const PACKET_TOO_LARGE = 'too_large'
+/** The app refused the packet for another reason. */
+const PACKET_REFUSED = 'refused'
+/** The request never reached the app. */
+const PACKET_UNREACHABLE = 'unreachable'
 
 let connected = false
 let cookieDebounceTimer = null
@@ -55,6 +65,8 @@ let knownTargets = []
 let bridgePort = null
 /** The sites whose packet the app refused; they are pushed again. */
 let pendingSiteIds = new Set()
+/** The sites whose packet did not fit into the app; they are not pushed again. */
+let tooLargeSiteIds = new Set()
 /** The state the app was last told about while it speaks an older protocol. */
 let outdatedState = null
 /** What the last push sent, so that the same state is not sent twice. */
@@ -151,12 +163,18 @@ async function readPersistedState() {
     if (Array.isArray(stored.pendingSiteIds)) {
       pendingSiteIds = new Set(stored.pendingSiteIds.filter((id) => typeof id === 'string'))
     }
+    if (Array.isArray(stored.tooLargeSiteIds)) {
+      tooLargeSiteIds = new Set(stored.tooLargeSiteIds.filter((id) => typeof id === 'string'))
+    }
     if (typeof stored.outdatedState === 'string') {
       outdatedState = stored.outdatedState
     }
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
   }
+  // The wake-up listens for the sites of the saved list until the app names
+  // its own list.
+  applyWakeUpFilter()
 }
 
 async function persistState(values) {
@@ -405,7 +423,14 @@ async function collectTargetPacket(target) {
   return { targetId: target.siteId, status: 'no_cookies', cookies: [] }
 }
 
-/** Sends the packet of one site to the app. */
+/**
+ * Sends the packet of one site to the app.
+ *
+ * The answer of the app is told apart in four ways: the app took the packet,
+ * the app refused it, the app refused it because it was too large to read, or
+ * the request never reached the app. The last one is the only one that says
+ * nothing about the packet itself.
+ */
 async function postPacket(packet, port) {
   try {
     const body = JSON.stringify(packet)
@@ -424,6 +449,11 @@ async function postPacket(packet, port) {
       headers,
       body
     })
+    if (response.status === 413) {
+      // The packet is bigger than the app reads: it can never be imported, so
+      // it is not sent again.
+      return PACKET_TOO_LARGE
+    }
     if (!response.ok) {
       console.warn(
         '[Quizlab Bridge] The app refused the packet of',
@@ -431,9 +461,9 @@ async function postPacket(packet, port) {
         'with',
         response.status
       )
-      return false
+      return PACKET_REFUSED
     }
-    return true
+    return PACKET_SENT
   } catch (error) {
     console.warn(
       '[Quizlab Bridge] The packet of',
@@ -441,7 +471,7 @@ async function postPacket(packet, port) {
       'could not be sent:',
       errorMessage(error)
     )
-    return false
+    return PACKET_UNREACHABLE
   }
 }
 
@@ -494,14 +524,30 @@ function statePushedTo(list, fingerprint) {
  * A site whose packet the app refused is remembered: it is pushed again with
  * the next poll, because the app may have refused it for a reason that is
  * gone by then.
+ *
+ * A site whose packet did not fit into the app is remembered as well, but the
+ * other way round: it is not pushed again, because a packet that is too large
+ * stays too large.
  */
 async function pushTargets(targets, port) {
   let refused = false
   for (const target of targets) {
+    if (tooLargeSiteIds.has(target.siteId)) continue
     const packet = await collectTargetPacket(target)
-    const sent = await postPacket(packet, port)
-    if (sent) {
+    const outcome = await postPacket(packet, port)
+    if (outcome === PACKET_SENT) {
       pendingSiteIds.delete(target.siteId)
+    } else if (outcome === PACKET_TOO_LARGE) {
+      pendingSiteIds.delete(target.siteId)
+      tooLargeSiteIds.add(target.siteId)
+      // The state did not reach the app entirely, so the app has to be told
+      // about it again when it asks for something new.
+      refused = true
+      console.warn(
+        '[Quizlab Bridge] The packet of',
+        target.siteId,
+        'is too large for the app; it is not pushed again'
+      )
     } else {
       pendingSiteIds.add(target.siteId)
       refused = true
@@ -522,15 +568,32 @@ async function pushTargets(targets, port) {
  * The app speaks an older protocol, so it cannot read the packets anyway. The
  * state is reported once and not on every poll: a report per poll would be a
  * packet every 30 seconds for an app that will never understand them.
+ *
+ * The state is marked as reported only after the report went through: a
+ * report that never reached the app is lost otherwise, and the user is never
+ * told to reload the extension.
  */
 async function reportOutdatedOnce(list, port) {
   const key = `${list.protocolVersion}:${targetsFingerprint(list.targets)}`
   if (outdatedState === key) return
+  let delivered = true
+  for (const target of list.targets) {
+    const outcome = await postPacket(
+      { targetId: target.siteId, status: 'permission_missing', cookies: [] },
+      port
+    )
+    // The app answers with a refusal: it does not understand the packet. The
+    // report still went through, so it is not repeated.
+    if (outcome === PACKET_UNREACHABLE) delivered = false
+  }
+  if (!delivered) {
+    console.warn(
+      '[Quizlab Bridge] The app was not told about the old protocol; the report is repeated'
+    )
+    return
+  }
   outdatedState = key
   await persistState({ outdatedState: key })
-  for (const target of list.targets) {
-    await postPacket({ targetId: target.siteId, status: 'permission_missing', cookies: [] }, port)
-  }
 }
 
 /**
@@ -571,6 +634,13 @@ async function sendCookiesToApp(options) {
   const changed =
     list.configVersion !== lastConfigVersion || fingerprint !== targetsFingerprint(knownTargets)
 
+  if (changed) {
+    // The app asked for something else than it did the last time: a site whose
+    // packet did not fit gets another chance, because the user may have
+    // changed something in the app.
+    tooLargeSiteIds.clear()
+  }
+
   // The sites that have to be pushed: the ones the app refused, the ones the
   // browser changed and — when the bridge is a new one — all of them.
   const wanted = new Set(pendingSiteIds)
@@ -583,11 +653,17 @@ async function sendCookiesToApp(options) {
   if (settings.connect === true && !statePushedTo(list, fingerprint)) {
     for (const target of list.targets) wanted.add(target.siteId)
   }
+  // A site whose packet did not fit into the app is not pushed again: the
+  // packet cannot get smaller by waiting.
+  for (const siteId of tooLargeSiteIds) wanted.delete(siteId)
 
   // A site the app does not ask for anymore is not pushed again.
   const asked = new Set(list.targets.map((target) => target.siteId))
   for (const siteId of pendingSiteIds) {
     if (!asked.has(siteId)) pendingSiteIds.delete(siteId)
+  }
+  for (const siteId of tooLargeSiteIds) {
+    if (!asked.has(siteId)) tooLargeSiteIds.delete(siteId)
   }
 
   const targets = list.targets.filter((target) => wanted.has(target.siteId))
@@ -595,7 +671,12 @@ async function sendCookiesToApp(options) {
     if (changed) {
       lastConfigVersion = list.configVersion
       knownTargets = list.targets
-      await persistState({ lastConfigVersion, knownTargets })
+      applyWakeUpFilter()
+      await persistState({
+        lastConfigVersion,
+        knownTargets,
+        tooLargeSiteIds: [...tooLargeSiteIds]
+      })
     }
     return SYNC_OK
   }
@@ -604,6 +685,7 @@ async function sendCookiesToApp(options) {
   if (changed) {
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
+    applyWakeUpFilter()
   }
   if (!refused && targets.length === list.targets.length) {
     // The whole state reached the bridge: it does not have to be sent again.
@@ -612,7 +694,8 @@ async function sendCookiesToApp(options) {
   await persistState({
     lastConfigVersion,
     knownTargets,
-    pendingSiteIds: [...pendingSiteIds]
+    pendingSiteIds: [...pendingSiteIds],
+    tooLargeSiteIds: [...tooLargeSiteIds]
   })
   return refused ? SYNC_REFUSED : SYNC_OK
 }
@@ -738,12 +821,63 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 // Triggers on Chrome startup and whenever the SW is spun up.
 void scanForBridge()
 
-// Wake up the service worker when the user navigates to Gemini or AI Studio.
-chrome.webNavigation.onCompleted.addListener(
-  () => {
-    void scanForBridge()
-  },
-  {
-    url: [{ hostSuffix: 'gemini.google.com' }, { hostSuffix: 'aistudio.google.com' }]
+/**
+ * The hosts the navigation wake-up listens for.
+ *
+ * The list is the one of the sites the app asks for: the worker wakes up when
+ * the user visits a site whose session may be taken from Chrome. The list is
+ * not written down here — a site the app adds later is in it as well.
+ */
+function wakeUpHosts() {
+  const hosts = new Set()
+  for (const target of knownTargets) {
+    for (const domain of target.cookieDomains) {
+      const host = typeof domain === 'string' ? domain.trim().toLowerCase().replace(/^\.+/, '') : ''
+      if (host) hosts.add(host)
+    }
   }
-)
+  return [...hosts]
+}
+
+/** The hosts the wake-up listens for at the moment. */
+let wakeUpFilter = []
+/** Whether the wake-up is registered at all. */
+let wakeUpRegistered = false
+
+/**
+ * Wakes the worker up when the user visits a site of the app.
+ *
+ * The listener is registered again whenever the list of the sites changes:
+ * the filter of a listener cannot be changed, only replaced. The wake-up stays
+ * cheap — it only fires for the hosts of the sites the app asks for.
+ */
+function applyWakeUpFilter() {
+  const hosts = wakeUpHosts()
+  if (wakeUpRegistered && hosts.length === wakeUpFilter.length) {
+    if (hosts.every((host, index) => host === wakeUpFilter[index])) return
+  }
+  wakeUpFilter = hosts
+  wakeUpRegistered = true
+  try {
+    chrome.webNavigation.onCompleted.removeListener(onNavigationCompleted)
+    chrome.webNavigation.onCompleted.addListener(onNavigationCompleted, {
+      url: hosts.map((host) => ({ hostSuffix: host }))
+    })
+  } catch (error) {
+    // A filter that Chrome does not accept must not take the worker down: the
+    // alarm wakes it up anyway.
+    console.warn(
+      '[Quizlab Bridge] The navigation wake-up could not be registered:',
+      errorMessage(error)
+    )
+  }
+}
+
+/** The wake-up itself: the bridge is looked for again. */
+function onNavigationCompleted() {
+  void scanForBridge()
+}
+
+// The listener has to be registered synchronously: a worker that is woken up
+// by a navigation has to know the listener before it returns.
+applyWakeUpFilter()

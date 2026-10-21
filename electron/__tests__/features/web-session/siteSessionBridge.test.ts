@@ -67,7 +67,8 @@ import {
   hasLocalSessionForTarget,
   listEnabledSiteSessionTargets,
   openSiteSessionRound,
-  parseSiteSessionPacket
+  parseSiteSessionPacket,
+  recordOversizedSiteSessionPacket
 } from '../../../features/web-session/siteSessionBridge.js'
 import { setSiteSessionListReader } from '../../../features/web-session/siteSessionBroadcast.js'
 
@@ -289,6 +290,16 @@ describe('site session bridge', () => {
     expect(set).not.toHaveBeenCalled()
     expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined)
   })
+
+  it('records a packet that did not fit into the bridge as a failed import', async () => {
+    // The packet was too large to be read, so nothing was imported: the row of
+    // the site has to say so instead of showing the outcome of an earlier one.
+    read.mockResolvedValue(stateWith(true))
+    await recordOversizedSiteSessionPacket('chatgpt')
+
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'packet_too_large')
+    expect(set).not.toHaveBeenCalled()
+  })
 })
 
 describe('the renderer', () => {
@@ -328,6 +339,16 @@ describe('the renderer', () => {
     })
 
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('tells the renderer about a packet that did not fit into the bridge', async () => {
+    // The row of the site changed, so the renderer has to hear about it.
+    await recordOversizedSiteSessionPacket('chatgpt')
+
+    expect(send).toHaveBeenCalledWith(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED,
+      expect.objectContaining({ extensionConnected: true })
+    )
   })
 })
 

@@ -404,6 +404,28 @@ async function isStillEnabled(
 }
 
 /**
+ * The reason code a packet that does not fit into the bridge is recorded with.
+ *
+ * The code is a plain string: the renderer shows the code of the `lastError`
+ * through the `ws_error_*` keys, and the key of this one comes with the
+ * translation of the code.
+ */
+export const PACKET_TOO_LARGE = 'packet_too_large'
+
+/**
+ * Records that the packet of a site did not fit into the bridge.
+ *
+ * Nothing was imported: the packet was larger than the bridge reads, so it
+ * could not even be looked at. The row of the site says so instead of showing
+ * the outcome of an earlier import, and the renderer hears about it because
+ * the row of the site changed.
+ */
+export async function recordOversizedSiteSessionPacket(siteId: string): Promise<void> {
+  await recordResult(getSiteSessionConfig(), siteId, 'failed', PACKET_TOO_LARGE)
+  await broadcastSiteSessionsChanged()
+}
+
+/**
  * Records the outcome of an import.
  *
  * A state file that cannot be written must not take the bridge down with it:
