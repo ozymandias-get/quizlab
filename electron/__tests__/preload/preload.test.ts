@@ -42,8 +42,12 @@ type ExposedApi = {
   onPdfViewerZoom: (callback: (action: 'in' | 'out' | 'reset') => void) => () => void
   siteSession: {
     list: () => Promise<unknown>
-    setEnabled: (siteId: string, enabled: boolean) => Promise<unknown>
-    clear: (siteId: string) => Promise<unknown>
+    setAccountEnabled: (siteId: string, accountId: string, enabled: boolean) => Promise<unknown>
+    clearAccount: (siteId: string, accountId: string) => Promise<unknown>
+    setActiveAccount: (siteId: string, accountId: string) => Promise<unknown>
+    renameAccount: (siteId: string, accountId: string, name: string) => Promise<unknown>
+    deleteAccount: (siteId: string, accountId: string) => Promise<unknown>
+    resolvePending: (siteId: string, accountId: string | null) => Promise<unknown>
     onChanged: (callback: (result: unknown) => void) => () => void
   }
 }
@@ -147,17 +151,52 @@ describe('preload electronAPI', () => {
     const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
 
     await api.siteSession.list()
-    await api.siteSession.setEnabled('chatgpt', true)
-    await api.siteSession.clear('chatgpt')
+    await api.siteSession.setAccountEnabled('chatgpt', 'account-2', true)
+    await api.siteSession.clearAccount('chatgpt', 'account-2')
+    await api.siteSession.setActiveAccount('chatgpt', 'account-2')
+    await api.siteSession.renameAccount('chatgpt', 'account-2', 'Work')
+    await api.siteSession.deleteAccount('chatgpt', 'account-2')
+    await api.siteSession.resolvePending('chatgpt', null)
 
     expect(invoke).toHaveBeenNthCalledWith(1, IPC_CHANNELS.SITE_SESSION_LIST)
     expect(invoke).toHaveBeenNthCalledWith(
       2,
-      IPC_CHANNELS.SITE_SESSION_SET_ENABLED,
+      IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED,
       'chatgpt',
+      'account-2',
       true
     )
-    expect(invoke).toHaveBeenNthCalledWith(3, IPC_CHANNELS.SITE_SESSION_CLEAR, 'chatgpt')
+    expect(invoke).toHaveBeenNthCalledWith(
+      3,
+      IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT,
+      'chatgpt',
+      'account-2'
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      4,
+      IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT,
+      'chatgpt',
+      'account-2'
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      5,
+      IPC_CHANNELS.SITE_SESSION_RENAME_ACCOUNT,
+      'chatgpt',
+      'account-2',
+      'Work'
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      6,
+      IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT,
+      'chatgpt',
+      'account-2'
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      7,
+      IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING,
+      'chatgpt',
+      null
+    )
   })
 
   it('subscribes and unsubscribes site session change events', async () => {
