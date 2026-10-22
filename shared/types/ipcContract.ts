@@ -296,18 +296,8 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<SiteSessionListResult>
   }
 
-  [IPC_CHANNELS.SITE_SESSION_SET_ENABLED]: {
-    args: [siteId: string, enabled: boolean]
-    result: IpcResult<SiteSessionActionResult>
-  }
-
-  [IPC_CHANNELS.SITE_SESSION_CLEAR]: {
-    args: [siteId: string]
-    result: IpcResult<SiteSessionActionResult>
-  }
-
-  // Account-level site session actions. Every one of them names the account it
-  // acts on; the old site-level pair above is the primary account's alias.
+  // Account-level site session actions. Every one of them names the account
+  // it acts on.
   [IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED]: {
     args: [siteId: string, accountId: string, enabled: boolean]
     result: IpcResult<SiteSessionActionResult>

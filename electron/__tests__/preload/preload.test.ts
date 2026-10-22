@@ -211,7 +211,7 @@ describe('preload electronAPI', () => {
     const handler = on.mock.calls.find(
       ([channel]) => channel === IPC_CHANNELS.SITE_SESSION_CHANGED
     )?.[1] as ((event: unknown, payload: unknown) => void) | undefined
-    const payload = { views: [], extensionConnected: true, extensionVersionOk: true }
+    const payload = { accountViews: [], extensionConnected: true, extensionVersionOk: true }
     handler?.({}, payload)
     expect(callback).toHaveBeenCalledWith(payload)
 

@@ -13,19 +13,16 @@
  * an empty id names no account at all. A refused call never reaches the
  * service.
  *
- * The old site-level `setEnabled` and `clear` channels stay for now. They act
- * on the primary account, which is the account the old settings card shows and
- * toggles; they are removed together with that card.
+ * The old site-level `setEnabled` and `clear` channels are gone: the settings
+ * card reads the accounts of a site, and every action names the account it
+ * acts on.
  *
  * After an action was carried out the fresh list is sent to the renderer, so
  * the row shows the new state without waiting for a poll.
  */
 
 import { failure, type IpcResult, success } from '../../../shared/lib/typedIpc.js'
-import {
-  PRIMARY_ACCOUNT_ID,
-  type SiteSessionActionResult
-} from '../../../shared/types/siteSession.js'
+import { type SiteSessionActionResult } from '../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -83,47 +80,6 @@ export function registerSiteSessionHandlers(): void {
     async () => success(await siteSessionService.list()),
     requireTrustedIpcSender,
     failure('unauthorized', 'Not authorized')
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.SITE_SESSION_SET_ENABLED,
-    async (_event, siteId: unknown, enabled: unknown) => {
-      if (typeof siteId !== 'string' || siteId.length === 0) {
-        return success({ success: false, error: 'invalid_site_id' })
-      }
-      // Only a real boolean may turn a site on or off. A malformed payload
-      // must not reach the service: switching a site off wipes its session,
-      // and a payload that lost its flag on the way must not destroy it.
-      if (typeof enabled !== 'boolean') {
-        return success({ success: false, error: 'invalid_enabled' })
-      }
-
-      // The old channel predates the accounts: its switch is the primary
-      // account's switch, which is the one the old settings card shows.
-      const result = await siteSessionService.setEnabled(siteId, PRIMARY_ACCOUNT_ID, enabled)
-      // The list is sent even when the action failed: the switch may have been
-      // written before the session could be cleared, and the row has to show
-      // what the app really holds.
-      await broadcastSiteSessionsChanged()
-      return success(result)
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.SITE_SESSION_CLEAR,
-    async (_event, siteId: unknown) => {
-      if (typeof siteId !== 'string' || siteId.length === 0) {
-        return success({ success: false, error: 'invalid_site_id' })
-      }
-
-      const result = await siteSessionService.clear(siteId, PRIMARY_ACCOUNT_ID)
-      await broadcastSiteSessionsChanged()
-      return success(result)
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
   )
 
   registerIpcHandler(

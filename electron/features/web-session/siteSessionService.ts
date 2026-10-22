@@ -18,10 +18,8 @@
  *   - A switch that could not be written is reported as a failure. The app
  *     must not tell the user that an account was switched off while it is
  *     still importing it.
- *   - The account is the unit of every action. The old site-level list stays
- *     next to the account views until the settings page reads the accounts:
- *     it is always the primary account's summary, so the old switch and the
- *     old switch action keep meaning the same thing.
+ *   - The account is the unit of every action: the settings page lists the
+ *     accounts of a site, and every action names the account it acts on.
  */
 
 import type { Session } from 'electron'
@@ -58,11 +56,7 @@ import type { SiteSessionConfigFile } from './siteSessionMigration.js'
 import { removePartitionDirectory } from './siteSessionPartitions.js'
 import { clearPendingSiteSession, getPendingSiteSession } from './siteSessionPendingSessions.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
-import {
-  buildSiteSessionTargets,
-  type SiteSessionTargetRow,
-  toSiteSessionView
-} from './siteSessionTargets.js'
+import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 import { wipeSiteSession } from './siteSessionWipe.js'
 
 /**
@@ -94,8 +88,8 @@ export class SiteSessionService {
    * The sites, their accounts and their states.
    *
    * The partition of an account never leaves this method: the renderer gets
-   * the label, the hostname, the switch and the status — nothing that would
-   * let it address a session of its own.
+   * the label, the hostname, the accounts and their states — nothing that
+   * would let it address a session of its own.
    *
    * The answer is kept for a couple of seconds: the settings page and the
    * button in the bottom bar ask for the list at the same time, and building
@@ -118,29 +112,15 @@ export class SiteSessionService {
     const extensionVersionOk = this.deps.isExtensionVersionOk()
     const rows = buildAccountRows(targets, state)
 
-    // Every site answers with the accounts it holds and with the old
-    // site-level row. The old row is the primary account's summary: the card
-    // that still reads it shows the switch that has always been there.
-    const siteViews = await Promise.all(
+    // Every site answers with the accounts it holds.
+    const accountViews = await Promise.all(
       targets.map((target): Promise<SiteSessionSiteView> =>
         this.buildSiteView(target, rows, state, extensionConnected, extensionVersionOk)
       )
     )
 
-    const views = targets.map((target, index) => {
-      const primary = siteViews[index].accounts[0]
-      return toSiteSessionView(
-        target,
-        primary.enabled,
-        primary.status,
-        primary.importedAt,
-        primary.lastError
-      )
-    })
-
     return {
-      views,
-      accountViews: siteViews,
+      accountViews,
       extensionConnected,
       extensionVersionOk
     }

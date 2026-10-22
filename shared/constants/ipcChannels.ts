@@ -54,12 +54,10 @@ export const IPC_CHANNELS = {
   // Site oturumları (Chrome eklentisi ile paylaşılan oturumlar)
   SITE_SESSION_LIST: 'site-session-list',
   /**
-   * The site-level switch and wipe. They act on the primary account and stay
-   * until the old settings card moves to the accounts; the account-level
-   * channels below are the ones every new caller uses.
+   * The account-level actions. Every one of them names the account it acts
+   * on: the site-level pair that came before them is gone with the settings
+   * card that used it.
    */
-  SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
-  SITE_SESSION_CLEAR: 'site-session-clear',
   SITE_SESSION_SET_ACCOUNT_ENABLED: 'site-session-set-account-enabled',
   SITE_SESSION_CLEAR_ACCOUNT: 'site-session-clear-account',
   SITE_SESSION_SET_ACTIVE_ACCOUNT: 'site-session-set-active-account',

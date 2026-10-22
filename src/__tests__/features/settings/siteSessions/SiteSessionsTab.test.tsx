@@ -1,4 +1,4 @@
-import type { SiteSessionView } from '@shared-core/types/siteSession'
+import type { SiteSessionAccountView, SiteSessionSiteView } from '@shared-core/types/siteSession'
 
 import SiteSessionsTab from '@features/settings/ui/siteSessions/SiteSessionsTab'
 
@@ -7,27 +7,42 @@ import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-const VIEWS: SiteSessionView[] = [
+const ACCOUNT: SiteSessionAccountView = {
+  accountId: 'primary',
+  name: 'Kisisel',
+  index: 1,
+  enabled: true,
+  status: 'imported',
+  importedAt: '2026-04-08T10:00:00.000Z',
+  lastError: null,
+  isActive: true,
+  isPrimary: true
+}
+
+const VIEWS: SiteSessionSiteView[] = [
   {
     siteId: 'chatgpt',
     labelKey: 'ws_target_chatgpt',
     hostname: 'chatgpt.com',
     kind: 'builtin',
     memberAppIds: ['chatgpt'],
-    enabled: true,
-    status: 'imported',
-    importedAt: '2026-04-08T10:00:00.000Z',
-    lastError: null
+    accounts: [ACCOUNT],
+    activeAccountId: 'primary',
+    hasPendingSession: false
   }
 ]
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSiteSessionListQuery: () => ({
-    data: { views: VIEWS, extensionConnected: true, extensionVersionOk: true },
+    data: { accountViews: VIEWS, extensionConnected: true, extensionVersionOk: true },
     isLoading: false
   }),
   useSetSiteSessionEnabledMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
+  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetSiteSessionActiveAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRenameSiteSessionAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteSiteSessionAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useResolveSiteSessionPendingMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
 }))
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
@@ -59,6 +74,13 @@ describe('SiteSessionsTab', () => {
   it('lists the sites', () => {
     render(<SiteSessionsTab />, { wrapper })
     expect(screen.getByText('ws_target_chatgpt')).toBeInTheDocument()
+  })
+
+  it('lists the accounts of every site', () => {
+    render(<SiteSessionsTab />, { wrapper })
+
+    expect(screen.getAllByTestId('site-session-account-row')).toHaveLength(1)
+    expect(screen.getByText('Kisisel')).toBeInTheDocument()
     expect(screen.getByRole('switch')).toBeInTheDocument()
   })
 })

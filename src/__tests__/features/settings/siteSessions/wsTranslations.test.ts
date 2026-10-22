@@ -209,6 +209,17 @@ describe('site session translations', () => {
     expect(trKeys.filter((key) => !enKeys.includes(key))).toEqual([])
   })
 
+  // The app interpolates with a single brace, so a doubled one would reach
+  // the user as text: "Hesap {{index}}" instead of "Hesap 2".
+  it('keeps the placeholders of the account labels interpolatable', () => {
+    expect(String(en.ws_account_default)).toContain('{index}')
+    expect(String(tr.ws_account_default)).toContain('{index}')
+    expect(String(en.ws_accounts_count)).toContain('{count}')
+    expect(String(tr.ws_accounts_count)).toContain('{count}')
+    expect(String(en.ws_account_default)).not.toContain('{{')
+    expect(String(tr.ws_accounts_count)).not.toContain('{{')
+  })
+
   // The clear button forgets the sites whose import switch is on. A sign-in
   // made inside the app belongs to a site whose switch is off, so it is not
   // forgotten - the hint must not promise the opposite.
@@ -217,7 +228,7 @@ describe('site session translations', () => {
     expect(String(tr.ws_clear_all_hint)).not.toMatch(/girişler de temizlenir/i)
   })
 
-  it('ties the hint to the sites whose switch is on', () => {
+  it('ties the hint to the accounts whose switch is on', () => {
     expect(String(en.ws_clear_all_hint)).toMatch(/switch/i)
     expect(String(tr.ws_clear_all_hint)).toMatch(/anahtar/i)
   })

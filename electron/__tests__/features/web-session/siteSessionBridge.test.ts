@@ -819,7 +819,6 @@ describe('the renderer', () => {
   beforeEach(() => {
     send.mockClear()
     setSiteSessionListReader(async () => ({
-      views: [],
       accountViews: [],
       extensionConnected: true,
       extensionVersionOk: true

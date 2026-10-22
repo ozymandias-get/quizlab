@@ -47,7 +47,6 @@ vi.mock('@shared/stores/toastStore', () => ({
 }))
 
 const LIST_RESULT: SiteSessionListResult = {
-  views: [],
   accountViews: [],
   extensionConnected: true,
   extensionVersionOk: true

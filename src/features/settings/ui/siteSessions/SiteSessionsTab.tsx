@@ -1,11 +1,12 @@
 import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { GlobeIcon, XIcon } from '@ui/components/Icons'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 
 import { ExtensionStatusCard, ExtensionWizardPanel } from './components'
 import SiteSessionList from './SiteSessionList'
 import SiteSessionRiskNotice from './SiteSessionRiskNotice'
+import type { SiteSessionActions } from './types'
 import { useSiteSessionsState } from './useSiteSessionsState'
 
 const SITE_SESSIONS_ICON = (
@@ -29,6 +30,10 @@ const SiteSessionsTab = memo(() => {
     canClearAll,
     onToggle,
     onClearAll,
+    onSetActive,
+    onRename,
+    onDelete,
+    onResolvePending,
     riskItems,
     mitigationItems,
     wizardOpen,
@@ -38,6 +43,13 @@ const SiteSessionsTab = memo(() => {
     installExtension,
     removeExtension
   } = useSiteSessionsState()
+
+  // The rows take the actions as one object, so it keeps its reference
+  // between two renders of the tab.
+  const actions: SiteSessionActions = useMemo(
+    () => ({ onToggle, onSetActive, onRename, onDelete, onResolvePending }),
+    [onDelete, onRename, onResolvePending, onSetActive, onToggle]
+  )
 
   const handleInstall = useCallback(async () => {
     const result = await installExtension()
@@ -63,7 +75,7 @@ const SiteSessionsTab = memo(() => {
 
       <p className="text-ql-12 text-muted-foreground leading-relaxed">{t('ws_toggle_hint')}</p>
 
-      <SiteSessionList views={views} disabled={isBusy} onToggle={onToggle} t={t} />
+      <SiteSessionList views={views} disabled={isBusy} actions={actions} t={t} />
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-start">

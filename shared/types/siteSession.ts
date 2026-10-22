@@ -1,17 +1,12 @@
 /**
  * Wire contract for the per-site Chrome session import.
  *
- * The renderer sees a *view* per site: a label key, the hostname, whether the
- * site shares the user's Chrome session and the status of the last import.
- * The main process owns the partition a site lives in and the cookie domains
- * that may travel between Chrome and the app, so those never appear in a
- * renderer-facing type - only in `SiteSessionTarget`, which is main-process
- * only.
- *
- * A site may hold several accounts at once, each in its own cookie jar. The
- * account views describe that model. The old site-level row
- * (`SiteSessionView`) stays next to them until the settings list reads the
- * accounts instead of the sites.
+ * The renderer sees one *site view* per site, and inside it one *account
+ * view* per account: a site may hold several accounts at once, and each of
+ * them lives in its own cookie jar. The main process owns the partition a
+ * site lives in and the cookie domains that may travel between Chrome and
+ * the app, so those never appear in a renderer-facing type - only in
+ * `SiteSessionTarget`, which is main-process only.
  */
 
 /** Where a site comes from: a built-in platform, the Google family, or a user-added site. */
@@ -27,22 +22,6 @@ export type SiteSessionStatusCode =
   | 'import_failed'
   | 'manual_session'
   | 'signed_out'
-
-/** One row of the settings list: everything the renderer needs to draw a site. */
-export interface SiteSessionView {
-  siteId: string
-  /** i18n key of the site label, resolved by the renderer. */
-  labelKey: string
-  hostname: string
-  kind: SiteSessionKind
-  /** The AI app ids that belong to this site. */
-  memberAppIds: string[]
-  enabled: boolean
-  status: SiteSessionStatusCode
-  /** ISO timestamp of the last successful import, or null. */
-  importedAt: string | null
-  lastError: string | null
-}
 
 /** The id of the account every site owns: the one on the platform's own partition. */
 export const PRIMARY_ACCOUNT_ID = 'primary'
@@ -100,14 +79,6 @@ export interface SiteSessionTarget {
 
 /** Payload of the list invoke and of the change event. */
 export interface SiteSessionListResult {
-  /**
-   * The site-level summary the settings list used before the accounts.
-   *
-   * It stays until the settings list moves to the accounts (Task 9). Every
-   * value in it describes the site's **primary** account, so the old switch
-   * and the old switch action keep meaning the same thing.
-   */
-  views: SiteSessionView[]
   /** The accounts of every site, one row per account and cookie jar. */
   accountViews: SiteSessionSiteView[]
   /** Whether the Chrome extension is currently connected to the app. */

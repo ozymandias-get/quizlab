@@ -301,14 +301,14 @@ describe('SiteSessionService', () => {
   it('lists every target with the import switched off by default', async () => {
     const { service } = makeService()
     const result = await service.list()
-    expect(result.views).toHaveLength(1)
-    expect(result.views.every((view) => view.enabled === false)).toBe(true)
+    expect(result.accountViews).toHaveLength(1)
+    expect(result.accountViews[0].accounts.every((account) => account.enabled === false)).toBe(true)
   })
 
   it('never hands a partition to the renderer', async () => {
     const { service } = makeService()
     const result = await service.list()
-    expect(result.views[0]).not.toHaveProperty('partition')
+    expect(result.accountViews[0]).not.toHaveProperty('partition')
     expect(result.accountViews[0].accounts[0]).not.toHaveProperty('partition')
     expect(JSON.stringify(result)).not.toContain('persist:')
   })
@@ -323,13 +323,13 @@ describe('SiteSessionService', () => {
   it('reports a manual session when the app already holds one', async () => {
     const { service } = makeService({ localCookies: [LOCAL_COOKIE] })
     const result = await service.list()
-    expect(result.views[0].status).toBe('manual_session')
+    expect(result.accountViews[0].accounts[0].status).toBe('manual_session')
   })
 
   it('reports a signed out site when the app holds no session for it', async () => {
     const { service } = makeService()
     const result = await service.list()
-    expect(result.views[0].status).toBe('signed_out')
+    expect(result.accountViews[0].accounts[0].status).toBe('signed_out')
   })
 
   it('reports an outdated extension instead of a missing one', async () => {
@@ -342,7 +342,7 @@ describe('SiteSessionService', () => {
       extensionVersionOk: false
     })
     const result = await service.list()
-    expect(result.views[0].status).toBe('extension_outdated')
+    expect(result.accountViews[0].accounts[0].status).toBe('extension_outdated')
   })
 
   it('reports a missing extension when it does not talk to the app', async () => {
@@ -352,7 +352,7 @@ describe('SiteSessionService', () => {
       extensionVersionOk: false
     })
     const result = await service.list()
-    expect(result.views[0].status).toBe('extension_missing')
+    expect(result.accountViews[0].accounts[0].status).toBe('extension_missing')
   })
 
   it('writes the cookies of an enabled site into its own session', async () => {
@@ -610,9 +610,9 @@ describe('SiteSessionService', () => {
     expect(views[0].accounts[1].importedAt).toBe('2026-10-22T10:00:00.000Z')
   })
 
-  it('fills the old site row from the primary account', async () => {
-    // The old settings card still reads `views`: its switch has to keep
-    // meaning the primary account while the active account is another one.
+  it('keeps the accounts of a site apart from each other', async () => {
+    // The active account is another one, so the row of the primary account
+    // still says what the primary account does.
     const { service } = googleService({
       state: googleState({
         primary: { enabled: false },
@@ -622,9 +622,9 @@ describe('SiteSessionService', () => {
     })
     const result = await service.list()
 
-    expect(result.views[0].enabled).toBe(false)
-    expect(result.views[0].status).toBe('signed_out')
-    expect(result.views[0].importedAt).toBeNull()
+    expect(result.accountViews[0].accounts[0].enabled).toBe(false)
+    expect(result.accountViews[0].accounts[0].status).toBe('signed_out')
+    expect(result.accountViews[0].accounts[0].importedAt).toBeNull()
   })
 
   it('refuses to delete the primary account', async () => {
@@ -828,19 +828,19 @@ describe('the list of the sites', () => {
     await service.setEnabled('chatgpt', PRIMARY_ACCOUNT_ID, true)
     const result = await service.list()
 
-    expect(result.views[0].enabled).toBe(true)
+    expect(result.accountViews[0].accounts[0].enabled).toBe(true)
   })
 
   it('does not keep the list after a session was cleared', async () => {
     const { service } = makeService({ localCookies: [LOCAL_COOKIE] })
 
     const before = await service.list()
-    expect(before.views[0].status).toBe('manual_session')
+    expect(before.accountViews[0].accounts[0].status).toBe('manual_session')
 
     await service.clear('chatgpt', PRIMARY_ACCOUNT_ID)
     const after = await service.list()
 
-    expect(after.views[0].status).toBe('signed_out')
+    expect(after.accountViews[0].accounts[0].status).toBe('signed_out')
   })
 
   it('does not keep the list after the active account changed', async () => {
