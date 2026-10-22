@@ -232,6 +232,12 @@ assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_LIST)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_CLEAR)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_RENAME_ACCOUNT)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT)
+assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING)
 assertInvokeChannel(IPC_CHANNELS.CACHE_INFO)
 assertInvokeChannel(IPC_CHANNELS.DEEP_CLEAN_CACHE)
 assertInvokeChannel(IPC_CHANNELS.GET_API_CHAT_CONFIG)
@@ -330,13 +336,19 @@ describe('IPC contract', () => {
     expect(rendererKeysMatch).toBe(true)
   })
 
-  // The four site-session channels are the seam between the main process and
-  // the settings UI. Their wire names are part of the contract with the
-  // preload, so they are pinned here at runtime as well as at compile time.
+  // The site-session channels are the seam between the main process and the
+  // settings UI. Their wire names are part of the contract with the preload,
+  // so they are pinned here at runtime as well as at compile time.
   it('declares the site-session channels with their stable wire names', () => {
     expect(IPC_CHANNELS.SITE_SESSION_LIST).toBe('site-session-list')
     expect(IPC_CHANNELS.SITE_SESSION_SET_ENABLED).toBe('site-session-set-enabled')
     expect(IPC_CHANNELS.SITE_SESSION_CLEAR).toBe('site-session-clear')
+    expect(IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED).toBe('site-session-set-account-enabled')
+    expect(IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT).toBe('site-session-clear-account')
+    expect(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT).toBe('site-session-set-active-account')
+    expect(IPC_CHANNELS.SITE_SESSION_RENAME_ACCOUNT).toBe('site-session-rename-account')
+    expect(IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT).toBe('site-session-delete-account')
+    expect(IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING).toBe('site-session-resolve-pending')
     expect(IPC_CHANNELS.SITE_SESSION_CHANGED).toBe('site-session-changed')
   })
 })
