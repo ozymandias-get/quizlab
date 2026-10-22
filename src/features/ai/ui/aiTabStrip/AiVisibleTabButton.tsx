@@ -1,3 +1,5 @@
+import { useSiteSessionListQuery } from '@platform/electron/api/useSiteSessionApi'
+
 import { Input } from '@app/components/ui/input'
 import type { Tab } from '@app/providers/ai-context'
 import {
@@ -19,6 +21,7 @@ import {
   useCallback,
   useRef
 } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface AiVisibleTabButtonProps {
   tab: Tab
@@ -64,6 +67,21 @@ function AiVisibleTabButton({
   const tabId = tab.id
   const labelWidthRef = useRef<number | null>(null)
   const spanRef = useRef<HTMLSpanElement | null>(null)
+  const { t } = useTranslation()
+  const { data: siteSessionList } = useSiteSessionListQuery()
+
+  const siteView = siteSessionList?.accountViews.find((view) =>
+    view.memberAppIds.includes(tab.modelId)
+  )
+  const activeAccount =
+    siteView && siteView.accounts.length > 1
+      ? (siteView.accounts.find((account) => account.accountId === siteView.activeAccountId) ??
+        siteView.accounts.find((account) => account.isActive) ??
+        siteView.accounts.find((account) => account.isPrimary))
+      : undefined
+  const accountName =
+    activeAccount?.name ??
+    (activeAccount ? t('ws_account_default', { index: String(activeAccount.index) }) : undefined)
 
   const labelRef = useCallback((el: HTMLSpanElement | null) => {
     if (el) {
@@ -129,6 +147,10 @@ function AiVisibleTabButton({
     },
     [onClose, tabId]
   )
+  const handleOpenAccounts = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => onContextMenu(event, tabId),
+    [onContextMenu, tabId]
+  )
 
   // AI pill uses the same visual as PDF pill but has inline rename + pin controls.
   // We render a <div role=tab> container here (not Button) because edit mode
@@ -176,6 +198,18 @@ function AiVisibleTabButton({
             <TabPillLabel ref={labelRef} isActive={isActive}>
               {label}
             </TabPillLabel>
+          )}
+
+          {!isEditing && accountName && (
+            <button
+              type="button"
+              data-testid="site-session-account-badge"
+              aria-label={`${tr('ws_tab_account_change', 'Change account')}: ${accountName}`}
+              onClick={handleOpenAccounts}
+              className="text-ql-10 bg-muted/70 text-foreground hover:bg-muted max-w-24 shrink-0 truncate rounded-full px-1.5 py-0.5 font-medium transition-colors"
+            >
+              {accountName}
+            </button>
           )}
 
           <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-1">

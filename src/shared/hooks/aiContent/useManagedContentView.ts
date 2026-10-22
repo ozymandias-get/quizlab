@@ -1,6 +1,8 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 import type { AiViewSource } from '@shared-core/types/aiView'
 
+import { useSiteSessionListQuery } from '@platform/electron/api/useSiteSessionApi'
+
 import { createAiContentController } from '@shared/hooks/aiContent/createAiContentController'
 import { useAiContentLifecycle } from '@shared/hooks/aiContent/useAiContentLifecycle'
 import { useAiViewHost } from '@shared/hooks/aiContent/useAiViewHost'
@@ -148,6 +150,36 @@ export function useManagedContentView({
       void controller.releaseHost(hostToken)
     }
   }, [controller, hostToken, isEnabled])
+
+  /**
+   * The account the site of this view is opened with.
+   *
+   * The view lives in the cookie jar of the account it was created with, so a
+   * switch has to rebuild it. The list is refreshed by `SITE_SESSION_CHANGED`,
+   * which is what carries the switch here; the first account we hear about is
+   * not a switch — the view already attached with it.
+   */
+  const { data: siteSessionList } = useSiteSessionListQuery()
+  const activeAccountId = siteSessionList?.accountViews.find((view) =>
+    view.memberAppIds.includes(modelId)
+  )?.activeAccountId
+
+  const accountOfViewRef = useRef<{ modelId: string; accountId: string | null } | null>(null)
+
+  useEffect(() => {
+    if (activeAccountId === undefined) return
+
+    const previous = accountOfViewRef.current
+    accountOfViewRef.current = { modelId, accountId: activeAccountId }
+
+    if (!previous || previous.modelId !== modelId) return
+    if (previous.accountId === activeAccountId) return
+    // A sleeping view has no `WebContents` to rebuild; waking attaches into the
+    // account that is active by then.
+    if (!isEnabled) return
+
+    void controller.recreate(restoredUrl)
+  }, [activeAccountId, controller, isEnabled, modelId, restoredUrl])
 
   const isNativeVisible =
     visible && (!revealAfterFirstLoad || hasLoadedOnce) && (!hideWhenError || error === null)

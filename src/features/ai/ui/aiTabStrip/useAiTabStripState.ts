@@ -1,4 +1,7 @@
 import type { AiPlatform } from '@shared-core/types'
+import type { SiteSessionSiteView } from '@shared-core/types/siteSession'
+
+import { useSiteSessionListQuery } from '@platform/electron/api/useSiteSessionApi'
 
 import type { Tab } from '@app/providers/ai-context'
 import { isValidHexColor } from '@shared/lib/uiUtils'
@@ -19,7 +22,7 @@ interface UseAiTabStripStateParams {
   tabs: Tab[]
   activeTabId: string
   aiSites: Record<string, AiPlatform>
-  t: (key: string) => string
+  t: (key: string, params?: Record<string, string>) => string
   renameTab: (tabId: string, title?: string) => void
 }
 
@@ -41,6 +44,8 @@ export function useAiTabStripState({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [isOverflowOpen, setIsOverflowOpen] = useState(false)
 
+  const { data: siteSessionList } = useSiteSessionListQuery()
+
   // Refs to keep callback deps stable — prevents the returned `helpers`/
   // `actions` objects from being re-created on every `tabs`/`aiSites`/`t`
   // change, which would break memo on every AiVisibleTabButton child.
@@ -50,6 +55,8 @@ export function useAiTabStripState({
   aiSitesRef.current = aiSites
   const tRef = useRef(t)
   tRef.current = t
+  const siteViewsRef = useRef<SiteSessionSiteView[]>(siteSessionList?.accountViews ?? [])
+  siteViewsRef.current = siteSessionList?.accountViews ?? []
 
   const visibleTabIds = useMemo(() => getVisibleTabIds(tabs, activeTabId), [tabs, activeTabId])
   const { visibleTabs, overflowTabs } = useMemo(() => {
@@ -112,10 +119,27 @@ export function useAiTabStripState({
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
 
+    // The menu offers the site's accounts next to the tab actions. A tab whose
+    // site has a single account has nothing to switch to, so its menu stays as
+    // short as it was.
+    const tab = tabsRef.current.find((candidate) => candidate.id === tabId)
+    const siteView = tab
+      ? siteViewsRef.current.find((view) => view.memberAppIds.includes(tab.modelId))
+      : undefined
+    const accounts =
+      siteView && siteView.accounts.length > 1
+        ? siteView.accounts.map((account) => ({
+            accountId: account.accountId,
+            name:
+              account.name ?? tRef.current('ws_account_default', { index: String(account.index) })
+          }))
+        : []
+
     setContextMenu({
       tabId,
       x: clamp(event.clientX, 12, Math.max(12, viewportWidth - 188)),
-      y: clamp(event.clientY, 12, Math.max(12, viewportHeight - 126))
+      y: clamp(event.clientY, 12, Math.max(12, viewportHeight - 126)),
+      accounts
     })
   }, [])
 

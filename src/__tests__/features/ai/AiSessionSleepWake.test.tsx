@@ -131,6 +131,12 @@ vi.mock('@shared/lib/electronApi', () => ({
   getElectronApi: () => ({ aiView: aiViewClient })
 }))
 
+// The view follows its site's active account; this suite is about sleep/wake,
+// so no site session list exists to follow.
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
+  useSiteSessionListQuery: () => ({ data: undefined })
+}))
+
 vi.mock('@shared/lib/logger', () => ({
   Logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
   reportSuppressedError: vi.fn()
