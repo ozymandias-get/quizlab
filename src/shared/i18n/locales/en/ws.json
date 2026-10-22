@@ -8,6 +8,8 @@
   "ws_account_default": "Account {index}",
   "ws_account_unnamed_hint": "Give this account a name",
   "ws_account_active": "Active account",
+  "ws_tab_account_change": "Change account",
+  "ws_tab_account_active": "Active",
   "ws_account_set_active": "Use this account",
   "ws_account_delete": "Delete this account",
   "ws_account_delete_confirm": "Delete this account and its session?",

@@ -46,6 +46,12 @@ const aiViewClient = vi.hoisted(() => ({
 const electronApi = vi.hoisted(() => ({ aiView: aiViewClient }))
 vi.mock('@shared/lib/electronApi', () => ({ getElectronApi: () => electronApi }))
 
+// The hook follows the active account of its site; these lifecycle cases run
+// with no site session list, so there is nothing to follow.
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
+  useSiteSessionListQuery: () => ({ data: undefined })
+}))
+
 vi.mock('@shared/lib/logger', () => ({
   Logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
   reportSuppressedError: vi.fn()

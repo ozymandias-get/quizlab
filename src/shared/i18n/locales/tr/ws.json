@@ -8,6 +8,8 @@
   "ws_account_default": "Hesap {index}",
   "ws_account_unnamed_hint": "Bu hesaba bir ad ver",
   "ws_account_active": "Etkin hesap",
+  "ws_tab_account_change": "Hesabı değiştir",
+  "ws_tab_account_active": "Etkin",
   "ws_account_set_active": "Bu hesabı kullan",
   "ws_account_delete": "Hesabı sil",
   "ws_account_delete_confirm": "Bu hesap ve oturumu silinsin mi?",

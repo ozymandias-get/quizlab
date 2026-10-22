@@ -1,4 +1,9 @@
-import { MenuItem, MenuSurface } from '@app/components/ui/menu'
+import {
+  useSetSiteSessionActiveAccountMutation,
+  useSiteSessionListQuery
+} from '@platform/electron/api/useSiteSessionApi'
+
+import { MenuItem, MenuSeparator, MenuSurface } from '@app/components/ui/menu'
 import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
 import type { Tab } from '@app/providers/ai-context'
 import { DURATION } from '@shared/lib/motion'
@@ -38,10 +43,19 @@ function AiTabContextMenu({
     onClose: onDismiss,
     triggerRef
   })
+  const { data: siteSessionList } = useSiteSessionListQuery()
+  const setActiveAccount = useSetSiteSessionActiveAccountMutation()
 
   if (!contextMenu || !contextMenuTab) {
     return null
   }
+
+  // The account action names the site, while the menu state only carries the
+  // tab and its accounts; the site is resolved from the account list itself.
+  const siteView = siteSessionList?.accountViews.find((view) =>
+    view.memberAppIds.includes(contextMenuTab.modelId)
+  )
+  const activeAccountId = siteView?.activeAccountId ?? null
 
   return createPortal(
     <motion.div
@@ -74,6 +88,40 @@ function AiTabContextMenu({
         >
           {tr('tab_close', 'Close')}
         </MenuItem>
+
+        {contextMenu.accounts.length > 0 && (
+          <>
+            <MenuSeparator />
+            <div
+              role="presentation"
+              className="text-ql-10 text-muted-foreground px-2.5 py-1 font-semibold"
+            >
+              {tr('ws_tab_account_change', 'Change account')}
+            </div>
+            {contextMenu.accounts.map((account) => {
+              const isActive = account.accountId === activeAccountId
+
+              return (
+                <MenuItem
+                  key={account.accountId}
+                  aria-current={isActive ? 'true' : undefined}
+                  shortcut={isActive ? tr('ws_tab_account_active', 'Active') : undefined}
+                  onClick={() => {
+                    if (!isActive && siteView) {
+                      setActiveAccount.mutate({
+                        siteId: siteView.siteId,
+                        accountId: account.accountId
+                      })
+                    }
+                    onDismiss()
+                  }}
+                >
+                  {account.name}
+                </MenuItem>
+              )
+            })}
+          </>
+        )}
       </MenuSurface>
     </motion.div>,
     document.body
