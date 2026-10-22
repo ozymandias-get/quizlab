@@ -131,6 +131,8 @@ export interface SiteSessionListResult {
  *   - `primary_account`: the primary account cannot be deleted
  *   - `duplicate_name`: another account of the same site already has that name
  *   - `import_failed`: the pending session could not be written into an account
+ *   - `invalid_arguments`: an id was empty or not a string, a name was longer
+ *     than 64 characters, or the switch was not a boolean
  *   - `invalid_site_id`: the site id was not a string
  *   - `invalid_enabled`: the switch was not a boolean
  *   - `Unauthorized`: the request did not come from the trusted window

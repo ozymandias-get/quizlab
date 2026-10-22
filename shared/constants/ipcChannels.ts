@@ -53,8 +53,19 @@ export const IPC_CHANNELS = {
   SMART_CACHE_ACTION: 'smart-cache-action',
   // Site oturumları (Chrome eklentisi ile paylaşılan oturumlar)
   SITE_SESSION_LIST: 'site-session-list',
+  /**
+   * The site-level switch and wipe. They act on the primary account and stay
+   * until the old settings card moves to the accounts; the account-level
+   * channels below are the ones every new caller uses.
+   */
   SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
   SITE_SESSION_CLEAR: 'site-session-clear',
+  SITE_SESSION_SET_ACCOUNT_ENABLED: 'site-session-set-account-enabled',
+  SITE_SESSION_CLEAR_ACCOUNT: 'site-session-clear-account',
+  SITE_SESSION_SET_ACTIVE_ACCOUNT: 'site-session-set-active-account',
+  SITE_SESSION_RENAME_ACCOUNT: 'site-session-rename-account',
+  SITE_SESSION_DELETE_ACCOUNT: 'site-session-delete-account',
+  SITE_SESSION_RESOLVE_PENDING: 'site-session-resolve-pending',
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',

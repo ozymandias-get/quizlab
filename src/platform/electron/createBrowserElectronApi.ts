@@ -205,8 +205,12 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         extensionConnected: false,
         extensionVersionOk: false
       }),
-      setEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
-      clear: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      setAccountEnabled: stubReturn({ success: false }),
+      clearAccount: stubReturn({ success: false }),
+      setActiveAccount: stubReturn({ success: false }),
+      renameAccount: stubReturn({ success: false }),
+      deleteAccount: stubReturn({ success: false }),
+      resolvePending: stubReturn({ success: false }),
       onChanged: () => () => {}
     },
     nativeMessaging: {
