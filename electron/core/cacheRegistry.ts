@@ -167,6 +167,18 @@ export function registerDynamicPartition(partitionKey: string): void {
 }
 
 /**
+ * Çalışma zamanında kaydedilen bir partition'ı önbellek kaydından çıkarır.
+ *
+ * Silinen bir hesabın partition'ı süpürücünün listesinde kalmamalı: partition
+ * diskten de silindiği için kuralları var olmayan bir klasörü hedef alırdı.
+ * Anahtar `registerDynamicPartition` ile aynı biçimde normalize edilir.
+ */
+export function unregisterDynamicPartition(partitionKey: string): void {
+  if (!partitionKey) return
+  dynamicPartitionKeys.delete(partitionKey.replace(/^persist:/, ''))
+}
+
+/**
  * Tüm AI partition'larının anahtarlarını toplar.
  * Hem aktif (AI_REGISTRY) hem pasif (INACTIVE_PLATFORMS) platformları,
  * varsayılan AI partition'ını hem de çalışma zamanında kaydedilenleri kapsar.

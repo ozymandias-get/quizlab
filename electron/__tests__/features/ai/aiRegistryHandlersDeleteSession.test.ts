@@ -2,15 +2,35 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const DELETED_ID = 'custom_11111111-1111-4111-8111-111111111111'
 const KEPT_ID = 'custom_22222222-2222-4222-8222-222222222222'
+const DELETED_SITE_ID = `custom:${DELETED_ID}`
+const EXTRA_ACCOUNT_ID = 'a1'
+/** The partition the extra account of the deleted site lives in. */
+const EXTRA_PARTITION = `persist:ai_custom_${DELETED_ID}_${EXTRA_ACCOUNT_ID}`
 
 const ipcHandle = vi.fn()
 const forget = vi.fn()
+const read = vi.fn()
+
+const { permissionMocks, cacheMocks, removedPartitions } = vi.hoisted(() => ({
+  permissionMocks: {
+    registerAccountPartition: vi.fn(),
+    unregisterAccountPartition: vi.fn(),
+    registerCustomPlatformOrigin: vi.fn(),
+    unregisterCustomPlatformOrigin: vi.fn()
+  },
+  cacheMocks: {
+    registerDynamicPartition: vi.fn(),
+    unregisterDynamicPartition: vi.fn()
+  },
+  removedPartitions: [] as string[]
+}))
 
 const trustedSender = { id: 1, getURL: vi.fn(() => 'http://localhost:5173') }
 
 /** The cookie domain every partition of this test holds. */
 const PARTITION_DOMAINS: Record<string, string> = {
   [`persist:ai_custom_${DELETED_ID}`]: '.deleted.example.com',
+  [EXTRA_PARTITION]: '.deleted.example.com',
   [`persist:ai_custom_${KEPT_ID}`]: '.kept.example.com'
 }
 
@@ -90,8 +110,35 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
   })
 }))
 
-vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
-  getSiteSessionConfig: () => ({ forget })
+vi.mock('../../../app/window/permissionPolicy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../app/window/permissionPolicy.js')>()
+  return {
+    ...actual,
+    ...permissionMocks
+  }
+})
+
+vi.mock('../../../core/cacheRegistry.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/cacheRegistry.js')>()
+  return {
+    ...actual,
+    ...cacheMocks
+  }
+})
+
+vi.mock('../../../features/web-session/siteSessionConfig.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../features/web-session/siteSessionConfig.js')>()
+  return {
+    ...actual,
+    getSiteSessionConfig: () => ({ read, forget })
+  }
+})
+
+vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
+  removePartitionDirectory: async (partition: string) => {
+    removedPartitions.push(partition)
+  }
 }))
 
 /**
@@ -137,12 +184,54 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
 import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../../app/constants.js'
 import { withSiteSessionLock } from '../../../features/web-session/siteSessionLock.js'
+import type {
+  SiteSessionAccountState,
+  SiteSessionConfigFile
+} from '../../../features/web-session/siteSessionMigration.js'
+
+/** An account that was never touched: unnamed, off, no history. */
+function accountState(): SiteSessionAccountState {
+  return {
+    name: null,
+    enabled: false,
+    importedAt: null,
+    lastResult: null,
+    lastError: null,
+    fingerprints: []
+  }
+}
+
+/** A state file that was never written for a site. */
+function emptyState(): SiteSessionConfigFile {
+  return { version: 2, configVersion: 0, sites: {} }
+}
+
+/** The state of the deleted site with a primary and one additional account. */
+function twoAccountState(): SiteSessionConfigFile {
+  return {
+    version: 2,
+    configVersion: 0,
+    sites: {
+      [DELETED_SITE_ID]: {
+        accounts: {
+          [PRIMARY_ACCOUNT_ID]: accountState(),
+          [EXTRA_ACCOUNT_ID]: accountState()
+        },
+        activeAccountId: EXTRA_ACCOUNT_ID
+      }
+    }
+  }
+}
 
 describe('deleting a user-added site', () => {
   beforeEach(() => {
     ipcHandle.mockReset()
     forget.mockReset().mockResolvedValue(undefined)
+    read.mockReset().mockResolvedValue(emptyState())
     sessions.clear()
+    removedPartitions.length = 0
+    permissionMocks.unregisterAccountPartition.mockClear()
+    cacheMocks.unregisterDynamicPartition.mockClear()
   })
 
   async function deleteSite(id: string) {
@@ -190,6 +279,59 @@ describe('deleting a user-added site', () => {
     await deleteSite(DELETED_ID)
 
     expect(forget).not.toHaveBeenCalledWith(`custom:${KEPT_ID}`)
+  })
+
+  it('clears every account of a deleted site and removes their partitions', async () => {
+    read.mockResolvedValue(twoAccountState())
+
+    await deleteSite(DELETED_ID)
+
+    expect(sessionOf(`persist:ai_custom_${DELETED_ID}`).cookies.remove).toHaveBeenCalled()
+    expect(sessionOf(EXTRA_PARTITION).cookies.remove).toHaveBeenCalled()
+    expect(sessionOf(EXTRA_PARTITION).clearStorageData).toHaveBeenCalledWith(
+      expect.objectContaining({ origin: 'https://deleted.example.com' })
+    )
+
+    // The primary account's partition belongs to the platform. It is wiped,
+    // but only the extra accounts' folders are deleted from disk.
+    expect(removedPartitions).toEqual([EXTRA_PARTITION])
+  })
+
+  it('stops trusting the partitions of the deleted accounts', async () => {
+    read.mockResolvedValue(twoAccountState())
+
+    await deleteSite(DELETED_ID)
+
+    expect(permissionMocks.unregisterAccountPartition).toHaveBeenCalledWith(EXTRA_PARTITION)
+    expect(cacheMocks.unregisterDynamicPartition).toHaveBeenCalledWith(EXTRA_PARTITION)
+    expect(permissionMocks.unregisterAccountPartition).not.toHaveBeenCalledWith(
+      `persist:ai_custom_${DELETED_ID}`
+    )
+  })
+
+  it('waits for an import into an additional account before wiping it', async () => {
+    read.mockResolvedValue(twoAccountState())
+    let releaseImport: () => void = () => {}
+    const importGate = new Promise<void>((resolve) => {
+      releaseImport = resolve
+    })
+    const importing = withSiteSessionLock(DELETED_SITE_ID, EXTRA_ACCOUNT_ID, async () => {
+      await importGate
+    })
+
+    const deleting = deleteSite(DELETED_ID)
+    await vi.waitFor(() =>
+      expect(sessionOf(`persist:ai_custom_${DELETED_ID}`).cookies.remove).toHaveBeenCalled()
+    )
+
+    // Each account has its own lock: the free primary is wiped while the
+    // import into the extra account is still running.
+    expect(sessionOf(EXTRA_PARTITION).cookies.remove).not.toHaveBeenCalled()
+
+    releaseImport()
+    await Promise.all([importing, deleting])
+
+    expect(sessionOf(EXTRA_PARTITION).cookies.remove).toHaveBeenCalled()
   })
 
   it('waits for an import that is running before it wipes the session', async () => {

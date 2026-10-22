@@ -127,6 +127,13 @@ vi.mock('../../../app/constants', () => ({
     IPC_CHANNELS: {
       NATIVE_MESSAGING_EXTENSION_CONNECTED: 'native-messaging:extension-connected',
       NATIVE_MESSAGING_EXTENSION_DISCONNECTED: 'native-messaging:extension-disconnected'
+    },
+    // The bridge imports the account rows, which import the cache registry;
+    // the registry reads these two fields while it is being loaded.
+    PARTITIONS: { AI: 'persist:ai_session' },
+    CLEANUP: {
+      SAFE_CACHE_DIRS: ['Cache', 'Code Cache', 'GPUCache'],
+      CACHE_FILE_TTL_MS: 604800000
     }
   }
 }))
