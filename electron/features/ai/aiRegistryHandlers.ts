@@ -21,6 +21,7 @@ import { buildAccountRows } from '../web-session/siteSessionAccounts.js'
 import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
 import { withSiteSessionLock } from '../web-session/siteSessionLock.js'
 import { removePartitionDirectory } from '../web-session/siteSessionPartitions.js'
+import { clearPendingSiteSession } from '../web-session/siteSessionPendingSessions.js'
 import { buildSiteSessionTargets } from '../web-session/siteSessionTargets.js'
 import { wipeSiteSession } from '../web-session/siteSessionWipe.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
@@ -116,6 +117,11 @@ async function clearDeletedSiteSession(siteId: string): Promise<void> {
   } catch (error) {
     Logger.warn('[AI] The sessions of the deleted site could not be cleared:', error)
   }
+
+  // A session that waits for an account would keep asking a question about a
+  // site that no longer exists. It is cleared after the account locks, so an
+  // import that was still running cannot hold it again.
+  clearPendingSiteSession(siteId)
 
   try {
     await getSiteSessionConfig().forget(siteId)
