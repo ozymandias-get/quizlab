@@ -179,8 +179,9 @@ export async function setupSessions(getMainWindow: MainWindowResolver): Promise<
     // The registry-derived sessions above are configured first: the account
     // partitions are dynamic, so only the call below can register them with
     // the policy, cache registry and their own session — in that order, and
-    // never before the static ones.
-    await registerSiteSessionPartitions()
+    // never before the static ones. The session setup is handed in because
+    // the account module must not import this one.
+    await registerSiteSessionPartitions(setupAiSession)
 
     sessionsConfigured = true
   } catch (error) {

@@ -19,6 +19,11 @@ const resolveWebPermission = vi.fn(async (_request: unknown, decision: { granted
   const req = _request as { permission: string; requestingUrl?: string }
   return req.permission === 'media' && req.requestingUrl?.includes('chatgpt.com') === true
 })
+const { registerSiteSessionPartitions } = vi.hoisted(() => ({
+  registerSiteSessionPartitions: vi.fn(
+    async (_setupSession: (partition: string) => void) => undefined
+  )
+}))
 
 vi.mock('electron', () => ({
   BrowserWindow: {
@@ -45,7 +50,7 @@ vi.mock('../../../app/window/permissionConsent', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionAccounts', () => ({
-  registerSiteSessionPartitions: vi.fn(async () => undefined)
+  registerSiteSessionPartitions
 }))
 
 /** Grabs the handler most recently registered with `mock`. */
@@ -69,6 +74,17 @@ describe('window/sessions', () => {
     getSources.mockReset()
     showDisplayMediaPicker.mockReset()
     resolveWebPermission.mockClear()
+    registerSiteSessionPartitions.mockClear()
+  })
+
+  it('hands the session setup to the account registration', async () => {
+    // The account module must not import this one: that edge closes a cycle.
+    // The window layer passes its own setup in instead.
+    const module = await import('../../../app/window/sessions.js')
+
+    await module.setupSessions(() => ({}) as never)
+
+    expect(registerSiteSessionPartitions).toHaveBeenCalledWith(module.setupAiSession)
   })
 
   it('configures a dynamic custom AI partition only once, against that partition', async () => {

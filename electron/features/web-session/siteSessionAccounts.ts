@@ -10,7 +10,6 @@
 
 import { PRIMARY_ACCOUNT_ID, type SiteSessionKind } from '../../../shared/types/siteSession.js'
 import { registerAccountPartition } from '../../app/window/permissionPolicy.js'
-import { setupAiSession } from '../../app/window/sessions.js'
 import { registerDynamicPartition } from '../../core/cacheRegistry.js'
 import { createAccountState, getSiteSessionConfig } from './siteSessionConfig.js'
 import type { SiteSessionAccountState, SiteSessionConfigFile } from './siteSessionMigration.js'
@@ -151,8 +150,14 @@ export async function resolveActiveAccountPartition(siteId: string): Promise<str
  *
  * The primary account is skipped: it keeps the partition its platform always
  * used, which the registry-derived path already registers and configures.
+ *
+ * The session setup is injected by the caller: this module owns the account
+ * model and the window layer owns session configuration, and importing one
+ * from the other would close a cycle between the two.
  */
-export async function registerSiteSessionPartitions(): Promise<void> {
+export async function registerSiteSessionPartitions(
+  setupSession: (partition: string) => void
+): Promise<void> {
   const [targets, state] = await Promise.all([
     buildSiteSessionTargets(),
     getSiteSessionConfig().read()
@@ -165,6 +170,6 @@ export async function registerSiteSessionPartitions(): Promise<void> {
       registerAccountPartition(row.partition, origin)
     }
     registerDynamicPartition(row.partition)
-    setupAiSession(row.partition)
+    setupSession(row.partition)
   }
 }

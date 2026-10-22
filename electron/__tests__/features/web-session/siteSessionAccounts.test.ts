@@ -33,10 +33,6 @@ vi.mock('../../../core/cacheRegistry.js', () => ({
   registerDynamicPartition: hoistedMocks.registerDynamicPartition
 }))
 
-vi.mock('../../../app/window/sessions.js', () => ({
-  setupAiSession: hoistedMocks.setupAiSession
-}))
-
 vi.mock('../../../features/web-session/siteSessionConfig.js', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../../features/web-session/siteSessionConfig.js')>()
@@ -359,7 +355,7 @@ describe('registerSiteSessionPartitions', () => {
       }
     })
 
-    await registerSiteSessionPartitions()
+    await registerSiteSessionPartitions(setupAiSession)
 
     expect(registerAccountPartition).toHaveBeenCalledTimes(1)
     expect(registerAccountPartition).toHaveBeenCalledWith(
@@ -383,7 +379,7 @@ describe('registerSiteSessionPartitions', () => {
       }
     })
 
-    await registerSiteSessionPartitions()
+    await registerSiteSessionPartitions(setupAiSession)
 
     expect(registerAccountPartition).not.toHaveBeenCalled()
     expect(registerDynamicPartition).not.toHaveBeenCalled()
@@ -402,7 +398,7 @@ describe('registerSiteSessionPartitions', () => {
       sites: { google: { accounts: { a1: primaryState() }, activeAccountId: null } }
     })
 
-    await registerSiteSessionPartitions()
+    await registerSiteSessionPartitions(setupAiSession)
 
     expect(registerAccountPartition.mock.calls).toEqual([
       ['persist:ai_google_a1', 'https://gemini.google.com'],
@@ -419,7 +415,7 @@ describe('registerSiteSessionPartitions', () => {
       sites: { google: { accounts: { a1: primaryState() }, activeAccountId: null } }
     })
 
-    await registerSiteSessionPartitions()
+    await registerSiteSessionPartitions(setupAiSession)
 
     expect(registerAccountPartition.mock.invocationCallOrder[0]).toBeLessThan(
       setupAiSession.mock.invocationCallOrder[0]
@@ -452,7 +448,7 @@ describe('registerSiteSessionPartitions', () => {
       }
     })
 
-    await registerSiteSessionPartitions()
+    await registerSiteSessionPartitions(setupAiSession)
 
     expect(setupAiSession.mock.calls).toEqual([
       ['persist:ai_google_a1'],
