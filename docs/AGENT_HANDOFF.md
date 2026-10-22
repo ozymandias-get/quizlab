@@ -212,6 +212,8 @@ The adapter now lives at `engine/captureDocument.ts`, because the engine is the 
 place allowed to import PDF.js and capture needs a document. `lib/` → `engine/`
 replaces `lib/` → `native/`.
 
+Her site birden fazla hesap tutar; her hesabın kendi partition'ı vardır; oturumun hesabı parmak iziyle tanınır.
+
 ## Dependency State
 
 | Entry                     | Value             | Role                |

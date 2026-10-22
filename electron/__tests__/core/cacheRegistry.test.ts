@@ -48,7 +48,8 @@ const {
   isProtectedPath,
   isSymlinkSafe,
   markPartitionActive,
-  registerDynamicPartition
+  registerDynamicPartition,
+  unregisterDynamicPartition
 } = await import('@electron/core/cacheRegistry')
 
 beforeEach(() => {
@@ -187,6 +188,21 @@ describe('cacheRegistry', () => {
 
     it('ignores an empty key', () => {
       expect(() => registerDynamicPartition('')).not.toThrow()
+    })
+  })
+
+  describe('unregisterDynamicPartition', () => {
+    it('stops sweeping the cache of a partition that is gone', () => {
+      registerDynamicPartition('persist:ai_google_a2')
+      expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a2'))).toBe(true)
+
+      unregisterDynamicPartition('persist:ai_google_a2')
+
+      expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a2'))).toBe(false)
+    })
+
+    it('ignores an empty key', () => {
+      expect(() => unregisterDynamicPartition('')).not.toThrow()
     })
   })
 })

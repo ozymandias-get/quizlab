@@ -6,18 +6,21 @@ import fs from 'fs'
 import path from 'path'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
-import { PRIMARY_ACCOUNT_ID } from '../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import {
   registerCustomPlatformOrigin,
+  unregisterAccountPartition,
   unregisterCustomPlatformOrigin
 } from '../../app/window/permissionPolicy.js'
 import { setupAiSession } from '../../app/window/sessions.js'
+import { unregisterDynamicPartition } from '../../core/cacheRegistry.js'
 import { requireTrustedIpcSender } from '../../core/ipcSecurity.js'
 import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
+import { buildAccountRows } from '../web-session/siteSessionAccounts.js'
 import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
 import { withSiteSessionLock } from '../web-session/siteSessionLock.js'
+import { removePartitionDirectory } from '../web-session/siteSessionPartitions.js'
 import { buildSiteSessionTargets } from '../web-session/siteSessionTargets.js'
 import { wipeSiteSession } from '../web-session/siteSessionWipe.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
@@ -64,40 +67,71 @@ export const normalizeCustomAiUrl = (url: unknown): string | null => {
 let handlersRegistered = false
 
 /**
- * The session of a site the user deleted.
+ * The session and the stored state of a site the user deleted.
  *
- * Two things have to go with the site: the session the app holds for it and
- * the state that says the site takes its session from Chrome. The first is
- * wiped through the session target the app derives from the registry, the
- * second through the site session state.
+ * Every account of the site is wiped under its own lock — the same lock an
+ * import into that account runs under — so an import that is already on its
+ * way writes its cookies before the wipe and not after it. After the wipe an
+ * additional account's partition is taken out of the permission policy and
+ * the cache registry, so the running process no longer trusts a partition it
+ * just deleted, and its folder is removed from disk. The primary account
+ * keeps the platform's partition: that partition is the site's own and is not
+ * removed here.
  *
- * The wipe runs under the lock of the site's primary account — the same lock
- * an import into that account runs under — so an import that is already on
- * its way writes its cookies before the wipe and not after it.
- *
- * Neither of them may keep the site from being deleted: a failure is logged
- * and the delete goes on.
+ * None of it may keep the site from being deleted: a failure is logged and
+ * the delete goes on.
  */
 async function clearDeletedSiteSession(siteId: string): Promise<void> {
+  /** The partitions of the additional accounts, once they are no longer trusted. */
+  const extraPartitions: string[] = []
+
   try {
-    // The target has to be looked up before the platform is deleted: the
+    // The targets have to be looked up before the platform is deleted: the
     // target list is derived from the registry, and the deleted site is no
     // longer in it afterwards.
-    const targets = await buildSiteSessionTargets()
-    const target = targets.find((candidate) => candidate.siteId === siteId)
-    if (target) {
-      await withSiteSessionLock(siteId, PRIMARY_ACCOUNT_ID, () =>
-        wipeSiteSession(electronSession.fromPartition(target.partition), target)
-      )
+    const [targets, state] = await Promise.all([
+      buildSiteSessionTargets(),
+      getSiteSessionConfig().read()
+    ])
+    const rows = buildAccountRows(targets, state).filter((row) => row.siteId === siteId)
+
+    for (const row of rows) {
+      try {
+        await withSiteSessionLock(siteId, row.accountId, () =>
+          wipeSiteSession(electronSession.fromPartition(row.partition), row)
+        )
+      } catch (error) {
+        Logger.warn(`[AI] The session of "${row.accountId}" could not be cleared:`, error)
+      }
+
+      // The primary account lives in the platform's partition. It is wiped,
+      // but it is not an account partition: there is nothing to unregister
+      // and nothing to delete.
+      if (row.isPrimary) continue
+
+      unregisterAccountPartition(row.partition)
+      unregisterDynamicPartition(row.partition)
+      extraPartitions.push(row.partition)
     }
   } catch (error) {
-    Logger.warn('[AI] The session of the deleted site could not be cleared:', error)
+    Logger.warn('[AI] The sessions of the deleted site could not be cleared:', error)
   }
 
   try {
     await getSiteSessionConfig().forget(siteId)
   } catch (error) {
     Logger.warn('[AI] The session state of the deleted site could not be removed:', error)
+  }
+
+  for (const partition of extraPartitions) {
+    try {
+      await removePartitionDirectory(partition)
+    } catch (error) {
+      Logger.warn(
+        `[AI] The data folder of the deleted account in "${partition}" could not be removed:`,
+        error
+      )
+    }
   }
 }
 
