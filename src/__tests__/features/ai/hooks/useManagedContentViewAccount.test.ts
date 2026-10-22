@@ -123,7 +123,13 @@ describe('useManagedContentView - the active account of a site', () => {
     aiViewClient.onEvent.mockImplementation(() => () => {})
   })
 
-  it('reopens the view when the active account of its site changes', async () => {
+  it('reopens the view at the page it is showing when the active account changes', async () => {
+    // The tab entered at `/c/keep` and then navigated to `/c/current`; the
+    // attach response is the authoritative page at that point.
+    aiViewClient.attach.mockResolvedValue({
+      ...freshAttachResponse(),
+      currentUrl: 'https://chatgpt.com/c/current'
+    })
     siteSession.accountViews = [chatgptSite('primary')]
     const { rerender } = await mount()
 
@@ -136,10 +142,12 @@ describe('useManagedContentView - the active account of a site', () => {
 
     expect(aiViewClient.destroy).toHaveBeenCalledWith({ viewId: 'tab-1' })
     expect(aiViewClient.attach).toHaveBeenCalledTimes(2)
+    // The frozen entry URL would undo the navigation; the switch must resume
+    // the controller's current page instead.
     expect(aiViewClient.attach).toHaveBeenLastCalledWith(
       expect.objectContaining({
         viewId: 'tab-1',
-        restoredUrl: 'https://chatgpt.com/c/keep'
+        restoredUrl: 'https://chatgpt.com/c/current'
       })
     )
   })

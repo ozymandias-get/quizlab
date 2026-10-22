@@ -178,8 +178,11 @@ export function useManagedContentView({
     // account that is active by then.
     if (!isEnabled) return
 
-    void controller.recreate(restoredUrl)
-  }, [activeAccountId, controller, isEnabled, modelId, restoredUrl])
+    // No argument: the controller replays the page it is mirroring, which is
+    // where the tab is now. `restoredUrl` is frozen at the tab's entry, and
+    // resuming it would throw away a navigation made after the entry.
+    void controller.recreate()
+  }, [activeAccountId, controller, isEnabled, modelId])
 
   const isNativeVisible =
     visible && (!revealAfterFirstLoad || hasLoadedOnce) && (!hideWhenError || error === null)
