@@ -234,10 +234,13 @@ describe('deleting a user-added site', () => {
     cacheMocks.unregisterDynamicPartition.mockClear()
   })
 
-  async function deleteSite(id: string) {
+  async function deleteSite(id: string, prepare?: () => Promise<void>) {
     // The handler registers itself once per module instance, and every test
     // needs its own registration.
     vi.resetModules()
+    // A test that holds state in a module the handler imports has to seed it
+    // after the reset: before it, the handler gets a different instance.
+    if (prepare) await prepare()
     const { registerAiRegistryHandlers } =
       await import('../../../features/ai/aiRegistryHandlers.js')
     registerAiRegistryHandlers()
@@ -307,6 +310,42 @@ describe('deleting a user-added site', () => {
     expect(permissionMocks.unregisterAccountPartition).not.toHaveBeenCalledWith(
       `persist:ai_custom_${DELETED_ID}`
     )
+  })
+
+  it('forgets a pending session that belongs to the deleted site', async () => {
+    // A session that waits for the user to pick an account would outlive the
+    // site it belongs to and keep asking a question about a site that is gone.
+    const holder: {
+      pending?: typeof import('../../../features/web-session/siteSessionPendingSessions.js')
+    } = {}
+    await deleteSite(DELETED_ID, async () => {
+      holder.pending = await import('../../../features/web-session/siteSessionPendingSessions.js')
+      holder.pending.setPendingSiteSession(DELETED_SITE_ID, [
+        { name: 'session', value: 'v', domain: '.deleted.example.com', secure: true }
+      ])
+    })
+    const pending = holder.pending
+    if (!pending) throw new Error('the pending session module was not loaded')
+
+    expect(pending.getPendingSiteSession(DELETED_SITE_ID)).toBeNull()
+  })
+
+  it('keeps the pending session of another site', async () => {
+    const keptSiteId = `custom:${KEPT_ID}`
+    const holder: {
+      pending?: typeof import('../../../features/web-session/siteSessionPendingSessions.js')
+    } = {}
+    await deleteSite(DELETED_ID, async () => {
+      holder.pending = await import('../../../features/web-session/siteSessionPendingSessions.js')
+      holder.pending.setPendingSiteSession(keptSiteId, [
+        { name: 'session', value: 'v', domain: '.kept.example.com', secure: true }
+      ])
+    })
+    const pending = holder.pending
+    if (!pending) throw new Error('the pending session module was not loaded')
+
+    expect(pending.getPendingSiteSession(keptSiteId)).not.toBeNull()
+    pending.clearPendingSiteSession(keptSiteId)
   })
 
   it('waits for an import into an additional account before wiping it', async () => {
