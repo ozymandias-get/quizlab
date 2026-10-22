@@ -67,4 +67,35 @@ describe('createBrowserElectronApi', () => {
     expect(await api.copyTextToClipboard('hello')).toBe(true)
     expect(writeText).toHaveBeenCalledWith('hello')
   })
+
+  it('answers the site session actions with the desktop-only code', async () => {
+    // The browser dev server has no bridge to import from. The user has to
+    // read that this only works in the desktop app, not a generic failure.
+    const api = createBrowserElectronApi()
+
+    expect(await api.siteSession.setAccountEnabled('google', 'primary', true)).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+    expect(await api.siteSession.clearAccount('google', 'primary')).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+    expect(await api.siteSession.setActiveAccount('google', 'a1')).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+    expect(await api.siteSession.renameAccount('google', 'a1', 'Is')).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+    expect(await api.siteSession.deleteAccount('google', 'a1')).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+    expect(await api.siteSession.resolvePending('google', null)).toEqual({
+      success: false,
+      error: 'web_dev_mode_only'
+    })
+  })
 })

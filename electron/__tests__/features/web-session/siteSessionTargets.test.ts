@@ -4,8 +4,7 @@ import { Logger } from '../../../core/logger.js'
 import { readCustomPlatforms } from '../../../features/ai/customPlatformStore.js'
 import {
   buildBuiltinSiteSessionTargets,
-  buildSiteSessionTargets,
-  toSiteSessionView
+  buildSiteSessionTargets
 } from '../../../features/web-session/siteSessionTargets.js'
 
 /**
@@ -215,32 +214,5 @@ describe('unusable sites', () => {
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0][0]).toContain('broken')
     expect(warn.mock.calls[0][0]).toContain('url cannot be parsed')
-  })
-})
-
-describe('site session view', () => {
-  // The Google group is the first row of the target list.
-  const [googleTarget] = buildBuiltinSiteSessionTargets()
-
-  it('maps a target onto the renderer view without the partition', () => {
-    expect(
-      toSiteSessionView(googleTarget, true, 'imported', '2026-10-19T10:00:00.000Z', null)
-    ).toEqual({
-      siteId: 'google',
-      labelKey: 'ws_target_google',
-      hostname: 'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com',
-      kind: 'google',
-      memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive'],
-      enabled: true,
-      status: 'imported',
-      importedAt: '2026-10-19T10:00:00.000Z',
-      lastError: null
-    })
-  })
-
-  it('copies the member app ids instead of sharing the array', () => {
-    const view = toSiteSessionView(googleTarget, false, 'manual_session', null, 'boom')
-    expect(view.memberAppIds).not.toBe(googleTarget.memberAppIds)
-    expect(view.memberAppIds).toEqual(googleTarget.memberAppIds)
   })
 })

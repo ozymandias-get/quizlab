@@ -39,7 +39,6 @@ vi.mock('@platform/electron/api/useSiteSessionApi', async (importOriginal) => {
     ...actual,
     useSiteSessionListQuery: () => ({
       data: {
-        views: [],
         accountViews: mockSites,
         extensionConnected: true,
         extensionVersionOk: true

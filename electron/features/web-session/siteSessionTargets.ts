@@ -18,12 +18,7 @@ import {
 } from '../../../shared/constants/googleAiWebApps.js'
 import { getSiteSessionCookieDomains } from '../../../shared/constants/siteSessionCookieDomains.js'
 import type { AiPlatform } from '../../../shared/types/ai.js'
-import type {
-  SiteSessionKind,
-  SiteSessionStatusCode,
-  SiteSessionTarget,
-  SiteSessionView
-} from '../../../shared/types/siteSession.js'
+import type { SiteSessionKind, SiteSessionTarget } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
@@ -193,30 +188,4 @@ export async function buildSiteSessionTargets(): Promise<SiteSessionTargetRow[]>
   }
 
   return targets
-}
-
-/**
- * The renderer-facing view of a target.
- *
- * The partition is main-process state and stays out of the view; the member
- * app ids are copied so a caller cannot mutate the target through the view.
- */
-export function toSiteSessionView(
-  target: SiteSessionTargetRow,
-  enabled: boolean,
-  status: SiteSessionStatusCode,
-  importedAt: string | null,
-  lastError: string | null
-): SiteSessionView {
-  return {
-    siteId: target.siteId,
-    labelKey: target.labelKey,
-    hostname: target.hostname,
-    kind: target.kind,
-    memberAppIds: [...target.memberAppIds],
-    enabled,
-    status,
-    importedAt,
-    lastError
-  }
 }

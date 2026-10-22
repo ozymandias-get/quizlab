@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
 import { APP_CONFIG } from '../../../app/constants.js'
 
 const ipcHandle = vi.fn()
@@ -51,7 +50,6 @@ vi.mock('../../../app/windowManager', () => ({
 }))
 
 const LIST_RESULT = {
-  views: [],
   accountViews: [],
   extensionConnected: true,
   extensionVersionOk: true
@@ -102,44 +100,17 @@ describe('site session handlers', () => {
     expect(list).not.toHaveBeenCalled()
   })
 
-  it('turns a site on with a strict boolean', async () => {
-    const { registerSiteSessionHandlers } =
-      await import('../../../features/web-session/siteSessionHandlers.js')
-    registerSiteSessionHandlers()
-
-    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
-    await setEnabledHandler?.(trustedEvent, 'chatgpt', true)
-    await setEnabledHandler?.(trustedEvent, 'chatgpt', false)
-
-    expect(setEnabled).toHaveBeenNthCalledWith(1, 'chatgpt', PRIMARY_ACCOUNT_ID, true)
-    expect(setEnabled).toHaveBeenNthCalledWith(2, 'chatgpt', PRIMARY_ACCOUNT_ID, false)
-  })
-
-  it('refuses a switch that is not a boolean', async () => {
-    const { registerSiteSessionHandlers } =
-      await import('../../../features/web-session/siteSessionHandlers.js')
-    registerSiteSessionHandlers()
-
-    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
-    // A payload that lost its flag must not turn the import off: that would
-    // wipe the session of the site.
-    const result = await setEnabledHandler?.(trustedEvent, 'chatgpt', 'true')
-    const missing = await setEnabledHandler?.(trustedEvent, 'chatgpt', undefined)
-
-    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_enabled' } })
-    expect(missing).toEqual({ ok: true, data: { success: false, error: 'invalid_enabled' } })
-    expect(setEnabled).not.toHaveBeenCalled()
-  })
-
   it('refuses a site id that is not a string', async () => {
     const { registerSiteSessionHandlers } =
       await import('../../../features/web-session/siteSessionHandlers.js')
     registerSiteSessionHandlers()
 
-    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
-    const result = await setEnabledHandler?.(trustedEvent, 42, true)
+    const setAccountEnabledHandler = getHandler(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED
+    )
+    const result = await setAccountEnabledHandler?.(trustedEvent, 42, 'account-2', true)
 
-    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_site_id' } })
+    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_arguments' } })
     expect(setEnabled).not.toHaveBeenCalled()
   })
 
@@ -148,8 +119,10 @@ describe('site session handlers', () => {
       await import('../../../features/web-session/siteSessionHandlers.js')
     registerSiteSessionHandlers()
 
-    const setEnabledHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
-    await setEnabledHandler?.(trustedEvent, 'chatgpt', true)
+    const setAccountEnabledHandler = getHandler(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED
+    )
+    await setAccountEnabledHandler?.(trustedEvent, 'chatgpt', 'account-2', true)
 
     expect(send).toHaveBeenCalledWith(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED, LIST_RESULT)
   })
@@ -159,10 +132,10 @@ describe('site session handlers', () => {
       await import('../../../features/web-session/siteSessionHandlers.js')
     registerSiteSessionHandlers()
 
-    const clearHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CLEAR)
-    await clearHandler?.(trustedEvent, 'chatgpt')
+    const clearAccountHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT)
+    await clearAccountHandler?.(trustedEvent, 'chatgpt', 'account-2')
 
-    expect(clear).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID)
+    expect(clear).toHaveBeenCalledWith('chatgpt', 'account-2')
     expect(send).toHaveBeenCalledWith(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED, LIST_RESULT)
   })
 
@@ -171,10 +144,10 @@ describe('site session handlers', () => {
       await import('../../../features/web-session/siteSessionHandlers.js')
     registerSiteSessionHandlers()
 
-    const clearHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CLEAR)
-    const result = await clearHandler?.(trustedEvent, null)
+    const clearAccountHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT)
+    const result = await clearAccountHandler?.(trustedEvent, null, 'account-2')
 
-    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_site_id' } })
+    expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_arguments' } })
     expect(clear).not.toHaveBeenCalled()
   })
 

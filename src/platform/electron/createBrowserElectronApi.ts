@@ -197,20 +197,20 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     saveAppSetting: stubReturn(true),
 
     // Chrome session sharing needs the extension bridge, which the browser dev
-    // server has no equivalent for: the list is empty and every action fails.
+    // server has no equivalent for: the list is empty and every action fails
+    // with the code that says "this only works in the desktop app".
     siteSession: {
       list: stubReturn({
-        views: [],
         accountViews: [],
         extensionConnected: false,
         extensionVersionOk: false
       }),
-      setAccountEnabled: stubReturn({ success: false }),
-      clearAccount: stubReturn({ success: false }),
-      setActiveAccount: stubReturn({ success: false }),
-      renameAccount: stubReturn({ success: false }),
-      deleteAccount: stubReturn({ success: false }),
-      resolvePending: stubReturn({ success: false }),
+      setAccountEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      clearAccount: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      setActiveAccount: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      renameAccount: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      deleteAccount: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      resolvePending: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       onChanged: () => () => {}
     },
     nativeMessaging: {

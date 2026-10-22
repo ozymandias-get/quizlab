@@ -230,8 +230,6 @@ assertInvokeChannel(IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
 // Per-site Chrome session sharing. The invoke channels read and mutate the
 // per-site switch; the change event pushes a fresh list to the renderer.
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_LIST)
-assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ENABLED)
-assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_CLEAR)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT)
 assertInvokeChannel(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT)
@@ -307,7 +305,6 @@ assertEventArgs(IPC_CHANNELS.TRIGGER_PDF_VIEWER_ZOOM, 'in')
 // The site-session change event carries the same payload as the list invoke,
 // so the preload callback is typed by the event map instead of by hand.
 assertEventArgs(IPC_CHANNELS.SITE_SESSION_CHANGED, {
-  views: [],
   accountViews: [],
   extensionConnected: false,
   extensionVersionOk: false
@@ -341,8 +338,6 @@ describe('IPC contract', () => {
   // so they are pinned here at runtime as well as at compile time.
   it('declares the site-session channels with their stable wire names', () => {
     expect(IPC_CHANNELS.SITE_SESSION_LIST).toBe('site-session-list')
-    expect(IPC_CHANNELS.SITE_SESSION_SET_ENABLED).toBe('site-session-set-enabled')
-    expect(IPC_CHANNELS.SITE_SESSION_CLEAR).toBe('site-session-clear')
     expect(IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED).toBe('site-session-set-account-enabled')
     expect(IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT).toBe('site-session-clear-account')
     expect(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT).toBe('site-session-set-active-account')
