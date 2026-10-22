@@ -19,27 +19,30 @@ import { type Session, session as electronSession } from 'electron'
 import { getSiteSessionIdentityCookies } from '../../../shared/constants/siteSessionIdentityCookies.js'
 import { Logger } from '../../core/logger.js'
 import {
+  registerRuntimeAccount,
+  type SiteSessionAccountRegistrar
+} from './siteSessionAccountRegistration.js'
+import {
   accountPartitionFor,
   buildAccountRows,
   type SiteSessionAccountRow
 } from './siteSessionAccounts.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
-import type {
-  CookiePacket,
-  CookiePacketRejection,
-  CookiePacketStatus
-} from './siteSessionCookieRouter.js'
+import type { CookiePacket, CookiePacketRejection } from './siteSessionCookieRouter.js'
 import { routeCookiePacket } from './siteSessionCookieRouter.js'
 import { computeSessionFingerprint } from './siteSessionFingerprint.js'
-import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
+import { importExternalCookies } from './siteSessionImporter.js'
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import type { SiteSessionConfigFile } from './siteSessionMigration.js'
+import { toImporterCookie } from './siteSessionPacket.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
 import { storePendingSiteSession } from './siteSessionPendingNotice.js'
 import { clearPendingSiteSession } from './siteSessionPendingSessions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
+
+export { parseSiteSessionPacket } from './siteSessionPacket.js'
 
 /**
  * The protocol the extension and the app agree on.
@@ -79,6 +82,14 @@ export interface SiteSessionImportEnvironment {
    * the round instead of once for every packet.
    */
   targets?: SiteSessionTargetRow[]
+  /**
+   * Registers the partition of an account the packet opens.
+   *
+   * The bridge cannot reach the window layer that owns sessions and the
+   * permission policy, so the caller passes the registration in. Without one
+   * the runtime registrar (set by the composition root) is used.
+   */
+  registerAccount?: SiteSessionAccountRegistrar
 }
 
 /** The session of a partition, as the app itself resolves it. */
@@ -130,38 +141,13 @@ export async function openSiteSessionRound(
   return {
     targets,
     accept: (packet) =>
-      acceptSiteSessionPacket(packet, { config, loadTargets, resolveSession, targets })
-  }
-}
-
-/**
- * The wire vocabulary of the extension and the one of the importer differ.
- *
- * Chrome names the SameSite attribute in lower case (`no_restriction`), the
- * importer names it the way Electron does (`None`). The difference is
- * translated here, at the boundary, so that neither side has to know about
- * the other's spelling — and so that a cookie that arrives with an unknown
- * attribute keeps its default instead of silently changing meaning.
- */
-const SAME_SITE_FROM_CHROME: Record<string, ExternalBrowserCookie['sameSite']> = {
-  strict: 'Strict',
-  lax: 'Lax',
-  no_restriction: 'None',
-  unspecified: 'Unspecified'
-}
-
-/** The importer's shape of a cookie the extension sent. */
-export function toImporterCookie(cookie: ChromeExtensionCookie): ExternalBrowserCookie {
-  const sameSite = cookie.sameSite ? SAME_SITE_FROM_CHROME[cookie.sameSite] : undefined
-  return {
-    name: cookie.name,
-    value: cookie.value,
-    domain: cookie.domain,
-    path: cookie.path || '/',
-    secure: !!cookie.secure,
-    httpOnly: !!cookie.httpOnly,
-    sameSite,
-    expires: cookie.expires
+      acceptSiteSessionPacket(packet, {
+        config,
+        loadTargets,
+        resolveSession,
+        targets,
+        registerAccount: environment?.registerAccount
+      })
   }
 }
 
@@ -171,62 +157,6 @@ export interface SiteSessionPacketOutcome {
   reason?: CookiePacketRejection | 'ambiguous_account'
   imported?: number
   failed?: number
-}
-
-const COOKIE_PACKET_STATUSES: ReadonlySet<string> = new Set([
-  'ok',
-  'no_cookies',
-  'permission_missing'
-])
-
-/** The SameSite values Chrome reports. */
-const SAME_SITE_VALUES: ReadonlySet<string> = new Set([
-  'strict',
-  'lax',
-  'no_restriction',
-  'unspecified'
-])
-
-/** A cookie of the shape the extension sends. */
-function isBrowserCookie(value: unknown): value is ChromeExtensionCookie {
-  if (typeof value !== 'object' || value === null) return false
-  const cookie = value as Partial<ChromeExtensionCookie>
-  if (typeof cookie.name !== 'string' || typeof cookie.value !== 'string') return false
-  if (cookie.sameSite !== undefined && !SAME_SITE_VALUES.has(cookie.sameSite)) return false
-  return true
-}
-
-/**
- * Reads a cookie packet out of an untrusted body.
- *
- * Every field is checked before it reaches the rest of the app: a packet has
- * to name exactly one site and carry a status the app knows. A packet that
- * does not is refused here rather than deeper in.
- */
-export function parseSiteSessionPacket(body: string): CookiePacket | null {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(body)
-  } catch {
-    return null
-  }
-
-  if (typeof parsed !== 'object' || parsed === null) return null
-  const candidate = parsed as { targetId?: unknown; status?: unknown; cookies?: unknown }
-  if (typeof candidate.targetId !== 'string' || candidate.targetId.length === 0) return null
-  if (typeof candidate.status !== 'string' || !COOKIE_PACKET_STATUSES.has(candidate.status)) {
-    return null
-  }
-  if (!Array.isArray(candidate.cookies)) return null
-
-  const cookies = candidate.cookies.filter(isBrowserCookie)
-  if (cookies.length !== candidate.cookies.length) return null
-
-  return {
-    targetId: candidate.targetId,
-    status: candidate.status as CookiePacketStatus,
-    cookies
-  }
 }
 
 /**
@@ -333,6 +263,7 @@ export async function acceptSiteSessionPacket(
   const config = environment?.config ?? getSiteSessionConfig()
   const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
   const resolveSession = environment?.resolveSession ?? defaultResolveSession
+  const registerAccount = environment?.registerAccount ?? registerRuntimeAccount
 
   // The targets of a round are the ones the round was opened with: they do
   // not have to be built again for every packet of the round.
@@ -350,7 +281,13 @@ export async function acceptSiteSessionPacket(
         : packet.targetId
 
   const outcome = await withSiteSessionLock(packet.targetId, lockAccountId, () =>
-    handleSiteSessionPacket(packet, plan, { config, loadTargets, resolveSession, targets })
+    handleSiteSessionPacket(packet, plan, {
+      config,
+      loadTargets,
+      resolveSession,
+      targets,
+      registerAccount
+    })
   )
 
   if (outcome.accepted) {
@@ -527,6 +464,9 @@ async function applySiteSessionPacket(
     case 'create': {
       const accountId = crypto.randomUUID()
       await config.createAccount(plan.siteRow.siteId, accountId, plan.fingerprint)
+      // The partition is minted now, long after start-up: it has to be
+      // registered before a panel can open it and before the import writes.
+      environment.registerAccount?.(plan.siteRow, accountId)
       return importIntoAccount(config, resolveSession, {
         siteRow: plan.siteRow,
         accountId,
@@ -584,9 +524,11 @@ interface SiteSessionImport {
  *
  * An import that wrote nothing is a failure the user has to see: without a
  * reason code the row would show the outcome without saying what went wrong,
- * and `lastError` would stay empty.
+ * and `lastError` would stay empty. The pending session is forgotten only once
+ * a cookie was written, so a failed write can be retried — and the service
+ * that resolves a pending session reuses this so the two paths cannot disagree.
  */
-async function importIntoAccount(
+export async function importIntoAccount(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   resolveSession: (partition: string) => Session,
   target: SiteSessionImport

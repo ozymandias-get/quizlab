@@ -458,10 +458,31 @@ describe('window/permissionPolicy', () => {
     it.each([
       ['a built-in provider', 'persist:ai_chatgpt'],
       ['the shared session', 'persist:ai_session'],
-      ['the Google web profile', 'persist:gemini_web_profile'],
-      ['a custom platform', 'persist:ai_custom_abc']
+      ['the Google web profile', 'persist:gemini_web_profile']
     ])('allows %s partition', (_label, partition) => {
       expect(isAllowedManagedViewPartition(partition)).toBe(true)
+    })
+
+    it('allows a custom platform once its origin is registered', () => {
+      expect(isAllowedManagedViewPartition('persist:ai_custom_abc')).toBe(false)
+
+      registerCustomPlatformOrigin('persist:ai_custom_abc', 'https://my-llm.example.com')
+      expect(isAllowedManagedViewPartition('persist:ai_custom_abc')).toBe(true)
+    })
+
+    it('refuses a custom account partition that was never registered', () => {
+      // The custom prefix alone is not a registration: an account partition
+      // minted at runtime has to pass the same explicit registry check as any
+      // other account, or the panel would open it without a policy.
+      const accountPartition = 'persist:ai_custom_custom_11111111-1111-4111-8111-111111111111_a1'
+
+      expect(isAllowedManagedViewPartition(accountPartition)).toBe(false)
+
+      registerAccountPartition(accountPartition, 'https://local.example.com')
+      expect(isAllowedManagedViewPartition(accountPartition)).toBe(true)
+
+      unregisterAccountPartition(accountPartition)
+      expect(isAllowedManagedViewPartition(accountPartition)).toBe(false)
     })
 
     it.each([undefined, null, '', 42, {}, 'persist:pdf_viewer', 'ai_chatgpt', 'persist:'])(

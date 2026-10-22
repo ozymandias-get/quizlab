@@ -230,7 +230,10 @@ export function isAllowedManagedViewPartition(partition: unknown): boolean {
   if (partition === GENERIC_AI_PARTITION) return true
   if (builtinTrustedHosts.has(partition)) return true
   if (accountTrustedHosts.has(partition)) return true
-  return isCustomPartition(partition)
+  // A custom partition is allowed only once its origin was registered: the
+  // prefix alone says nothing about who may open it, and an account partition
+  // of a custom site carries the same prefix without being a platform.
+  return customTrustedHosts.has(partition)
 }
 
 /**

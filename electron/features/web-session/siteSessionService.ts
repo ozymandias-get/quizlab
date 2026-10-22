@@ -31,8 +31,12 @@ import type {
   SiteSessionListResult,
   SiteSessionSiteView
 } from '../../../shared/types/siteSession.js'
+import { unregisterAccountPartition } from '../../app/window/permissionPolicy.js'
+import { unregisterDynamicPartition } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
+import type { SiteSessionAccountRegistrar } from './siteSessionAccountRegistration.js'
+import { registerRuntimeAccount } from './siteSessionAccountRegistration.js'
 import {
   accountPartitionFor,
   buildAccountRows,
@@ -41,11 +45,10 @@ import {
 } from './siteSessionAccounts.js'
 import {
   hasLocalSessionForTarget,
-  SITE_SESSION_PROTOCOL_VERSION,
-  toImporterCookie
+  importIntoAccount,
+  SITE_SESSION_PROTOCOL_VERSION
 } from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
-import { importExternalCookies } from './siteSessionImporter.js'
 import {
   invalidateSiteSessionListCache,
   readCachedSiteSessionList,
@@ -69,12 +72,26 @@ import { wipeSiteSession } from './siteSessionWipe.js'
 export interface SiteSessionServiceDeps {
   config: Pick<
     SiteSessionConfig,
-    'read' | 'setEnabled' | 'setActiveAccount' | 'renameAccount' | 'deleteAccount' | 'createAccount'
+    | 'read'
+    | 'setEnabled'
+    | 'setActiveAccount'
+    | 'renameAccount'
+    | 'deleteAccount'
+    | 'createAccount'
+    | 'recordResult'
   >
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
   isExtensionVersionOk: () => boolean
+  /**
+   * Registers the partition of an account the service opens.
+   *
+   * The account is created after start-up, so its partition is not in the
+   * policy or the cache registry yet. The registrar comes from the caller
+   * because the window layer owns sessions and permissions.
+   */
+  registerAccount: SiteSessionAccountRegistrar
 }
 
 export class SiteSessionService {
@@ -342,15 +359,18 @@ export class SiteSessionService {
         return { success: false, error: 'write_failed' }
       }
 
+      // The account is gone from the state: the running process must stop
+      // trusting its partition at once, even if the folder refuses to go.
+      unregisterAccountPartition(row.partition)
+      unregisterDynamicPartition(row.partition)
+
       try {
         await removePartitionDirectory(row.partition)
       } catch (error) {
         Logger.warn(`[SiteSession] The data folder of "${accountId}" could not be removed:`, error)
-        return {
-          success: false,
-          error: 'wipe_failed',
-          detail: 'The account was removed, but its data folder could not be deleted.'
-        }
+        // The account itself was removed; only its folder stayed behind. The
+        // renderer shows this as information, not as a failed deletion.
+        return { success: false, error: 'folder_delete_failed' }
       }
 
       return { success: true }
@@ -393,6 +413,9 @@ export class SiteSessionService {
           )
           return { success: false, error: 'write_failed' }
         }
+        // The account is new in this process: register its partition before
+        // anything opens or writes to it.
+        this.deps.registerAccount(target, resolvedAccountId)
         partition = accountPartitionFor(siteId, resolvedAccountId)
       } else {
         const row = await this.findAccount(siteId, accountId)
@@ -410,12 +433,16 @@ export class SiteSessionService {
       }
 
       try {
-        const outcome = await importExternalCookies(
-          this.deps.resolveSession(partition),
-          pending.cookies.map(toImporterCookie),
-          target.cookieDomains
-        )
-        if (outcome.imported === 0) {
+        // The same import the bridge uses: it records the outcome on the
+        // account row and forgets the pending session only once a cookie made
+        // it into the jar.
+        const outcome = await importIntoAccount(this.deps.config, this.deps.resolveSession, {
+          siteRow: target,
+          accountId: resolvedAccountId,
+          partition,
+          cookies: pending.cookies
+        })
+        if (!outcome.imported) {
           Logger.warn(`[SiteSession] None of the pending cookies of "${siteId}" could be written.`)
           return { success: false, error: 'import_failed' }
         }
@@ -424,7 +451,6 @@ export class SiteSessionService {
         return { success: false, error: 'import_failed' }
       }
 
-      clearPendingSiteSession(siteId)
       return { success: true }
     })
   }
@@ -514,11 +540,7 @@ export class SiteSessionService {
       // it held is still there. Saying "failed" alone would hide that half of
       // the work was done.
       Logger.warn(`[SiteSession] The session of "${row.accountId}" could not be cleared:`, error)
-      return {
-        success: false,
-        error: 'switch_off_wipe_failed',
-        detail: 'The switch was turned off, but the session could not be cleared.'
-      }
+      return { success: false, error: 'switch_off_wipe_failed' }
     }
 
     return { success: true }
@@ -560,5 +582,6 @@ export const siteSessionService = new SiteSessionService({
   loadTargets: buildSiteSessionTargets,
   resolveSession: (partition) => electronSession.fromPartition(partition),
   isExtensionConnected,
-  isExtensionVersionOk
+  isExtensionVersionOk,
+  registerAccount: registerRuntimeAccount
 })
