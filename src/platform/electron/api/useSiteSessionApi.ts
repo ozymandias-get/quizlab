@@ -5,7 +5,6 @@ import type {
   SiteSessionSiteView,
   SiteSessionStatusCode
 } from '@shared-core/types/siteSession'
-import { PRIMARY_ACCOUNT_ID } from '@shared-core/types/siteSession'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
@@ -95,21 +94,21 @@ function useSiteSessionMutation<TVariables>(
 /**
  * Turns the import of one account on or off.
  *
- * `accountId` is optional for the old settings card: without it the action
- * targets the primary account, which is the account that card shows.
+ * The account is required: every account has its own switch, and the old
+ * primary fallback would silently flip a different account than the one the
+ * caller meant.
  */
 export function useSetSiteSessionEnabledMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId?: string; enabled: boolean }>(
+  return useSiteSessionMutation<{ siteId: string; accountId: string; enabled: boolean }>(
     (api, { siteId, accountId, enabled }) =>
-      api.siteSession.setAccountEnabled(siteId, accountId ?? PRIMARY_ACCOUNT_ID, enabled)
+      api.siteSession.setAccountEnabled(siteId, accountId, enabled)
   )
 }
 
 /** Forgets the session one account holds, without touching its switch. */
 export function useClearSiteSessionMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId?: string }>(
-    (api, { siteId, accountId }) =>
-      api.siteSession.clearAccount(siteId, accountId ?? PRIMARY_ACCOUNT_ID)
+  return useSiteSessionMutation<{ siteId: string; accountId: string }>(
+    (api, { siteId, accountId }) => api.siteSession.clearAccount(siteId, accountId)
   )
 }
 

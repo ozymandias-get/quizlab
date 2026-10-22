@@ -47,7 +47,7 @@ function findAccount(
 export function useSiteSessionsState() {
   const { t: translate } = useTranslation()
   const t: SiteSessionTranslate = translate
-  const { showError } = useToastActions()
+  const { showError, showInfo, showWarning } = useToastActions()
   const { data } = useSiteSessionListQuery()
   const setEnabledMutation = useSetSiteSessionEnabledMutation()
   const clearMutation = useClearSiteSessionMutation()
@@ -65,9 +65,22 @@ export function useSiteSessionsState() {
   /** The service answers a refusal with a stable code the renderer can name. */
   const reportError = useCallback(
     (error?: string) => {
-      showError(error ? t(`ws_error_${error}`) : t('error_unknown_error'))
+      const message = error ? t(`ws_error_${error}`) : t('error_unknown_error')
+
+      // Some "failures" are not errors: the account was deleted and only its
+      // folder stayed behind, or the switch was written and only the session
+      // stayed. Neither asks the user to retry the whole action.
+      if (error === 'folder_delete_failed') {
+        showInfo(message)
+        return
+      }
+      if (error === 'switch_off_wipe_failed') {
+        showWarning(message)
+        return
+      }
+      showError(message)
     },
-    [showError, t]
+    [showError, showInfo, showWarning, t]
   )
 
   /**

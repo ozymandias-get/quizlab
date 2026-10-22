@@ -90,8 +90,7 @@ const ERROR_CODES = [
   'write_failed',
   'wipe_failed',
   'switch_off_wipe_failed',
-  'invalid_site_id',
-  'invalid_enabled',
+  'folder_delete_failed',
   'import_failed',
   'packet_too_large',
   'Unauthorized',
@@ -218,6 +217,19 @@ describe('site session translations', () => {
     expect(String(tr.ws_accounts_count)).toContain('{count}')
     expect(String(en.ws_account_default)).not.toContain('{{')
     expect(String(tr.ws_accounts_count)).not.toContain('{{')
+  })
+
+  // The count is a number, not a string: i18next picks the plural form from
+  // the number, so a string would always select the "other" form and the
+  // English row would say "1 accounts".
+  it('counts one account in the singular and several in the plural', () => {
+    const enT = i18next.getFixedT('en')
+    const trT = i18next.getFixedT('tr')
+
+    expect(enT('ws_accounts_count', { count: 1 })).toBe('1 account')
+    expect(enT('ws_accounts_count', { count: 2 })).toBe('2 accounts')
+    expect(trT('ws_accounts_count', { count: 1 })).toBe('1 hesap')
+    expect(trT('ws_accounts_count', { count: 2 })).toBe('2 hesap')
   })
 
   // The clear button forgets the sites whose import switch is on. A sign-in

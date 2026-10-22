@@ -35,7 +35,7 @@ function SiteSessionCard({ view, disabled, actions, t }: SiteSessionCardProps) {
         </div>
 
         <span className="bg-muted text-muted-foreground text-ql-11 shrink-0 rounded-full px-2.5 py-1 font-medium">
-          {t('ws_accounts_count', { count: String(view.accounts.length) })}
+          {t('ws_accounts_count', { count: view.accounts.length })}
         </span>
       </div>
 

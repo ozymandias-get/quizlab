@@ -52,6 +52,8 @@ const mockRename = vi.fn()
 const mockDelete = vi.fn()
 const mockResolve = vi.fn()
 const mockShowError = vi.fn()
+const mockShowWarning = vi.fn()
+const mockShowInfo = vi.fn()
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSiteSessionListQuery: () => ({
@@ -85,7 +87,11 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
-  useToastActions: () => ({ showError: mockShowError })
+  useToastActions: () => ({
+    showError: mockShowError,
+    showWarning: mockShowWarning,
+    showInfo: mockShowInfo
+  })
 }))
 
 vi.mock('react-i18next', () => ({
@@ -227,6 +233,42 @@ describe('useSiteSessionsState', () => {
     })
 
     expect(mockDelete).toHaveBeenCalledWith({ siteId: 'google', accountId: 'a1' })
+  })
+
+  it('reports a deleted account whose folder stayed behind as information', async () => {
+    // The account is gone; only its folder is left. That is not an error the
+    // user has to act on, so it is not shown as one.
+    mockDelete.mockResolvedValue({ success: false, error: 'folder_delete_failed' })
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onDelete('google', 'a1')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(mockShowInfo).toHaveBeenCalledWith('ws_error_folder_delete_failed')
+    })
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('reports a switch that was written but could not wipe the session as a warning', async () => {
+    // Half of the action happened: the account is switched off, but the
+    // session it held is still there. That is a warning, not a plain failure.
+    mockSetEnabled.mockResolvedValue({ success: false, error: 'switch_off_wipe_failed' })
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onToggle('google', 'a1')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(mockShowWarning).toHaveBeenCalledWith('ws_error_switch_off_wipe_failed')
+    })
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('writes a pending session into the account the user picked', async () => {

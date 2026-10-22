@@ -32,7 +32,7 @@ import { getElectronApi } from '@shared/lib/electronApi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
 vi.mock('@shared/lib/electronApi', () => ({
   getElectronApi: vi.fn(),
@@ -114,16 +114,17 @@ describe('useSiteSessionApi', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
   })
 
-  it('turns the switch of the primary account when no account is named', async () => {
+  it('requires the account the switch belongs to', () => {
+    // The old settings card named no account and silently targeted the
+    // primary one. Every account has its own switch now, so omitting the
+    // account is a mistake the type has to catch.
     const { result } = renderHook(() => useSetSiteSessionEnabledMutation(), { wrapper })
 
-    await result.current.mutateAsync({ siteId: 'chatgpt', enabled: false })
-
-    expect(mockSiteSession.setAccountEnabled).toHaveBeenCalledWith(
-      'chatgpt',
-      PRIMARY_ACCOUNT_ID,
-      false
-    )
+    expectTypeOf(result.current.mutateAsync).parameter(0).toEqualTypeOf<{
+      siteId: string
+      accountId: string
+      enabled: boolean
+    }>()
   })
 
   it('clears one account and refreshes the list', async () => {
@@ -136,12 +137,13 @@ describe('useSiteSessionApi', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
   })
 
-  it('clears the primary account when no account is named', async () => {
+  it('requires the account the clear belongs to', () => {
     const { result } = renderHook(() => useClearSiteSessionMutation(), { wrapper })
 
-    await result.current.mutateAsync({ siteId: 'chatgpt' })
-
-    expect(mockSiteSession.clearAccount).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID)
+    expectTypeOf(result.current.mutateAsync).parameter(0).toEqualTypeOf<{
+      siteId: string
+      accountId: string
+    }>()
   })
 
   it('marks one account as the active account and refreshes the list', async () => {
@@ -200,7 +202,11 @@ describe('useSiteSessionApi', () => {
     const { result } = renderHook(() => useSetSiteSessionEnabledMutation(), { wrapper })
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
 
-    const outcome = await result.current.mutateAsync({ siteId: 'chatgpt', enabled: true })
+    const outcome = await result.current.mutateAsync({
+      siteId: 'chatgpt',
+      accountId: 'account-2',
+      enabled: true
+    })
 
     expect(outcome).toEqual({ success: false, error: 'write_failed' })
     // The switch may have been written before the action failed, so the row
