@@ -185,6 +185,7 @@ function makeImportHarness(state: SiteSessionConfigFile) {
   const writes: { partition: string; names: string[] }[] = []
   const created: string[] = []
   const recorded: { accountId: string; result: SiteSessionAccountState['lastResult'] }[] = []
+  const registered: { siteId: string; accountId: string }[] = []
 
   const config = {
     read: vi.fn(async () => state),
@@ -229,7 +230,7 @@ function makeImportHarness(state: SiteSessionConfigFile) {
     return session as never
   }
 
-  return { state, config, resolveSession, writes, created, recorded }
+  return { state, config, resolveSession, writes, created, recorded, registered }
 }
 
 function environmentFor(
@@ -238,7 +239,9 @@ function environmentFor(
   return {
     config: harness.config,
     loadTargets: async () => [GOOGLE],
-    resolveSession: harness.resolveSession
+    resolveSession: harness.resolveSession,
+    registerAccount: (site, accountId) =>
+      harness.registered.push({ siteId: site.siteId, accountId })
   }
 }
 
@@ -631,6 +634,22 @@ describe('the account a session belongs to', () => {
     expect(harness.created).toEqual([RETURNING_ACCOUNT_ID])
   })
 
+  it('registers the partition of an account it opens', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(RETURNING_ACCOUNT_ID)
+    const cookieA = identityCookie('token-a1')
+    const cookieB = identityCookie('token-b1')
+    const harness = makeImportHarness(
+      googleState({ a1: accountState({ fingerprints: [fingerprintOf([cookieA])] }) })
+    )
+
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookieB] },
+      environmentFor(harness)
+    )
+
+    expect(harness.registered).toEqual([{ siteId: 'google', accountId: RETURNING_ACCOUNT_ID }])
+  })
+
   it('does not change the active account when a session arrives', async () => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(RETURNING_ACCOUNT_ID)
     const cookieA = identityCookie('token-a1')
@@ -856,6 +875,10 @@ describe('the renderer', () => {
 
   it('tells the renderer about a packet that did not fit into the bridge', async () => {
     // The row of the site changed, so the renderer has to hear about it.
+    // The active account is read from the state, so this test sets its own:
+    // it must not depend on the state another test left behind.
+    read.mockResolvedValue(stateWith(true))
+
     await recordOversizedSiteSessionPacket('chatgpt')
 
     expect(send).toHaveBeenCalledWith(

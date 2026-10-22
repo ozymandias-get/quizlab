@@ -3,7 +3,11 @@ import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
-import { registerSiteSessionPartitions } from '../../features/web-session/siteSessionAccounts.js'
+import {
+  registerAccountPartitionFor,
+  registerSiteSessionPartitions
+} from '../../features/web-session/siteSessionAccounts.js'
+import type { SiteSessionTargetRow } from '../../features/web-session/siteSessionTargets.js'
 import { APP_CONFIG } from '../constants.js'
 import { showDisplayMediaPicker } from '../displayMediaPicker.js'
 import { resolveWebPermission } from './permissionConsent.js'
@@ -159,6 +163,18 @@ export function setupAiSession(
   })
 
   configuredAiPartitions.add(partition)
+}
+
+/**
+ * Registers a partition the app just minted for a new account.
+ *
+ * The registrar is handed to the composition root, which sets it on the
+ * account code; the account code cannot import this module without closing a
+ * cycle. The session setup is the app's own, with the same handlers every
+ * static partition gets.
+ */
+export function registerSiteSessionAccount(site: SiteSessionTargetRow, accountId: string): void {
+  registerAccountPartitionFor(site, accountId, setupAiSession)
 }
 
 export async function setupSessions(getMainWindow: MainWindowResolver): Promise<void> {

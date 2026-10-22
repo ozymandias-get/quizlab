@@ -139,6 +139,29 @@ export async function resolveActiveAccountPartition(siteId: string): Promise<str
 }
 
 /**
+ * Registers one account partition with the policy, the cache registry and its
+ * session, in that order.
+ *
+ * The account module owns which partition an account gets; the session setup
+ * stays injected so this module does not import the window layer. The caller
+ * that creates an account at runtime (the bridge or the service) and the
+ * startup registration share this so the two cannot drift.
+ */
+export function registerAccountPartitionFor(
+  site: Pick<SiteSessionTargetRow, 'siteId' | 'origins'>,
+  accountId: string,
+  setupSession: (partition: string) => void
+): void {
+  const partition = accountPartitionFor(site.siteId, accountId)
+
+  for (const origin of site.origins) {
+    registerAccountPartition(partition, origin)
+  }
+  registerDynamicPartition(partition)
+  setupSession(partition)
+}
+
+/**
  * Opens the session of every additional account the state files hold.
  *
  * A partition the app minted for an account is unknown to the permission
@@ -165,11 +188,6 @@ export async function registerSiteSessionPartitions(
 
   for (const row of buildAccountRows(targets, state)) {
     if (row.isPrimary) continue
-
-    for (const origin of row.origins) {
-      registerAccountPartition(row.partition, origin)
-    }
-    registerDynamicPartition(row.partition)
-    setupSession(row.partition)
+    registerAccountPartitionFor(row, row.accountId, setupSession)
   }
 }

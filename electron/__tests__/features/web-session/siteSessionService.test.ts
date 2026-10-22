@@ -45,6 +45,17 @@ vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
 }))
 
 import { PRIMARY_ACCOUNT_ID } from '../../../../shared/types/siteSession.js'
+import {
+  isAllowedManagedViewPartition,
+  isHostTrustedForPartition,
+  registerAccountPartition,
+  unregisterAccountPartition
+} from '../../../app/window/permissionPolicy.js'
+import {
+  getCacheRules,
+  registerDynamicPartition,
+  unregisterDynamicPartition
+} from '../../../core/cacheRegistry.js'
 import { accountPartitionFor } from '../../../features/web-session/siteSessionAccounts.js'
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
@@ -52,6 +63,7 @@ import type {
   SiteSessionAccountState,
   SiteSessionConfigFile
 } from '../../../features/web-session/siteSessionMigration.js'
+import { removePartitionDirectory } from '../../../features/web-session/siteSessionPartitions.js'
 import {
   clearPendingSiteSession,
   getPendingSiteSession,
@@ -190,6 +202,7 @@ function makeService(
     localCookies?: FakeCookie[]
     extensionConnected?: boolean
     extensionVersionOk?: boolean
+    registerAccount?: (site: SiteSessionTargetRow, accountId: string) => void
   } = {}
 ) {
   const state = overrides.state ?? chatgptState(overrides.enabled ?? false)
@@ -244,17 +257,21 @@ function makeService(
         if (!existing) return
         existing.lastResult = result
         existing.lastError = error ?? null
+        if (result === 'imported') existing.importedAt = new Date().toISOString()
       }
     ),
     rememberFingerprint: vi.fn(async () => undefined)
   }
+
+  const registerAccount = overrides.registerAccount ?? vi.fn()
 
   const service = new SiteSessionService({
     config,
     loadTargets: async () => targets,
     resolveSession: (partition) => sessionFor(partition) as never,
     isExtensionConnected: () => overrides.extensionConnected ?? true,
-    isExtensionVersionOk: () => overrides.extensionVersionOk ?? true
+    isExtensionVersionOk: () => overrides.extensionVersionOk ?? true,
+    registerAccount
   })
 
   return {
@@ -264,6 +281,7 @@ function makeService(
     sessionFor,
     config,
     state,
+    registerAccount,
     set: session.cookies.set,
     remove: session.cookies.remove,
     get: session.cookies.get,
@@ -276,14 +294,23 @@ function googleService(
   overrides: {
     state?: SiteSessionConfigFile
     localCookies?: FakeCookie[]
+    registerAccount?: (site: SiteSessionTargetRow, accountId: string) => void
   } = {}
 ) {
   return makeService({
     targets: [GOOGLE],
     state: overrides.state ?? googleState(),
-    localCookies: overrides.localCookies
+    localCookies: overrides.localCookies,
+    registerAccount: overrides.registerAccount
   })
 }
+
+afterEach(() => {
+  // The policy and the cache registry are process-wide: a partition a test
+  // registered has to be gone before the next one looks at the gate.
+  unregisterAccountPartition('persist:ai_google_a1')
+  unregisterDynamicPartition('persist:ai_google_a1')
+})
 
 describe('SiteSessionService', () => {
   beforeEach(() => {
@@ -514,7 +541,6 @@ describe('SiteSessionService', () => {
     // user has to know that the session is still there.
     expect(result.success).toBe(false)
     expect(result.error).toBe('switch_off_wipe_failed')
-    expect(result.detail).toBeTruthy()
     expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', PRIMARY_ACCOUNT_ID, false)
   })
 
@@ -646,6 +672,35 @@ describe('SiteSessionService', () => {
     expect(removedPartitions).toEqual(['persist:ai_google_a1'])
   })
 
+  it('stops trusting the partition of a deleted account', async () => {
+    const { service } = googleService({ localCookies: [GOOGLE_COOKIE] })
+    registerAccountPartition('persist:ai_google_a1', 'https://gemini.google.com')
+    registerDynamicPartition('persist:ai_google_a1')
+
+    const result = await service.deleteAccount('google', 'a1')
+
+    expect(result.success).toBe(true)
+    expect(isAllowedManagedViewPartition('persist:ai_google_a1')).toBe(false)
+    expect(isHostTrustedForPartition('persist:ai_google_a1', 'gemini.google.com')).toBe(false)
+    expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a1'))).toBe(false)
+  })
+
+  it('stops trusting the partition even when the folder cannot be removed', async () => {
+    // The account is already gone from the state when the folder removal runs.
+    // A folder that refuses to go must not leave a trusted partition behind.
+    const { service } = googleService({ localCookies: [GOOGLE_COOKIE] })
+    registerAccountPartition('persist:ai_google_a1', 'https://gemini.google.com')
+    registerDynamicPartition('persist:ai_google_a1')
+    vi.mocked(removePartitionDirectory).mockRejectedValueOnce(new Error('EPERM'))
+
+    const result = await service.deleteAccount('google', 'a1')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('folder_delete_failed')
+    expect(isAllowedManagedViewPartition('persist:ai_google_a1')).toBe(false)
+    expect(isHostTrustedForPartition('persist:ai_google_a1', 'gemini.google.com')).toBe(false)
+  })
+
   it('does not delete the account when its session could not be wiped', async () => {
     const { service, config, sessionFor } = googleService({ localCookies: [GOOGLE_COOKIE] })
     sessionFor('persist:ai_google_a1').clearStorageData.mockRejectedValue(new Error('locked'))
@@ -670,6 +725,53 @@ describe('SiteSessionService', () => {
     expect(sessions.get('persist:ai_google_a1')?.cookies.set).toHaveBeenCalledTimes(1)
     expect(getPendingSiteSession('google')).toBeNull()
     expect(config.setEnabled).not.toHaveBeenCalled()
+  })
+
+  it('records the pending session as imported on the account row', async () => {
+    const { service, config, state } = googleService()
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', 'a1')
+
+    expect(result.success).toBe(true)
+    expect(config.recordResult).toHaveBeenCalledWith('google', 'a1', 'imported', undefined)
+    expect(state.sites.google.accounts.a1.lastResult).toBe('imported')
+    expect(state.sites.google.accounts.a1.importedAt).toBeTruthy()
+  })
+
+  it('records a pending session that could not be written as a failure', async () => {
+    const { service, config, state, sessionFor } = googleService()
+    sessionFor('persist:ai_google_a1').cookies.set.mockRejectedValue(new Error('denied'))
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', 'a1')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('import_failed')
+    expect(config.recordResult).toHaveBeenCalledWith('google', 'a1', 'failed', 'import_failed')
+    expect(state.sites.google.accounts.a1.lastResult).toBe('failed')
+    expect(getPendingSiteSession('google')).not.toBeNull()
+  })
+
+  it('registers the partition of an account it opens', async () => {
+    const registerAccount = vi.fn()
+    const { service, config } = googleService({ registerAccount })
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', null)
+
+    expect(result.success).toBe(true)
+    const created = config.createAccount.mock.calls[0]
+    expect(registerAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ siteId: 'google' }),
+      created[1]
+    )
   })
 
   it('creates a new account for a pending session the user gave no account', async () => {

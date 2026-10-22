@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import { setSiteSessionAccountRegistrar } from '../features/web-session/siteSessionAccountRegistration.js'
 import { APP_CONFIG } from './constants.js'
 import {
   DEV_SERVER_URL,
@@ -10,7 +11,7 @@ import {
 } from './window/environment.js'
 import { loadRenderer } from './window/rendererLoader.js'
 import { hardenWindowWebContents } from './window/security.js'
-import { setupSessions } from './window/sessions.js'
+import { registerSiteSessionAccount, setupSessions } from './window/sessions.js'
 import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state.js'
 import { createMainBrowserWindow } from './window/windows.js'
 import { configureWindowReveal } from './windowReveal.js'
@@ -53,7 +54,10 @@ export async function createWindow() {
   })
 
   // Wait for registration so no panel can open before the dynamic account
-  // partitions are permission-registered and session-configured.
+  // partitions are permission-registered and session-configured. The registrar
+  // has to be in place first: an account a packet opens after this point must
+  // register its own partition when it is created.
+  setSiteSessionAccountRegistrar(registerSiteSessionAccount)
   await setupSessions(getMainWindow)
 
   return mainWindow
