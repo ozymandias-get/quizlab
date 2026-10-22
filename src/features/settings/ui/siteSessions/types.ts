@@ -7,7 +7,7 @@ import type { SiteSessionAccountView, SiteSessionSiteView } from '@shared-core/t
  * of the accounts of a site, the time of the last import), so the signature
  * carries the parameters i18next's `t` accepts.
  */
-export type SiteSessionTranslate = (key: string, params?: Record<string, string>) => string
+export type SiteSessionTranslate = (key: string, params?: Record<string, string | number>) => string
 
 /**
  * What the user can do with the accounts of the sites.

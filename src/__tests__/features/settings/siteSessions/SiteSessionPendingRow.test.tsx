@@ -30,7 +30,7 @@ const SECOND_ACCOUNT: SiteSessionAccountView = {
 }
 
 /** The row asks for a translation; the test shows the key and its values. */
-const t = (key: string, params?: Record<string, string>) =>
+const t = (key: string, params?: Record<string, string | number>) =>
   params ? `${key} ${Object.values(params).join(' ')}` : key
 
 /** Renders the pending row of a site and hands the calls back to the test. */

@@ -40,7 +40,7 @@ const VIEWS: SiteSessionSiteView[] = [
   }
 ]
 
-const t = (key: string, params?: Record<string, string>) =>
+const t = (key: string, params?: Record<string, string | number>) =>
   params ? `${key} ${Object.values(params).join(' ')}` : key
 
 const actions = {

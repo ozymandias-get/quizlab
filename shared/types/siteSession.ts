@@ -96,21 +96,19 @@ export interface SiteSessionListResult {
  *   - `unknown_target`: the app does not know the site or the account the
  *     action was for, or the site holds no pending session to resolve
  *   - `write_failed`: the setting could not be written; nothing else happened
- *   - `wipe_failed`: the session could not be cleared; the switch was not touched
+ *   - `wipe_failed`: the session could not be cleared; no switch was written
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
- *     be cleared — `detail` says so
+ *     be cleared — the account is off but still holds its session
+ *   - `folder_delete_failed`: the account was removed and its partition is no
+ *     longer trusted, but its data folder could not be deleted
  *   - `primary_account`: the primary account cannot be deleted
  *   - `duplicate_name`: another account of the same site already has that name
  *   - `import_failed`: the pending session could not be written into an account
  *   - `invalid_arguments`: an id was empty or not a string, a name was longer
  *     than 64 characters, or the switch was not a boolean
- *   - `invalid_site_id`: the site id was not a string
- *   - `invalid_enabled`: the switch was not a boolean
  *   - `Unauthorized`: the request did not come from the trusted window
  */
 export interface SiteSessionActionResult {
   success: boolean
   error?: string
-  /** A human readable note about a failure that happened partly. */
-  detail?: string
 }
