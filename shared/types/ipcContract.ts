@@ -306,6 +306,38 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<SiteSessionActionResult>
   }
 
+  // Account-level site session actions. Every one of them names the account it
+  // acts on; the old site-level pair above is the primary account's alias.
+  [IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED]: {
+    args: [siteId: string, accountId: string, enabled: boolean]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT]: {
+    args: [siteId: string, accountId: string]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT]: {
+    args: [siteId: string, accountId: string]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_RENAME_ACCOUNT]: {
+    args: [siteId: string, accountId: string, name: string]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT]: {
+    args: [siteId: string, accountId: string]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING]: {
+    args: [siteId: string, accountId: string | null]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
   // App settings sync (renderer localStorage <-> main ConfigManager)
   [IPC_CHANNELS.GET_APP_SETTINGS]: {
     args: []

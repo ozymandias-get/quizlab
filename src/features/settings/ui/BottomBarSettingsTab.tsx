@@ -75,7 +75,7 @@ const BottomBarSettingsTab = memo(() => {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const { data: siteSessionData } = useSiteSessionListQuery()
-  const isSiteSessionEnabled = hasEnabledSiteSession(siteSessionData?.views ?? [])
+  const isSiteSessionEnabled = hasEnabledSiteSession(siteSessionData?.accountViews ?? [])
   const { enabledModels, aiSites } = useAiModelsCatalog()
   const { setEnabledModels } = useAiModelActions()
 
