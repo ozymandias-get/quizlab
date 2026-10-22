@@ -44,6 +44,10 @@ vi.mock('../../../app/window/permissionConsent', () => ({
   resolveWebPermission
 }))
 
+vi.mock('../../../features/web-session/siteSessionAccounts', () => ({
+  registerSiteSessionPartitions: vi.fn(async () => undefined)
+}))
+
 /** Grabs the handler most recently registered with `mock`. */
 const lastHandler = (mock: typeof setPermissionRequestHandler) =>
   mock.mock.calls[mock.mock.calls.length - 1]?.[0]

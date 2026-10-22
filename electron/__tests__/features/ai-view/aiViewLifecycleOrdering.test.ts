@@ -129,6 +129,10 @@ vi.mock('../../../features/ai/aiManager.js', () => ({
   CHROME_USER_AGENT: 'Mozilla/5.0 Chrome/999'
 }))
 
+vi.mock('../../../features/web-session/siteSessionAccounts.js', () => ({
+  resolveActiveAccountPartition: vi.fn(async () => null)
+}))
+
 /**
  * Gate the manager really awaits when it resolves a custom platform target.
  *

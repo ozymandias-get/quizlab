@@ -5,10 +5,14 @@ import {
   evaluateWebPermission,
   isAllowedManagedViewPartition,
   isCustomPartition,
+  isHostTrustedForPartition,
+  listManagedAiPartitions,
   recordConsentDecision,
+  registerAccountPartition,
   registerCustomPlatformOrigin,
   resetConsentDecisions,
   resetCustomPlatformOrigins,
+  unregisterAccountPartition,
   unregisterCustomPlatformOrigin
 } from '../../../app/window/permissionPolicy.js'
 
@@ -363,6 +367,86 @@ describe('window/permissionPolicy', () => {
         requestingUrl: 'file:///C:/app/dist/index.html'
       })
       expect(d.granted).toBe(false)
+    })
+  })
+
+  describe('account partitions', () => {
+    beforeEach(() => {
+      unregisterAccountPartition('persist:ai_chatgpt_a1')
+    })
+
+    // The panel must open the active account's partition: a partition minted
+    // for an additional account is refused until it has been registered with
+    // the policy at start-up.
+    it('accepts a registered account partition and trusts its host', () => {
+      registerAccountPartition('persist:ai_google_a1', 'https://gemini.google.com')
+      expect(isAllowedManagedViewPartition('persist:ai_google_a1')).toBe(true)
+      expect(isHostTrustedForPartition('persist:ai_google_a1', 'gemini.google.com')).toBe(true)
+      unregisterAccountPartition('persist:ai_google_a1')
+      expect(isAllowedManagedViewPartition('persist:ai_google_a1')).toBe(false)
+    })
+
+    it('keeps a subdomain of the registered host trusted', () => {
+      registerAccountPartition('persist:ai_chatgpt_a1', 'https://chatgpt.com')
+      try {
+        expect(isHostTrustedForPartition('persist:ai_chatgpt_a1', 'auth.chatgpt.com')).toBe(true)
+      } finally {
+        unregisterAccountPartition('persist:ai_chatgpt_a1')
+      }
+    })
+
+    it('denies ambient permissions for a registered account partition', () => {
+      registerAccountPartition('persist:ai_chatgpt_a1', 'https://chatgpt.com')
+      try {
+        const d = ask({
+          partition: 'persist:ai_chatgpt_a1',
+          permission: 'media',
+          requestingUrl: 'https://chatgpt.com/'
+        })
+        expect(d.granted).toBe(false)
+        expect(d.requiresConsent).toBe(false)
+        expect(d.reason).toBe('ambient_not_supported_by_provider')
+      } finally {
+        unregisterAccountPartition('persist:ai_chatgpt_a1')
+      }
+    })
+
+    it('allows passive permissions for a registered account partition', () => {
+      registerAccountPartition('persist:ai_chatgpt_a1', 'https://chatgpt.com')
+      try {
+        const d = ask({
+          partition: 'persist:ai_chatgpt_a1',
+          permission: 'notifications',
+          requestingUrl: 'https://chatgpt.com/'
+        })
+        expect(d.granted).toBe(true)
+        expect(d.requiresConsent).toBe(false)
+      } finally {
+        unregisterAccountPartition('persist:ai_chatgpt_a1')
+      }
+    })
+
+    it('lists registered account partitions so their sessions get configured', () => {
+      expect(listManagedAiPartitions()).not.toContain('persist:ai_chatgpt_a1')
+      registerAccountPartition('persist:ai_chatgpt_a1', 'https://chatgpt.com')
+      try {
+        expect(listManagedAiPartitions()).toContain('persist:ai_chatgpt_a1')
+      } finally {
+        unregisterAccountPartition('persist:ai_chatgpt_a1')
+      }
+      expect(listManagedAiPartitions()).not.toContain('persist:ai_chatgpt_a1')
+    })
+
+    it('denies everything once the account is gone from the policy', () => {
+      registerAccountPartition('persist:ai_chatgpt_a1', 'https://chatgpt.com')
+      unregisterAccountPartition('persist:ai_chatgpt_a1')
+      const d = ask({
+        partition: 'persist:ai_chatgpt_a1',
+        permission: 'notifications',
+        requestingUrl: 'https://chatgpt.com/'
+      })
+      expect(d.granted).toBe(false)
+      expect(d.reason).toBe('not_a_known_partition')
     })
   })
 

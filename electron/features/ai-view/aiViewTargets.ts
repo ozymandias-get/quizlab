@@ -2,6 +2,7 @@ import type { AiPlatform } from '@shared-core/types'
 
 import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
+  GOOGLE_AI_WEB_SITE_ID,
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
 import type { AiViewSource } from '../../../shared/types/aiView.js'
@@ -11,6 +12,7 @@ import {
 } from '../../app/window/permissionPolicy.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
+import { resolveActiveAccountPartition } from '../web-session/siteSessionAccounts.js'
 
 /**
  * Where a managed remote view is allowed to come from.
@@ -57,26 +59,64 @@ function toTarget(
   }
 }
 
+/**
+ * The site id of a user-added site.
+ *
+ * The account state of a custom site is keyed by its site session id — the
+ * `custom:`-prefixed form the settings page shows the accounts under — while
+ * the renderer's model id is the bare platform id.
+ */
+function customSiteIdOf(modelId: string): string {
+  return `custom:${modelId}`
+}
+
+/**
+ * The partition a platform's panel opens in.
+ *
+ * The site's active account decides; a site whose accounts carry none (or
+ * whose active account does not resolve) falls back to the platform's own
+ * partition, which is what the panel has always used for the primary session.
+ * The account partition is used as resolved — if start-up has not registered
+ * it with the permission policy, `toTarget` refuses it instead of quietly
+ * opening the panel in the primary account's cookies.
+ */
+async function partitionOfPlatform(
+  platform: AiPlatform,
+  siteId: string
+): Promise<string | undefined> {
+  return (await resolveActiveAccountPartition(siteId)) ?? platform.partition ?? undefined
+}
+
 async function resolvePlatformTarget(modelId: string): Promise<AiViewTarget | null> {
-  const builtin = toTarget(entryOf(modelId), entryOf(modelId)?.partition)
-  if (builtin) return builtin
+  const platform = entryOf(modelId)
+  if (platform) {
+    return toTarget(platform, await partitionOfPlatform(platform, modelId))
+  }
 
   const customPlatforms = await readCustomPlatforms()
   if (!Object.prototype.hasOwnProperty.call(customPlatforms, modelId)) return null
-  return toTarget(customPlatforms[modelId], customPlatforms[modelId]?.partition)
+  const customPlatform = customPlatforms[modelId]
+  return toTarget(
+    customPlatform,
+    await partitionOfPlatform(customPlatform, customSiteIdOf(modelId))
+  )
 }
 
-function resolveGoogleAppTarget(appId: string): AiViewTarget | null {
+async function resolveGoogleAppTarget(appId: string): Promise<AiViewTarget | null> {
   const app = GOOGLE_WEB_SESSION_APPS.find((candidate) => candidate.id === appId)
   if (!app) return null
-  let parsed: URL
-  try {
-    parsed = new URL(app.url)
-  } catch {
-    return null
+  const partition =
+    (await resolveActiveAccountPartition(GOOGLE_AI_WEB_SITE_ID)) ?? GOOGLE_AI_WEB_SESSION_PARTITION
+  // toTarget carries the partition gate too: an account partition that start-up
+  // has not registered is refused, not silently swapped for the Google one.
+  const platform: AiPlatform = {
+    id: app.id,
+    name: app.name,
+    url: app.url,
+    icon: app.icon,
+    color: app.color
   }
-  if (parsed.protocol !== 'https:') return null
-  return { partition: GOOGLE_AI_WEB_SESSION_PARTITION, url: parsed.toString(), label: app.name }
+  return toTarget(platform, partition)
 }
 
 export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewTarget | null> {

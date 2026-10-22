@@ -151,10 +151,25 @@ const BASE_RULES: CacheRule[] = SAFE_CACHE_DIRS.map((dir) => ({
   ttlMs: CACHE_FILE_TTL_MS
 }))
 
+/** Partitions the app registers at runtime — additional site accounts. */
+const dynamicPartitionKeys = new Set<string>()
+
+/**
+ * Çalışma zamanında oluşturulan bir partition'ı önbellek kaydına ekler.
+ *
+ * Bir sitenin ek hesapları için oluşturulan partition'lar statik
+ * AI_REGISTRY'den gelmez; kalıcı duruma bakılarak açılışta kaydedilir
+ * (bkz. siteSessionAccounts.ts), böylece süpürücü önbelleklerini de temizler.
+ */
+export function registerDynamicPartition(partitionKey: string): void {
+  if (!partitionKey) return
+  dynamicPartitionKeys.add(partitionKey.replace(/^persist:/, ''))
+}
+
 /**
  * Tüm AI partition'larının anahtarlarını toplar.
- * Hem aktif (AI_REGISTRY) hem pasif (INACTIVE_PLATFORMS) platformları
- * hem de varsayılan AI partition'ını kapsar.
+ * Hem aktif (AI_REGISTRY) hem pasif (INACTIVE_PLATFORMS) platformları,
+ * varsayılan AI partition'ını hem de çalışma zamanında kaydedilenleri kapsar.
  */
 function collectAllPartitionKeys(): Set<string> {
   const keys = new Set<string>()
@@ -172,6 +187,11 @@ function collectAllPartitionKeys(): Set<string> {
   // 3. Pasif (kayıtlı ama aktif olmayan) platformlar
   for (const p of Object.values(INACTIVE_PLATFORMS)) {
     if (p.partition) keys.add(p.partition.replace('persist:', ''))
+  }
+
+  // 4. Çalışma zamanında kaydedilen partition'lar
+  for (const key of dynamicPartitionKeys) {
+    keys.add(key)
   }
 
   return keys

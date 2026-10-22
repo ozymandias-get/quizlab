@@ -52,7 +52,9 @@ export async function createWindow() {
     mainWindow = null
   })
 
-  setupSessions(getMainWindow)
+  // Wait for registration so no panel can open before the dynamic account
+  // partitions are permission-registered and session-configured.
+  await setupSessions(getMainWindow)
 
   return mainWindow
 }
