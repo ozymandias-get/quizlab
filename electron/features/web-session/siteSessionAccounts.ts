@@ -9,6 +9,9 @@
  */
 
 import { PRIMARY_ACCOUNT_ID, type SiteSessionKind } from '../../../shared/types/siteSession.js'
+import { registerAccountPartition } from '../../app/window/permissionPolicy.js'
+import { setupAiSession } from '../../app/window/sessions.js'
+import { registerDynamicPartition } from '../../core/cacheRegistry.js'
 import { createAccountState, getSiteSessionConfig } from './siteSessionConfig.js'
 import type { SiteSessionAccountState, SiteSessionConfigFile } from './siteSessionMigration.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
@@ -134,4 +137,34 @@ export async function resolveActiveAccountPartition(siteId: string): Promise<str
     rows.find((row) => row.siteId === siteId && row.accountId === activeAccountId)?.partition ??
     null
   )
+}
+
+/**
+ * Opens the session of every additional account the state files hold.
+ *
+ * A partition the app minted for an account is unknown to the permission
+ * policy and the cache registry until it is registered here: the panel refuses
+ * a view whose partition is unregistered, and the cache sweeper would leave
+ * the account's cache unswept. Because the accounts are the user's, the
+ * partitions are dynamic — they are registered at start-up from the persisted
+ * state, not from a static list.
+ *
+ * The primary account is skipped: it keeps the partition its platform always
+ * used, which the registry-derived path already registers and configures.
+ */
+export async function registerSiteSessionPartitions(): Promise<void> {
+  const [targets, state] = await Promise.all([
+    buildSiteSessionTargets(),
+    getSiteSessionConfig().read()
+  ])
+
+  for (const row of buildAccountRows(targets, state)) {
+    if (row.isPrimary) continue
+
+    for (const origin of row.origins) {
+      registerAccountPartition(row.partition, origin)
+    }
+    registerDynamicPartition(row.partition)
+    setupAiSession(row.partition)
+  }
 }

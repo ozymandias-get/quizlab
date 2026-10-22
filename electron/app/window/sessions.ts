@@ -3,6 +3,7 @@ import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
+import { registerSiteSessionPartitions } from '../../features/web-session/siteSessionAccounts.js'
 import { APP_CONFIG } from '../constants.js'
 import { showDisplayMediaPicker } from '../displayMediaPicker.js'
 import { resolveWebPermission } from './permissionConsent.js'
@@ -160,7 +161,7 @@ export function setupAiSession(
   configuredAiPartitions.add(partition)
 }
 
-export function setupSessions(getMainWindow: MainWindowResolver) {
+export async function setupSessions(getMainWindow: MainWindowResolver): Promise<void> {
   if (sessionsConfigured) return
 
   try {
@@ -174,6 +175,12 @@ export function setupSessions(getMainWindow: MainWindowResolver) {
     for (const partition of aiPartitions) {
       setupAiSession(partition, getMainWindow)
     }
+
+    // The registry-derived sessions above are configured first: the account
+    // partitions are dynamic, so only the call below can register them with
+    // the policy, cache registry and their own session — in that order, and
+    // never before the static ones.
+    await registerSiteSessionPartitions()
 
     sessionsConfigured = true
   } catch (error) {

@@ -4,16 +4,37 @@ import path from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { configRead, targetRows, userData } = vi.hoisted(() => ({
-  configRead: vi.fn(),
-  targetRows: [] as SiteSessionTargetRow[],
-  userData: { path: '' }
-}))
+const { configRead, targetRows, userData, hoistedMocks } = vi.hoisted(() => {
+  return {
+    configRead: vi.fn(),
+    targetRows: [] as SiteSessionTargetRow[],
+    userData: { path: '' },
+    hoistedMocks: {
+      registerAccountPartition: vi.fn(),
+      unregisterAccountPartition: vi.fn(),
+      registerDynamicPartition: vi.fn(),
+      setupAiSession: vi.fn()
+    }
+  }
+})
 
 vi.mock('electron', () => ({
   app: {
     getPath: () => userData.path
   }
+}))
+
+vi.mock('../../../app/window/permissionPolicy.js', () => ({
+  registerAccountPartition: hoistedMocks.registerAccountPartition,
+  unregisterAccountPartition: hoistedMocks.unregisterAccountPartition
+}))
+
+vi.mock('../../../core/cacheRegistry.js', () => ({
+  registerDynamicPartition: hoistedMocks.registerDynamicPartition
+}))
+
+vi.mock('../../../app/window/sessions.js', () => ({
+  setupAiSession: hoistedMocks.setupAiSession
 }))
 
 vi.mock('../../../features/web-session/siteSessionConfig.js', async (importOriginal) => {
@@ -34,6 +55,7 @@ import {
   accountPartitionFor,
   buildAccountRows,
   isPrimaryAccount,
+  registerSiteSessionPartitions,
   resolveActiveAccountPartition
 } from '../../../features/web-session/siteSessionAccounts.js'
 import type {
@@ -300,6 +322,143 @@ describe('resolveActiveAccountPartition', () => {
     }
     configRead.mockResolvedValue(state)
     await expect(resolveActiveAccountPartition('google')).resolves.toBeNull()
+  })
+})
+
+describe('registerSiteSessionPartitions', () => {
+  const { registerAccountPartition, registerDynamicPartition, setupAiSession } = hoistedMocks
+
+  const googleRow = (overrides: Partial<SiteSessionTargetRow> = {}): SiteSessionTargetRow => ({
+    siteId: 'google',
+    labelKey: 'ws_target_google',
+    kind: 'google',
+    memberAppIds: ['gemini'],
+    hostname: 'gemini.google.com',
+    origins: ['https://gemini.google.com'],
+    cookieDomains: ['.google.com'],
+    partition: 'persist:gemini_web_profile',
+    ...overrides
+  })
+
+  beforeEach(() => {
+    registerAccountPartition.mockClear()
+    registerDynamicPartition.mockClear()
+    setupAiSession.mockClear()
+  })
+
+  it('registers, caches and configures each additional account', async () => {
+    targetRows.length = 0
+    targetRows.push(googleRow())
+    configRead.mockResolvedValue({
+      ...emptyState(),
+      sites: {
+        google: {
+          accounts: { primary: primaryState(), a1: primaryState({ enabled: true }) },
+          activeAccountId: 'primary'
+        }
+      }
+    })
+
+    await registerSiteSessionPartitions()
+
+    expect(registerAccountPartition).toHaveBeenCalledTimes(1)
+    expect(registerAccountPartition).toHaveBeenCalledWith(
+      'persist:ai_google_a1',
+      'https://gemini.google.com'
+    )
+    expect(registerDynamicPartition).toHaveBeenCalledWith('persist:ai_google_a1')
+    expect(setupAiSession).toHaveBeenCalledWith('persist:ai_google_a1')
+  })
+
+  it('does not re-register the partition the primary account shares', async () => {
+    targetRows.length = 0
+    targetRows.push(googleRow())
+    configRead.mockResolvedValue({
+      ...emptyState(),
+      sites: {
+        google: {
+          accounts: { primary: primaryState() },
+          activeAccountId: PRIMARY_ACCOUNT_ID
+        }
+      }
+    })
+
+    await registerSiteSessionPartitions()
+
+    expect(registerAccountPartition).not.toHaveBeenCalled()
+    expect(registerDynamicPartition).not.toHaveBeenCalled()
+    expect(setupAiSession).not.toHaveBeenCalled()
+  })
+
+  it('registers every origin of a multi-origin site', async () => {
+    targetRows.length = 0
+    targetRows.push(
+      googleRow({
+        origins: ['https://gemini.google.com', 'https://drive.google.com']
+      })
+    )
+    configRead.mockResolvedValue({
+      ...emptyState(),
+      sites: { google: { accounts: { a1: primaryState() }, activeAccountId: null } }
+    })
+
+    await registerSiteSessionPartitions()
+
+    expect(registerAccountPartition.mock.calls).toEqual([
+      ['persist:ai_google_a1', 'https://gemini.google.com'],
+      ['persist:ai_google_a1', 'https://drive.google.com']
+    ])
+    expect(setupAiSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers the permission policy before configuring the session', async () => {
+    targetRows.length = 0
+    targetRows.push(googleRow())
+    configRead.mockResolvedValue({
+      ...emptyState(),
+      sites: { google: { accounts: { a1: primaryState() }, activeAccountId: null } }
+    })
+
+    await registerSiteSessionPartitions()
+
+    expect(registerAccountPartition.mock.invocationCallOrder[0]).toBeLessThan(
+      setupAiSession.mock.invocationCallOrder[0]
+    )
+    expect(registerDynamicPartition.mock.invocationCallOrder[0]).toBeLessThan(
+      setupAiSession.mock.invocationCallOrder[0]
+    )
+  })
+
+  it('covers every site it has rows for', async () => {
+    targetRows.length = 0
+    targetRows.push(googleRow(), {
+      siteId: 'custom:custom_abc',
+      hostname: 'local.example.com',
+      origins: ['https://local.example.com'],
+      cookieDomains: ['.local.example.com'],
+      partition: 'persist:ai_custom_custom_abc',
+      labelKey: 'ws_target_custom',
+      kind: 'custom',
+      memberAppIds: ['custom_abc']
+    })
+    configRead.mockResolvedValue({
+      ...emptyState(),
+      sites: {
+        google: { accounts: { primary: primaryState(), a1: primaryState() } },
+        'custom:custom_abc': {
+          accounts: { a0: primaryState(), a1: primaryState() },
+          activeAccountId: null
+        }
+      }
+    })
+
+    await registerSiteSessionPartitions()
+
+    expect(setupAiSession.mock.calls).toEqual([
+      ['persist:ai_google_a1'],
+      ['persist:ai_custom_custom_abc_a0'],
+      ['persist:ai_custom_custom_abc_a1']
+    ])
   })
 })
 
