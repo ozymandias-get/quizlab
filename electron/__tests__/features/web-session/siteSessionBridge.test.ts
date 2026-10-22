@@ -863,6 +863,26 @@ describe('the renderer', () => {
       expect.objectContaining({ extensionConnected: true })
     )
   })
+
+  it('tells the renderer that a session waits for the account it belongs to', async () => {
+    // The settings page asks "which account is this session?". Without the
+    // event the question only appears after the user left the page and came
+    // back.
+    const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+    const harness = makeImportHarness(googleState({ a1: accountState(), a2: accountState() }, 'a1'))
+
+    await acceptSiteSessionPacket(
+      { targetId: 'google', status: 'ok', cookies: [cookie] },
+      environmentFor(harness)
+    )
+
+    expect(send).toHaveBeenCalledWith(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED,
+      expect.objectContaining({ extensionConnected: true })
+    )
+
+    clearPendingSiteSession('google')
+  })
 })
 
 describe('local session detection', () => {

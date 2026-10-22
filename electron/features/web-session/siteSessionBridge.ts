@@ -37,7 +37,8 @@ import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import type { SiteSessionConfigFile } from './siteSessionMigration.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { clearPendingSiteSession, setPendingSiteSession } from './siteSessionPendingSessions.js'
+import { storePendingSiteSession } from './siteSessionPendingNotice.js'
+import { clearPendingSiteSession } from './siteSessionPendingSessions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
@@ -516,7 +517,7 @@ async function applySiteSessionPacket(
       return { accepted: true }
 
     case 'pending':
-      setPendingSiteSession(packet.targetId, plan.cookies)
+      await storePendingSiteSession(packet.targetId, plan.cookies)
       return { accepted: false, reason: 'ambiguous_account' }
 
     case 'record':
