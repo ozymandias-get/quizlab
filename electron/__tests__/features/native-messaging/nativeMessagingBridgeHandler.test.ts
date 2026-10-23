@@ -10,7 +10,14 @@ const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
 
 const recordOversizedSiteSessionPacket = vi.hoisted(() => vi.fn(async () => {}))
-const acceptPacket = vi.hoisted(() => vi.fn(async () => ({ accepted: true, imported: 1 })))
+const acceptPacket = vi.hoisted(() =>
+  vi.fn(
+    async (): Promise<{ accepted: boolean; imported?: number; held?: true; reason?: string }> => ({
+      accepted: true,
+      imported: 1
+    })
+  )
+)
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getPath: vi.fn(() => '/tmp/quizlab-userdata') },
@@ -55,7 +62,8 @@ describe('the bridge of the site session', () => {
 
   beforeEach(async () => {
     recordOversizedSiteSessionPacket.mockClear()
-    acceptPacket.mockClear()
+    acceptPacket.mockReset()
+    acceptPacket.mockResolvedValue({ accepted: true, imported: 1 })
     server = http.createServer(createBridgeRequestHandler(createManager()))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     port = (server.address() as AddressInfo).port
@@ -123,6 +131,48 @@ describe('the bridge of the site session', () => {
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
   })
 
+  /** A packet the extension sends for a site. */
+  function packetBody(): string {
+    return JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+  }
+
+  it('answers a held packet with 200 so the extension stops re-pushing it', async () => {
+    // The extension treats a refusal as "push this again in 30 seconds". The
+    // hold is an answer: the question waits in the settings.
+    acceptPacket.mockResolvedValueOnce({ accepted: true, held: true })
+
+    const response = await post(packetBody())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ success: true, held: true })
+  })
+
+  it('keeps answering held when the same packet is pushed again', async () => {
+    acceptPacket.mockResolvedValue({ accepted: true, held: true })
+
+    const first = await post(packetBody())
+    const second = await post(packetBody())
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    await expect(first.json()).resolves.toEqual({ success: true, held: true })
+    await expect(second.json()).resolves.toEqual({ success: true, held: true })
+    expect(acceptPacket).toHaveBeenCalledTimes(2)
+  })
+
+  it('still refuses a packet the app cannot use', async () => {
+    acceptPacket.mockResolvedValueOnce({ accepted: false, reason: 'account_disabled' })
+
+    const response = await post(packetBody())
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({ error: 'account_disabled' })
+  })
+
   it('still imports a packet that fits', async () => {
     const body = JSON.stringify({
       targetId: 'chatgpt',
@@ -135,6 +185,7 @@ describe('the bridge of the site session', () => {
     expect(response.status).toBe(200)
     expect(acceptPacket).toHaveBeenCalledTimes(1)
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toEqual({ success: true, imported: 1 })
   })
 
   it('answers the health check of the extension', async () => {
