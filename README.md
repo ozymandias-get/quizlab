@@ -98,11 +98,15 @@ diagnostics:
   templates ship for OpenAI, Anthropic, Google and NVIDIA, and `custom` covers
   any compatible gateway. Requests are made from the main process with SSRF
   validation and DNS pinning.
-- **Site sessions** — every site you use has its own "Pull from Chrome" switch in
-  **Settings → Session Import**. With it on, the bundled Chrome extension hands
-  the site the cookies of your own Chrome profile over a localhost bridge; with
-  it off, the site asks you to sign in inside the app. The Google family
-  (Gemini, AI Studio, YouTube, Google Drive) shares one account and is one row.
+- **Site sessions and multi-account** — every site you use has its own "Pull
+  from Chrome" switch and account list in **Settings → Session Import**. With it
+  on, the bundled Chrome extension hands the site the cookies of your Chrome
+  profile over a localhost bridge; with it off, the site asks you to sign in
+  inside the app. A site can hold multiple accounts, each isolated in its own
+  persistent Chromium cookie jar partition. You can label accounts, switch the
+  active account directly from the AI tab strip context menu or settings, and
+  safely resolve pending sessions. The Google family (Gemini, AI Studio,
+  YouTube, Google Drive) shares one account group and is unified into a single row.
 - **Appearance** — animated or solid backgrounds, glass scaling, selection
   colour, accent colour, and a configurable hub/dock for the tools you actually
   use.

@@ -103,12 +103,16 @@ ve tanılama araçları:
   OpenAI, Anthropic, Google ve NVIDIA için hazır sağlayıcı şablonları gelir;
   `custom` ise uyumlu herhangi bir geçidi kapsar. İstekler SSRF doğrulaması ve
   DNS sabitleme ile ana süreçten yapılır.
-- **Site oturumları** — kullandığınız her sitenin **Ayarlar → Oturum Aktarımı**
-  bölümünde kendi "Chrome'dan çek" anahtarı vardır. Anahtar açıkken paketlenmiş
-  Chrome eklentisi sitenin çerezlerini kendi Chrome profilinizden yerel köprü
-  üzerinden devreder; anahtar kapalıyken site uygulama içinde giriş ister.
-  Google ailesi (Gemini, AI Studio, YouTube, Google Drive) tek hesabı paylaşır ve
-  tek satırdır.
+- **Site oturumları ve çoklu hesap desteği** — kullandığınız her sitenin
+  **Ayarlar → Oturum Aktarımı** bölümünde kendi "Chrome'dan çek" anahtarı ve
+  hesap listesi bulunur. Anahtar açıkken paketlenmiş Chrome eklentisi sitenin
+  çerezlerini kendi Chrome profilinizden yerel köprü üzerinden devreder; kapalıyken
+  site uygulama içinde doğrudan giriş ister. Bir site birden fazla hesap
+  barındırabilir ve her hesap kendi yalıtılmış kalıcı Chromium çerez kavanozu
+  (cookie jar) bölümünde çalışır. Hesapları isimlendirebilir, aktif hesabı doğrudan
+  AI sekme çubuğunun sağ tık menüsünden veya ayarlardan değiştirebilir ve
+  bekleyen oturumları yönetebilirsiniz. Google ailesi (Gemini, AI Studio,
+  YouTube, Google Drive) tek bir hesap grubunu paylaşır ve tek satırda birleştirilmiştir.
 - **Görünüm** — animasyonlu veya düz arka planlar, cam ölçeği, seçim rengi, vurgu
   rengi ve gerçekten kullandığınız araçlar için yapılandırılabilir merkez (hub).
 - **Dil** — İngilizce ve Türkçe; ilk çalıştırmada seçilir, ayarlardan değiştirilir.
