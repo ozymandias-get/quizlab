@@ -153,10 +153,16 @@ export async function openSiteSessionRound(
 
 /** The outcome of a packet the extension sent. */
 export interface SiteSessionPacketOutcome {
+  /** Whether the packet was used: an answer it carried was acted on. */
   accepted: boolean
-  reason?: CookiePacketRejection | 'ambiguous_account'
+  /** Why a packet was refused whole. */
+  reason?: CookiePacketRejection
+  /** The cookies that were written. */
   imported?: number
+  /** The cookies that could not be written. */
   failed?: number
+  /** True when the session was held for the user to name its account. */
+  held?: true
 }
 
 /**
@@ -453,9 +459,13 @@ async function applySiteSessionPacket(
     case 'ignore':
       return { accepted: true }
 
-    case 'pending':
+    case 'pending': {
+      // A held session is an answer, not a refusal: 200 is what makes the
+      // extension stop re-pushing the same packet every 30 seconds. The
+      // question waits for the user in the settings page instead.
       await storePendingSiteSession(packet.targetId, plan.cookies)
-      return { accepted: false, reason: 'ambiguous_account' }
+      return { accepted: true, held: true }
+    }
 
     case 'record':
       await recordResult(config, plan.siteRow.siteId, plan.accountId, plan.result)

@@ -553,7 +553,10 @@ describe('the account a session belongs to', () => {
     expect(harness.recorded).toEqual([{ accountId: NEW_ACCOUNT_ID, result: 'imported' }])
   })
 
-  it('holds the session and writes nothing when the account is ambiguous', async () => {
+  it('holds the session and answers held instead of refusing it', async () => {
+    // The extension treats a refusal as "push this again in 30 seconds". A
+    // held packet is an answer: the question waits for the user in the
+    // settings, and the extension stops re-pushing the same session.
     const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
     const harness = makeImportHarness(googleState({ a1: accountState(), a2: accountState() }, 'a1'))
 
@@ -562,8 +565,7 @@ describe('the account a session belongs to', () => {
       environmentFor(harness)
     )
 
-    expect(outcome.accepted).toBe(false)
-    expect(outcome.reason).toBe('ambiguous_account')
+    expect(outcome).toEqual({ accepted: true, held: true })
     expect(harness.writes).toEqual([])
     expect(getPendingSiteSession('google')?.cookies).toEqual([cookie])
   })

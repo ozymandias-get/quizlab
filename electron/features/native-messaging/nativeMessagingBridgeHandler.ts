@@ -331,6 +331,13 @@ function handleCookiePost(
         return
       }
 
+      // A held packet is not an error: the session waits for the user to name
+      // its account, so the extension sees success and stops re-pushing it.
+      if (outcome.held) {
+        sendJson(res, 200, { success: true, held: true })
+        return
+      }
+
       sendJson(res, 200, { success: true, imported: outcome.imported ?? 0 })
     } catch (error) {
       Logger.error('[NativeMessaging] Failed to handle the cookie packet:', error)
