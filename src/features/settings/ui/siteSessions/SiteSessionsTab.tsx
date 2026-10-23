@@ -34,6 +34,7 @@ const SiteSessionsTab = memo(() => {
     onRename,
     onDelete,
     onResolvePending,
+    onReAskAttribution,
     riskItems,
     mitigationItems,
     wizardOpen,
@@ -47,8 +48,8 @@ const SiteSessionsTab = memo(() => {
   // The rows take the actions as one object, so it keeps its reference
   // between two renders of the tab.
   const actions: SiteSessionActions = useMemo(
-    () => ({ onToggle, onSetActive, onRename, onDelete, onResolvePending }),
-    [onDelete, onRename, onResolvePending, onSetActive, onToggle]
+    () => ({ onToggle, onSetActive, onRename, onDelete, onResolvePending, onReAskAttribution }),
+    [onDelete, onRename, onReAskAttribution, onResolvePending, onSetActive, onToggle]
   )
 
   const handleInstall = useCallback(async () => {

@@ -189,6 +189,10 @@ export interface ElectronApi {
     ) => Promise<SiteSessionActionResult>
     deleteAccount: (siteId: string, accountId: string) => Promise<SiteSessionActionResult>
     resolvePending: (siteId: string, accountId: string | null) => Promise<SiteSessionActionResult>
+    setAttributedAccount: (
+      siteId: string,
+      accountId: string | null
+    ) => Promise<SiteSessionActionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {

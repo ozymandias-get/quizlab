@@ -57,7 +57,8 @@ function renderRow(overrides: Partial<SiteSessionAccountView> = {}) {
         onSetActive,
         onRename,
         onDelete,
-        onResolvePending: noop
+        onResolvePending: noop,
+        onReAskAttribution: noop
       }}
       t={t}
     />

@@ -40,6 +40,7 @@ const siteWith = (siteId: string, accounts: SiteSessionAccountView[]): SiteSessi
   memberAppIds: ['chatgpt'],
   accounts,
   activeAccountId: null,
+  attributedAccountId: null,
   hasPendingSession: false
 })
 
@@ -51,6 +52,7 @@ const mockSetActive = vi.fn()
 const mockRename = vi.fn()
 const mockDelete = vi.fn()
 const mockResolve = vi.fn()
+const mockReAsk = vi.fn()
 const mockShowError = vi.fn()
 const mockShowWarning = vi.fn()
 const mockShowInfo = vi.fn()
@@ -82,6 +84,10 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   }),
   useResolveSiteSessionPendingMutation: () => ({
     mutateAsync: mockResolve,
+    isPending: false
+  }),
+  useSetSiteSessionAttributionMutation: () => ({
+    mutateAsync: mockReAsk,
     isPending: false
   })
 }))
@@ -115,6 +121,7 @@ describe('useSiteSessionsState', () => {
     mockRename.mockResolvedValue({ success: true })
     mockDelete.mockResolvedValue({ success: true })
     mockResolve.mockResolvedValue({ success: true })
+    mockReAsk.mockResolvedValue({ success: true })
   })
 
   it('turns the import of an account on', async () => {
@@ -291,5 +298,33 @@ describe('useSiteSessionsState', () => {
     })
 
     expect(mockResolve).toHaveBeenCalledWith({ siteId: 'google', accountId: null })
+  })
+
+  it('clears the attribution so the question comes back', async () => {
+    // The extension polls the config version: the cleared attribution makes it
+    // push every site again, and the card asks about the held session once more.
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onReAskAttribution('google')
+      await Promise.resolve()
+    })
+
+    expect(mockReAsk).toHaveBeenCalledWith({ siteId: 'google', accountId: null })
+  })
+
+  it('reports a re-ask that was refused', async () => {
+    mockReAsk.mockResolvedValue({ success: false, error: 'write_failed' })
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onReAskAttribution('google')
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('ws_error_write_failed')
+    })
   })
 })

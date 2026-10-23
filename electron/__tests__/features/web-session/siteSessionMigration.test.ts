@@ -363,4 +363,36 @@ describe('migrateSiteSessionStateV1', () => {
       fingerprints: []
     })
   })
+
+  it('keeps an attribution that names an account the site holds', () => {
+    const state = readConfigFile({
+      version: 2,
+      configVersion: 1,
+      sites: {
+        google: {
+          accounts: { a1: { enabled: true } },
+          activeAccountId: 'a1',
+          attributedAccountId: 'a1'
+        }
+      }
+    })
+
+    expect(state.sites.google.attributedAccountId).toBe('a1')
+  })
+
+  it('drops an attribution that names an account the site does not hold', () => {
+    const state = readConfigFile({
+      version: 2,
+      configVersion: 1,
+      sites: {
+        google: {
+          accounts: { a1: { enabled: true } },
+          activeAccountId: 'a1',
+          attributedAccountId: 'ghost'
+        }
+      }
+    })
+
+    expect(state.sites.google.attributedAccountId).toBeUndefined()
+  })
 })

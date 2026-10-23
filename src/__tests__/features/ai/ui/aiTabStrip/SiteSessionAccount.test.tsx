@@ -76,6 +76,7 @@ function chatgptSite(
     memberAppIds: ['chatgpt'],
     accounts,
     activeAccountId,
+    attributedAccountId: null,
     hasPendingSession: false
   }
 }

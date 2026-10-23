@@ -156,4 +156,18 @@ export function registerSiteSessionHandlers(): void {
     requireTrustedIpcSender,
     success({ success: false, error: 'Unauthorized' })
   )
+
+  registerIpcHandler(
+    IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION,
+    async (_event, siteId: unknown, accountId: unknown) => {
+      if (accountId !== null && !isId(accountId)) return refusal()
+      if (!isId(siteId)) return refusal()
+
+      const result = await siteSessionService.setAttributedAccount(siteId, accountId)
+      await broadcastSiteSessionsChanged()
+      return success(result)
+    },
+    requireTrustedIpcSender,
+    success({ success: false, error: 'Unauthorized' })
+  )
 }

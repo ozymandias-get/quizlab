@@ -139,3 +139,10 @@ export function useResolveSiteSessionPendingMutation() {
     (api, { siteId, accountId }) => api.siteSession.resolvePending(siteId, accountId)
   )
 }
+
+/** Attributes a held session to an account, or asks to name it again for `null`. */
+export function useSetSiteSessionAttributionMutation() {
+  return useSiteSessionMutation<{ siteId: string; accountId: string | null }>(
+    (api, { siteId, accountId }) => api.siteSession.setAttributedAccount(siteId, accountId)
+  )
+}

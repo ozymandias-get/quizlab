@@ -734,6 +734,40 @@ describe('site session config', () => {
     expect(state.sites.google.activeAccountId).toBeNull()
   })
 
+  it('writes the account an identity-less session was attributed to', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    const version = await config.getConfigVersion()
+
+    await config.setAttributedAccount('google', 'a1')
+
+    const state = await config.read()
+    expect(state.sites.google.attributedAccountId).toBe('a1')
+    expect(state.configVersion).toBe(version + 1)
+  })
+
+  it('clears the attribution and advances the version for the re-ask', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+    await config.setAttributedAccount('google', 'a1')
+    const version = await config.getConfigVersion()
+
+    await config.setAttributedAccount('google', null)
+
+    const state = await config.read()
+    expect(state.sites.google.attributedAccountId).toBeUndefined()
+    expect(state.configVersion).toBe(version + 1)
+  })
+
+  it('does not point an attribution at an account the site does not have', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.createAccount('google', 'a1', 'fp-1')
+
+    await config.setAttributedAccount('google', 'ghost')
+
+    expect((await config.read()).sites.google.attributedAccountId).toBeUndefined()
+  })
+
   it('removes the site when its last account is deleted', async () => {
     const config = new SiteSessionConfig(configPath())
     await config.createAccount('google', 'a1', 'fp-1')

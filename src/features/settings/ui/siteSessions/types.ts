@@ -26,6 +26,8 @@ export interface SiteSessionActions {
   onDelete: (siteId: string, accountId: string) => void
   /** Writes a pending session into an account, or into a new one for null. */
   onResolvePending: (siteId: string, accountId: string | null) => void
+  /** Asks to name the account of the next held session again. */
+  onReAskAttribution: (siteId: string) => void
 }
 
 export interface SiteSessionAccountRowProps {

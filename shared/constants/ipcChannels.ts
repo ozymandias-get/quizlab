@@ -64,6 +64,7 @@ export const IPC_CHANNELS = {
   SITE_SESSION_RENAME_ACCOUNT: 'site-session-rename-account',
   SITE_SESSION_DELETE_ACCOUNT: 'site-session-delete-account',
   SITE_SESSION_RESOLVE_PENDING: 'site-session-resolve-pending',
+  SITE_SESSION_SET_ATTRIBUTION: 'site-session-set-attribution',
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',

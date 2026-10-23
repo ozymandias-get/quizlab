@@ -20,6 +20,8 @@
   "ws_pending_question": "Which account does this session belong to?",
   "ws_pending_new_account": "New account",
   "ws_pending_resolve": "Choose the account",
+  "ws_attribution_label": "Attributed: {name}",
+  "ws_attribution_reask": "Ask again",
   "ws_google_drive_note": "A Google account is one session: turning that account's switch off also signs the Google Drive panel out.",
   "ws_clear_all_btn": "Clear Imported Sessions",
   "ws_clear_all_hint": "Only the accounts whose import switch is on are cleared; a session you signed into inside the app is kept. The switches stay on, so the sessions are pulled again at the next round.",

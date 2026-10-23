@@ -203,6 +203,7 @@ function makeService(
     extensionConnected?: boolean
     extensionVersionOk?: boolean
     registerAccount?: (site: SiteSessionTargetRow, accountId: string) => void
+    resolveSession?: (partition: string) => FakeSession
   } = {}
 ) {
   const state = overrides.state ?? chatgptState(overrides.enabled ?? false)
@@ -245,6 +246,12 @@ function makeService(
       const site = (state.sites[siteId] ??= { accounts: {}, activeAccountId: null })
       site.accounts[accountId] = account({ enabled: true })
     }),
+    setAttributedAccount: vi.fn(async (siteId: string, accountId: string | null) => {
+      const site = state.sites[siteId]
+      if (!site) return
+      if (accountId === null) delete site.attributedAccountId
+      else site.attributedAccountId = accountId
+    }),
     // The bridge records its imports into the same state.
     recordResult: vi.fn(
       async (
@@ -268,7 +275,7 @@ function makeService(
   const service = new SiteSessionService({
     config,
     loadTargets: async () => targets,
-    resolveSession: (partition) => sessionFor(partition) as never,
+    resolveSession: (partition) => (overrides.resolveSession ?? sessionFor)(partition) as never,
     isExtensionConnected: () => overrides.extensionConnected ?? true,
     isExtensionVersionOk: () => overrides.extensionVersionOk ?? true,
     registerAccount
@@ -295,13 +302,15 @@ function googleService(
     state?: SiteSessionConfigFile
     localCookies?: FakeCookie[]
     registerAccount?: (site: SiteSessionTargetRow, accountId: string) => void
+    resolveSession?: (partition: string) => FakeSession
   } = {}
 ) {
   return makeService({
     targets: [GOOGLE],
     state: overrides.state ?? googleState(),
     localCookies: overrides.localCookies,
-    registerAccount: overrides.registerAccount
+    registerAccount: overrides.registerAccount,
+    resolveSession: overrides.resolveSession
   })
 }
 
@@ -345,6 +354,24 @@ describe('SiteSessionService', () => {
     const result = await service.list()
     expect(result.extensionConnected).toBe(false)
     expect(result.extensionVersionOk).toBe(false)
+  })
+
+  it('reports the account an identity-less session was attributed to', async () => {
+    const state = googleState()
+    state.sites.google.attributedAccountId = 'a1'
+    const { service } = googleService({ state })
+
+    const result = await service.list()
+
+    expect(result.accountViews[0].attributedAccountId).toBe('a1')
+  })
+
+  it('reports no attribution while the user has not answered', async () => {
+    const { service } = googleService()
+
+    const result = await service.list()
+
+    expect(result.accountViews[0].attributedAccountId).toBeNull()
   })
 
   it('reports a manual session when the app already holds one', async () => {
@@ -814,6 +841,132 @@ describe('SiteSessionService', () => {
     expect(result.error).toBe('unknown_target')
   })
 
+  it('remembers the account the user attributed the pending session to', async () => {
+    const { service, config, state } = googleService()
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', 'a1')
+
+    expect(result.success).toBe(true)
+    expect(config.setAttributedAccount).toHaveBeenCalledWith('google', 'a1')
+    expect(state.sites.google.attributedAccountId).toBe('a1')
+  })
+
+  it('remembers the new account of a pending session as its attribution', async () => {
+    const { service, config, state } = googleService()
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', null)
+
+    expect(result.success).toBe(true)
+    const created = config.createAccount.mock.calls[0]
+    expect(config.setAttributedAccount).toHaveBeenCalledWith('google', created[1])
+    expect(state.sites.google.attributedAccountId).toBe(created[1])
+  })
+
+  it('does not remember an attribution when the pending session could not be written', async () => {
+    const { service, config, sessionFor } = googleService()
+    sessionFor('persist:ai_google_a1').cookies.set.mockRejectedValue(new Error('denied'))
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', 'a1')
+
+    expect(result.success).toBe(false)
+    expect(config.setAttributedAccount).not.toHaveBeenCalled()
+  })
+
+  it('records a failed import when writing the pending session throws', async () => {
+    const { service, config } = googleService({
+      resolveSession: () => {
+        throw new Error('session unavailable')
+      }
+    })
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const result = await service.resolvePendingSession('google', 'a1')
+
+    expect(result).toEqual({ success: false, error: 'import_failed' })
+    expect(config.recordResult).toHaveBeenCalledWith('google', 'a1', 'failed', 'import_failed')
+    expect(config.setAttributedAccount).not.toHaveBeenCalled()
+  })
+
+  it('forgets the attribution when the attributed account is deleted', async () => {
+    const state = googleState()
+    state.sites.google.attributedAccountId = 'a1'
+    const { service, config } = googleService({ state })
+
+    const result = await service.deleteAccount('google', 'a1')
+
+    expect(result.success).toBe(true)
+    expect(config.setAttributedAccount).toHaveBeenCalledWith('google', null)
+  })
+
+  it('sets an attribution for an account the site holds', async () => {
+    const { service, config, state } = googleService()
+
+    const result = await service.setAttributedAccount('google', 'a1')
+
+    expect(result.success).toBe(true)
+    expect(config.setAttributedAccount).toHaveBeenCalledWith('google', 'a1')
+    expect(state.sites.google.attributedAccountId).toBe('a1')
+  })
+
+  it('clears the attribution when the user asks to be asked again', async () => {
+    const state = googleState()
+    state.sites.google.attributedAccountId = 'a1'
+    const { service, config } = googleService({ state })
+
+    const result = await service.setAttributedAccount('google', null)
+
+    expect(result.success).toBe(true)
+    expect(config.setAttributedAccount).toHaveBeenCalledWith('google', null)
+    expect(state.sites.google.attributedAccountId).toBeUndefined()
+  })
+
+  it('refuses an attribution for a site the app does not know', async () => {
+    const { service, config } = googleService()
+
+    const result = await service.setAttributedAccount('nope', 'a1')
+
+    expect(result).toEqual({ success: false, error: 'invalid_arguments' })
+    expect(config.setAttributedAccount).not.toHaveBeenCalled()
+  })
+
+  it('refuses an attribution for an account the site does not hold', async () => {
+    const { service, config } = googleService()
+
+    const result = await service.setAttributedAccount('google', 'a2')
+
+    expect(result).toEqual({ success: false, error: 'invalid_arguments' })
+    expect(config.setAttributedAccount).not.toHaveBeenCalled()
+  })
+
+  it('refuses an attribution with an empty or too short id', async () => {
+    const { service, config } = googleService()
+
+    await expect(service.setAttributedAccount('google', '')).resolves.toEqual({
+      success: false,
+      error: 'invalid_arguments'
+    })
+    await expect(service.setAttributedAccount('', 'a1')).resolves.toEqual({
+      success: false,
+      error: 'invalid_arguments'
+    })
+    await expect(service.setAttributedAccount('google', 'x')).resolves.toEqual({
+      success: false,
+      error: 'invalid_arguments'
+    })
+    expect(config.setAttributedAccount).not.toHaveBeenCalled()
+  })
+
   it('switches the active account without changing any switch', async () => {
     const { service, state, config, sessions } = googleService()
 
@@ -1014,6 +1167,31 @@ describe('the list of the sites', () => {
     await service.list()
 
     expect(config.read).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the list a site action built when nothing had to be written', async () => {
+    // A site without a pending session writes nothing: dropping the list the
+    // pages keep would make every reader rebuild a state nobody changed.
+    const { service } = googleService()
+
+    const first = await service.list()
+
+    await service.resolvePendingSession('google', 'a1')
+
+    expect(await service.list()).toBe(first)
+  })
+
+  it('drops the list the pages kept once the pending session was written', async () => {
+    const { service } = googleService()
+    setPendingSiteSession('google', [
+      { name: 'SID', value: 'v', domain: '.google.com', secure: true }
+    ])
+
+    const before = await service.list()
+
+    await service.resolvePendingSession('google', 'a1')
+
+    expect(await service.list()).not.toBe(before)
   })
 })
 

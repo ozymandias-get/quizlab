@@ -19,10 +19,11 @@ const resolveWebPermission = vi.fn(async (_request: unknown, decision: { granted
   const req = _request as { permission: string; requestingUrl?: string }
   return req.permission === 'media' && req.requestingUrl?.includes('chatgpt.com') === true
 })
-const { registerSiteSessionPartitions } = vi.hoisted(() => ({
+const { registerSiteSessionPartitions, registerAccountPartitionFor } = vi.hoisted(() => ({
   registerSiteSessionPartitions: vi.fn(
     async (_setupSession: (partition: string) => void) => undefined
-  )
+  ),
+  registerAccountPartitionFor: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -50,7 +51,8 @@ vi.mock('../../../app/window/permissionConsent', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionAccounts', () => ({
-  registerSiteSessionPartitions
+  registerSiteSessionPartitions,
+  registerAccountPartitionFor
 }))
 
 /** Grabs the handler most recently registered with `mock`. */

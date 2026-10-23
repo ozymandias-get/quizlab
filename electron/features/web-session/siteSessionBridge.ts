@@ -388,6 +388,17 @@ async function planSiteSessionPacket(
   const routed = routeCookiePacket(packet, siteRow, candidates, fingerprint)
   if (!routed.ok) {
     if (routed.kind === 'refused') return { kind: 'refused', reason: routed.reason }
+
+    const attributedAccountId = state.sites[siteRow.siteId]?.attributedAccountId
+    if (fingerprint === null && candidates.length > 1 && attributedAccountId) {
+      const accountRow = siteAccounts.find(
+        (row) => row.accountId === attributedAccountId && row.state.enabled
+      )
+      if (accountRow) {
+        return { kind: 'import', siteRow, accountRow, fingerprint, cookies: routed.cookies }
+      }
+    }
+
     return { kind: 'pending', cookies: routed.cookies }
   }
 

@@ -14,6 +14,7 @@ import {
   useRenameSiteSessionAccountMutation,
   useResolveSiteSessionPendingMutation,
   useSetSiteSessionActiveAccountMutation,
+  useSetSiteSessionAttributionMutation,
   useSetSiteSessionEnabledMutation,
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
@@ -55,6 +56,7 @@ export function useSiteSessionsState() {
   const renameMutation = useRenameSiteSessionAccountMutation()
   const deleteMutation = useDeleteSiteSessionAccountMutation()
   const resolvePendingMutation = useResolveSiteSessionPendingMutation()
+  const setAttributionMutation = useSetSiteSessionAttributionMutation()
   const { mutateAsync: installExtension } = useNativeMessagingInstallExtension()
   const { mutateAsync: removeExtension } = useNativeMessagingRemoveExtension()
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -91,9 +93,9 @@ export function useSiteSessionsState() {
    */
   const runAccountAction = useCallback(
     (action: () => Promise<SiteSessionActionResult>) => {
-      void action()
+      void Promise.resolve(action())
         .then((result) => {
-          if (!result.success) reportError(result.error)
+          if (result && !result.success) reportError(result.error)
         })
         .catch(() => {
           // A thrown mutation already reported itself through the toast.
@@ -176,6 +178,13 @@ export function useSiteSessionsState() {
     [resolvePendingMutation, runAccountAction]
   )
 
+  const onReAskAttribution = useCallback(
+    (siteId: string) => {
+      runAccountAction(() => setAttributionMutation.mutateAsync({ siteId, accountId: null }))
+    },
+    [runAccountAction, setAttributionMutation]
+  )
+
   const openWizard = useCallback((mode: 'install' | 'remove') => {
     setWizardMode(mode)
     setWizardOpen(true)
@@ -199,7 +208,8 @@ export function useSiteSessionsState() {
       setActiveMutation.isPending ||
       renameMutation.isPending ||
       deleteMutation.isPending ||
-      resolvePendingMutation.isPending,
+      resolvePendingMutation.isPending ||
+      setAttributionMutation.isPending,
     /** Whether there is a session of ours to forget. */
     canClearAll: views.some((view) => view.accounts.some((account) => account.enabled)),
     onToggle,
@@ -208,6 +218,7 @@ export function useSiteSessionsState() {
     onRename,
     onDelete,
     onResolvePending,
+    onReAskAttribution,
     riskItems,
     mitigationItems,
     wizardOpen,

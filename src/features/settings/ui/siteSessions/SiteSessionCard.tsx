@@ -49,6 +49,35 @@ function SiteSessionCard({ view, disabled, actions, t }: SiteSessionCardProps) {
         />
       )}
 
+      {view.attributedAccountId &&
+        (() => {
+          const targetAccount = view.accounts.find((a) => a.accountId === view.attributedAccountId)
+          const accountName =
+            targetAccount?.name ??
+            (targetAccount
+              ? t('ws_account_default', { index: targetAccount.index })
+              : view.attributedAccountId)
+
+          return (
+            <div
+              data-testid="site-session-attribution"
+              className="bg-muted/40 text-ql-11 flex items-center justify-between gap-2 rounded-lg px-3 py-1.5"
+            >
+              <span className="text-muted-foreground truncate">
+                {t('ws_attribution_label', { name: accountName })}
+              </span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => actions.onReAskAttribution(view.siteId)}
+                className="text-primary shrink-0 cursor-pointer font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t('ws_attribution_reask')}
+              </button>
+            </div>
+          )
+        })()}
+
       <div className="flex flex-col gap-1.5">
         {view.accounts.map((account) => (
           <SiteSessionAccountRow

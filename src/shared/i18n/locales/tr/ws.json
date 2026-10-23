@@ -20,6 +20,8 @@
   "ws_pending_question": "Bu oturum hangi hesaba ait?",
   "ws_pending_new_account": "Yeni hesap",
   "ws_pending_resolve": "Hesabı seç",
+  "ws_attribution_label": "Atfedilen: {name}",
+  "ws_attribution_reask": "Yeniden sor",
   "ws_google_drive_note": "Google hesabı tek oturumdur: bu hesabın anahtarını kapatmak Google Drive panelini de çıkış yaptırır.",
   "ws_clear_all_btn": "Çekilen Oturumları Temizle",
   "ws_clear_all_hint": "Yalnızca içe aktarma anahtarı açık olan hesaplar temizlenir; uygulama içinde yaptığınız giriş korunur. Anahtarlar açık kalır, bu yüzden oturumlar bir sonraki turda yeniden çekilir.",
