@@ -524,6 +524,16 @@ function applyVisibility(entry: ManagedAiView): void {
   if (shouldShow === entry.shown) return
   entry.view.setVisible(shouldShow)
   entry.shown = shouldShow
+
+  // Throttle background activity: when hidden, mute audio to prevent hidden
+  // provider views from keeping media pipeline / audio hardware clocks awake.
+  if (!entry.webContents.isDestroyed()) {
+    try {
+      entry.webContents.setAudioMuted(!shouldShow)
+    } catch {
+      // Degrades gracefully if unavailable
+    }
+  }
 }
 
 export function getAiViewUrl(viewId: string): string | null {

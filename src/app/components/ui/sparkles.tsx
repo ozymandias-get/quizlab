@@ -1,15 +1,8 @@
 import { cn } from '@shared/lib/uiUtils'
 
-import type { ISourceOptions } from '@tsparticles/engine'
-import { type Container, tsParticles } from '@tsparticles/engine'
-import Particles from '@tsparticles/react'
-import { loadSlim } from '@tsparticles/slim'
-import { motion, useAnimation } from 'motion/react'
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 
-import { createSparklesOptions } from './sparklesConfig'
-
-type ParticlesProps = {
+export type ParticlesProps = {
   id?: string
   className?: string
   background?: string
@@ -21,77 +14,39 @@ type ParticlesProps = {
   particleDensity?: number
 }
 
-type SparklesCoreProps = ParticlesProps & { paused?: boolean }
+export type SparklesCoreProps = ParticlesProps & { paused?: boolean }
 
-let slimLoadPromise: Promise<void> | null = null
-function ensureSlimLoaded(): Promise<void> {
-  if (!slimLoadPromise) {
-    slimLoadPromise = loadSlim(tsParticles)
-  }
-  return slimLoadPromise
+interface Particle {
+  x: number
+  y: number
+  size: number
+  alpha: number
+  alphaTarget: number
+  vx: number
+  vy: number
 }
 
-const SparklesCore = memo((props: SparklesCoreProps) => {
+export const SparklesCore = memo((props: SparklesCoreProps) => {
   const {
     id,
     className,
-    background,
-    minSize,
-    maxSize,
-    speed,
-    particleColor,
-    particleDensity,
+    background = 'transparent',
+    minSize = 0.4,
+    maxSize = 0.9,
+    speed = 0.6,
+    particleColor = '#FFFFFF',
+    particleDensity = 5,
     paused = false
   } = props
-  const [init, setInit] = useState(false)
-  const isMountedRef = useRef(true)
-  const containerRef = useRef<Container | null>(null)
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [isPageHidden, setIsPageHidden] = useState(() =>
     typeof document !== 'undefined' ? document.hidden : false
   )
+
   const effectivelyPaused = paused || isPageHidden
   const effectivelyPausedRef = useRef(effectivelyPaused)
   effectivelyPausedRef.current = effectivelyPaused
-
-  useEffect(() => {
-    isMountedRef.current = true
-    // Defer heavy engine init to idle to avoid blocking initial paint.
-    const schedule = (cb: () => void) => {
-      const ric = (
-        window as unknown as {
-          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
-        }
-      ).requestIdleCallback
-      if (typeof ric === 'function') return ric.call(window, cb, { timeout: 2000 })
-      return window.setTimeout(cb, 300) as unknown as number
-    }
-    const cancelSchedule = (handle: number) => {
-      const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void })
-        .cancelIdleCallback
-      if (typeof cic === 'function') return cic.call(window, handle)
-      return clearTimeout(handle)
-    }
-    const handle = schedule(() => {
-      void ensureSlimLoaded().then(() => {
-        if (isMountedRef.current) setInit(true)
-      })
-    })
-    return () => {
-      isMountedRef.current = false
-      cancelSchedule(handle)
-    }
-  }, [])
-
-  // Pause / resume the animation loop when hidden (e.g. during panel resize or when tab hidden).
-  useEffect(() => {
-    const container = containerRef.current as unknown as {
-      pause?: () => void
-      play?: (b?: boolean) => void
-    } | null
-    if (!container) return
-    if (effectivelyPaused) container.pause?.()
-    else container.play?.(true)
-  }, [effectivelyPaused])
 
   useEffect(() => {
     const handleVisibility = () => setIsPageHidden(document.hidden)
@@ -99,40 +54,102 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
-  const controls = useAnimation()
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-  const particlesLoaded = useCallback(
-    async (container?: Container) => {
-      containerRef.current = container ?? null
-      if (container) {
-        // Respect initial paused state — pause immediately if needed.
-        if (effectivelyPausedRef.current) {
-          ;(container as unknown as { pause?: () => void }).pause?.()
-        }
-        controls.start({ opacity: 1, transition: { duration: 1 } })
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    let animId: number | null = null
+    let particles: Particle[] = []
+    let width = 0
+    let height = 0
+
+    const initParticles = () => {
+      const rect = canvas.getBoundingClientRect()
+      width = Math.max(1, Math.floor(rect.width))
+      height = Math.max(1, Math.floor(rect.height))
+
+      canvas.width = width
+      canvas.height = height
+
+      const count = Math.min(
+        25,
+        Math.max(6, Math.floor((width * height) / (2000 / Math.max(1, particleDensity))))
+      )
+      particles = []
+
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: minSize + Math.random() * (maxSize - minSize),
+          alpha: 0.1 + Math.random() * 0.7,
+          alphaTarget: 0.1 + Math.random() * 0.7,
+          vx: (Math.random() - 0.5) * speed * 0.4,
+          vy: (Math.random() - 0.5) * speed * 0.4
+        })
       }
-    },
-    [controls]
-  )
+    }
 
-  const options: ISourceOptions = useMemo(
-    () =>
-      createSparklesOptions(background, particleColor, particleDensity, minSize, maxSize, speed),
-    [background, particleColor, particleDensity, minSize, maxSize, speed]
-  )
+    initParticles()
 
-  const generatedId = useId()
+    const render = () => {
+      if (!effectivelyPausedRef.current && width > 0 && height > 0) {
+        ctx.clearRect(0, 0, width, height)
+        ctx.fillStyle = particleColor
+
+        for (const p of particles) {
+          p.x += p.vx
+          p.y += p.vy
+
+          if (p.x < 0) p.x = width
+          else if (p.x > width) p.x = 0
+
+          if (p.y < 0) p.y = height
+          else if (p.y > height) p.y = 0
+
+          // Smooth twinkle
+          if (Math.abs(p.alpha - p.alphaTarget) < 0.02) {
+            p.alphaTarget = 0.1 + Math.random() * 0.8
+          } else {
+            p.alpha += (p.alphaTarget - p.alpha) * 0.03
+          }
+
+          ctx.globalAlpha = p.alpha
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      animId = requestAnimationFrame(render)
+    }
+
+    animId = requestAnimationFrame(render)
+
+    const resizeObserver = new ResizeObserver(() => {
+      initParticles()
+    })
+    resizeObserver.observe(canvas)
+
+    return () => {
+      if (animId !== null) cancelAnimationFrame(animId)
+      resizeObserver.disconnect()
+      canvas.width = 0
+      canvas.height = 0
+    }
+  }, [minSize, maxSize, speed, particleColor, particleDensity])
+
   return (
-    <motion.div animate={controls} className={cn('opacity-0', className)}>
-      {init && (
-        <Particles
-          id={id || generatedId}
-          className={cn('h-full w-full')}
-          particlesLoaded={particlesLoaded}
-          options={options}
-        />
-      )}
-    </motion.div>
+    <canvas
+      id={id}
+      ref={canvasRef}
+      data-testid="sparkles-core"
+      style={{ background }}
+      className={cn('pointer-events-none block h-full w-full', className)}
+    />
   )
 })
 

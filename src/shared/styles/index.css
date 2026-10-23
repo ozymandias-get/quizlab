@@ -12,7 +12,6 @@
 @import './modules/_error-boundary.css';
 @import './modules/_screenshot.css';
 @import './modules/_utilities.css';
-@import '@fontsource-variable/inter';
 
 @theme {
   --font-sans:
