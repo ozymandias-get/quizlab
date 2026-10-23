@@ -105,7 +105,22 @@ export function createPageRenderer(): PdfPageRenderer {
       if (target.width !== width) target.width = width
       if (target.height !== height) target.height = height
 
-      const task = page.render({ canvas: target, viewport })
+      // Sizing the canvas above resets its backing store. Acquiring the context
+      // with `{ alpha: false }` informs the browser and the GPU compositor that the
+      // backing store is completely opaque, eliminating alpha blending calculations
+      // on composited rasterization and scrolling passes.
+      let canvasContext: CanvasRenderingContext2D | null = null
+      try {
+        canvasContext = target.getContext('2d', { alpha: false })
+      } catch {
+        // Fall back gracefully in mock or non-standard environments
+      }
+
+      const task = page.render({
+        canvas: target,
+        ...(canvasContext ? { canvasContext } : {}),
+        viewport
+      })
       currentTask = task
 
       try {

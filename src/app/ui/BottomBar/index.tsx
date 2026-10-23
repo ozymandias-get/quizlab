@@ -53,12 +53,10 @@ const handlebarBelowDock = (
   </div>
 )
 
-/** Single shared particles node — one canvas instead of two.
- *  Stays mounted across a resize and pauses in place (`container.pause()`),
- *  so the tsParticles engine is not torn down and rebuilt on every drag
- *  frame. It is not rendered at all under `prefers-reduced-motion`, and
- *  `loadSlim` is globally cached, so the first mount never re-downloads the
- *  bundle. */
+/** Single shared particles node — lightweight micro-canvas.
+ *  Stays mounted across a resize and pauses in place,
+ *  so the animation loop does not consume CPU cycles during drag.
+ *  It is not rendered at all under `prefers-reduced-motion`. */
 const SparklesNode = memo(function SparklesNode({ paused = false }: { paused?: boolean }) {
   return (
     <Suspense fallback={null}>

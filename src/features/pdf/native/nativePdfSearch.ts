@@ -300,9 +300,12 @@ export function resolveNativePdfSearchHighlights(
   if (matches.length === 0) return []
   const boxRect = pageBox.getBoundingClientRect()
   const highlights: NativePdfSearchHighlight[] = []
+  // Reuse a single Range instance across match groups to eliminate heavy
+  // DOM allocation and garbage collector (GC) pressure during search navigation.
+  const range = document.createRange()
+
   for (const [matchIndex, match] of matches.entries()) {
     for (const group of groupMatchByRun(pageText, match)) {
-      const range = document.createRange()
       try {
         range.setStart(group.run.textNode, group.start)
         range.setEnd(group.run.textNode, group.end)

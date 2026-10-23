@@ -139,7 +139,6 @@ function createManualChunks(id: string) {
   if (id.includes('pdfjs-dist')) return 'vendor-pdf'
   if (id.includes('@radix-ui')) return 'vendor-radix'
   if (id.includes('zustand')) return 'vendor-state'
-  if (id.includes('@tsparticles')) return 'vendor-particles'
   if (
     id.includes('clsx') ||
     id.includes('tailwind-merge') ||
@@ -191,7 +190,6 @@ export default defineConfig({
               name: 'vendor-radix'
             },
             { test: /zustand/, name: 'vendor-state' },
-            { test: /@tsparticles/, name: 'vendor-particles' },
             {
               test: /(?:clsx|tailwind-merge|class-variance-authority)/,
               name: 'vendor-ui-utils'
