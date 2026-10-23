@@ -536,11 +536,15 @@ export class SiteSessionConfig {
       if (Object.keys(accounts).length === 0) {
         delete sites[siteId]
       } else {
-        sites[siteId] = {
+        const updatedSite: SiteSessionSiteState = {
           ...site,
           accounts,
           activeAccountId: site.activeAccountId === accountId ? null : site.activeAccountId
         }
+        if (updatedSite.attributedAccountId === accountId) {
+          delete updatedSite.attributedAccountId
+        }
+        sites[siteId] = updatedSite
       }
 
       return {
@@ -584,6 +588,51 @@ export class SiteSessionConfig {
 
     if (!written) {
       throw new Error(`[Web Session] The active account of "${siteId}" could not be written.`)
+    }
+  }
+
+  /**
+   * Remembers the account an identity-less session was attributed to.
+   *
+   * An empty id or null clears the attribution so the next push asks the
+   * user again. Setting or clearing an attribution advances `configVersion`
+   * so the extension re-pushes.
+   *
+   * @throws when the state could not be written.
+   */
+  async setAttributedAccount(siteId: string, accountId: string | null): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId) || (accountId !== null && PROHIBITED_KEYS.has(accountId)))
+      return
+
+    const written = await this.store.update((current) => {
+      const currentState = readConfigFile(current)
+      const site = currentState.sites[siteId]
+      if (!site) return currentState
+
+      if (accountId !== null && !Object.hasOwn(site.accounts, accountId)) {
+        return currentState
+      }
+
+      const updatedSite: SiteSessionSiteState = { ...site }
+      if (accountId === null) {
+        delete updatedSite.attributedAccountId
+      } else {
+        updatedSite.attributedAccountId = accountId
+      }
+
+      return {
+        ...currentState,
+        configVersion: currentState.configVersion + 1,
+        sites: {
+          ...currentState.sites,
+          [siteId]: updatedSite
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The attribution for "${siteId}" could not be written.`)
     }
   }
 

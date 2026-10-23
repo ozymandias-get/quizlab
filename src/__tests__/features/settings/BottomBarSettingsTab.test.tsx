@@ -26,6 +26,7 @@ const siteWith = (accounts: SiteSessionAccountView[]): SiteSessionSiteView => ({
   memberAppIds: ['chatgpt'],
   accounts,
   activeAccountId: null,
+  attributedAccountId: null,
   hasPendingSession: false
 })
 

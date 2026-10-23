@@ -96,6 +96,7 @@ function chatgptSite(activeAccountId: string | null): SiteSessionSiteView {
     memberAppIds: ['chatgpt'],
     accounts: [account('primary', 1), account('work', 2)],
     activeAccountId,
+    attributedAccountId: null,
     hasPendingSession: false
   }
 }

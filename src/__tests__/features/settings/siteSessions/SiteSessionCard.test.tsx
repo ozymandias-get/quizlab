@@ -2,9 +2,8 @@ import type { SiteSessionAccountView, SiteSessionSiteView } from '@shared-core/t
 
 import SiteSessionCard from '@features/settings/ui/siteSessions/SiteSessionCard'
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-
 const PRIMARY_ACCOUNT: SiteSessionAccountView = {
   accountId: 'primary',
   name: null,
@@ -37,6 +36,7 @@ const GOOGLE_VIEW: SiteSessionSiteView = {
   memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive'],
   accounts: [PRIMARY_ACCOUNT, SECOND_ACCOUNT],
   activeAccountId: 'a1',
+  attributedAccountId: null,
   hasPendingSession: false
 }
 
@@ -48,6 +48,7 @@ const CHATGPT_VIEW: SiteSessionSiteView = {
   memberAppIds: ['chatgpt'],
   accounts: [PRIMARY_ACCOUNT],
   activeAccountId: null,
+  attributedAccountId: null,
   hasPendingSession: false
 }
 
@@ -62,7 +63,8 @@ function renderCard(view: SiteSessionSiteView = GOOGLE_VIEW) {
     onSetActive: vi.fn(),
     onRename: vi.fn(),
     onDelete: vi.fn(),
-    onResolvePending: vi.fn()
+    onResolvePending: vi.fn(),
+    onReAskAttribution: vi.fn()
   }
 
   render(<SiteSessionCard view={view} disabled={false} actions={actions} t={t} />)
@@ -125,6 +127,57 @@ describe('SiteSessionCard', () => {
     expect(screen.getByText('ws_google_drive_note')).toBeInTheDocument()
   })
 
+  describe('the attribution the user gave', () => {
+    it('names the account a held session was attributed to', () => {
+      renderCard({ ...GOOGLE_VIEW, attributedAccountId: 'a1' })
+
+      expect(screen.getByTestId('site-session-attribution')).toBeInTheDocument()
+      expect(screen.getByText('ws_attribution_label Kisisel')).toBeInTheDocument()
+    })
+
+    it('names an account without a name by its place in the site', () => {
+      renderCard({ ...GOOGLE_VIEW, attributedAccountId: 'unknown' })
+
+      expect(screen.getByText('ws_attribution_label unknown')).toBeInTheDocument()
+    })
+
+    it('stays away while the user has not answered', () => {
+      renderCard()
+
+      expect(screen.queryByTestId('site-session-attribution')).not.toBeInTheDocument()
+    })
+
+    it('asks to be asked again about a session that fits no other rule', async () => {
+      // The extension polls the config version: clearing the attribution makes
+      // it push every site again, so the question comes back into the card.
+      const actions = renderCard({ ...GOOGLE_VIEW, attributedAccountId: 'a1' })
+
+      fireEvent.click(screen.getByRole('button', { name: 'ws_attribution_reask' }))
+
+      expect(actions.onReAskAttribution).toHaveBeenCalledWith('google')
+    })
+
+    it('locks the re-ask while an action is running', () => {
+      render(
+        <SiteSessionCard
+          view={{ ...GOOGLE_VIEW, attributedAccountId: 'a1' }}
+          disabled
+          actions={{
+            onToggle: vi.fn(),
+            onSetActive: vi.fn(),
+            onRename: vi.fn(),
+            onDelete: vi.fn(),
+            onResolvePending: vi.fn(),
+            onReAskAttribution: vi.fn()
+          }}
+          t={t}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'ws_attribution_reask' })).toBeDisabled()
+    })
+  })
+
   // The switch belongs to the account, not to the site: every account of the
   // site has its own.
   it('shows a switch for every account of the site', () => {
@@ -142,7 +195,8 @@ describe('SiteSessionCard', () => {
           onSetActive: vi.fn(),
           onRename: vi.fn(),
           onDelete: vi.fn(),
-          onResolvePending: vi.fn()
+          onResolvePending: vi.fn(),
+          onReAskAttribution: vi.fn()
         }}
         t={t}
       />

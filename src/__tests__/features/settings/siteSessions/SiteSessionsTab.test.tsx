@@ -28,6 +28,7 @@ const VIEWS: SiteSessionSiteView[] = [
     memberAppIds: ['chatgpt'],
     accounts: [ACCOUNT],
     activeAccountId: 'primary',
+    attributedAccountId: null,
     hasPendingSession: false
   }
 ]
@@ -42,7 +43,8 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSetSiteSessionActiveAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRenameSiteSessionAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteSiteSessionAccountMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useResolveSiteSessionPendingMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
+  useResolveSiteSessionPendingMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetSiteSessionAttributionMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
 }))
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({

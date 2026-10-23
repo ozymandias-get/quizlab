@@ -150,12 +150,19 @@ function accountState(overrides: Partial<SiteSessionAccountState> = {}): SiteSes
 /** The state of the Google site with the accounts a test needs. */
 function googleState(
   accounts: Record<string, SiteSessionAccountState>,
-  activeAccountId: string | null = 'a1'
+  activeAccountId: string | null = 'a1',
+  attributedAccountId?: string
 ): SiteSessionConfigFile {
   return {
     version: 2,
     configVersion: 3,
-    sites: { google: { accounts, activeAccountId } }
+    sites: {
+      google: {
+        accounts,
+        activeAccountId,
+        ...(attributedAccountId ? { attributedAccountId } : {})
+      }
+    }
   }
 }
 
@@ -833,6 +840,156 @@ describe('the account a session belongs to', () => {
     expect(outcome.accepted).toBe(true)
     expect(harness.recorded).toEqual([])
     expect(harness.created).toEqual([])
+  })
+
+  describe('the session a held packet was attributed to', () => {
+    it('imports a held session into the account the user attributed it to', async () => {
+      // The user answered the question once; the next push of the same session
+      // belongs to the same account and must not ask again.
+      const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+      const harness = makeImportHarness(
+        googleState({ a1: accountState(), a2: accountState() }, 'a1')
+      )
+      const environment = environmentFor(harness)
+
+      const held = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environment
+      )
+      expect(held).toEqual({ accepted: true, held: true })
+
+      harness.state.sites.google.attributedAccountId = 'a2'
+      const imported = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environment
+      )
+
+      expect(imported.accepted).toBe(true)
+      expect(imported.held).toBeUndefined()
+      expect(harness.writes).toEqual([{ partition: 'persist:ai_google_a2', names: ['session'] }])
+      expect(getPendingSiteSession('google')).toBeNull()
+    })
+
+    it('holds a session when the attributed account is switched off', async () => {
+      const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+      const harness = makeImportHarness(
+        googleState(
+          {
+            a1: accountState(),
+            a2: accountState(),
+            a3: accountState({ enabled: false })
+          },
+          'a1',
+          'a3'
+        )
+      )
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome).toEqual({ accepted: true, held: true })
+      expect(harness.writes).toEqual([])
+      expect(getPendingSiteSession('google')?.cookies).toEqual([cookie])
+    })
+
+    it('lets a fingerprint match win over the attribution', async () => {
+      const cookie = identityCookie('token-a1')
+      const harness = makeImportHarness(
+        googleState(
+          { a1: accountState({ fingerprints: [fingerprintOf([cookie])] }), a2: accountState() },
+          'a1',
+          'a2'
+        )
+      )
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome.accepted).toBe(true)
+      expect(harness.writes).toEqual([
+        { partition: 'persist:ai_google_a1', names: ['__Secure-1PSID'] }
+      ])
+    })
+
+    it('keeps refusing a packet whose domain does not belong to the site', async () => {
+      const cookie = { name: 'session', value: 'v', domain: '.evil.example', secure: true }
+      const harness = makeImportHarness(
+        googleState({ a1: accountState(), a2: accountState() }, 'a1', 'a2')
+      )
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome).toEqual({ accepted: false, reason: 'domain_mismatch' })
+      expect(harness.writes).toEqual([])
+    })
+
+    it('opens a new account for an unknown session instead of using the attribution', async () => {
+      vi.spyOn(crypto, 'randomUUID').mockReturnValue(NEW_ACCOUNT_ID)
+      const other = identityCookie('token-other')
+      const cookie = identityCookie('token-new')
+      const harness = makeImportHarness(
+        googleState(
+          {
+            a1: accountState({ fingerprints: [fingerprintOf([other])] }),
+            a2: accountState({ fingerprints: [fingerprintOf([identityCookie('token-a2')])] })
+          },
+          'a1',
+          'a2'
+        )
+      )
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome.accepted).toBe(true)
+      expect(harness.created).toEqual([NEW_ACCOUNT_ID])
+      expect(harness.writes).toEqual([
+        { partition: `persist:ai_google_${NEW_ACCOUNT_ID}`, names: ['__Secure-1PSID'] }
+      ])
+    })
+
+    it('does not attribute a session the plan reads while the answer is on its way', async () => {
+      // The attribution is read once, by the plan. The re-routing after the
+      // lock re-reads it too: a packet that was held because the attribution
+      // did not exist yet must not skip the lock of the account it points at.
+      const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+      const withoutAnswer = googleState({ a1: accountState(), a2: accountState() }, 'a1')
+      const attributed = googleState({ a1: accountState(), a2: accountState() }, 'a1', 'a2')
+      const harness = makeImportHarness(withoutAnswer)
+      harness.config.read.mockResolvedValueOnce(withoutAnswer).mockResolvedValue(attributed)
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome.accepted).toBe(true)
+      expect(harness.writes).toEqual([{ partition: 'persist:ai_google_a2', names: ['session'] }])
+    })
+
+    it('holds an identity-less session the site has only one account left for', async () => {
+      // The attribution applies to the ambiguous case only: with a single
+      // open account the routing already names it, attribution or not.
+      const cookie = { name: 'session', value: 'v', domain: '.google.com', secure: true }
+      const harness = makeImportHarness(googleState({ a1: accountState() }, 'a1', 'a1'))
+
+      const outcome = await acceptSiteSessionPacket(
+        { targetId: 'google', status: 'ok', cookies: [cookie] },
+        environmentFor(harness)
+      )
+
+      expect(outcome).toEqual({ accepted: true, imported: 1, failed: 0 })
+      expect(harness.writes).toEqual([{ partition: 'persist:ai_google_a1', names: ['session'] }])
+    })
   })
 })
 

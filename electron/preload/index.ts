@@ -145,6 +145,8 @@ const electronApi: ElectronApi = {
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT, siteId, accountId)),
     resolvePending: (siteId, accountId) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING, siteId, accountId)),
+    setAttributedAccount: (siteId, accountId) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION, siteId, accountId)),
     onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
   },
 

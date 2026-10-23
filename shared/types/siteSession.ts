@@ -50,6 +50,7 @@ export interface SiteSessionSiteView {
   memberAppIds: string[]
   accounts: SiteSessionAccountView[]
   activeAccountId: string | null
+  attributedAccountId: string | null
   /** True when a session arrived that could not be attributed to an account. */
   hasPendingSession: boolean
 }

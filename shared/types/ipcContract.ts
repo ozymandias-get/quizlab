@@ -328,6 +328,11 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<SiteSessionActionResult>
   }
 
+  [IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION]: {
+    args: [siteId: string, accountId: string | null]
+    result: IpcResult<SiteSessionActionResult>
+  }
+
   // App settings sync (renderer localStorage <-> main ConfigManager)
   [IPC_CHANNELS.GET_APP_SETTINGS]: {
     args: []

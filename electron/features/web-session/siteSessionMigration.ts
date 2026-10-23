@@ -47,6 +47,7 @@ export interface SiteSessionAccountState {
 export interface SiteSessionSiteState {
   accounts: Record<string, SiteSessionAccountState>
   activeAccountId: string | null
+  attributedAccountId?: string
 }
 
 export interface SiteSessionConfigFile {
@@ -284,11 +285,32 @@ function readSite(raw: unknown): SiteSessionSiteState {
     }
   }
 
+  const fields = readUnknownFields(source)
+  delete fields.accounts
+  delete fields.activeAccountId
+  delete fields.attributedAccountId
+
+  const attributedAccountId = readAttributedAccountId(source.attributedAccountId, accounts)
+
   return {
-    ...readUnknownFields(source),
+    ...fields,
     accounts,
-    activeAccountId: readActiveAccountId(source.activeAccountId, accounts)
+    activeAccountId: readActiveAccountId(source.activeAccountId, accounts),
+    ...(attributedAccountId !== undefined ? { attributedAccountId } : {})
   }
+}
+
+/**
+ * The account an identity-less session was attributed to.
+ *
+ * An attribution pointing to an account the site does not have is dropped.
+ */
+function readAttributedAccountId(
+  value: unknown,
+  accounts: Record<string, SiteSessionAccountState>
+): string | undefined {
+  if (typeof value !== 'string') return undefined
+  return Object.hasOwn(accounts, value) ? value : undefined
 }
 
 /**

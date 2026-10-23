@@ -3,6 +3,7 @@ import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
+import { registerCustomPlatformOriginsAtStartup } from '../../features/ai/customPlatformOriginStartup.js'
 import {
   registerAccountPartitionFor,
   registerSiteSessionPartitions
@@ -198,6 +199,7 @@ export async function setupSessions(getMainWindow: MainWindowResolver): Promise<
     // never before the static ones. The session setup is handed in because
     // the account module must not import this one.
     await registerSiteSessionPartitions(setupAiSession)
+    await registerCustomPlatformOriginsAtStartup(setupAiSession)
 
     sessionsConfigured = true
   } catch (error) {

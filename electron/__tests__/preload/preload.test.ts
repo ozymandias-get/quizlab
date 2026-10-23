@@ -48,6 +48,7 @@ type ExposedApi = {
     renameAccount: (siteId: string, accountId: string, name: string) => Promise<unknown>
     deleteAccount: (siteId: string, accountId: string) => Promise<unknown>
     resolvePending: (siteId: string, accountId: string | null) => Promise<unknown>
+    setAttributedAccount: (siteId: string, accountId: string | null) => Promise<unknown>
     onChanged: (callback: (result: unknown) => void) => () => void
   }
 }
@@ -157,6 +158,8 @@ describe('preload electronAPI', () => {
     await api.siteSession.renameAccount('chatgpt', 'account-2', 'Work')
     await api.siteSession.deleteAccount('chatgpt', 'account-2')
     await api.siteSession.resolvePending('chatgpt', null)
+    await api.siteSession.setAttributedAccount('chatgpt', 'account-2')
+    await api.siteSession.setAttributedAccount('chatgpt', null)
 
     expect(invoke).toHaveBeenNthCalledWith(1, IPC_CHANNELS.SITE_SESSION_LIST)
     expect(invoke).toHaveBeenNthCalledWith(
@@ -194,6 +197,18 @@ describe('preload electronAPI', () => {
     expect(invoke).toHaveBeenNthCalledWith(
       7,
       IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING,
+      'chatgpt',
+      null
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      8,
+      IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION,
+      'chatgpt',
+      'account-2'
+    )
+    expect(invoke).toHaveBeenNthCalledWith(
+      9,
+      IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION,
       'chatgpt',
       null
     )

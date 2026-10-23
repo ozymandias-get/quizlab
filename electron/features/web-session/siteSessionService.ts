@@ -75,6 +75,7 @@ export interface SiteSessionServiceDeps {
     | 'read'
     | 'setEnabled'
     | 'setActiveAccount'
+    | 'setAttributedAccount'
     | 'renameAccount'
     | 'deleteAccount'
     | 'createAccount'
@@ -151,7 +152,9 @@ export class SiteSessionService {
     extensionConnected: boolean,
     extensionVersionOk: boolean
   ): Promise<SiteSessionSiteView> {
-    const activeAccountId = state.sites[target.siteId]?.activeAccountId ?? null
+    const siteState = state.sites[target.siteId]
+    const activeAccountId = siteState?.activeAccountId ?? null
+    const attributedAccountId = siteState?.attributedAccountId ?? null
 
     const siteRows = rows.filter((row) => row.siteId === target.siteId)
     const accounts = await Promise.all(
@@ -185,6 +188,7 @@ export class SiteSessionService {
       memberAppIds: [...target.memberAppIds],
       accounts,
       activeAccountId,
+      attributedAccountId,
       hasPendingSession: getPendingSiteSession(target.siteId) !== null
     }
   }
@@ -333,8 +337,8 @@ export class SiteSessionService {
    * The primary account cannot be deleted: it lives in the platform's own
    * partition, and its switch is the way to empty it. An additional account is
    * wiped, removed from the state and then taken off the disk, in that order:
-   * the folder must not outlive the account, and a wipe that failed leaves the
-   * account in place so the user can try again.
+   * the account is removed from the state even if the folder fails to delete,
+   * while a wipe that failed leaves the account in place so the user can try again.
    */
   async deleteAccount(siteId: string, accountId: string): Promise<SiteSessionActionResult> {
     invalidateSiteSessionListCache()
@@ -352,11 +356,22 @@ export class SiteSessionService {
         return { success: false, error: 'wipe_failed' }
       }
 
+      const state = await this.deps.config.read()
+      const wasAttributed = state.sites[siteId]?.attributedAccountId === accountId
+
       try {
         await this.deps.config.deleteAccount(siteId, accountId)
       } catch (error) {
         Logger.warn(`[SiteSession] The account "${accountId}" could not be removed:`, error)
         return { success: false, error: 'write_failed' }
+      }
+
+      if (wasAttributed) {
+        try {
+          await this.deps.config.setAttributedAccount(siteId, null)
+        } catch (error) {
+          Logger.warn(`[SiteSession] The attribution of "${siteId}" could not be cleared:`, error)
+        }
       }
 
       // The account is gone from the state: the running process must stop
@@ -378,6 +393,41 @@ export class SiteSessionService {
   }
 
   /**
+   * Remembers the account an identity-less session was attributed to.
+   *
+   * An empty id or null clears the attribution so the next push asks the
+   * user again.
+   */
+  async setAttributedAccount(
+    siteId: string,
+    accountId: string | null
+  ): Promise<SiteSessionActionResult> {
+    if (typeof siteId !== 'string' || siteId.length < 2) {
+      return { success: false, error: 'invalid_arguments' }
+    }
+    if (accountId !== null && (typeof accountId !== 'string' || accountId.length < 2)) {
+      return { success: false, error: 'invalid_arguments' }
+    }
+
+    const [target, state] = await Promise.all([this.findTarget(siteId), this.deps.config.read()])
+    if (!target) return { success: false, error: 'invalid_arguments' }
+
+    const site = state.sites[siteId]
+    if (accountId !== null && (!site || !Object.hasOwn(site.accounts, accountId))) {
+      return { success: false, error: 'invalid_arguments' }
+    }
+
+    try {
+      await this.deps.config.setAttributedAccount(siteId, accountId)
+    } catch (error) {
+      Logger.warn(`[SiteSession] The attribution of "${siteId}" could not be written:`, error)
+      return { success: false, error: 'write_failed' }
+    }
+
+    return { success: true }
+  }
+
+  /**
    * Writes a session the bridge could not attribute into an account.
    *
    * `accountId` is the account the user picked; null asks for a new one. A
@@ -390,8 +440,6 @@ export class SiteSessionService {
     siteId: string,
     accountId: string | null
   ): Promise<SiteSessionActionResult> {
-    invalidateSiteSessionListCache()
-
     const pending = getPendingSiteSession(siteId)
     if (!pending) return { success: false, error: 'unknown_target' }
 
@@ -448,8 +496,19 @@ export class SiteSessionService {
         }
       } catch (error) {
         Logger.warn(`[SiteSession] The pending session of "${siteId}" could not be written:`, error)
+        await this.deps.config
+          .recordResult(siteId, resolvedAccountId, 'failed', 'import_failed')
+          .catch(() => {})
         return { success: false, error: 'import_failed' }
       }
+
+      try {
+        await this.deps.config.setAttributedAccount(siteId, resolvedAccountId)
+      } catch (error) {
+        Logger.warn(`[SiteSession] The attribution of "${siteId}" could not be written:`, error)
+      }
+
+      invalidateSiteSessionListCache()
 
       return { success: true }
     })

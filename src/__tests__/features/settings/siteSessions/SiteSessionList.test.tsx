@@ -26,6 +26,7 @@ const VIEWS: SiteSessionSiteView[] = [
     memberAppIds: ['chatgpt'],
     accounts: [ACCOUNT],
     activeAccountId: null,
+    attributedAccountId: null,
     hasPendingSession: false
   },
   {
@@ -36,6 +37,7 @@ const VIEWS: SiteSessionSiteView[] = [
     memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive'],
     accounts: [ACCOUNT],
     activeAccountId: null,
+    attributedAccountId: null,
     hasPendingSession: false
   }
 ]
@@ -48,7 +50,8 @@ const actions = {
   onSetActive: vi.fn(),
   onRename: vi.fn(),
   onDelete: vi.fn(),
-  onResolvePending: vi.fn()
+  onResolvePending: vi.fn(),
+  onReAskAttribution: vi.fn()
 }
 
 describe('SiteSessionList', () => {

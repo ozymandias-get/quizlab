@@ -22,6 +22,7 @@ import {
   useRenameSiteSessionAccountMutation,
   useResolveSiteSessionPendingMutation,
   useSetSiteSessionActiveAccountMutation,
+  useSetSiteSessionAttributionMutation,
   useSetSiteSessionEnabledMutation,
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
@@ -77,6 +78,7 @@ describe('useSiteSessionApi', () => {
       renameAccount: vi.fn().mockResolvedValue({ success: true }),
       deleteAccount: vi.fn().mockResolvedValue({ success: true }),
       resolvePending: vi.fn().mockResolvedValue({ success: true }),
+      setAttributedAccount: vi.fn().mockResolvedValue({ success: true }),
       onChanged: vi.fn((callback: () => void) => {
         onChanged = callback
         return () => {}
@@ -194,6 +196,24 @@ describe('useSiteSessionApi', () => {
     expect(mockSiteSession.resolvePending).toHaveBeenCalledWith('chatgpt', null)
   })
 
+  it('attributes a held session to the account the user named and refreshes the list', async () => {
+    const { result } = renderHook(() => useSetSiteSessionAttributionMutation(), { wrapper })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    await result.current.mutateAsync({ siteId: 'chatgpt', accountId: 'account-2' })
+
+    expect(mockSiteSession.setAttributedAccount).toHaveBeenCalledWith('chatgpt', 'account-2')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
+  })
+
+  it('asks the app to name the account of the next held session again', async () => {
+    const { result } = renderHook(() => useSetSiteSessionAttributionMutation(), { wrapper })
+
+    await result.current.mutateAsync({ siteId: 'chatgpt', accountId: null })
+
+    expect(mockSiteSession.setAttributedAccount).toHaveBeenCalledWith('chatgpt', null)
+  })
+
   it('reports a failed action to the caller and refreshes the list', async () => {
     mockSiteSession.setAccountEnabled.mockResolvedValue({
       success: false,
@@ -240,6 +260,7 @@ describe('the site session helpers', () => {
     memberAppIds: ['chatgpt'],
     accounts: [account()],
     activeAccountId: null,
+    attributedAccountId: null,
     hasPendingSession: false,
     ...overrides
   })
