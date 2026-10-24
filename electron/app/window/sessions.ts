@@ -3,12 +3,6 @@ import { BrowserWindow, desktopCapturer, session } from 'electron'
 
 import { markPartitionActive } from '../../core/cacheRegistry.js'
 import { Logger } from '../../core/logger.js'
-import { registerCustomPlatformOriginsAtStartup } from '../../features/ai/customPlatformOriginStartup.js'
-import {
-  registerAccountPartitionFor,
-  registerSiteSessionPartitions
-} from '../../features/web-session/siteSessionAccounts.js'
-import type { SiteSessionTargetRow } from '../../features/web-session/siteSessionTargets.js'
 import { APP_CONFIG } from '../constants.js'
 import { showDisplayMediaPicker } from '../displayMediaPicker.js'
 import { resolveWebPermission } from './permissionConsent.js'
@@ -166,19 +160,7 @@ export function setupAiSession(
   configuredAiPartitions.add(partition)
 }
 
-/**
- * Registers a partition the app just minted for a new account.
- *
- * The registrar is handed to the composition root, which sets it on the
- * account code; the account code cannot import this module without closing a
- * cycle. The session setup is the app's own, with the same handlers every
- * static partition gets.
- */
-export function registerSiteSessionAccount(site: SiteSessionTargetRow, accountId: string): void {
-  registerAccountPartitionFor(site, accountId, setupAiSession)
-}
-
-export async function setupSessions(getMainWindow: MainWindowResolver): Promise<void> {
+export function setupSessions(getMainWindow: MainWindowResolver) {
   if (sessionsConfigured) return
 
   try {
@@ -192,14 +174,6 @@ export async function setupSessions(getMainWindow: MainWindowResolver): Promise<
     for (const partition of aiPartitions) {
       setupAiSession(partition, getMainWindow)
     }
-
-    // The registry-derived sessions above are configured first: the account
-    // partitions are dynamic, so only the call below can register them with
-    // the policy, cache registry and their own session — in that order, and
-    // never before the static ones. The session setup is handed in because
-    // the account module must not import this one.
-    await registerSiteSessionPartitions(setupAiSession)
-    await registerCustomPlatformOriginsAtStartup(setupAiSession)
 
     sessionsConfigured = true
   } catch (error) {

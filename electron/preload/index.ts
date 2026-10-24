@@ -129,24 +129,9 @@ const electronApi: ElectronApi = {
 
   siteSession: {
     list: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_LIST)),
-    setAccountEnabled: (siteId, accountId, enabled) =>
-      unwrapIpcResult(
-        typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ACCOUNT_ENABLED, siteId, accountId, enabled)
-      ),
-    clearAccount: (siteId, accountId) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR_ACCOUNT, siteId, accountId)),
-    setActiveAccount: (siteId, accountId) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_ACCOUNT, siteId, accountId)),
-    renameAccount: (siteId, accountId, name) =>
-      unwrapIpcResult(
-        typedInvoke(IPC_CHANNELS.SITE_SESSION_RENAME_ACCOUNT, siteId, accountId, name)
-      ),
-    deleteAccount: (siteId, accountId) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_DELETE_ACCOUNT, siteId, accountId)),
-    resolvePending: (siteId, accountId) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_RESOLVE_PENDING, siteId, accountId)),
-    setAttributedAccount: (siteId, accountId) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ATTRIBUTION, siteId, accountId)),
+    setEnabled: (siteId, enabled) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ENABLED, siteId, enabled)),
+    clear: (siteId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR, siteId)),
     onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
   },
 

@@ -168,31 +168,13 @@ export interface ElectronApi {
   ) => Promise<ApiChatMessage | null>
   fetchApiChatModels: (providerId: string) => Promise<string[] | null>
   /**
-   * Per-site Chrome session sharing: the settings list and the account-level
-   * actions. A site may hold several accounts, each in its own cookie jar.
+   * Per-site Chrome session sharing: the settings list of sites that may pull
+   * their login from the user's Chrome profile.
    */
   siteSession: {
     list: () => Promise<SiteSessionListResult>
-    /** The account-level switch. */
-    setAccountEnabled: (
-      siteId: string,
-      accountId: string,
-      enabled: boolean
-    ) => Promise<SiteSessionActionResult>
-    /** The account-level clear. */
-    clearAccount: (siteId: string, accountId: string) => Promise<SiteSessionActionResult>
-    setActiveAccount: (siteId: string, accountId: string) => Promise<SiteSessionActionResult>
-    renameAccount: (
-      siteId: string,
-      accountId: string,
-      name: string
-    ) => Promise<SiteSessionActionResult>
-    deleteAccount: (siteId: string, accountId: string) => Promise<SiteSessionActionResult>
-    resolvePending: (siteId: string, accountId: string | null) => Promise<SiteSessionActionResult>
-    setAttributedAccount: (
-      siteId: string,
-      accountId: string | null
-    ) => Promise<SiteSessionActionResult>
+    setEnabled: (siteId: string, enabled: boolean) => Promise<SiteSessionActionResult>
+    clear: (siteId: string) => Promise<SiteSessionActionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {

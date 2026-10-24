@@ -179,12 +179,6 @@ class NativeMessagingManager {
         this.sendNativeMessage({ success: false, error: outcome.reason })
         return
       }
-      // The native pipe mirrors the bridge: a held packet is answered as
-      // eaten, because it is waiting for the user, not failing.
-      if (outcome.held) {
-        this.sendNativeMessage({ success: true, held: true })
-        return
-      }
       this.sendNativeMessage({ success: true, imported: outcome.imported ?? 0 })
     } catch (err) {
       Logger.error('[NativeMessaging] Failed to handle native message:', err)

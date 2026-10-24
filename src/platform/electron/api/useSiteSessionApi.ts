@@ -1,9 +1,8 @@
-import type { ElectronApi } from '@shared-core/types/ipcContract'
 import type {
   SiteSessionActionResult,
   SiteSessionListResult,
-  SiteSessionSiteView,
-  SiteSessionStatusCode
+  SiteSessionStatusCode,
+  SiteSessionView
 } from '@shared-core/types/siteSession'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
@@ -16,11 +15,11 @@ import { useElectronMutation, useElectronQuery } from '../useElectron'
 export const SITE_SESSION_LIST_KEY = ['site-sessions'] as const
 
 /**
- * The states an account cannot get past on its own.
+ * The states a site cannot get past on its own.
  *
  * Every one of them asks the user for something: an installed extension, a
- * reloaded extension, a granted permission, a sign-in in Chrome, or a look at
- * why the import failed.
+ * reloaded extension, a granted permission, a sign-in in Chrome, or a look
+ * at why the import failed.
  */
 const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
   'extension_missing',
@@ -30,24 +29,22 @@ const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
   'import_failed'
 ])
 
-/** Whether any account of any site pulls its session from Chrome. */
-export function hasEnabledSiteSession(sites: SiteSessionSiteView[]): boolean {
-  return sites.some((site) => site.accounts.some((account) => account.enabled))
+/** Whether any site pulls its session from Chrome. */
+export function hasEnabledSiteSession(views: SiteSessionView[]): boolean {
+  return views.some((view) => view.enabled)
 }
 
-/** Whether an enabled account of a site is waiting for the user. */
-export function hasSiteSessionNeedingAttention(sites: SiteSessionSiteView[]): boolean {
-  return sites.some((site) =>
-    site.accounts.some((account) => account.enabled && ATTENTION_STATUSES.has(account.status))
-  )
+/** Whether a site whose import is on is waiting for the user. */
+export function hasSiteSessionNeedingAttention(views: SiteSessionView[]): boolean {
+  return views.some((view) => view.enabled && ATTENTION_STATUSES.has(view.status))
 }
 
 /**
- * The sites and their accounts.
+ * The sites and their states.
  *
- * The main process sends the fresh list after every account action that was
- * carried out; the subscription turns that event into a refetch, so the row
- * never waits for a poll.
+ * The main process sends the fresh list after every switch that was turned
+ * and every session that was cleared; the subscription turns that event into
+ * a refetch, so the row never waits for a poll.
  */
 export function useSiteSessionListQuery() {
   const queryClient = useQueryClient()
@@ -72,77 +69,30 @@ export function useSiteSessionListQuery() {
   })
 }
 
-/**
- * One account action that refreshes the list once it has run.
- *
- * Every action may have written part of its change before it failed — the
- * switch before the wipe, the wipe before the delete — so the list is read
- * again whatever the outcome was.
- */
-function useSiteSessionMutation<TVariables>(
-  mutationFn: (api: ElectronApi, variables: TVariables) => Promise<SiteSessionActionResult>
-) {
+/** Turns the import of one site on or off. */
+export function useSetSiteSessionEnabledMutation() {
   const queryClient = useQueryClient()
 
-  return useElectronMutation<SiteSessionActionResult, TVariables>(mutationFn, {
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
+  return useElectronMutation<SiteSessionActionResult, { siteId: string; enabled: boolean }>(
+    (api, { siteId, enabled }) => api.siteSession.setEnabled(siteId, enabled),
+    {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
+      }
     }
-  })
-}
-
-/**
- * Turns the import of one account on or off.
- *
- * The account is required: every account has its own switch, and the old
- * primary fallback would silently flip a different account than the one the
- * caller meant.
- */
-export function useSetSiteSessionEnabledMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string; enabled: boolean }>(
-    (api, { siteId, accountId, enabled }) =>
-      api.siteSession.setAccountEnabled(siteId, accountId, enabled)
   )
 }
 
-/** Forgets the session one account holds, without touching its switch. */
+/** Forgets the session the app holds for one site. */
 export function useClearSiteSessionMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string }>(
-    (api, { siteId, accountId }) => api.siteSession.clearAccount(siteId, accountId)
-  )
-}
+  const queryClient = useQueryClient()
 
-/** Marks the account the panels of a site open with. */
-export function useSetSiteSessionActiveAccountMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string }>((api, variables) =>
-    api.siteSession.setActiveAccount(variables.siteId, variables.accountId)
-  )
-}
-
-/** Gives one account the user's name for it. */
-export function useRenameSiteSessionAccountMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string; name: string }>(
-    (api, { siteId, accountId, name }) => api.siteSession.renameAccount(siteId, accountId, name)
-  )
-}
-
-/** Removes one additional account and everything it holds. */
-export function useDeleteSiteSessionAccountMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string }>((api, variables) =>
-    api.siteSession.deleteAccount(variables.siteId, variables.accountId)
-  )
-}
-
-/** Writes a pending session into an existing account, or into a new one for `null`. */
-export function useResolveSiteSessionPendingMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string | null }>(
-    (api, { siteId, accountId }) => api.siteSession.resolvePending(siteId, accountId)
-  )
-}
-
-/** Attributes a held session to an account, or asks to name it again for `null`. */
-export function useSetSiteSessionAttributionMutation() {
-  return useSiteSessionMutation<{ siteId: string; accountId: string | null }>(
-    (api, { siteId, accountId }) => api.siteSession.setAttributedAccount(siteId, accountId)
+  return useElectronMutation<SiteSessionActionResult, { siteId: string }>(
+    (api, { siteId }) => api.siteSession.clear(siteId),
+    {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
+      }
+    }
   )
 }

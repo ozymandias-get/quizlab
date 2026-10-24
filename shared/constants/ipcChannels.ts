@@ -53,18 +53,8 @@ export const IPC_CHANNELS = {
   SMART_CACHE_ACTION: 'smart-cache-action',
   // Site oturumları (Chrome eklentisi ile paylaşılan oturumlar)
   SITE_SESSION_LIST: 'site-session-list',
-  /**
-   * The account-level actions. Every one of them names the account it acts
-   * on: the site-level pair that came before them is gone with the settings
-   * card that used it.
-   */
-  SITE_SESSION_SET_ACCOUNT_ENABLED: 'site-session-set-account-enabled',
-  SITE_SESSION_CLEAR_ACCOUNT: 'site-session-clear-account',
-  SITE_SESSION_SET_ACTIVE_ACCOUNT: 'site-session-set-active-account',
-  SITE_SESSION_RENAME_ACCOUNT: 'site-session-rename-account',
-  SITE_SESSION_DELETE_ACCOUNT: 'site-session-delete-account',
-  SITE_SESSION_RESOLVE_PENDING: 'site-session-resolve-pending',
-  SITE_SESSION_SET_ATTRIBUTION: 'site-session-set-attribution',
+  SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
+  SITE_SESSION_CLEAR: 'site-session-clear',
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',

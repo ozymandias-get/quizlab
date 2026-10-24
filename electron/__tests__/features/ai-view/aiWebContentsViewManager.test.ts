@@ -200,10 +200,6 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
   })
 }))
 
-vi.mock('../../../features/web-session/siteSessionAccounts.js', () => ({
-  resolveActiveAccountPartition: vi.fn(async () => null)
-}))
-
 const manager = await import('../../../features/ai-view/aiWebContentsViewManager.js')
 
 const CHATGPT = { kind: 'ai-platform' as const, modelId: 'chatgpt' }

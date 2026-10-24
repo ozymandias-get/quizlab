@@ -16,33 +16,20 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { type Session, session as electronSession } from 'electron'
 
-import { getSiteSessionIdentityCookies } from '../../../shared/constants/siteSessionIdentityCookies.js'
 import { Logger } from '../../core/logger.js'
-import {
-  registerRuntimeAccount,
-  type SiteSessionAccountRegistrar
-} from './siteSessionAccountRegistration.js'
-import {
-  accountPartitionFor,
-  buildAccountRows,
-  type SiteSessionAccountRow
-} from './siteSessionAccounts.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
-import type { CookiePacket, CookiePacketRejection } from './siteSessionCookieRouter.js'
+import type {
+  CookiePacket,
+  CookiePacketRejection,
+  CookiePacketStatus
+} from './siteSessionCookieRouter.js'
 import { routeCookiePacket } from './siteSessionCookieRouter.js'
-import { computeSessionFingerprint } from './siteSessionFingerprint.js'
-import { importExternalCookies } from './siteSessionImporter.js'
+import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
-import type { SiteSessionConfigFile } from './siteSessionMigration.js'
-import { toImporterCookie } from './siteSessionPacket.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { storePendingSiteSession } from './siteSessionPendingNotice.js'
-import { clearPendingSiteSession } from './siteSessionPendingSessions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
-
-export { parseSiteSessionPacket } from './siteSessionPacket.js'
 
 /**
  * The protocol the extension and the app agree on.
@@ -68,8 +55,8 @@ interface SiteSessionBridgeTarget {
  * passes them in instead of letting the bridge reach for the singletons.
  */
 export interface SiteSessionImportEnvironment {
-  /** The persisted state of the import switches and the accounts. */
-  config: Pick<SiteSessionConfig, 'read' | 'recordResult' | 'createAccount' | 'rememberFingerprint'>
+  /** The persisted state of the import switches. */
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult'>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -82,14 +69,6 @@ export interface SiteSessionImportEnvironment {
    * the round instead of once for every packet.
    */
   targets?: SiteSessionTargetRow[]
-  /**
-   * Registers the partition of an account the packet opens.
-   *
-   * The bridge cannot reach the window layer that owns sessions and the
-   * permission policy, so the caller passes the registration in. Without one
-   * the runtime registrar (set by the composition root) is used.
-   */
-  registerAccount?: SiteSessionAccountRegistrar
 }
 
 /** The session of a partition, as the app itself resolves it. */
@@ -141,28 +120,103 @@ export async function openSiteSessionRound(
   return {
     targets,
     accept: (packet) =>
-      acceptSiteSessionPacket(packet, {
-        config,
-        loadTargets,
-        resolveSession,
-        targets,
-        registerAccount: environment?.registerAccount
-      })
+      acceptSiteSessionPacket(packet, { config, loadTargets, resolveSession, targets })
+  }
+}
+
+/**
+ * The wire vocabulary of the extension and the one of the importer differ.
+ *
+ * Chrome names the SameSite attribute in lower case (`no_restriction`), the
+ * importer names it the way Electron does (`None`). The difference is
+ * translated here, at the boundary, so that neither side has to know about
+ * the other's spelling — and so that a cookie that arrives with an unknown
+ * attribute keeps its default instead of silently changing meaning.
+ */
+const SAME_SITE_FROM_CHROME: Record<string, ExternalBrowserCookie['sameSite']> = {
+  strict: 'Strict',
+  lax: 'Lax',
+  no_restriction: 'None',
+  unspecified: 'Unspecified'
+}
+
+/** The importer's shape of a cookie the extension sent. */
+function toImporterCookie(cookie: ChromeExtensionCookie): ExternalBrowserCookie {
+  const sameSite = cookie.sameSite ? SAME_SITE_FROM_CHROME[cookie.sameSite] : undefined
+  return {
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.domain,
+    path: cookie.path || '/',
+    secure: !!cookie.secure,
+    httpOnly: !!cookie.httpOnly,
+    sameSite,
+    expires: cookie.expires
   }
 }
 
 /** The outcome of a packet the extension sent. */
 export interface SiteSessionPacketOutcome {
-  /** Whether the packet was used: an answer it carried was acted on. */
   accepted: boolean
-  /** Why a packet was refused whole. */
   reason?: CookiePacketRejection
-  /** The cookies that were written. */
   imported?: number
-  /** The cookies that could not be written. */
   failed?: number
-  /** True when the session was held for the user to name its account. */
-  held?: true
+}
+
+const COOKIE_PACKET_STATUSES: ReadonlySet<string> = new Set([
+  'ok',
+  'no_cookies',
+  'permission_missing'
+])
+
+/** The SameSite values Chrome reports. */
+const SAME_SITE_VALUES: ReadonlySet<string> = new Set([
+  'strict',
+  'lax',
+  'no_restriction',
+  'unspecified'
+])
+
+/** A cookie of the shape the extension sends. */
+function isBrowserCookie(value: unknown): value is ChromeExtensionCookie {
+  if (typeof value !== 'object' || value === null) return false
+  const cookie = value as Partial<ChromeExtensionCookie>
+  if (typeof cookie.name !== 'string' || typeof cookie.value !== 'string') return false
+  if (cookie.sameSite !== undefined && !SAME_SITE_VALUES.has(cookie.sameSite)) return false
+  return true
+}
+
+/**
+ * Reads a cookie packet out of an untrusted body.
+ *
+ * Every field is checked before it reaches the rest of the app: a packet has
+ * to name exactly one site and carry a status the app knows. A packet that
+ * does not is refused here rather than deeper in.
+ */
+export function parseSiteSessionPacket(body: string): CookiePacket | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
+  } catch {
+    return null
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const candidate = parsed as { targetId?: unknown; status?: unknown; cookies?: unknown }
+  if (typeof candidate.targetId !== 'string' || candidate.targetId.length === 0) return null
+  if (typeof candidate.status !== 'string' || !COOKIE_PACKET_STATUSES.has(candidate.status)) {
+    return null
+  }
+  if (!Array.isArray(candidate.cookies)) return null
+
+  const cookies = candidate.cookies.filter(isBrowserCookie)
+  if (cookies.length !== candidate.cookies.length) return null
+
+  return {
+    targetId: candidate.targetId,
+    status: candidate.status as CookiePacketStatus,
+    cookies
+  }
 }
 
 /**
@@ -181,15 +235,8 @@ export async function listEnabledSiteSessionTargets(
     round ? Promise.resolve(round.targets) : buildSiteSessionTargets()
   ])
 
-  // A site is offered when at least one of its accounts can take a session.
-  // The primary account is listed like any other: a site whose primary is off
-  // but whose second account is on still has a session the extension should
-  // push.
   const enabledTargets = targets
-    .filter((target) => {
-      const accounts = state.sites[target.siteId]?.accounts
-      return accounts ? Object.values(accounts).some((account) => account.enabled) : false
-    })
+    .filter((target) => state.targets[target.siteId]?.enabled === true)
     .map((target) => ({
       siteId: target.siteId,
       cookieDomains: [...target.cookieDomains]
@@ -242,58 +289,25 @@ export async function hasLocalSessionForTarget(
  * and every cookie in it belongs to that site. A refused packet writes
  * nothing and changes nothing.
  *
- * The packet is routed before the lock is taken: the lock belongs to one
- * account of the site, and the account is what the routing decides. A packet
- * whose account cannot be named yet — a session that opens a new account, or
- * one that has to wait for the user — is serialised on the site itself, so two
- * such packets for the same site can neither open two accounts at once nor be
- * held twice.
+ * The switch is read twice: once for the routing, and once more right
+ * before the import. The second read is what makes the race small: a packet
+ * that arrives after the user turned the site off is refused, and only an
+ * import that is already running can still finish after the wipe.
  *
- * The switch is read twice: once for the routing, and once more right before
- * the import. The second read is what makes the race small: a packet that
- * arrives after the user turned the account off is refused, and only an import
- * that is already running can still finish after the wipe. The write runs
- * under the lock of the account, so a switch that is turned off while the
- * packet is on its way waits for the import and wipes afterwards: the session
- * the user cancelled cannot come back.
+ * The whole handling runs under the lock of the site, so that a switch that
+ * is turned off while the packet is on its way waits for the import and
+ * wipes afterwards: the session the user cancelled cannot come back.
  *
  * A packet that reports no cookies — or no permission — is not a failure: it
- * only records what the extension saw on the site's active account. It opens
- * no account and holds no session: there is no session in the packet whose
- * account could be asked about.
+ * only records what the extension saw. The session the user may already have
+ * inside the app is left alone.
  */
 export async function acceptSiteSessionPacket(
   packet: CookiePacket,
   environment?: SiteSessionImportEnvironment
 ): Promise<SiteSessionPacketOutcome> {
-  const config = environment?.config ?? getSiteSessionConfig()
-  const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
-  const resolveSession = environment?.resolveSession ?? defaultResolveSession
-  const registerAccount = environment?.registerAccount ?? registerRuntimeAccount
-
-  // The targets of a round are the ones the round was opened with: they do
-  // not have to be built again for every packet of the round.
-  const targets = environment?.targets ?? (await loadTargets())
-  const plan = await planSiteSessionPacket(packet, config, targets)
-
-  // The lock belongs to the account the packet is written to. A packet that
-  // opens a new account has no id yet, and an ambiguous session belongs to no
-  // account at all; both are serialised on the site itself.
-  const lockAccountId =
-    plan.kind === 'import'
-      ? plan.accountRow.accountId
-      : plan.kind === 'record'
-        ? plan.accountId
-        : packet.targetId
-
-  const outcome = await withSiteSessionLock(packet.targetId, lockAccountId, () =>
-    handleSiteSessionPacket(packet, plan, {
-      config,
-      loadTargets,
-      resolveSession,
-      targets,
-      registerAccount
-    })
+  const outcome = await withSiteSessionLock(packet.targetId, () =>
+    handleSiteSessionPacket(packet, environment)
   )
 
   if (outcome.accepted) {
@@ -309,265 +323,65 @@ export async function acceptSiteSessionPacket(
   return outcome
 }
 
-/**
- * What a packet will do, decided against the accounts a site has right now.
- *
- * The decision is taken before the lock: nothing here writes and no session is
- * touched, so the plan can be prepared while another packet of the same site
- * is still running. A packet that has to open an account carries the
- * fingerprint the account is opened with; the id itself is generated when the
- * account is really created.
- */
-type SiteSessionPacketPlan =
-  | { kind: 'refused'; reason: CookiePacketRejection }
-  | { kind: 'ignore' }
-  | {
-      kind: 'record'
-      siteRow: SiteSessionTargetRow
-      accountId: string
-      result: 'no_cookies' | 'permission_missing'
-    }
-  | { kind: 'pending'; cookies: ChromeExtensionCookie[] }
-  | {
-      kind: 'create'
-      siteRow: SiteSessionTargetRow
-      fingerprint: string | null
-      cookies: ChromeExtensionCookie[]
-    }
-  | {
-      kind: 'import'
-      siteRow: SiteSessionTargetRow
-      accountRow: SiteSessionAccountRow
-      fingerprint: string | null
-      cookies: ChromeExtensionCookie[]
-    }
-
-/** Reads the packet against the state and decides what it belongs to. */
-async function planSiteSessionPacket(
-  packet: CookiePacket,
-  config: Pick<SiteSessionConfig, 'read'>,
-  targets: readonly SiteSessionTargetRow[]
-): Promise<SiteSessionPacketPlan> {
-  const state = await config.read()
-  const siteRow = targets.find((target) => target.siteId === packet.targetId) ?? null
-  if (!siteRow) return { kind: 'refused', reason: 'unknown_target' }
-
-  // A packet that reports no session carries nothing that could be matched:
-  // the question "which account?" would be asked in the wrong place. The row
-  // of the active account records what the extension saw, so the user sees it
-  // where the site is; no account is opened and no session is held.
-  if (packet.status !== 'ok') {
-    const activeAccountId = activeAccountIdForSite(state, siteRow.siteId)
-    if (!activeAccountId) return { kind: 'ignore' }
-
-    const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
-    return { kind: 'record', siteRow, accountId: activeAccountId, result }
-  }
-
-  const siteAccounts = buildAccountRows(targets, state).filter(
-    (row) => row.siteId === siteRow.siteId
-  )
-  const candidates = siteAccounts
-    .filter((row) => row.state.enabled)
-    .map((row) => ({ accountId: row.accountId, fingerprints: row.state.fingerprints }))
-  const fingerprint = computeSessionFingerprint(
-    packet.cookies,
-    getSiteSessionIdentityCookies(siteRow.siteId)
-  )
-
-  // A cancelled session keeps its identity. Writing it into another account
-  // would undo the user's decision, and asking "which account?" would put the
-  // question in the wrong place: the answer is already known.
-  if (
-    fingerprint &&
-    siteAccounts.some((row) => !row.state.enabled && row.state.fingerprints.includes(fingerprint))
-  ) {
-    return { kind: 'refused', reason: 'account_disabled' }
-  }
-
-  const routed = routeCookiePacket(packet, siteRow, candidates, fingerprint)
-  if (!routed.ok) {
-    if (routed.kind === 'refused') return { kind: 'refused', reason: routed.reason }
-
-    const attributedAccountId = state.sites[siteRow.siteId]?.attributedAccountId
-    if (fingerprint === null && candidates.length > 1 && attributedAccountId) {
-      const accountRow = siteAccounts.find(
-        (row) => row.accountId === attributedAccountId && row.state.enabled
-      )
-      if (accountRow) {
-        return { kind: 'import', siteRow, accountRow, fingerprint, cookies: routed.cookies }
-      }
-    }
-
-    return { kind: 'pending', cookies: routed.cookies }
-  }
-
-  if (routed.kind === 'new_account') {
-    return { kind: 'create', siteRow, fingerprint, cookies: routed.cookies }
-  }
-
-  // The routing only matches candidates of these rows, so the account is
-  // always one of them; a missing row would mean the two disagree.
-  const accountRow = siteAccounts.find((row) => row.accountId === routed.accountId) ?? null
-  if (!accountRow) return { kind: 'refused', reason: 'account_disabled' }
-
-  return { kind: 'import', siteRow, accountRow, fingerprint, cookies: routed.cookies }
-}
-
-/**
- * The account the site opens its panels with, when it still exists. Without
- * one there is no row to record on; the primary fallback would make
- * `recordResult` create a phantom account.
- */
-function activeAccountIdForSite(state: SiteSessionConfigFile, siteId: string): string | null {
-  const site = state.sites[siteId]
-  const activeAccountId = site?.activeAccountId
-  if (!activeAccountId || !site.accounts[activeAccountId]) return null
-  return activeAccountId
-}
-
-/**
- * Applies a packet after its lock is taken. Create and pending plans were
- * decided before the lock, so they re-read the state and route again: another
- * packet may have opened the account, or the last account may have been
- * switched off. A re-routed account is written under its own lock.
- */
+/** The handling of one packet, under the lock of its site. */
 async function handleSiteSessionPacket(
   packet: CookiePacket,
-  plan: SiteSessionPacketPlan,
-  environment: SiteSessionImportEnvironment
+  environment?: SiteSessionImportEnvironment
 ): Promise<SiteSessionPacketOutcome> {
-  if (plan.kind === 'create' || plan.kind === 'pending') {
-    const targets = environment.targets ?? (await environment.loadTargets())
-    const freshPlan = await planSiteSessionPacket(packet, environment.config, targets)
-    const application = { ...environment, targets }
+  const config = environment?.config ?? getSiteSessionConfig()
+  const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
+  const resolveSession = environment?.resolveSession ?? defaultResolveSession
 
-    if (freshPlan.kind === 'import') {
-      return withSiteSessionLock(packet.targetId, freshPlan.accountRow.accountId, () =>
-        applySiteSessionPacket(packet, freshPlan, application)
-      )
-    }
+  // The targets are built first and the switch state is read afterwards: the
+  // snapshot has to be as late as possible, because the router asks the
+  // question "is this site switched on?" synchronously. The targets of a
+  // round are the ones the round was opened with: they do not have to be
+  // built again for every packet of the round.
+  const targets = environment?.targets ?? (await loadTargets())
+  const state = await config.read()
 
-    return applySiteSessionPacket(packet, freshPlan, application)
+  const enabledSiteIds = new Set(
+    Object.entries(state.targets)
+      .filter(([, targetState]) => targetState.enabled)
+      .map(([siteId]) => siteId)
+  )
+
+  const routed = routeCookiePacket(packet, targets, (siteId) => enabledSiteIds.has(siteId))
+  if (!routed.ok) {
+    Logger.warn(`[SiteSessionBridge] Refused a packet: ${routed.reason}.`)
+    return { accepted: false, reason: routed.reason }
   }
 
-  return applySiteSessionPacket(packet, plan, environment)
-}
+  const { target } = routed
 
-/** Applies a plan that is already decided. */
-async function applySiteSessionPacket(
-  packet: CookiePacket,
-  plan: SiteSessionPacketPlan,
-  environment: SiteSessionImportEnvironment
-): Promise<SiteSessionPacketOutcome> {
-  const { config, resolveSession } = environment
-
-  switch (plan.kind) {
-    case 'refused':
-      Logger.warn(`[SiteSessionBridge] Refused a packet: ${plan.reason}.`)
-      return { accepted: false, reason: plan.reason }
-
-    case 'ignore':
-      return { accepted: true }
-
-    case 'pending': {
-      // A held session is an answer, not a refusal: 200 is what makes the
-      // extension stop re-pushing the same packet every 30 seconds. The
-      // question waits for the user in the settings page instead.
-      await storePendingSiteSession(packet.targetId, plan.cookies)
-      return { accepted: true, held: true }
-    }
-
-    case 'record':
-      await recordResult(config, plan.siteRow.siteId, plan.accountId, plan.result)
-      return { accepted: true }
-
-    case 'create': {
-      const accountId = crypto.randomUUID()
-      await config.createAccount(plan.siteRow.siteId, accountId, plan.fingerprint)
-      // The partition is minted now, long after start-up: it has to be
-      // registered before a panel can open it and before the import writes.
-      environment.registerAccount?.(plan.siteRow, accountId)
-      return importIntoAccount(config, resolveSession, {
-        siteRow: plan.siteRow,
-        accountId,
-        partition: accountPartitionFor(plan.siteRow.siteId, accountId),
-        cookies: plan.cookies
-      })
-    }
-
-    case 'import': {
-      // The switch is read once more right before the import: the user may
-      // have turned the account off while the packet was on its way, and a
-      // session that is written after that would outlive the wipe that follows
-      // the switch.
-      if (!(await isAccountStillEnabled(config, plan.siteRow.siteId, plan.accountRow.accountId))) {
-        Logger.warn(
-          `[SiteSessionBridge] Refused a packet: the account of "${plan.siteRow.siteId}" is off.`
-        )
-        return { accepted: false, reason: 'account_disabled' }
-      }
-
-      const outcome = await importIntoAccount(config, resolveSession, {
-        siteRow: plan.siteRow,
-        accountId: plan.accountRow.accountId,
-        partition: plan.accountRow.partition,
-        cookies: plan.cookies
-      })
-
-      // The identity has to outlive the session: the next packet of the same
-      // account has to find it by its history instead of falling into the
-      // "sole empty candidate" rule and overwriting another identity.
-      if (outcome.imported && plan.fingerprint) {
-        await rememberMatchedFingerprint(
-          config,
-          plan.siteRow.siteId,
-          plan.accountRow.accountId,
-          plan.fingerprint
-        )
-      }
-
-      return outcome
-    }
+  if (packet.status !== 'ok') {
+    const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
+    await recordResult(config, target.siteId, result)
+    return { accepted: true }
   }
-}
 
-/** The parts of one import: its site, its account and the cookie jar. */
-interface SiteSessionImport {
-  siteRow: SiteSessionTargetRow
-  accountId: string
-  partition: string
-  cookies: ChromeExtensionCookie[]
-}
+  // The switch is read once more right before the import: the user may have
+  // turned the site off while the packet was on its way, and a session that
+  // is written after that would outlive the wipe that follows the switch.
+  if (!(await isStillEnabled(config, target.siteId))) {
+    Logger.warn(`[SiteSessionBridge] Refused a packet: the switch of "${target.siteId}" is off.`)
+    return { accepted: false, reason: 'target_disabled' }
+  }
 
-/**
- * Writes a session into the jar of one account and records the outcome.
- *
- * An import that wrote nothing is a failure the user has to see: without a
- * reason code the row would show the outcome without saying what went wrong,
- * and `lastError` would stay empty. The pending session is forgotten only once
- * a cookie was written, so a failed write can be retried — and the service
- * that resolves a pending session reuses this so the two paths cannot disagree.
- */
-export async function importIntoAccount(
-  config: Pick<SiteSessionConfig, 'recordResult'>,
-  resolveSession: (partition: string) => Session,
-  target: SiteSessionImport
-): Promise<SiteSessionPacketOutcome> {
   const targetSession = resolveSession(target.partition)
   const { imported, failed } = await importExternalCookies(
     targetSession,
-    target.cookies.map(toImporterCookie),
-    target.siteRow.cookieDomains
+    packet.cookies.map(toImporterCookie),
+    target.cookieDomains
   )
 
+  // An import that wrote nothing is a failure the user has to see: without a
+  // reason code the row would show the outcome without saying what went wrong,
+  // and `lastError` would stay empty.
   const wroteSomething = imported > 0
-  if (wroteSomething) clearPendingSiteSession(target.siteRow.siteId)
-
   await recordResult(
     config,
-    target.siteRow.siteId,
-    target.accountId,
+    target.siteId,
     wroteSomething ? 'imported' : 'failed',
     wroteSomething ? undefined : 'import_failed'
   )
@@ -576,39 +390,17 @@ export async function importIntoAccount(
 }
 
 /**
- * Remembers the identity of a session the bridge has written. The import
- * already happened, so a state file that cannot be written must not turn the
- * packet into a failure; the session is not lost.
- */
-async function rememberMatchedFingerprint(
-  config: Pick<SiteSessionConfig, 'rememberFingerprint'>,
-  siteId: string,
-  accountId: string,
-  fingerprint: string
-): Promise<void> {
-  try {
-    await config.rememberFingerprint(siteId, accountId, fingerprint)
-  } catch (writeError) {
-    Logger.warn(
-      `[SiteSessionBridge] The fingerprint of "${accountId}" could not be recorded: ` +
-        `${writeError instanceof Error ? writeError.message : String(writeError)}`
-    )
-  }
-}
-
-/**
- * Whether the account is still switched on.
+ * Whether the site is still switched on.
  *
  * The state is read from the disk again: the file is the truth, and a switch
  * that was turned in the meantime has to be seen before a cookie is written.
  */
-async function isAccountStillEnabled(
+async function isStillEnabled(
   config: Pick<SiteSessionConfig, 'read'>,
-  siteId: string,
-  accountId: string
+  siteId: string
 ): Promise<boolean> {
   const state = await config.read()
-  return state.sites[siteId]?.accounts[accountId]?.enabled === true
+  return state.targets[siteId]?.enabled === true
 }
 
 /**
@@ -629,11 +421,7 @@ export const PACKET_TOO_LARGE = 'packet_too_large'
  * the row of the site changed.
  */
 export async function recordOversizedSiteSessionPacket(siteId: string): Promise<void> {
-  const config = getSiteSessionConfig()
-  const accountId = activeAccountIdForSite(await config.read(), siteId)
-  if (!accountId) return
-
-  await recordResult(config, siteId, accountId, 'failed', PACKET_TOO_LARGE)
+  await recordResult(getSiteSessionConfig(), siteId, 'failed', PACKET_TOO_LARGE)
   await broadcastSiteSessionsChanged()
 }
 
@@ -647,12 +435,11 @@ export async function recordOversizedSiteSessionPacket(siteId: string): Promise<
 async function recordResult(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
-  accountId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
   error?: string
 ): Promise<void> {
   try {
-    await config.recordResult(siteId, accountId, result, error)
+    await config.recordResult(siteId, result, error)
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +
