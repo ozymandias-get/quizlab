@@ -56,6 +56,7 @@ describe('wipeSiteSession', () => {
     // signed in.
     await wipeSiteSession(fakeSession(), {
       ...TARGET,
+      siteId: 'google',
       origins: [
         'https://gemini.google.com',
         'https://aistudio.google.com',

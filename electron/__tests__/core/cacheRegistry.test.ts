@@ -6,7 +6,6 @@
  * All electron and AI-registry dependencies are mocked.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import path from 'node:path'
 
 const mockGetPath = vi.fn().mockReturnValue('/mock/user-data')
 
@@ -47,9 +46,7 @@ const {
   getProtectedDirs,
   isProtectedPath,
   isSymlinkSafe,
-  markPartitionActive,
-  registerDynamicPartition,
-  unregisterDynamicPartition
+  markPartitionActive
 } = await import('@electron/core/cacheRegistry')
 
 beforeEach(() => {
@@ -166,43 +163,6 @@ describe('cacheRegistry', () => {
       // path does not throw on its two boundary inputs.
       expect(() => markPartitionActive('test-partition')).not.toThrow()
       expect(() => markPartitionActive('')).not.toThrow()
-    })
-  })
-
-  describe('registerDynamicPartition', () => {
-    it('sweeps the cache of a runtime-registered partition', () => {
-      expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a1'))).toBe(false)
-
-      const totalBefore = getCacheRules().length
-      registerDynamicPartition('persist:ai_google_a1')
-      const rules = getCacheRules()
-
-      expect(rules).toHaveProperty('length', totalBefore + 3)
-      const added = rules.filter((rule) => rule.relativePath.includes('ai_google_a1'))
-      expect(added.map((rule) => rule.relativePath)).toEqual([
-        path.join('Partitions', 'ai_google_a1', 'Cache'),
-        path.join('Partitions', 'ai_google_a1', 'Code Cache'),
-        path.join('Partitions', 'ai_google_a1', 'GPUCache')
-      ])
-    })
-
-    it('ignores an empty key', () => {
-      expect(() => registerDynamicPartition('')).not.toThrow()
-    })
-  })
-
-  describe('unregisterDynamicPartition', () => {
-    it('stops sweeping the cache of a partition that is gone', () => {
-      registerDynamicPartition('persist:ai_google_a2')
-      expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a2'))).toBe(true)
-
-      unregisterDynamicPartition('persist:ai_google_a2')
-
-      expect(getCacheRules().some((rule) => rule.relativePath.includes('ai_google_a2'))).toBe(false)
-    })
-
-    it('ignores an empty key', () => {
-      expect(() => unregisterDynamicPartition('')).not.toThrow()
     })
   })
 })

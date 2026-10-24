@@ -5,34 +5,24 @@
  * to a session, the packet has to pass three checks, in this order:
  *
  *   1. the site must be one the app knows about,
- *   2. the site must have an open account,
+ *   2. the site's switch must be on,
  *   3. every cookie in the packet must belong to that site.
  *
- * The order matters: an unknown site and a site without an open account are
- * refused before the domains are even looked at, and a packet that fails any
- * check is refused whole — no cookie of it is written anywhere.
- *
- * Only then is the packet matched to one of the open accounts. The caller
- * supplies the digests of the sessions the accounts have held and the digest
- * of this packet, because a new account needs the same digest and it is not
- * computed twice.
+ * The order matters: an unknown site and a disabled site are refused before
+ * the domains are even looked at, and a packet that fails any check is
+ * refused whole — no cookie of it is written anywhere.
  *
  * The module is pure: it reads no clock, no disk and no session. The caller
- * supplies the target, the open accounts and the session's fingerprint.
+ * supplies the targets and the answer to "is this site switched on".
  */
 
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { isCookieDomainAllowed } from './siteSessionCookies.js'
-import {
-  matchSiteSessionAccount,
-  type SiteSessionAccountCandidate
-} from './siteSessionFingerprint.js'
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /** Why a packet was refused. */
-export type CookiePacketRejection =
-  'unknown_target' | 'target_disabled' | 'domain_mismatch' | 'account_disabled'
+export type CookiePacketRejection = 'unknown_target' | 'target_disabled' | 'domain_mismatch'
 
 /**
  * What the extension reports about a site.
@@ -54,67 +44,38 @@ export interface CookiePacket {
   cookies: CookiePacketCookie[]
 }
 
-/**
- * The outcome of routing a packet.
- *
- * `account` names the account the session belongs to. `new_account` asks the
- * caller to open one. `ambiguous` means the session cannot be attributed to an
- * account without the user, so the packet is held for a later decision.
- */
+/** The outcome of routing a packet. */
 export type CookiePacketRoute =
-  | {
-      ok: true
-      kind: 'account'
-      target: SiteSessionTargetRow
-      accountId: string
-      cookies: CookiePacketCookie[]
-    }
-  | { ok: true; kind: 'new_account'; target: SiteSessionTargetRow; cookies: CookiePacketCookie[] }
-  | { ok: false; kind: 'refused'; reason: CookiePacketRejection }
-  | { ok: false; kind: 'ambiguous'; target: SiteSessionTargetRow; cookies: CookiePacketCookie[] }
+  | { ok: true; target: SiteSessionTargetRow; cookies: CookiePacketCookie[] }
+  | { ok: false; reason: CookiePacketRejection }
 
 /**
- * Routes a packet to the account of its site that it belongs to.
+ * Routes a packet to the site it belongs to.
  *
- * `candidates` are the site's open accounts; `fingerprint` is the digest of
- * the session the packet carries (or null when it carries no identity cookie).
- * Both are computed by the caller, which also needs the fingerprint when it
- * opens the account the route asks for.
+ * `isEnabled` is asked synchronously so that a packet that arrives right
+ * after the user switched a site off is refused on the spot, rather than
+ * after an await that could read a state the user has already changed.
  */
 export function routeCookiePacket(
   packet: CookiePacket,
-  target: SiteSessionTargetRow | null,
-  candidates: readonly SiteSessionAccountCandidate[],
-  fingerprint: string | null
+  targets: readonly SiteSessionTargetRow[],
+  isEnabled: (siteId: string) => boolean
 ): CookiePacketRoute {
+  const target = targets.find((candidate) => candidate.siteId === packet.targetId)
   if (!target) {
-    return { ok: false, kind: 'refused', reason: 'unknown_target' }
+    return { ok: false, reason: 'unknown_target' }
   }
 
-  if (candidates.length === 0) {
-    return { ok: false, kind: 'refused', reason: 'target_disabled' }
+  if (!isEnabled(packet.targetId)) {
+    return { ok: false, reason: 'target_disabled' }
   }
 
   const carriesForeignCookie = packet.cookies.some(
     (cookie) => !isCookieDomainAllowed(cookie.domain, target.cookieDomains)
   )
   if (carriesForeignCookie) {
-    return { ok: false, kind: 'refused', reason: 'domain_mismatch' }
+    return { ok: false, reason: 'domain_mismatch' }
   }
 
-  const match = matchSiteSessionAccount({ fingerprint, candidates })
-  if (match.kind === 'matched') {
-    return {
-      ok: true,
-      kind: 'account',
-      target,
-      accountId: match.accountId,
-      cookies: packet.cookies
-    }
-  }
-  if (match.kind === 'create') {
-    return { ok: true, kind: 'new_account', target, cookies: packet.cookies }
-  }
-
-  return { ok: false, kind: 'ambiguous', target, cookies: packet.cookies }
+  return { ok: true, target, cookies: packet.cookies }
 }

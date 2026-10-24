@@ -120,12 +120,12 @@ export const GeminiToolButton = memo(function GeminiToolButton({
     onOpenSettings('site-sessions')
   }, [onOpenSettings])
 
-  const sites = siteSessionData?.accountViews ?? []
+  const views = siteSessionData?.views ?? []
   // The button belongs to the feature, not to one site: it shows up as soon as
-  // a single account pulls its session from Chrome.
-  if (!hasEnabledSiteSession(sites)) return null
+  // a single site pulls its session from Chrome.
+  if (!hasEnabledSiteSession(views)) return null
 
-  const needsAttention = hasSiteSessionNeedingAttention(sites)
+  const needsAttention = hasSiteSessionNeedingAttention(views)
 
   return (
     <FloatingDockIcon

@@ -20,26 +20,11 @@ import {
   isCookieDomainAllowed,
   normalizeCookieDomain
 } from './siteSessionCookies.js'
+import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
- * The part of an account a wipe needs: its cookie jar and the data it owns.
- *
- * The fields are the ones `SiteSessionAccountRow` carries; the wipe stays
- * unaware of the account model, so the caller can hand it any row that names
- * those three things.
- */
-interface SiteSessionWipeTarget {
-  /** The partition the account's session lives in. */
-  partition: string
-  /** The cookie domains that belong to the site. */
-  cookieDomains: readonly string[]
-  /** The origins whose storage belongs to the site. */
-  origins: readonly string[]
-}
-
-/**
- * Removes the cookies of one account, clears the storage of its origins and
- * the credentials it authenticated with.
+ * Removes the cookies of one site, clears the storage of its origin and the
+ * credentials it authenticated with.
  *
  * The domain rule lives in `siteSessionCookies.ts`: the writer of a session,
  * the reader of one and this eraser all decide what belongs to a site, and
@@ -47,7 +32,7 @@ interface SiteSessionWipeTarget {
  */
 export async function wipeSiteSession(
   targetSession: Session,
-  target: SiteSessionWipeTarget
+  target: SiteSessionTargetRow
 ): Promise<void> {
   // A cookie store that cannot be read must not stop the wipe: the storage of
   // the origin has to go as well, otherwise the site keeps its session.

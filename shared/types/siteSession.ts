@@ -1,12 +1,12 @@
 /**
  * Wire contract for the per-site Chrome session import.
  *
- * The renderer sees one *site view* per site, and inside it one *account
- * view* per account: a site may hold several accounts at once, and each of
- * them lives in its own cookie jar. The main process owns the partition a
- * site lives in and the cookie domains that may travel between Chrome and
- * the app, so those never appear in a renderer-facing type - only in
- * `SiteSessionTarget`, which is main-process only.
+ * The renderer sees a *view* per site: a label key, the hostname, whether the
+ * site shares the user's Chrome session and the status of the last import.
+ * The main process owns the partition a site lives in and the cookie domains
+ * that may travel between Chrome and the app, so those never appear in a
+ * renderer-facing type - only in `SiteSessionTarget`, which is main-process
+ * only.
  */
 
 /** Where a site comes from: a built-in platform, the Google family, or a user-added site. */
@@ -23,36 +23,20 @@ export type SiteSessionStatusCode =
   | 'manual_session'
   | 'signed_out'
 
-/** The id of the account every site owns: the one on the platform's own partition. */
-export const PRIMARY_ACCOUNT_ID = 'primary'
-
-/** One account of a site: what the renderer needs to draw a row of it. */
-export interface SiteSessionAccountView {
-  accountId: string
-  /** The user's name for the account; null while it has none. */
-  name: string | null
-  /** The 1-based position of the account in its site. The primary account is 1. */
-  index: number
-  enabled: boolean
-  status: SiteSessionStatusCode
-  importedAt: string | null
-  lastError: string | null
-  isActive: boolean
-  isPrimary: boolean
-}
-
-/** One site with the accounts it holds. */
-export interface SiteSessionSiteView {
+/** One row of the settings list: everything the renderer needs to draw a site. */
+export interface SiteSessionView {
   siteId: string
+  /** i18n key of the site label, resolved by the renderer. */
   labelKey: string
   hostname: string
   kind: SiteSessionKind
+  /** The AI app ids that belong to this site. */
   memberAppIds: string[]
-  accounts: SiteSessionAccountView[]
-  activeAccountId: string | null
-  attributedAccountId: string | null
-  /** True when a session arrived that could not be attributed to an account. */
-  hasPendingSession: boolean
+  enabled: boolean
+  status: SiteSessionStatusCode
+  /** ISO timestamp of the last successful import, or null. */
+  importedAt: string | null
+  lastError: string | null
 }
 
 /**
@@ -80,8 +64,7 @@ export interface SiteSessionTarget {
 
 /** Payload of the list invoke and of the change event. */
 export interface SiteSessionListResult {
-  /** The accounts of every site, one row per account and cookie jar. */
-  accountViews: SiteSessionSiteView[]
+  views: SiteSessionView[]
   /** Whether the Chrome extension is currently connected to the app. */
   extensionConnected: boolean
   /** Whether the connected extension is new enough to be used. */
@@ -94,22 +77,18 @@ export interface SiteSessionListResult {
  * `error` is a stable code that the renderer can translate. Every code the
  * app can produce:
  *
- *   - `unknown_target`: the app does not know the site or the account the
- *     action was for, or the site holds no pending session to resolve
- *   - `write_failed`: the setting could not be written; nothing else happened
- *   - `wipe_failed`: the session could not be cleared; no switch was written
+ *   - `unknown_target`: the app does not know the site the action was for
+ *   - `write_failed`: the switch could not be written; nothing else happened
+ *   - `wipe_failed`: the session could not be cleared; the switch was not touched
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
- *     be cleared — the account is off but still holds its session
- *   - `folder_delete_failed`: the account was removed and its partition is no
- *     longer trusted, but its data folder could not be deleted
- *   - `primary_account`: the primary account cannot be deleted
- *   - `duplicate_name`: another account of the same site already has that name
- *   - `import_failed`: the pending session could not be written into an account
- *   - `invalid_arguments`: an id was empty or not a string, a name was longer
- *     than 64 characters, or the switch was not a boolean
+ *     be cleared — `detail` says so
+ *   - `invalid_site_id`: the site id was not a string
+ *   - `invalid_enabled`: the switch was not a boolean
  *   - `Unauthorized`: the request did not come from the trusted window
  */
 export interface SiteSessionActionResult {
   success: boolean
   error?: string
+  /** A human readable note about a failure that happened partly. */
+  detail?: string
 }

@@ -192,35 +192,6 @@ export function unregisterCustomPlatformOrigin(partition: string): void {
 }
 
 /**
- * Partitions the app minted for additional accounts of a site, keyed by their
- * trusted hostnames. Populated at start-up from the persisted account state
- * (see siteSessionAccounts.ts) and again whenever accounts change, so it is
- * never a stale hand-maintained copy.
- */
-const accountTrustedHosts = new Map<string, Set<string>>()
-
-/**
- * Records the origin an additional account's partition was created for.
- *
- * Registering the origin is what lets the panel open the account and keeps its
- * passive capabilities working; it deliberately does not touch
- * PARTITION_AMBIENT_ALLOWLIST, so an account partition stays default-deny for
- * camera/mic/location — exactly like a user-added platform.
- */
-export function registerAccountPartition(partition: string, url: string): void {
-  const host = hostnameOf(url)
-  if (!host) return
-  const existing = accountTrustedHosts.get(partition)
-  if (existing) existing.add(host)
-  else accountTrustedHosts.set(partition, new Set([host]))
-}
-
-/** Drops an account's origin binding when the account is removed. */
-export function unregisterAccountPartition(partition: string): void {
-  accountTrustedHosts.delete(partition)
-}
-
-/**
  * Partitions a managed remote view may use. Derived from the registry, so this
  * stays in sync with AI_REGISTRY / INACTIVE_PLATFORMS / the Google session
  * partition instead of drifting from a hard-coded copy.
@@ -229,11 +200,7 @@ export function isAllowedManagedViewPartition(partition: unknown): boolean {
   if (typeof partition !== 'string' || partition.length === 0) return false
   if (partition === GENERIC_AI_PARTITION) return true
   if (builtinTrustedHosts.has(partition)) return true
-  if (accountTrustedHosts.has(partition)) return true
-  // A custom partition is allowed only once its origin was registered: the
-  // prefix alone says nothing about who may open it, and an account partition
-  // of a custom site carries the same prefix without being a platform.
-  return customTrustedHosts.has(partition)
+  return isCustomPartition(partition)
 }
 
 /**
@@ -257,12 +224,10 @@ export function isHostTrustedForPartition(partition: string, hostname: string): 
  * Single source of truth: sessions.ts used to recompute this union from
  * AI_REGISTRY + INACTIVE_PLATFORMS + APP_CONFIG.PARTITIONS.AI, which could
  * drift from the trusted-host table above and leave a partition without a
- * policy (or configure one twice). Account partitions are included so their
- * sessions are configured the same way; sessionSetup also calls this after
- * registering the dynamically created ones.
+ * policy (or configure one twice).
  */
 export function listManagedAiPartitions(): string[] {
-  return [GENERIC_AI_PARTITION, ...builtinTrustedHosts.keys(), ...accountTrustedHosts.keys()]
+  return [GENERIC_AI_PARTITION, ...builtinTrustedHosts.keys()]
 }
 
 function trustedHostsFor(partition: string): ReadonlySet<string> | null {
@@ -271,12 +236,7 @@ function trustedHostsFor(partition: string): ReadonlySet<string> | null {
     // origin to bind to. Treated as untrusted for every permission.
     return null
   }
-  return (
-    builtinTrustedHosts.get(partition) ??
-    customTrustedHosts.get(partition) ??
-    accountTrustedHosts.get(partition) ??
-    null
-  )
+  return builtinTrustedHosts.get(partition) ?? customTrustedHosts.get(partition) ?? null
 }
 
 /**
