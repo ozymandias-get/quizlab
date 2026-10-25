@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { Logger } from '../../../core/logger.js'
+import { AI_REGISTRY } from '../../../features/ai/aiManager.js'
 import { readCustomPlatforms } from '../../../features/ai/customPlatformStore.js'
 import {
   buildBuiltinSiteSessionTargets,
@@ -43,7 +44,13 @@ describe('built-in site session targets', () => {
     const google = targets.filter((target) => target.kind === 'google')
     expect(google).toHaveLength(1)
     expect(google[0].siteId).toBe('google')
-    expect(google[0].memberAppIds).toEqual(['gemini', 'aistudio', 'youtube', 'gdrive'])
+    expect(google[0].memberAppIds).toEqual([
+      'gemini',
+      'aistudio',
+      'youtube',
+      'gdrive',
+      'notebooklm'
+    ])
     expect(google[0].partition).toBe('persist:gemini_web_profile')
   })
 
@@ -66,26 +73,14 @@ describe('built-in site session targets', () => {
     }
   })
 
-  it('derives exactly one row per site the app ships with', () => {
-    // The whole derived list, in order: a platform that loses its partition or
-    // its url would silently drop out of the settings list, and a platform
-    // that gains one would silently join it.
-    expect(targets.map((target) => target.siteId)).toEqual([
-      'google',
-      'chatgpt',
-      'deepseek',
-      'qwen',
-      'claude',
-      'kimi',
-      'm365',
-      'copilot',
-      'grok',
-      'huggingchat',
-      'manus',
-      'mistral',
-      'perplexity'
-    ])
-    expect(targets).toHaveLength(13)
+  it('covers every catalogue chat with a single dedicated or Google session target', () => {
+    expect(targets).toHaveLength(48)
+    for (const platform of Object.values(AI_REGISTRY).filter((p) => p.url && !p.isSite)) {
+      const matching = targets.filter((target) => target.memberAppIds.includes(platform.id))
+      expect(matching, platform.id).toHaveLength(1)
+      expect(matching[0].partition).toBe(platform.partition)
+    }
+    expect(targets.some((target) => target.siteId === 'notebooklm')).toBe(false)
   })
 
   it('gives every target its own partition', () => {
@@ -110,7 +105,8 @@ describe('built-in site session targets', () => {
       'https://gemini.google.com',
       'https://aistudio.google.com',
       'https://www.youtube.com',
-      'https://drive.google.com'
+      'https://drive.google.com',
+      'https://notebooklm.google.com'
     ])
   })
 
@@ -228,9 +224,10 @@ describe('site session view', () => {
     ).toEqual({
       siteId: 'google',
       labelKey: 'ws_target_google',
-      hostname: 'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com',
+      hostname:
+        'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com, notebooklm.google.com',
       kind: 'google',
-      memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive'],
+      memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive', 'notebooklm'],
       enabled: true,
       status: 'imported',
       importedAt: '2026-10-19T10:00:00.000Z',

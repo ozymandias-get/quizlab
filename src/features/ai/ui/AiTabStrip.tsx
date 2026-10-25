@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
+import AiTabSlotPill from './aiTabStrip/AiTabSlotPill'
 import AiTabStripRefreshButton from './aiTabStrip/AiTabStripRefreshButton'
 import AiVisibleTabButton from './aiTabStrip/AiVisibleTabButton'
 import { useAiTabStripState } from './aiTabStrip/useAiTabStripState'
@@ -31,7 +32,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const aiSites = useAiSites()
   const { hasActiveContent } = useAiContentPresence()
-  const { setActiveTab, closeTab, renameTab, togglePinTab } = useAiTabActions()
+  const { setActiveTab, closeTab, renameTab, togglePinTab, setTabSessionSlot } = useAiTabActions()
   const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
   const { refs, state, helpers, actions } = useAiTabStripState({
@@ -71,6 +72,8 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
     actions.setContextMenu(null)
   }, [actions])
 
+  const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
   return (
     <div className={TAB_STRIP_BAR_CLASS}>
       <div className={TAB_STRIP_ROW_CLASS}>
@@ -81,6 +84,16 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
           title={t('ai_home.refresh_page')}
           onRefresh={reloadActiveContent}
         />
+
+        {!showHome && (
+          <AiTabSlotPill
+            modelId={activeTab?.modelId}
+            sessionSlot={activeTab?.sessionSlot}
+            onSwitchSlot={(slot) => {
+              if (activeTab) setTabSessionSlot(activeTab.id, slot)
+            }}
+          />
+        )}
 
         <div className={TAB_STRIP_DIVIDER_CLASS} aria-hidden />
 

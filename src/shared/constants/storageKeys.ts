@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   LAST_SELECTED_AI: 'lastSelectedAI',
   AUTO_SEND_ENABLED: 'autoSendEnabled',
   ENABLED_MODELS: 'enabledModels',
+  FAVORITE_AI_MODELS: 'favoriteAiModels',
   BUILT_IN_SITE_BOOTSTRAP: 'builtInSiteBootstrap',
   DEFAULT_AI_MODEL: 'defaultAiModel',
   PINNED_AI_TABS: 'pinnedAiTabs',

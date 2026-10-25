@@ -24,6 +24,7 @@ interface AiHomeCardGridProps {
   ids: string[]
   onOpenModel: (id: string) => void
   tone: SectionTone
+  showApiChat?: boolean
 }
 
 const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
@@ -33,7 +34,8 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
   dragState,
   ids,
   onOpenModel,
-  tone
+  tone,
+  showApiChat = true
 }: AiHomeCardGridProps) {
   const { t } = useTranslation()
   const gridStyle = useMemo(() => ({ gridTemplateColumns: cardColumns }), [cardColumns])
@@ -56,7 +58,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
 
   return (
     <div className="grid gap-2.5 contain-content" style={gridStyle}>
-      {tone === 'model' && (
+      {tone === 'model' && showApiChat && (
         <div role="presentation">
           <div className="relative rounded-xl">
             <button

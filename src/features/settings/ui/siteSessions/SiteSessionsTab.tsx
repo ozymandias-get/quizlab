@@ -28,6 +28,7 @@ const SiteSessionsTab = memo(() => {
     isBusy,
     canClearAll,
     onToggle,
+    onSelectSlot,
     onClearAll,
     riskItems,
     mitigationItems,
@@ -63,7 +64,17 @@ const SiteSessionsTab = memo(() => {
 
       <p className="text-ql-12 text-muted-foreground leading-relaxed">{t('ws_toggle_hint')}</p>
 
-      <SiteSessionList views={views} disabled={isBusy} onToggle={onToggle} t={t} />
+      <p className="text-ql-12 text-muted-foreground leading-relaxed">
+        {t('ws_multi_session_note')}
+      </p>
+
+      <SiteSessionList
+        views={views}
+        disabled={isBusy}
+        onToggle={onToggle}
+        onSelectSlot={onSelectSlot}
+        t={t}
+      />
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-start">

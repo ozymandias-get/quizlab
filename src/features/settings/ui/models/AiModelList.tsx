@@ -13,9 +13,9 @@ import {
 import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 
 import { Description, Field, Label } from '@headlessui/react'
-import { Globe, Star } from 'lucide-react'
+import { CircleCheck, Globe, Search, Star } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, type MouseEvent, useState } from 'react'
+import { memo, type MouseEvent, useMemo, useState } from 'react'
 
 import { getAiPlatformIcon, getAiPlatformLabel } from '../shared/aiPlatformPresentation'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
@@ -23,6 +23,8 @@ import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 interface AiModelListProps {
   modelsList: string[]
   enabledModels: string[]
+  favoriteModels?: string[]
+  toggleFavoriteModel?: (key: string) => void
   aiSites: Record<string, AiPlatform>
   toggleModel: (key: string) => void
   handleDeleteAi: (e: MouseEvent, id: string, name: string) => Promise<void>
@@ -46,6 +48,8 @@ const HOVER_AFFORDANCE =
 const AiModelList = memo(function AiModelList({
   modelsList,
   enabledModels,
+  favoriteModels = [],
+  toggleFavoriteModel,
   aiSites,
   toggleModel,
   handleDeleteAi,
@@ -60,6 +64,25 @@ const AiModelList = memo(function AiModelList({
   const { showError } = useToastActions()
   const [localDeletingId, setLocalDeletingId] = useState<string | null>(null)
   const [localClearingId, setLocalClearingId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredModelsList = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return modelsList
+    return modelsList.filter((key) => {
+      const site = aiSites[key]
+      if (!site) return key.toLowerCase().includes(q)
+      const name = (site.name || '').toLowerCase()
+      const displayName = (site.displayName || '').toLowerCase()
+      const url = (site.url || '').toLowerCase()
+      return (
+        key.toLowerCase().includes(q) ||
+        name.includes(q) ||
+        displayName.includes(q) ||
+        url.includes(q)
+      )
+    })
+  }, [modelsList, aiSites, searchQuery])
 
   const handleDeleteClick = async (e: MouseEvent, id: string, name: string) => {
     setLocalDeletingId(id)
@@ -100,8 +123,26 @@ const AiModelList = memo(function AiModelList({
 
   return (
     <div className="flex flex-col gap-2">
+      {modelsList.length > 5 && (
+        <div className="relative mb-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('search_ai_placeholder')}
+            aria-label={t('search_ai_placeholder')}
+            className="bg-card border-border/50 text-foreground placeholder:text-muted-foreground focus:border-primary/60 focus:ring-primary/20 text-ql-12 h-9 w-full rounded-xl border pr-3 pl-9 focus:ring-2 focus:outline-none"
+          />
+        </div>
+      )}
+      {filteredModelsList.length === 0 && (
+        <p role="status" className="text-muted-foreground text-ql-12 py-4 text-center">
+          {t('ai_catalog_no_results')}
+        </p>
+      )}
       <AnimatePresence mode="popLayout">
-        {modelsList.map((key, index) => {
+        {filteredModelsList.map((key, index) => {
           const isEnabled = enabledModels.includes(key)
           const isLastModel = isEnabled && enabledModels.length <= minEnabledModels
           const site = aiSites[key]
@@ -115,7 +156,7 @@ const AiModelList = memo(function AiModelList({
               layout
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.03 }}
+              transition={{ delay: Math.min(index, 6) * 0.03 }}
             >
               <Field
                 className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border p-4 transition-colors ${
@@ -163,6 +204,35 @@ const AiModelList = memo(function AiModelList({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5">
+                  {toggleFavoriteModel && (
+                    <WithTooltip
+                      label={t(
+                        favoriteModels.includes(key)
+                          ? 'remove_favorite_model'
+                          : 'add_favorite_model'
+                      )}
+                    >
+                      <IconButton
+                        type="button"
+                        size="compact"
+                        variant="ghost"
+                        aria-pressed={favoriteModels.includes(key)}
+                        aria-label={`${t(favoriteModels.includes(key) ? 'remove_favorite_model' : 'add_favorite_model')} — ${getAiPlatformLabel(site, key, t)}`}
+                        className={
+                          favoriteModels.includes(key)
+                            ? 'text-amber-500 dark:text-amber-400'
+                            : 'text-muted-foreground'
+                        }
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          toggleFavoriteModel(key)
+                        }}
+                      >
+                        <Star fill={favoriteModels.includes(key) ? 'currentColor' : 'none'} />
+                      </IconButton>
+                    </WithTooltip>
+                  )}
                   {isEnabled && setDefaultAiModel && defaultAiModel !== undefined && (
                     <WithTooltip
                       label={defaultAiModel === key ? t('is_default_model') : t('set_as_default')}
@@ -185,15 +255,13 @@ const AiModelList = memo(function AiModelList({
                           defaultAiModel === key ? t('is_default_model') : t('set_as_default')
                         }
                       >
-                        <Star
-                          className="transition-transform group-hover/star:scale-110"
-                          fill={defaultAiModel === key ? 'currentColor' : 'none'}
-                        />
+                        <CircleCheck className="transition-transform group-hover/star:scale-110" />
                       </IconButton>
                     </WithTooltip>
                   )}
 
                   <SettingsToggleSwitch
+                    aria-label={getAiPlatformLabel(site, key, t)}
                     checked={isEnabled}
                     onChange={() => !isLastModel && toggleModel(key)}
                     disabled={isLastModel}

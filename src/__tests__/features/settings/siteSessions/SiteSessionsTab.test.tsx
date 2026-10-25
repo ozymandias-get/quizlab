@@ -27,7 +27,8 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
     isLoading: false
   }),
   useSetSiteSessionEnabledMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
+  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetSiteSessionActiveSlotMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
 }))
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({

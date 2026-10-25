@@ -5,25 +5,9 @@ import type { IconProps } from './iconProps'
 
 const iconModules = import.meta.glob<{ default: ComponentType<IconProps> }>('./ai/*.tsx')
 
-const AI_ICON_KEYS = new Set([
-  'chatgpt',
-  'qwen',
-  'grok',
-  'kimi',
-  'perplexity',
-  'deepseek',
-  'mistral',
-  'copilot',
-  'manus',
-  'claude',
-  'gemini',
-  'aistudio',
-  'youtube',
-  'gdrive',
-  'huggingchat',
-  'globe',
-  'api-chat'
-])
+const AI_ICON_KEYS = new Set(
+  Object.keys(iconModules).map((path) => path.replace('./ai/', '').replace('.tsx', ''))
+)
 
 const lazyByKey = new Map<string, LazyExoticComponent<ComponentType<IconProps>>>()
 

@@ -19,13 +19,13 @@
  *   - `read()` never writes once the file exists. A version that advanced on
  *     every read would look like a change to the extension on every poll.
  */
-
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { app } from 'electron'
 
 import { GOOGLE_AI_WEB_SITE_ID } from '../../../shared/constants/googleAiWebApps.js'
+import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
 
 /** The file this feature writes its state into. */
@@ -40,11 +40,19 @@ const CONFIG_VERSION = 1
 /** The keys a config file may not carry, mirroring `ConfigManager`'s guard. */
 const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
+export interface SiteSessionSlotState {
+  importedAt: string | null
+  lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
+  lastError: string | null
+}
+
 export interface SiteSessionTargetState {
   enabled: boolean
   importedAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
+  activeSlot?: number
+  slots?: Record<number, SiteSessionSlotState>
 }
 
 export interface SiteSessionConfigFile {
@@ -96,7 +104,9 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
     enabled,
     importedAt: null,
     lastResult: null,
-    lastError: null
+    lastError: null,
+    activeSlot: 1,
+    slots: {}
   }
 }
 
@@ -133,14 +143,54 @@ function normalizeFormatVersion(value: unknown): number {
  * describe. The fields this build does not know are kept, so a file written
  * by a newer build does not lose them on the next write.
  */
-function normalizeTargetState(raw: unknown): SiteSessionTargetState {
+function normalizeTargetState(raw: unknown, siteId: string): SiteSessionTargetState {
   const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const activeSlot =
+    siteId === GOOGLE_AI_WEB_SITE_ID && isSiteSessionSlot(source.activeSlot) ? source.activeSlot : 1
+
+  let slots: Record<number, SiteSessionSlotState> | undefined
+  if (typeof source.slots === 'object' && source.slots !== null) {
+    slots = {}
+    for (const [k, v] of Object.entries(source.slots as Record<string, unknown>)) {
+      const slotNum = Number(k)
+      if (isSiteSessionSlot(slotNum) && typeof v === 'object' && v !== null) {
+        const slotObj = v as Record<string, unknown>
+        slots[slotNum] = {
+          importedAt: typeof slotObj.importedAt === 'string' ? slotObj.importedAt : null,
+          lastResult: isLastResult(slotObj.lastResult) ? slotObj.lastResult : null,
+          lastError: typeof slotObj.lastError === 'string' ? slotObj.lastError : null
+        }
+      }
+    }
+  }
+
   return {
     ...source,
     enabled: source.enabled === true,
-    importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
-    lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
-    lastError: typeof source.lastError === 'string' ? source.lastError : null
+    importedAt:
+      slots?.[activeSlot]?.importedAt ??
+      (activeSlot === (source.activeSlot ?? 1) && typeof source.importedAt === 'string'
+        ? source.importedAt
+        : null),
+    lastResult:
+      slots?.[activeSlot]?.lastResult ??
+      (activeSlot === (source.activeSlot ?? 1) && isLastResult(source.lastResult)
+        ? source.lastResult
+        : null),
+    lastError:
+      slots?.[activeSlot]?.lastError ??
+      (activeSlot === (source.activeSlot ?? 1) && typeof source.lastError === 'string'
+        ? source.lastError
+        : null),
+    activeSlot,
+    slots: {
+      1: {
+        importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
+        lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
+        lastError: typeof source.lastError === 'string' ? source.lastError : null
+      },
+      ...slots
+    }
   }
 }
 
@@ -153,7 +203,7 @@ function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
   if (typeof rawTargets === 'object' && rawTargets !== null) {
     for (const [siteId, state] of Object.entries(rawTargets)) {
       if (PROHIBITED_KEYS.has(siteId)) continue
-      targets[siteId] = normalizeTargetState(state)
+      targets[siteId] = normalizeTargetState(state, siteId)
     }
   }
 
@@ -358,7 +408,8 @@ export class SiteSessionConfig {
   async recordResult(
     siteId: string,
     result: SiteSessionTargetState['lastResult'],
-    error?: string
+    error?: string,
+    slot: number = 1
   ): Promise<void> {
     await this.loadState()
     if (PROHIBITED_KEYS.has(siteId)) return
@@ -366,6 +417,19 @@ export class SiteSessionConfig {
     const written = await this.store.update((current) => {
       const currentState = normalizeConfigFile(current)
       const existing = currentState.targets[siteId] ?? createTargetState(false)
+      const existingSlots = existing.slots ?? {}
+      const targetSlot = isSiteSessionSlot(slot) ? slot : 1
+      const updatedSlot: SiteSessionSlotState = {
+        importedAt:
+          result === 'imported'
+            ? new Date().toISOString()
+            : (existingSlots[targetSlot]?.importedAt ?? null),
+        lastResult: result,
+        lastError: error ?? null
+      }
+      const updatedSlots = { ...existingSlots, [targetSlot]: updatedSlot }
+
+      const isCurrent = (existing.activeSlot || 1) === targetSlot
       return {
         ...currentState,
         configVersion: currentState.configVersion,
@@ -373,9 +437,10 @@ export class SiteSessionConfig {
           ...currentState.targets,
           [siteId]: {
             ...existing,
-            importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
-            lastResult: result,
-            lastError: error ?? null
+            importedAt: isCurrent ? updatedSlot.importedAt : existing.importedAt,
+            lastResult: isCurrent ? updatedSlot.lastResult : existing.lastResult,
+            lastError: isCurrent ? updatedSlot.lastError : existing.lastError,
+            slots: updatedSlots
           }
         }
       }
@@ -383,6 +448,76 @@ export class SiteSessionConfig {
 
     if (!written) {
       throw new Error(`[Web Session] The import result of "${siteId}" could not be written.`)
+    }
+  }
+
+  /** Clears import history only after both application sessions were wiped. */
+  async resetResults(siteId: string): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+    const written = await this.store.update((current) => {
+      const state = normalizeConfigFile(current)
+      const existing = state.targets[siteId]
+      if (!existing) return state
+      return {
+        ...state,
+        targets: {
+          ...state.targets,
+          [siteId]: {
+            ...existing,
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: Object.fromEntries(
+              [
+                ...new Set([
+                  1,
+                  existing.activeSlot ?? 1,
+                  ...Object.keys(existing.slots ?? {}).map(Number)
+                ])
+              ]
+                .filter(isSiteSessionSlot)
+                .map((slot) => [slot, { importedAt: null, lastResult: null, lastError: null }])
+            )
+          }
+        }
+      }
+    })
+    if (!written) throw new Error('Session history could not be cleared.')
+  }
+
+  /**
+   * Switches the active account slot for a site (e.g. 1 or 2).
+   */
+  async setActiveSlot(siteId: string, slot: number): Promise<void> {
+    if (!isSiteSessionSlot(slot) || (siteId !== GOOGLE_AI_WEB_SITE_ID && slot !== 1))
+      throw new Error('invalid_slot')
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId] ?? createTargetState(false)
+      const targetSlot = isSiteSessionSlot(slot) ? slot : 1
+      const slotState = existing.slots?.[targetSlot]
+
+      return {
+        ...currentState,
+        targets: {
+          ...currentState.targets,
+          [siteId]: {
+            ...existing,
+            activeSlot: targetSlot,
+            importedAt: slotState?.importedAt ?? null,
+            lastResult: slotState?.lastResult ?? null,
+            lastError: slotState?.lastError ?? null
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The active slot of "${siteId}" could not be written.`)
     }
   }
 

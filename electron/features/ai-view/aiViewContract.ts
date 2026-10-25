@@ -1,3 +1,4 @@
+import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import type {
   AiContentInputEvent,
   AiViewBounds,
@@ -197,14 +198,16 @@ export function parseInputEvent(value: unknown): AiContentInputEvent | null {
  */
 export function parseSource(value: unknown): AiViewSource | null {
   if (!isPlainRecord(value)) return null
+  if (value.sessionSlot !== undefined && !isSiteSessionSlot(value.sessionSlot)) return null
+  const slot = value.sessionSlot === undefined ? {} : { sessionSlot: value.sessionSlot }
   const kind = value.kind
   if (kind === 'ai-platform') {
     const modelId = parseViewId(value.modelId)
-    return modelId ? { kind: 'ai-platform', modelId } : null
+    return modelId ? { kind: 'ai-platform', modelId, ...slot } : null
   }
   if (kind === 'google-web-app') {
     const appId = parseViewId(value.appId)
-    return appId ? { kind: 'google-web-app', appId } : null
+    return appId ? { kind: 'google-web-app', appId, ...slot } : null
   }
   return null
 }

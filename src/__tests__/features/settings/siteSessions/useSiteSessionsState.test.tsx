@@ -49,6 +49,10 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useClearSiteSessionMutation: () => ({
     mutateAsync: mockClear,
     isPending: false
+  }),
+  useSetSiteSessionActiveSlotMutation: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ success: true }),
+    isPending: false
   })
 }))
 

@@ -84,6 +84,7 @@ function makeService(
       }
     }),
     setEnabled: vi.fn().mockResolvedValue(undefined),
+    resetResults: vi.fn().mockResolvedValue(undefined),
     recordResult: vi.fn().mockResolvedValue(undefined)
   }
   const service = new SiteSessionService({
@@ -102,6 +103,14 @@ describe('SiteSessionService', () => {
     // The list is kept for a couple of seconds: every test starts with an
     // empty cache, or it would read the list of the test before it.
     invalidateSiteSessionListCache()
+  })
+
+  it('rejects account 2 on a non-Google site', async () => {
+    const { service } = makeService()
+    expect(await service.setActiveSlot('chatgpt', 2)).toEqual({
+      success: false,
+      error: 'invalid_slot'
+    })
   })
 
   it('lists every target with the import switched off by default', async () => {
@@ -369,7 +378,7 @@ describe('the list of the sites', () => {
     await service.clear('chatgpt')
     await service.list()
 
-    expect(config.read).toHaveBeenCalledTimes(2)
+    expect(config.read).toHaveBeenCalledTimes(3)
   })
 
   it('does not keep the list after an import', async () => {

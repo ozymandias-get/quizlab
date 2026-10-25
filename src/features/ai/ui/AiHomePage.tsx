@@ -1,5 +1,5 @@
-import { Globe, Sparkles } from 'lucide-react'
-import { memo } from 'react'
+import { Globe, Sparkles, Star } from 'lucide-react'
+import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useAiHomeState } from '../hooks/useAiHomeState'
@@ -12,6 +12,7 @@ import AiHomeSection from './home/AiHomeSection'
  *  every render of the parent, breaking shallow comparison). */
 const MODELS_SECTION_ICON = <Sparkles className="h-4 w-4" />
 const SITES_SECTION_ICON = <Globe className="h-4 w-4" />
+const FAVORITES_SECTION_ICON = <Star className="h-4 w-4 text-amber-500" />
 
 interface AiHomePageProps {
   onOpenModel: (modelId: string) => void
@@ -23,6 +24,9 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
     activeModelIds,
     activeTabId,
     aiSites,
+    enableModel,
+    favoriteOrder,
+    favoriteDrag,
     cardColumns,
     isCompact,
     modelDrag,
@@ -32,6 +36,13 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
     siteOrder,
     tabs
   } = useAiHomeState()
+  const handleOpenModel = useCallback(
+    (id: string) => {
+      enableModel(id)
+      onOpenModel(id)
+    },
+    [enableModel, onOpenModel]
+  )
 
   return (
     <div
@@ -49,6 +60,31 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
           />
 
           <AiHomeSection
+            title={t('ai_home.favorites_title')}
+            detail={t('ai_home.favorites_detail')}
+            icon={FAVORITES_SECTION_ICON}
+            count={favoriteOrder.length}
+            defaultOpen
+          >
+            {favoriteOrder.length > 0 ? (
+              <AiHomeCardGrid
+                activeModelIds={activeModelIds}
+                aiSites={aiSites}
+                cardColumns={cardColumns}
+                dragState={favoriteDrag}
+                ids={favoriteOrder}
+                onOpenModel={onOpenModel}
+                tone="model"
+                showApiChat={favoriteOrder.includes('api-chat')}
+              />
+            ) : (
+              <p className="text-ql-12 text-muted-foreground py-2">
+                {t('ai_home.favorites_empty')}
+              </p>
+            )}
+          </AiHomeSection>
+
+          <AiHomeSection
             title={t('ai_home.models_title')}
             detail={t('ai_home.models_detail')}
             icon={MODELS_SECTION_ICON}
@@ -61,7 +97,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
               cardColumns={cardColumns}
               dragState={modelDrag}
               ids={modelOrder}
-              onOpenModel={onOpenModel}
+              onOpenModel={handleOpenModel}
               tone="model"
             />
           </AiHomeSection>

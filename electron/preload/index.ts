@@ -132,6 +132,8 @@ const electronApi: ElectronApi = {
     setEnabled: (siteId, enabled) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ENABLED, siteId, enabled)),
     clear: (siteId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR, siteId)),
+    setActiveSlot: (siteId, slot) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_SLOT, siteId, slot)),
     onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
   },
 

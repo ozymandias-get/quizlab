@@ -98,6 +98,7 @@ const popupHtml = readExtensionFile(POPUP_HTML_PATH)
 const popupJs = readExtensionFile(POPUP_JS_PATH)
 
 interface SiteTarget {
+  label?: string
   siteId: string
   cookieDomains: string[]
 }
@@ -395,7 +396,7 @@ describe('extension permission popup', () => {
 
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.0.0')
+    expect(manifest.version).toBe('1.1.0')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
@@ -464,6 +465,20 @@ describe('extension permission popup behaviour', () => {
     // a runtime permission to a request that comes from a user gesture.
     expect(harness.requestCalls).toHaveLength(1)
     expect(harness.requestCalls[0].duringGesture).toBe(true)
+  })
+
+  it('shows the label and requests only the chosen catalogue service during the click', async () => {
+    const harness = createHarness({
+      targets: [{ siteId: 'poe', label: 'Poe', cookieDomains: ['.poe.com'] }],
+      granted: []
+    })
+    await harness.settle()
+    expect(textOf(harness.list)).toContain('Poe')
+    expect(harness.requestCalls).toHaveLength(0)
+    harness.click(buttonsOf(harness.list)[0])
+    expect(harness.requestCalls).toEqual([
+      { origins: ['https://*.poe.com/*'], duringGesture: true }
+    ])
   })
 
   it('shows the site as granted after the user allowed it', async () => {

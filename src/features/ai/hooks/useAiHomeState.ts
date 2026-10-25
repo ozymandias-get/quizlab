@@ -12,15 +12,19 @@ import { useGridDragReorder } from './useGridDragReorder'
 
 export function useAiHomeState() {
   const { tabs, activeTabId } = useAiTabsSliceState()
-  const { aiSites = {}, enabledModels = [] } = useAiModelsCatalog()
-  const { setEnabledModels } = useAiModelActions()
+  const { aiSites = {}, enabledModels = [], favoriteModels = [] } = useAiModelsCatalog()
+  const { setEnabledModels, setFavoriteModels } = useAiModelActions()
   const pageRef = useRef<HTMLDivElement>(null)
   const layout = useAiHomeLayout(pageRef)
   const enabledModelsRef = useRef(enabledModels)
   enabledModelsRef.current = enabledModels
 
   const modelIds = useMemo(
-    () => getEnabledAiIdsByType(enabledModels, aiSites, 'model'),
+    () =>
+      mergeOrderedIds(
+        enabledModels,
+        Object.keys(aiSites).filter((id) => aiSites[id] && !aiSites[id].isSite && id !== 'api-chat')
+      ),
     [aiSites, enabledModels]
   )
   const siteIds = useMemo(
@@ -52,9 +56,13 @@ export function useAiHomeState() {
     (newOrder: string[]) => {
       setModelOrder(newOrder)
       const current = enabledModelsRef.current
-      setEnabledModels([...newOrder, ...current.filter((id) => aiSites[id]?.isSite)])
+      // Reordering the catalogue must never switch on its disabled entries.
+      setEnabledModels([
+        ...newOrder.filter((id) => current.includes(id)),
+        ...current.filter((id) => !newOrder.includes(id))
+      ])
     },
-    [aiSites, setEnabledModels]
+    [setEnabledModels]
   )
 
   const handleSiteReorder = useCallback(
@@ -68,6 +76,32 @@ export function useAiHomeState() {
 
   const modelDrag = useGridDragReorder(modelOrder, handleModelReorder)
   const siteDrag = useGridDragReorder(siteOrder, handleSiteReorder)
+  const favoriteOrder = useMemo(
+    () =>
+      favoriteModels.filter(
+        (id) => enabledModels.includes(id) && aiSites[id] && !aiSites[id].isSite
+      ),
+    [favoriteModels, enabledModels, aiSites]
+  )
+  const handleFavoriteReorder = useCallback(
+    (order: string[]) => {
+      setFavoriteModels([...order, ...favoriteModels.filter((id) => !order.includes(id))])
+    },
+    [favoriteModels, setFavoriteModels]
+  )
+  const favoriteDrag = useGridDragReorder(favoriteOrder, handleFavoriteReorder)
+  const enableModel = useCallback(
+    (id: string) => {
+      if (!Object.hasOwn(aiSites, id) || !aiSites[id]) return
+      const current = enabledModelsRef.current
+      if (!current.includes(id)) {
+        const next = [...current, id]
+        enabledModelsRef.current = next
+        setEnabledModels(next)
+      }
+    },
+    [aiSites, setEnabledModels]
+  )
 
   // Memoize the entire return to prevent consumers (AiHomePage) from
   // re-rendering when AiContext values change but the derived state
@@ -79,6 +113,9 @@ export function useAiHomeState() {
       activeModelIds,
       activeTabId,
       aiSites,
+      enableModel,
+      favoriteOrder,
+      favoriteDrag,
       cardColumns: layout.cardColumns,
       isCompact: layout.isCompact,
       modelDrag,
@@ -92,6 +129,9 @@ export function useAiHomeState() {
       activeModelIds,
       activeTabId,
       aiSites,
+      enableModel,
+      favoriteOrder,
+      favoriteDrag,
       layout.cardColumns,
       layout.isCompact,
       modelDrag,

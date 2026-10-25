@@ -1,3 +1,6 @@
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
+  useSiteSessionListQuery: () => ({ data: { views: [] } })
+}))
 import AiSession from '@features/ai/ui/AiSession'
 
 import type { AiContentController } from '@shared-core/types/aiContent'
@@ -146,6 +149,7 @@ vi.mock('@features/ai/hooks/useAiLifecycleSettings', () => ({
 
 const registerContent = vi.hoisted(() => vi.fn())
 vi.mock('@app/providers/ai-context', () => ({
+  useAiTabActions: () => ({ setTabSessionSlot: vi.fn() }),
   useAiSites: () => ({
     chatgpt: { url: 'https://chatgpt.com/', displayName: 'ChatGPT' }
   }),

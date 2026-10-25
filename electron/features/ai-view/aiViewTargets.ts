@@ -2,8 +2,10 @@ import type { AiPlatform } from '@shared-core/types'
 
 import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
+  GOOGLE_AI_WEB_SITE_ID,
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
+import { googleSessionUrl, googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import type { AiViewSource } from '../../../shared/types/aiView.js'
 import {
   isAllowedManagedViewPartition,
@@ -11,6 +13,9 @@ import {
 } from '../../app/window/permissionPolicy.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
+import { ensureGoogleSessionSlot } from '../web-session/googleSessionSlot.js'
+import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
+import { partitionForTargetSlot } from '../web-session/siteSessionTargets.js'
 
 /**
  * Where a managed remote view is allowed to come from.
@@ -57,16 +62,49 @@ function toTarget(
   }
 }
 
-async function resolvePlatformTarget(modelId: string): Promise<AiViewTarget | null> {
-  const builtin = toTarget(entryOf(modelId), entryOf(modelId)?.partition)
-  if (builtin) return builtin
+async function activeSlotForSite(siteId: string): Promise<number> {
+  try {
+    const state = await getSiteSessionConfig().read()
+    return state.targets[siteId]?.activeSlot || 1
+  } catch {
+    return 1
+  }
+}
+
+async function resolvePlatformTarget(
+  modelId: string,
+  sessionSlot?: number
+): Promise<AiViewTarget | null> {
+  const platform = entryOf(modelId)
+  if (platform) {
+    const siteId = GOOGLE_WEB_SESSION_APPS.some((app) => app.id === modelId)
+      ? GOOGLE_AI_WEB_SITE_ID
+      : modelId
+    const slot =
+      siteId === GOOGLE_AI_WEB_SITE_ID ? (sessionSlot ?? (await activeSlotForSite(siteId))) : 1
+    const basePartition = platform.partition
+    const partition = basePartition ? partitionForTargetSlot(basePartition, slot) : undefined
+    const target = toTarget(platform, partition)
+    if (target && siteId === GOOGLE_AI_WEB_SITE_ID) {
+      await ensureGoogleSessionSlot(slot)
+      target.url = googleSessionUrl(target.url, slot)
+    }
+    return target
+  }
 
   const customPlatforms = await readCustomPlatforms()
   if (!Object.prototype.hasOwnProperty.call(customPlatforms, modelId)) return null
-  return toTarget(customPlatforms[modelId], customPlatforms[modelId]?.partition)
+  const customPlatform = customPlatforms[modelId]
+  const slot = 1
+  const basePartition = customPlatform.partition
+  const partition = basePartition ? partitionForTargetSlot(basePartition, slot) : undefined
+  return toTarget(customPlatform, partition)
 }
 
-function resolveGoogleAppTarget(appId: string): AiViewTarget | null {
+async function resolveGoogleAppTarget(
+  appId: string,
+  sessionSlot?: number
+): Promise<AiViewTarget | null> {
   const app = GOOGLE_WEB_SESSION_APPS.find((candidate) => candidate.id === appId)
   if (!app) return null
   let parsed: URL
@@ -76,12 +114,16 @@ function resolveGoogleAppTarget(appId: string): AiViewTarget | null {
     return null
   }
   if (parsed.protocol !== 'https:') return null
-  return { partition: GOOGLE_AI_WEB_SESSION_PARTITION, url: parsed.toString(), label: app.name }
+  const slot = sessionSlot ?? (await activeSlotForSite(GOOGLE_AI_WEB_SITE_ID))
+  const partition = partitionForTargetSlot(GOOGLE_AI_WEB_SESSION_PARTITION, slot)
+  await ensureGoogleSessionSlot(slot)
+  return { partition, url: googleSessionUrl(parsed.toString(), slot), label: app.name }
 }
 
 export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewTarget | null> {
-  if (source.kind === 'google-web-app') return resolveGoogleAppTarget(source.appId)
-  return resolvePlatformTarget(source.modelId)
+  if (source.kind === 'google-web-app')
+    return resolveGoogleAppTarget(source.appId, source.sessionSlot)
+  return resolvePlatformTarget(source.modelId, source.sessionSlot)
 }
 
 /**
@@ -93,7 +135,9 @@ export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewT
 export function resolveEntryUrl(target: AiViewTarget, restoredUrl: string | null): string {
   if (!isUrlTrustedForTarget(target, restoredUrl)) return target.url
   // Safe by construction: the trust check above already parsed this exact string.
-  return new URL(restoredUrl as string).toString()
+  const url = new URL(restoredUrl as string).toString()
+  const googleSlot = googleSlotForPartition(target.partition)
+  return googleSlot === null ? url : googleSessionUrl(url, googleSlot)
 }
 
 /**

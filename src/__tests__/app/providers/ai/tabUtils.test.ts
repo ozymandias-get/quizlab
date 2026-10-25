@@ -127,3 +127,12 @@ describe('areStringArraysEqual', () => {
     expect(areStringArraysEqual(a, b)).toBe(expected)
   })
 })
+
+it('preserves pinned tab account slots and detects account changes', () => {
+  const result = sanitizePinnedTabs([{ id: 'a', modelId: 'gpt', sessionSlot: 2 }], ['gpt'])
+  expect(result[0].sessionSlot).toBe(2)
+  expect(arePinnedTabsEqual(result, [{ ...result[0], sessionSlot: 1 }])).toBe(false)
+  expect(
+    sanitizePinnedTabs([{ id: 'a', modelId: 'gpt', sessionSlot: 100 }], ['gpt'])[0].sessionSlot
+  ).toBeUndefined()
+})

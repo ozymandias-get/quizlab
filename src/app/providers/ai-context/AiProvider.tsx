@@ -45,6 +45,9 @@ function AiProvider({ children }: { children: ReactNode }) {
     setLastSelectedAI,
     enabledModels,
     setEnabledModels,
+    favoriteModels,
+    setFavoriteModels,
+    toggleFavoriteModel,
     defaultAiModel,
     setDefaultAiModel,
     autoSend,
@@ -66,6 +69,7 @@ function AiProvider({ children }: { children: ReactNode }) {
     addTab,
     closeTab,
     setActiveTab,
+    setTabSessionSlot,
     renameTab,
     togglePinTab,
     setCurrentAI
@@ -138,6 +142,18 @@ function AiProvider({ children }: { children: ReactNode }) {
     getContentController()?.reload?.()
   }, [getContentController])
 
+  const recreateActiveContent = useCallback(() => {
+    const controller = getContentController() as {
+      recreate?: () => void
+      reload?: () => void
+    } | null
+    if (typeof controller?.recreate === 'function') {
+      void controller.recreate()
+    } else {
+      controller?.reload?.()
+    }
+  }, [getContentController])
+
   const contextValues = useAiProviderContexts({
     tabs,
     activeTabId,
@@ -154,16 +170,21 @@ function AiProvider({ children }: { children: ReactNode }) {
     addTab,
     handleCloseTab,
     setActiveTab,
+    setTabSessionSlot,
     openAiWorkspace,
     renameTab,
     togglePinTab,
     setCurrentAI,
     setEnabledModels,
+    favoriteModels,
+    setFavoriteModels,
+    toggleFavoriteModel,
     setDefaultAiModel,
     setAutoSend,
     toggleAutoSend,
     registerContent,
     reloadActiveContent,
+    recreateActiveContent,
     sendTextToAI,
     sendImageToAI,
     sendBulkToAI,
