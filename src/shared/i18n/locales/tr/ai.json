@@ -1,11 +1,15 @@
 {
   "add_site": "Site Ekle",
   "ai_home": {
+    "favorites_title": "Favori modeller",
+    "favorites_detail": "Favorilerinizi tek tıkla açın. Sıralamayı sürükleyerek değiştirebilirsiniz.",
+    "favorites_empty": "Ayarlar → Modeller bölümünde favorilerinizi yıldızla seçip etkinleştirin.",
+
     "title": "Çalışma akışınızı tek bir merkezde toplayın",
     "description": "Modelleri yeniden sıralayın, açık oturumunuza anında geçin veya siteleri yeni sekmede açın.",
     "home": "Ana sayfa",
     "models_title": "Yapay zeka modelleri",
-    "models_detail": "Sık kullandığınız modelleri yeniden sıralayın ve tek tıkla açın.",
+    "models_detail": "Tüm sohbet servisleri burada listelenir. Bir servisi açtığınızda otomatik etkinleşir; favorilerinizi üst bölümden kullanabilirsiniz.",
     "sites_title": "Siteler",
     "sites_detail": "Yapay zeka dışındaki kaynakları uygulamanın akışı içinde kullanın.",
     "custom_site": "Özel site",

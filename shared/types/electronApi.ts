@@ -175,6 +175,7 @@ export interface ElectronApi {
     list: () => Promise<SiteSessionListResult>
     setEnabled: (siteId: string, enabled: boolean) => Promise<SiteSessionActionResult>
     clear: (siteId: string) => Promise<SiteSessionActionResult>
+    setActiveSlot: (siteId: string, slot: number) => Promise<SiteSessionActionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {

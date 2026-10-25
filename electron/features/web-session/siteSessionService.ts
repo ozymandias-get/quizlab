@@ -21,17 +21,23 @@
  *     must not tell the user that a site was switched off while it is still
  *     importing it.
  */
-
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/googleAiWebApps.js'
+import {
+  googleAccountSlotOptions,
+  isSiteSessionSlot
+} from '../../../shared/constants/siteSessionSlots.js'
 import type {
   SiteSessionActionResult,
   SiteSessionListResult
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
+import { getGoogleAccountSlots } from './googleAccounts.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
+import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import {
   invalidateSiteSessionListCache,
@@ -42,6 +48,7 @@ import { withSiteSessionLock } from './siteSessionLock.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
+  partitionForTargetSlot,
   type SiteSessionTargetRow,
   toSiteSessionView
 } from './siteSessionTargets.js'
@@ -55,7 +62,8 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  * where it is read from.
  */
 export interface SiteSessionServiceDeps {
-  config: Pick<SiteSessionConfig, 'read' | 'setEnabled'>
+  config: Pick<SiteSessionConfig, 'read' | 'setEnabled' | 'resetResults'> &
+    Partial<Pick<SiteSessionConfig, 'setActiveSlot'>>
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -100,7 +108,13 @@ export class SiteSessionService {
       targets.map(async (target) => {
         const targetState = state.targets[target.siteId]
         const enabled = targetState?.enabled === true
-        const hasLocalSession = await hasLocalSessionForTarget(target, this.deps.resolveSession)
+        const hasLocalSession = await hasLocalSessionForTarget(
+          {
+            ...target,
+            partition: partitionForTargetSlot(target.partition, targetState?.activeSlot)
+          },
+          this.deps.resolveSession
+        )
         const status = deriveSiteSessionStatus({
           enabled,
           extensionConnected,
@@ -108,13 +122,25 @@ export class SiteSessionService {
           lastResult: targetState?.lastResult ?? null,
           hasLocalSession
         })
-        return toSiteSessionView(
+        const view = toSiteSessionView(
           target,
           enabled,
           status,
           targetState?.importedAt ?? null,
-          targetState?.lastError ?? null
+          targetState?.lastError ?? null,
+          target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
         )
+        if (target.kind === 'google') {
+          view.accountSlots = googleAccountSlotOptions(
+            await getGoogleAccountSlots(
+              this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
+              targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
+            )
+          )
+          if (!view.accountSlots.includes(view.activeSlot ?? 1))
+            view.activeSlot = view.accountSlots[0] ?? 1
+        }
+        return view
       })
     )
 
@@ -222,9 +248,46 @@ export class SiteSessionService {
     return { success: true }
   }
 
-  /** Removes the session the app holds for one site. */
+  /** Switches the active profile slot (1 or 2) for a site. */
+  async setActiveSlot(siteId: string, slot: number): Promise<SiteSessionActionResult> {
+    if (!isSiteSessionSlot(slot)) return { success: false, error: 'invalid_slot' }
+    const targets = await this.deps.loadTargets()
+    const target = targets.find((candidate) => candidate.siteId === siteId)
+    if (!target) {
+      return { success: false, error: 'unknown_target' }
+    }
+
+    if (target.kind !== 'google' && slot !== 1) return { success: false, error: 'invalid_slot' }
+    try {
+      const config = this.deps.config
+      if (!config.setActiveSlot) return { success: false, error: 'write_failed' }
+      await withSiteSessionLock(siteId, () => config.setActiveSlot!(siteId, slot))
+      invalidateSiteSessionListCache()
+      await broadcastSiteSessionsChanged()
+      return { success: true }
+    } catch {
+      return { success: false, error: 'write_failed' }
+    }
+  }
+
+  /** Removes the session the app holds for one site across all slots. */
   private async wipe(target: SiteSessionTargetRow): Promise<void> {
-    await wipeSiteSession(this.deps.resolveSession(target.partition), target)
+    const state = await this.deps.config.read()
+    // Include legacy secondary non-Google sessions when clearing, without selecting them.
+    const slots = new Set([
+      1,
+      2,
+      state.targets[target.siteId]?.activeSlot ?? 1,
+      ...Object.keys(state.targets[target.siteId]?.slots ?? {}).map(Number)
+    ])
+    for (const slot of slots) {
+      if (isSiteSessionSlot(slot))
+        await wipeSiteSession(
+          this.deps.resolveSession(partitionForTargetSlot(target.partition, slot)),
+          target
+        )
+    }
+    await this.deps.config.resetResults(target.siteId)
   }
 }
 

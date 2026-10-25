@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Quizlab Site Session Bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Shares the session cookies of the AI sites you use with Quizlab Reader for workspace access.",
   "permissions": ["cookies", "alarms", "storage", "webNavigation"],
   "host_permissions": [

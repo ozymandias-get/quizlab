@@ -202,6 +202,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       list: stubReturn({ views: [], extensionConnected: false, extensionVersionOk: false }),
       setEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       clear: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      setActiveSlot: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       onChanged: () => () => {}
     },
     nativeMessaging: {

@@ -1,3 +1,4 @@
+import { SITE_SESSION_COOKIE_DOMAINS } from '@shared-core/constants/siteSessionCookieDomains'
 /**
  * Every key the site-sessions UI uses has to exist in both languages.
  *
@@ -60,22 +61,7 @@ const STATUS_CODES = [
 ]
 
 /** The sites the app knows about. */
-const TARGET_IDS = [
-  'google',
-  'custom',
-  'chatgpt',
-  'claude',
-  'deepseek',
-  'qwen',
-  'kimi',
-  'm365',
-  'copilot',
-  'grok',
-  'mistral',
-  'perplexity',
-  'huggingchat',
-  'manus'
-]
+const TARGET_IDS = ['google', 'custom', ...Object.keys(SITE_SESSION_COOKIE_DOMAINS)]
 
 /**
  * The error codes the service and the IPC handlers can produce.

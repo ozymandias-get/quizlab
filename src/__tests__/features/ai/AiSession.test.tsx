@@ -1,3 +1,6 @@
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
+  useSiteSessionListQuery: () => ({ data: { views: [] } })
+}))
 import AiSession from '@features/ai/ui/AiSession'
 
 import { render, screen, waitFor } from '@testing-library/react'
@@ -6,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 const useManagedContentView = vi.fn()
 
 vi.mock('@app/providers/ai-context', () => ({
+  useAiTabActions: () => ({ setTabSessionSlot: vi.fn() }),
   useAiSites: () => ({
     'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
     'claude-3': { url: 'https://claude.ai', displayName: 'Claude' },
@@ -108,7 +112,7 @@ describe('AiSession', () => {
       revealAfterFirstLoad: boolean
     }
     expect(options.viewId).toBe(defaultTab.id)
-    expect(options.source).toEqual({ kind: 'ai-platform', modelId: 'gpt-4' })
+    expect(options.source).toEqual({ kind: 'ai-platform', modelId: 'gpt-4', sessionSlot: 1 })
     expect(options.isHostOwner).toBe(true)
     expect(options.revealAfterFirstLoad).toBe(true)
   })

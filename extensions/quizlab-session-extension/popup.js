@@ -7,7 +7,7 @@
  * a permission that is asked for during a user gesture, so the user opens this
  * popup and presses the button of the site that is missing one.
  *
- * The popup is a permission screen and nothing else: it never reads a cookie
+ * The popup selects a destination and asks the worker to import. It never reads a cookie
  * and never asks the network for anything. It reads the site list the service
  * worker persisted and asks Chrome for the permissions that are missing.
  */
@@ -169,6 +169,7 @@ function clearList() {
  * already has a readable id.
  */
 function titleOf(site) {
+  if (typeof site.label === 'string' && site.label.trim()) return site.label
   if (site.siteId.startsWith('custom:')) return site.hosts[0]
   return site.siteId
 }
@@ -259,7 +260,7 @@ async function renderSites() {
     const hosts = hostsOf(target)
     if (hosts.length === 0) continue
     const missing = await missingHosts(hosts)
-    sites.push({ siteId, hosts, missing })
+    sites.push({ siteId, hosts, missing, label: target.label })
   }
 
   const list = document.getElementById(LIST_ID)
@@ -271,8 +272,66 @@ async function renderSites() {
   else setStatus(TEXTS.someMissing)
 }
 
+async function initImportControls() {
+  const syncBtn = document.getElementById('sync-btn')
+  const feedback = document.getElementById('sync-feedback')
+  const auto = document.getElementById('auto-sync')
+  const siteSelect = document.getElementById('site-select')
+  if (!syncBtn || syncBtn.dataset.initialized) return
+  syncBtn.dataset.initialized = 'true'
+  const area = chrome.storage?.local
+  const stored = area ? await area.get(['autoSync']) : {}
+  if (auto) auto.checked = stored?.autoSync !== false
+  if (siteSelect) {
+    const targets = await readTargets()
+    for (const target of targets || []) {
+      const option = document.createElement('option')
+      option.value = target.siteId
+      option.textContent = titleOf({ ...target, hosts: hostsOf(target) })
+      siteSelect.appendChild(option)
+    }
+  }
+  const showFeedback = (text, isSuccess) => {
+    if (!feedback) return
+    feedback.textContent = text
+    feedback.style.color = isSuccess ? '#16a34a' : '#dc2626'
+    feedback.style.display = 'block'
+  }
+  auto?.addEventListener('change', () => {
+    chrome.runtime.sendMessage({ type: 'set_auto_sync', enabled: auto.checked }, (response) => {
+      const error = chrome.runtime.lastError
+      if (error || !response?.success) showFeedback('Eşitleme ayarı kaydedilemedi.', false)
+    })
+  })
+  syncBtn?.addEventListener('click', () => {
+    const slot = 1
+    syncBtn.disabled = true
+    showFeedback('Site oturumları aktarılıyor...', true)
+    chrome.runtime.sendMessage(
+      { type: 'sync_now', slot, targetId: siteSelect?.value || undefined },
+      (response) => {
+        const error = chrome.runtime.lastError
+        syncBtn.disabled = false
+        if (auto) auto.checked = false
+        if (!error && response?.success) {
+          showFeedback(
+            'Oturumlar aktarıldı. Google hesapları arasında uygulamadaki hesap seçicisinden geçebilirsiniz.',
+            true
+          )
+        } else {
+          showFeedback(
+            'Aktarım tamamlanamadı. Quizlab açık olmalı; site iznini ve Chrome oturumunu kontrol edin.',
+            false
+          )
+        }
+      }
+    )
+  })
+}
+
 async function render() {
   try {
+    await initImportControls()
     await renderSites()
   } catch (error) {
     console.warn('[Quizlab Popup] The popup could not be rendered:', errorMessage(error))

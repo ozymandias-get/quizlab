@@ -494,6 +494,35 @@ describe('site session config', () => {
     await expect(config.read()).rejects.toThrow(/could not be migrated/)
   })
 
+  it('allows Google account 3 but rejects secondary accounts on other sites', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('google', true)
+    await config.setActiveSlot('google', 3)
+    await config.recordResult('google', 'imported', undefined, 3)
+    expect((await config.read()).targets.google.activeSlot).toBe(3)
+    await expect(config.setActiveSlot('chatgpt', 2)).rejects.toThrow('invalid_slot')
+    await config.resetResults('google')
+    expect((await config.read()).targets.google.slots?.[3]?.lastResult).toBeNull()
+  })
+
+  it('keeps independent history for both slots and never borrows the other account status', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('google', true)
+    await config.recordResult('google', 'imported')
+    await config.setActiveSlot('google', 2)
+    expect((await config.read()).targets.google.lastResult).toBeNull()
+    await config.recordResult('google', 'failed', 'import_failed', 2)
+    await config.setActiveSlot('google', 1)
+    expect((await config.read()).targets.google.lastResult).toBe('imported')
+    await config.setActiveSlot('google', 2)
+    const restored = new SiteSessionConfig(configPath())
+    expect((await restored.read()).targets.google).toMatchObject({
+      activeSlot: 2,
+      lastResult: 'failed'
+    })
+    await expect(config.setActiveSlot('google', 1.5)).rejects.toThrow('invalid_slot')
+  })
+
   it('removes the state of a site that does not exist any more', async () => {
     const config = new SiteSessionConfig(configPath())
     await config.setEnabled('chatgpt', true)

@@ -1,4 +1,5 @@
 import type { AiPlatform } from '@shared-core/types'
+import { WEB_AI_REGISTRY } from '@platform/electron/web-ai-registry'
 
 import AiModelList from '@features/settings/ui/models/AiModelList'
 import { TooltipProvider } from '@shared/ui/components/primitives'
@@ -109,6 +110,44 @@ describe('AiModelList', () => {
     expect(screen.getByText('Custom Display')).toBeInTheDocument()
     expect(screen.getByText('ChatGptIcon')).toBeInTheDocument()
     expect(screen.getByText('GridIcon')).toBeInTheDocument()
+  })
+
+  it('favorites a disabled model separately from enabling or choosing the default model', () => {
+    const toggleFavoriteModel = vi.fn()
+    const props = createProps({ favoriteModels: [], toggleFavoriteModel })
+    const { unmount } = renderWithTooltip(<AiModelList {...props} />)
+    const add = screen.getByRole('button', { name: 'add_favorite_model — Custom Display' })
+    expect(add).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(add)
+    expect(toggleFavoriteModel).toHaveBeenCalledExactlyOnceWith('custom-model')
+    expect(props.toggleModel).not.toHaveBeenCalled()
+    expect(props.setDefaultAiModel).not.toHaveBeenCalled()
+    unmount()
+    renderWithTooltip(<AiModelList {...props} favoriteModels={['custom-model']} />)
+    const remove = screen.getByRole('button', { name: 'remove_favorite_model — Custom Display' })
+    expect(remove).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(remove)
+    expect(toggleFavoriteModel).toHaveBeenCalledTimes(2)
+  })
+
+  it('searches the full catalogue by name and URL and reports no matches', () => {
+    const props = createProps({
+      aiSites: WEB_AI_REGISTRY,
+      modelsList: Object.values(WEB_AI_REGISTRY)
+        .filter((p) => !p.isSite && p.url)
+        .map((p) => p.id)
+    })
+    renderWithTooltip(<AiModelList {...props} />)
+    expect(screen.getAllByRole('switch')).toHaveLength(50)
+    const search = screen.getByRole('textbox', { name: 'search_ai_placeholder' })
+    fireEvent.change(search, { target: { value: 'POE.COM' } })
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
+    expect(screen.getByRole('switch', { name: 'Poe' })).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(screen.getByRole('switch', { name: 'Poe' }))
+    expect(props.toggleModel).toHaveBeenCalledWith('poe')
+    fireEvent.change(search, { target: { value: 'no-matching-service' } })
+    expect(screen.queryAllByRole('switch')).toHaveLength(0)
+    expect(screen.getByRole('status')).toHaveTextContent('ai_catalog_no_results')
   })
 
   it('sets the default model without toggling the row', () => {

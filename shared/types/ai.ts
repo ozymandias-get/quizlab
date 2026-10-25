@@ -22,6 +22,8 @@ export type AiPlatform = {
   name: string
   url: string
   isSite?: boolean
+  defaultEnabled?: boolean
+  defaultDockVisible?: boolean
   partition?: string
   icon?: string
   color?: string

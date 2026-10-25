@@ -39,12 +39,14 @@ import type { PdfSourceMeta } from './pdfSource'
 export interface PinnedTabStorage {
   id: string
   modelId: string
+  sessionSlot?: number
   title?: string
 }
 
 export interface Tab {
   id: string
   modelId: string
+  sessionSlot?: number
   title?: string
   pinned?: boolean
 }
@@ -82,6 +84,7 @@ interface AiContextState {
   aiViewRequestNonce: number
   currentAI: string
   enabledModels: string[]
+  favoriteModels: string[]
   defaultAiModel: string
   aiSites: Record<string, AiPlatform>
   autoSend: boolean
@@ -106,7 +109,7 @@ export type AiRegistryMetaSliceState = Pick<AiContextState, 'isRegistryLoaded' |
 /** Siteler + etkin modeller — UA değişmeden güncellenebilir. */
 export type AiModelsCatalogSliceState = Pick<
   AiContextState,
-  'enabledModels' | 'defaultAiModel' | 'aiSites'
+  'enabledModels' | 'favoriteModels' | 'defaultAiModel' | 'aiSites'
 >
 
 /** Gönderim gibi hızlı UI tercihleri (katalogdan ayrı abonelik). */
@@ -125,11 +128,14 @@ interface AiContextActions {
   addTab: (modelId: string) => void
   closeTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
+  setTabSessionSlot: (tabId: string, slot: number) => void
   openAiWorkspace: (modelId: string) => void
   renameTab: (tabId: string, title?: string) => void
   togglePinTab: (tabId: string) => void
   setCurrentAI: (id: string) => void
   setEnabledModels: (models: string[]) => void
+  setFavoriteModels: (models: string[]) => void
+  toggleFavoriteModel: (model: string) => void
   setDefaultAiModel: (model: string) => void
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
@@ -140,6 +146,8 @@ interface AiContextActions {
   ) => void
   /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron content.reload). */
   reloadActiveContent: () => void
+  /** Aktif sekmedeki AI web görünümünü sıfırdan yeniden oluşturur (partition/slot değişimi). */
+  recreateActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
@@ -158,23 +166,33 @@ type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI
 /** Content örneğine bağlı kayıt / yenileme (dar abonelik: useAiContentHostActions). */
 export type AiContentHostActions = Pick<
   AiWorkspaceActions,
-  'registerContent' | 'reloadActiveContent'
+  'registerContent' | 'reloadActiveContent' | 'recreateActiveContent'
 >
 
 /** Sekme ve modeller; aktif content değişince güncellenmez. */
 export type AiCoreWorkspaceActions = Omit<
   AiWorkspaceActions,
-  'registerContent' | 'reloadActiveContent' | 'cancelOngoing'
+  'registerContent' | 'reloadActiveContent' | 'recreateActiveContent' | 'cancelOngoing'
 >
 
 export type AiTabActions = Pick<
   AiContextActions,
-  'addTab' | 'closeTab' | 'setActiveTab' | 'openAiWorkspace' | 'renameTab' | 'togglePinTab'
+  | 'addTab'
+  | 'closeTab'
+  | 'setActiveTab'
+  | 'openAiWorkspace'
+  | 'renameTab'
+  | 'togglePinTab'
+  | 'setTabSessionSlot'
 >
 
 export type AiModelActions = Pick<
   AiContextActions,
-  'setCurrentAI' | 'setEnabledModels' | 'setDefaultAiModel'
+  | 'setCurrentAI'
+  | 'setEnabledModels'
+  | 'setDefaultAiModel'
+  | 'setFavoriteModels'
+  | 'toggleFavoriteModel'
 >
 
 export type AiSessionActions = Pick<AiContextActions, 'setAutoSend' | 'toggleAutoSend'>

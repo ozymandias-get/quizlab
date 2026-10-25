@@ -1,11 +1,15 @@
 {
   "add_site": "Add Site",
   "ai_home": {
+    "favorites_title": "Favorite models",
+    "favorites_detail": "Open your favorites with one click. Drag to reorder them.",
+    "favorites_empty": "Select the star in Settings → Models to add your favorites.",
+
     "title": "Centralize your workflow in a single launchpad",
     "description": "Reorder models, jump straight back into your open session, or launch sites in a new tab.",
     "home": "Home",
     "models_title": "AI Models",
-    "models_detail": "Reorder the models you use most and open them with a single click.",
+    "models_detail": "Browse all chat services here. Opening a service enables it automatically; access your favorites from the section above.",
     "sites_title": "Sites",
     "sites_detail": "Keep external resources readily available within your AI workspace.",
     "custom_site": "Custom site",

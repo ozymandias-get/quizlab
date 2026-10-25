@@ -35,6 +35,7 @@ interface UseAiProviderContextsParams {
   chromeUserAgent: string
   aiRegistry: AnyRecord
   enabledModels: string[]
+  favoriteModels: string[]
   defaultAiModel: string
   autoSend: boolean
   getContentController: (tabId?: string) => AiContentController | null
@@ -42,16 +43,20 @@ interface UseAiProviderContextsParams {
   addTab: (modelId: string) => void
   handleCloseTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
+  setTabSessionSlot: (tabId: string, slot: number) => void
   openAiWorkspace: (modelId: string) => void
   renameTab: (tabId: string, title?: string) => void
   togglePinTab: (tabId: string) => void
   setCurrentAI: (id: string) => void
   setEnabledModels: (models: string[]) => void
+  setFavoriteModels: (models: string[]) => void
+  toggleFavoriteModel: (model: string) => void
   setDefaultAiModel: (model: string) => void
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
   registerContent: (id: string, instance: AiContentController | null) => void
   reloadActiveContent: () => void
+  recreateActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
@@ -68,6 +73,7 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     chromeUserAgent,
     aiRegistry,
     enabledModels,
+    favoriteModels,
     defaultAiModel,
     autoSend,
     getContentController,
@@ -75,16 +81,20 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     addTab,
     handleCloseTab,
     setActiveTab,
+    setTabSessionSlot,
     openAiWorkspace,
     renameTab,
     togglePinTab,
     setCurrentAI,
     setEnabledModels,
+    setFavoriteModels,
+    toggleFavoriteModel,
     setDefaultAiModel,
     setAutoSend,
     toggleAutoSend,
     registerContent,
     reloadActiveContent,
+    recreateActiveContent,
     sendTextToAI,
     sendImageToAI,
     sendBulkToAI,
@@ -111,8 +121,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
   const aiSitesValue = useMemo(() => aiRegistry, [aiRegistry])
 
   const modelsCatalogValue = useMemo<AiModelsCatalogSliceState>(
-    () => ({ enabledModels, defaultAiModel, aiSites: aiRegistry }),
-    [enabledModels, defaultAiModel, aiRegistry]
+    () => ({ enabledModels, favoriteModels, defaultAiModel, aiSites: aiRegistry }),
+    [enabledModels, favoriteModels, defaultAiModel, aiRegistry]
   )
 
   const sessionUiPrefsSliceValue = useMemo<AiSessionUiPrefsSliceState>(
@@ -135,11 +145,14 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       closeTab: handleCloseTab,
       setActiveTab,
+      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab,
       setCurrentAI,
       setEnabledModels,
+      setFavoriteModels,
+      toggleFavoriteModel,
       setDefaultAiModel,
       setAutoSend,
       toggleAutoSend
@@ -148,11 +161,14 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       handleCloseTab,
       setActiveTab,
+      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab,
       setCurrentAI,
       setEnabledModels,
+      setFavoriteModels,
+      toggleFavoriteModel,
       setDefaultAiModel,
       setAutoSend,
       toggleAutoSend
@@ -164,16 +180,31 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       closeTab: handleCloseTab,
       setActiveTab,
+      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab
     }),
-    [addTab, handleCloseTab, setActiveTab, openAiWorkspace, renameTab, togglePinTab]
+    [
+      addTab,
+      handleCloseTab,
+      setActiveTab,
+      setTabSessionSlot,
+      openAiWorkspace,
+      renameTab,
+      togglePinTab
+    ]
   )
 
   const modelActionsValue = useMemo<AiModelActions>(
-    () => ({ setCurrentAI, setEnabledModels, setDefaultAiModel }),
-    [setCurrentAI, setEnabledModels, setDefaultAiModel]
+    () => ({
+      setCurrentAI,
+      setEnabledModels,
+      setDefaultAiModel,
+      setFavoriteModels,
+      toggleFavoriteModel
+    }),
+    [setCurrentAI, setEnabledModels, setDefaultAiModel, setFavoriteModels, toggleFavoriteModel]
   )
 
   const sessionActionsValue = useMemo<AiSessionActions>(
@@ -182,8 +213,8 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
   )
 
   const contentHostActionsValue = useMemo<AiContentHostActions>(
-    () => ({ registerContent, reloadActiveContent }),
-    [registerContent, reloadActiveContent]
+    () => ({ registerContent, reloadActiveContent, recreateActiveContent }),
+    [registerContent, reloadActiveContent, recreateActiveContent]
   )
 
   const messagingActionsValue = useMemo<AiMessagingActions>(

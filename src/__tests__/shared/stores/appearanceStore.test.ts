@@ -14,6 +14,7 @@ beforeEach(() => {
   useAppearance.setState({
     bottomBarOpacity: 0.7,
     bottomBarScale: 1.0,
+    bottomBarMaxIcons: 5,
     selectionColor: '#EAB308',
     isLayoutSwapped: false,
     focusMode: null,
@@ -168,6 +169,23 @@ describe('appearanceStore', () => {
       useAppearance.getState().setVisibleModel('gemini', true)
       useAppearance.getState().setVisibleModel('gemini', false)
       expect(useAppearance.getState().visibleModels['gemini']).toBe(false)
+    })
+  })
+
+  describe('bottom bar max icons', () => {
+    it('defaults to 5', () => {
+      expect(useAppearance.getState().bottomBarMaxIcons).toBe(5)
+    })
+
+    it('updates within allowed range 1 to 50', () => {
+      useAppearance.getState().setBottomBarMaxIcons(15)
+      expect(useAppearance.getState().bottomBarMaxIcons).toBe(15)
+
+      useAppearance.getState().setBottomBarMaxIcons(0)
+      expect(useAppearance.getState().bottomBarMaxIcons).toBe(1)
+
+      useAppearance.getState().setBottomBarMaxIcons(99)
+      expect(useAppearance.getState().bottomBarMaxIcons).toBe(50)
     })
   })
 })

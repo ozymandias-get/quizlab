@@ -120,8 +120,9 @@ export type AiViewEventOf<K extends AiViewEventKind> = Extract<AiViewEvent, { ki
  * union of *main-process known* keys: the renderer can pick a target but cannot
  * mint a partition or an origin.
  */
-export type AiViewSource =
+export type AiViewSource = (
   { kind: 'ai-platform'; modelId: string } | { kind: 'google-web-app'; appId: string }
+) & { sessionSlot?: number }
 
 export interface AiViewAttachRequest {
   viewId: string

@@ -331,7 +331,11 @@ function handleCookiePost(
         return
       }
 
-      sendJson(res, 200, { success: true, imported: outcome.imported ?? 0 })
+      sendJson(res, 200, {
+        success: true,
+        imported: outcome.imported ?? 0,
+        failed: outcome.failed ?? 0
+      })
     } catch (error) {
       Logger.error('[NativeMessaging] Failed to handle the cookie packet:', error)
       sendJson(res, 500, { error: 'Internal error' })

@@ -155,7 +155,9 @@ export function applyRemoteContentSecurity({
     return { action: 'deny' }
   })
 
-  const isGoogleWebSessionPartition = partition === GOOGLE_AI_WEB_SESSION_PARTITION
+  const isGoogleWebSessionPartition =
+    partition === GOOGLE_AI_WEB_SESSION_PARTITION ||
+    partition.startsWith(`${GOOGLE_AI_WEB_SESSION_PARTITION}_slot_`)
 
   // SECURITY: Prevent an embedded page from navigating to an auth domain.
   // For Google web session apps the URL is handed to the system browser so the

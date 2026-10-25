@@ -4,6 +4,7 @@ import {
   useAiContent,
   useAiContentHostActions,
   useAiMessagingActions,
+  useAiModelActions,
   useAiModelsCatalog,
   useAiTabActions,
   useAiTabFocus,
@@ -70,6 +71,7 @@ const useAiHarness = () => {
   const tabFocus = useAiTabFocus()
   const viewRequestNonce = useAiViewRequestNonce()
   const modelsCatalog = useAiModelsCatalog()
+  const modelActions = useAiModelActions()
   const tabActions = useAiTabActions()
   const contentHostActions = useAiContentHostActions()
   const messagingActions = useAiMessagingActions()
@@ -80,6 +82,7 @@ const useAiHarness = () => {
     ...tabFocus,
     aiViewRequestNonce: viewRequestNonce, // <- the narrow hook returns the NUMBER
     ...modelsCatalog,
+    ...modelActions,
     ...tabActions,
     ...contentHostActions,
     ...messagingActions,
@@ -137,6 +140,17 @@ describe('AiContext', () => {
     expect(mockGetAiRegistry).toHaveBeenCalled()
     expect(result.current.aiSites['chatgpt']).toBeDefined()
     expect(result.current.currentAI).toBe('chatgpt')
+  })
+
+  it('publishes favorite actions and updated selections through the shared model contexts', async () => {
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+    act(() => result.current.setEnabledModels(['chatgpt']))
+    act(() => result.current.toggleFavoriteModel('claude'))
+    expect(result.current.favoriteModels).toEqual(['claude'])
+    expect(result.current.enabledModels).toEqual(['chatgpt', 'claude'])
+    act(() => result.current.toggleFavoriteModel('claude'))
+    expect(result.current.favoriteModels).toEqual([])
   })
 
   it('manages tabs (add, switch)', async () => {

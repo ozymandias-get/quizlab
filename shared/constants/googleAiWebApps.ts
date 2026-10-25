@@ -9,7 +9,7 @@ export const GOOGLE_AI_WEB_SESSION_PARTITION = 'persist:gemini_web_profile'
  */
 export const GOOGLE_AI_WEB_SITE_ID = 'google'
 
-export type GoogleWebSessionAppId = 'gemini' | 'aistudio' | 'youtube' | 'gdrive'
+export type GoogleWebSessionAppId = 'gemini' | 'aistudio' | 'youtube' | 'gdrive' | 'notebooklm'
 type GoogleWebSessionSurface = 'ai' | 'site' | 'pdf'
 
 interface GoogleWebSessionAppDefinition {
@@ -63,6 +63,16 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
     color: '#1a73e8',
     surface: 'pdf',
     registryEligible: false
+  },
+  {
+    id: 'notebooklm',
+    name: 'NotebookLM',
+    url: 'https://notebooklm.google.com',
+    hostname: 'notebooklm.google.com',
+    icon: 'notebooklm',
+    color: '#4b5563',
+    surface: 'ai',
+    registryEligible: true
   }
 ]
 

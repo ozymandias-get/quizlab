@@ -1,3 +1,4 @@
+import { ADDITIONAL_AI_CHAT_PLATFORMS } from '@shared-core/constants/aiChatCatalog'
 import type { AiPlatform } from '@shared-core/types'
 
 export const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
@@ -85,5 +86,6 @@ export const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     icon: 'api-chat',
     color: '#f59e0b',
     submitMode: 'enter_key'
-  }
+  },
+  ...ADDITIONAL_AI_CHAT_PLATFORMS
 }

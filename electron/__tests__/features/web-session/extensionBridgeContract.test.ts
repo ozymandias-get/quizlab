@@ -4,6 +4,8 @@ import path from 'node:path'
 import vm from 'node:vm'
 
 import { describe, expect, it } from 'vitest'
+import { ADDITIONAL_AI_CHAT_PLATFORMS } from '../../../../shared/constants/aiChatCatalog.js'
+import { getSiteSessionCookieDomains } from '../../../../shared/constants/siteSessionCookieDomains.js'
 
 const BACKGROUND_PATH = path.join(
   process.cwd(),
@@ -33,6 +35,7 @@ interface FakeCookie {
 }
 
 interface SiteTarget {
+  label?: string
   siteId: string
   cookieDomains: string[]
 }
@@ -54,6 +57,7 @@ interface Packet {
   targetId: string
   status: string
   cookies: FakeCookie[]
+  profileSlot?: number
 }
 
 interface LogEntry {
@@ -118,6 +122,7 @@ interface HarnessOptions {
 }
 
 interface Harness {
+  message(message: Record<string, unknown>): Promise<{ success: boolean }>
   readonly fetchCalls: FetchCall[]
   readonly cookieQueries: string[]
   /** Every packet the extension sent, accepted or not. */
@@ -164,6 +169,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const logs: LogEntry[] = []
   const storage = new Map<string, unknown>(Object.entries(options.storage ?? {}))
   const timers = new Map<number, () => void>()
+  let messageListener: (
+    message: Record<string, unknown>,
+    sender: object,
+    respond: (response: { success: boolean }) => void
+  ) => void
   const alarmListeners: ((alarm: { name: string }) => void)[] = []
   const cookieListeners: ((change: {
     cookie: FakeCookie
@@ -292,6 +302,15 @@ function createHarness(options: HarnessOptions = {}): Harness {
     }
   }
 
+  Object.assign(fakeChrome.storage, { local: fakeChrome.storage.session })
+  Object.assign(fakeChrome.runtime, {
+    onMessage: {
+      addListener: (listener: typeof messageListener) => {
+        messageListener = listener
+      }
+    }
+  })
+
   const fakeFetch = async (url: string, init?: RequestInit) => {
     const target = String(url)
     const headers = (init?.headers ?? {}) as Record<string, string>
@@ -376,6 +395,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   }
 
   return {
+    message: (message) => new Promise((resolve) => messageListener(message, {}, resolve)),
     fetchCalls,
     cookieQueries,
     attempts,
@@ -450,6 +470,57 @@ describe('extension bridge contract', () => {
 })
 
 describe('extension bridge behaviour', () => {
+  it('collects the additional catalogue sites into separate signed packets and preserves their labels', async () => {
+    const targets = Object.values(ADDITIONAL_AI_CHAT_PLATFORMS)
+      .filter((platform) => platform.id !== 'notebooklm')
+      .map((platform) => ({
+        siteId: platform.id,
+        label: platform.name,
+        cookieDomains: [...getSiteSessionCookieDomains(platform.id)]
+      }))
+    const cookies = Object.fromEntries(
+      targets.flatMap((target) =>
+        target.cookieDomains.map((domain) => [
+          domain,
+          [{ name: 'session', value: 'test-value', domain, path: '/', secure: true }]
+        ])
+      )
+    )
+    const harness = createHarness({
+      siteList: { protocolVersion: 2, configVersion: 8, targets },
+      cookies
+    })
+    await harness.settle()
+    expect(harness.packets).toHaveLength(41)
+    for (const target of targets) {
+      const packet = harness.packets.find((p) => p.targetId === target.siteId)
+      expect(packet?.status, target.siteId).toBe('ok')
+      expect(packet?.cookies.map((cookie) => cookie.domain).sort()).toEqual(
+        [...target.cookieDomains].sort()
+      )
+    }
+    expect(harness.storage.get('knownTargets')).toEqual(targets)
+    for (const call of callsTo(harness, COOKIE_PATH)) {
+      expect(call.headers['x-hmac-signature']).toBe(sign(call.body))
+    }
+  })
+
+  it('does not read a new service until its optional host permission is granted', async () => {
+    const harness = createHarness({
+      siteList: {
+        protocolVersion: 2,
+        configVersion: 8,
+        targets: [{ siteId: 'poe', label: 'Poe', cookieDomains: ['.poe.com'] }]
+      },
+      grantedOrigins: 'none'
+    })
+    await harness.settle()
+    expect(harness.cookieQueries).toEqual([])
+    expect(harness.packets).toEqual([
+      { targetId: 'poe', status: 'permission_missing', cookies: [], profileSlot: 1 }
+    ])
+  })
+
   it('asks the bridge which sites it wants, signed and with the protocol version', async () => {
     const harness = createHarness()
     await harness.settle()
@@ -892,5 +963,61 @@ describe('extension bridge behaviour', () => {
     expect(source).toContain('chrome.alarms.create')
     expect(source).toContain('chrome.webNavigation.onCompleted')
     expect(source).not.toContain('setInterval')
+  })
+})
+
+describe('extension account snapshots', () => {
+  it('uses the single session for non-Google imports and pauses automatic writes across restarts', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    const response = await harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' })
+    expect(response.success).toBe(true)
+    expect(harness.packets.at(-1)).toMatchObject({ targetId: 'claude', profileSlot: 1 })
+    const count = harness.packets.length
+    harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
+    await harness.runTimers()
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.packets).toHaveLength(count)
+    expect(harness.storage.get('autoSync')).toBe(false)
+    const restarted = createHarness({ storage: Object.fromEntries(harness.storage) })
+    await restarted.settle()
+    expect(restarted.packets).toHaveLength(0)
+    expect(restarted.wakeUpHosts()).toContain('claude.ai')
+  })
+
+  it('serializes captures into their requested slots without redirecting an earlier capture', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    const offset = harness.packets.length
+    await Promise.all([
+      harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' }),
+      harness.message({ type: 'sync_now', slot: 1, targetId: 'chatgpt' })
+    ])
+    expect(harness.packets.slice(offset)).toMatchObject([
+      { targetId: 'claude', profileSlot: 1 },
+      { targetId: 'chatgpt', profileSlot: 1 }
+    ])
+  })
+
+  it('reports a missing browser session and an unknown selected site as failures', async () => {
+    const harness = createHarness({ cookies: {} })
+    await harness.settle()
+    expect((await harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' })).success).toBe(
+      false
+    )
+    expect(
+      (await harness.message({ type: 'sync_now', slot: 2, targetId: 'unknown' })).success
+    ).toBe(false)
+  })
+
+  it('resumes automatic writes only into slot 1', async () => {
+    const harness = createHarness({ storage: { profileSlot: 2, autoSync: false } })
+    await harness.settle()
+    await harness.message({ type: 'set_auto_sync', enabled: true })
+    harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
+    await harness.runTimers()
+    expect(harness.packets.length).toBeGreaterThan(0)
+    expect(harness.packets.every((packet) => packet.profileSlot === 1)).toBe(true)
   })
 })

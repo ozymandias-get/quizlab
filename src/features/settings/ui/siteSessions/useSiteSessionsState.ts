@@ -6,6 +6,7 @@ import {
 } from '@platform/electron/api/useNativeMessagingApi'
 import {
   useClearSiteSessionMutation,
+  useSetSiteSessionActiveSlotMutation,
   useSetSiteSessionEnabledMutation,
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
@@ -32,6 +33,7 @@ export function useSiteSessionsState() {
   const { data } = useSiteSessionListQuery()
   const setEnabledMutation = useSetSiteSessionEnabledMutation()
   const clearMutation = useClearSiteSessionMutation()
+  const setActiveSlotMutation = useSetSiteSessionActiveSlotMutation()
   const { mutateAsync: installExtension } = useNativeMessagingInstallExtension()
   const { mutateAsync: removeExtension } = useNativeMessagingRemoveExtension()
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -88,6 +90,20 @@ export function useSiteSessionsState() {
     )
   }, [clearMutation, reportError, views])
 
+  const onSelectSlot = useCallback(
+    (siteId: string, slot: number) => {
+      void setActiveSlotMutation
+        .mutateAsync({ siteId, slot })
+        .then((result) => {
+          if (!result.success) reportError(result.error)
+        })
+        .catch(() => {
+          reportError('write_failed')
+        })
+    },
+    [setActiveSlotMutation, reportError]
+  )
+
   const openWizard = useCallback((mode: 'install' | 'remove') => {
     setWizardMode(mode)
     setWizardOpen(true)
@@ -105,10 +121,12 @@ export function useSiteSessionsState() {
     t,
     views,
     /** True while a switch or a clear is on its way to the main process. */
-    isBusy: setEnabledMutation.isPending || clearMutation.isPending,
+    isBusy:
+      setEnabledMutation.isPending || clearMutation.isPending || setActiveSlotMutation.isPending,
     /** Whether there is a session of ours to forget. */
     canClearAll: views.some((view) => view.enabled),
     onToggle,
+    onSelectSlot,
     onClearAll,
     riskItems,
     mitigationItems,

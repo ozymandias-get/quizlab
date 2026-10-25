@@ -96,3 +96,17 @@ export function useClearSiteSessionMutation() {
     }
   )
 }
+
+/** Switches the active account slot for one site. */
+export function useSetSiteSessionActiveSlotMutation() {
+  const queryClient = useQueryClient()
+
+  return useElectronMutation<SiteSessionActionResult, { siteId: string; slot: number }>(
+    (api, { siteId, slot }) => api.siteSession.setActiveSlot(siteId, slot),
+    {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
+      }
+    }
+  )
+}

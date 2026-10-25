@@ -23,6 +23,8 @@ interface AppearanceState {
   setBottomBarOpacity: (value: number) => void
   bottomBarScale: number
   setBottomBarScale: (value: number) => void
+  bottomBarMaxIcons: number
+  setBottomBarMaxIcons: (value: number) => void
 
   selectionColor: string
   setSelectionColor: (color: string) => void
@@ -51,6 +53,9 @@ export const useAppearance = create<AppearanceState>()(
       setBottomBarOpacity: (value) => set({ bottomBarOpacity: value }),
       bottomBarScale: 1.0,
       setBottomBarScale: (value) => set({ bottomBarScale: value }),
+      bottomBarMaxIcons: 5,
+      setBottomBarMaxIcons: (value) =>
+        set({ bottomBarMaxIcons: Math.max(1, Math.min(50, Math.round(value))) }),
 
       selectionColor: '#EAB308',
       setSelectionColor: (color) => set({ selectionColor: color }),
@@ -81,6 +86,7 @@ export const useAppearance = create<AppearanceState>()(
       partialize: (state) => ({
         bottomBarOpacity: state.bottomBarOpacity,
         bottomBarScale: state.bottomBarScale,
+        bottomBarMaxIcons: state.bottomBarMaxIcons,
         selectionColor: state.selectionColor,
         isLayoutSwapped: state.isLayoutSwapped,
         visibleTools: state.visibleTools,

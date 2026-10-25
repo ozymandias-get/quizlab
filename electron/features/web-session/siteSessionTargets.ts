@@ -10,13 +10,13 @@
  * domain. The Google family is the one exception: its apps share a single
  * partition and therefore share a single row.
  */
-
 import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
   GOOGLE_AI_WEB_SITE_ID,
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
 import { getSiteSessionCookieDomains } from '../../../shared/constants/siteSessionCookieDomains.js'
+import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import type { AiPlatform } from '../../../shared/types/ai.js'
 import type {
   SiteSessionKind,
@@ -39,10 +39,10 @@ import { readCustomPlatforms } from '../ai/customPlatformStore.js'
  */
 const GOOGLE_MEMBER_APP_IDS = new Set<string>(GOOGLE_WEB_SESSION_APPS.map((app) => app.id))
 
-/** The origins of the four Google apps: one per app, one partition. */
+/** The origins of the five Google apps: one per app, one partition. */
 const GOOGLE_ORIGINS = GOOGLE_WEB_SESSION_APPS.map((app) => new URL(app.url).origin)
 
-/** The hosts of the four Google apps, as the settings row shows them. */
+/** The hosts of the five Google apps, as the settings row shows them. */
 const GOOGLE_HOSTS = GOOGLE_WEB_SESSION_APPS.map((app) => new URL(app.url).hostname).join(', ')
 
 /** A target row plus the fields the renderer needs but the routing does not. */
@@ -55,7 +55,7 @@ export interface SiteSessionTargetRow extends SiteSessionTarget {
   /**
    * The hosts the settings row shows for this site.
    *
-   * A site may live on several hosts — the Google group on four — so this is
+   * A site may live on several hosts — the Google group on five — so this is
    * a label and not an origin: the origins that a wipe clears live in
    * `origins`.
    */
@@ -148,7 +148,7 @@ export function buildBuiltinSiteSessionTargets(): SiteSessionTargetRow[] {
     }
   ]
 
-  for (const platform of [...Object.values(AI_REGISTRY), ...Object.values(INACTIVE_PLATFORMS)]) {
+  for (const platform of Object.values({ ...AI_REGISTRY, ...INACTIVE_PLATFORMS })) {
     const target = buildPlatformTarget(platform)
     if (target) targets.push(target)
   }
@@ -206,9 +206,10 @@ export function toSiteSessionView(
   enabled: boolean,
   status: SiteSessionStatusCode,
   importedAt: string | null,
-  lastError: string | null
+  lastError: string | null,
+  activeSlot?: number
 ): SiteSessionView {
-  return {
+  const view: SiteSessionView = {
     siteId: target.siteId,
     labelKey: target.labelKey,
     hostname: target.hostname,
@@ -219,4 +220,17 @@ export function toSiteSessionView(
     importedAt,
     lastError
   }
+  if (activeSlot !== undefined) {
+    view.activeSlot = activeSlot
+  }
+  return view
+}
+
+/**
+ * Resolves the partition for a target and slot.
+ * Slot 1 is the primary/default partition, slot 2+ uses an isolated suffix.
+ */
+export function partitionForTargetSlot(basePartition: string, slot?: number): string {
+  if (!isSiteSessionSlot(slot) || slot === 1) return basePartition
+  return `${basePartition}_slot_${slot}`
 }

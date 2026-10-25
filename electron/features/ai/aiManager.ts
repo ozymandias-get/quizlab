@@ -1,5 +1,6 @@
 import type { AiPlatform, AiRegistry, InactivePlatforms } from '@shared-core/types'
 
+import { ADDITIONAL_AI_CHAT_PLATFORMS } from '../../../shared/constants/aiChatCatalog.js'
 import { normalizeSubmitMode } from '../../../shared/selectorConfig.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import aistudio from './platforms/aistudio.js'
@@ -129,7 +130,15 @@ const inactivePlatforms: InactivePlatforms = {
   }
 } as const
 
-const AI_REGISTRY: AiRegistry = platforms
+const AI_REGISTRY: AiRegistry = {
+  ...platforms,
+  ...Object.fromEntries(
+    Object.entries(ADDITIONAL_AI_CHAT_PLATFORMS).map(([id, platform]) => [
+      id,
+      enhancePlatform({ ...inactivePlatforms[id], ...platform })
+    ])
+  )
+}
 
 const DEFAULT_AI_ID = 'chatgpt'
 

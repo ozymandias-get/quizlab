@@ -37,6 +37,10 @@ export interface SiteSessionView {
   /** ISO timestamp of the last successful import, or null. */
   importedAt: string | null
   lastError: string | null
+  /** Currently active account slot (1 = default, 2 = secondary). */
+  activeSlot?: number
+  /** Google account choices, including the next available index. */
+  accountSlots?: number[]
 }
 
 /**

@@ -15,7 +15,8 @@ const SITE_SESSION_MEMBER_APP_NAMES = {
   gemini: 'Gemini',
   aistudio: 'AI Studio',
   youtube: 'YouTube',
-  gdrive: 'Google Drive'
+  gdrive: 'Google Drive',
+  notebooklm: 'NotebookLM'
 } as const satisfies Record<string, string>
 
 /**

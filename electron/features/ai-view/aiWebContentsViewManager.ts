@@ -11,6 +11,7 @@ import type {
   AiViewStateSnapshot
 } from '../../../shared/types/aiView.js'
 import { applyRemoteContentSecurity } from '../../app/window/remoteContentSecurity.js'
+import { setupAiSession } from '../../app/window/sessions.js'
 import { getMainWindow } from '../../app/windowManager.js'
 import { Logger } from '../../core/logger.js'
 import { CHROME_USER_AGENT } from '../ai/aiManager.js'
@@ -232,7 +233,7 @@ function attachResolved(
 ): AiViewAttachResponse {
   const sourceKey = sourceKeyOf(request.source)
   const existing = getManagedAiView(viewId)
-  if (existing && existing.sourceKey === sourceKey) {
+  if (existing && existing.sourceKey === sourceKey && existing.partition === target.partition) {
     const window = getMainWindow()
     if (window && !window.isDestroyed()) {
       const children = (window.contentView as unknown as { children?: unknown[] })?.children
@@ -247,6 +248,10 @@ function attachResolved(
 
   const window = getMainWindow()
   if (!window || window.isDestroyed()) throw new Error('main_window_unavailable')
+
+  try {
+    setupAiSession(target.partition)
+  } catch {}
 
   const view = new WebContentsView({
     webPreferences: {

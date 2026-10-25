@@ -35,7 +35,43 @@ const EXPECTED_COOKIE_DOMAINS: Record<string, readonly string[]> = {
   mistral: ['.mistral.ai'],
   perplexity: ['.perplexity.ai'],
   huggingchat: ['.huggingface.co'],
-  manus: ['.manus.im']
+  manus: ['.manus.im'],
+  poe: ['.poe.com'],
+  you: ['.you.com'],
+  duckai: ['.duck.ai', '.duckduckgo.com'],
+  venice: ['.venice.ai'],
+  lumo: ['.lumo.proton.me'],
+  meta: ['.meta.ai'],
+  pi: ['.pi.ai'],
+  character: ['.character.ai'],
+  replika: ['.replika.com'],
+  deepai: ['.deepai.org'],
+  andi: ['.andisearch.com'],
+  blackbox: ['.blackbox.ai'],
+  githubcopilot: ['.github.com'],
+  // NotebookLM uses the existing Google target and its shared partition.
+  zai: ['.z.ai'],
+  minimax: ['.minimax.io', '.minimax.cn'],
+  doubao: ['.doubao.com'],
+  yuanbao: ['.yuanbao.tencent.com'],
+  ernie: ['.wenxin.baidu.com', '.yiyan.baidu.com'],
+  spark: ['.xinghuo.xfyun.cn'],
+  stepfun: ['.stepfun.com'],
+  longcat: ['.longcat.ai'],
+  allenai: ['.allenai.org'],
+  monica: ['.monica.im'],
+  merlin: ['.getmerlin.in'],
+  chatsonic: ['.writesonic.com'],
+  jasper: ['.jasper.ai'],
+  textcortex: ['.textcortex.com'],
+  hix: ['.hix.ai'],
+  coral: ['.cohere.com'],
+  maxai: ['.maxai.co'],
+  abacus: ['.abacus.ai'],
+  genspark: ['.genspark.ai'],
+  felo: ['.felo.ai'],
+  scira: ['.scira.ai'],
+  t3chat: ['.t3.chat']
 }
 
 function readManifest(): SessionExtensionManifest {
@@ -89,8 +125,9 @@ describe('site session cookie domains', () => {
     }
   })
 
-  it('declares a host permission for every cookie domain', () => {
+  it('declares or can request a host permission for every cookie domain', () => {
     const patterns = manifestHostPermissions()
+    const optional = manifestOptionalHostPermissions()
     for (const [siteId, domains] of Object.entries(SITE_SESSION_COOKIE_DOMAINS)) {
       for (const domain of domains) {
         const host = domain.replace(/^\./, '')
@@ -98,7 +135,10 @@ describe('site session cookie domains', () => {
           const url = new URL(pattern)
           return url.protocol === 'https:' && hostIsCovered(host, url.hostname)
         })
-        expect(covered, `${siteId} -> ${domain} has no host permission`).toBe(true)
+        expect(
+          covered || optional.includes('https://*/*'),
+          `${siteId} -> ${domain} is not requestable`
+        ).toBe(true)
       }
     }
   })

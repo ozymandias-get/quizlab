@@ -11,12 +11,13 @@
  * packet is accepted or refused by the same rules no matter which door it
  * came in.
  */
-
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { type Session, session as electronSession } from 'electron'
 
+import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { Logger } from '../../core/logger.js'
+import { AI_REGISTRY } from '../ai/aiManager.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type {
@@ -29,7 +30,11 @@ import { type ExternalBrowserCookie, importExternalCookies } from './siteSession
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
+import {
+  buildSiteSessionTargets,
+  partitionForTargetSlot,
+  type SiteSessionTargetRow
+} from './siteSessionTargets.js'
 
 /**
  * The protocol the extension and the app agree on.
@@ -43,6 +48,7 @@ export const SITE_SESSION_PROTOCOL_VERSION = 2
 /** One site the extension may read cookies for. */
 interface SiteSessionBridgeTarget {
   siteId: string
+  label: string
   cookieDomains: string[]
 }
 
@@ -202,11 +208,17 @@ export function parseSiteSessionPacket(body: string): CookiePacket | null {
   }
 
   if (typeof parsed !== 'object' || parsed === null) return null
-  const candidate = parsed as { targetId?: unknown; status?: unknown; cookies?: unknown }
+  const candidate = parsed as {
+    targetId?: unknown
+    status?: unknown
+    cookies?: unknown
+    profileSlot?: unknown
+  }
   if (typeof candidate.targetId !== 'string' || candidate.targetId.length === 0) return null
   if (typeof candidate.status !== 'string' || !COOKIE_PACKET_STATUSES.has(candidate.status)) {
     return null
   }
+  if (candidate.profileSlot !== undefined && !isSiteSessionSlot(candidate.profileSlot)) return null
   if (!Array.isArray(candidate.cookies)) return null
 
   const cookies = candidate.cookies.filter(isBrowserCookie)
@@ -215,7 +227,8 @@ export function parseSiteSessionPacket(body: string): CookiePacket | null {
   return {
     targetId: candidate.targetId,
     status: candidate.status as CookiePacketStatus,
-    cookies
+    cookies,
+    ...(candidate.profileSlot === undefined ? {} : { profileSlot: candidate.profileSlot })
   }
 }
 
@@ -239,6 +252,12 @@ export async function listEnabledSiteSessionTargets(
     .filter((target) => state.targets[target.siteId]?.enabled === true)
     .map((target) => ({
       siteId: target.siteId,
+      label:
+        target.kind === 'google'
+          ? 'Google'
+          : AI_REGISTRY[target.siteId]?.displayName ||
+            AI_REGISTRY[target.siteId]?.name ||
+            target.hostname,
       cookieDomains: [...target.cookieDomains]
     }))
 
@@ -352,11 +371,12 @@ async function handleSiteSessionPacket(
     return { accepted: false, reason: routed.reason }
   }
 
-  const { target } = routed
+  const { target, profileSlot } = routed
+  const slot = profileSlot || 1
 
   if (packet.status !== 'ok') {
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
-    await recordResult(config, target.siteId, result)
+    await recordResult(config, target.siteId, result, undefined, slot)
     return { accepted: true }
   }
 
@@ -368,7 +388,8 @@ async function handleSiteSessionPacket(
     return { accepted: false, reason: 'target_disabled' }
   }
 
-  const targetSession = resolveSession(target.partition)
+  const targetPartition = partitionForTargetSlot(target.partition, slot)
+  const targetSession = resolveSession(targetPartition)
   const { imported, failed } = await importExternalCookies(
     targetSession,
     packet.cookies.map(toImporterCookie),
@@ -378,12 +399,13 @@ async function handleSiteSessionPacket(
   // An import that wrote nothing is a failure the user has to see: without a
   // reason code the row would show the outcome without saying what went wrong,
   // and `lastError` would stay empty.
-  const wroteSomething = imported > 0
+  const wroteSomething = imported > 0 && failed === 0
   await recordResult(
     config,
     target.siteId,
     wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : 'import_failed'
+    wroteSomething ? undefined : 'import_failed',
+    slot
   )
 
   return { accepted: true, imported, failed }
@@ -436,10 +458,15 @@ async function recordResult(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
-  error?: string
+  error?: string,
+  slot?: number
 ): Promise<void> {
   try {
-    await config.recordResult(siteId, result, error)
+    if (slot && slot > 1) {
+      await config.recordResult(siteId, result, error, slot)
+    } else {
+      await config.recordResult(siteId, result, error)
+    }
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +

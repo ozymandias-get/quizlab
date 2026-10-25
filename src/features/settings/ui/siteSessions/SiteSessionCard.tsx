@@ -1,4 +1,7 @@
 import { getSiteSessionMemberAppName } from '@shared-core/constants/siteSessionMemberApps'
+import { googleAccountSlotOptions } from '@shared-core/constants/siteSessionSlots'
+
+import { getAiIcon } from '@ui/components/Icons'
 
 import i18next from 'i18next'
 import { memo } from 'react'
@@ -26,9 +29,10 @@ function idHash(value: string): string {
  * One site: its name, its host, what the session looks like right now and the
  * switch that pulls the login from Chrome.
  */
-function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) {
+function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSessionCardProps) {
   const idBase = `site-session-${idHash(view.siteId)}`
   const switchId = `${idBase}-switch`
+  const icon = getAiIcon(view.kind === 'google' ? 'gemini' : view.memberAppIds[0] || view.siteId)
   const memberNames =
     view.kind === 'google' ? view.memberAppIds.map(getSiteSessionMemberAppName) : []
   /**
@@ -51,9 +55,19 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
   return (
     <div className="border-border/60 bg-background/40 flex flex-col gap-2.5 rounded-xl border p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-ql-13 text-foreground font-semibold">{t(view.labelKey)}</p>
-          <p className="text-ql-11 text-muted-foreground mt-0.5">{subtitle}</p>
+        <div className="flex min-w-0 items-start gap-3">
+          {icon && (
+            <span
+              aria-hidden="true"
+              className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg"
+            >
+              {icon}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="text-ql-13 text-foreground font-semibold">{t(view.labelKey)}</p>
+            <p className="text-ql-11 text-muted-foreground mt-0.5">{subtitle}</p>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -81,6 +95,27 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
         <p className="text-ql-11 text-muted-foreground">
           {t('ws_last_pull', { time: importedAt })}
         </p>
+      )}
+
+      {view.kind === 'google' && (
+        <div className="border-border/40 mt-0.5 flex items-center gap-2 border-t pt-1">
+          <span className="text-ql-11 text-muted-foreground font-medium">
+            {t('ws_default_slot')}
+          </span>
+          <select
+            aria-label={`${t('ws_google_account_select')} — ${t(view.labelKey)}`}
+            value={view.activeSlot ?? 1}
+            disabled={disabled}
+            onChange={(event) => onSelectSlot?.(view.siteId, Number(event.target.value))}
+            className="text-ql-11 border-border/60 bg-background rounded-md border px-2 py-1"
+          >
+            {(view.accountSlots ?? googleAccountSlotOptions([1])).map((slot) => (
+              <option key={slot} value={slot}>
+                {t('ws_account_slot', { slot: String(slot) })}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {view.kind === 'google' && (

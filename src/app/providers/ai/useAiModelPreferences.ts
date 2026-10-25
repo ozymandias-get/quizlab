@@ -2,8 +2,9 @@ import type { AiPlatform, AiRegistryResponse } from '@shared-core/types'
 
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { useLocalStorage, useLocalStorageBoolean, useLocalStorageString } from '@shared/hooks'
+import { useAppearance } from '@shared/stores/appearanceStore'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { areStringArraysEqual } from './tabUtils'
 import type { PinnedTabStorage } from './types'
@@ -35,12 +36,33 @@ export function useAiModelPreferences({
   )
   const [enabledModels, setEnabledModels] = useLocalStorage<string[]>(
     STORAGE_KEYS.ENABLED_MODELS,
-    allAiIds
-  )
-  const [bootstrappedSiteIds, setBootstrappedSiteIds] = useLocalStorage<string[]>(
-    STORAGE_KEYS.BUILT_IN_SITE_BOOTSTRAP,
     []
   )
+  const [favoriteModels, setFavoriteModels] = useLocalStorage<string[]>(
+    STORAGE_KEYS.FAVORITE_AI_MODELS,
+    []
+  )
+  const setVisibleModel = useAppearance((state) => state.setVisibleModel)
+  const toggleFavoriteModel = useCallback(
+    (id: string) => {
+      if (!Object.hasOwn(aiRegistry, id) || aiRegistry[id].isSite) return
+      const adding = !favoriteModels.includes(id)
+      setFavoriteModels((current) =>
+        adding ? [...new Set([...current, id])] : current.filter((key) => key !== id)
+      )
+      if (adding) setEnabledModels((current) => (current.includes(id) ? current : [...current, id]))
+      setVisibleModel(id, adding)
+    },
+    [aiRegistry, favoriteModels, setFavoriteModels, setEnabledModels, setVisibleModel]
+  )
+
+  useEffect(() => {
+    if (!isRegistryLoaded) return
+    const validFavorites = [...new Set(favoriteModels)].filter(
+      (id) => Object.hasOwn(aiRegistry, id) && !aiRegistry[id].isSite
+    )
+    if (!areStringArraysEqual(validFavorites, favoriteModels)) setFavoriteModels(validFavorites)
+  }, [isRegistryLoaded, aiRegistry, favoriteModels, setFavoriteModels])
   const [defaultAiModel, setDefaultAiModel] = useLocalStorageString(
     STORAGE_KEYS.DEFAULT_AI_MODEL,
     defaultAiId,
@@ -58,8 +80,6 @@ export function useAiModelPreferences({
   // Use refs to access latest values inside effects without dep cycles
   const enabledModelsRef = useRef(enabledModels)
   enabledModelsRef.current = enabledModels
-  const bootstrappedSiteIdsRef = useRef(bootstrappedSiteIds)
-  bootstrappedSiteIdsRef.current = bootstrappedSiteIds
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -69,7 +89,7 @@ export function useAiModelPreferences({
     }
   }, [])
 
-  // Effect 1: Bootstrap built-in sites and validate selections
+  // Seed an empty profile once; never re-enable a model the user switched off.
   useEffect(() => {
     if (!isRegistryLoaded || allAiIds.length === 0 || !isMountedRef.current) return
 
@@ -77,31 +97,20 @@ export function useAiModelPreferences({
     const fallbackModelId = validIds.has(defaultAiModel)
       ? defaultAiModel
       : allAiIds[0] || defaultAiId
-    const builtInSiteIds = Object.values(aiRegistry)
-      .filter((site) => site.isSite && !site.isCustom)
-      .map((site) => site.id)
-    const currentBootstrapped = bootstrappedSiteIdsRef.current
-    const pendingBootstraps = builtInSiteIds.filter((id) => !currentBootstrapped.includes(id))
-
-    const builtInModelIds = Object.values(aiRegistry)
-      .filter((p) => !p.isSite && !p.isCustom)
-      .map((p) => p.id)
-
     const currentEnabled = enabledModelsRef.current
     const filteredEnabled = currentEnabled.filter((id) => validIds.has(id))
-    const seededEnabled = [
-      ...filteredEnabled,
-      ...pendingBootstraps.filter((id) => !filteredEnabled.includes(id)),
-      ...builtInModelIds.filter((id) => !filteredEnabled.includes(id))
-    ]
-    const nextEnabled = seededEnabled.length > 0 ? seededEnabled : [fallbackModelId]
+    const defaultEnabled = Object.values(aiRegistry)
+      .filter((platform) => !platform.isCustom && platform.defaultEnabled !== false)
+      .map((platform) => platform.id)
+    const nextEnabled =
+      filteredEnabled.length > 0
+        ? filteredEnabled
+        : defaultEnabled.length > 0
+          ? defaultEnabled
+          : [fallbackModelId]
 
     if (!areStringArraysEqual(nextEnabled, currentEnabled)) {
       setEnabledModels(nextEnabled)
-    }
-
-    if (pendingBootstraps.length > 0) {
-      setBootstrappedSiteIds([...currentBootstrapped, ...pendingBootstraps])
     }
 
     if (!validIds.has(defaultAiModel)) {
@@ -120,7 +129,6 @@ export function useAiModelPreferences({
     aiRegistry,
     lastSelectedAI,
     setEnabledModels,
-    setBootstrappedSiteIds,
     setDefaultAiModel,
     setLastSelectedAI
   ])
@@ -135,6 +143,9 @@ export function useAiModelPreferences({
     setLastSelectedAI,
     enabledModels,
     setEnabledModels,
+    favoriteModels,
+    setFavoriteModels,
+    toggleFavoriteModel,
     defaultAiModel,
     setDefaultAiModel,
     autoSend,

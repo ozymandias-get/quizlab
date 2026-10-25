@@ -1,3 +1,5 @@
+import { isAiDockVisible } from '@shared-core/constants/aiChatCatalog'
+
 import {
   hasEnabledSiteSession,
   hasSiteSessionNeedingAttention,
@@ -142,14 +144,22 @@ export const ModelIconsList = memo(function ModelIconsList({
 }: {
   visibleModels: Record<string, boolean>
 }) {
-  const { enabledModels, aiSites } = useAiModelsCatalog()
-  const displayModels = useMemo(
-    () => enabledModels.filter((id) => visibleModels[id] !== false),
-    [enabledModels, visibleModels]
-  )
+  const { enabledModels, aiSites, favoriteModels = [] } = useAiModelsCatalog()
+  const bottomBarMaxIcons = useAppearance((s) => s.bottomBarMaxIcons ?? 5)
+  const displayModels = useMemo(() => {
+    const isVisible = (id: string) =>
+      aiSites[id] && isAiDockVisible(id, visibleModels, aiSites[id], favoriteModels)
+    const favorites = favoriteModels.filter((id) => enabledModels.includes(id) && isVisible(id))
+    const others = enabledModels.filter((id) => !favoriteModels.includes(id) && isVisible(id))
+    // Favorites always remain reachable; the viewport stays at the user's icon limit.
+    return [...favorites, ...others].slice(0, Math.max(bottomBarMaxIcons, favorites.length))
+  }, [enabledModels, aiSites, favoriteModels, visibleModels, bottomBarMaxIcons])
 
   return (
-    <div className="flex w-full flex-col items-center gap-1">
+    <div
+      className="custom-scrollbar flex w-full flex-col items-center gap-1 overflow-y-auto py-1"
+      style={{ maxHeight: bottomBarMaxIcons * 36 + 8 }}
+    >
       {displayModels.map((modelKey) => (
         <ModelDockIcon key={modelKey} modelKey={modelKey} site={aiSites[modelKey]} />
       ))}
@@ -171,7 +181,7 @@ const ModelDockIcon = memo(function ModelDockIcon({
 
   return (
     <FloatingDockIcon title={site.displayName || site.name || modelKey} onClick={handleClick}>
-      {getAiIcon(modelKey) || (
+      {getAiIcon(site.icon || modelKey) || (
         <span className="text-ql-10 flex h-5 w-5 items-center justify-center font-bold">
           {(site.displayName || modelKey).charAt(0)}
         </span>

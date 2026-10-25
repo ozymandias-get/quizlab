@@ -37,7 +37,8 @@ const STORAGE_KEYS = [
   'bridgePort',
   'pendingSiteIds',
   'outdatedState',
-  'tooLargeSiteIds'
+  'tooLargeSiteIds',
+  'profileSlot'
 ]
 
 /** The sync with the app went through. */
@@ -58,6 +59,7 @@ const PACKET_UNREACHABLE = 'unreachable'
 
 let connected = false
 let cookieDebounceTimer = null
+const changedDomains = new Set()
 let bridgeSecret = null
 let lastConfigVersion = null
 let knownTargets = []
@@ -69,6 +71,9 @@ let pendingSiteIds = new Set()
 let tooLargeSiteIds = new Set()
 /** The state the app was last told about while it speaks an older protocol. */
 let outdatedState = null
+/** The profile slot this Chrome profile syncs to (1 = default, 2 = secondary). */
+let profileSlot = 1
+let autoSync = true
 /** What the last push sent, so that the same state is not sent twice. */
 let lastPush = null
 let pendingSend = Promise.resolve(SYNC_OK)
@@ -131,7 +136,8 @@ function normalizeTargets(value) {
           (domain) => typeof domain === 'string' && domain.trim().length > 0
         )
       : []
-    targets.push({ siteId, cookieDomains: domains })
+    const label = typeof entry.label === 'string' ? entry.label.trim().slice(0, 120) : ''
+    targets.push({ siteId, cookieDomains: domains, ...(label ? { label } : {}) })
   }
   return targets
 }
@@ -172,6 +178,12 @@ async function readPersistedState() {
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
   }
+  // Preferences survive browser restarts; transient bridge state does not.
+  try {
+    const preferences = await chrome.storage.local.get(['profileSlot', 'autoSync'])
+    profileSlot = preferences.profileSlot === 2 ? 2 : 1
+    autoSync = preferences.autoSync !== false
+  } catch {}
   // The wake-up listens for the sites of the saved list until the app names
   // its own list.
   applyWakeUpFilter()
@@ -318,7 +330,7 @@ async function readCookies(domain) {
       'could not be read:',
       errorMessage(error)
     )
-    return []
+    throw error
   }
 }
 
@@ -401,12 +413,19 @@ function normalizeCookie(cookie) {
  * some of its cookies were read: the app would otherwise import the session it
  * could see and delete the cookies of the domain it could not.
  */
-async function collectTargetPacket(target) {
+async function collectTargetPacket(target, slot = 1) {
+  if (target.siteId !== 'google') slot = 1
+  // New catalogue sites need an explicit optional grant before any cookie read.
+  if (!(await hasPermission(target.cookieDomains))) {
+    return { targetId: target.siteId, status: 'permission_missing', cookies: [], profileSlot: slot }
+  }
   const collected = new Map()
   for (const domain of target.cookieDomains) {
     for (const spelling of domainSpellings(domain)) {
       const found = await readCookies(spelling)
       for (const cookie of found) {
+        // Partitioned third-party cookies cannot be flattened into the first-party jar.
+        if (cookie.partitionKey) continue
         collected.set(cookieIdentity(cookie), cookie)
       }
     }
@@ -415,12 +434,17 @@ async function collectTargetPacket(target) {
   const cookies = [...collected.values()]
   const permitted = await hasPermission(target.cookieDomains)
   if (!permitted) {
-    return { targetId: target.siteId, status: 'permission_missing', cookies: [] }
+    return { targetId: target.siteId, status: 'permission_missing', cookies: [], profileSlot: slot }
   }
   if (cookies.length > 0) {
-    return { targetId: target.siteId, status: 'ok', cookies: cookies.map(normalizeCookie) }
+    return {
+      targetId: target.siteId,
+      status: 'ok',
+      cookies: cookies.map(normalizeCookie),
+      profileSlot: slot
+    }
   }
-  return { targetId: target.siteId, status: 'no_cookies', cookies: [] }
+  return { targetId: target.siteId, status: 'no_cookies', cookies: [], profileSlot: slot }
 }
 
 /**
@@ -445,6 +469,7 @@ async function postPacket(packet, port) {
     }
 
     const response = await fetch(`http://${BRIDGE_HOST}:${port}${COOKIE_PATH}`, {
+      signal: AbortSignal.timeout(10000),
       method: 'POST',
       headers,
       body
@@ -461,6 +486,15 @@ async function postPacket(packet, port) {
         'with',
         response.status
       )
+      return PACKET_REFUSED
+    }
+    const result = await response.json()
+    if (
+      packet.status !== 'ok' ||
+      result.success === false ||
+      (typeof result.imported === 'number' && result.imported === 0) ||
+      result.failed > 0
+    ) {
       return PACKET_REFUSED
     }
     return PACKET_SENT
@@ -529,11 +563,11 @@ function statePushedTo(list, fingerprint) {
  * other way round: it is not pushed again, because a packet that is too large
  * stays too large.
  */
-async function pushTargets(targets, port) {
+async function pushTargets(targets, port, slot = 1) {
   let refused = false
   for (const target of targets) {
     if (tooLargeSiteIds.has(target.siteId)) continue
-    const packet = await collectTargetPacket(target)
+    const packet = await collectTargetPacket(target, slot)
     const outcome = await postPacket(packet, port)
     if (outcome === PACKET_SENT) {
       pendingSiteIds.delete(target.siteId)
@@ -607,6 +641,12 @@ async function reportOutdatedOnce(list, port) {
 async function sendCookiesToApp(options) {
   const settings = options || {}
   await stateReady
+  if (settings.forceAll === true) {
+    profileSlot = settings.slot === 2 ? 2 : 1
+    autoSync = false
+    await chrome.storage.local.set({ profileSlot, autoSync })
+    pendingSiteIds.clear()
+  }
 
   const port = typeof settings.port === 'number' ? settings.port : bridgePort
   if (!port) return SYNC_UNREACHABLE
@@ -630,6 +670,14 @@ async function sendCookiesToApp(options) {
     await persistState({ outdatedState: null })
   }
 
+  if (!autoSync && settings.forceAll !== true) {
+    knownTargets = list.targets
+    lastConfigVersion = list.configVersion
+    applyWakeUpFilter()
+    await persistState({ knownTargets, lastConfigVersion })
+    return SYNC_OK
+  }
+
   const fingerprint = targetsFingerprint(list.targets)
   const changed =
     list.configVersion !== lastConfigVersion || fingerprint !== targetsFingerprint(knownTargets)
@@ -645,12 +693,15 @@ async function sendCookiesToApp(options) {
   // browser changed and — when the bridge is a new one — all of them.
   const wanted = new Set(pendingSiteIds)
   for (const target of list.targets) {
-    if (changed) wanted.add(target.siteId)
+    if (changed || settings.forceAll === true) wanted.add(target.siteId)
     if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
       if (targetCoversDomain(target, settings.changedDomain)) wanted.add(target.siteId)
     }
   }
-  if (settings.connect === true && !statePushedTo(list, fingerprint)) {
+  if (
+    (settings.connect === true && !statePushedTo(list, fingerprint)) ||
+    settings.forceAll === true
+  ) {
     for (const target of list.targets) wanted.add(target.siteId)
   }
   // A site whose packet did not fit into the app is not pushed again: the
@@ -666,7 +717,13 @@ async function sendCookiesToApp(options) {
     if (!asked.has(siteId)) tooLargeSiteIds.delete(siteId)
   }
 
-  const targets = list.targets.filter((target) => wanted.has(target.siteId))
+  if (settings.forceAll === true) tooLargeSiteIds.clear()
+  const targets = list.targets.filter(
+    (target) =>
+      (settings.forceAll === true || wanted.has(target.siteId)) &&
+      (!settings.targetId || target.siteId === settings.targetId)
+  )
+  if (settings.forceAll === true && targets.length === 0) return SYNC_REFUSED
   if (targets.length === 0) {
     if (changed) {
       lastConfigVersion = list.configVersion
@@ -681,7 +738,7 @@ async function sendCookiesToApp(options) {
     return SYNC_OK
   }
 
-  const refused = await pushTargets(targets, port)
+  const refused = await pushTargets(targets, port, settings.slot === 2 ? 2 : 1)
   if (changed) {
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
@@ -779,10 +836,12 @@ async function handleCookieChange(changeInfo) {
   if (typeof domain !== 'string' || !domain) return
   if (!isKnownDomain(domain)) return
 
+  changedDomains.add(domain)
   if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer)
   cookieDebounceTimer = setTimeout(() => {
     cookieDebounceTimer = null
-    void queueSend({ changedDomain: domain })
+    for (const changedDomain of changedDomains) void queueSend({ changedDomain })
+    changedDomains.clear()
   }, 2000)
 }
 
@@ -871,6 +930,34 @@ function applyWakeUpFilter() {
       errorMessage(error)
     )
   }
+}
+
+if (chrome.runtime?.onMessage?.addListener) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === 'set_auto_sync') {
+      stateReady
+        .then(async () => {
+          autoSync = message.enabled === true
+          await chrome.storage.local.set({ autoSync })
+          return queueSend({})
+        })
+        .then(
+          () => sendResponse({ success: true }),
+          () => sendResponse({ success: false })
+        )
+      return true
+    }
+    if (message?.type === 'sync_now') {
+      if (message.slot !== 1 && message.slot !== 2) {
+        sendResponse({ success: false, result: 'invalid_slot' })
+        return
+      }
+      queueSend({ forceAll: true, slot: message.slot, targetId: message.targetId })
+        .then((result) => sendResponse({ success: result === SYNC_OK, result }))
+        .catch((error) => sendResponse({ success: false, error: errorMessage(error) }))
+      return true
+    }
+  })
 }
 
 /** The wake-up itself: the bridge is looked for again. */

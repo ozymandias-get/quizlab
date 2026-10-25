@@ -1,3 +1,5 @@
+import { isAiDockVisible } from '@shared-core/constants/aiChatCatalog'
+
 import {
   hasEnabledSiteSession,
   useSiteSessionListQuery
@@ -76,15 +78,24 @@ const BottomBarSettingsTab = memo(() => {
   const language = i18n.language
   const { data: siteSessionData } = useSiteSessionListQuery()
   const isSiteSessionEnabled = hasEnabledSiteSession(siteSessionData?.views ?? [])
-  const { enabledModels, aiSites } = useAiModelsCatalog()
+  const { enabledModels, aiSites, favoriteModels = [] } = useAiModelsCatalog()
   const { setEnabledModels } = useAiModelActions()
 
-  const { visibleTools, setVisibleTool, visibleModels, setVisibleModel } = useAppearance(
+  const {
+    visibleTools,
+    setVisibleTool,
+    visibleModels,
+    setVisibleModel,
+    bottomBarMaxIcons,
+    setBottomBarMaxIcons
+  } = useAppearance(
     useShallow((s) => ({
       visibleTools: s.visibleTools,
       setVisibleTool: s.setVisibleTool,
       visibleModels: s.visibleModels,
-      setVisibleModel: s.setVisibleModel
+      setVisibleModel: s.setVisibleModel,
+      bottomBarMaxIcons: s.bottomBarMaxIcons ?? 5,
+      setBottomBarMaxIcons: s.setBottomBarMaxIcons
     }))
   )
 
@@ -99,8 +110,12 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   const handleToggleModel = useCallback(
-    (modelId: string) => setVisibleModel(modelId, visibleModels[modelId] === false),
-    [visibleModels, setVisibleModel]
+    (modelId: string) =>
+      setVisibleModel(
+        modelId,
+        !isAiDockVisible(modelId, visibleModels, aiSites[modelId], favoriteModels)
+      ),
+    [visibleModels, setVisibleModel, aiSites, favoriteModels]
   )
 
   const handleReorder = useCallback(
@@ -114,8 +129,13 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   const visibleModelCount = useMemo(
-    () => enabledModels.filter((modelId) => visibleModels[modelId] !== false).length,
-    [enabledModels, visibleModels]
+    () =>
+      enabledModels.filter(
+        (modelId) =>
+          aiSites[modelId] &&
+          isAiDockVisible(modelId, visibleModels, aiSites[modelId], favoriteModels)
+      ).length,
+    [enabledModels, visibleModels, aiSites, favoriteModels]
   )
 
   return (
@@ -171,6 +191,41 @@ const BottomBarSettingsTab = memo(() => {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: DURATION.fast, delay: 0.03 }}
+      >
+        <SettingsSection
+          icon={<SliderIcon className="h-4 w-4" />}
+          title={t('bottom_bar_max_icons')}
+          detail={t('bottom_bar_max_icons_desc')}
+        >
+          <div className="border-border/45 bg-card/55 flex flex-col gap-3 rounded-xl border p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-foreground text-ql-12 font-medium">
+                {t('bottom_bar_max_icons_label')}
+              </span>
+              <span className="text-primary border-primary/20 bg-primary/10 text-ql-12 shrink-0 rounded-md border px-2 py-0.5 font-semibold tabular-nums">
+                {bottomBarMaxIcons} {t('bottom_bar_max_icons_unit')}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={50}
+              value={bottomBarMaxIcons}
+              onChange={(e) => setBottomBarMaxIcons(Number(e.target.value))}
+              aria-label={t('bottom_bar_max_icons')}
+              className="accent-primary bg-muted h-2 w-full cursor-pointer rounded-lg"
+            />
+            <p className="text-muted-foreground text-ql-11">
+              {t('bottom_bar_max_icons_hint', { count: bottomBarMaxIcons })}
+            </p>
+          </div>
+        </SettingsSection>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: DURATION.fast, delay: 0.05 }}
       >
         <SettingsSection
@@ -187,7 +242,7 @@ const BottomBarSettingsTab = memo(() => {
             {enabledModels.map((modelId) => {
               const site = aiSites[modelId]
               if (!site) return null
-              const isVisible = visibleModels[modelId] !== false
+              const isVisible = isAiDockVisible(modelId, visibleModels, site, favoriteModels)
               const displayName = site.displayName || site.name || modelId
 
               return (
@@ -225,7 +280,7 @@ const BottomBarSettingsTab = memo(() => {
                         className={`${HOVER_AFFORDANCE} text-muted-foreground h-4 w-4 shrink-0`}
                       />
                       <div className="flex size-5 shrink-0 items-center justify-center">
-                        {getAiIcon(modelId) || (
+                        {getAiIcon(site.icon || modelId) || (
                           <span className="text-muted-foreground text-ql-12 font-semibold">
                             {displayName.charAt(0)}
                           </span>
@@ -236,6 +291,7 @@ const BottomBarSettingsTab = memo(() => {
                       </Label>
                     </div>
                     <SettingsToggleSwitch
+                      aria-label={displayName}
                       checked={isVisible}
                       onChange={() => handleToggleModel(modelId)}
                       size="sm"
@@ -247,7 +303,13 @@ const BottomBarSettingsTab = memo(() => {
           </Reorder.Group>
 
           <SectionCaption>
-            {visibleModelCount} / {enabledModels.length} models visible
+            {visibleModelCount > bottomBarMaxIcons
+              ? t('bottom_bar_showing_limited', {
+                  visible: visibleModelCount,
+                  total: enabledModels.length,
+                  limit: bottomBarMaxIcons
+                })
+              : `${visibleModelCount} / ${enabledModels.length} models visible`}
           </SectionCaption>
         </SettingsSection>
       </motion.div>

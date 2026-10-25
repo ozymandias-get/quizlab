@@ -59,6 +59,54 @@
   </head>
   <body>
     <h1>Quizlab site oturumları</h1>
+    <div
+      class="slot-container"
+      style="
+        margin-bottom: 12px;
+        padding: 8px;
+        background: rgba(128, 128, 128, 0.1);
+        border-radius: 6px;
+      "
+    >
+      <div style="font-size: 11px; color: #888; margin-top: 4px">
+        Chrome’daki site oturumunu uygulamaya aktarın. Aynı profildeki sekmeler ayrı çerez depoları
+        değildir. Google için tek aktarım yeterlidir: Quizlab Hesap 1 ilk Google hesabını, hesap
+        seçicisinden ikinci, üçüncü ve sonraki hesaplara geçebilirsiniz.
+      </div>
+      <label for="site-select">Aktarılacak site:</label>
+      <select id="site-select">
+        <option value="">Etkin tüm siteler</option>
+      </select>
+      <label style="display: block; margin-top: 8px"
+        ><input id="auto-sync" type="checkbox" /> Siteleri Chrome ile otomatik eşitle</label
+      >
+      <p style="font-size: 11px">
+        Elle aktarım otomatik eşitlemeyi durdurur; böylece Chrome’da hesap değiştirirken kayıtlı
+        oturumlar korunur. Google dışındaki sitelerde tek oturum kullanılır.
+      </p>
+      <button
+        id="sync-btn"
+        type="button"
+        style="
+          margin-top: 8px;
+          width: 100%;
+          padding: 6px 12px;
+          background: #0284c7;
+          color: #fff;
+          border: none;
+          border-radius: 4px;
+          font-weight: 600;
+          font-size: 12px;
+          cursor: pointer;
+        "
+      >
+        Oturumları Quizlab'a Aktar
+      </button>
+      <div
+        id="sync-feedback"
+        style="font-size: 11px; margin-top: 6px; font-weight: 500; display: none"
+      ></div>
+    </div>
     <p id="status"></p>
     <ul id="sites"></ul>
     <script src="popup.js"></script>

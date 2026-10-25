@@ -17,7 +17,6 @@ import { useTranslation } from 'react-i18next'
 
 import AddAiModelForm from './models/AddAiModelForm'
 import AiModelList from './models/AiModelList'
-import { isCustomModelPlatform } from './shared/aiPlatformFilters'
 import SettingsCollectionTabShell from './shared/SettingsCollectionTabShell'
 
 const MODELS_ICON = (
@@ -27,8 +26,8 @@ const MODELS_ICON = (
 )
 
 const ModelsTab = memo(() => {
-  const { enabledModels, aiSites, defaultAiModel } = useAiModelsCatalog()
-  const { setEnabledModels, setDefaultAiModel } = useAiModelActions()
+  const { enabledModels, favoriteModels, aiSites, defaultAiModel } = useAiModelsCatalog()
+  const { setEnabledModels, setDefaultAiModel, toggleFavoriteModel } = useAiModelActions()
   const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
   const { showError } = useToastActions()
@@ -61,7 +60,7 @@ const ModelsTab = memo(() => {
   const modelsList = useMemo(
     () =>
       Object.values(aiSites)
-        .filter(isCustomModelPlatform)
+        .filter((site) => !site.isSite)
         .map((site) => site.id),
     [aiSites]
   )
@@ -161,6 +160,8 @@ const ModelsTab = memo(() => {
             <AiModelList
               modelsList={modelsList}
               enabledModels={enabledModels}
+              favoriteModels={favoriteModels}
+              toggleFavoriteModel={toggleFavoriteModel}
               aiSites={aiSites}
               toggleModel={toggleModel}
               handleDeleteAi={handleDeleteAi}
@@ -183,9 +184,7 @@ const ModelsTab = memo(() => {
               </span>{' '}
               {t('models_count')}
             </p>
-            <p className="text-ql-12 text-muted-foreground">
-              {t('google_models_managed_separately')}
-            </p>
+            <p className="text-ql-12 text-muted-foreground">{t('ai_catalog_hint')}</p>
           </div>
         }
       />
