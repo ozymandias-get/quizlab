@@ -40,7 +40,7 @@ const CONFIG_VERSION = 1
 /** The keys a config file may not carry, mirroring `ConfigManager`'s guard. */
 const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
-export interface SiteSessionSlotState {
+interface SiteSessionSlotState {
   importedAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null

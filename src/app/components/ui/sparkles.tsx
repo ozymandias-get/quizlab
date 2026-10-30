@@ -2,7 +2,7 @@ import { cn } from '@shared/lib/uiUtils'
 
 import { memo, useEffect, useRef, useState } from 'react'
 
-export type ParticlesProps = {
+type ParticlesProps = {
   id?: string
   className?: string
   background?: string
@@ -14,7 +14,7 @@ export type ParticlesProps = {
   particleDensity?: number
 }
 
-export type SparklesCoreProps = ParticlesProps & { paused?: boolean }
+type SparklesCoreProps = ParticlesProps & { paused?: boolean }
 
 interface Particle {
   x: number
@@ -26,7 +26,7 @@ interface Particle {
   vy: number
 }
 
-export const SparklesCore = memo((props: SparklesCoreProps) => {
+const SparklesCore = memo((props: SparklesCoreProps) => {
   const {
     id,
     className,
