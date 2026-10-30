@@ -61,8 +61,9 @@ export function normalizeExecutionResult(value: unknown): AutomationExecutionRes
   }
 
   const candidate = value as Partial<AutomationExecutionResult>
+  if (typeof candidate.success !== 'boolean' && typeof candidate.error !== 'string') return null
   return {
-    success: typeof candidate.success === 'boolean' ? candidate.success : !candidate.error,
+    success: typeof candidate.success === 'boolean' ? candidate.success : false,
     error: candidate.error,
     mode: candidate.mode,
     action: candidate.action,

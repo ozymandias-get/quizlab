@@ -18,6 +18,9 @@ interface ToolbarButtonProps {
   disabled?: boolean
   /** Control size contract: `compact` = 28px (dense toolbars), `default` = 32px. */
   size?: IconButtonSize
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left'
+  tooltipAvoidCollisions?: boolean
+  tooltipSideOffset?: number
 }
 
 export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
@@ -30,7 +33,10 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       className,
       activeClassName,
       disabled = false,
-      size = 'default'
+      size = 'default',
+      tooltipSide,
+      tooltipAvoidCollisions,
+      tooltipSideOffset
     },
     ref
   ) => {
@@ -65,7 +71,13 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     return (
       <Tooltip>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent>{tooltip}</TooltipContent>
+        <TooltipContent
+          side={tooltipSide}
+          avoidCollisions={tooltipAvoidCollisions}
+          sideOffset={tooltipSideOffset}
+        >
+          {tooltip}
+        </TooltipContent>
       </Tooltip>
     )
   }

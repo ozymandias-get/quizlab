@@ -167,24 +167,24 @@ function normalizeTargetState(raw: unknown, siteId: string): SiteSessionTargetSt
   return {
     ...source,
     enabled: source.enabled === true,
-    importedAt:
-      slots?.[activeSlot]?.importedAt ??
-      (activeSlot === (source.activeSlot ?? 1) && typeof source.importedAt === 'string'
+    importedAt: slots?.[activeSlot]
+      ? slots[activeSlot].importedAt
+      : activeSlot === (source.activeSlot ?? 1) && typeof source.importedAt === 'string'
         ? source.importedAt
-        : null),
-    lastResult:
-      slots?.[activeSlot]?.lastResult ??
-      (activeSlot === (source.activeSlot ?? 1) && isLastResult(source.lastResult)
+        : null,
+    lastResult: slots?.[activeSlot]
+      ? slots[activeSlot].lastResult
+      : activeSlot === (source.activeSlot ?? 1) && isLastResult(source.lastResult)
         ? source.lastResult
-        : null),
-    lastError:
-      slots?.[activeSlot]?.lastError ??
-      (activeSlot === (source.activeSlot ?? 1) && typeof source.lastError === 'string'
+        : null,
+    lastError: slots?.[activeSlot]
+      ? slots[activeSlot].lastError
+      : activeSlot === (source.activeSlot ?? 1) && typeof source.lastError === 'string'
         ? source.lastError
-        : null),
+        : null,
     activeSlot,
     slots: {
-      1: {
+      [activeSlot]: {
         importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
         lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
         lastError: typeof source.lastError === 'string' ? source.lastError : null

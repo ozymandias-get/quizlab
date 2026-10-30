@@ -53,7 +53,7 @@ vi.mock('@electron/core/smartCachePolicy', async () => {
       level: 'normal',
       percentage: 0,
       usedBytes: total,
-      limitBytes: 500 * 1024 * 1024,
+      limitBytes: 1024 * 1024 * 1024,
       excessBytes: 0,
       shouldAutoClean: false,
       urgency: 0

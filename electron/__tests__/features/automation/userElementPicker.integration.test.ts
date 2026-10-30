@@ -382,4 +382,33 @@ describe('userElementPicker integration', () => {
 
     consoleSpy.mockRestore()
   })
+
+  it('includes the picker session in cancellation messages', () => {
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      eval(generatePickerScript({}, 'current-session'))
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      expect(consoleSpy).toHaveBeenCalledWith('_aiPicker:cancelled:current-session')
+    } finally {
+      consoleSpy.mockRestore()
+    }
+  })
+
+  it('ignores input events from a different editor in the same document', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+      const selected = document.createElement('textarea')
+      const other = document.createElement('textarea')
+      document.body.append(selected, other)
+      selected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+      other.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
+      vi.advanceTimersByTime(200)
+      expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+    } finally {
+      ;(window as PickerWindow)._aiPickerCleanup?.()
+      vi.useRealTimers()
+    }
+  })
 })

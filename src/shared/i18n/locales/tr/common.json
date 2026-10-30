@@ -113,7 +113,7 @@
   "gpu_cache": "GPU Önbelleği",
   "temp_files": "Geçici Dosyalar",
   "ai_partitions_count": "Yapay Zeka Bölümleri ({count})",
-  "storage_exceeds_limit": "Önbellek 500 MB sınırını aştı. Bazı bölümler otomatik olarak temizlenecek.",
+  "storage_exceeds_limit": "Önbellek 1 GB sınırını aştı. Bazı bölümler otomatik olarak temizlenecek.",
   "storage_approaching_limit": "Önbellek sınıra yaklaşıyor. Kullanılmayan bölümleri temizlemeyi düşünün.",
   "storage_cleanup_result": "({files} dosya, {bytes} boşaltıldı)",
   "cache_auto_clean": "Akıllı Otomatik Temizlik",

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 
+import { googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
@@ -76,8 +77,12 @@ async function fsRetry<T>(
   throw lastError!
 }
 
-export async function clearSafeCacheDirectories(userDataPath: string, partitions: Set<string>) {
-  const roots = new Set<string>([userDataPath])
+export async function clearSafeCacheDirectories(
+  userDataPath: string,
+  partitions: Set<string>,
+  includeRoot = true
+) {
+  const roots = new Set<string>(includeRoot ? [userDataPath] : [])
 
   for (const partition of partitions) {
     const partitionRoot = getPartitionCacheRoot(userDataPath, partition)
@@ -86,20 +91,33 @@ export async function clearSafeCacheDirectories(userDataPath: string, partitions
     }
   }
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     [...roots].flatMap((rootPath) =>
       SAFE_CACHE_DIRS.map((dirName) =>
         fsRetry(() => fs.rm(path.join(rootPath, dirName), { recursive: true, force: true }))
       )
     )
   )
+  if (results.some((result) => result.status === 'rejected')) {
+    throw new Error('Some cache directories could not be cleared')
+  }
+}
+
+/** Cache-only requests address exactly the partition shown by the storage UI. */
+export function resolveCacheOnlyPartition(input: unknown): string | null {
+  if (typeof input !== 'string' || input.length > 128) return null
+  return /^persist:[a-z0-9_-]+$/i.test(input) ? input : null
 }
 
 function normalizeClearablePartition(input: unknown): string | null {
   if (typeof input !== 'string') return null
   const normalized = input.trim()
   if (!normalized || normalized.length > 128) return null
-  if (normalized !== APP_CONFIG.PARTITIONS.AI && !/^persist:ai_[\w-]+$/i.test(normalized)) {
+  if (
+    normalized !== APP_CONFIG.PARTITIONS.AI &&
+    !/^persist:ai_[\w-]+$/i.test(normalized) &&
+    googleSlotForPartition(normalized) === null
+  ) {
     return null
   }
   return normalized
@@ -135,5 +153,28 @@ export function getAllPartitions(): Set<string> {
   for (const p of Object.values(AI_REGISTRY)) p.partition && partitions.add(p.partition)
   for (const p of Object.values(INACTIVE_PLATFORMS)) p.partition && partitions.add(p.partition)
 
+  return partitions
+}
+
+/** Include persisted custom and Google account partitions that are not in the registry. */
+export async function getStoredPartitions(userDataPath: string): Promise<Set<string>> {
+  const partitions = new Set<string>()
+  const registered = getAllPartitions()
+  try {
+    const entries = await fs.readdir(path.join(userDataPath, 'Partitions'), { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink()) continue
+      const partition = `persist:${entry.name}`
+      if (
+        registered.has(partition) ||
+        /^persist:ai_[a-z0-9_-]+$/i.test(partition) ||
+        googleSlotForPartition(partition) !== null
+      ) {
+        partitions.add(partition)
+      }
+    }
+  } catch {
+    // Do not create registered but unused sessions if the folder is unavailable.
+  }
   return partitions
 }

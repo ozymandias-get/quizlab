@@ -9,7 +9,6 @@ import { resolveWebPermission } from './permissionConsent.js'
 import {
   APP_SESSION_PARTITION,
   evaluateWebPermission,
-  listManagedAiPartitions,
   type WebPermissionRequest
 } from './permissionPolicy.js'
 
@@ -143,8 +142,6 @@ export function setupAiSession(
 
   const aiSession = session.fromPartition(partition)
   const partitionKey = partition.replace('persist:', '')
-  markPartitionActive(partitionKey)
-
   aiSession.webRequest.onBeforeSendHeaders((details, callback) => {
     markPartitionActive(partitionKey)
     details.requestHeaders['User-Agent'] = APP_CONFIG.CHROME_USER_AGENT
@@ -167,12 +164,6 @@ export function setupSessions(getMainWindow: MainWindowResolver) {
     const defaultSession = session.defaultSession
     if (defaultSession) {
       applyPermissionPolicy(defaultSession, APP_SESSION_PARTITION, getMainWindow)
-    }
-
-    const aiPartitions = new Set<string>(listManagedAiPartitions())
-
-    for (const partition of aiPartitions) {
-      setupAiSession(partition, getMainWindow)
     }
 
     sessionsConfigured = true

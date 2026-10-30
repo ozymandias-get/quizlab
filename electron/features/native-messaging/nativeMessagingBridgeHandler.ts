@@ -283,13 +283,11 @@ function handleCookiePost(
   const digest = crypto.createHmac('sha256', mgr._sharedSecret)
 
   req.on('data', (chunk: Buffer) => {
+    const remaining = Math.max(0, MAX_COOKIE_BODY_SIZE - bodySize)
     bodySize += chunk.length
     digest.update(chunk)
-    if (bodySize > MAX_COOKIE_BODY_SIZE) {
-      oversized = true
-      return
-    }
-    chunks.push(chunk)
+    if (remaining > 0) chunks.push(chunk.subarray(0, remaining))
+    if (bodySize > MAX_COOKIE_BODY_SIZE) oversized = true
   })
 
   req.on('end', async () => {

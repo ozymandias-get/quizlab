@@ -8,6 +8,7 @@
  */
 import { app, session } from 'electron'
 
+import { googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -16,12 +17,13 @@ import { requireTrustedIpcSender } from '../ipcSecurity.js'
 import { Logger } from '../logger.js'
 import {
   clearSafeCacheDirectories,
-  getAllPartitions,
   getCachedCacheInfo,
+  getStoredPartitions,
   invalidateCacheInfo,
   isProtectedPartition,
   MODEL_STORAGE_TYPES,
   resolveAiModelPartition,
+  resolveCacheOnlyPartition,
   setCachedCacheInfo
 } from './cache.js'
 
@@ -56,7 +58,7 @@ export function registerCacheHandlers(): void {
 
         await session.defaultSession.clearCache()
 
-        const allPartitions = getAllPartitions()
+        const allPartitions = await getStoredPartitions(userDataPath)
 
         const filtered = [...allPartitions].filter((partition) => {
           if (isProtectedPartition(partition)) {
@@ -78,6 +80,7 @@ export function registerCacheHandlers(): void {
 
         return success(true)
       } catch (error) {
+        invalidateCacheInfo()
         Logger.error('[IPC] Failed to clear cache:', error)
         return success(false)
       }
@@ -88,9 +91,12 @@ export function registerCacheHandlers(): void {
 
   registerIpcHandler(
     IPC_CHANNELS.CLEAR_AI_MODEL_DATA,
-    async (_event, input: { id?: unknown; partition?: unknown }) => {
+    async (_event, input: { id?: unknown; partition?: unknown; cacheOnly?: unknown }) => {
       try {
-        const partition = resolveAiModelPartition(input || {})
+        const cacheOnly = input?.cacheOnly === true
+        const partition = cacheOnly
+          ? resolveCacheOnlyPartition(input.partition)
+          : resolveAiModelPartition(input || {})
         if (!partition) return success(false)
 
         if (isProtectedPartition(partition)) {
@@ -99,15 +105,33 @@ export function registerCacheHandlers(): void {
         }
 
         const userDataPath = app.getPath('userData')
-        const pSession = session.fromPartition(partition)
+        const targetPartitions = new Set<string>([partition])
+        if (!cacheOnly && googleSlotForPartition(partition) !== null) {
+          const stored = await getStoredPartitions(userDataPath)
+          for (const storedPartition of stored) {
+            if (googleSlotForPartition(storedPartition) !== null) {
+              if (isProtectedPartition(storedPartition)) {
+                logProtectedPartitionSkip('CLEAR_AI_MODEL_DATA', storedPartition)
+                return success(false)
+              }
+              targetPartitions.add(storedPartition)
+            }
+          }
+        }
 
-        await pSession.clearCache()
-        await pSession.clearStorageData({ storages: [...MODEL_STORAGE_TYPES] })
-        await clearSafeCacheDirectories(userDataPath, new Set([partition]))
+        for (const targetPartition of targetPartitions) {
+          const pSession = session.fromPartition(targetPartition)
+          await pSession.clearCache()
+          await pSession.clearStorageData({
+            storages: cacheOnly ? ['serviceworkers', 'cachestorage'] : [...MODEL_STORAGE_TYPES]
+          })
+        }
+        await clearSafeCacheDirectories(userDataPath, targetPartitions, false)
         invalidateCacheInfo()
 
         return success(true)
       } catch (error) {
+        invalidateCacheInfo()
         Logger.error('[IPC] Failed to clear model data:', error)
         return success(false)
       }
@@ -182,34 +206,14 @@ export function registerCacheHandlers(): void {
         const userDataPath = app.getPath('userData')
         if (action === 'clean_cold') {
           // Soğuk partition'ları temizle
-          const { getAllPartitionActivities } = await import('../cacheRegistry.js')
-          const activities = getAllPartitionActivities()
-          const coldPartitions = Object.entries(activities)
-            .filter(([, v]) => v.category === 'cold')
-            .map(([k]) => `persist:${k}`)
+          const { getActivityCategory } = await import('../cacheRegistry.js')
+          const info = await getCacheInfo()
+          const coldPartitions = Object.entries(info.breakdown.partitionCaches)
+            .filter(([key, size]) => size > 0 && getActivityCategory(key) === 'cold')
+            .map(([key]) => `persist:${key}`)
             .filter((p) => !isProtectedPartition(p))
 
-          // Fallback: smart recommendation'dan al
-          let targets = coldPartitions
-          if (targets.length === 0) {
-            const info = await getCacheInfo()
-            targets = (info.smart?.recommendation.targetPartitions ?? []).map((k) =>
-              k.startsWith('persist:') ? k : `persist:${k}`
-            )
-          }
-
-          if (targets.length === 0) {
-            // Hiç soğuk yoksa warning seviyesinde en az bir partition temizle
-            const info = await getCacheInfo()
-            const sorted = info.smart?.partitionDetails
-              ?.filter((d) => d.category !== 'active')
-              .sort((a, b) => b.size - a.size)
-              .slice(0, 2)
-              .map((d) => `persist:${d.key}`)
-            targets = sorted ?? []
-          }
-
-          const targetsToClean = targets.filter((partition) => !isProtectedPartition(partition))
+          const targetsToClean = coldPartitions
           for (const partition of targetsToClean) {
             const pSession = session.fromPartition(partition)
             await pSession.clearCache()
@@ -218,23 +222,25 @@ export function registerCacheHandlers(): void {
           await clearSafeCacheDirectories(userDataPath, new Set(targetsToClean))
           // Ek: süresi dolmuş soğuk dosyaları da temizle
           const { runIdleCleanup } = await import('../cacheCleanup/index.js')
-          await runIdleCleanup()
+          const cleanup = await runIdleCleanup()
+          if (cleanup.errors > 0) throw new Error('Idle cache cleanup was incomplete')
           invalidateCacheInfo()
           Logger.info(`[SmartCache] clean_cold executed for ${targetsToClean.join(', ')}`)
           return success(true)
         }
 
         if (action === 'clean_all') {
-          const allPartitions = getAllPartitions()
+          const allPartitions = await getStoredPartitions(userDataPath)
           const filtered = [...allPartitions].filter((p) => !isProtectedPartition(p))
           for (const partition of filtered) {
             const pSession = session.fromPartition(partition)
             await pSession.clearCache()
-            await pSession.clearStorageData({ storages: [...MODEL_STORAGE_TYPES] })
+            await pSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
           }
           await clearSafeCacheDirectories(userDataPath, new Set(filtered))
           const { runManualCleanup } = await import('../cacheCleanup/index.js')
-          await runManualCleanup()
+          const cleanup = await runManualCleanup()
+          if (cleanup.errors > 0) throw new Error('Manual cache cleanup was incomplete')
           invalidateCacheInfo()
           Logger.info('[SmartCache] clean_all executed')
           return success(true)
@@ -242,6 +248,7 @@ export function registerCacheHandlers(): void {
 
         return success(false)
       } catch (error) {
+        invalidateCacheInfo()
         Logger.error('[IPC] Smart cache action failed:', error)
         return success(false)
       }
@@ -258,7 +265,7 @@ export function registerCacheHandlers(): void {
 
         await session.defaultSession.clearCache()
 
-        const allPartitions = getAllPartitions()
+        const allPartitions = await getStoredPartitions(userDataPath)
 
         const filtered = [...allPartitions].filter((partition) => {
           if (isProtectedPartition(partition)) {
@@ -271,16 +278,18 @@ export function registerCacheHandlers(): void {
         const clearPromises = filtered.map(async (partition) => {
           const pSession = session.fromPartition(partition)
           await pSession.clearCache()
-          await pSession.clearStorageData({ storages: [...MODEL_STORAGE_TYPES] })
+          await pSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
         })
 
         await Promise.all(clearPromises)
         await clearSafeCacheDirectories(userDataPath, new Set(filtered))
-        await runManualCleanup()
+        const cleanup = await runManualCleanup()
+        if (cleanup.errors > 0) throw new Error('Manual cache cleanup was incomplete')
         invalidateCacheInfo()
 
         return success(true)
       } catch (error) {
+        invalidateCacheInfo()
         Logger.error('[IPC] Failed to deep clean cache:', error)
         return success(false)
       }

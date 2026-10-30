@@ -111,9 +111,10 @@ export function useAiSessionEntryUrl(
   tabModelId: string,
   isSleeping: boolean,
   restoredUrl: string | undefined,
-  initialUrl: string | undefined
+  initialUrl: string | undefined,
+  sessionSlot = 1
 ) {
-  const generation = `${tabModelId}:${isSleeping ? 'sleeping' : 'awake'}`
+  const generation = `${tabModelId}:${sessionSlot}:${isSleeping ? 'sleeping' : 'awake'}`
   const entryUrlRef = useRef<{
     generation: string
     url: string | undefined

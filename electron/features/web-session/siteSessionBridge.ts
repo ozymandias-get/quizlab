@@ -18,6 +18,7 @@ import { type Session, session as electronSession } from 'electron'
 import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY } from '../ai/aiManager.js'
+import { seedGoogleSessionSlotUnderLock } from './googleSessionSlot.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type {
@@ -408,6 +409,27 @@ async function handleSiteSessionPacket(
     slot
   )
 
+  if (wroteSomething && target.kind === 'google' && slot === 1) {
+    const latestState = await config.read()
+    const googleState = latestState.targets[target.siteId]
+    const secondarySlots = new Set<number>()
+    if ((googleState?.activeSlot ?? 1) > 1) secondarySlots.add(googleState!.activeSlot!)
+    for (const [slotKey, slotEntry] of Object.entries(googleState?.slots ?? {})) {
+      const slotNum = Number(slotKey)
+      if (slotNum > 1 && slotEntry?.importedAt) secondarySlots.add(slotNum)
+    }
+    for (const secondarySlot of secondarySlots) {
+      await seedGoogleSessionSlotUnderLock(secondarySlot, {
+        config: {
+          read: () => config.read(),
+          recordResult: (...args) => config.recordResult(...args),
+          isEnabled: (id) => isStillEnabled(config, id)
+        },
+        resolveSession
+      })
+    }
+  }
+
   return { accepted: true, imported, failed }
 }
 
@@ -444,6 +466,7 @@ export const PACKET_TOO_LARGE = 'packet_too_large'
  */
 export async function recordOversizedSiteSessionPacket(siteId: string): Promise<void> {
   await recordResult(getSiteSessionConfig(), siteId, 'failed', PACKET_TOO_LARGE)
+  invalidateSiteSessionListCache()
   await broadcastSiteSessionsChanged()
 }
 

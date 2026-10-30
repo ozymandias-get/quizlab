@@ -28,7 +28,12 @@ export interface PipelineStepParams {
 
 type PipelineStepResult<TFail> =
   | { success: true; scriptResult: AutomationExecutionResult | null }
-  | { success: false; error: TFail; scriptResult?: AutomationExecutionResult | null }
+  | {
+      success: false
+      error: TFail
+      scriptResult?: AutomationExecutionResult | null
+      executed?: boolean
+    }
 
 export async function executePipelineStep<TFail>(
   params: PipelineStepParams
@@ -47,7 +52,25 @@ export async function executePipelineStep<TFail>(
   } = params
 
   const scriptStartedAt = nowMs()
-  const script = await generateScript()
+  let script: string | null
+  try {
+    script = await generateScript()
+  } catch (error) {
+    onTiming(roundMs(nowMs() - scriptStartedAt))
+    const errorCode = normalizeSendErrorCode(
+      ensureErrorMessage(error),
+      `${name.toLowerCase()}_script_failed`
+    )
+    diagnostics.classification = await classifyAiSendError(errorCode)
+    return {
+      success: false,
+      error: attachDiagnostics(
+        { success: false, error: errorCode },
+        diagnostics,
+        requestStartedAt
+      ) as TFail
+    }
+  }
   const scriptGenMs = roundMs(nowMs() - scriptStartedAt)
   onTiming(scriptGenMs)
 
@@ -109,6 +132,7 @@ export async function executePipelineStep<TFail>(
     diagnostics.classification = await classifyAiSendError(errorCode)
     return {
       success: false,
+      executed: true,
       error: attachDiagnostics(
         { success: false, error: errorCode },
         diagnostics,
@@ -129,6 +153,7 @@ export async function executePipelineStep<TFail>(
     diagnostics.classification = classification
     return {
       success: false,
+      executed: true,
       scriptResult,
       error: attachDiagnostics(
         { success: false, error: errorCode },
@@ -144,13 +169,11 @@ export async function executePipelineStep<TFail>(
 /**
  * Betiğin gönderim sonucunu taşınabilir bir değere indirger.
  *
- * Betik alanı bildirmemişse (ör. enter_key yolunda etki gözlemlendi ama alan
- * doldurulmadı) `observed` kabul edilir: `success: true` zaten gönderim
- * girişiminin yapıldığını ifade eder ve gözlem alanı yalnızca belirsizliği
- * taşır.
+ * Gözlem bilgisi yoksa teslimatın doğrulandığı varsayılmaz.
  */
 export function resolveSubmitOutcome(
-  scriptResult: { submitOutcome?: string | null } | null | undefined
+  scriptResult:
+    { submitOutcome?: string | null; submitObserved?: boolean | null } | null | undefined
 ): SendSubmitOutcome {
   const raw = scriptResult?.submitOutcome
   if (
@@ -162,5 +185,5 @@ export function resolveSubmitOutcome(
   ) {
     return raw
   }
-  return 'observed'
+  return scriptResult?.submitObserved === true ? 'observed' : 'delivery_unconfirmed'
 }

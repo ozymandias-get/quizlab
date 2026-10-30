@@ -39,6 +39,12 @@ describe('Google account discovery', () => {
     expect(parseGoogleAccountSlots(")]}'\n" + JSON.stringify(data))).toEqual([1, 3])
   })
 
+  it('keeps signed-in accounts when Google reports them as unverified', () => {
+    const data = JSON.parse(responseFor(2))
+    data[1][1][15] = 0
+    expect(parseGoogleAccountSlots(JSON.stringify(data))).toEqual([1, 2])
+  })
+
   it('does not interpret malformed or unrelated JSON as a list of accounts', () => {
     expect(() => parseGoogleAccountSlots('{}')).toThrow()
     expect(() => parseGoogleAccountSlots('<html>Sign in</html>')).toThrow()
@@ -59,6 +65,6 @@ describe('Google account discovery', () => {
 
   it('never falls back to historical or guessed extra accounts after a network failure', async () => {
     const primary = { fetch: vi.fn().mockRejectedValue(new Error('offline')) } as unknown as Session
-    expect(await getGoogleAccountSlots(primary, '')).toEqual([1])
+    expect(await getGoogleAccountSlots(primary, '')).toBeNull()
   })
 })

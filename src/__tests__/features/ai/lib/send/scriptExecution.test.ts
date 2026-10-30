@@ -15,15 +15,10 @@ describe('scriptExecution', () => {
     expect(normalizeExecutionResult(false)).toEqual({ success: false })
   })
 
-  it('normalizes object execution result with fallback success', () => {
-    const normalized = normalizeExecutionResult({ mode: 'click' })
-    expect(normalized).toEqual({
-      success: true,
-      error: undefined,
-      mode: 'click',
-      action: undefined,
-      diagnostics: undefined
-    })
+  it('does not infer success from an incomplete object', () => {
+    expect(normalizeExecutionResult({ mode: 'click' })).toBeNull()
+    expect(normalizeExecutionResult({})).toBeNull()
+    expect(normalizeExecutionResult({ error: 'input_not_found' })?.success).toBe(false)
   })
 
   it('preserves submitMethod, submitObserved, and submitOutcome fields from injected script results', () => {

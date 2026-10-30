@@ -8,11 +8,12 @@
  * and the pressure verdict has its own fallback (a byte budget, used when the
  * scheduler has not classified the cache yet).
  */
+import { MAX_TOTAL_CACHE_BYTES } from '@shared-core/constants/cacheLimits'
 import type { CacheInfoResponse } from '@shared-core/types'
 
 import { partitionDisplayName, pressureColor } from './storageUtils'
 
-export const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
+export { MAX_TOTAL_CACHE_BYTES }
 
 type SmartCacheInfo = NonNullable<CacheInfoResponse['smart']>
 
@@ -26,6 +27,35 @@ export interface PartitionCacheRow {
   lastActive: number | null
 }
 
+export interface PartitionCacheGroup {
+  key: string
+  label: string
+  rows: PartitionCacheRow[]
+  size: number
+}
+
+/** Groups disk partitions by service, not by an inferred account identity. */
+export function groupPartitionCacheRows(
+  rows: PartitionCacheRow[],
+  t?: (key: string) => string
+): PartitionCacheGroup[] {
+  const groups = new Map<string, PartitionCacheGroup>()
+  for (const row of rows) {
+    const key = row.key
+      .replace(/^persist:/, '')
+      .replace(/_slot_\d+$/, '')
+      .replace(/_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, '')
+    const group = groups.get(key)
+    if (group) {
+      group.rows.push(row)
+      group.size += row.size
+    } else {
+      groups.set(key, { key, label: partitionDisplayName(key, t), rows: [row], size: row.size })
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.size - a.size)
+}
+
 export interface CachePressure {
   level: CachePressureLevel
   percentage: number
@@ -34,8 +64,8 @@ export interface CachePressure {
 }
 
 /**
- * One row per partition, largest first. Cold partitions are kept even at zero
- * bytes so the user can still clear them; everything else is dropped when empty.
+ * Hide tiny inactive cache remnants left by sessions that were never used.
+ * They remain included in the total and are not deleted.
  */
 export function resolvePartitionCacheRows(
   cacheInfo: CacheInfoResponse | undefined,
@@ -44,7 +74,7 @@ export function resolvePartitionCacheRows(
   const details = cacheInfo?.smart?.partitionDetails
   if (details && details.length > 0) {
     return details
-      .filter((detail) => detail.size > 0 || detail.category === 'cold')
+      .filter((detail) => detail.size > 1024)
       .sort((a, b) => b.size - a.size)
       .map((detail) => ({
         key: detail.key,
@@ -57,6 +87,7 @@ export function resolvePartitionCacheRows(
 
   const caches = cacheInfo?.breakdown?.partitionCaches ?? {}
   return Object.entries(caches)
+    .filter(([, size]) => size > 1024)
     .sort(([, a], [, b]) => b - a)
     .map(([key, size]) => ({
       key,
@@ -75,13 +106,21 @@ export function resolvePartitionCacheRows(
 export function resolveCachePressure(cacheInfo: CacheInfoResponse | undefined): CachePressure {
   const total = cacheInfo?.breakdown?.total ?? 0
   const isOverLimit = total > MAX_TOTAL_CACHE_BYTES
+  const ratio = total / MAX_TOTAL_CACHE_BYTES
   const level =
-    cacheInfo?.smart?.pressureLevel ??
-    (isOverLimit ? 'critical' : total / MAX_TOTAL_CACHE_BYTES > 0.8 ? 'warning' : 'normal')
+    ratio >= 1
+      ? 'critical'
+      : ratio >= 0.9
+        ? 'high'
+        : ratio >= 0.8
+          ? 'warning'
+          : ratio >= 0.6
+            ? 'moderate'
+            : 'normal'
 
   return {
     level,
-    percentage: cacheInfo?.smart?.pressurePercentage ?? (total / MAX_TOTAL_CACHE_BYTES) * 100,
+    percentage: ratio * 100,
     isOverLimit,
     barColor: pressureColor(level)
   }

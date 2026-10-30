@@ -112,11 +112,34 @@ describe('wipeSiteSession', () => {
   it('clears the storage even when the cookie store cannot be read', async () => {
     get.mockRejectedValue(new Error('cookie store unavailable'))
 
-    await wipeSiteSession(fakeSession(), TARGET)
+    await expect(wipeSiteSession(fakeSession(), TARGET)).rejects.toThrow(
+      'Site cookies could not be cleared'
+    )
 
     expect(clearStorageData).toHaveBeenCalledWith(
       expect.objectContaining({ origin: 'https://chatgpt.com' })
     )
+  })
+
+  it('reports failed cookie removals after clearing storage', async () => {
+    remove.mockRejectedValueOnce(new Error('cookie removal failed'))
+    await expect(wipeSiteSession(fakeSession(), TARGET)).rejects.toThrow(
+      'Site cookies could not be cleared'
+    )
+    expect(clearStorageData).toHaveBeenCalled()
+    expect(clearAuthCache).toHaveBeenCalled()
+  })
+
+  it('continues clearing other origins and auth cache after one origin fails', async () => {
+    clearStorageData.mockRejectedValueOnce(new Error('unavailable'))
+    await expect(
+      wipeSiteSession(fakeSession(), {
+        ...TARGET,
+        origins: ['https://first.example', 'https://second.example']
+      })
+    ).rejects.toThrow('Site storage could not be cleared')
+    expect(clearStorageData).toHaveBeenCalledTimes(2)
+    expect(clearAuthCache).toHaveBeenCalled()
   })
 
   it('flushes the storage data when the session is done', async () => {

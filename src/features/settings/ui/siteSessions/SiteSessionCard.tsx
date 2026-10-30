@@ -105,11 +105,14 @@ function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSess
           <select
             aria-label={`${t('ws_google_account_select')} — ${t(view.labelKey)}`}
             value={view.activeSlot ?? 1}
-            disabled={disabled}
+            disabled={disabled || !view.accountSlots?.length}
             onChange={(event) => onSelectSlot?.(view.siteId, Number(event.target.value))}
             className="text-ql-11 border-border/60 bg-background rounded-md border px-2 py-1"
           >
-            {(view.accountSlots ?? googleAccountSlotOptions([1])).map((slot) => (
+            {(view.accountSlots?.length
+              ? view.accountSlots
+              : googleAccountSlotOptions([view.activeSlot ?? 1])
+            ).map((slot) => (
               <option key={slot} value={slot}>
                 {t('ws_account_slot', { slot: String(slot) })}
               </option>

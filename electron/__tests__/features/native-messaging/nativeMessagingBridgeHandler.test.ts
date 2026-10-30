@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import { EventEmitter } from 'node:events'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -108,6 +109,22 @@ describe('the bridge of the site session', () => {
     await post(oversizedBody())
 
     expect(recordOversizedSiteSessionPacket).toHaveBeenCalledWith('chatgpt')
+  })
+
+  it('retains the packet prefix when a single chunk exceeds the size limit', async () => {
+    const body = oversizedBody()
+    const request = Object.assign(new EventEmitter(), {
+      method: 'POST',
+      url: COOKIE_PATH,
+      headers: { origin: EXTENSION_ORIGIN, 'x-hmac-signature': sign(body) }
+    })
+    const response = { setHeader: vi.fn(), writeHead: vi.fn(), end: vi.fn() }
+    createBridgeRequestHandler(createManager())(request as never, response as never)
+    request.emit('data', Buffer.from(body))
+    request.emit('end')
+    await vi.waitFor(() => expect(response.end).toHaveBeenCalled())
+    expect(recordOversizedSiteSessionPacket).toHaveBeenCalledWith('chatgpt')
+    expect(response.writeHead).toHaveBeenCalledWith(413, expect.anything())
   })
 
   it('imports nothing when a packet does not fit', async () => {

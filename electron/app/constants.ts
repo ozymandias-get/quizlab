@@ -2,6 +2,7 @@
  * Shared constants for the Main Process
  * IPC_CHANNELS are imported from shared/constants for single source of truth
  */
+import { MAX_TOTAL_CACHE_BYTES } from '../../shared/constants/cacheLimits.js'
 import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { SCREENSHOT_TYPES } from '../../shared/types/system.js'
 
@@ -24,7 +25,7 @@ export const APP_CONFIG = {
   CLEANUP: {
     STARTUP_DELAY_MS: 5000,
     IDLE_TIMEOUT_MS: 5 * 60 * 1000,
-    MAX_TOTAL_CACHE_BYTES: 500 * 1024 * 1024,
+    MAX_TOTAL_CACHE_BYTES,
     MAX_PARTITION_CACHE_BYTES: 100 * 1024 * 1024,
     TEMP_FILE_TTL_MS: 60 * 60 * 1000,
     CACHE_FILE_TTL_MS: 7 * 24 * 60 * 60 * 1000,

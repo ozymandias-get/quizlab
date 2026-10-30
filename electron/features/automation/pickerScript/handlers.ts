@@ -420,7 +420,7 @@ export function buildPickerHandlersBlock(): string {
                     (window.console && window.console.log
                         ? window.console.log.bind(window.console)
                         : function () {}
-                    )('_aiPicker:cancelled');
+                    )(__aiPickerSessionId ? '_aiPicker:cancelled:' + __aiPickerSessionId : '_aiPicker:cancelled');
                 } catch (e2) { safePickerLog('keydown.consoleEmit', e2); }
                 cleanup();
                 return;
@@ -501,21 +501,11 @@ export function buildPickerHandlersBlock(): string {
             const target = normalizeTarget(typeCtx.rawTarget, typeCtx.path);
             if (!target) return;
 
-            // I7: selectedInputElement can become detached. \`contains\`
-            // throws on detached subtrees in some browsers, so guard.
-            let selectedRoot = null;
-            let targetRoot = null;
-            try {
-                selectedRoot = selectedInputElement.getRootNode ? selectedInputElement.getRootNode() : null;
-                targetRoot = target.getRootNode ? target.getRootNode() : null;
-            } catch (err) { safePickerLog('typing.rootNode', err); }
-
             const isDirectInput = target === selectedInputElement;
             const isInComposedPath = Array.isArray(typeCtx.path) && typeCtx.path.indexOf(selectedInputElement) >= 0;
             const isNestedInput = !!(selectedInputElement.isConnected && selectedInputElement.contains && selectedInputElement.contains(target));
-            const isSameRoot = !!selectedRoot && !!targetRoot && selectedRoot === targetRoot;
 
-            if (!isDirectInput && !isInComposedPath && !isNestedInput && !isSameRoot) {
+            if (!isDirectInput && !isInComposedPath && !isNestedInput) {
                 return;
             }
 

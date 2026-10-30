@@ -67,36 +67,22 @@ async function trimPartitionCache(
   let totalFreed = 0
   let totalErrors = 0
 
-  for (const cacheDir of SAFE_CACHE_DIRS) {
-    const dirPath = path.join(userDataPath, 'Partitions', partitionKey, cacheDir)
-    const expired = await collectExpiredFiles(dirPath, userDataPath, 0)
-    if (expired.length === 0) continue
+  const dirs = SAFE_CACHE_DIRS.map((dir) =>
+    path.join(userDataPath, 'Partitions', partitionKey, dir)
+  )
+  const sizes = await Promise.all(dirs.map((dir) => getDirectorySize(dir)))
+  let currentSize = sizes.reduce((total, size) => total + size.totalBytes, 0)
+  const files = (await Promise.all(dirs.map((dir) => collectExpiredFiles(dir, userDataPath, 0))))
+    .flat()
+    .sort((a, b) => a.mtimeMs - b.mtimeMs)
 
-    // Re-measure per directory: carrying currentSize over from the previous
-    // cache dir would compare a foreign size against this dir's target and
-    // skip trimming dirs that are still over the limit.
-    let currentSize = 0
-    const sorted = expired.sort((a, b) => a.mtimeMs - b.mtimeMs)
-
-    for (let i = 0; i < sorted.length; i += batchSize) {
-      if (currentSize === 0) {
-        const dirStat = await getDirectorySize(dirPath)
-        currentSize = dirStat.totalBytes
-      }
-
-      if (currentSize <= targetBytes) break
-
-      const batch = sorted.slice(i, i + batchSize)
-      const result = await deleteBatch(batch, userDataPath, batchSize)
-      totalDeleted += result.deleted
-      totalFreed += result.freed
-      totalErrors += result.errors
-      currentSize -= result.freed
-
-      if (i + batchSize < sorted.length) {
-        await new Promise((resolve) => setImmediate(resolve))
-      }
-    }
+  for (let i = 0; i < files.length && currentSize > targetBytes; i += batchSize) {
+    const result = await deleteBatch(files.slice(i, i + batchSize), userDataPath, batchSize)
+    totalDeleted += result.deleted
+    totalFreed += result.freed
+    totalErrors += result.errors
+    currentSize -= result.freed
+    if (i + batchSize < files.length) await new Promise((resolve) => setImmediate(resolve))
   }
 
   return { deleted: totalDeleted, freed: totalFreed, errors: totalErrors }
@@ -204,4 +190,4 @@ async function enforceSizeLimits(
   return { deleted: totalDeleted, freed: totalFreed, errors: totalErrors }
 }
 
-export { cleanupExpiredCacheFiles, enforceSizeLimits }
+export { cleanupExpiredCacheFiles, enforceSizeLimits, trimPartitionCache }

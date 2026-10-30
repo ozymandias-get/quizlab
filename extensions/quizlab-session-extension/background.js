@@ -372,7 +372,8 @@ async function hasPermission(domains) {
   for (const domain of domains) {
     const host = typeof domain === 'string' ? domain.trim().toLowerCase().replace(/^\.+/, '') : ''
     if (!host) continue
-    const granted = await containsAnyOrigin([`https://${host}/*`, `https://*.${host}/*`])
+    // The cookie query includes subdomains, so an exact-host grant is not enough.
+    const granted = await containsAnyOrigin([`https://*.${host}/*`])
     if (!granted) return false
   }
   return true
@@ -567,7 +568,15 @@ async function pushTargets(targets, port, slot = 1) {
   let refused = false
   for (const target of targets) {
     if (tooLargeSiteIds.has(target.siteId)) continue
-    const packet = await collectTargetPacket(target, slot)
+    let packet
+    try {
+      packet = await collectTargetPacket(target, slot)
+    } catch {
+      // Retain the site for the next poll, but keep syncing the other sites.
+      pendingSiteIds.add(target.siteId)
+      refused = true
+      continue
+    }
     const outcome = await postPacket(packet, port)
     if (outcome === PACKET_SENT) {
       pendingSiteIds.delete(target.siteId)
@@ -682,7 +691,7 @@ async function sendCookiesToApp(options) {
   const changed =
     list.configVersion !== lastConfigVersion || fingerprint !== targetsFingerprint(knownTargets)
 
-  if (changed) {
+  if (changed || settings.forceAll === true || settings.resync === true) {
     // The app asked for something else than it did the last time: a site whose
     // packet did not fit gets another chance, because the user may have
     // changed something in the app.
@@ -695,17 +704,21 @@ async function sendCookiesToApp(options) {
   for (const target of list.targets) {
     if (changed || settings.forceAll === true) wanted.add(target.siteId)
     if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
-      if (targetCoversDomain(target, settings.changedDomain)) wanted.add(target.siteId)
+      if (targetCoversDomain(target, settings.changedDomain)) {
+        // A changed cookie can make a previously oversized packet smaller.
+        tooLargeSiteIds.delete(target.siteId)
+        wanted.add(target.siteId)
+      }
     }
   }
   if (
     (settings.connect === true && !statePushedTo(list, fingerprint)) ||
-    settings.forceAll === true
+    settings.forceAll === true ||
+    settings.resync === true
   ) {
     for (const target of list.targets) wanted.add(target.siteId)
   }
-  // A site whose packet did not fit into the app is not pushed again: the
-  // packet cannot get smaller by waiting.
+  // A site whose packet did not fit is retried only after its cookies change.
   for (const siteId of tooLargeSiteIds) wanted.delete(siteId)
 
   // A site the app does not ask for anymore is not pushed again.
@@ -717,7 +730,6 @@ async function sendCookiesToApp(options) {
     if (!asked.has(siteId)) tooLargeSiteIds.delete(siteId)
   }
 
-  if (settings.forceAll === true) tooLargeSiteIds.clear()
   const targets = list.targets.filter(
     (target) =>
       (settings.forceAll === true || wanted.has(target.siteId)) &&
@@ -939,10 +951,10 @@ if (chrome.runtime?.onMessage?.addListener) {
         .then(async () => {
           autoSync = message.enabled === true
           await chrome.storage.local.set({ autoSync })
-          return queueSend({})
+          return queueSend(autoSync ? { resync: true } : {})
         })
         .then(
-          () => sendResponse({ success: true }),
+          (result) => sendResponse({ success: result === SYNC_OK, result, settingsSaved: true }),
           () => sendResponse({ success: false })
         )
       return true
@@ -953,8 +965,8 @@ if (chrome.runtime?.onMessage?.addListener) {
         return
       }
       queueSend({ forceAll: true, slot: message.slot, targetId: message.targetId })
-        .then((result) => sendResponse({ success: result === SYNC_OK, result }))
-        .catch((error) => sendResponse({ success: false, error: errorMessage(error) }))
+        .then((result) => sendResponse({ success: result === SYNC_OK, result, autoSync }))
+        .catch((error) => sendResponse({ success: false, error: errorMessage(error), autoSync }))
       return true
     }
   })

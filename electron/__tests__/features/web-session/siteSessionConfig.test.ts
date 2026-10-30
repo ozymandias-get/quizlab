@@ -523,6 +523,47 @@ describe('site session config', () => {
     await expect(config.setActiveSlot('google', 1.5)).rejects.toThrow('invalid_slot')
   })
 
+  it('attributes legacy top-level history to the selected Google account only', async () => {
+    writeRawConfig({
+      version: 1,
+      configVersion: 0,
+      targets: {
+        google: {
+          enabled: true,
+          activeSlot: 2,
+          importedAt: '2026-10-25T12:00:00Z',
+          lastResult: 'imported',
+          lastError: null
+        }
+      }
+    })
+    const config = new SiteSessionConfig(configPath())
+    const state = (await config.read()).targets.google
+    expect(state.slots?.[2]?.lastResult).toBe('imported')
+    expect(state.slots?.[1]).toBeUndefined()
+    await config.setActiveSlot('google', 1)
+    expect((await config.read()).targets.google.lastResult).toBeNull()
+  })
+
+  it('does not replace an explicit empty slot result with stale top-level history', async () => {
+    writeRawConfig({
+      version: 1,
+      configVersion: 0,
+      targets: {
+        google: {
+          enabled: true,
+          activeSlot: 2,
+          importedAt: '2026-10-25T12:00:00Z',
+          lastResult: 'imported',
+          slots: { 2: { importedAt: null, lastResult: null, lastError: null } }
+        }
+      }
+    })
+    const state = (await new SiteSessionConfig(configPath()).read()).targets.google
+    expect(state.importedAt).toBeNull()
+    expect(state.lastResult).toBeNull()
+  })
+
   it('removes the state of a site that does not exist any more', async () => {
     const config = new SiteSessionConfig(configPath())
     await config.setEnabled('chatgpt', true)

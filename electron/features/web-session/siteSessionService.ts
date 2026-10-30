@@ -27,7 +27,8 @@ import { session as electronSession } from 'electron'
 import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/googleAiWebApps.js'
 import {
   googleAccountSlotOptions,
-  isSiteSessionSlot
+  isSiteSessionSlot,
+  SITE_SESSION_SLOTS
 } from '../../../shared/constants/siteSessionSlots.js'
 import type {
   SiteSessionActionResult,
@@ -36,15 +37,18 @@ import type {
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
 import { getGoogleAccountSlots } from './googleAccounts.js'
+import { ensureGoogleSessionSlot } from './googleSessionSlot.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import {
   invalidateSiteSessionListCache,
   readCachedSiteSessionList,
+  siteSessionListGeneration,
   writeCachedSiteSessionList
 } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
+import { partitionExistsOnDisk } from './siteSessionPartitions.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
@@ -63,7 +67,7 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  */
 export interface SiteSessionServiceDeps {
   config: Pick<SiteSessionConfig, 'read' | 'setEnabled' | 'resetResults'> &
-    Partial<Pick<SiteSessionConfig, 'setActiveSlot'>>
+    Partial<Pick<SiteSessionConfig, 'setActiveSlot' | 'isEnabled' | 'recordResult'>>
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -93,9 +97,16 @@ export class SiteSessionService {
     const cached = readCachedSiteSessionList()
     if (cached) return cached
 
-    const list = await this.buildList()
-    writeCachedSiteSessionList(list)
-    return list
+    for (let attempt = 0; ; attempt++) {
+      const generation = siteSessionListGeneration()
+      const list = await this.buildList()
+      if (generation === siteSessionListGeneration()) {
+        writeCachedSiteSessionList(list)
+        return list
+      }
+      // Avoid caching an obsolete snapshot during a continuous stream of changes.
+      if (attempt >= 2) return list
+    }
   }
 
   /** The list of the sites, read from the state and from the sessions. */
@@ -108,10 +119,32 @@ export class SiteSessionService {
       targets.map(async (target) => {
         const targetState = state.targets[target.siteId]
         const enabled = targetState?.enabled === true
+        let activeSlot = target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
+        let accountSlots: number[] | undefined
+        if (target.kind === 'google') {
+          const discovered = await getGoogleAccountSlots(
+            this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
+            targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
+          )
+          if (discovered !== null) {
+            accountSlots = googleAccountSlotOptions(discovered)
+            if (!accountSlots.includes(activeSlot)) activeSlot = accountSlots[0] ?? 1
+          }
+        }
+        const slotState =
+          target.kind === 'google' && activeSlot !== (targetState?.activeSlot ?? 1)
+            ? targetState?.slots?.[activeSlot]
+            : undefined
+        const lastResult =
+          slotState !== undefined ? slotState.lastResult : (targetState?.lastResult ?? null)
+        const importedAt =
+          slotState !== undefined ? slotState.importedAt : (targetState?.importedAt ?? null)
+        const lastError =
+          slotState !== undefined ? slotState.lastError : (targetState?.lastError ?? null)
         const hasLocalSession = await hasLocalSessionForTarget(
           {
             ...target,
-            partition: partitionForTargetSlot(target.partition, targetState?.activeSlot)
+            partition: partitionForTargetSlot(target.partition, activeSlot)
           },
           this.deps.resolveSession
         )
@@ -119,26 +152,12 @@ export class SiteSessionService {
           enabled,
           extensionConnected,
           extensionVersionOk,
-          lastResult: targetState?.lastResult ?? null,
+          lastResult,
           hasLocalSession
         })
-        const view = toSiteSessionView(
-          target,
-          enabled,
-          status,
-          targetState?.importedAt ?? null,
-          targetState?.lastError ?? null,
-          target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
-        )
-        if (target.kind === 'google') {
-          view.accountSlots = googleAccountSlotOptions(
-            await getGoogleAccountSlots(
-              this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
-              targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
-            )
-          )
-          if (!view.accountSlots.includes(view.activeSlot ?? 1))
-            view.activeSlot = view.accountSlots[0] ?? 1
+        const view = toSiteSessionView(target, enabled, status, importedAt, lastError, activeSlot)
+        if (accountSlots !== undefined) {
+          view.accountSlots = accountSlots
         }
         return view
       })
@@ -166,19 +185,20 @@ export class SiteSessionService {
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
-    if (enabled) {
-      try {
-        await this.deps.config.setEnabled(siteId, true)
-      } catch (error) {
-        // The switch was not written. Reporting a success here would tell the
-        // user that a site was switched on while the app never heard of it.
-        Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
-        return { success: false, error: 'write_failed' }
-      }
-      return { success: true }
+    try {
+      return await withSiteSessionLock(siteId, async () => {
+        if (!enabled) return this.switchOff(target)
+        try {
+          await this.deps.config.setEnabled(siteId, true)
+          return { success: true }
+        } catch (error) {
+          Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
+          return { success: false, error: 'write_failed' }
+        }
+      })
+    } finally {
+      invalidateSiteSessionListCache()
     }
-
-    return withSiteSessionLock(siteId, () => this.switchOff(target))
   }
 
   /**
@@ -196,16 +216,20 @@ export class SiteSessionService {
     const target = await this.findTarget(siteId)
     if (!target) return { success: false, error: 'unknown_target' }
 
-    return withSiteSessionLock(siteId, async () => {
-      try {
-        await this.wipe(target)
-      } catch (error) {
-        Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
-        return { success: false, error: 'wipe_failed' }
-      }
+    try {
+      return await withSiteSessionLock(siteId, async () => {
+        try {
+          await this.wipe(target)
+        } catch (error) {
+          Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
+          return { success: false, error: 'wipe_failed' }
+        }
 
-      return { success: true }
-    })
+        return { success: true }
+      })
+    } finally {
+      invalidateSiteSessionListCache()
+    }
   }
 
   /** The site with this id, or null when the app does not know it. */
@@ -262,6 +286,18 @@ export class SiteSessionService {
       const config = this.deps.config
       if (!config.setActiveSlot) return { success: false, error: 'write_failed' }
       await withSiteSessionLock(siteId, () => config.setActiveSlot!(siteId, slot))
+      if (target.kind === 'google' && slot > 1 && config.recordResult) {
+        await ensureGoogleSessionSlot(slot, {
+          config: {
+            read: () => config.read(),
+            recordResult: (...args) => config.recordResult!(...args),
+            isEnabled: config.isEnabled
+              ? (id) => config.isEnabled!(id)
+              : async (id) => (await config.read()).targets[id]?.enabled === true
+          },
+          resolveSession: this.deps.resolveSession
+        })
+      }
       invalidateSiteSessionListCache()
       await broadcastSiteSessionsChanged()
       return { success: true }
@@ -280,13 +316,29 @@ export class SiteSessionService {
       state.targets[target.siteId]?.activeSlot ?? 1,
       ...Object.keys(state.targets[target.siteId]?.slots ?? {}).map(Number)
     ])
+    if (target.kind === 'google') {
+      const existing = await Promise.all(
+        SITE_SESSION_SLOTS.map(async (slot) => ({
+          slot,
+          exists: await partitionExistsOnDisk(partitionForTargetSlot(target.partition, slot))
+        }))
+      )
+      for (const { slot, exists } of existing) if (exists) slots.add(slot)
+    }
+    let failed = false
     for (const slot of slots) {
-      if (isSiteSessionSlot(slot))
+      if (!isSiteSessionSlot(slot)) continue
+      try {
         await wipeSiteSession(
           this.deps.resolveSession(partitionForTargetSlot(target.partition, slot)),
           target
         )
+      } catch (error) {
+        failed = true
+        Logger.warn(`[SiteSession] Slot ${slot} of "${target.siteId}" could not be cleared:`, error)
+      }
     }
+    if (failed) throw new Error('One or more session slots could not be cleared')
     await this.deps.config.resetResults(target.siteId)
   }
 }

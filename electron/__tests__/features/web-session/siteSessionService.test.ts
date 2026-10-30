@@ -37,6 +37,7 @@ import {
 } from '../../../features/web-session/siteSessionService.js'
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
+import { partitionExistsOnDisk } from '../../../features/web-session/siteSessionPartitions.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -100,6 +101,7 @@ function makeService(
 describe('SiteSessionService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(partitionExistsOnDisk).mockResolvedValue(true)
     // The list is kept for a couple of seconds: every test starts with an
     // empty cache, or it would read the list of the test before it.
     invalidateSiteSessionListCache()
@@ -113,11 +115,234 @@ describe('SiteSessionService', () => {
     })
   })
 
+  it('preserves the selected Google account when discovery is unavailable', async () => {
+    const config = {
+      read: vi.fn().mockResolvedValue({ targets: { google: { activeSlot: 3 } } }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn()
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile'
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: { get: vi.fn().mockResolvedValue([]) },
+          fetch: vi.fn().mockRejectedValue(new Error('offline'))
+        }) as never,
+      isExtensionConnected: () => false,
+      isExtensionVersionOk: () => false
+    })
+    const [view] = (await service.list()).views
+    expect(view.activeSlot).toBe(3)
+    expect(view.accountSlots).toBeUndefined()
+  })
+
+  it('uses the clamped Google slot status and timestamp when activeSlot exceeds discovered accounts', async () => {
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 3,
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: {
+              1: {
+                importedAt: '2026-10-30T09:00:00Z',
+                lastResult: 'imported' as const,
+                lastError: null
+              },
+              3: { importedAt: null, lastResult: null, lastError: null }
+            }
+          }
+        }
+      }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn()
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [
+        ['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1'],
+        ['gaia.l.a', 1, '', 'b@example.test', '', 1, 1, 0, 0, 1, 'id-2']
+      ]
+    ])
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: (partition) =>
+        ({
+          cookies: {
+            get: vi.fn(async () =>
+              partition === 'persist:gemini_web_profile'
+                ? [{ name: 'SID', domain: '.google.com' }]
+                : []
+            )
+          },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody })
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+    const [view] = (await service.list()).views
+    expect(view.activeSlot).toBe(1)
+    expect(view.accountSlots).toEqual([1, 2])
+    expect(view.status).toBe('imported')
+    expect(view.importedAt).toBe('2026-10-30T09:00:00Z')
+  })
+
+  it('seeds the secondary Google partition when selecting a secondary slot in settings', async () => {
+    const authCookie = {
+      name: 'SID',
+      value: 'v',
+      domain: '.google.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax'
+    }
+    const setSecondary = vi.fn().mockResolvedValue({})
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 2,
+            slots: { 1: { importedAt: '2026-10-30T09:00:00Z', lastResult: 'imported' } }
+          }
+        }
+      }),
+      isEnabled: vi.fn().mockResolvedValue(true),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn(),
+      setActiveSlot: vi.fn().mockResolvedValue(undefined),
+      recordResult: vi.fn().mockResolvedValue(undefined)
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: (partition) =>
+        ({
+          cookies: {
+            get: vi.fn(async () => (partition.includes('_slot_') ? [] : [authCookie])),
+            set: setSecondary,
+            remove: vi.fn()
+          },
+          flushStorageData: vi.fn()
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+    expect(await service.setActiveSlot('google', 2)).toEqual({ success: true })
+    expect(config.setActiveSlot).toHaveBeenCalledWith('google', 2)
+    expect(setSecondary).toHaveBeenCalledTimes(1)
+    expect(config.recordResult).toHaveBeenCalledWith('google', 'imported', undefined, 2)
+  })
+
+  it('clears an existing Google partition even if its slot has no history', async () => {
+    vi.mocked(partitionExistsOnDisk).mockImplementation(async (partition) =>
+      partition.endsWith('_slot_3')
+    )
+    const partitions: string[] = []
+    const { session, config } = makeService()
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile'
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: (partition) => {
+        partitions.push(partition)
+        return session as never
+      },
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+    expect(await service.clear('google')).toEqual({ success: true })
+    expect(partitions).toContain('persist:gemini_web_profile_slot_3')
+    expect(partitions).not.toContain('persist:gemini_web_profile_slot_4')
+  })
+
+  it('tries the remaining Google slots when one partition cannot be cleared', async () => {
+    vi.mocked(partitionExistsOnDisk).mockImplementation(async (partition) =>
+      partition.endsWith('_slot_3')
+    )
+    const partitions: string[] = []
+    const { session, config } = makeService()
+    const failedSession = {
+      ...session,
+      cookies: { ...session.cookies, get: vi.fn().mockRejectedValue(new Error('unavailable')) }
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile'
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: (partition) => {
+        partitions.push(partition)
+        return (partition === google.partition ? failedSession : session) as never
+      },
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+    expect(await service.clear('google')).toEqual({ success: false, error: 'wipe_failed' })
+    expect(partitions).toContain('persist:gemini_web_profile_slot_3')
+    expect(config.resetResults).not.toHaveBeenCalled()
+  })
+
   it('lists every target with the import switched off by default', async () => {
     const { service } = makeService()
     const result = await service.list()
     expect(result.views).toHaveLength(1)
     expect(result.views.every((view) => view.enabled === false)).toBe(true)
+  })
+
+  it('rebuilds an in-flight list invalidated by a session change', async () => {
+    const { service, config } = makeService()
+    const oldState = await config.read()
+    let release!: (value: typeof oldState) => void
+    config.read.mockReturnValueOnce(
+      new Promise((resolve) => {
+        release = resolve
+      })
+    )
+    const pending = service.list()
+    invalidateSiteSessionListCache()
+    config.read.mockResolvedValue({
+      ...oldState,
+      targets: { chatgpt: { ...oldState.targets.chatgpt, enabled: true } }
+    })
+    release(oldState)
+    expect((await pending).views[0].enabled).toBe(true)
+    expect((await service.list()).views[0].enabled).toBe(true)
   })
 
   it('never hands a partition to the renderer', async () => {
@@ -248,6 +473,25 @@ describe('SiteSessionService', () => {
     expect(config.setEnabled).toHaveBeenCalledWith('chatgpt', false)
     expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
     expect(clearStorageData).toHaveBeenCalled()
+  })
+
+  it('waits for a switch-off wipe before switching the same site on again', async () => {
+    const { service, config, clearStorageData } = makeService({ enabled: true })
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    clearStorageData.mockImplementation(async () => {
+      await gate
+    })
+    const turningOff = service.setEnabled('chatgpt', false)
+    await vi.waitFor(() => expect(clearStorageData).toHaveBeenCalled())
+    const turningOn = service.setEnabled('chatgpt', true)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(config.setEnabled).not.toHaveBeenCalledWith('chatgpt', true)
+    release()
+    await Promise.all([turningOff, turningOn])
+    expect(config.setEnabled.mock.calls.map((args) => args[1])).toEqual([false, true])
   })
 
   it('writes the switch before it wipes the session', async () => {

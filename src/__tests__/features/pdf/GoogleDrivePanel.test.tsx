@@ -5,9 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const useManagedContentView = vi.hoisted(() => vi.fn())
 const useIsAnyDialogOpen = vi.hoisted(() => vi.fn(() => false))
+const useSiteSessionListQuery = vi.hoisted(() =>
+  vi.fn(() => ({ data: undefined as { views: Array<Record<string, unknown>> } | undefined }))
+)
 
 vi.mock('@shared/hooks/aiContent/useManagedContentView', () => ({ useManagedContentView }))
 vi.mock('@shared/hooks', () => ({ useIsAnyDialogOpen }))
+vi.mock('@platform/electron/api/useSiteSessionApi', () => ({ useSiteSessionListQuery }))
 
 const baseProps = {
   tabId: 'pdf-1',
@@ -23,6 +27,7 @@ describe('GoogleDrivePanel', () => {
     useManagedContentView.mockReset()
     useManagedContentView.mockReturnValue({ setHostElement: vi.fn(), reload: vi.fn() })
     useIsAnyDialogOpen.mockReturnValue(false)
+    useSiteSessionListQuery.mockReturnValue({ data: undefined })
   })
 
   const lastOptions = () => useManagedContentView.mock.calls.at(-1)?.[0]
@@ -51,5 +56,19 @@ describe('GoogleDrivePanel', () => {
     useIsAnyDialogOpen.mockReturnValue(true)
     render(<GoogleDrivePanel {...baseProps} />)
     expect(lastOptions().visible).toBe(false)
+  })
+
+  it('passes the active Google account slot and clamps to discovered accounts', () => {
+    useSiteSessionListQuery.mockReturnValue({
+      data: {
+        views: [{ siteId: 'google', kind: 'google', activeSlot: 3, accountSlots: [1, 2] }]
+      }
+    })
+    render(<GoogleDrivePanel {...baseProps} />)
+    expect(lastOptions().source).toEqual({
+      kind: 'google-web-app',
+      appId: 'gdrive',
+      sessionSlot: 1
+    })
   })
 })

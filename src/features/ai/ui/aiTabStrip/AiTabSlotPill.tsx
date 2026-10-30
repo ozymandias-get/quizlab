@@ -46,7 +46,9 @@ function AiTabSlotPill({ modelId, sessionSlot, onSwitchSlot }: AiTabSlotPillProp
           </select>
         </label>
       </TooltipTrigger>
-      <TooltipContent side="bottom">{tooltipText}</TooltipContent>
+      <TooltipContent side="top" avoidCollisions={false}>
+        {tooltipText}
+      </TooltipContent>
     </Tooltip>
   )
 }

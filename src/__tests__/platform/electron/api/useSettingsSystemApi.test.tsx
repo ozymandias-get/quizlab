@@ -7,7 +7,10 @@ import {
   useAppVersion,
   useCacheInfo,
   useClearCache,
-  useDeepCleanCache
+  useDeepCleanCache,
+  useClearPartitionCache,
+  useSetCacheAutoClean,
+  useSmartCacheAction
 } from '@platform/electron/api/useSettingsSystemApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -62,6 +65,9 @@ describe('useSettingsSystemApi', () => {
       getAppVersion: vi.fn().mockResolvedValue('4.0.0'),
       clearCache: vi.fn().mockResolvedValue(true),
       deepCleanCache: vi.fn().mockResolvedValue(true),
+      clearAiModelData: vi.fn().mockResolvedValue(true),
+      setCacheAutoClean: vi.fn().mockResolvedValue(true),
+      smartCacheAction: vi.fn().mockResolvedValue(true),
       getCacheInfo: vi.fn().mockResolvedValue({ size: 1024, entries: 10 }),
       openExternal: vi.fn().mockResolvedValue(true)
     }
@@ -94,6 +100,34 @@ describe('useSettingsSystemApi', () => {
     expect(mockElectronApi.deepCleanCache).toHaveBeenCalled()
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['system', 'cache-info'] })
     expect(showSuccessMock).toHaveBeenCalled()
+  })
+
+  it('uses cache-only mode with the selected partition', async () => {
+    const { result } = renderHook(() => useClearPartitionCache(), { wrapper })
+    await result.current.mutateAsync({ partition: 'persist:gemini_web_profile_slot_2' })
+    expect(mockElectronApi.clearAiModelData).toHaveBeenCalledWith({
+      id: 'gemini_web_profile_slot_2',
+      partition: 'persist:gemini_web_profile_slot_2',
+      cacheOnly: true
+    })
+  })
+
+  it.each([
+    ['clearCache', useClearCache, undefined],
+    ['deepCleanCache', useDeepCleanCache, undefined],
+    ['clearAiModelData', useClearPartitionCache, { partition: 'persist:ai_chatgpt' }],
+    ['setCacheAutoClean', useSetCacheAutoClean, true],
+    ['smartCacheAction', useSmartCacheAction, 'clean_cold']
+  ] as const)('reports %s returning false as failure', async (method, hook, argument) => {
+    mockElectronApi[method].mockResolvedValue(false)
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => hook(), { wrapper })
+    await expect(
+      (result.current.mutateAsync as (value: unknown) => Promise<boolean>)(argument)
+    ).rejects.toThrow('cache_operation_failed')
+    expect(showSuccessMock).not.toHaveBeenCalled()
+    expect(showErrorMock).toHaveBeenCalled()
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['system', 'cache-info'] })
   })
 
   it('useCacheInfo should return cache info', async () => {

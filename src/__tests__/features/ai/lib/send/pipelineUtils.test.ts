@@ -30,6 +30,16 @@ describe('executePipelineStep', () => {
     expect((params.content as any).executeJavaScript).not.toHaveBeenCalled()
   })
 
+  it('returns a controlled failure when script generation rejects', async () => {
+    const params = makePipelineParams({
+      generateScript: vi.fn().mockRejectedValue(new Error('generation failed'))
+    })
+    const result = await executePipelineStep(params)
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error).toHaveProperty('error', 'generation failed')
+    expect((params.content as any).executeJavaScript).not.toHaveBeenCalled()
+  })
+
   it('returns failure when content is destroyed', async () => {
     const params = makePipelineParams({
       canUseContent: vi.fn().mockReturnValue(false)

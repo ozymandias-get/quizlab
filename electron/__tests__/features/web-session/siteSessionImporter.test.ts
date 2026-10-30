@@ -60,6 +60,27 @@ describe('importExternalCookies', () => {
     expect(remove).toHaveBeenCalled()
   })
 
+  it('reports a failed stale-cookie cleanup as an incomplete import', async () => {
+    get.mockResolvedValue([{ name: 'old', domain: '.chatgpt.com', path: '/', secure: true }])
+    remove.mockRejectedValueOnce(new Error('unavailable'))
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED
+    )
+    expect(result).toEqual({ imported: 1, failed: 1 })
+  })
+
+  it('reports a failure when existing cookies cannot be inspected', async () => {
+    get.mockRejectedValue(new Error('unavailable'))
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED
+    )
+    expect(result).toEqual({ imported: 1, failed: 1 })
+  })
+
   it('leaves the cookies of another site untouched', async () => {
     get.mockResolvedValue([{ name: 'other', domain: '.claude.ai', path: '/', secure: true }])
     await importExternalCookies(
@@ -95,7 +116,7 @@ describe('importExternalCookies', () => {
     expect(remove).not.toHaveBeenCalled()
   })
 
-  it('removes the domain-wide cookie the browser turned into a host-only one', async () => {
+  it('does not remove a newly imported host-only cookie while cleaning a namesake', async () => {
     // The session holds a domain-wide cookie, the browser now sends a
     // host-only cookie of the same name: two different cookies, and the
     // domain-wide one is stale.
@@ -107,10 +128,10 @@ describe('importExternalCookies', () => {
       [{ name: 'session', value: 'v', domain: 'chatgpt.com' }],
       ALLOWED
     )
-    expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
+    expect(remove).not.toHaveBeenCalled()
   })
 
-  it('removes the host-only cookie the browser turned into a domain-wide one', async () => {
+  it('does not remove a newly imported domain cookie while cleaning a namesake', async () => {
     get.mockResolvedValue([
       { name: 'session', domain: 'chatgpt.com', path: '/', secure: true, hostOnly: true }
     ])
@@ -119,7 +140,7 @@ describe('importExternalCookies', () => {
       [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
       ALLOWED
     )
-    expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
+    expect(remove).not.toHaveBeenCalled()
   })
 
   it('keeps a cookie whose scope the session does not report', async () => {
@@ -186,6 +207,20 @@ describe('importExternalCookies', () => {
     )
 
     expect(result).toEqual({ imported: 1, failed: 1 })
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('does not clean any stale cookies when an import is partial', async () => {
+    get.mockResolvedValue([{ name: 'old', domain: '.chatgpt.com', path: '/', secure: true }])
+    set.mockRejectedValueOnce(new Error('rejected'))
+    await importExternalCookies(
+      fakeSession(),
+      [
+        { name: 'broken', value: 'v', domain: '.chatgpt.com' },
+        { name: 'good', value: 'v', domain: '.chatgpt.com' }
+      ],
+      ALLOWED
+    )
     expect(remove).not.toHaveBeenCalled()
   })
 
@@ -269,9 +304,8 @@ describe('importExternalCookies', () => {
       ALLOWED
     )
 
-    // The refusal is not a rejected write, but it must not vanish either.
-    expect(result).toEqual({ imported: 0, failed: 0 })
-    expect(warn).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ imported: 0, failed: 1 })
+    expect(warn).toHaveBeenCalledTimes(2)
     expect(warn.mock.calls[0][0]).toContain('.chatgpt.com')
     expect(warn.mock.calls[0][0]).not.toContain('super-secret-value')
   })

@@ -72,6 +72,8 @@ function AiOverflowMenu({
         icon={MoreHorizontal}
         className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
+        tooltipSide="top"
+        tooltipAvoidCollisions={false}
         isActive={isOverflowOpen}
         onClick={onToggleOpen}
       />
@@ -133,7 +135,9 @@ function AiOverflowMenu({
                         <X className="h-3 w-3" />
                       </IconButton>
                     </TooltipTrigger>
-                    <TooltipContent>{tr('tab_close', 'Close tab')}</TooltipContent>
+                    <TooltipContent side="top" avoidCollisions={false}>
+                      {tr('tab_close', 'Close tab')}
+                    </TooltipContent>
                   </Tooltip>
                 </div>
               )

@@ -238,7 +238,16 @@ export async function executeBulkSendPipeline(
           pasteSuccess = await content.paste()
         } catch (err) {
           reportSuppressedError('bulkSend.nativePaste', { cause: err })
-          pasteSuccess = false
+          // A rejected response does not prove that the paste did not occur.
+          clipboard.markPasteCompleted()
+          stage = 'uncertain'
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'paste_not_applied' },
+              diagnostics,
+              requestStartedAt
+            )
+          )
         }
       }
       if (!pasteSuccess) {
@@ -251,7 +260,19 @@ export async function executeBulkSendPipeline(
             )
           )
         }
-        pasteSuccess = await safeContentPaste(content)
+        const fallback = await safeContentPaste(content, { skipNative: true })
+        if (fallback === null) {
+          clipboard.markPasteCompleted()
+          stage = 'uncertain'
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'paste_not_applied' },
+              diagnostics,
+              requestStartedAt
+            )
+          )
+        }
+        pasteSuccess = fallback
       }
       if (!pasteSuccess) {
         return finish(
@@ -266,6 +287,8 @@ export async function executeBulkSendPipeline(
       // anlamına gelir: aynı görselleri tekrar göndermek kutuda ikinci kopya
       // bırakır, bu yüzden aşama burada bir kez ve yükseltilerek sabitlenir.
       stage = 'partial'
+      // Even a later failure must leave the last paste time to read the clipboard.
+      clipboard.markPasteCompleted()
       // Site asenkron işliyorsa bir sonraki yapıştırmadan önce gerçek hazır
       // olma doğrulaması: sabit milisaniye beklemiyoruz. Submit-ready betiği
       // giriş alanının/butonun etkileşime hazır olduğunu DOM üzerinden doğrular
@@ -307,7 +330,6 @@ export async function executeBulkSendPipeline(
       }
     }
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
-    clipboard.markPasteCompleted()
     // Restore arka planda başlatılır; kritik yolda beklenmez. `finally` aynı
     // (memoize edilmiş) promise'i await eder: pano en fazla bir kez geri
     // yüklenir ve ilk hata yolunda bile garanti edilir.
@@ -458,6 +480,20 @@ export async function executeBulkSendPipeline(
         }
       })
       if (!clickStep.success) {
+        if (
+          clickStep.executed &&
+          (!clickStep.scriptResult ||
+            clickStep.scriptResult.submitOutcome === 'delivery_unconfirmed')
+        ) {
+          stage = 'uncertain'
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'submit_unverified' },
+              diagnostics,
+              requestStartedAt
+            )
+          )
+        }
         return finish(
           attachDiagnostics(
             { success: false, error: 'autosend_failed_draft_saved' },

@@ -215,17 +215,22 @@ function isStillSent(
  * Drops the cookies of this site that the browser no longer sends.
  *
  * Only the domains of the site are touched: a neighbour's cookie that shares
- * the partition is none of this site's business. A cookie whose write was
- * rejected is kept as well: the packet did not make it into the session, so
- * the session's cookie is all the user has left.
+ * the partition is none of this site's business. Names shared with imported
+ * cookies are kept because Electron cannot target an exact cookie for removal.
  */
 async function removeStaleCookies(
   targetSession: Session,
   incoming: ReadonlySet<string>,
-  failedIdentities: ReadonlySet<string>,
+  incomingNames: ReadonlySet<string>,
   allowedDomains: readonly string[]
-): Promise<void> {
-  const existingCookies = await targetSession.cookies.get({}).catch(() => [])
+): Promise<number> {
+  let existingCookies: Electron.Cookie[]
+  try {
+    existingCookies = await targetSession.cookies.get({})
+  } catch {
+    Logger.warn('[SiteSessionImporter] Existing cookies could not be read for cleanup.')
+    return 1
+  }
   const removals: Promise<boolean>[] = []
 
   for (const existing of existingCookies) {
@@ -234,7 +239,9 @@ async function removeStaleCookies(
     const host = domainHost(normalizeCookieDomain(existing.domain) ?? '')
     if (!host) continue
 
-    if (failedIdentities.has(cookieIdentity(host, existing.name, existing.path))) continue
+    // Electron removes by URL and name, not by exact domain, path and scope.
+    // A removal can therefore also delete a newly imported namesake.
+    if (incomingNames.has(existing.name)) continue
     if (isStillSent(existing, host, incoming)) continue
 
     const domain = normalizeCookieDomain(existing.domain) ?? ''
@@ -243,7 +250,7 @@ async function removeStaleCookies(
     }
   }
 
-  await Promise.all(removals)
+  return (await Promise.all(removals)).filter((removed) => !removed).length
 }
 
 /**
@@ -253,8 +260,7 @@ async function removeStaleCookies(
  * outside it is not written at all — not written elsewhere, not logged.
  *
  * The return value counts the outcome: `imported` cookies made it into the
- * session, `failed` ones were rejected by Chromium. A cookie the app refuses
- * before the write is not one of them; it is reported in the log instead.
+ * session, `failed` ones were rejected by Chromium or refused before writing.
  */
 export async function importExternalCookies(
   targetSession: Session,
@@ -294,32 +300,25 @@ export async function importExternalCookies(
     writes.map((write) => writeCookie(targetSession, write.payload, write.domain))
   )
   const imported = outcomes.filter(Boolean).length
-  const failed = outcomes.length - imported
+  let failed = outcomes.length - imported + [...refusedByDomain.values()].reduce((a, b) => a + b, 0)
 
   const incoming = new Set<string>()
-  const failedIdentities = new Set<string>()
+  const incomingNames = new Set<string>()
   for (const [index, outcome] of outcomes.entries()) {
     const write = writes[index]
     if (outcome) {
       incoming.add(write.key)
-      continue
+      incomingNames.add(write.payload.name ?? '')
     }
-    const host = domainHost(write.domain)
-    failedIdentities.add(cookieIdentity(host, write.payload.name, write.payload.path))
   }
 
   if (failed > 0) {
-    Logger.warn(
-      `[SiteSessionImporter] ${failed} of ${writes.length} cookie(s) could not be written.`
-    )
+    Logger.warn(`[SiteSessionImporter] ${failed} cookie(s) could not be written.`)
   }
 
-  // The stale cleanup runs only when a cookie actually made it into the
-  // session. A packet whose writes were all rejected must not leave the user
-  // signed out with nothing imported, and an empty packet must not delete
-  // anything at all.
-  if (imported > 0) {
-    await removeStaleCookies(targetSession, incoming, failedIdentities, allowedDomains)
+  // Only a complete import is a reliable basis for deleting old cookies.
+  if (imported > 0 && failed === 0) {
+    failed += await removeStaleCookies(targetSession, incoming, incomingNames, allowedDomains)
   }
 
   try {

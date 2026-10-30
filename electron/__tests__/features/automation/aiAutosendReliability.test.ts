@@ -454,6 +454,14 @@ describe('aiAutosendReliability', () => {
         expectedError: 'text_input_partial'
       },
       {
+        contract: 'an append that only partially added text already present in the draft',
+        existingDraft: 'tekrar edilecek uzun metin',
+        append: true,
+        prompt: 'tekrar edilecek uzun metin',
+        editorWrite: () => 'tekrar edilecek uzun metin tekrar edilecek',
+        expectedError: 'text_input_partial'
+      },
+      {
         // Append sözleşmesi: önceki içerik KORUNUR. Yeni metin eskisinden
         // uzun olduğu için "kazanılan uzunluk" eşiği de aşılır: korumanın tek
         // gerçek sınavı, kayıp eski içeriğin yakalanmasıdır.
@@ -520,6 +528,30 @@ describe('aiAutosendReliability', () => {
    * tıklandı" durumudur.
    */
   describe('E — a click that changes nothing must not report a delivery', () => {
+    it('does not treat unrelated composer edits as a sent message', async () => {
+      document.body.innerHTML = `
+        <div role="textbox" contenteditable="true" id="composer"></div>
+        <button id="send" type="button">Send</button>
+      `
+      const composer = document.getElementById('composer')!
+      document.getElementById('send')!.addEventListener('click', () => {
+        composer.textContent += ' extra'
+      })
+      const result = await window.eval(
+        generateAutoSendScript(
+          { input: '#composer', button: '#send', submitMode: 'click' },
+          'merhaba',
+          true,
+          false,
+          'auto',
+          30,
+          FAST_BUDGET
+        )
+      )
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('submit_unverified')
+    }, 5000)
+
     // `submit_unverified` sınıflandırıcısında `retry: 'never'` taşır: tıklama
     // denendi ama teslimat gözlemlenmedi. Tablo `submitMode` alanını literal
     // `SubmitMode` olarak tutar (aksi halde `string` olarak genişler).
