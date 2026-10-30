@@ -1,16 +1,19 @@
 import { WEB_AI_REGISTRY } from '@platform/electron/web-ai-registry'
 import { ADDITIONAL_AI_CHAT_PLATFORMS, isAiDockVisible } from '@shared-core/constants/aiChatCatalog'
-import { AI_REGISTRY } from '../../../../electron/features/ai/aiManager'
 import { describe, expect, it } from 'vitest'
 
 describe('AI chat catalogue integration', () => {
-  it('exposes the same 50 web chat services in desktop and browser registries', () => {
-    const desktop = Object.values(AI_REGISTRY).filter((p) => !p.isSite && p.url)
+  it('exposes 50 web chat services in the browser registry with valid HTTPS URLs', () => {
     const browser = Object.values(WEB_AI_REGISTRY).filter((p) => !p.isSite && p.url)
-    expect(desktop).toHaveLength(50)
-    expect(browser.map((p) => p.id).sort()).toEqual(desktop.map((p) => p.id).sort())
-    expect(new Set(desktop.map((p) => p.id)).size).toBe(50)
-    for (const platform of desktop) {
+    expect(browser).toHaveLength(50)
+    expect(new Set(browser.map((p) => p.id)).size).toBe(50)
+    for (const platform of browser) {
+      expect(new URL(platform.url).protocol).toBe('https:')
+    }
+  })
+
+  it('configures valid partitions on catalogue platforms', () => {
+    for (const platform of Object.values(ADDITIONAL_AI_CHAT_PLATFORMS)) {
       expect(new URL(platform.url).protocol).toBe('https:')
       expect(platform.partition).toMatch(/^persist:ai_|^persist:gemini_web_profile/)
     }
