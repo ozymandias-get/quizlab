@@ -54,23 +54,45 @@ describe('safeContentPaste', () => {
     expect(content.sendInputEvent).toHaveBeenCalledTimes(3)
   })
 
-  it('falls back to sendInputEvent when paste rejects', async () => {
+  it('does not retry when a native paste response is lost', async () => {
     const content = {
       paste: vi.fn().mockRejectedValue(new Error('paste failed')),
       sendInputEvent: vi.fn().mockResolvedValue(true)
     }
-    expect(await safeContentPaste(asController(content))).toBe(true)
+    expect(await safeContentPaste(asController(content))).toBeNull()
     expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.stringContaining('Native paste failed'),
+      expect.stringContaining('Native paste response was lost'),
       expect.any(Error)
     )
-    expect(content.sendInputEvent).toHaveBeenCalledTimes(3)
+    expect(content.sendInputEvent).not.toHaveBeenCalled()
   })
 
   it('falls back to sendInputEvent when paste is not available', async () => {
     const content = { sendInputEvent: vi.fn().mockResolvedValue(true) }
     expect(await safeContentPaste(asController(content))).toBe(true)
     expect(content.sendInputEvent).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not invoke native paste twice when the caller already tried it', async () => {
+    const content = { paste: vi.fn(), sendInputEvent: vi.fn().mockResolvedValue(true) }
+    expect(await safeContentPaste(asController(content), { skipNative: true })).toBe(true)
+    expect(content.paste).not.toHaveBeenCalled()
+  })
+
+  it('reports failure when the managed view refuses simulated input', async () => {
+    const content = { sendInputEvent: vi.fn().mockResolvedValue(false) }
+    expect(await safeContentPaste(asController(content))).toBe(false)
+  })
+
+  it('reports an unknown outcome when a later simulated event is refused', async () => {
+    const content = {
+      sendInputEvent: vi
+        .fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true)
+    }
+    expect(await safeContentPaste(asController(content))).toBeNull()
   })
 
   it('sends keyDown, char, and keyUp events', async () => {
@@ -111,13 +133,13 @@ describe('safeContentPaste', () => {
     )
   })
 
-  it('returns false when sendInputEvent throws', async () => {
+  it('returns unknown when a simulated input response is lost', async () => {
     const content = {
       sendInputEvent: vi.fn(() => {
         throw new Error('input failed')
       })
     }
-    expect(await safeContentPaste(asController(content))).toBe(false)
+    expect(await safeContentPaste(asController(content))).toBeNull()
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.stringContaining('Input simulation failed'),
       expect.any(Error)

@@ -7,13 +7,17 @@ interface TabStripHomeButtonProps {
   tooltip: string
   onClick?: () => void
   className?: string
+  tooltipSide?: 'top' | 'right' | 'bottom' | 'left'
+  tooltipAvoidCollisions?: boolean
 }
 
 export function TabStripHomeButton({
   isActive,
   tooltip,
   onClick,
-  className
+  className,
+  tooltipSide = 'top',
+  tooltipAvoidCollisions = false
 }: TabStripHomeButtonProps) {
   return (
     <div className="shrink-0">
@@ -21,6 +25,8 @@ export function TabStripHomeButton({
         icon={Home}
         isActive={isActive}
         tooltip={tooltip}
+        tooltipSide={tooltipSide}
+        tooltipAvoidCollisions={tooltipAvoidCollisions}
         onClick={onClick}
         className={className}
       />

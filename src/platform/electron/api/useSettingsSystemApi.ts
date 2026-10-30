@@ -7,6 +7,11 @@ import { useElectronMutation, useElectronQuery } from '../useElectron'
 
 const SYSTEM_VERSION_KEY = ['system', 'version']
 
+async function requireCacheSuccess(operation: Promise<boolean>): Promise<boolean> {
+  if (!(await operation)) throw new Error('cache_operation_failed')
+  return true
+}
+
 export function useAppVersion() {
   return useElectronQuery<string>({
     key: SYSTEM_VERSION_KEY,
@@ -22,10 +27,12 @@ export function useClearCache() {
   const { showSuccess } = useToastActions()
   const { t } = useTranslation()
 
-  return useElectronMutation<boolean, void>((api) => api.clearCache(), {
+  return useElectronMutation<boolean, void>((api) => requireCacheSuccess(api.clearCache()), {
     errorMessage: t('toast_cache_cleared_failed'),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
       showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
     }
   })
@@ -36,10 +43,12 @@ export function useDeepCleanCache() {
   const { showSuccess } = useToastActions()
   const { t } = useTranslation()
 
-  return useElectronMutation<boolean, void>((api) => api.deepCleanCache(), {
+  return useElectronMutation<boolean, void>((api) => requireCacheSuccess(api.deepCleanCache()), {
     errorMessage: t('toast_cache_cleared_failed'),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
       showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
     }
   })
@@ -59,12 +68,15 @@ export function useCacheInfo() {
 export function useSetCacheAutoClean() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
-  return useElectronMutation<boolean, boolean>((api, enabled) => api.setCacheAutoClean(enabled), {
-    errorMessage: t('toast_cache_cleared_failed'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+  return useElectronMutation<boolean, boolean>(
+    (api, enabled) => requireCacheSuccess(api.setCacheAutoClean(enabled)),
+    {
+      errorMessage: t('toast_cache_cleared_failed'),
+      onSettled: () => {
+        void queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+      }
     }
-  })
+  )
 }
 
 export function useSmartCacheAction() {
@@ -72,11 +84,13 @@ export function useSmartCacheAction() {
   const { showSuccess } = useToastActions()
   const { t } = useTranslation()
   return useElectronMutation<boolean, 'clean_cold' | 'clean_all'>(
-    (api, action) => api.smartCacheAction(action),
+    (api, action) => requireCacheSuccess(api.smartCacheAction(action)),
     {
       errorMessage: t('toast_cache_cleared_failed'),
+      onSettled: () => {
+        void queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+      },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
         showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
       }
     }
@@ -94,15 +108,14 @@ export function useClearPartitionCache() {
         : `persist:${input.partition}`
       const rawKey = partition.replace(/^persist:/, '')
       const id = rawKey.startsWith('ai_') ? rawKey.replace(/^ai_/, '') : rawKey
-      // id may be empty or not match, but clearAiModelData will fallback to partition check
-      return api.clearAiModelData({ id, partition } as unknown as Parameters<
-        typeof api.clearAiModelData
-      >[0])
+      return requireCacheSuccess(api.clearAiModelData({ id, partition, cacheOnly: true }))
     },
     {
       errorMessage: t('toast_cache_cleared_failed'),
+      onSettled: () => {
+        void queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
+      },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['system', 'cache-info'] })
         showSuccess(t('toast_cache_cleared'), t('toast_system_title'))
       }
     }

@@ -238,10 +238,10 @@ export async function measureSmartCacheBreakdown(): Promise<SmartCacheBreakdown>
   const activities = getAllPartitionActivities()
 
   // Partition details: birleştir diskteki ve activity'si olan tüm key'ler
-  const allKeys = new Set<string>([
-    ...Object.keys(breakdown.partitionCaches),
-    ...Object.keys(activities)
-  ])
+  const allKeys = new Set<string>(Object.keys(breakdown.partitionCaches))
+  for (const [key, activity] of Object.entries(activities)) {
+    if (activity.lastActive !== null) allKeys.add(key)
+  }
 
   const partitionDetails: PartitionDetail[] = [...allKeys].map((key) => {
     const size = breakdown.partitionCaches[key] ?? 0

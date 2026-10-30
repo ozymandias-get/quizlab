@@ -22,6 +22,11 @@ import type { SiteSessionListResult } from '../../../shared/types/siteSession.js
 const LIST_CACHE_TTL_MS = 2000
 
 let cached: { list: SiteSessionListResult; at: number } | null = null
+let generation = 0
+
+export function siteSessionListGeneration(): number {
+  return generation
+}
 
 /**
  * The list of the last read, when it may still be used.
@@ -45,5 +50,6 @@ export function writeCachedSiteSessionList(list: SiteSessionListResult): void {
 
 /** Drops the list: something changed that the list would not show. */
 export function invalidateSiteSessionListCache(): void {
+  generation += 1
   cached = null
 }

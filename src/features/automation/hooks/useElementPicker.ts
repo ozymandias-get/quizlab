@@ -83,6 +83,7 @@ export function useElementPicker(
         return
       }
 
+      const resultSession = pickerSessionRef.current
       Logger.info('[Picker] savePickerResult: config received', {
         inputFingerprint: config.inputFingerprint,
         buttonFingerprint: config.buttonFingerprint,
@@ -99,25 +100,24 @@ export function useElementPicker(
       // the old site's selectors onto the new hostname would silently aim
       // future automation at the wrong site.
       try {
-        const startUrl = pickerStartUrlRef.current
-        const currentUrl = readContentUrl(content)
-        if (startUrl && currentUrl) {
-          const startHost = new URL(startUrl).hostname.toLowerCase()
-          const currentHost = new URL(currentUrl).hostname.toLowerCase()
-          if (startHost && currentHost && startHost !== currentHost) {
-            Logger.info(
-              `[Picker] savePickerResult: hostname changed during pick (${startHost} -> ${currentHost}), aborting`
-            )
-            showError('picker_selection_missing')
-            return
+        try {
+          const startUrl = pickerStartUrlRef.current
+          const currentUrl = readContentUrl(content)
+          if (startUrl && currentUrl) {
+            const startHost = new URL(startUrl).hostname.toLowerCase()
+            const currentHost = new URL(currentUrl).hostname.toLowerCase()
+            if (startHost && currentHost && startHost !== currentHost) {
+              Logger.info(
+                `[Picker] savePickerResult: hostname changed during pick (${startHost} -> ${currentHost}), aborting`
+              )
+              showError('picker_selection_missing')
+              return
+            }
           }
+        } catch {
+          // URL parsing must never block a save; the hostname save below still
+          // derives from the current URL.
         }
-      } catch {
-        // URL parsing must never block a save; the hostname save below still
-        // derives from the current URL.
-      }
-
-      try {
         await resetPickerArtifacts(content)
 
         if (typeof content.getURL !== 'function') {
@@ -170,7 +170,7 @@ export function useElementPicker(
           showError('picker_save_failed', undefined, { error: message })
         }
       } finally {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && pickerSessionRef.current === resultSession) {
           activePickerContentRef.current = null
           pickerSessionRef.current = null
           pickerStartUrlRef.current = null

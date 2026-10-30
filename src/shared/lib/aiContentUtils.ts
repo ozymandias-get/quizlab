@@ -11,24 +11,29 @@ import { Logger } from './logger'
  * helper exists for the case where even that is unavailable, and then simulates
  * Ctrl/Cmd+V, which is what the guest would receive from a real paste anyway.
  */
-export const safeContentPaste = async (content: AiContentController | null): Promise<boolean> => {
+export const safeContentPaste = async (
+  content: AiContentController | null,
+  options?: { skipNative?: boolean }
+): Promise<boolean | null> => {
   if (!content) {
     Logger.error('[ContentPaste] Content controller is undefined')
     return false
   }
 
-  if (typeof content.paste === 'function') {
+  if (!options?.skipNative && typeof content.paste === 'function') {
     try {
       const pasted = await content.paste()
       if (pasted) return true
       Logger.warn('[ContentPaste] content.paste() reported failure, attempting input simulation.')
     } catch (error) {
-      Logger.error('[ContentPaste] Native paste failed, falling back to input simulation:', error)
+      Logger.error('[ContentPaste] Native paste response was lost:', error)
+      return null
     }
   }
 
   Logger.warn('[ContentPaste] content.paste() not found or failed, attempting input simulation.')
 
+  let inputStarted = false
   try {
     const isMac = hasElectronApi() && getElectronApi()?.platform === 'darwin'
     const modifier = isMac ? 'meta' : 'control'
@@ -39,16 +44,18 @@ export const safeContentPaste = async (content: AiContentController | null): Pro
         modifiers: [modifier]
       }
 
-      await content.sendInputEvent({ type: 'keyDown', ...inputDef })
-      await content.sendInputEvent({ type: 'char', ...inputDef })
-      await content.sendInputEvent({ type: 'keyUp', ...inputDef })
-      return true
+      inputStarted = true
+      const down = await content.sendInputEvent({ type: 'keyDown', ...inputDef })
+      if (down === false) return false
+      const character = await content.sendInputEvent({ type: 'char', ...inputDef })
+      const up = await content.sendInputEvent({ type: 'keyUp', ...inputDef })
+      return character !== false && up !== false ? true : null
     }
 
     Logger.error('[ContentPaste] sendInputEvent API missing')
     return false
   } catch (error) {
     Logger.error('[ContentPaste] Input simulation failed:', error)
-    return false
+    return inputStarted ? null : false
   }
 }

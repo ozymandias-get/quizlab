@@ -4,7 +4,10 @@ import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js
 
 const LIST_ACCOUNTS_URL =
   'https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser&json=standard'
-const cache = new WeakMap<Session, { key: string; expires: number; result: Promise<number[]> }>()
+const cache = new WeakMap<
+  Session,
+  { key: string; expires: number; result: Promise<number[] | null> }
+>()
 
 /** Same ListAccounts JSON shape used by Chromium's Gaia account parser. */
 export function parseGoogleAccountSlots(body: string): number[] {
@@ -17,7 +20,9 @@ export function parseGoogleAccountSlots(body: string): number[] {
   for (const [index, account] of data[1].entries()) {
     if (!Array.isArray(account) || account[0] !== 'gaia.l.a') continue
     if (typeof account[3] !== 'string' || !account[3]) continue
-    if (account[9] === 0 || account[14] === 1 || account[15] === 0) continue
+    // Verification is separate from session validity: Google can report a
+    // signed-in account as unverified without signing it out.
+    if (account[9] === 0 || account[14] === 1) continue
     // Keep Google's original positions even when a signed-out entry is skipped.
     if (isSiteSessionSlot(index + 1)) slots.push(index + 1)
   }
@@ -28,11 +33,15 @@ export function parseGoogleAccountSlots(body: string): number[] {
 export async function getGoogleAccountSlots(
   primary: Session,
   importKey: string
-): Promise<number[]> {
-  if (typeof primary.fetch !== 'function') return [1]
+): Promise<number[] | null> {
+  if (typeof primary.fetch !== 'function') return null
   const previous = cache.get(primary)
   if (previous?.key === importKey && previous.expires > Date.now()) return previous.result
-  const entry = { key: importKey, expires: Date.now() + 60_000, result: Promise.resolve([1]) }
+  const entry: { key: string; expires: number; result: Promise<number[] | null> } = {
+    key: importKey,
+    expires: Date.now() + 60_000,
+    result: Promise.resolve(null)
+  }
   entry.result = (async () => {
     try {
       const response = await primary.fetch(LIST_ACCOUNTS_URL, {
@@ -43,9 +52,9 @@ export async function getGoogleAccountSlots(
       if (!response.ok) throw new Error('Google account lookup failed')
       return parseGoogleAccountSlots(await response.text())
     } catch {
-      // Discovery failure must never invent additional accounts from slot history.
+      // Unknown is distinct from an authoritative one-account response.
       entry.expires = Date.now() + 5000
-      return [1]
+      return null
     }
   })()
   cache.set(primary, entry)

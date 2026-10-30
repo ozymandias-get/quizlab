@@ -36,6 +36,12 @@ describe('isStagedSendResult', () => {
 })
 
 describe('isDeliveredSendResult', () => {
+  it('does not classify an explicitly unconfirmed submission as delivered', () => {
+    expect(
+      isDeliveredSendResult({ success: true, mode: 'click', submitOutcome: 'delivery_unconfirmed' })
+    ).toBe(false)
+    expect(isDeliveredSendResult({ success: true, mode: 'click', stage: 'uncertain' })).toBe(false)
+  })
   it('is false for a failure regardless of mode', () => {
     expect(isDeliveredSendResult({ success: false })).toBe(false)
     expect(isDeliveredSendResult({ success: false, mode: 'auto_click' })).toBe(false)

@@ -21,12 +21,9 @@ describe('isManagedGooglePlatform', () => {
     expect(isManagedGooglePlatform(id)).toBe(true)
   })
 
-  it.each(['notebooklm', 'openai', 'anthropic', 'custom', ''])(
-    'treats %j as not Google-managed',
-    (id) => {
-      expect(isManagedGooglePlatform(id)).toBe(false)
-    }
-  )
+  it.each(['openai', 'anthropic', 'custom', ''])('treats %j as not Google-managed', (id) => {
+    expect(isManagedGooglePlatform(id)).toBe(false)
+  })
 })
 
 describe('isCustomModelPlatform', () => {

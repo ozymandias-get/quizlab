@@ -6,7 +6,10 @@ import { describe, expect, it, vi } from 'vitest'
 const source = readFileSync('extensions/quizlab-session-extension/popup.js', 'utf8')
 const html = readFileSync('extensions/quizlab-session-extension/popup.html', 'utf8')
 
-async function popup(response: { success: boolean }, lastError?: { message: string }) {
+async function popup(
+  response: { success: boolean; settingsSaved?: boolean; autoSync?: boolean },
+  lastError?: { message: string }
+) {
   document.body.innerHTML = html
   const stored: Record<string, unknown> = {
     profileSlot: 2,
@@ -60,4 +63,22 @@ describe('extension popup import feedback', () => {
       expect((document.getElementById('sync-btn') as HTMLButtonElement).disabled).toBe(false)
     }
   )
+
+  it('does not turn off the displayed automatic setting when the worker is unreachable', async () => {
+    await popup({ success: false }, { message: 'Receiving end does not exist' })
+    const auto = document.getElementById('auto-sync') as HTMLInputElement
+    auto.checked = true
+    document.getElementById('sync-btn')!.click()
+    expect(auto.checked).toBe(true)
+  })
+
+  it('distinguishes a saved setting from a failed initial sync', async () => {
+    await popup({ success: false, settingsSaved: true })
+    const auto = document.getElementById('auto-sync') as HTMLInputElement
+    auto.checked = true
+    auto.dispatchEvent(new Event('change'))
+    expect(document.getElementById('sync-feedback')?.textContent).toContain(
+      'ayarı kaydedildi ancak'
+    )
+  })
 })

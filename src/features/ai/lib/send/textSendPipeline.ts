@@ -116,11 +116,12 @@ export async function executeTextSendPipeline(
     // Metin gönderimi tek betikle yapar: betik girdi alanını bulur, metni yazar
     // ve gönderir. Betik **çalıştıysa** ve yalnızca sonra başarısız olduysa
     // hedefe dokunulmuştur; otomatik tekrar aynı metni ikinci kez yazar.
-    // Betik hiç çalışmadıysa (`scriptResult` yok) veya alan hiç bulunmadıysa
-    // hedef boştur ve tekrar güvenlidir.
+    // Çalıştırma yanıtı kaybolmuşsa sayfaya dokunulup dokunulmadığı bilinmez.
     const code = sendStep.error.error
     const stage: SendStage =
-      sendStep.scriptResult && code !== 'input_not_found' ? 'partial' : 'not_started'
+      sendStep.executed && !(sendStep.scriptResult && code === 'input_not_found')
+        ? 'partial'
+        : 'not_started'
     return { ...sendStep.error, stage }
   }
 

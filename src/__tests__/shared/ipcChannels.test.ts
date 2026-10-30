@@ -95,7 +95,7 @@ describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {
   })
 
   it('every entry has a non-empty id from the GoogleWebSessionAppId union', () => {
-    const validIds = new Set(['gemini', 'aistudio', 'youtube', 'gdrive'])
+    const validIds = new Set(['gemini', 'aistudio', 'youtube', 'gdrive', 'notebooklm'])
     for (const app of GOOGLE_WEB_SESSION_APPS) {
       expect(typeof app.id).toBe('string')
       expect(validIds.has(app.id)).toBe(true)

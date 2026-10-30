@@ -92,7 +92,10 @@ export function usePickerConsoleBridge({
         return
       }
 
-      if (message === PICKER_CANCELLED) {
+      if (message === PICKER_CANCELLED || message.startsWith(`${PICKER_CANCELLED}:`)) {
+        const sessionId =
+          message === PICKER_CANCELLED ? null : message.slice(PICKER_CANCELLED.length + 1)
+        if (sessionId !== expectedSessionIdRef.current) return
         stopListening()
         onCancelledRef.current()
         return

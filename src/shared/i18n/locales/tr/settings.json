@@ -36,6 +36,10 @@
   "partition_clear_title": "Bu bölümün önbelleğini temizle",
   "partition_custom_platform": "Özel Platform",
   "storage_category_active": "Aktif",
+  "storage_services_count": "Yapay zeka önbellekleri ({count})",
+  "storage_profiles_count": "{count} profil önbelleği",
+  "storage_google_profile": "Gemini Web · Profil",
+  "storage_other_profile": "Diğer profil",
   "storage_category_cold": "Soğuk",
   "storage_category_passive": "Pasif",
   "storage_clean_action": "Temizle",
@@ -106,11 +110,5 @@
   "shell_integration_repair": "Onar / Dili Güncelle",
   "shell_integration_installed": "Sağ tık menüsü kuruldu",
   "shell_integration_removed": "Sağ tık menüsü kaldırıldı",
-  "shell_integration_failed": "Sağ tık menüsü işlemi başarısız oldu",
-  "ws_default_slot": "Yeni sekmeler için hesap:",
-  "ws_account_slot": "Hesap {slot}",
-  "ws_tab_slot_tooltip": "Bu sekmede Google Hesap {slot} kullanılıyor. Listeden başka bir hesap seçebilirsiniz. Diğer sekmeler korunur.",
-  "ws_google_account_select": "Google hesabı seç",
-  "ws_error_invalid_slot": "Geçersiz oturum yuvası.",
-  "ws_multi_session_note": "Çoklu hesap yalnızca Google için kullanılabilir. Sekme çubuğundan Hesap 1, 2, 3 ve sonraki Google hesaplarını seçebilirsiniz. Chrome’a yeni Google hesabı ekledikten sonra Google oturumlarını yeniden aktarın. Diğer AI siteleri tek oturum kullanır."
+  "shell_integration_failed": "Sağ tık menüsü işlemi başarısız oldu"
 }

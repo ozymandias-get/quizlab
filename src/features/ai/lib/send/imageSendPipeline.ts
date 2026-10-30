@@ -211,7 +211,16 @@ export async function executeImageSendPipeline(
         pasteSuccess = await content.paste()
       } catch (err) {
         reportSuppressedError('imageSend.nativePaste', { cause: err })
-        pasteSuccess = false
+        // The native call may have pasted before its response was lost.
+        clipboard.markPasteCompleted()
+        stage = 'uncertain'
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'paste_not_applied' },
+            diagnostics,
+            requestStartedAt
+          )
+        )
       }
     }
 
@@ -225,7 +234,19 @@ export async function executeImageSendPipeline(
           )
         )
       }
-      pasteSuccess = await safeContentPaste(content)
+      const fallback = await safeContentPaste(content, { skipNative: true })
+      if (fallback === null) {
+        clipboard.markPasteCompleted()
+        stage = 'uncertain'
+        return finish(
+          attachDiagnostics(
+            { success: false, error: 'paste_not_applied' },
+            diagnostics,
+            requestStartedAt
+          )
+        )
+      }
+      pasteSuccess = fallback
     }
     diagnostics.timings.pasteMs = roundMs(nowMs() - pasteStartedAt)
 
@@ -388,6 +409,20 @@ export async function executeImageSendPipeline(
         }
       })
       if (!clickStep.success) {
+        if (
+          clickStep.executed &&
+          (!clickStep.scriptResult ||
+            clickStep.scriptResult.submitOutcome === 'delivery_unconfirmed')
+        ) {
+          stage = 'uncertain'
+          return finish(
+            attachDiagnostics(
+              { success: false, error: 'submit_unverified' },
+              diagnostics,
+              requestStartedAt
+            )
+          )
+        }
         return finish(
           attachDiagnostics(
             { success: false, error: 'autosend_failed_draft_saved' },

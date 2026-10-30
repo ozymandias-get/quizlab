@@ -10,6 +10,7 @@ import {
   hasEnabledSiteSession,
   hasSiteSessionNeedingAttention,
   SITE_SESSION_LIST_KEY,
+  siteSessionRefreshInterval,
   useClearSiteSessionMutation,
   useSetSiteSessionEnabledMutation,
   useSiteSessionListQuery
@@ -86,6 +87,29 @@ describe('useSiteSessionApi', () => {
     onChanged?.()
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
+  })
+
+  it('retries unavailable Google account discovery and refreshes successful discovery', async () => {
+    const google: SiteSessionView = {
+      siteId: 'google',
+      kind: 'google',
+      activeSlot: 2,
+      memberAppIds: ['gemini'],
+      labelKey: 'google',
+      hostname: 'google.com',
+      enabled: true,
+      status: 'imported',
+      importedAt: null,
+      lastError: null
+    }
+    mockSiteSession.list.mockResolvedValue({ ...LIST_RESULT, views: [google] })
+    const { result } = renderHook(() => useSiteSessionListQuery(), { wrapper })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(siteSessionRefreshInterval(result.current.data)).toBe(10_000)
+    expect(
+      siteSessionRefreshInterval({ ...LIST_RESULT, views: [{ ...google, accountSlots: [1, 2] }] })
+    ).toBe(60_000)
+    expect(siteSessionRefreshInterval(LIST_RESULT)).toBe(false)
   })
 
   it('turns a site on and refreshes the list', async () => {

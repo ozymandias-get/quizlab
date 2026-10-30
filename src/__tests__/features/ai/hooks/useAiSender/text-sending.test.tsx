@@ -77,6 +77,37 @@ describe('useAiSender - text sending', () => {
     expect(res.diagnostics?.script?.kind).toBe('auto_send')
   })
 
+  it('marks a lost script response as partial so a retry cannot duplicate text', async () => {
+    mockContent.executeJavaScript.mockRejectedValueOnce(new Error('connection lost'))
+    const { result } = renderHook(
+      () => useAiSender(mockContentRef, 'gpt-4', true, mockAiRegistry as never, 'tab-1'),
+      { wrapper: createWrapper() }
+    )
+    let sent: any
+    await act(async () => {
+      sent = await result.current.sendTextToAI('hello')
+    })
+    expect(sent.success).toBe(false)
+    expect(sent.stage).toBe('partial')
+  })
+
+  it('does not claim observed delivery when the script supplies no observation', async () => {
+    mockContent.executeJavaScript.mockResolvedValueOnce({ success: true, mode: 'click' })
+    const { result } = renderHook(
+      () => useAiSender(mockContentRef, 'gpt-4', true, mockAiRegistry as never, 'tab-1'),
+      { wrapper: createWrapper() }
+    )
+    let sent: any
+    await act(async () => {
+      sent = await result.current.sendTextToAI('hello')
+    })
+    expect(sent).toMatchObject({
+      success: true,
+      stage: 'uncertain',
+      submitOutcome: 'delivery_unconfirmed'
+    })
+  })
+
   it('injects active prompt if present', async () => {
     mockState.mockUsePrompts.mockReturnValue({ activePromptText: 'Act as a expert' })
     const { result } = renderHook(

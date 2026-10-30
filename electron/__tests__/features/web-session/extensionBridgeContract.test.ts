@@ -135,6 +135,7 @@ interface Harness {
   bridgePort: number | null
   setSiteList(siteList: SiteList): void
   failNextPackets(count: number): void
+  failNextCookieRead(domain: string): void
   /** The hosts the navigation wake-up listens for at the moment. */
   wakeUpHosts(): string[]
   fireAlarm(name: string): void
@@ -193,6 +194,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   let failingPackets = options.failPackets ?? 0
   let tooLargePackets = options.tooLargePackets ?? 0
   let failingPosts = options.failPosts ?? 0
+  let failingCookieDomain: string | null = null
   let timerId = 0
   let bridgePort: number | null = null
 
@@ -252,6 +254,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
       getAll: async (query: { domain?: string }) => {
         const domain = query.domain ?? ''
         cookieQueries.push(domain)
+        if (domain === failingCookieDomain) {
+          failingCookieDomain = null
+          throw new Error('cookie read failed')
+        }
         return cookies[domain] ?? []
       },
       onChanged: {
@@ -411,6 +417,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
     },
     failNextPackets(count: number) {
       failingPackets = count
+    },
+    failNextCookieRead(domain: string) {
+      failingCookieDomain = domain
     },
     wakeUpHosts() {
       const current = navigationListeners[navigationListeners.length - 1]
@@ -608,12 +617,25 @@ describe('extension bridge behaviour', () => {
     expect(chatgpt?.status).toBe('permission_missing')
   })
 
-  it('asks for the host and the wildcard pattern of a site', async () => {
+  it('checks the wildcard permission covering the site and its subdomains', async () => {
     const harness = createHarness({ grantedOrigins: ['https://*.chatgpt.com/*'] })
     await harness.settle()
 
-    expect(harness.permissionQueries).toContain('https://chatgpt.com/*')
     expect(harness.permissionQueries).toContain('https://*.chatgpt.com/*')
+  })
+
+  it('refuses an exact-host-only grant before reading potentially incomplete cookies', async () => {
+    const harness = createHarness({
+      siteList: {
+        protocolVersion: 2,
+        configVersion: 7,
+        targets: [{ siteId: 'chatgpt', cookieDomains: ['.chatgpt.com'] }]
+      },
+      grantedOrigins: ['https://chatgpt.com/*']
+    })
+    await harness.settle()
+    expect(harness.packets[0].status).toBe('permission_missing')
+    expect(harness.cookieQueries).toEqual([])
   })
 
   it('reports a site it may not read completely as missing, not as read', async () => {
@@ -826,16 +848,14 @@ describe('extension bridge behaviour', () => {
     expect(warning?.level).toBe('warn')
   })
 
-  it('does not push a packet the app refused as too large again', async () => {
+  it('retries an oversized packet when a site cookie changes', async () => {
     const harness = createHarness({ tooLargePackets: 1 })
     await harness.settle()
 
     // The first packet did not fit into the app: only the other one was taken.
     expect(harness.packets.map((packet) => packet.targetId)).toEqual(['claude'])
 
-    // The browser changes a cookie of the site whose packet did not fit: the
-    // site is not pushed again, because the packet cannot get smaller by
-    // waiting.
+    // A cookie change can shrink the packet, so it gets another chance.
     harness.fireCookieChanged({
       name: '__Secure-1PSID',
       value: 'chatgpt-host-only',
@@ -844,8 +864,30 @@ describe('extension bridge behaviour', () => {
     })
     await harness.runTimers()
 
-    expect(harness.attempts.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
-    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['claude'])
+    expect(harness.attempts.map((packet) => packet.targetId)).toEqual([
+      'chatgpt',
+      'claude',
+      'chatgpt'
+    ])
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['claude', 'chatgpt'])
+  })
+
+  it('retries a failed cookie read and continues with other sites', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    harness.failNextCookieRead('.chatgpt.com')
+    harness.setSiteList({ ...DEFAULT_SITE_LIST, configVersion: 8 })
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual([
+      'chatgpt',
+      'claude',
+      'claude'
+    ])
+    expect(harness.storage.get('pendingSiteIds')).toContain('chatgpt')
+    harness.fireAlarm(HEARTBEAT_ALARM)
+    await harness.settle()
+    expect(harness.packets.at(-1)?.targetId).toBe('chatgpt')
   })
 
   it('says that a packet did not fit into the app', async () => {
@@ -863,12 +905,13 @@ describe('extension bridge behaviour', () => {
     expect(harness.storage.get('tooLargeSiteIds')).toEqual(['chatgpt'])
   })
 
-  it('does not push a site whose packet did not fit after a worker restart', async () => {
+  it('remembers an oversized packet after restart and retries when cookies change', async () => {
     const first = createHarness({ tooLargePackets: 1 })
     await first.settle()
 
     const second = createHarness({ storage: Object.fromEntries(first.storage) })
     await second.settle()
+    expect(second.attempts).toHaveLength(0)
     second.fireCookieChanged({
       name: '__Secure-1PSID',
       value: 'chatgpt-host-only',
@@ -877,7 +920,7 @@ describe('extension bridge behaviour', () => {
     })
     await second.runTimers()
 
-    expect(second.attempts).toHaveLength(0)
+    expect(second.attempts.map((packet) => packet.targetId)).toEqual(['chatgpt'])
   })
 
   it('gives a site another chance when the app asks for something new', async () => {
@@ -1015,9 +1058,26 @@ describe('extension account snapshots', () => {
     const harness = createHarness({ storage: { profileSlot: 2, autoSync: false } })
     await harness.settle()
     await harness.message({ type: 'set_auto_sync', enabled: true })
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
     harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
     await harness.runTimers()
     expect(harness.packets.length).toBeGreaterThan(0)
     expect(harness.packets.every((packet) => packet.profileSlot === 1)).toBe(true)
+  })
+
+  it('reports failure when resuming automatic sync cannot reach the bridge', async () => {
+    const harness = createHarness({ storage: { profileSlot: 2, autoSync: false } })
+    await harness.settle()
+    harness.failNextPackets(1)
+    expect((await harness.message({ type: 'set_auto_sync', enabled: true })).success).toBe(false)
+  })
+
+  it('retries previously oversized sites when automatic sync is resumed', async () => {
+    const harness = createHarness({ tooLargePackets: 1 })
+    await harness.settle()
+    await harness.message({ type: 'sync_now', slot: 1, targetId: 'claude' })
+    await harness.message({ type: 'set_auto_sync', enabled: true })
+    expect(harness.packets.at(-2)?.targetId).toBe('chatgpt')
+    expect(harness.packets.at(-1)?.targetId).toBe('claude')
   })
 })

@@ -53,11 +53,17 @@ function makeContent() {
     paste: vi.fn().mockResolvedValue(true),
     isDestroyed: vi.fn(() => false),
     getURL: vi.fn(() => 'https://chatgpt.com/'),
-    executeJavaScript: vi.fn(async (script: string) => {
+    executeJavaScript: vi.fn(async (script: string): Promise<Record<string, unknown>> => {
       scripts.push(script)
       // Every injected script "succeeds"; the submit-ready check is the one
       // that signals readiness by returning success:true with an action field.
-      return { success: true, action: 'submit_ready', mode: 'mixed', diagnostics: {} }
+      return {
+        success: true,
+        action: 'submit_ready',
+        mode: 'mixed',
+        ...(script === '/*click*/' ? { submitOutcome: 'observed' } : {}),
+        diagnostics: {}
+      }
     })
   }
   const content = mocks as unknown as AiContentController
@@ -234,6 +240,24 @@ describe('executeBulkSendPipeline — partial application is never auto-resendab
     expect(outcome.resendSafe).toBe(true)
   })
 
+  it('does not paste again when the native paste response is lost', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    contentMocks.paste.mockRejectedValueOnce(new Error('response lost'))
+    const result = await executeBulkSendPipeline(baseParams(content, scripts))
+    expect(result).toMatchObject({ success: false, error: 'paste_not_applied', stage: 'uncertain' })
+    expect(mocks.safeContentPaste).not.toHaveBeenCalled()
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('treats an incomplete simulated paste as uncertain', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    contentMocks.paste.mockResolvedValueOnce(false)
+    mocks.safeContentPaste.mockResolvedValueOnce(null)
+    const result = await executeBulkSendPipeline(baseParams(content, scripts))
+    expect(result).toMatchObject({ success: false, error: 'paste_not_applied', stage: 'uncertain' })
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
   it('reports partial when the SECOND image fails after one landed', async () => {
     const { content, mocks: contentMocks, scripts } = makeContent()
     // İlk yapıştırma başarılı, ikincisi (ve fallback'i) başarısız.
@@ -250,6 +274,17 @@ describe('executeBulkSendPipeline — partial application is never auto-resendab
     // Otomatik tekrar kapalı: yoksa aynı görseller ikinci kez yapıştırılır.
     expect(outcome.kind).toBe('incomplete')
     expect(outcome.resendSafe).toBe(false)
+  })
+
+  it('preserves the partial stage if preparing the next step rejects after a paste', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    ;(params.generateWaitForSubmitReadyScript as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('generator unavailable')
+    )
+    const result = await executeBulkSendPipeline(params)
+    expect(result).toMatchObject({ success: false, stage: 'partial' })
+    expect(asOutcome(result).resendSafe).toBe(false)
   })
 
   it('reports partial when the THIRD image fails after two landed', async () => {
@@ -351,6 +386,18 @@ describe('executeBulkSendPipeline — partial application is never auto-resendab
 
     expect(result.error).toBe('autosend_failed_draft_saved')
     expect(asOutcome(result).kind).toBe('incomplete')
+    expect(asOutcome(result).resendSafe).toBe(false)
+  })
+
+  it('reports an unconfirmed submission without claiming the draft is still present', async () => {
+    const { content, mocks: contentMocks, scripts } = makeContent()
+    contentMocks.executeJavaScript.mockImplementation(async (script: string) =>
+      script === '/*click*/'
+        ? { success: false, error: 'submit_unverified', submitOutcome: 'delivery_unconfirmed' }
+        : { success: true, action: 'submit_ready' }
+    )
+    const result = await executeBulkSendPipeline(baseParams(content, scripts))
+    expect(result).toMatchObject({ success: false, error: 'submit_unverified', stage: 'uncertain' })
     expect(asOutcome(result).resendSafe).toBe(false)
   })
 

@@ -30,6 +30,7 @@ const REPO_ROOT = join(SRC_ROOT, '..')
  */
 const SCANNED_PATHS = [
   join(SRC_ROOT, 'features', 'settings', 'ui', 'siteSessions'),
+  join(SRC_ROOT, 'features', 'ai', 'ui', 'aiTabStrip', 'AiTabSlotPill.tsx'),
   join(SRC_ROOT, 'app', 'ui', 'BottomBar', 'FloatingDockToolButtons.tsx'),
   join(SRC_ROOT, 'features', 'settings', 'ui', 'modal', 'settingsTabDefinitions.tsx'),
   join(SRC_ROOT, 'features', 'settings', 'ui', 'BottomBarSettingsTab.tsx'),

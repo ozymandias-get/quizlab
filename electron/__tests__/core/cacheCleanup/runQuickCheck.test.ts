@@ -22,7 +22,7 @@ vi.mock('../../../app/constants', () => ({
     CLEANUP: {
       STARTUP_DELAY_MS: 5000,
       IDLE_TIMEOUT_MS: 300000,
-      MAX_TOTAL_CACHE_BYTES: 500 * 1024 * 1024,
+      MAX_TOTAL_CACHE_BYTES: 1024 * 1024 * 1024,
       MAX_PARTITION_CACHE_BYTES: 100 * 1024 * 1024,
       TEMP_FILE_TTL_MS: 3600000,
       CACHE_FILE_TTL_MS: 604800000,
@@ -44,7 +44,7 @@ vi.mock('../../../core/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
-const MAX_TOTAL_CACHE_BYTES = 500 * 1024 * 1024
+const MAX_TOTAL_CACHE_BYTES = 1024 * 1024 * 1024
 
 describe('runQuickCheck', () => {
   beforeEach(() => {

@@ -177,6 +177,16 @@ describe('usePickerConsoleBridge', () => {
     expect(onResult).not.toHaveBeenCalled()
   })
 
+  it('ignores cancellation from an older session and accepts the current one', () => {
+    const { result, onCancelled } = setup()
+    result.current.startListening(mockController as never, 'session-2')
+    handlerSink.current?.({ message: '_aiPicker:cancelled:session-1' })
+    handlerSink.current?.({ message: '_aiPicker:cancelled' })
+    expect(onCancelled).not.toHaveBeenCalled()
+    handlerSink.current?.({ message: '_aiPicker:cancelled:session-2' })
+    expect(onCancelled).toHaveBeenCalledTimes(1)
+  })
+
   it('T14 guard: messages after stopListening are dropped', () => {
     const { result, onResult } = setup()
     result.current.startListening(mockController as never, 'session-3')

@@ -39,7 +39,7 @@ export interface SiteSessionView {
   lastError: string | null
   /** Currently active account slot (1 = default, 2 = secondary). */
   activeSlot?: number
-  /** Google account choices, including the next available index. */
+  /** Discovered Google account positions; absent when discovery is unavailable. */
   accountSlots?: number[]
 }
 

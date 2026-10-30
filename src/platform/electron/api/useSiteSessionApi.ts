@@ -39,6 +39,13 @@ export function hasSiteSessionNeedingAttention(views: SiteSessionView[]): boolea
   return views.some((view) => view.enabled && ATTENTION_STATUSES.has(view.status))
 }
 
+export function siteSessionRefreshInterval(
+  data: SiteSessionListResult | undefined
+): number | false {
+  const google = data?.views.find((view) => view.kind === 'google')
+  return google ? (google.accountSlots === undefined ? 10_000 : 60_000) : false
+}
+
 /**
  * The sites and their states.
  *
@@ -64,7 +71,10 @@ export function useSiteSessionListQuery() {
     queryFn: (api) => api.siteSession.list(),
     options: {
       staleTime: 0,
-      retry: false
+      retry: false,
+      // Account discovery can fail transiently or change after an in-app login.
+      // Retry unknown results promptly and refresh known results at their cache TTL.
+      refetchInterval: (query) => siteSessionRefreshInterval(query.state.data)
     }
   })
 }

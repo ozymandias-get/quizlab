@@ -31,10 +31,10 @@ export interface SmartCacheRecommendation {
 
 // Watermark eşikleri (toplam cache için)
 const WATERMARKS = {
-  moderate: 0.6, // 60% => 300MB
-  warning: 0.8, // 80% => 400MB
-  high: 0.9, // 90% => 450MB
-  critical: 1.0 // 100% => 500MB
+  moderate: 0.6, // 60%
+  warning: 0.8, // 80%
+  high: 0.9, // 90%
+  critical: 1.0 // 100%
 } as const
 
 // Partition eşikleri
@@ -120,10 +120,12 @@ export function getRecommendation(
     }
   }
   if (pressure.level === 'warning') {
-    const overLimit = partitions.filter((p) => p.size > MAX_PARTITION_CACHE_BYTES * 0.8)
+    const overLimit = partitions.filter(
+      (p) => p.activity === 'cold' && p.size > MAX_PARTITION_CACHE_BYTES * 0.8
+    )
     if (overLimit.length > 0) {
       return {
-        action: 'clean_passive',
+        action: 'clean_cold',
         reason: 'warning_over_partition_limit',
         estimatedFreeBytes: overLimit.reduce((s, p) => s + p.size, 0) * 0.5,
         targetPartitions: overLimit.map((p) => p.key)

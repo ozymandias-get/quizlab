@@ -2,12 +2,17 @@ import type { CacheInfoResponse } from '@shared-core/types'
 
 import {
   MAX_TOTAL_CACHE_BYTES,
+  groupPartitionCacheRows,
   resolveCachePressure,
   resolvePartitionCacheRows
 } from '@features/settings/ui/storage/cacheUsageSummary'
 import { describe, expect, it } from 'vitest'
 
 const t = (key: string) => key
+
+it('uses a 1 GiB cache budget', () => {
+  expect(MAX_TOTAL_CACHE_BYTES).toBe(1024 * 1024 * 1024)
+})
 
 function makeCacheInfo(overrides: Partial<CacheInfoResponse> = {}): CacheInfoResponse {
   return {
@@ -58,14 +63,15 @@ describe('resolvePartitionCacheRows', () => {
     ).toEqual([])
   })
 
-  it('lists smart partitions largest first and keeps empty cold ones', () => {
+  it('lists used partitions and meaningful cold caches, hiding tiny unused remnants', () => {
     const rows = resolvePartitionCacheRows(
       makeCacheInfo({
         smart: makeSmart({
           partitionDetails: [
-            { key: 'ai_chatgpt', size: 10, category: 'active', lastActive: 5, ttlMs: 0 },
-            { key: 'ai_claude', size: 30, category: 'passive', lastActive: 7, ttlMs: 0 },
+            { key: 'ai_chatgpt', size: 2000, category: 'active', lastActive: 5, ttlMs: 0 },
+            { key: 'ai_claude', size: 3000, category: 'passive', lastActive: 7, ttlMs: 0 },
             { key: 'ai_empty_cold', size: 0, category: 'cold', lastActive: null, ttlMs: 0 },
+            { key: 'ai_remnant', size: 144, category: 'cold', lastActive: null, ttlMs: 0 },
             { key: 'ai_empty_active', size: 0, category: 'active', lastActive: 9, ttlMs: 0 }
           ]
         })
@@ -73,8 +79,8 @@ describe('resolvePartitionCacheRows', () => {
       t
     )
 
-    expect(rows.map((row) => row.key)).toEqual(['ai_claude', 'ai_chatgpt', 'ai_empty_cold'])
-    expect(rows[0]).toMatchObject({ size: 30, category: 'passive', lastActive: 7 })
+    expect(rows.map((row) => row.key)).toEqual(['ai_claude', 'ai_chatgpt'])
+    expect(rows[0]).toMatchObject({ size: 3000, category: 'passive', lastActive: 7 })
     // Names come from the shared partition display-name rules.
     expect(rows[0]?.label).toBe('Claude')
   })
@@ -86,7 +92,7 @@ describe('resolvePartitionCacheRows', () => {
           chromiumCache: 0,
           codeCache: 0,
           gpuCache: 0,
-          partitionCaches: { 'persist:ai_chatgpt': 5, 'persist:ai_claude': 50 },
+          partitionCaches: { 'persist:ai_chatgpt': 5000, 'persist:ai_claude': 50000 },
           tempFiles: 0,
           total: 55
         }
@@ -98,14 +104,14 @@ describe('resolvePartitionCacheRows', () => {
       {
         key: 'persist:ai_claude',
         label: 'Claude',
-        size: 50,
+        size: 50000,
         category: undefined,
         lastActive: null
       },
       {
         key: 'persist:ai_chatgpt',
         label: 'Chatgpt',
-        size: 5,
+        size: 5000,
         category: undefined,
         lastActive: null
       }
@@ -119,7 +125,7 @@ describe('resolvePartitionCacheRows', () => {
           chromiumCache: 0,
           codeCache: 0,
           gpuCache: 0,
-          partitionCaches: { 'persist:ai_session': 3 },
+          partitionCaches: { 'persist:ai_session': 3000 },
           tempFiles: 0,
           total: 3
         },
@@ -132,8 +138,35 @@ describe('resolvePartitionCacheRows', () => {
   })
 })
 
+it('groups Gemini profiles without inferring Google accounts or merging their clear targets', () => {
+  const rows = [
+    {
+      key: 'gemini_web_profile',
+      label: 'Gemini Web',
+      size: 5000,
+      category: 'active' as const,
+      lastActive: 5
+    },
+    {
+      key: 'gemini_web_profile_slot_3',
+      label: 'Gemini Web · Profil 3',
+      size: 3000,
+      category: 'cold' as const,
+      lastActive: null
+    },
+    { key: 'ai_chatgpt', label: 'ChatGPT', size: 2000, category: 'cold' as const, lastActive: null }
+  ]
+  const groups = groupPartitionCacheRows(rows)
+  expect(groups).toHaveLength(2)
+  expect(groups[0]).toMatchObject({ label: 'Gemini Web', size: 8000 })
+  expect(groups[0].rows.map((row) => row.key)).toEqual([
+    'gemini_web_profile',
+    'gemini_web_profile_slot_3'
+  ])
+})
+
 describe('resolveCachePressure', () => {
-  it('prefers the scheduler classification when it exists', () => {
+  it('uses the displayed byte budget even when a stale scheduler classification disagrees', () => {
     const pressure = resolveCachePressure(
       makeCacheInfo({
         breakdown: {
@@ -149,9 +182,8 @@ describe('resolveCachePressure', () => {
     )
 
     expect(pressure).toMatchObject({
-      level: 'moderate',
-      percentage: 12.5,
-      // The scheduler says "moderate", so the hard byte budget is not violated.
+      level: 'critical',
+      percentage: ((MAX_TOTAL_CACHE_BYTES + 1) / MAX_TOTAL_CACHE_BYTES) * 100,
       isOverLimit: true
     })
   })
@@ -185,8 +217,7 @@ describe('resolveCachePressure', () => {
         }
       })
     )
-    expect(near).toMatchObject({ level: 'warning', isOverLimit: false })
-    expect(near.barColor).toBe('bg-amber-500')
+    expect(near).toMatchObject({ level: 'high', isOverLimit: false })
 
     const over = resolveCachePressure(
       makeCacheInfo({

@@ -218,6 +218,63 @@ describe('systemHandlers', () => {
     expect(fromPartition).not.toHaveBeenCalled()
   })
 
+  it('clears only cache data for the exact partition requested by Storage', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({ isDestroyed: () => false, webContents: trustedSender })
+    registerSystemHandlers()
+    const handler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA
+    )?.[1]
+    await expect(
+      handler?.(
+        { sender: trustedSender },
+        {
+          id: 'chatgpt',
+          partition: 'persist:gemini_web_profile_slot_2',
+          cacheOnly: true
+        }
+      )
+    ).resolves.toEqual({ ok: true, data: true })
+    expect(fromPartition).toHaveBeenCalledWith('persist:gemini_web_profile_slot_2')
+    expect(partitionClearStorageData).toHaveBeenCalledWith({
+      storages: ['serviceworkers', 'cachestorage']
+    })
+  })
+
+  it('keeps cookies and local storage during deep cache cleaning', async () => {
+    const cache = await import('../../core/systemHandlers/cache.js')
+    vi.spyOn(cache, 'getStoredPartitions').mockResolvedValue(new Set(['persist:ai_chatgpt']))
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({ isDestroyed: () => false, webContents: trustedSender })
+    registerSystemHandlers()
+    const handler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.DEEP_CLEAN_CACHE
+    )?.[1]
+    await expect(handler?.({ sender: trustedSender })).resolves.toEqual({ ok: true, data: true })
+    expect(partitionClearStorageData).toHaveBeenCalled()
+    for (const [options] of partitionClearStorageData.mock.calls) {
+      expect(options.storages).not.toContain('cookies')
+      expect(options.storages).not.toContain('localstorage')
+      expect(options.storages).not.toContain('indexdb')
+    }
+  })
+
+  it('rejects unsafe cache-only partition paths', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({ isDestroyed: () => false, webContents: trustedSender })
+    registerSystemHandlers()
+    const handler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA
+    )?.[1]
+    await expect(
+      handler?.(
+        { sender: trustedSender },
+        { id: 'chatgpt', partition: 'persist:../../bad', cacheOnly: true }
+      )
+    ).resolves.toEqual({ ok: true, data: false })
+    expect(fromPartition).not.toHaveBeenCalled()
+  })
+
   it('copies sanitized text through the clipboard adapter', async () => {
     const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({

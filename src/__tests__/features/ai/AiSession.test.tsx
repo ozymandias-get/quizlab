@@ -135,6 +135,33 @@ describe('AiSession', () => {
     expect(secondOptions.source).toEqual(firstOptions.source)
   })
 
+  it('refreshes the entry URL to the latest restoredUrl when the tab sessionSlot changes', () => {
+    const { rerender } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
+    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe('https://chat.openai.com')
+
+    rerender(
+      <AiSession
+        tab={defaultTab}
+        isActive
+        restoredUrl="https://chat.openai.com/c/existing-chat"
+        {...defaultProps}
+      />
+    )
+    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe('https://chat.openai.com')
+
+    rerender(
+      <AiSession
+        tab={{ ...defaultTab, sessionSlot: 2 }}
+        isActive
+        restoredUrl="https://chat.openai.com/c/existing-chat"
+        {...defaultProps}
+      />
+    )
+    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe(
+      'https://chat.openai.com/c/existing-chat'
+    )
+  })
+
   it('hides when inactive', () => {
     const { container } = render(<AiSession tab={defaultTab} isActive={false} {...defaultProps} />)
     const wrapper = container.firstChild as HTMLElement

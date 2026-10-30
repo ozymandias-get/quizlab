@@ -144,5 +144,11 @@
   "ws_extension_wizard_error_title": "İşlem Başarısız",
   "ws_extension_wizard_error_default": "İşlem başarısız oldu. Lütfen tekrar deneyin.",
   "ws_extension_wizard_next_btn": "İleri",
-  "ws_extension_wizard_install_btn": "Eklentiyi Yükle"
+  "ws_extension_wizard_install_btn": "Eklentiyi Yükle",
+  "ws_default_slot": "Yeni sekmeler için hesap:",
+  "ws_account_slot": "Hesap {slot}",
+  "ws_tab_slot_tooltip": "Bu sekmede Google Hesap {slot} kullanılıyor. Listeden başka bir hesap seçebilirsiniz. Diğer sekmeler korunur.",
+  "ws_google_account_select": "Google hesabı seç",
+  "ws_error_invalid_slot": "Geçersiz oturum yuvası.",
+  "ws_multi_session_note": "Çoklu hesap yalnızca Google için kullanılabilir. Sekme çubuğundan Hesap 1, 2, 3 ve sonraki Google hesaplarını seçebilirsiniz. Chrome’a yeni Google hesabı ekledikten sonra Google oturumlarını yeniden aktarın. Diğer AI siteleri tek oturum kullanır."
 }

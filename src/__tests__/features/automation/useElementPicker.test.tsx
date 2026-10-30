@@ -216,7 +216,8 @@ describe('useElementPicker', () => {
     })
 
     await act(async () => {
-      fireConsoleMessage('_aiPicker:cancelled')
+      const sessionId = mockGeneratePickerScriptMutate.mock.calls.at(-1)?.[0]?.sessionId
+      fireConsoleMessage(`_aiPicker:cancelled:${sessionId}`)
     })
 
     expect(result.current.isPickerActive).toBe(false)
@@ -292,6 +293,7 @@ describe('useElementPicker', () => {
 
     expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
     expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
+    expect(result.current.isPickerActive).toBe(false)
   })
 
   // S11: C5 (real bug). A save failure must surface exactly one error toast (the
@@ -325,6 +327,38 @@ describe('useElementPicker', () => {
       expect.anything()
     )
     expect(result.current.isPickerActive).toBe(false)
+  })
+
+  it('does not deactivate a newer picker when an earlier save finishes', async () => {
+    let finishSave!: (value: boolean) => void
+    mockSaveAiConfigMutate.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finishSave = resolve
+      })
+    )
+    const { result } = renderPicker()
+    await act(async () => {
+      await result.current.startPicker()
+    })
+    await act(async () => {
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
+    })
+    expect(mockSaveAiConfigMutate).toHaveBeenCalled()
+    await act(async () => {
+      await result.current.stopPicker()
+      await result.current.startPicker()
+    })
+    expect(result.current.isPickerActive).toBe(true)
+    await act(async () => {
+      finishSave(true)
+      await Promise.resolve()
+    })
+    expect(result.current.isPickerActive).toBe(true)
   })
 
   it('toggles between start and stop', async () => {

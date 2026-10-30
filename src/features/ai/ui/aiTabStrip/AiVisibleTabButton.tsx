@@ -211,7 +211,7 @@ function AiVisibleTabButton({
           </div>
         </TabPillContainer>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent side="top" avoidCollisions={false}>
         {label} — {tr('tab_rename_hint', 'Double-click to rename')}
       </TooltipContent>
     </Tooltip>

@@ -224,7 +224,7 @@ ${inputRepairCredit('                ')}`
                     'button[aria-label*="Stop" i], button[data-testid*="stop" i], button[aria-label*="Durdur" i], [data-testid*="stop-button" i]'
                 ));
             } catch (_) {}
-            return text.length + '|' + text.slice(0, 80) + '|' + conversationNodes + '|' + (streaming ? '1' : '0');
+            return { textLength: text.length, conversationNodes, streaming };
         };
 
         // 2026-10-17 ölçüm düzeltmesi: 10×80ms = 800ms pencere, ChatGPT'de
@@ -247,7 +247,11 @@ ${inputRepairCredit('                ')}`
                 // Beklenen etki: mesaj editörden ayrıldı (metin temizlendi /
                 // kısaldı) ya da konuşmaya yeni bir düğüm eklendi / durum
                 // "yanıt üretiliyor"a geçti.
-                if (after && before && after !== before) return true;
+                if (after && before && (
+                    (before.textLength > 0 && after.textLength < before.textLength) ||
+                    (before.conversationNodes >= 0 && after.conversationNodes > before.conversationNodes) ||
+                    (!before.streaming && after.streaming)
+                )) return true;
             }
             return false;
         };

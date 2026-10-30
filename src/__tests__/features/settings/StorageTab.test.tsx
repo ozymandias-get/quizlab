@@ -123,8 +123,18 @@ describe('StorageTab', () => {
     expect(screen.getByText(/^cache_pressure_normal · 0%$/)).toBeInTheDocument()
   })
 
-  it('prefers the scheduler classification and hides a "none" recommendation button', () => {
-    setCacheInfo({ smart: makeSmart({}, { action: 'none' }) })
+  it('shows pressure from the byte budget and hides a "none" recommendation button', () => {
+    setCacheInfo({
+      breakdown: {
+        chromiumCache: 0,
+        codeCache: 0,
+        gpuCache: 0,
+        partitionCaches: {},
+        tempFiles: 0,
+        total: Math.ceil(1024 * 1024 * 1024 * 0.8)
+      },
+      smart: makeSmart({}, { action: 'none' })
+    })
 
     render(<StorageTab />)
 
@@ -184,7 +194,7 @@ describe('StorageTab', () => {
     setCacheInfo({
       smart: makeSmart({
         partitionDetails: [
-          { key: 'ai_chatgpt', size: 50, category: 'active', lastActive: 1, ttlMs: 0 }
+          { key: 'ai_chatgpt', size: 50_000, category: 'active', lastActive: 1, ttlMs: 0 }
         ]
       })
     })

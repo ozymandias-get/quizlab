@@ -92,6 +92,8 @@ describe('window/sessions', () => {
     const module = await import('../../../app/window/sessions.js')
 
     module.setupSessions(() => ({}) as never)
+    expect(fromPartition).not.toHaveBeenCalled()
+    module.setupAiSession('persist:ai_chatgpt')
 
     expect(setPermissionRequestHandler).toHaveBeenCalled()
     expect(setPermissionCheckHandler).toHaveBeenCalled()

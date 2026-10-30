@@ -46,10 +46,23 @@ export function isStagedSendResult(result: { success: boolean; mode?: string }):
 }
 
 /**
- * True only when the turn reached the model.
+ * True when a successful non-staged result does not report an uncertain delivery.
  */
-export function isDeliveredSendResult(result: { success: boolean; mode?: string }): boolean {
-  return result.success && !isStagedSendResult(result)
+export function isDeliveredSendResult(result: {
+  success: boolean
+  mode?: string
+  submitOutcome?: string
+  stage?: string
+}): boolean {
+  return (
+    result.success &&
+    !isStagedSendResult(result) &&
+    !['delivery_unconfirmed', 'blocked', 'not_attempted', 'input_only'].includes(
+      result.submitOutcome ?? ''
+    ) &&
+    result.stage !== 'uncertain' &&
+    result.stage !== 'partial'
+  )
 }
 
 /**

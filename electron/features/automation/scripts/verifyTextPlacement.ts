@@ -45,9 +45,9 @@ export function buildTextVerificationScript(): string {
             const changed = actual !== before;
             const fullPresent = actual.includes(expectedNormalized);
             if (appendMode) {
-                const gained = delta >= Math.max(1, Math.floor(expectedNormalized.length * 0.5));
-                const preserved = !before || actual.includes(before);
-                if (fullPresent && gained && preserved) {
+                const beforeIndex = before ? actual.indexOf(before) : 0;
+                const appended = beforeIndex >= 0 && actual.slice(beforeIndex + before.length).includes(expectedNormalized);
+                if (appended) {
                     return { applied: true, state: 'verified', delta: delta };
                 }
                 if (!changed) {
@@ -132,13 +132,13 @@ export function buildTextVerificationScript(): string {
             const delta = actual.length - before.length;
             const changed = actual !== before;
             if (appendMode) {
-                const gained = delta >= Math.max(1, Math.floor(expectedNormalized.length * 0.5));
-                // Append sözleşmesi: önceki içerik KORUNMALIDIR. Katlanmış
-                // karşılaştırma sıkı hâlin birebir karşılığıdır; ek bir
-                // "ya da" maddesi eklenmez — aksi halde koşul her zaman doğru
-                // olur ve "önceki içerik korundu" koruması sessizce düşer.
-                const preserved = !before || containsFullContent(actual, before);
-                if (gained && preserved) return { applied: true, state: 'verified', delta: delta };
+                const foldedActual = normalizeForEditorFold(actual);
+                const foldedBefore = normalizeForEditorFold(before);
+                const foldedExpected = normalizeForEditorFold(expectedNormalized);
+                const beforeIndex = foldedBefore ? foldedActual.indexOf(foldedBefore) : 0;
+                if (beforeIndex >= 0 && foldedExpected && foldedActual.slice(beforeIndex + foldedBefore.length).includes(foldedExpected)) {
+                    return { applied: true, state: 'verified', delta: delta };
+                }
                 return strict;
             }
             // Replace sözleşmesi: önceki içerik KAYBOLDUR. Sıkı hâldeki

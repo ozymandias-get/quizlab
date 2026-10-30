@@ -2,14 +2,16 @@
  * The two cache lists: the app's own root caches, and the per-AI-partition
  * breakdown with its per-row clear action.
  */
+import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
 import { SettingsSection } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
-import { FolderTree, Layers } from 'lucide-react'
+import { ChevronDown, FolderTree, Layers } from 'lucide-react'
 import { memo } from 'react'
 
 import type { PartitionCacheRow } from './cacheUsageSummary'
+import { groupPartitionCacheRows } from './cacheUsageSummary'
 import { PartitionRow, RootCacheRow } from './StorageComponents'
 
 /** Nested list surface: recessed inside a section card, so it never uses `bg-card`. */
@@ -49,24 +51,57 @@ export const PartitionCacheSection = memo(function PartitionCacheSection({
   onClearPartition: (partitionKey: string) => void
   t: TFunction
 }) {
+  const groups = groupPartitionCacheRows(rows, t)
   return (
     <SettingsSection
       icon={<Layers className="h-4 w-4" />}
-      title={t('ai_partitions_count', { count: rows.length })}
+      title={t('storage_services_count', { count: groups.length })}
     >
       <div className={cn(INSET_LIST, 'divide-border/60 divide-y overflow-hidden')}>
-        {rows.map(({ key, label, size, category, lastActive }) => (
-          <PartitionRow
-            key={key}
-            partitionKey={key}
-            label={label}
-            size={size}
-            category={category}
-            lastActive={lastActive}
-            onClear={() => onClearPartition(key)}
-            t={t}
-          />
-        ))}
+        {groups.map((group) =>
+          group.rows.length === 1 ? (
+            <PartitionRow
+              key={group.key}
+              label={group.rows[0].label}
+              size={group.rows[0].size}
+              category={group.rows[0].category}
+              lastActive={group.rows[0].lastActive}
+              onClear={() => onClearPartition(group.rows[0].key)}
+              t={t}
+            />
+          ) : (
+            <details key={group.key} className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2">
+                <ChevronDown
+                  aria-hidden
+                  className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+                />
+                <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
+                  {group.label}
+                </span>
+                <span className="text-ql-11 text-muted-foreground">
+                  {t('storage_profiles_count', { count: group.rows.length })}
+                </span>
+                <span className="text-ql-12 text-muted-foreground font-mono tabular-nums">
+                  {formatBytes(group.size)}
+                </span>
+              </summary>
+              <div className="divide-border/60 border-border/60 divide-y border-t pl-4">
+                {group.rows.map((row) => (
+                  <PartitionRow
+                    key={row.key}
+                    label={row.label}
+                    size={row.size}
+                    category={row.category}
+                    lastActive={row.lastActive}
+                    onClear={() => onClearPartition(row.key)}
+                    t={t}
+                  />
+                ))}
+              </div>
+            </details>
+          )
+        )}
       </div>
       <p className="text-ql-11 text-muted-foreground">
         {t('storage_partition_summary', {

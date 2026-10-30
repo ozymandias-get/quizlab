@@ -1,3 +1,5 @@
+import { useSiteSessionListQuery } from '@platform/electron/api/useSiteSessionApi'
+
 import { useToastActions } from '@app/providers'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
@@ -35,10 +37,24 @@ function GoogleDrivePanel({
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
   const { showWarning } = useToastActions()
+  const { data: sessionList } = useSiteSessionListQuery()
+  const googleView = sessionList?.views.find((view) => view.kind === 'google')
+  const availableSlots = googleView?.accountSlots
+  const activeSlot = googleView?.activeSlot
+  const sessionSlot =
+    activeSlot !== undefined
+      ? availableSlots && !availableSlots.includes(activeSlot)
+        ? (availableSlots[0] ?? 1)
+        : activeSlot
+      : undefined
   const { setHostElement, reload } = useManagedContentView({
     viewId,
     showWarning,
-    source: { kind: 'google-web-app', appId: 'gdrive' },
+    source: {
+      kind: 'google-web-app',
+      appId: 'gdrive',
+      ...(sessionSlot !== undefined ? { sessionSlot } : {})
+    },
     restoredUrl: webviewUrl,
     modelId: 'gdrive',
     isEnabled: true,

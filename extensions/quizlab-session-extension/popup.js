@@ -59,11 +59,11 @@ function wildcardPattern(host) {
 /**
  * The origin patterns of a host.
  *
- * The service worker asks for the same two patterns, so the popup and the
+ * The service worker asks for the same pattern, so the popup and the
  * worker agree on what "the extension may read this site" means.
  */
 function originPatterns(host) {
-  return [`https://${host}/*`, wildcardPattern(host)]
+  return [wildcardPattern(host)]
 }
 
 /** The hosts a site needs a permission for. */
@@ -300,7 +300,14 @@ async function initImportControls() {
   auto?.addEventListener('change', () => {
     chrome.runtime.sendMessage({ type: 'set_auto_sync', enabled: auto.checked }, (response) => {
       const error = chrome.runtime.lastError
-      if (error || !response?.success) showFeedback('Eşitleme ayarı kaydedilemedi.', false)
+      if (error || !response?.success) {
+        showFeedback(
+          response?.settingsSaved
+            ? 'Eşitleme ayarı kaydedildi ancak aktarım tamamlanamadı.'
+            : 'Eşitleme ayarı kaydedilemedi.',
+          false
+        )
+      }
     })
   })
   syncBtn?.addEventListener('click', () => {
@@ -312,7 +319,9 @@ async function initImportControls() {
       (response) => {
         const error = chrome.runtime.lastError
         syncBtn.disabled = false
-        if (auto) auto.checked = false
+        if (auto && !error && (response?.autoSync === false || response?.success)) {
+          auto.checked = false
+        }
         if (!error && response?.success) {
           showFeedback(
             'Oturumlar aktarıldı. Google hesapları arasında uygulamadaki hesap seçicisinden geçebilirsiniz.',

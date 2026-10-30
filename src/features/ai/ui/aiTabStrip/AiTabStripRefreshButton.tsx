@@ -16,7 +16,14 @@ const AiTabStripRefreshButton = memo(function AiTabStripRefreshButton({
 }: AiTabStripRefreshButtonProps) {
   return (
     <div className="shrink-0">
-      <ToolbarButton icon={RefreshCw} disabled={disabled} tooltip={title} onClick={onRefresh} />
+      <ToolbarButton
+        icon={RefreshCw}
+        disabled={disabled}
+        tooltip={title}
+        tooltipSide="top"
+        tooltipAvoidCollisions={false}
+        onClick={onRefresh}
+      />
     </div>
   )
 })

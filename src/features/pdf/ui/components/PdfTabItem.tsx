@@ -118,7 +118,7 @@ function PdfTabItem({
               {tabLabel}
             </TabPill>
           </TooltipTrigger>
-          <TooltipContent>
+          <TooltipContent side="top" avoidCollisions={false}>
             {label} — {tr('tab_rename_hint', 'Double-click to rename')}
           </TooltipContent>
         </Tooltip>
@@ -141,7 +141,9 @@ function PdfTabItem({
             <X className="h-3.5 w-3.5" />
           </IconButton>
         </TooltipTrigger>
-        <TooltipContent>{tr('tab_close', 'Close')}</TooltipContent>
+        <TooltipContent side="top" avoidCollisions={false}>
+          {tr('tab_close', 'Close')}
+        </TooltipContent>
       </Tooltip>
     </div>
   )

@@ -68,7 +68,6 @@ export const RootCacheRow = memo(function RootCacheRow({
 })
 
 export const PartitionRow = memo(function PartitionRow({
-  partitionKey,
   label,
   size,
   category,
@@ -76,7 +75,6 @@ export const PartitionRow = memo(function PartitionRow({
   onClear,
   t
 }: {
-  partitionKey: string
   label: string
   size: number
   category?: 'active' | 'passive' | 'cold'
@@ -126,9 +124,6 @@ export const PartitionRow = memo(function PartitionRow({
               </span>
             )}
           </div>
-          <span className="text-ql-11 text-muted-foreground block truncate font-mono">
-            {partitionKey}
-          </span>
           {lastActive && (
             <span className="text-ql-11 text-muted-foreground block truncate">
               {t('storage_last_active', {
@@ -241,8 +236,6 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
             {recommendation.targetPartitions.length > 3
               ? ` +${recommendation.targetPartitions.length - 3}`
               : ''}
-            {' · '}
-            <span className="font-mono">{recommendation.reason}</span>
           </p>
         </div>
         {onAction && (

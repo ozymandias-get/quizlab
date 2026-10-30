@@ -59,6 +59,7 @@ export const ADDITIONAL_AI_CHAT_PLATFORMS: Record<string, AiPlatform> = Object.f
       displayName: name,
       icon: id,
       url,
+      color: id === 'notebooklm' ? '#4b5563' : '#64748b',
       partition: id === 'notebooklm' ? GOOGLE_AI_WEB_SESSION_PARTITION : `persist:ai_${id}`,
       defaultEnabled: false,
       defaultDockVisible: false,

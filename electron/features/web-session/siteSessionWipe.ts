@@ -36,7 +36,11 @@ export async function wipeSiteSession(
 ): Promise<void> {
   // A cookie store that cannot be read must not stop the wipe: the storage of
   // the origin has to go as well, otherwise the site keeps its session.
-  const existingCookies = await targetSession.cookies.get({}).catch(() => [])
+  let cookieReadFailed = false
+  const existingCookies = await targetSession.cookies.get({}).catch(() => {
+    cookieReadFailed = true
+    return []
+  })
   const removals: { domain: string; removal: Promise<unknown> }[] = []
 
   for (const cookie of existingCookies) {
@@ -60,21 +64,35 @@ export async function wipeSiteSession(
     Logger.warn(`[SiteSessionWipe] ${count} cookie(s) of "${domain}" could not be removed.`)
   }
 
+  let storageFailed = false
   try {
     // The wipe is per origin: the partition can hold the data of other
     // origins, and clearing the whole partition would take them down too. A
     // site may live on more than one origin — the Google group on four — and
     // every one of them has to be cleared, or the site keeps its session.
     for (const origin of target.origins) {
-      await targetSession.clearStorageData({
-        origin,
-        storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
-      })
+      try {
+        await targetSession.clearStorageData({
+          origin,
+          storages: ['localstorage', 'indexdb', 'serviceworkers', 'cachestorage']
+        })
+      } catch {
+        storageFailed = true
+        Logger.warn(`[SiteSessionWipe] Storage of "${origin}" could not be cleared.`)
+      }
     }
     // A site that authenticates with HTTP basic auth keeps its credentials in
     // the auth cache of the partition. Without this the next visit would
     // still be signed in.
-    await targetSession.clearAuthCache()
+    try {
+      await targetSession.clearAuthCache()
+    } catch {
+      storageFailed = true
+    }
+    if (cookieReadFailed || failuresByDomain.size > 0) {
+      throw new Error('Site cookies could not be cleared')
+    }
+    if (storageFailed) throw new Error('Site storage could not be cleared')
   } finally {
     try {
       targetSession.flushStorageData()

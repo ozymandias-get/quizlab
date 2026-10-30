@@ -60,6 +60,7 @@ describe('Google session initialization', () => {
       existingAuth?: boolean
       sourceAuth?: boolean
       newerSource?: boolean
+      hostOnly?: boolean
     } = {}
   ) {
     const authCookie = {
@@ -69,7 +70,8 @@ describe('Google session initialization', () => {
       path: '/',
       secure: true,
       httpOnly: true,
-      sameSite: 'lax'
+      sameSite: 'lax',
+      hostOnly: options.hostOnly
     }
     const sourceCookies = [
       ...(options.sourceAuth === false ? [] : [authCookie]),
@@ -138,6 +140,14 @@ describe('Google session initialization', () => {
     )
   })
 
+  it('preserves host-only scope when copying cookies into a secondary session', async () => {
+    const env = setup({ hostOnly: true })
+    await ensureGoogleSessionSlot(2, env)
+    expect(env.destination.cookies.set).toHaveBeenCalledWith(
+      expect.not.objectContaining({ domain: expect.anything() })
+    )
+  })
+
   it('refreshes a previously initialized third session after the Chrome Google bundle is reimported', async () => {
     const env = setup({ existingAuth: true, newerSource: true })
     await ensureGoogleSessionSlot(3, env)
@@ -149,6 +159,13 @@ describe('Google session initialization', () => {
     await ensureGoogleSessionSlot(2, env)
     expect(env.destination.cookies.set).not.toHaveBeenCalled()
     expect(env.resolveSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an imported account usable when saving the import status fails', async () => {
+    const env = setup()
+    env.config.recordResult.mockRejectedValueOnce(new Error('disk unavailable'))
+    await expect(ensureGoogleSessionSlot(2, env)).resolves.toBeUndefined()
+    expect(env.destination.cookies.set).toHaveBeenCalled()
   })
 
   it.each([{ enabled: false }, { sourceAuth: false }])(

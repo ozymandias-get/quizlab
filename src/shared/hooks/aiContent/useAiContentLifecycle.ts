@@ -285,7 +285,7 @@ export function useAiContentLifecycle({
     setHasLoadedOnce(false)
     setIsLoading(true)
     setError(null)
-  }, [clearCrashTimer, currentAI])
+  }, [clearCrashTimer, controller, currentAI])
 
   useEffect(() => {
     if (!registerContent || !controller) return

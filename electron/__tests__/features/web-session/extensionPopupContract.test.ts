@@ -496,7 +496,6 @@ describe('extension permission popup behaviour', () => {
     const harness = createHarness()
     await harness.settle()
 
-    expect(harness.permissionQueries).toContain('https://wiki.example.com/*')
     expect(harness.permissionQueries).toContain('https://*.wiki.example.com/*')
   })
 

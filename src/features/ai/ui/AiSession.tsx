@@ -89,7 +89,13 @@ const AiSession = memo(
       tab.modelId
     )
 
-    const { entryUrl } = useAiSessionEntryUrl(tab.modelId, isSleeping, restoredUrl, siteConfig?.url)
+    const { entryUrl } = useAiSessionEntryUrl(
+      tab.modelId,
+      isSleeping,
+      restoredUrl,
+      siteConfig?.url,
+      resolvedSlot
+    )
     const { handlePageSettled } = useAiSessionStaleCheck(siteConfig?.url, isActive)
 
     const canHostRemoteView = Boolean(siteConfig) && !isApiChat && !isSleeping

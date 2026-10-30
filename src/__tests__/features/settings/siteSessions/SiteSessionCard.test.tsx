@@ -35,6 +35,19 @@ const switchIdOf = (container: HTMLElement): string | null | undefined =>
   container.querySelector('button[role="switch"]')?.getAttribute('id')
 
 describe('SiteSessionCard', () => {
+  it('keeps the selected account and disables selection when discovery is unavailable', () => {
+    render(
+      <SiteSessionCard
+        view={{ ...GOOGLE_VIEW, activeSlot: 3 }}
+        disabled={false}
+        onToggle={() => {}}
+        t={t}
+      />
+    )
+    expect(screen.getByRole('combobox')).toBeDisabled()
+    expect(screen.getByRole('combobox')).toHaveValue('3')
+    expect(screen.getByRole('switch')).toBeEnabled()
+  })
   it('shows the import switch', () => {
     render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByRole('switch')).toBeInTheDocument()
