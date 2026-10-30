@@ -1,5 +1,5 @@
 /** Bound allocations from untrusted IPC while supporting additional Google accounts. */
-export const MAX_GOOGLE_ACCOUNT_SLOTS = 20
+const MAX_GOOGLE_ACCOUNT_SLOTS = 20
 export const SITE_SESSION_SLOTS: readonly number[] = Array.from(
   { length: MAX_GOOGLE_ACCOUNT_SLOTS },
   (_, index) => index + 1

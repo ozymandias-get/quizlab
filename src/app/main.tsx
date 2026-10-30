@@ -1,3 +1,4 @@
+import '@fontsource-variable/inter'
 import '@shared/styles/index.css'
 import '@shared/i18n/i18next'
 

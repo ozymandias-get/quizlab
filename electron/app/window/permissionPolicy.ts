@@ -224,18 +224,6 @@ export function isHostTrustedForPartition(partition: string, hostname: string): 
   return [...trusted].some((trustedHost) => hostMatches(host, trustedHost))
 }
 
-/**
- * Every partition that needs a session permission handler configured.
- *
- * Single source of truth: sessions.ts used to recompute this union from
- * AI_REGISTRY + INACTIVE_PLATFORMS + APP_CONFIG.PARTITIONS.AI, which could
- * drift from the trusted-host table above and leave a partition without a
- * policy (or configure one twice).
- */
-export function listManagedAiPartitions(): string[] {
-  return [GENERIC_AI_PARTITION, ...builtinTrustedHosts.keys()]
-}
-
 function trustedHostsFor(partition: string): ReadonlySet<string> | null {
   if (partition === GENERIC_AI_PARTITION) {
     // Hosts arbitrary provider UIs chosen at runtime, so it has no fixed
