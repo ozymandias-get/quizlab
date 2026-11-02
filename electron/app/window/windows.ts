@@ -9,7 +9,7 @@ const getAppPath = (...parts: string[]) => {
   return path.join(app.getAppPath(), ...parts)
 }
 
-function resolveIconPath() {
+export function resolveIconPath() {
   const extension = process.platform === 'win32' ? 'ico' : 'png'
   const iconName = `icon.${extension}`
   const candidates = [

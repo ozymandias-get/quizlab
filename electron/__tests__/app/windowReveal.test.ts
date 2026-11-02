@@ -51,6 +51,7 @@ function createWindowMock() {
     show: vi.fn(() => {
       visible = true
     }),
+    setIcon: vi.fn(),
     setSkipTaskbar: vi.fn(),
     once: vi.fn((event: 'ready-to-show', listener: () => void) => {
       windowEmitter.once(event, listener)
@@ -78,6 +79,7 @@ describe('windowReveal', () => {
     const { window, windowEmitter, webContentsEmitter } = createWindowMock()
     configureWindowReveal({
       window: window as any,
+      iconPath: 'C:\\app\\icon.ico',
       isDev: true,
       devServerUrl: 'http://localhost:5173',
       revealTimeoutMs: 1000,
@@ -91,6 +93,12 @@ describe('windowReveal', () => {
 
     expect(window.show).toHaveBeenCalledTimes(1)
     expect(window.setSkipTaskbar).toHaveBeenCalledWith(false)
+    // The taskbar reads the window icon while creating its button, so the icon
+    // must be attached before `show()` rather than only at construction.
+    expect(window.setIcon).toHaveBeenCalledWith('C:\\app\\icon.ico')
+    expect(window.setIcon.mock.invocationCallOrder[0]).toBeLessThan(
+      window.show.mock.invocationCallOrder[0]
+    )
   })
 
   it('reveals on did-fail-load for main frame errors', () => {
