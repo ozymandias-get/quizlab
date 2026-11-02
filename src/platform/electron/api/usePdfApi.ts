@@ -1,6 +1,21 @@
 import type { PdfSelection, PdfSelectOptions } from '@shared-core/types'
 
+import { getElectronApi } from '@shared/lib/electronApi'
+
 import { useElectronMutation } from '../useElectron'
+
+/**
+ * The absolute path of a dropped file.
+ *
+ * Electron removed the non-standard `File.path` in 32; the preload resolves the
+ * real path through `webUtils.getPathForFile`. The legacy property is kept as a
+ * fallback for the browser dev stub and older hosts.
+ */
+export function getDroppedFilePath(file: File): string {
+  const fromBridge = getElectronApi()?.getPathForFile?.(file)
+  if (fromBridge) return fromBridge
+  return (file as File & { path?: string }).path ?? ''
+}
 
 /**
  * User interaction is required (file dialog), so this is a mutation.

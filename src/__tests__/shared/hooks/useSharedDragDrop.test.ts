@@ -160,6 +160,20 @@ describe('useSharedDragDrop', () => {
       expect(onFileReceived).toHaveBeenCalledWith(file)
     })
 
+    it('forwards a PDF without the removed non-standard File.path', () => {
+      // Electron 32 removed `File.path`; the path is resolved by the platform
+      // boundary, so this hook must not drop the file just because it is absent.
+      const onFileReceived = vi.fn()
+      const { result } = renderHook(() => useSharedDragDrop(onFileReceived))
+      const file = makeFile('no-path.pdf')
+
+      act(() => {
+        result.current.dragHandlers.onDrop(fileDrag([file]))
+      })
+
+      expect(onFileReceived).toHaveBeenCalledWith(file)
+    })
+
     it('clears isDragOver on drop', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
       const file = makeFile('test.pdf', '/path/to/test.pdf')

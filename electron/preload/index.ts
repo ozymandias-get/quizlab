@@ -1,6 +1,6 @@
 import type { ElectronApi } from '@shared-core/types/ipcContract'
 
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 import { onEvent, typedInvoke, unwrapIpcResult } from './typedIpcPreload.js'
@@ -59,6 +59,13 @@ const electronApi: ElectronApi = {
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_PDF_STREAM_URL, filePath)),
   registerPdfPath: (filePath) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.PDF_REGISTER_PATH, filePath)),
+  getPathForFile: (file) => {
+    try {
+      return webUtils.getPathForFile(file)
+    } catch {
+      return ''
+    }
+  },
   onShellOpenPdf: (callback) =>
     onEvent(IPC_CHANNELS.OPEN_PDF_FROM_SHELL, (filePath) => callback(filePath)),
   shellIntegration: {

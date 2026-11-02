@@ -117,6 +117,35 @@ describe('diskLogger flushToDisk bookkeeping', () => {
     expect(appendFileMock).toHaveBeenCalledTimes(2)
   })
 
+  it('a concurrent flush waits for the follow-up write instead of resolving early', async () => {
+    const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
+    initLogger({ userDataPath: '/ud' })
+
+    let releaseFirstWrite: (() => void) | undefined
+    appendFileMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstWrite = resolve
+        })
+    )
+
+    pushEntry('info', 'first')
+    const first = flushToDisk()
+    // Let mkdir resolve and the append call reach the deferred mock.
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(releaseFirstWrite).toBeTypeOf('function')
+
+    // Arrives while the first append is still in flight.
+    pushEntry('info', 'second')
+    const second = flushToDisk()
+
+    releaseFirstWrite?.()
+    await Promise.all([first, second])
+
+    expect(appendFileMock).toHaveBeenCalledTimes(2)
+    expect(appendFileMock.mock.calls[1][1] as string).toContain('second')
+  })
+
   it('keeps entries pending when the write fails so they are retried', async () => {
     const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
     initLogger({ userDataPath: '/ud' })

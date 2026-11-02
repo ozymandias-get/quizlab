@@ -13,7 +13,7 @@ import {
 } from '@app/providers/ai-context'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { type ReactNode, useContext, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -140,6 +140,26 @@ describe('AiContext', () => {
     expect(mockGetAiRegistry).toHaveBeenCalled()
     expect(result.current.aiSites['chatgpt']).toBeDefined()
     expect(result.current.currentAI).toBe('chatgpt')
+  })
+
+  it('shows a retry surface instead of blanking the app when the registry fails', async () => {
+    mockGetAiRegistry.mockRejectedValueOnce(new Error('registry unavailable'))
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
+    })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AiProvider>
+          <div>workspace</div>
+        </AiProvider>
+      </QueryClientProvider>
+    )
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.queryByText('workspace')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button'))
+    await waitFor(() => expect(screen.getByText('workspace')).toBeInTheDocument())
   })
 
   it('publishes favorite actions and updated selections through the shared model contexts', async () => {

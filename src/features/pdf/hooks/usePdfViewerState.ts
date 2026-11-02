@@ -143,6 +143,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const { extractCurrentPageText } = usePdfTextActions({
     containerRef,
     currentPage,
+    documentKey: pdfUrl ?? '',
     onTextSelection: selectionMenu.handleSelection,
     onTextExtracted: (text, point) => {
       // Tam sayfa metni: seçim anındaki gerçek sayfa + toplam ile kaynakla.

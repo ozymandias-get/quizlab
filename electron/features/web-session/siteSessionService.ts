@@ -131,16 +131,22 @@ export class SiteSessionService {
             if (!accountSlots.includes(activeSlot)) activeSlot = accountSlots[0] ?? 1
           }
         }
-        const slotState =
+        // A clamped slot must not borrow the old slot's top-level mirror. The
+        // top-level fields describe the stored active slot; when discovery
+        // moved us to another one and that slot has no history, the row says
+        // "never imported" rather than attributing the old account's result.
+        const slotWasClamped =
           target.kind === 'google' && activeSlot !== (targetState?.activeSlot ?? 1)
-            ? targetState?.slots?.[activeSlot]
-            : undefined
-        const lastResult =
-          slotState !== undefined ? slotState.lastResult : (targetState?.lastResult ?? null)
-        const importedAt =
-          slotState !== undefined ? slotState.importedAt : (targetState?.importedAt ?? null)
-        const lastError =
-          slotState !== undefined ? slotState.lastError : (targetState?.lastError ?? null)
+        const slotState = slotWasClamped ? targetState?.slots?.[activeSlot] : undefined
+        const lastResult = slotWasClamped
+          ? (slotState?.lastResult ?? null)
+          : (targetState?.lastResult ?? null)
+        const importedAt = slotWasClamped
+          ? (slotState?.importedAt ?? null)
+          : (targetState?.importedAt ?? null)
+        const lastError = slotWasClamped
+          ? (slotState?.lastError ?? null)
+          : (targetState?.lastError ?? null)
         const hasLocalSession = await hasLocalSessionForTarget(
           {
             ...target,

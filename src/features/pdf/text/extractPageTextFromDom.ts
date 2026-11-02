@@ -36,7 +36,17 @@ function cacheAndReturn(pageNumber: number, element: HTMLElement): HTMLElement {
  */
 function getPageLayer(pageNumber: number): HTMLElement | null {
   const cached = PAGE_LAYER_CACHE.get(pageNumber)
-  if (cached && cached.isConnected) return cached
+  // The native viewer keeps one page box and only rewrites its page marker on
+  // a page turn. A cached box that is still connected can therefore be showing
+  // a different page; it is only valid when the marker still names this page.
+  if (
+    cached &&
+    cached.isConnected &&
+    cached.getAttribute('data-native-pdf-page') === String(pageNumber)
+  ) {
+    return cached
+  }
+  if (cached) PAGE_LAYER_CACHE.delete(pageNumber)
 
   const resolved = findPageElementForPage(document, pageNumber)
   return resolved ? cacheAndReturn(pageNumber, resolved) : null

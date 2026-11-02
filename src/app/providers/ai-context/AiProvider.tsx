@@ -6,6 +6,7 @@ import { retireManagedView } from '@shared/hooks/aiContent/managedViewLifecycle'
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { type ReactNode, useCallback, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useAiContentRegistry } from '../ai/useAiContentRegistry'
 import { useAiMessaging } from '../ai/useAiMessaging'
@@ -31,8 +32,9 @@ import {
 import { useAiProviderContexts } from './useAiProviderContexts'
 
 function AiProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
   const { showWarning } = useToastActions()
-  const { data: registryData, isLoading, isError } = useAiRegistry()
+  const { data: registryData, isLoading, isError, refetch } = useAiRegistry()
   const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
 
   const {
@@ -89,6 +91,11 @@ function AiProvider({ children }: { children: ReactNode }) {
 
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
+  // `getActiveTab` is called from async send paths that outlive the render that
+  // opened an api-chat tab. Reading the id through a ref keeps those calls from
+  // polling the tab that used to be active.
+  const activeTabIdRef = useRef(activeTabId)
+  activeTabIdRef.current = activeTabId
 
   const openAiWorkspace = useCallback(
     (modelId: string) => {
@@ -105,8 +112,8 @@ function AiProvider({ children }: { children: ReactNode }) {
   )
 
   const getActiveTab = useCallback(
-    () => tabsRef.current.find((tab) => tab.id === activeTabId),
-    [activeTabId]
+    () => tabsRef.current.find((tab) => tab.id === activeTabIdRef.current),
+    []
   )
 
   const { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing } = useAiMessaging({
@@ -217,7 +224,25 @@ function AiProvider({ children }: { children: ReactNode }) {
                                 <AiMessagingActionsContext.Provider
                                   value={contextValues.messagingActionsValue}
                                 >
-                                  {isRegistryLoaded && isTabsInitialized ? children : null}
+                                  {isError ? (
+                                    <div
+                                      role="alert"
+                                      className="bg-background flex h-screen w-screen flex-col items-center justify-center gap-3 p-6 text-center"
+                                    >
+                                      <p className="text-foreground text-ql-14 font-medium">
+                                        {t('error_registry_not_loaded')}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        className="border-border bg-card text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+                                        onClick={() => void refetch()}
+                                      >
+                                        {t('try_again')}
+                                      </button>
+                                    </div>
+                                  ) : isRegistryLoaded && isTabsInitialized ? (
+                                    children
+                                  ) : null}
                                 </AiMessagingActionsContext.Provider>
                               </AiContentHostActionsContext.Provider>
                             </AiCoreWorkspaceActionsContext.Provider>

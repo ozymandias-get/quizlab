@@ -31,12 +31,10 @@ export async function createWindow() {
 
   hardenWindowWebContents(mainWindow)
 
-  await loadRenderer(mainWindow)
-
-  if (windowState.isMaximized) {
-    mainWindow.maximize()
-  }
-
+  // Must be armed before the first load: `loadFile`/`loadURL` resolve on
+  // `did-finish-load`, so registering `dom-ready` / `did-finish-load` after
+  // awaiting them misses the events they exist to observe and leaves a hidden
+  // window waiting for the 10-second fallback timer.
   const clearRevealTimer = configureWindowReveal({
     window: mainWindow,
     isDev,
@@ -45,6 +43,12 @@ export async function createWindow() {
     domReadyRevealDelayMs: MAIN_WINDOW_DOM_READY_REVEAL_DELAY_MS,
     didFinishLoadRevealDelayMs: MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS
   })
+
+  await loadRenderer(mainWindow)
+
+  if (windowState.isMaximized && !mainWindow.isDestroyed()) {
+    mainWindow.maximize()
+  }
 
   mainWindow.on('close', () => saveWindowState(mainWindow))
   mainWindow.on('closed', () => {

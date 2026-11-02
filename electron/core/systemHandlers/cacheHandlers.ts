@@ -13,6 +13,7 @@ import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { getCacheInfo, runManualCleanup } from '../cacheCleanup/index.js'
+import { toStrictBoolean } from '../ipcPayloadGuards.js'
 import { requireTrustedIpcSender } from '../ipcSecurity.js'
 import { Logger } from '../logger.js'
 import {
@@ -185,9 +186,14 @@ export function registerCacheHandlers(): void {
     IPC_CHANNELS.SET_CACHE_AUTO_CLEAN,
     async (_event, enabled: unknown) => {
       try {
-        const isEnabled = Boolean(enabled)
+        // `Boolean("false")` is true: a non-boolean payload must be rejected,
+        // not coerced into the opposite of what the caller asked for.
+        if (typeof enabled !== 'boolean') {
+          Logger.warn('[IPC] setCacheAutoClean rejected a non-boolean payload')
+          return success(false)
+        }
         const { setAutoCleanEnabled } = await import('../cacheScheduler.js')
-        setAutoCleanEnabled(isEnabled)
+        setAutoCleanEnabled(toStrictBoolean(enabled))
         invalidateCacheInfo()
         return success(true)
       } catch (error) {

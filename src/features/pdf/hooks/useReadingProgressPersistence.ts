@@ -97,7 +97,10 @@ const updateReadingProgress = (update: ReadingProgressUpdate): void => {
     return
   }
 
-  clearDebounce()
+  // A non-page write (opening a tab, switching documents) must not throw away
+  // the page write that is still inside the debounce window. Apply it first,
+  // then persist the newer state on top.
+  flushPendingDebounce()
   doPersist(useReadingProgressStore.getState().recentReadingInfo)
 }
 

@@ -91,6 +91,46 @@ describe('saveSessionsToStorage merge', () => {
     expect(loadSessionsFromStorage()[0].messages).toEqual([])
   })
 
+  it('does not resurrect a session the user deleted', () => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [message('m1', 1)], 100), session('s2', [], 100)])
+    )
+
+    scheduleSaveSessions([session('s1', [message('m1', 1)], 200)], {
+      sessionIds: ['s2']
+    })
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['s1'])
+  })
+
+  it('does not resurrect messages truncated by regenerate', () => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [message('m1', 1), message('m2', 2)], 100)])
+    )
+
+    scheduleSaveSessions([session('s1', [message('m1', 1)], 200)], {
+      messageIdsBySession: { s1: ['m2'] }
+    })
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage()[0].messages.map((m) => m.id)).toEqual(['m1'])
+  })
+
+  it('keeps only the new session after clear-all', () => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [], 100), session('s2', [], 100)])
+    )
+
+    scheduleSaveSessions([session('fresh', [], 200)], { sessionIds: ['s1', 's2'] })
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['fresh'])
+  })
+
   it('still unions two tabs appending to the same session', () => {
     // The reason the union exists. Neither side of the fix may break it.
     localStorage.setItem(

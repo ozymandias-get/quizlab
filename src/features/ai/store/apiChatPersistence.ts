@@ -17,6 +17,19 @@ import type { ChatSession } from './apiChatSessionUtils'
 export const LOCAL_STORAGE_KEY = 'quizlab_api_chat_sessions_v2'
 const SESSION_SAVE_DEBOUNCE_MS = 300
 
+/**
+ * What a user-initiated destructive mutation removed.
+ *
+ * The merge below exists for two windows appending to the same session, so it
+ * cannot tell a deleted message from one the other window still holds. A
+ * deletion therefore has to be named explicitly; without it the union would
+ * write the deleted session or message back on the next save.
+ */
+export interface SessionDeletionMarks {
+  sessionIds?: readonly string[]
+  messageIdsBySession?: Readonly<Record<string, readonly string[]>>
+}
+
 function isChatSession(value: unknown): value is ChatSession {
   if (typeof value !== 'object' || value === null) return false
   const session = value as Record<string, unknown>
@@ -91,7 +104,27 @@ function notifyStorageFailure(error: unknown): void {
   }
 }
 
-function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
+function mergeSessionsWithStored(
+  incomingSessions: ChatSession[],
+  deletions?: SessionDeletionMarks
+): ChatSession[] {
+  const deletedSessionIds = new Set(deletions?.sessionIds ?? [])
+  const deletedMessageIds = new Map<string, Set<string>>()
+  for (const [sessionId, ids] of Object.entries(deletions?.messageIdsBySession ?? {})) {
+    if (!sessionId || ids.length === 0) continue
+    deletedMessageIds.set(sessionId, new Set(ids))
+  }
+
+  const withoutDeletedMessages = (session: ChatSession): ChatSession => {
+    const removed = deletedMessageIds.get(session.id)
+    if (!removed) return session
+    const messages = session.messages.filter((message) => !removed.has(message.id))
+    return messages.length === session.messages.length ? session : { ...session, messages }
+  }
+
+  const incoming = incomingSessions
+    .filter((session) => !deletedSessionIds.has(session.id))
+    .map(withoutDeletedMessages)
   // Read-modify-write: another window/tab may have persisted sessions after
   // this tab last loaded. A blind overwrite would silently drop those
   // (last-write-wins data loss). Merge by session id instead.
@@ -115,6 +148,13 @@ function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
   } catch {
     stored = []
   }
+
+  // Drop what this mutation deleted before the union below can resurrect it.
+  // `lastParsedSessions` keeps the raw storage snapshot; only the merge view is
+  // filtered.
+  stored = stored
+    .filter((session) => !deletedSessionIds.has(session.id))
+    .map(withoutDeletedMessages)
   if (stored.length === 0) return incoming
 
   const incomingById = new Map(incoming.map((s) => [s.id, s]))
@@ -152,8 +192,8 @@ function mergeSessionsWithStored(incoming: ChatSession[]): ChatSession[] {
   return merged.sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-function saveSessionsToStorage(sessions: ChatSession[]) {
-  const merged = mergeSessionsWithStored(sessions)
+function saveSessionsToStorage(sessions: ChatSession[], deletions?: SessionDeletionMarks): boolean {
+  const merged = mergeSessionsWithStored(sessions, deletions)
   const serialized = JSON.stringify(merged)
   // writeStorageItem keeps the raw failure cause so quota errors can be
   // reported with a dedicated message (see notifyStorageFailure).
@@ -167,7 +207,7 @@ function saveSessionsToStorage(sessions: ChatSession[]) {
   if (!result.ok) {
     Logger.error('[ChatPersistence] Failed to save api chat sessions', result.error ?? undefined)
     notifyStorageFailure(result.error)
-    return
+    return false
   }
   lastRawData = serialized
   lastParsedSessions = merged
@@ -178,6 +218,7 @@ function saveSessionsToStorage(sessions: ChatSession[]) {
   try {
     queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
   } catch {}
+  return true
 }
 
 function handleExternalSessionsChange(): void {
@@ -206,14 +247,58 @@ if (typeof window !== 'undefined') {
 let pendingSaveSessions: ChatSession[] | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
-export function scheduleSaveSessions(sessions: ChatSession[]) {
+/**
+ * Deletions accumulate for the whole debounce window: a delete followed by an
+ * append must still keep the deleted id out of the final write, and the append
+ * snapshot already contains the new message.
+ */
+const pendingDeletedSessionIds = new Set<string>()
+const pendingDeletedMessageIds = new Map<string, Set<string>>()
+
+function addSessionDeletionMarks(deletions?: SessionDeletionMarks): void {
+  if (!deletions) return
+  for (const sessionId of deletions.sessionIds ?? []) {
+    if (sessionId) pendingDeletedSessionIds.add(sessionId)
+  }
+  for (const [sessionId, ids] of Object.entries(deletions.messageIdsBySession ?? {})) {
+    if (!sessionId || ids.length === 0) continue
+    const deleted = pendingDeletedMessageIds.get(sessionId) ?? new Set<string>()
+    for (const messageId of ids) {
+      if (messageId) deleted.add(messageId)
+    }
+    pendingDeletedMessageIds.set(sessionId, deleted)
+  }
+}
+
+function takeSessionDeletionMarks(): SessionDeletionMarks {
+  const messageIdsBySession: Record<string, readonly string[]> = {}
+  for (const [sessionId, ids] of pendingDeletedMessageIds) {
+    if (ids.size > 0) messageIdsBySession[sessionId] = [...ids]
+  }
+  const marks: SessionDeletionMarks = {
+    sessionIds: [...pendingDeletedSessionIds],
+    messageIdsBySession
+  }
+  pendingDeletedSessionIds.clear()
+  pendingDeletedMessageIds.clear()
+  return marks
+}
+
+export function scheduleSaveSessions(sessions: ChatSession[], deletions?: SessionDeletionMarks) {
+  addSessionDeletionMarks(deletions)
   pendingSaveSessions = sessions
   if (saveTimer !== null) return
   saveTimer = setTimeout(() => {
     saveTimer = null
     if (pendingSaveSessions !== null) {
-      saveSessionsToStorage(pendingSaveSessions)
+      const pending = pendingSaveSessions
       pendingSaveSessions = null
+      const deletions = takeSessionDeletionMarks()
+      if (!saveSessionsToStorage(pending, deletions)) {
+        // Keep the tombstones for the next write: a failed save must not let
+        // the old transcript win once storage has room again.
+        addSessionDeletionMarks(deletions)
+      }
     }
   }, SESSION_SAVE_DEBOUNCE_MS)
 }
@@ -231,7 +316,10 @@ function flushPendingSessions(): void {
   if (pendingSaveSessions !== null) {
     const sessions = pendingSaveSessions
     pendingSaveSessions = null
-    saveSessionsToStorage(sessions)
+    const deletions = takeSessionDeletionMarks()
+    if (!saveSessionsToStorage(sessions, deletions)) {
+      addSessionDeletionMarks(deletions)
+    }
   }
 }
 
