@@ -16,6 +16,7 @@ import {
   startPdfCleanupInterval,
   stopPdfCleanupInterval
 } from '../features/pdf/pdfProtocol.js'
+import { resetClipboardSnapshots } from '../features/screenshot/screenshotHandlers.js'
 import { extractShellPdfPaths } from '../features/shell-open/parseShellPdfPaths.js'
 import { APP_CONFIG } from './constants.js'
 import { registerGeneralHandlers } from './ipcHandlers.js'
@@ -74,6 +75,48 @@ function handleShellArgv(argv: string[]) {
   } catch (error) {
     Logger.warn('[App] Shell argv parse failed:', error)
   }
+}
+
+/**
+ * Arms shell-PDF delivery for one main window.
+ *
+ * `createWindow` awaits `loadFile`, so the renderer is loaded when this runs;
+ * it still has not subscribed to the shell channel until React mounts. The
+ * delayed flush covers that gap. The same helper is used when macOS recreates
+ * the window, and closing it clears the readiness flag so queued paths wait
+ * for the next renderer instead of being sent into a destroyed one.
+ */
+function armShellPdfDelivery(window: BrowserWindow | null): void {
+  if (!window || window.isDestroyed()) return
+  shellRendererReady = false
+  let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+  const flush = () => {
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer)
+      fallbackTimer = null
+    }
+    if (window.isDestroyed() || window.webContents.isDestroyed()) return
+    shellRendererReady = true
+    flushPendingShellPdfPaths()
+  }
+
+  // `did-finish-load` is not enough: the renderer subscribes to the channel
+  // only after two settings IPC calls and the AI-registry gate. Delivering at
+  // load would drop the first-launch file because nobody is listening yet.
+  // The short delay gives React time to mount the subscription; it is also the
+  // fallback for a renderer that never becomes ready.
+  fallbackTimer = setTimeout(flush, 3000)
+  window.once('closed', () => {
+    shellRendererReady = false
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer)
+      fallbackTimer = null
+    }
+    // A crashed/reloaded renderer cannot run its clipboard `finally`; release
+    // any images it left behind before the next window inherits the ledger.
+    void resetClipboardSnapshots()
+  })
 }
 
 if (getProfileName() === 'stable') {
@@ -145,19 +188,8 @@ async function initializeApp() {
   await createWindow()
 
   // İlk açılışta sağ-tık ile gelen PDF varsa pencere hazır olunca ilet.
+  armShellPdfDelivery(getMainWindow())
   handleShellArgv(process.argv)
-  const createdWindow = getMainWindow()
-  if (createdWindow && !createdWindow.isDestroyed()) {
-    createdWindow.webContents.once('did-finish-load', () => {
-      shellRendererReady = true
-      flushPendingShellPdfPaths()
-    })
-    // did-finish-load kaçarsa güvenlik ağı: kısa gecikmeyle tekrar dene.
-    setTimeout(() => {
-      shellRendererReady = true
-      flushPendingShellPdfPaths()
-    }, 3000)
-  }
 
   initUpdater()
 
@@ -186,6 +218,7 @@ app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     try {
       const mw = await createWindow()
+      armShellPdfDelivery(mw)
       mw?.show()
     } catch (error) {
       handleSeriousError('Window Activation Failure', error)

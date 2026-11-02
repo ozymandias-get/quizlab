@@ -152,8 +152,6 @@ export function useAiMessaging({
 }: UseAiMessagingParams) {
   const { t } = useTranslation()
   const apiChatSendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeTabIdRef = useRef(activeTabId)
-  activeTabIdRef.current = activeTabId
 
   useEffect(() => {
     const timeoutRef = apiChatSendTimeoutRef
@@ -194,11 +192,16 @@ export function useAiMessaging({
     // The active tab is not necessarily an api-chat tab. Attaching to a PDF or
     // content tab id writes the image into per-tab state that no composer
     // reads, so the send then reports success while nothing is ever delivered.
-    if (getActiveTab()?.modelId === 'api-chat') return activeTabIdRef.current
+    const activeTab = getActiveTab()
+    if (activeTab?.modelId === 'api-chat') return activeTab.id
     openAiWorkspace('api-chat')
-    return waitForApiChatTab(() =>
-      getActiveTab()?.modelId === 'api-chat' ? activeTabIdRef.current : ''
-    )
+    // Return the id of the tab the poll actually found. The caller may have
+    // replaced the active tab between the render and this call, so a captured
+    // `activeTabId` would name the tab that was active before the open.
+    return waitForApiChatTab(() => {
+      const tab = getActiveTab()
+      return tab?.modelId === 'api-chat' ? tab.id : ''
+    })
   }, [getActiveTab, openAiWorkspace])
 
   const handleApiChatSendResult = useCallback(
@@ -312,9 +315,17 @@ export function useAiMessaging({
         return runApiChatSend(
           currentTabId,
           async (read, staging) => {
-            // Metin kutuya **sona eklenir**; kullanıcının önceden yazdığı
-            // hiçbir şey ezilmez.
-            stageApiChatInput(staging, read, currentTabId, text)
+            // The source header travels in `promptText`; the content pipelines
+            // prepend it to the body, so the api-chat path has to do the same
+            // instead of dropping it. The text is appended to the box: nothing
+            // the user already typed is overwritten.
+            const sourceHeader = options?.promptText?.trim()
+            stageApiChatInput(
+              staging,
+              read,
+              currentTabId,
+              sourceHeader ? `${sourceHeader}\n\n${text}` : text
+            )
             return null
           },
           effectiveAutoSend

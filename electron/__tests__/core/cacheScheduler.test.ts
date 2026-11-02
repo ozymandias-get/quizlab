@@ -27,7 +27,8 @@ const mockMeasureSmartBreakdown = vi.fn().mockResolvedValue({
 vi.mock('@electron/core/cacheCleanup', () => ({
   runIdleCleanup: (...args: any[]) => mockRunIdleCleanup(...args),
   runQuickCheck: (...args: any[]) => mockRunQuickCheck(...args),
-  startIdleDetection: (cb: () => void) => mockStartIdleDetection(cb),
+  startIdleDetection: (cb: () => void, onActive?: () => void) =>
+    mockStartIdleDetection(cb, onActive),
   stopIdleDetection: () => mockStopIdleDetection()
 }))
 
@@ -87,10 +88,13 @@ afterEach(() => {
 
 describe('cacheScheduler', () => {
   describe('startCacheScheduler', () => {
-    it('starts idle detection with a callback', () => {
+    it('starts idle detection with idle and active callbacks', () => {
       startCacheScheduler()
       expect(mockStartIdleDetection).toHaveBeenCalledTimes(1)
-      expect(mockStartIdleDetection).toHaveBeenCalledWith(expect.any(Function))
+      expect(mockStartIdleDetection).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function)
+      )
     })
 
     it('sets up a single foreground timer that drives the quick check', async () => {
@@ -139,9 +143,9 @@ describe('cacheScheduler', () => {
       expect(mockRunQuickCheck).toHaveBeenCalledWith(12345)
     })
 
-    it('hands the already-measured total to runQuickCheck in the auto-clean branch too', async () => {
-      // Moderate pressure takes the runQuickCheck() auto-clean path, which had
-      // the same redundant re-walk as the normal path.
+    it('runs the idle sweep when auto-clean is triggered, not a no-op quick check', async () => {
+      // Warning pressure is below the hard cap, so runQuickCheck() deletes
+      // nothing; the auto-clean path must still perform the idle sweep.
       const { shouldTriggerAutoClean } = await import('@electron/core/smartCachePolicy')
       vi.mocked(shouldTriggerAutoClean).mockReturnValueOnce(true)
 
@@ -152,11 +156,11 @@ describe('cacheScheduler', () => {
         gpuCache: 0,
         partitionCaches: {},
         tempFiles: 0,
-        pressureLevel: 'moderate' as const,
-        pressurePercentage: 60,
+        pressureLevel: 'warning' as const,
+        pressurePercentage: 80,
         recommendation: {
           action: 'none',
-          reason: 'moderate',
+          reason: 'warning_monitor',
           targetPartitions: [],
           estimatedFreeBytes: 0
         },
@@ -168,7 +172,8 @@ describe('cacheScheduler', () => {
       await vi.advanceTimersByTimeAsync(0)
       await Promise.resolve()
 
-      expect(mockRunQuickCheck).toHaveBeenCalledWith(777)
+      expect(mockRunIdleCleanup).toHaveBeenCalledTimes(1)
+      expect(mockRunQuickCheck).not.toHaveBeenCalled()
     })
 
     it('drives the smart check from a single timer', async () => {
@@ -189,6 +194,19 @@ describe('cacheScheduler', () => {
       const idleCallback = mockStartIdleDetection.mock.calls[0][0]
 
       idleCallback()
+      expect(mockRunIdleCleanup).toHaveBeenCalledTimes(1)
+    })
+
+    it('stops the idle repeat cleanup when the user becomes active', () => {
+      startCacheScheduler()
+      const idleCallback = mockStartIdleDetection.mock.calls[0][0]
+      const activeCallback = mockStartIdleDetection.mock.calls[0][1]
+
+      idleCallback()
+      expect(mockRunIdleCleanup).toHaveBeenCalledTimes(1)
+
+      activeCallback()
+      vi.advanceTimersByTime(30 * 60 * 1000)
       expect(mockRunIdleCleanup).toHaveBeenCalledTimes(1)
     })
   })

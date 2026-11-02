@@ -60,7 +60,11 @@ export function useRegenerateMutation() {
             ? { ...s, messages: truncatedMessages, updatedAt: Date.now() }
             : s
         )
-        persistSessions(sessionsWithTrunc)
+        persistSessions(sessionsWithTrunc, {
+          messageIdsBySession: {
+            [activeSessionId]: messages.slice(truncatedMessages.length).map((message) => message.id)
+          }
+        })
         queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithTrunc)
         queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(activeSessionId), truncatedMessages)
 

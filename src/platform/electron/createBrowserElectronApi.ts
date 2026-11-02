@@ -113,6 +113,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     selectPdf: async () => selectPdfInBrowser(),
     getPdfStreamUrl: stubReturn(null),
     registerPdfPath: stubReturn(null),
+    getPathForFile: (file) => (file as File & { path?: string }).path ?? '',
     onShellOpenPdf: () => () => {},
     shellIntegration: {
       getStatus: stubReturn(null),

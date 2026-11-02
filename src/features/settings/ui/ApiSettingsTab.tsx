@@ -36,6 +36,8 @@ export default memo(function ApiSettingsTab() {
   const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
+  /** The cache update caused by this save must not overwrite edits made in flight. */
+  const skipNextHydrationRef = useRef(false)
 
   // Keep a ref mirror of `config` so async test/fetch callbacks can read the
   // latest provider snapshot without putting `config` in their dep arrays
@@ -46,6 +48,10 @@ export default memo(function ApiSettingsTab() {
 
   useEffect(() => {
     if (!savedConfig) return
+    if (skipNextHydrationRef.current) {
+      skipNextHydrationRef.current = false
+      return
+    }
     setConfig(normalizeApiConfig(savedConfig))
   }, [savedConfig])
 
@@ -92,12 +98,17 @@ export default memo(function ApiSettingsTab() {
   )
 
   const handleSave = useCallback(async () => {
+    // The mutation writes the saved object into the config cache. The
+    // hydration effect would then replace the draft, including keystrokes that
+    // happened while the IPC call was in flight. Skip exactly that update.
+    skipNextHydrationRef.current = true
     try {
       // Read the latest config from the ref so we don't need `config` in
       // the dep array (which would re-create this callback on every
       // keystroke and bust any memo'd consumer).
       await saveConfig(configRef.current)
     } catch {
+      skipNextHydrationRef.current = false
       // Error toast is surfaced centrally by useSaveApiChatConfigMutation.
     }
   }, [saveConfig])

@@ -68,15 +68,11 @@ async function runSmartForegroundCheck(): Promise<void> {
       isAutoCleaning = true
       try {
         Logger.info(`[CacheScheduler] Auto-clean triggered (pressure=${pressure.level})`)
-        // Yüksek baskıda idle cleanup benzeri ama daha hafif: sadece expired + size limit
-        // Kritikse deep kadar agresif
-        if (pressure.level === 'critical' || pressure.level === 'high') {
-          await runIdleCleanup()
-        } else {
-          // Deep cleanup ölçümü kendi içinde yapar; bu dalda zaten elimizde
-          // ölçülmüş toplam var, tekrar tarama gereksiz.
-          await runQuickCheck(breakdown.total)
-        }
+        // `shouldTriggerAutoClean` is only true from the warning watermark up.
+        // At warning the total is below the hard cap, so `runQuickCheck` would
+        // delete nothing while still starting the cooldown; the idle sweep is
+        // what actually clears expired files at that level.
+        await runIdleCleanup()
         markAutoCleanExecuted()
       } finally {
         isAutoCleaning = false
@@ -153,11 +149,18 @@ export function startCacheScheduler(): void {
   startSmartPressureWatcher()
 
   // Idle detection — mevcut yapıyı kullan, tekrar eden cleanup ekle
-  startIdleDetection(() => {
-    runIdleCleanup().catch((error) => Logger.error('[CacheScheduler] Idle cleanup failed:', error))
-    // Idle boyunca her 30 dk'da bir tekrar temizlik
-    startIdleRepeatCleanup()
-  })
+  startIdleDetection(
+    () => {
+      runIdleCleanup().catch((error) =>
+        Logger.error('[CacheScheduler] Idle cleanup failed:', error)
+      )
+      // Idle boyunca her 30 dk'da bir tekrar temizlik
+      startIdleRepeatCleanup()
+    },
+    // The user is back: stop the repeat sweep. Leaving it armed meant a full
+    // cache cleanup every 30 minutes for the rest of an active session.
+    clearIdleRepeatTimer
+  )
 
   Logger.info(
     `[CacheScheduler] Started: smart=${SMART_CHECK_INTERVAL_MS / 1000}s, ` +

@@ -69,7 +69,7 @@ export function useDeleteSessionMutation() {
     mutationFn: async (sessionId: string) => {
       const prev = currentSessions(queryClient)
       const updated = deleteSessionFromList(prev, sessionId)
-      persistSessions(updated)
+      persistSessions(updated, { sessionIds: [sessionId] })
       return { deletedId: sessionId, allSessions: updated }
     },
     onSuccess: (data) => {
@@ -101,8 +101,13 @@ export function useClearSessionMutation() {
   return useMutation({
     mutationFn: async (sessionId: string) => {
       const prev = currentSessions(queryClient)
+      const removedMessageIds =
+        prev.find((session) => session.id === sessionId)?.messages.map((message) => message.id) ??
+        []
       const updated = clearSessionMessages(prev, sessionId)
-      persistSessions(updated)
+      persistSessions(updated, {
+        messageIdsBySession: { [sessionId]: removedMessageIds }
+      })
       return { sessionId, allSessions: updated }
     },
     onSuccess: (data) => {
@@ -117,8 +122,9 @@ export function useClearAllSessionsMutation() {
 
   return useMutation({
     mutationFn: async () => {
+      const prev = currentSessions(queryClient)
       const newSession = createNewSession()
-      persistSessions([newSession])
+      persistSessions([newSession], { sessionIds: prev.map((session) => session.id) })
       return [newSession]
     },
     onSuccess: (updated) => {

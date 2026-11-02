@@ -18,6 +18,13 @@ const TOGGLE_ACTIVE = 'border-ring/50 bg-accent/30 text-foreground'
 const TOGGLE_IDLE =
   'border border-transparent text-muted-foreground hover:border-ring/30 hover:bg-accent/20 hover:text-foreground'
 
+/**
+ * The search store is shared by every mounted toolbar (workspace + focus
+ * overlay overlap during the focus transition). Only the last toolbar leaving
+ * may reset it, or the exiting copy would close the surviving viewer's search.
+ */
+let mountedToolbarCount = 0
+
 interface PdfToolbarProps {
   pdfFile: PdfFile | null
   panMode: boolean
@@ -84,12 +91,18 @@ function PdfToolbar({
   }, [pdfFile?.path, closeSearch, clearHighlights])
 
   useEffect(() => {
+    mountedToolbarCount += 1
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current)
       }
+      mountedToolbarCount -= 1
+      // Search is document-scoped state in a module store; without this close
+      // a reopened viewer inherited the previous document's open search bar.
+      // Wait for the last viewer: LeftPanel and FocusOverlay can overlap.
+      if (mountedToolbarCount === 0) closeSearch()
     }
-  }, [])
+  }, [closeSearch])
 
   const scheduleHighlight = useCallback(
     (keyword: string) => {

@@ -1,6 +1,10 @@
 import type { PdfFile } from '@shared-core/types'
 
-import { useRegisterPdfPath, useSelectPdf } from '@platform/electron/api/usePdfApi'
+import {
+  getDroppedFilePath,
+  useRegisterPdfPath,
+  useSelectPdf
+} from '@platform/electron/api/usePdfApi'
 
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
@@ -9,8 +13,6 @@ import { useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { LastReadingInfo, PdfTab, ResumePdfResult } from './types'
-
-type DroppedPdfFile = File & { path?: string }
 
 interface UsePdfOpenActionsProps {
   openPdfInTab: (file: PdfFile) => PdfTab
@@ -73,7 +75,7 @@ export function usePdfOpenActions({
         return
       }
 
-      const filePath = (file as DroppedPdfFile).path
+      const filePath = getDroppedFilePath(file)
       if (!filePath) return
 
       const currentRequestId = ++lastLoadRequestId.current

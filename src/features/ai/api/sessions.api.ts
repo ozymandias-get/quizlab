@@ -2,7 +2,11 @@ import type { ApiChatMessage, ApiConfig } from '@shared-core/types'
 
 import { getElectronApi } from '@shared/lib/electronApi'
 
-import { loadSessionsFromStorage, scheduleSaveSessions } from '../store/apiChatPersistence'
+import {
+  loadSessionsFromStorage,
+  scheduleSaveSessions,
+  type SessionDeletionMarks
+} from '../store/apiChatPersistence'
 import {
   buildCombinedPrompt,
   buildErrorReply,
@@ -16,8 +20,8 @@ export function loadSessions(): ChatSession[] {
   return loadSessionsFromStorage()
 }
 
-export function persistSessions(sessions: ChatSession[]): void {
-  scheduleSaveSessions(sessions)
+export function persistSessions(sessions: ChatSession[], deletions?: SessionDeletionMarks): void {
+  scheduleSaveSessions(sessions, deletions)
 }
 
 export function createNewSession(): ChatSession {

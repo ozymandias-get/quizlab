@@ -3,6 +3,8 @@ export const QUERY_KEYS = {
     REGISTRY: ['ai', 'registry'] as const,
     CONFIG: (hostname?: string) =>
       hostname ? (['ai', 'config', hostname] as const) : (['ai', 'config'] as const),
+    /** API Chat provider config — not the per-host selector configs above. */
+    API_CHAT_CONFIG: ['api-chat', 'config'] as const,
     SESSIONS: ['ai', 'sessions'] as const,
     MESSAGES: (sessionId: string) => ['ai', 'messages', sessionId] as const
   },

@@ -214,7 +214,9 @@ describe('usePdfTextActions', () => {
       )
 
       const scrollCall = addSpy.mock.calls.find(([type]) => type === 'scroll')
-      expect(scrollCall?.[2]).toEqual({ passive: true })
+      // Capture phase is required: the real scrollport is the nested
+      // `[data-native-pdf-scroll]`, and scroll events do not bubble.
+      expect(scrollCall?.[2]).toEqual({ passive: true, capture: true })
       expect(panel.contains(container)).toBe(true)
     })
 
@@ -874,6 +876,48 @@ describe('usePdfTextActions', () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+
+    it('drops a deferred extraction when the page changed before it ran', async () => {
+      const idleCallbacks: { cb: IdleRequestCallback; options?: IdleRequestOptions }[] = []
+      vi.stubGlobal(
+        'requestIdleCallback',
+        (cb: IdleRequestCallback, options?: IdleRequestOptions) => {
+          idleCallbacks.push({ cb, options })
+          return idleCallbacks.length
+        }
+      )
+      vi.stubGlobal('cancelIdleCallback', vi.fn())
+
+      const page = nextPage++
+      const { container } = buildContainer(true)
+      const containerRef = { current: container } as RefObject<HTMLElement | null>
+      const onTextExtracted = vi.fn()
+      const onNoTextFound = vi.fn()
+      const { result, rerender } = renderHook(
+        ({ currentPage }: { currentPage: number }) =>
+          usePdfTextActions({
+            containerRef,
+            currentPage,
+            onTextSelection: vi.fn(),
+            onTextExtracted,
+            onNoTextFound
+          }),
+        { initialProps: { currentPage: page } }
+      )
+
+      act(() => {
+        result.current.extractCurrentPageText()
+      })
+      rerender({ currentPage: page + 1 })
+      await act(async () => {
+        idleCallbacks[0].cb({ didTimeout: false, timeRemaining: () => 10 } as IdleDeadline)
+      })
+
+      // The page box now holds the new page; reading it would return page
+      // page+1's text under page's source metadata.
+      expect(onTextExtracted).not.toHaveBeenCalled()
+      expect(onNoTextFound).not.toHaveBeenCalled()
     })
 
     it('cancels a previously scheduled extraction instead of running both', () => {
