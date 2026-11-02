@@ -94,8 +94,18 @@ export function registerAutomationHandlers() {
       try {
         const [action, ...args] = invokeArgs
 
+        // Own properties only: `actionGuard["toString"]` would resolve through
+        // Object.prototype and pass a truthy `Function` to the handler.
+        if (
+          typeof action !== 'string' ||
+          !Object.hasOwn(actionGuard, action) ||
+          !Object.hasOwn(actionHandlers, action)
+        ) {
+          return failure('invalid_input', 'Invalid action or arguments')
+        }
+
         const guard = actionGuard[action as AutomationScriptAction]
-        if (!guard || !guard(args)) return failure('invalid_input', 'Invalid action or arguments')
+        if (!guard(args)) return failure('invalid_input', 'Invalid action or arguments')
 
         if (action === 'generateAutoSendScript') {
           const text = args[1] as string

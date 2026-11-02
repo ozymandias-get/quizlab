@@ -141,6 +141,20 @@ function discardClipboardSnapshot(entry: ClipboardSnapshot): void {
  * Returns false when there was nothing to release, so callers can report the
  * failure instead of pretending the clipboard was restored.
  */
+/**
+ * Releases every outstanding snapshot.
+ *
+ * The renderer usually calls `RESTORE_CLIPBOARD` from a `finally`, but a crash
+ * or reload never reaches it. Eight such orphans fill the ledger and make every
+ * later image copy fail with "no snapshot available". The main window closing
+ * is the last point at which the owner is definitely gone.
+ */
+export async function resetClipboardSnapshots(): Promise<void> {
+  while (clipboardSnapshots.length > 0) {
+    if (!(await restoreClipboard())) break
+  }
+}
+
 async function restoreClipboard(scope?: string): Promise<boolean> {
   try {
     if (scope) {

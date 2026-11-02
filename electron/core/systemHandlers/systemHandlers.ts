@@ -19,6 +19,7 @@ import { registerClipboardHandlers } from './clipboardHandlers.js'
 import { resolveExternalLink } from './externalLinkPolicy.js'
 
 const { IPC_CHANNELS } = APP_CONFIG
+const LOG_LEVELS = new Set(['trace', 'debug', 'info', 'warn', 'error'])
 
 let handlersRegistered = false
 
@@ -68,17 +69,20 @@ export function registerSystemHandlers() {
   registerCacheHandlers()
 
   // Logger forwarding from renderer (trusted-sender only)
-  ipcMain.on(
-    IPC_CHANNELS.LOGGER_LOG,
-    (event, payload: { level: string; message: string; timestamp?: string }) => {
-      if (!requireTrustedIpcSender(event)) return
-      pushToLoggerBuffer(
-        payload.level as 'trace' | 'debug' | 'info' | 'warn' | 'error',
-        payload.message,
-        payload.timestamp
-      )
+  ipcMain.on(IPC_CHANNELS.LOGGER_LOG, (event, payload: unknown) => {
+    if (!requireTrustedIpcSender(event)) return
+    try {
+      if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) return
+      const { level, message, timestamp } = payload as Record<string, unknown>
+      if (typeof level !== 'string' || !LOG_LEVELS.has(level)) return
+      if (typeof message !== 'string') return
+      if (timestamp !== undefined && typeof timestamp !== 'string') return
+      pushToLoggerBuffer(level as 'trace' | 'debug' | 'info' | 'warn' | 'error', message, timestamp)
+    } catch {
+      // A malformed log entry must never reach the app's uncaught-exception
+      // handler or poison the shared buffer with a non-string level.
     }
-  )
+  })
 
   registerClipboardHandlers()
 }

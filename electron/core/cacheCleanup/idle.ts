@@ -13,7 +13,7 @@ function setIdleState(idle: boolean): void {
   isIdle = idle
 }
 
-export function startIdleDetection(onIdle: () => void): void {
+export function startIdleDetection(onIdle: () => void, onActive?: () => void): void {
   // Prevent duplicate listeners on repeated start
   if (onBlur) app.off('browser-window-blur', onBlur)
   if (onFocus) app.off('browser-window-focus', onFocus)
@@ -32,6 +32,9 @@ export function startIdleDetection(onIdle: () => void): void {
       idleTimer = null
     }
     setIdleState(false)
+    // A returning user ends the idle period; the scheduler uses this to stop
+    // its 30-minute repeat cleanup instead of running it mid-session.
+    onActive?.()
   }
 
   app.on('browser-window-blur', onBlur)

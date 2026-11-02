@@ -9,6 +9,8 @@ import type { SelectionPosition } from './types'
 interface UsePdfTextActionsOptions {
   containerRef: RefObject<HTMLElement | null>
   currentPage: number
+  /** Identity of the open document; a deferred read is dropped when it changes. */
+  documentKey?: string
   onTextSelection?: (text: string, position: SelectionPosition | null) => void
   /**
    * Tam sayfa metni çıkarıldı. `point`, metni **başlatan** eylemin noktasıdır
@@ -23,6 +25,7 @@ interface UsePdfTextActionsOptions {
 export function usePdfTextActions({
   containerRef,
   currentPage,
+  documentKey = '',
   onTextSelection,
   onTextExtracted,
   onNoTextFound,
@@ -32,11 +35,13 @@ export function usePdfTextActions({
   const onTextExtractedRef = useRef(onTextExtracted)
   const onNoTextFoundRef = useRef(onNoTextFound)
   const currentPageRef = useRef(currentPage)
+  const documentKeyRef = useRef(documentKey)
 
   onTextSelectionRef.current = onTextSelection
   onTextExtractedRef.current = onTextExtracted
   onNoTextFoundRef.current = onNoTextFound
   currentPageRef.current = currentPage
+  documentKeyRef.current = documentKey
 
   /**
    * Reads currentPage from a ref instead of depending on the state value so
@@ -53,12 +58,17 @@ export function usePdfTextActions({
 
   const extractCurrentPageText = useCallback((point?: PdfActionPoint) => {
     const page = currentPageRef.current
+    const capturedDocumentKey = documentKeyRef.current
     // Nokta **çağrı anında** dondurulur: çıkarma ertelendiği için (rIC ya da
     // 500ms) iş bittiğinde `point` hâlâ o eylemin noktasını göstermelidir.
     const capturedPoint = point ?? null
     const extract = () => {
-      // Guard against stale extraction after navigation/unmount
+      // Guard against stale extraction after navigation/unmount. The native
+      // viewer keeps one page box, so a deferred read after a page turn or a
+      // document switch would return another page's text under the old source.
       if (!onTextExtractedRef.current && !onNoTextFoundRef.current) return null
+      if (currentPageRef.current !== page) return null
+      if (documentKeyRef.current !== capturedDocumentKey) return null
       const text = extractPageTextFromDom(page)
 
       if (!text) {
@@ -266,8 +276,10 @@ export function usePdfTextActions({
     // release is bound to the window's focus loss rather than to a last coordinate.
     window.addEventListener('blur', releasePointerLatch)
     document.addEventListener('selectionchange', handleSelectionChange)
-    // Capture scroll only inside the PDF container
-    container.addEventListener('scroll', handleScroll, { passive: true })
+    // Capture scroll only inside the PDF container. The real scrollport is the
+    // nested `[data-native-pdf-scroll]`; scroll events do not bubble, so a
+    // non-capture listener on the outer box would never fire.
+    container.addEventListener('scroll', handleScroll, { passive: true, capture: true })
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true)
@@ -275,16 +287,21 @@ export function usePdfTextActions({
       document.removeEventListener('pointercancel', releasePointerLatch, true)
       window.removeEventListener('blur', releasePointerLatch)
       document.removeEventListener('selectionchange', handleSelectionChange)
-      container.removeEventListener('scroll', handleScroll)
+      container.removeEventListener('scroll', handleScroll, { capture: true })
       if (timeoutId) clearTimeout(timeoutId)
       if (frameId) cancelAnimationFrame(frameId)
       if (scrollFreezeTimer) clearTimeout(scrollFreezeTimer)
     }
   }, [containerRef, textSelectionEnabled])
 
+  const previousPageRef = useRef(currentPage)
   useEffect(() => {
-    if (currentPage > 0) {
-      invalidatePageCache(currentPage)
+    const previous = previousPageRef.current
+    previousPageRef.current = currentPage
+    // The page that was left is the one whose cached box now shows a different
+    // page. Invalidating the new page would throw away the entry it just gained.
+    if (previous > 0 && previous !== currentPage) {
+      invalidatePageCache(previous)
     }
   }, [currentPage])
 

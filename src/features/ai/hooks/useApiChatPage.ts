@@ -53,6 +53,10 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   const [isScrolledUp, setIsScrolledUp] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+  // MessageList owns the scroll container and only mounts once there is a
+  // message. The listener effect below must re-run on that mount, not only on
+  // the hook's first render (where the ref is still empty).
+  const hasMessages = messages.length > 0
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -123,7 +127,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
       container.removeEventListener('scroll', handleScroll)
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
-  }, [])
+  }, [hasMessages])
 
   useEffect(() => {
     const ta = textareaRef.current
@@ -149,6 +153,17 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     if (!config) return null
     return config.providers?.find((p) => p.id === activeProviderId) || null
   }, [config, activeProviderId])
+
+  // A provider switch must not carry the previous provider's model into the
+  // request. When the selected model is not one the new provider serves, fall
+  // back to that provider's default instead of sending an incompatible id.
+  useEffect(() => {
+    if (!activeProvider) return
+    const currentModel = selectedModelRef.current
+    if (currentModel && !activeProvider.models?.includes(currentModel)) {
+      setSelectedModel(tabId, activeProvider.defaultModel || '')
+    }
+  }, [activeProvider, tabId, setSelectedModel])
 
   const {
     handleSend,

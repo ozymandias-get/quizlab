@@ -6,7 +6,7 @@ import { getApiChatConfig } from '../api/sessions.api'
 
 export function useApiConfigQuery() {
   return useQuery({
-    queryKey: QUERY_KEYS.AI.CONFIG(),
+    queryKey: QUERY_KEYS.AI.API_CHAT_CONFIG,
     queryFn: getApiChatConfig,
     staleTime: Infinity,
     gcTime: Infinity

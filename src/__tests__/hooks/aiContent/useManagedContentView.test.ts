@@ -307,6 +307,25 @@ describe('useManagedContentView - controller exposure', () => {
       script: 'document.readyState'
     })
   })
+
+  it('does not publish a controller while the host is disabled', async () => {
+    const registerContent = vi.fn()
+    const { rerender } = renderHook(
+      (props: { isEnabled: boolean }) =>
+        useManagedContentView({ ...baseOptions, registerContent, ...props }),
+      { initialProps: { isEnabled: false } }
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(registerContent).not.toHaveBeenCalled()
+
+    rerender({ isEnabled: true })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(registerContent).toHaveBeenCalledTimes(1)
+  })
 })
 
 /**

@@ -46,6 +46,10 @@ export function useAiContentRegistry(activeTabId: string) {
   return {
     registerContent,
     getContentController,
-    hasActiveContent: activeContentCount > 0
+    // `activeContentCount` is the re-render trigger; the answer is scoped to
+    // the active tab, so an alive background tab cannot enable actions that
+    // would address the api-chat tab. api-chat/sleeping hosts do not register
+    // a controller at all (see `useManagedContentView`).
+    hasActiveContent: activeContentCount > 0 && Boolean(contentControllersRef.current[activeTabId])
   }
 }

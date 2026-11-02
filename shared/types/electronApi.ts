@@ -100,6 +100,13 @@ export interface ElectronApi {
   selectPdf: (options?: PdfSelectOptions) => Promise<PdfSelection | null>
   getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
   registerPdfPath: (filePath: string) => Promise<PdfSelection | null>
+  /**
+   * Absolute path of a file dropped from the OS.
+   *
+   * Electron no longer exposes the non-standard `File.path`; `webUtils`
+   * resolves it in the preload, which is the only place the renderer can reach.
+   */
+  getPathForFile: (file: File) => string
   /** Explorer sağ-tık ile açılan PDF yolu için dinleyici (Windows). */
   onShellOpenPdf: (callback: (filePath: string) => void) => () => void
   shellIntegration: {

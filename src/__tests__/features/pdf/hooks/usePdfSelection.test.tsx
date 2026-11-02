@@ -32,7 +32,10 @@ vi.mock('@platform/electron/api/usePdfApi', () => ({
   }),
   useRegisterPdfPath: () => ({
     mutateAsync: mockRegisterPdfPathMutate
-  })
+  }),
+  // The test fixtures model the legacy `File.path`; production resolves it
+  // through the preload bridge.
+  getDroppedFilePath: (file: File & { path?: string }) => file.path ?? ''
 }))
 
 const localStorageMock = (function () {

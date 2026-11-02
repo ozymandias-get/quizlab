@@ -6,6 +6,9 @@ const exposeInMainWorld = vi.fn()
 const invoke = vi.fn()
 const on = vi.fn()
 const removeListener = vi.fn()
+const { getPathForFile } = vi.hoisted(() => ({
+  getPathForFile: vi.fn(() => 'C:\\docs\\file.pdf')
+}))
 
 vi.mock('electron', () => ({
   contextBridge: {
@@ -15,6 +18,9 @@ vi.mock('electron', () => ({
     invoke,
     on,
     removeListener
+  },
+  webUtils: {
+    getPathForFile
   }
 }))
 
@@ -40,6 +46,7 @@ type ExposedApi = {
   }
   onTriggerScreenshot: (callback: (type: 'selection' | 'window' | 'screen') => void) => () => void
   onPdfViewerZoom: (callback: (action: 'in' | 'out' | 'reset') => void) => () => void
+  getPathForFile: (file: File) => string
   siteSession: {
     list: () => Promise<unknown>
     setEnabled: (siteId: string, enabled: boolean) => Promise<unknown>
@@ -105,6 +112,15 @@ describe('preload electronAPI', () => {
       id: 'chatgpt',
       partition: 'persist:ai_chatgpt'
     })
+  })
+
+  it('resolves a dropped file path through webUtils', async () => {
+    await import('../../preload/index.js')
+    const api = exposeInMainWorld.mock.calls[0]?.[1] as ExposedApi
+    const file = new File(['pdf'], 'doc.pdf', { type: 'application/pdf' })
+
+    expect(api.getPathForFile(file)).toBe('C:\\docs\\file.pdf')
+    expect(getPathForFile).toHaveBeenCalledWith(file)
   })
 
   it('subscribes and unsubscribes trigger screenshot events', async () => {

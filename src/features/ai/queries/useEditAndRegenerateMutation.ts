@@ -73,7 +73,11 @@ export function useEditAndRegenerateMutation() {
             ? { ...s, messages: truncatedMessages, updatedAt: Date.now() }
             : s
         )
-        persistSessions(sessionsWithEdit)
+        persistSessions(sessionsWithEdit, {
+          messageIdsBySession: {
+            [activeSessionId]: session.messages.slice(msgIndex + 1).map((message) => message.id)
+          }
+        })
         queryClient.setQueryData(QUERY_KEYS.AI.SESSIONS, sessionsWithEdit)
         queryClient.setQueryData(QUERY_KEYS.AI.MESSAGES(activeSessionId), truncatedMessages)
 

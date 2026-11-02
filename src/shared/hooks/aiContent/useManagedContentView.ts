@@ -126,7 +126,10 @@ export function useManagedContentView({
   const { isLoading, error, hasLoadedOnce, handleRetry } = useAiContentLifecycle({
     currentAI: modelId,
     controller,
-    registerContent,
+    // An api-chat or sleeping tab owns a controller object but no remote view.
+    // Publishing it would make `hasActiveContent` true and enable reload/picker
+    // actions that have nothing to address.
+    registerContent: isEnabled ? registerContent : undefined,
     t,
     showWarning,
     onUrlChange: (url) => onUrlChangeRef.current?.(url),

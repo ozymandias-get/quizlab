@@ -70,50 +70,63 @@ function stopCleanupInterval(): void {
   }
 }
 
-let flushInProgress = false
 let pendingFlush = false
+let inFlightFlush: Promise<void> | null = null
 
-export async function flushToDisk(): Promise<void> {
-  if (!diskLogPath) return
-  if (flushInProgress) {
-    pendingFlush = true
-    return
-  }
-  flushInProgress = true
+async function flushOnce(): Promise<void> {
+  // Map the absolute "already flushed" count onto current buffer indices:
+  // the buffer keeps only the newest `length` entries of `total` ever
+  // logged, so entry N lives at index max(0, length - (total - N)).
+  const total = getTotalLogCount()
+  const bufferSize = getLogBufferLength()
+  const fromIndex = Math.max(0, bufferSize - (total - lastFlushedCount))
+  const entries = getPendingLogEntries(fromIndex)
+  if (entries.length === 0) return
+
   try {
-    // Map the absolute "already flushed" count onto current buffer indices:
-    // the buffer keeps only the newest `length` entries of `total` ever
-    // logged, so entry N lives at index max(0, length - (total - N)).
-    const total = getTotalLogCount()
-    const bufferSize = getLogBufferLength()
-    const fromIndex = Math.max(0, bufferSize - (total - lastFlushedCount))
-    const entries = getPendingLogEntries(fromIndex)
-    if (entries.length === 0) return
+    const logDir = diskLogPath!
+    await fs.promises.mkdir(logDir, { recursive: true })
 
-    try {
-      const logDir = diskLogPath!
-      await fs.promises.mkdir(logDir, { recursive: true })
+    const dateStr = new Date().toISOString().slice(0, 10)
+    const logFile = path.join(logDir, `quizlab-${dateStr}.log`)
 
-      const dateStr = new Date().toISOString().slice(0, 10)
-      const logFile = path.join(logDir, `quizlab-${dateStr}.log`)
+    const lines = entries.map((e) => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
+    await fs.promises.appendFile(logFile, lines.join('\n') + '\n', 'utf-8')
 
-      const lines = entries.map((e) => `[${e.timestamp}] [${e.level.toUpperCase()}] ${e.message}`)
-      await fs.promises.appendFile(logFile, lines.join('\n') + '\n', 'utf-8')
-
-      lastFlushedCount = total
-    } catch {
-      // Write failure is non-critical; retry with the same window next flush.
-    }
-  } finally {
-    flushInProgress = false
-    if (pendingFlush) {
-      pendingFlush = false
-      // Coalesce rapid flush requests — schedule next flush on next tick
-      setImmediate(() => {
-        void flushToDisk()
-      })
-    }
+    lastFlushedCount = total
+  } catch {
+    // Write failure is non-critical; retry with the same window next flush.
   }
+}
+
+/**
+ * Writes every pending entry and resolves only when the caller's entries are
+ * on disk.
+ *
+ * A call that arrives while a flush is running joins that flush and marks a
+ * follow-up pass, so shutdown cannot observe "done" before the entries it
+ * asked about were written. The old version returned immediately in that
+ * case and left the follow-up on a `setImmediate`, which quit could outrun.
+ */
+export function flushToDisk(): Promise<void> {
+  if (!diskLogPath) return Promise.resolve()
+  if (inFlightFlush) {
+    pendingFlush = true
+    return inFlightFlush
+  }
+
+  const run = (async () => {
+    try {
+      do {
+        pendingFlush = false
+        await flushOnce()
+      } while (pendingFlush)
+    } finally {
+      inFlightFlush = null
+    }
+  })()
+  inFlightFlush = run
+  return run
 }
 
 async function cleanOldLogs(): Promise<void> {

@@ -72,14 +72,10 @@ export function useSharedDragDrop(onFileReceived: (file: File) => void): DragDro
       if (!pdfFile) return
 
       try {
-        const fileWithPath = pdfFile as File & { path?: string }
-        const filePath = fileWithPath.path
-
-        if (!filePath) {
-          Logger.warn('[DragDrop] File has no path')
-          return
-        }
-
+        // The path is resolved at the platform boundary: Electron 32 removed
+        // the non-standard `File.path`, and `shared/` may not reach `webUtils`.
+        // This hook only selects the file; the consumer decides whether it has
+        // a usable path.
         onFileReceived(pdfFile)
       } catch (error) {
         Logger.error('[DragDrop] Error processing drop:', error)

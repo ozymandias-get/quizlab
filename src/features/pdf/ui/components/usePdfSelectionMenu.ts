@@ -234,11 +234,14 @@ export function usePdfSelectionMenu({
       })
     }
     const container = containerRef.current
-    container?.addEventListener('scroll', schedule, { passive: true })
+    // The scrollport is the descendant `[data-native-pdf-scroll]`, not the
+    // outer viewer box. Native scroll events do not bubble, so the listener has
+    // to run in the capture phase or the menu never follows a scrolled page.
+    container?.addEventListener('scroll', schedule, { passive: true, capture: true })
     window.addEventListener('resize', schedule)
     return () => {
       if (frame) cancelAnimationFrame(frame)
-      container?.removeEventListener('scroll', schedule)
+      container?.removeEventListener('scroll', schedule, { capture: true })
       window.removeEventListener('resize', schedule)
     }
   }, [menu, feedback, readLiveEndRect, anchorFromEndRect, closeMenu, containerRef])

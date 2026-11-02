@@ -42,6 +42,7 @@ export function usePdfResizeRefit(
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fitScaleRef = useRef(fitScale ?? null)
   const fallbackScaleRef = useRef(fallbackScale)
+  const scheduleRefitRef = useRef<() => void>(() => {})
 
   zoomToRef.current = zoomTo
   enabledRef.current = enabled
@@ -60,16 +61,26 @@ export function usePdfResizeRefit(
     if (cooldownTimerRef.current !== null) {
       clearTimeout(cooldownTimerRef.current)
       cooldownTimerRef.current = null
+      // Clearing the timer without the flag would leave the ResizeObserver
+      // disabled forever: its callback returns while the flag says "cooldown".
+      resizeObserverCooldownRef.current = false
     }
   }, [])
 
   const scheduleRefit = useCallback(() => {
     clearPendingRefit()
 
-    // Skip refit if a page navigation just happened (within lock window)
+    // A refit requested inside the page-navigation lock window is deferred by
+    // the remaining lock time instead of dropped. Dropping it here used to
+    // leave the page at the old fit scale when a drag ended within 500 ms of a
+    // page turn, because the observer cooldown swallowed the final resize.
     if (lastNavigationTimeRef && lastNavigationTimeRef.current > 0) {
       const elapsed = Date.now() - lastNavigationTimeRef.current
       if (elapsed < NAVIGATION_REFIT_LOCK_MS) {
+        debounceTimerRef.current = setTimeout(() => {
+          debounceTimerRef.current = null
+          scheduleRefitRef.current()
+        }, NAVIGATION_REFIT_LOCK_MS - elapsed)
         return
       }
     }
@@ -97,6 +108,7 @@ export function usePdfResizeRefit(
       }
     }, PDF_RESIZE_REFIT_DEBOUNCE_MS)
   }, [clearPendingRefit, containerRef, lastNavigationTimeRef, resolveRefitScale])
+  scheduleRefitRef.current = scheduleRefit
 
   useEffect(() => {
     if (!enabled) {
