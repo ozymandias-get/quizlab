@@ -6,6 +6,7 @@ interface WindowLike {
   isDestroyed(): boolean
   isVisible(): boolean
   show(): void
+  setIcon(icon: string): void
   setSkipTaskbar(skip: boolean): void
   once(event: 'ready-to-show', listener: () => void): this
   on(event: 'closed', listener: () => void): this
@@ -27,6 +28,13 @@ interface WindowLike {
 
 interface ConfigureWindowRevealOptions {
   window: WindowLike
+  /**
+   * Re-applied right before the first show. The window is constructed hidden
+   * with `skipTaskbar: true`, and Windows may resolve the taskbar button from
+   * the process executable while creating it; setting the icon again at reveal
+   * time makes the branded icon win over the generic Electron one.
+   */
+  iconPath?: string
   isDev: boolean
   devServerUrl: string
   revealTimeoutMs: number
@@ -39,6 +47,7 @@ type RevealReason = 'dom-ready' | 'did-fail-load' | 'did-finish-load' | 'ready-t
 export function configureWindowReveal(options: ConfigureWindowRevealOptions): () => void {
   const {
     window,
+    iconPath,
     isDev,
     devServerUrl,
     revealTimeoutMs,
@@ -66,6 +75,11 @@ export function configureWindowReveal(options: ConfigureWindowRevealOptions): ()
       )
     }
     window.setSkipTaskbar(false)
+    // Before the first `show()` the taskbar button does not exist yet, so this
+    // is the last point where the icon can be attached to it reliably.
+    if (iconPath) {
+      window.setIcon(iconPath)
+    }
     if (!window.isVisible()) {
       window.show()
     }

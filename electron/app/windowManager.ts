@@ -12,7 +12,7 @@ import { loadRenderer } from './window/rendererLoader.js'
 import { hardenWindowWebContents } from './window/security.js'
 import { setupSessions } from './window/sessions.js'
 import { clampWindowStateToDisplay, loadWindowState, saveWindowState } from './window/state.js'
-import { createMainBrowserWindow } from './window/windows.js'
+import { createMainBrowserWindow, resolveIconPath } from './window/windows.js'
 import { configureWindowReveal } from './windowReveal.js'
 
 let mainWindow: BrowserWindow | null = null
@@ -37,6 +37,7 @@ export async function createWindow() {
   // window waiting for the 10-second fallback timer.
   const clearRevealTimer = configureWindowReveal({
     window: mainWindow,
+    iconPath: resolveIconPath(),
     isDev,
     devServerUrl: DEV_SERVER_URL,
     revealTimeoutMs: MAIN_WINDOW_REVEAL_TIMEOUT_MS,
