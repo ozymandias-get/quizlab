@@ -157,7 +157,7 @@ export const ModelIconsList = memo(function ModelIconsList({
 
   return (
     <div
-      className="custom-scrollbar flex w-full flex-col items-center gap-1 overflow-y-auto py-1"
+      className="scrollbar-hidden flex w-full flex-col items-center gap-1 overflow-y-auto py-1"
       style={{ maxHeight: bottomBarMaxIcons * 36 + 8 }}
     >
       {displayModels.map((modelKey) => (
