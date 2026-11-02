@@ -15,7 +15,10 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
         className="mb-4"
       >
         <img
-          src="/icon.png"
+          // `BASE_URL` is `'/'` under the dev server and `'./'` in the packaged
+          // build; an absolute `/icon.png` would resolve to the drive root once
+          // the renderer is loaded over `file://`, leaving the logo blank.
+          src={`${import.meta.env.BASE_URL}icon.png`}
           alt=""
           aria-hidden
           className="border-border/60 size-16 rounded-xl border"
