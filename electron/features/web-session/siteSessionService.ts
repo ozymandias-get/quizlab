@@ -24,7 +24,10 @@
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
-import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/googleAiWebApps.js'
+import {
+  GOOGLE_AI_WEB_SESSION_PARTITION,
+  GOOGLE_AI_WEB_SITE_ID
+} from '../../../shared/constants/googleAiWebApps.js'
 import {
   googleAccountSlotOptions,
   isSiteSessionSlot,
@@ -36,7 +39,7 @@ import type {
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import { getGoogleAccountSlots } from './googleAccounts.js'
+import { getGoogleAccountSlots, peekGoogleAccountSlots } from './googleAccounts.js'
 import { ensureGoogleSessionSlot } from './googleSessionSlot.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
@@ -121,14 +124,26 @@ export class SiteSessionService {
         const enabled = targetState?.enabled === true
         let activeSlot = target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
         let accountSlots: number[] | undefined
+        let googleDiscoveryUnverified = false
         if (target.kind === 'google') {
-          const discovered = await getGoogleAccountSlots(
-            this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
-            targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
-          )
-          if (discovered !== null) {
+          const importKey = targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
+          const primary = this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION)
+          const applyDiscoveredSlots = (discovered: number[]) => {
             accountSlots = googleAccountSlotOptions(discovered)
             if (!accountSlots.includes(activeSlot)) activeSlot = accountSlots[0] ?? 1
+          }
+          const peeked = peekGoogleAccountSlots(primary, importKey)
+          if (!peeked.known) {
+            // First look after start-up: the list may wait once so the first
+            // open still shows the account selector. Later opens read the
+            // snapshot and refresh it in the background.
+            const discovered = await getGoogleAccountSlots(primary, importKey)
+            if (discovered !== null) applyDiscoveredSlots(discovered)
+            else googleDiscoveryUnverified = true
+          } else {
+            if (peeked.slots !== null) applyDiscoveredSlots(peeked.slots)
+            else googleDiscoveryUnverified = true
+            this.refreshGoogleAccountSlots(primary, importKey, peeked.slots)
           }
         }
         // A clamped slot must not borrow the old slot's top-level mirror. The
@@ -154,13 +169,23 @@ export class SiteSessionService {
           },
           this.deps.resolveSession
         )
-        const status = deriveSiteSessionStatus({
+        let status = deriveSiteSessionStatus({
           enabled,
           extensionConnected,
           extensionVersionOk,
           lastResult,
           hasLocalSession
         })
+        // A cookie on disk proves that an import wrote something, not that
+        // Google still accepts it. When discovery cannot confirm the account
+        // set, the honest status is "unverified" rather than "imported".
+        if (
+          target.kind === 'google' &&
+          status === 'imported' &&
+          (googleDiscoveryUnverified || (accountSlots?.length ?? 0) === 0)
+        ) {
+          status = 'session_unverified'
+        }
         const view = toSiteSessionView(target, enabled, status, importedAt, lastError, activeSlot)
         if (accountSlots !== undefined) {
           view.accountSlots = accountSlots
@@ -170,6 +195,32 @@ export class SiteSessionService {
     )
 
     return { views, extensionConnected, extensionVersionOk }
+  }
+
+  /**
+   * Refreshes account discovery without making the list wait for Google.
+   *
+   * The list is served from the last snapshot immediately. When the refresh
+   * moves the account set, the cached list is dropped and the renderer is
+   * notified; an unchanged or failed refresh leaves the open page alone.
+   */
+  private refreshGoogleAccountSlots(
+    primary: Session,
+    importKey: string,
+    previous: number[] | null
+  ): void {
+    void getGoogleAccountSlots(primary, importKey).then((discovered) => {
+      if (discovered === null) return
+      if (
+        previous !== null &&
+        previous.length === discovered.length &&
+        previous.every((slot, index) => slot === discovered[index])
+      ) {
+        return
+      }
+      invalidateSiteSessionListCache()
+      void broadcastSiteSessionsChanged()
+    })
   }
 
   /**
@@ -291,9 +342,30 @@ export class SiteSessionService {
     try {
       const config = this.deps.config
       if (!config.setActiveSlot) return { success: false, error: 'write_failed' }
-      await withSiteSessionLock(siteId, () => config.setActiveSlot!(siteId, slot))
-      if (target.kind === 'google' && slot > 1 && config.recordResult) {
-        await ensureGoogleSessionSlot(slot, {
+
+      if (target.kind === 'google' && slot > 1) {
+        // The renderer only offers discovered accounts, but a compromised or
+        // stale renderer can send any number in 1..20. Validate the position
+        // against the account list before touching the config or a partition.
+        const state = await config.read()
+        const importKey =
+          state.targets[GOOGLE_AI_WEB_SITE_ID]?.slots?.[1]?.importedAt ??
+          state.targets[GOOGLE_AI_WEB_SITE_ID]?.importedAt ??
+          ''
+        const discovered = await getGoogleAccountSlots(
+          this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
+          importKey
+        )
+        if (discovered === null) {
+          return { success: false, error: 'account_discovery_unavailable' }
+        }
+        if (!googleAccountSlotOptions(discovered).includes(slot)) {
+          return { success: false, error: 'invalid_slot' }
+        }
+
+        // Prepare the destination before the selection is written. A failed
+        // import must leave the old account selected, not a half-seeded slot.
+        const preparation = await ensureGoogleSessionSlot(slot, {
           config: {
             read: () => config.read(),
             recordResult: (...args) => config.recordResult!(...args),
@@ -303,7 +375,17 @@ export class SiteSessionService {
           },
           resolveSession: this.deps.resolveSession
         })
+        if (!preparation.ok) {
+          return {
+            success: false,
+            error: 'import_failed',
+            detail:
+              'The selected Google account could not be prepared; the previous account is still active.'
+          }
+        }
       }
+
+      await withSiteSessionLock(siteId, () => config.setActiveSlot!(siteId, slot))
       invalidateSiteSessionListCache()
       await broadcastSiteSessionsChanged()
       return { success: true }

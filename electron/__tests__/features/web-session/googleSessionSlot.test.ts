@@ -49,6 +49,17 @@ describe('Google account URLs', () => {
     expect(googleSlotForPartition('persist:gemini_web_profile_slot_2')).toBe(2)
     expect(googleSlotForPartition('persist:ai_chatgpt_slot_2')).toBeNull()
   })
+
+  it('uses the same account rule for NotebookLM and leaves unsafe URLs alone', () => {
+    expect(googleSessionUrl('https://notebooklm.google.com/notebook/abc', 2)).toBe(
+      'https://notebooklm.google.com/notebook/abc?authuser=1'
+    )
+    // A redirect target that is not https, or not a URL at all, is never
+    // rewritten: the caller keeps the navigation it had.
+    expect(googleSessionUrl('http://gemini.google.com/app', 2)).toBe('http://gemini.google.com/app')
+    expect(googleSessionUrl('not a url', 2)).toBe('not a url')
+    expect(googleSessionUrl('', 2)).toBe('')
+  })
 })
 
 describe('Google session initialization', () => {
@@ -154,6 +165,17 @@ describe('Google session initialization', () => {
     expect(env.destination.cookies.set).toHaveBeenCalledTimes(1)
   })
 
+  it('restores the previous cookies when a refresh fails part-way', async () => {
+    const env = setup({ existingAuth: true, newerSource: true })
+    env.destination.cookies.set.mockRejectedValue(new Error('write failed'))
+
+    const result = await ensureGoogleSessionSlot(3, env)
+
+    expect(result).toMatchObject({ ok: false, status: 'import_failed' })
+    expect(env.destination.cookies.remove).toHaveBeenCalled()
+    expect(env.config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 3)
+  })
+
   it('preserves an already authenticated secondary session', async () => {
     const env = setup({ existingAuth: true })
     await ensureGoogleSessionSlot(2, env)
@@ -164,7 +186,7 @@ describe('Google session initialization', () => {
   it('keeps an imported account usable when saving the import status fails', async () => {
     const env = setup()
     env.config.recordResult.mockRejectedValueOnce(new Error('disk unavailable'))
-    await expect(ensureGoogleSessionSlot(2, env)).resolves.toBeUndefined()
+    await expect(ensureGoogleSessionSlot(2, env)).resolves.toMatchObject({ ok: true })
     expect(env.destination.cookies.set).toHaveBeenCalled()
   })
 

@@ -57,6 +57,7 @@ const STATUS_CODES = [
   'no_cookies_in_browser',
   'imported',
   'import_failed',
+  'session_unverified',
   'manual_session',
   'signed_out'
 ]
@@ -80,6 +81,7 @@ const ERROR_CODES = [
   'invalid_site_id',
   'invalid_enabled',
   'import_failed',
+  'account_discovery_unavailable',
   'packet_too_large',
   'Unauthorized',
   'web_dev_mode_only'

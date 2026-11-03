@@ -20,6 +20,7 @@ export type SiteSessionStatusCode =
   | 'no_cookies_in_browser'
   | 'imported'
   | 'import_failed'
+  | 'session_unverified'
   | 'manual_session'
   | 'signed_out'
 
@@ -84,6 +85,10 @@ export interface SiteSessionListResult {
  *   - `unknown_target`: the app does not know the site the action was for
  *   - `write_failed`: the switch could not be written; nothing else happened
  *   - `wipe_failed`: the session could not be cleared; the switch was not touched
+ *   - `account_discovery_unavailable`: the Google account list could not be read;
+ *     the slot was not changed
+ *   - `import_failed`: preparing the selected Google account failed; the old
+ *     selection is still active
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
  *     be cleared — `detail` says so
  *   - `invalid_site_id`: the site id was not a string

@@ -14,8 +14,16 @@ export function googleSlotForPartition(partition: string): number | null {
 
 /** Google cookies contain the whole account list; the URL chooses its member. */
 export function googleSessionUrl(rawUrl: string, slot: number): string {
-  if (!isSiteSessionSlot(slot)) return rawUrl
-  const url = new URL(rawUrl)
+  if (!isSiteSessionSlot(slot) || !rawUrl) return rawUrl
+  let url: URL
+  try {
+    url = new URL(rawUrl)
+  } catch {
+    // A malformed or relative URL is not ours to rewrite. Returning it
+    // unchanged keeps the caller's navigation alive instead of throwing out
+    // of a tab load.
+    return rawUrl
+  }
   if (url.protocol !== 'https:') return rawUrl
   const index = String(slot - 1)
   switch (url.hostname) {

@@ -71,4 +71,18 @@ describe('GoogleDrivePanel', () => {
       sessionSlot: 1
     })
   })
+
+  it('keeps the slot stored on the PDF tab instead of following the global choice', () => {
+    useSiteSessionListQuery.mockReturnValue({
+      data: {
+        views: [{ siteId: 'google', kind: 'google', activeSlot: 1, accountSlots: [1, 2] }]
+      }
+    })
+    render(<GoogleDrivePanel {...baseProps} sessionSlot={2} />)
+    expect(lastOptions().source).toEqual({
+      kind: 'google-web-app',
+      appId: 'gdrive',
+      sessionSlot: 2
+    })
+  })
 })

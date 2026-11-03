@@ -67,4 +67,25 @@ describe('Google account discovery', () => {
     const primary = { fetch: vi.fn().mockRejectedValue(new Error('offline')) } as unknown as Session
     expect(await getGoogleAccountSlots(primary, '')).toBeNull()
   })
+
+  it('drops the discovery cache when a Google auth cookie changes', async () => {
+    let listener: ((event: unknown, cookie: Electron.Cookie) => void) | undefined
+    const fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => responseFor(2) })
+    const primary = {
+      fetch,
+      cookies: {
+        on: vi.fn((_event: string, callback: typeof listener) => {
+          listener = callback
+        })
+      }
+    } as unknown as Session
+
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    listener?.({}, { name: 'SID', domain: '.google.com' } as Electron.Cookie)
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
 })

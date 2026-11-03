@@ -26,7 +26,8 @@ const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
   'extension_outdated',
   'permission_missing',
   'no_cookies_in_browser',
-  'import_failed'
+  'import_failed',
+  'session_unverified'
 ])
 
 /** Whether any site pulls its session from Chrome. */

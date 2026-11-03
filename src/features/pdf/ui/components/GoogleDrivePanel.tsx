@@ -6,12 +6,16 @@ import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContent
 import { Button } from '@shared/ui/components/primitives'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
+
+import { usePdfTabStore } from '../../store/usePdfTabStore'
 
 interface GoogleDrivePanelProps {
   tabId: string
   /** Entry URL; the manager validates it against the Google session partition. */
   webviewUrl?: string
+  /** The account slot stored on the PDF tab; the global slot only fills a new tab. */
+  sessionSlot?: number
   title: string
   description: string
   reloadLabel: string
@@ -29,6 +33,7 @@ interface GoogleDrivePanelProps {
 function GoogleDrivePanel({
   tabId,
   webviewUrl,
+  sessionSlot: tabSessionSlot,
   title,
   description,
   reloadLabel,
@@ -37,16 +42,26 @@ function GoogleDrivePanel({
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
   const { showWarning } = useToastActions()
+  const setPdfTabSessionSlot = usePdfTabStore((state) => state.setPdfTabSessionSlot)
   const { data: sessionList } = useSiteSessionListQuery()
   const googleView = sessionList?.views.find((view) => view.kind === 'google')
   const availableSlots = googleView?.accountSlots
   const activeSlot = googleView?.activeSlot
-  const sessionSlot =
+  const inheritedSlot =
     activeSlot !== undefined
       ? availableSlots && !availableSlots.includes(activeSlot)
         ? (availableSlots[0] ?? 1)
         : activeSlot
       : undefined
+  // A tab keeps the account it was opened with. The global selection only
+  // supplies the default for a new Drive view, so an AI tab on account 2 no
+  // longer drags Drive onto a different account when the global value moves.
+  const sessionSlot = tabSessionSlot ?? inheritedSlot
+  useEffect(() => {
+    if (tabSessionSlot === undefined && sessionSlot !== undefined) {
+      setPdfTabSessionSlot(tabId, sessionSlot)
+    }
+  }, [tabId, tabSessionSlot, sessionSlot, setPdfTabSessionSlot])
   const { setHostElement, reload } = useManagedContentView({
     viewId,
     showWarning,
