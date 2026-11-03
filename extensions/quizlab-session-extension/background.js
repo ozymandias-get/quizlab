@@ -30,6 +30,14 @@ const PROTOCOL_VERSION = 2
 const HEALTH_PATH = '/api/health'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
+/**
+ * The file the app writes into the extension package at install time.
+ *
+ * The shared secret must not be fetched over HTTP: any local process can send
+ * an `Origin` header. The extension reads the copy next to its manifest
+ * instead, which requires access to the app's user data.
+ */
+const SECRET_FILE = 'bridge-secret.json'
 const STORAGE_KEYS = [
   'bridgeSecret',
   'lastConfigVersion',
@@ -61,6 +69,8 @@ let connected = false
 let cookieDebounceTimer = null
 const changedDomains = new Set()
 let bridgeSecret = null
+/** The running bridge this worker last talked to (a restart changes it). */
+let bridgeInstanceId = null
 let lastConfigVersion = null
 let knownTargets = []
 /** The port the bridge was last seen on. */
@@ -204,9 +214,9 @@ const stateReady = readPersistedState()
 /**
  * Asks the app which sites it wants cookies for.
  *
- * The answer is signed like every other request: the app hands the secret to
- * the paired extension over the health endpoint, and the site list is only
- * given to a caller that proves it holds that secret.
+ * The answer is signed like every other request: the extension reads its
+ * secret from `bridge-secret.json` in its own package, and the site list is
+ * only given to a caller that proves it holds that secret.
  */
 async function fetchSiteList(port) {
   try {
@@ -258,9 +268,9 @@ async function fetchSiteList(port) {
 /**
  * The health endpoint of the bridge.
  *
- * It answers with the shared secret and with the protocol the app speaks. A
- * port that does not answer is simply not the bridge, so a failed request is
- * not worth a warning.
+ * It answers with the protocol the app speaks and an instance id; it does not
+ * carry the shared secret. A port that does not answer is simply not the
+ * bridge, so a failed request is not worth a warning.
  */
 async function fetchHealth(port) {
   try {
@@ -279,11 +289,40 @@ async function fetchHealth(port) {
       return null
     }
     const data = await response.json()
-    if (!data || typeof data.secret !== 'string' || !data.secret) return null
+    if (!data || data.status !== 'ok') return null
     return data
   } catch {
     return null
   }
+}
+
+/**
+ * The secret the app wrote into the extension package at install time.
+ *
+ * A missing file means the extension was loaded straight from the source tree;
+ * there the app's development health response still carries the secret so the
+ * flow stays usable.
+ */
+async function readBundledSecret() {
+  try {
+    if (!chrome.runtime || typeof chrome.runtime.getURL !== 'function') return null
+    const response = await fetch(chrome.runtime.getURL(SECRET_FILE), { cache: 'no-store' })
+    if (!response.ok) return null
+    const data = await response.json()
+    return typeof data.secret === 'string' && data.secret ? data.secret : null
+  } catch {
+    return null
+  }
+}
+
+async function ensureBridgeSecret(health, force = false) {
+  if (bridgeSecret && !force) return true
+  const secret =
+    (await readBundledSecret()) ||
+    (health && typeof health.secret === 'string' ? health.secret : null)
+  if (!secret) return bridgeSecret !== null
+  await rememberSecret(secret)
+  return true
 }
 
 async function rememberSecret(secret) {
@@ -662,8 +701,7 @@ async function sendCookiesToApp(options) {
 
   if (!bridgeSecret) {
     const health = await fetchHealth(port)
-    if (!health) return SYNC_UNREACHABLE
-    await rememberSecret(health.secret)
+    if (!health || !(await ensureBridgeSecret(health))) return SYNC_UNREACHABLE
   }
 
   const list = await fetchSiteList(port)
@@ -808,13 +846,17 @@ async function scanForBridge() {
     for (let port = PORT_START; port <= PORT_END; port++) {
       const health = await fetchHealth(port)
       if (!health) continue
+      // Reload the packaged secret on every scan: reinstalling the app may
+      // have replaced the file while this worker kept the old copy in memory.
+      if (!(await ensureBridgeSecret(health, true))) continue
 
-      // The secret identifies the bridge: a bridge that answers with another
-      // secret is a new one, and the app may have lost its session in the
-      // meantime. A bridge that could not be reached for a moment does not
+      // The instance id identifies the running bridge: a bridge that answers
+      // with another id is a new one, and the app may have lost its session in
+      // the meantime. A bridge that could not be reached for a moment does not
       // make the next one a new one.
-      const justConnected = health.secret !== bridgeSecret
-      await rememberSecret(health.secret)
+      const justConnected =
+        typeof health.instanceId === 'string' && health.instanceId !== bridgeInstanceId
+      if (typeof health.instanceId === 'string') bridgeInstanceId = health.instanceId
       bridgePort = port
       connected = true
       await persistState({ bridgePort: port })

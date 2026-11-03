@@ -52,61 +52,11 @@
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader" "Icon" "$INSTDIR\Quizlab Reader.exe,0"
   WriteRegStr HKCU "Software\Classes\SystemFileAssociations\.pdf\shell\QuizlabReader\command" "" '"$INSTDIR\Quizlab Reader.exe" "%1"'
 
-  ; --- Chrome Native Messaging host registration ---
-  ; Chromium resolves the host by reading the path stored in the registry and
-  ; then parsing that file as JSON. Every backslash in the executable path
-  ; must be escaped as "\\" inside the JSON - a single "\" makes Chrome
-  ; report "Specified native messaging host not found". Windows accepts
-  ; forward slashes in file paths, so the JSON is written with forward
-  ; slashes and backslash-escape issues never arise.
-  ;
-  ; The allowed origin below is the Chrome Web Store / pinned-key extension
-  ; ID. It is deterministic (SHA-256 of the key pinned in
-  ; extensions/quizlab-session-extension/manifest.json, see
-  ; electron/features/native-messaging/nativeMessagingOrigin.ts). If the
-  ; extension key ever rotates, this value MUST be updated together with it.
-  ;
-  ; NOTE: the app itself can (re)register this same HKCU key at runtime from
-  ; Settings ("install extension"), pointing at its %AppData% copy with a
-  ; proper UTF-8 manifest. Same key = last writer wins, and uninstall below
-  ; removes the key regardless of which side wrote it last. The registry is
-  ; therefore only updated here when the manifest file was written OK.
-  ;
-  ; The executable name below is intentionally literal: it must stay in sync
-  ; with win.executableName in package.json ("Quizlab Reader" ->
-  ; "Quizlab Reader.exe"). (${APP_EXECUTABLE_FILENAME} cannot be used here -
-  ; electron-builder defines it with surrounding quotes for NSIS file
-  ; commands, which would corrupt the JSON string.)
-  ;
-  ; $R0 is used as scratch (not $0): $0 carries the install mode
-  ; ("currentUser"/"allUsers") for electron-builder's own logic.
-
-  StrCpy $R0 "" ; $R0 = forward-slash $INSTDIR on success, "" on failure
-
-  ; Convert every backslash in $INSTDIR to a forward slash.
-  ; WordReplace's 4th parameter is the occurrence selector: "+" replaces ALL
-  ; occurrences. (Anything else - e.g. "E" - is invalid and yields error
-  ; code 3 instead of the converted path.)
-  ${WordReplace} "$INSTDIR" "\" "/" "+" $R0
-
-  ; Write the manifest. Quoted paths keep space/Unicode install locations safe.
-  ClearErrors
-  FileOpen $1 "$INSTDIR\resources\extensions\quizlab-session-extension\com.quizlab.reader.json" w
-  ${If} ${Errors}
-    DetailPrint "QuizLab Reader: could not write native messaging manifest, skipping Chrome registration"
-    StrCpy $R0 ""
-  ${Else}
-    FileWrite $1 '{"name": "com.quizlab.reader", "description": "Quizlab Reader native messaging host", "path": "$R0/Quizlab Reader.exe", "type": "stdio", "allowed_origins": ["chrome-extension://follalbajmbjmkejipfikekdiodbkggp/"]}$\r$\n'
-    ${If} ${Errors}
-      DetailPrint "QuizLab Reader: failed to write native messaging manifest, skipping Chrome registration"
-      StrCpy $R0 ""
-    ${EndIf}
-    FileClose $1
-  ${EndIf}
-
-  ${If} $R0 != ""
-    WriteRegStr HKCU "Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader" "" "$INSTDIR\resources\extensions\quizlab-session-extension\com.quizlab.reader.json"
-  ${EndIf}
+  ; --- Chrome extension bridge ---
+  ; The session bridge is a loopback HTTP server plus an unpacked extension
+  ; the user loads from Settings. It uses no native messaging host, so the
+  ; installer no longer registers a Chrome NativeMessagingHosts key. Old
+  ; installs that still carry the key are cleaned up by customUnInstall.
 !macroend
 
 !macro customUnInstall
@@ -120,13 +70,13 @@
   ; longer shipped. New installs never create it.
   DeleteRegKey HKCU "Software\Classes\CLSID\{C7D9E4A1-5B2F-4C8D-9E1F-2A3B4C5D6E7F}"
 
-  ; Remove the Chrome Native Messaging host registration. The value is
-  ; deleted regardless of whether the installer or the app wrote it last
-  ; (both use this exact HKCU key).
+  ; Remove the legacy Chrome Native Messaging host registration. The bridge
+  ; no longer uses native messaging; this deletes keys written by older
+  ; installers or older app versions.
   DeleteRegKey HKCU "Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader"
 
-  ; The installer-owned manifest copy lives under $INSTDIR and is removed
-  ; with it; this explicit delete covers custom install locations.
+  ; The installer-owned manifest copy of older versions lives under $INSTDIR;
+  ; this explicit delete covers custom install locations.
   Delete "$INSTDIR\resources\extensions\quizlab-session-extension\com.quizlab.reader.json"
 
   ; Intentionally NOT deleting %AppData%\Quizlab Reader (settings, bridge

@@ -7,13 +7,19 @@ and partition. API Chat has no browser session to import.
 ## Use the updated extension
 
 1. Restart Quizlab Reader after rebuilding its Electron main process.
-2. Open `chrome://extensions` and reload the unpacked extension from this folder
-   (version **1.1.0**). The extension key and identity are unchanged.
-3. Sign in to the desired service in Chrome.
-4. In Quizlab, open **Settings → Session Import** and enable that service's switch.
-   This is separate from enabling its launcher in **Models**.
-5. Open the Chrome extension popup. For a new service, press **İzin ver** and grant
-   the requested site domains. Then select the service and import its session.
+2. In Quizlab, open **Settings → Session Import** and press the button that
+   installs the extension. The app copies this folder to its user-data
+   directory and writes `bridge-secret.json` next to the manifest; the
+   extension cannot authenticate without that file.
+3. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
+   and select the folder path the app copied to the clipboard (version
+   **1.1.0**). The extension key and identity are unchanged.
+4. Sign in to the desired service in Chrome.
+5. In Quizlab, enable that service's switch. This is separate from enabling
+   its launcher in **Models**.
+6. Open the Chrome extension popup. For a new service, press **İzin ver** and
+   grant the requested site domains. Then select the service and import its
+   session.
 
 Existing host grants are unchanged. New catalogue sites use the optional host
 permission flow, so adding the catalogue does not grant access to every site.

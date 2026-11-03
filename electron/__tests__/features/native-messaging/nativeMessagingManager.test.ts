@@ -261,51 +261,18 @@ describe('NativeMessagingManager', () => {
       expect(mockClipboardWrite).toHaveBeenCalledTimes(1)
     })
 
-    it('writes the native host manifest with a forward-slash path (no JSON backslash escaping)', async () => {
+    it('writes the shared secret into the installed extension package', async () => {
       const result = await manager.installExtension()
 
       expect(result.success).toBe(true)
 
-      const manifestCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
-        String(filePath).endsWith('com.quizlab.reader.json')
+      const secretCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
+        String(filePath).endsWith('bridge-secret.json')
       )
-      expect(manifestCall).toBeDefined()
-      const content = String(manifestCall![1])
-      expect(content).not.toContain('\\\\')
-      const manifest = JSON.parse(content)
-      expect(manifest.name).toBe('com.quizlab.reader')
-      expect(manifest.type).toBe('stdio')
-      // A backslash in the JSON `path` (unescaped) breaks Chrome's host lookup.
-      expect(manifest.path).toMatch(/^[^\\]+$/)
-    })
-
-    it('registers the native host in the Chrome registry when installing on Windows', async () => {
-      const originalPlatform = process.platform
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
-      try {
-        await manager.installExtension()
-
-        expect(mockExecFile).toHaveBeenCalledTimes(1)
-        const [cmd, args] = mockExecFile.mock.calls[0]
-        expect(cmd).toBe('reg')
-        expect(args[0]).toBe('add')
-        expect(args[1]).toContain('NativeMessagingHosts\\com.quizlab.reader')
-        expect(args[3]).toBe('/d')
-        expect(String(args[4])).toMatch(/com\.quizlab\.reader\.json$/)
-      } finally {
-        Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
-      }
-    })
-
-    it('skips registry registration on non-windows platforms', async () => {
-      const originalPlatform = process.platform
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
-      try {
-        await manager.installExtension()
-        expect(mockExecFile).not.toHaveBeenCalled()
-      } finally {
-        Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
-      }
+      expect(secretCall).toBeDefined()
+      const content = JSON.parse(String(secretCall![1])) as { secret: string }
+      expect(content.secret).toBe(manager.sharedSecret)
+      expect(content.secret).toMatch(/^[\da-f]{64}$/)
     })
 
     it('returns error when source extension missing', async () => {
@@ -345,31 +312,13 @@ describe('NativeMessagingManager', () => {
       expect(manager.getExtensionInfo().installed).toBe(false)
     })
 
-    it('removes the native host registry key on uninstall on Windows', async () => {
-      const originalPlatform = process.platform
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
-      try {
-        await manager.removeExtension()
+    it('removes the persisted shared secret on uninstall', async () => {
+      const result = await manager.removeExtension()
 
-        expect(mockExecFile).toHaveBeenCalledTimes(1)
-        const [cmd, args] = mockExecFile.mock.calls[0]
-        expect(cmd).toBe('reg')
-        expect(args[0]).toBe('delete')
-        expect(args[1]).toContain('NativeMessagingHosts\\com.quizlab.reader')
-      } finally {
-        Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
-      }
-    })
-
-    it('skips registry key removal on non-windows platforms', async () => {
-      const originalPlatform = process.platform
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true })
-      try {
-        await manager.removeExtension()
-        expect(mockExecFile).not.toHaveBeenCalled()
-      } finally {
-        Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
-      }
+      expect(result.success).toBe(true)
+      expect(mockFsRm).toHaveBeenCalledWith(expect.stringContaining('bridge-secret.json'), {
+        force: true
+      })
     })
 
     it('returns error when fs.rm fails', async () => {
@@ -472,15 +421,19 @@ describe('NativeMessagingManager', () => {
       return res
     }
 
-    it.each(PACKAGED)(
-      'serves the secret to the paired extension origin (packaged=%s)',
-      (packaged) => {
-        mockApp.isPackaged = packaged
-        const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
-        expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
-        expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
-      }
-    )
+    it('does not serve the secret to a packaged app', () => {
+      mockApp.isPackaged = true
+      const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
+    })
+
+    it('serves the secret only as the development escape hatch', () => {
+      mockApp.isPackaged = false
+      const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
+    })
 
     it.each(PACKAGED)('rejects arbitrary website origins (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged

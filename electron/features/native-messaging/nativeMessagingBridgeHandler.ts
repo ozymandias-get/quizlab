@@ -152,14 +152,23 @@ export function createBridgeRequestHandler(manager: unknown) {
       const mgr = manager as unknown as {
         _extensionLastSeenAt: number
         _sharedSecret: string
+        _instanceId?: string
       }
       mgr._extensionLastSeenAt = Date.now()
-      Logger.info(`[NativeMessaging] Served bridge shared secret to origin: ${requestOrigin}`)
+      Logger.info(`[NativeMessaging] Served bridge health check to origin: ${requestOrigin}`)
       const healthResponse: Record<string, unknown> = {
         status: 'ok',
         timestamp: new Date().toISOString(),
-        secret: mgr._sharedSecret,
+        // Identifies this running bridge, so the extension can tell a restart
+        // from the same bridge without seeing the secret itself.
+        instanceId: mgr._instanceId ?? null,
         protocolVersion: SITE_SESSION_PROTOCOL_VERSION
+      }
+      // Development escape hatch: an extension loaded from the source tree has
+      // no installed `bridge-secret.json`. A packaged app never hands the
+      // secret out over HTTP.
+      if (!app.isPackaged) {
+        healthResponse.secret = mgr._sharedSecret
       }
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(healthResponse))
@@ -189,14 +198,16 @@ export function createBridgeRequestHandler(manager: unknown) {
 /**
  * The list of sites the extension may read cookies for.
  *
- * The list is signed like the cookie packets are: the health endpoint hands
- * the secret to the paired extension, and every later request proves it holds
- * that secret.
+ * The list is signed like the cookie packets are: the installed extension
+ * reads its secret from `bridge-secret.json` in its own package, and every
+ * request proves it holds that secret.
  *
- * The signature is not the boundary that keeps a local process out. The
- * health endpoint hands the secret to any request that carries the expected
- * `Origin` header, and a local process can forge that header and sign
- * perfectly. The signature only raises the bar.
+ * The signature is not the boundary that keeps a local process out. A local
+ * process that can read the app's user data can read the same file, and one
+ * that can impersonate the extension can sign perfectly. The signature only
+ * raises the bar. The secret is deliberately not served over HTTP: an HTTP
+ * endpoint that returns it can be called by any local process with a forged
+ * Origin header.
  *
  * The real bound is the router: a packet is written only into a site that is
  * switched on, and every cookie in it has to belong to that site.

@@ -1,20 +1,15 @@
-import { execFile } from 'child_process'
+import crypto from 'crypto'
 import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { promisify } from 'util'
 
 import { Logger } from '../../core/logger.js'
 import { writeClipboardText } from '../../core/systemHandlers/clipboardApi.js'
 import { deriveExtensionIdFromKey } from './nativeMessagingOrigin.js'
-import { EXTENSION_SOURCE_DIR, NATIVE_HOST_MANIFEST_NAME } from './nativeMessagingTypes.js'
+import { EXTENSION_SOURCE_DIR } from './nativeMessagingTypes.js'
 
-const execFileAsync = promisify(execFile)
-const NATIVE_HOST_REGISTRY_KEY = `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${NATIVE_HOST_MANIFEST_NAME}`
-
-function toForwardSlashPath(filePath: string): string {
-  return filePath.split(path.sep).join('/')
-}
+/** The file the extension reads its bridge secret from, inside its own dir. */
+const EXTENSION_SECRET_FILE = 'bridge-secret.json'
 
 export class NativeMessagingInstaller {
   static resolveSourceExtensionPath(): string {
@@ -32,6 +27,39 @@ export class NativeMessagingInstaller {
     return path.join(app.getPath('userData'), 'chrome-bridge-info.json')
   }
 
+  /** The app-side copy of the shared secret. */
+  static resolveSharedSecretPath(): string {
+    return path.join(app.getPath('userData'), 'bridge-secret.json')
+  }
+
+  /**
+   * Reads the persisted bridge secret, creating it once when it is missing.
+   *
+   * The secret must survive an app restart: the installed extension keeps the
+   * copy it was given and signs every request with it. A new secret on every
+   * start would make every stored copy stale.
+   */
+  static async loadOrCreateSharedSecret(): Promise<string> {
+    const secretPath = this.resolveSharedSecretPath()
+    try {
+      const raw = await fs.readFile(secretPath, 'utf-8')
+      const parsed = JSON.parse(raw) as { secret?: unknown }
+      if (typeof parsed.secret === 'string' && /^[0-9a-f]{64}$/.test(parsed.secret)) {
+        return parsed.secret
+      }
+    } catch {
+      // Missing or unreadable: fall through and create a fresh one.
+    }
+
+    const secret = crypto.randomBytes(32).toString('hex')
+    await fs.mkdir(path.dirname(secretPath), { recursive: true })
+    await fs.writeFile(secretPath, JSON.stringify({ secret }, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600
+    })
+    return secret
+  }
+
   static async deriveExtensionOrigin(): Promise<string | null> {
     try {
       const manifestPath = path.join(this.resolveSourceExtensionPath(), 'manifest.json')
@@ -43,24 +71,6 @@ export class NativeMessagingInstaller {
       Logger.error('[NativeMessaging] Failed to derive extension origin from manifest:', error)
     }
     return null
-  }
-
-  static async registerNativeHostInRegistry(manifestPath: string): Promise<void> {
-    if (process.platform !== 'win32') return
-    try {
-      await execFileAsync('reg', ['add', NATIVE_HOST_REGISTRY_KEY, '/ve', '/d', manifestPath, '/f'])
-    } catch (error) {
-      Logger.warn('[NativeMessaging] Failed to register native host in registry:', error)
-    }
-  }
-
-  static async unregisterNativeHostFromRegistry(): Promise<void> {
-    if (process.platform !== 'win32') return
-    try {
-      await execFileAsync('reg', ['delete', NATIVE_HOST_REGISTRY_KEY, '/f'])
-    } catch (error) {
-      Logger.warn('[NativeMessaging] Failed to remove native host registry key:', error)
-    }
   }
 
   static async copyDir(src: string, dest: string): Promise<void> {
@@ -78,10 +88,12 @@ export class NativeMessagingInstaller {
     }
   }
 
-  static async install(
-    port: number,
-    expectedExtensionOrigin: string | null
-  ): Promise<{ success: boolean; error?: string; installedPath?: string }> {
+  static async install(port: number): Promise<{
+    success: boolean
+    error?: string
+    installedPath?: string
+    secret?: string
+  }> {
     try {
       const srcPath = this.resolveSourceExtensionPath()
       const extExists = await fs
@@ -92,8 +104,20 @@ export class NativeMessagingInstaller {
         return { success: false, error: `Extension not found at: ${srcPath}` }
       }
 
+      // Create the secret only after the source is known to exist: a missing
+      // extension must not leave half an install behind.
+      const sharedSecret = await this.loadOrCreateSharedSecret()
       const destPath = this.resolveInstalledExtensionPath()
       await this.copyDir(srcPath, destPath)
+
+      // The extension cannot read outside its own package, so the secret is
+      // placed next to its manifest. The service worker fetches it through
+      // `chrome.runtime.getURL`; it never travels over HTTP.
+      await fs.writeFile(
+        path.join(destPath, EXTENSION_SECRET_FILE),
+        JSON.stringify({ secret: sharedSecret }, null, 2),
+        'utf-8'
+      )
 
       const bridgeInfoPath = this.resolveBridgeInfoPath()
       const bridgeInfo = {
@@ -104,33 +128,18 @@ export class NativeMessagingInstaller {
       await fs.mkdir(path.dirname(bridgeInfoPath), { recursive: true })
       await fs.writeFile(bridgeInfoPath, JSON.stringify(bridgeInfo, null, 2), 'utf-8')
 
-      const nativeHostManifestPath = path.join(destPath, `${NATIVE_HOST_MANIFEST_NAME}.json`)
-      const nativeHostManifest = {
-        name: NATIVE_HOST_MANIFEST_NAME,
-        description: 'Quizlab Reader native messaging host (HTTP bridge)',
-        path: toForwardSlashPath(process.execPath),
-        type: 'stdio',
-        allowed_origins: expectedExtensionOrigin ? [`${expectedExtensionOrigin}/`] : []
-      }
-      await fs.writeFile(
-        nativeHostManifestPath,
-        JSON.stringify(nativeHostManifest, null, 2),
-        'utf-8'
-      )
-      await this.registerNativeHostInRegistry(nativeHostManifestPath)
-
-      // The manifest is on disk and the native host is registered with the OS
-      // registry by this point, so the install has already succeeded. The
-      // clipboard copy is a convenience; failing the whole install over it would
-      // undo a completed install, which the old synchronous write could not do.
-      // Keep this catch: it is what makes a clipboard failure non-fatal.
+      // The extension is on disk by this point, so the install has already
+      // succeeded. The clipboard copy is a convenience; failing the whole
+      // install over it would undo a completed install, which the old
+      // synchronous write could not do. Keep this catch: it is what makes a
+      // clipboard failure non-fatal.
       try {
         await writeClipboardText(destPath)
       } catch (error) {
         Logger.warn('[NativeMessaging] Failed to copy install path to clipboard:', error)
       }
 
-      return { success: true, installedPath: destPath }
+      return { success: true, installedPath: destPath, secret: sharedSecret }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
       return { success: false, error: msg }
@@ -142,10 +151,11 @@ export class NativeMessagingInstaller {
       const bridgeInfoPath = this.resolveBridgeInfoPath()
       await fs.rm(bridgeInfoPath, { force: true })
 
+      const secretPath = this.resolveSharedSecretPath()
+      await fs.rm(secretPath, { force: true })
+
       const extPath = this.resolveInstalledExtensionPath()
       await fs.rm(extPath, { recursive: true, force: true })
-
-      await this.unregisterNativeHostFromRegistry()
 
       return { success: true }
     } catch (error) {

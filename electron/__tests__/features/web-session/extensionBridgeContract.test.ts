@@ -238,6 +238,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const fakeChrome = {
     runtime: {
       id: EXTENSION_ID,
+      getURL: (path: string) => `chrome-extension://${EXTENSION_ID}/${path}`,
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} }
     },
@@ -324,6 +325,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
     fetchCalls.push({ url: target, method, headers, body: String(init?.body ?? '') })
 
     const port = Number(new URL(target).port)
+    if (target.startsWith('chrome-extension://')) {
+      return jsonResponse({ secret: BRIDGE_SECRET })
+    }
     if (bridgePortOption !== null && port !== bridgePortOption) {
       // Nothing listens on that port: the connection is refused.
       throw new Error(`connect ECONNREFUSED 127.0.0.1:${port}`)

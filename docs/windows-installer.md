@@ -66,44 +66,27 @@ QuizLab-Setup-<version>-x64.exe   (NSIS, x64, per-user)
   `%AppData%\Quizlab Reader` (settings, caches, bridge info) is preserved.
   User documents are never touched.
 
-## Chrome Native Messaging bridge
+## Chrome session bridge
 
-The Google-session bridge extension is registered via a single HKCU key:
+The bridge is a loopback HTTP server (`127.0.0.1:51999–52009`) plus an
+unpacked Chrome extension. It does **not** use Chrome Native Messaging:
 
-```
-HKCU\Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader
-```
+- No `NativeMessagingHosts` registry key is written by the installer or by
+  the app. Older installs that still carry the legacy
+  `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader` key
+  have it removed on uninstall.
+- Settings → session bridge → "install extension" copies the extension to
+  `%AppData%\Quizlab Reader\extensions\quizlab-session-extension` and writes
+  the shared secret into `bridge-secret.json` next to its manifest. The
+  service worker reads that file; the secret is never returned by the HTTP
+  health endpoint in a packaged build.
+- The extension is loaded unpacked from that folder in `chrome://extensions`.
 
-Two writers, one key (last writer wins):
-
-1. **Installer** (`installer/installer.nsh` → `customInstall`): writes the
-   manifest next to the installed app and points the key at it. The write is
-   guarded — if the manifest cannot be created, the registry key is left
-   alone instead of pointing Chrome at a missing file.
-2. **App runtime** (Settings → session bridge → `NativeMessagingInstaller`):
-   copies the extension to `%AppData%` and re-points the same key at a
-   UTF-8 manifest it generates with Node (also used to repair a broken
-   registration, e.g. non-ASCII install paths).
-
-**Uninstall** deletes the registry key (whichever side wrote it) plus the
-installer-owned manifest copy. The `%AppData%` bridge copy is intentionally
-kept (user-data preservation); it is inert without the key and is re-used
-by a later reinstall.
-
-The allowed origin (`chrome-extension://follalbajmbjmkejipfikekdiodbkggp/`)
-is derived from the extension key pinned in
-`extensions/quizlab-session-extension/manifest.json`
-(see `electron/features/native-messaging/nativeMessagingOrigin.ts`).
-If the extension key ever rotates, `installer/installer.nsh` must be
-updated with it.
-
-Known limitation: NSIS writes the manifest in the system ANSI codepage, so
-an install path with non-ASCII characters (e.g. a username like
-`Umut Üstün`) produces a manifest Chrome cannot parse as UTF-8. File
-extraction, shortcuts and the registry are fully Unicode-safe — only the
-out-of-box bridge manifest is affected, and Settings → session bridge →
-"install extension" rewrites it as proper UTF-8. Deliberately not worked
-around with PowerShell/encoding hacks: installer reliability first.
+The allowed HTTP origin
+(`chrome-extension://follalbajmbjmkejipfikekdiodbkggp`) is derived from the
+extension key pinned in `extensions/quizlab-session-extension/manifest.json`
+(see `electron/features/native-messaging/nativeMessagingOrigin.ts`). If the
+extension key rotates, the origin check follows the manifest automatically.
 
 ## Explorer right-click menu ("QuizLab ile Aç")
 
