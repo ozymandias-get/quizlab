@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+import { getAiServiceColor } from '@shared-core/constants/aiChatCatalog'
+
 import { type ComponentType, lazy, type LazyExoticComponent, type ReactNode, Suspense } from 'react'
 
 import type { IconProps } from './iconProps'
@@ -26,9 +28,14 @@ function getLazyForKey(modelKey: string) {
 export function AiIcon({ modelKey, ...iconProps }: { modelKey: string } & IconProps) {
   const LazyComp = getLazyForKey(modelKey)
   if (!LazyComp) return null
+  // Monochrome brand SVGs use currentColor; tint them with the service accent so
+  // every catalogue icon carries its brand colour instead of inheriting gray.
+  const color = getAiServiceColor(modelKey)
   return (
     <Suspense fallback={null}>
-      <LazyComp {...iconProps} />
+      <span style={color ? { color, display: 'inline-flex' } : undefined}>
+        <LazyComp {...iconProps} />
+      </span>
     </Suspense>
   )
 }

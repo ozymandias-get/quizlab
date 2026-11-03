@@ -1,7 +1,7 @@
 export default {
   id: 'qwen',
   name: 'Qwen',
-  url: 'https://chat.qwenlm.ai',
+  url: 'https://chat.qwen.ai',
   partition: 'persist:ai_qwen',
   icon: 'qwen',
   color: '#6366f1',

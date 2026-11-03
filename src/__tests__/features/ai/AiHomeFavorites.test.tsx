@@ -19,11 +19,20 @@ vi.mock('@app/providers/ai-context', () => ({
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 
+function openSection(name: RegExp) {
+  const toggle = screen.getByRole('button', { name })
+  if (toggle.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(toggle)
+  }
+  return within(toggle.closest('section')!)
+}
+
+function modelsSection() {
+  return openSection(/ai_home.models_title/)
+}
+
 function favoritesSection() {
-  const section = screen
-    .getByRole('button', { name: /ai_home.favorites_title/ })
-    .closest('section')!
-  return within(section)
+  return openSection(/ai_home.favorites_title/)
 }
 
 describe('AI Home favorites', () => {
@@ -34,11 +43,16 @@ describe('AI Home favorites', () => {
     mockSetEnabled.mockClear()
   })
 
+  it('starts with every catalogue section collapsed to keep the home page compact', () => {
+    render(<AiHomePage onOpenModel={vi.fn()} />)
+    for (const name of [/ai_home.favorites_title/, /ai_home.models_title/, /ai_home.sites_title/]) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+
   it('lists all 50 services even when only three are enabled, with API Chat kept as a separate card', () => {
     render(<AiHomePage onOpenModel={vi.fn()} />)
-    const section = within(
-      screen.getByRole('button', { name: /ai_home.models_title/ }).closest('section')!
-    )
+    const section = modelsSection()
     expect(section.getByText('50')).toBeInTheDocument()
     for (const platform of Object.values(WEB_AI_REGISTRY).filter((p) => p.url && !p.isSite)) {
       expect(
@@ -52,9 +66,7 @@ describe('AI Home favorites', () => {
   it('enables only the selected inactive model when opening it from the catalogue', () => {
     const open = vi.fn()
     render(<AiHomePage onOpenModel={open} />)
-    const section = within(
-      screen.getByRole('button', { name: /ai_home.models_title/ }).closest('section')!
-    )
+    const section = modelsSection()
     fireEvent.click(section.getByRole('button', { name: 'Grok' }))
     expect(mockSetEnabled).toHaveBeenCalledExactlyOnceWith(['chatgpt', 'claude', 'poe', 'grok'])
     expect(open).toHaveBeenCalledExactlyOnceWith('grok')
@@ -63,9 +75,7 @@ describe('AI Home favorites', () => {
   it('does not enable disabled services while reordering the full catalogue', () => {
     mockEnabled = ['chatgpt', 'claude', 'api-chat', 'youtube']
     render(<AiHomePage onOpenModel={vi.fn()} />)
-    const section = within(
-      screen.getByRole('button', { name: /ai_home.models_title/ }).closest('section')!
-    )
+    const section = modelsSection()
     fireEvent.dragStart(section.getByRole('button', { name: 'Poe' }).closest('[draggable]')!)
     const chatgpt = section.getByRole('button', { name: 'ChatGPT' }).closest('[draggable]')!
     fireEvent.dragOver(chatgpt, { dataTransfer: { dropEffect: 'move' } })

@@ -6,6 +6,7 @@ import { APP_CONFIG } from '../../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
 import { getActivityCategory } from '../cacheRegistry.js'
+import { Logger } from '../logger.js'
 import { getPartitionDirectory, getPartitionDirectoryName } from '../partitionPaths.js'
 
 const SAFE_CACHE_DIRS = APP_CONFIG.CLEANUP.SAFE_CACHE_DIRS
@@ -55,6 +56,11 @@ function getPartitionCacheRoot(userDataPath: string, partition: string): string 
   return getPartitionDirectory(userDataPath, partition)
 }
 
+/** Windows keeps cache files mapped while Chromium is running, so a locked
+ *  directory surfaces as EBUSY/EACCES/EPERM/ENOTEMPTY and may clear after the
+ *  handle is released. A transient error is worth another attempt. */
+const RETRYABLE_FS_CODES = new Set(['EBUSY', 'EACCES', 'EPERM', 'ENOTEMPTY', 'ETXTBSY'])
+
 async function fsRetry<T>(
   fn: () => Promise<T>,
   options?: { maxRetries?: number; baseDelayMs?: number }
@@ -68,7 +74,7 @@ async function fsRetry<T>(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
       const code = (err as NodeJS.ErrnoException)?.code
-      if (code !== 'EBUSY' && code !== 'EACCES') throw lastError
+      if (!code || !RETRYABLE_FS_CODES.has(code)) throw lastError
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, baseDelayMs * Math.pow(2, attempt)))
       }
@@ -91,15 +97,30 @@ export async function clearSafeCacheDirectories(
     }
   }
 
-  const results = await Promise.allSettled(
-    [...roots].flatMap((rootPath) =>
-      SAFE_CACHE_DIRS.map((dirName) =>
-        fsRetry(() => fs.rm(path.join(rootPath, dirName), { recursive: true, force: true }))
-      )
-    )
+  const targets = [...roots].flatMap((rootPath) =>
+    SAFE_CACHE_DIRS.map((dirName) => path.join(rootPath, dirName))
   )
-  if (results.some((result) => result.status === 'rejected')) {
-    throw new Error('Some cache directories could not be cleared')
+  const failed = (
+    await Promise.all(
+      targets.map(async (target) => {
+        try {
+          await fsRetry(() => fs.rm(target, { recursive: true, force: true }))
+          return null
+        } catch (error) {
+          return { target, error }
+        }
+      })
+    )
+  ).filter((failure): failure is { target: string; error: unknown } => failure !== null)
+
+  // Cache clearing is best-effort: a directory that is still mapped by the
+  // running Chromium process is normal and must not turn the whole action into
+  // a failure. Keep the remaining files and report which paths were skipped.
+  if (failed.length > 0) {
+    Logger.warn(
+      `[Cache] ${failed.length} cache director${failed.length === 1 ? 'y' : 'ies'} could not be removed because they are still in use:`,
+      failed.map((failure) => failure.target)
+    )
   }
 }
 

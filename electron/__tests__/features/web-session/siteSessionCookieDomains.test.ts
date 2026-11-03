@@ -57,7 +57,7 @@ const EXPECTED_COOKIE_DOMAINS: Record<string, readonly string[]> = {
   ernie: ['.wenxin.baidu.com', '.yiyan.baidu.com'],
   spark: ['.xinghuo.xfyun.cn'],
   stepfun: ['.stepfun.com'],
-  longcat: ['.longcat.ai'],
+  longcat: ['.longcat.ai', '.longcat.chat'],
   allenai: ['.allenai.org'],
   monica: ['.monica.im'],
   merlin: ['.getmerlin.in'],

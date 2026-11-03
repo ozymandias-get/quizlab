@@ -38,7 +38,7 @@ export const WEB_AI_REGISTRY: Record<string, AiPlatform> = {
     id: 'qwen',
     name: 'Qwen',
     displayName: 'Qwen',
-    url: 'https://chat.qwenlm.ai',
+    url: 'https://chat.qwen.ai',
     color: '#6366f1',
     submitMode: 'click'
   },

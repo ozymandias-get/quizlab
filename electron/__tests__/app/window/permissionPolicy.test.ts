@@ -284,7 +284,7 @@ describe('window/permissionPolicy', () => {
   describe('providers without ambient support', () => {
     it.each([
       ['persist:ai_deepseek', 'https://chat.deepseek.com/'],
-      ['persist:ai_qwen', 'https://chat.qwenlm.ai/'],
+      ['persist:ai_qwen', 'https://chat.qwen.ai/'],
       ['persist:ai_kimi', 'https://kimi.com/'],
       ['persist:ai_perplexity', 'https://perplexity.ai/'],
       ['persist:ai_mistral', 'https://chat.mistral.ai/'],

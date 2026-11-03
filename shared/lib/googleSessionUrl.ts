@@ -31,6 +31,7 @@ export function googleSessionUrl(rawUrl: string, slot: number): string {
     case 'www.youtube.com':
     case 'youtube.com':
     case 'notebooklm.google.com':
+    case 'notebook.google.com':
       break
     default:
       return rawUrl
