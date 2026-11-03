@@ -72,6 +72,16 @@ describe('ToastItem', () => {
     expect(mockOnRemove).toHaveBeenCalledWith('123')
   })
 
+  it('keeps a toast with duration 0 open until it is dismissed', () => {
+    render(<ToastItem toast={{ ...mockToast, duration: 0 }} onRemove={mockOnRemove} />)
+
+    act(() => {
+      vi.advanceTimersByTime(60000)
+    })
+
+    expect(mockOnRemove).not.toHaveBeenCalled()
+  })
+
   it('should pause timer on mouse enter', () => {
     render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
 

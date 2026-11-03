@@ -10,6 +10,7 @@ interface SettingsModalSidebarProps {
   sidebarScrollRef: RefObject<HTMLDivElement | null>
   sidebarSections: SettingsSidebarSection[]
   sidebarWidth: number
+  isCompact: boolean
 }
 
 const SettingsModalSidebar = memo(function SettingsModalSidebar({
@@ -17,7 +18,8 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   setActiveTab,
   sidebarScrollRef,
   sidebarSections,
-  sidebarWidth
+  sidebarWidth,
+  isCompact
 }: SettingsModalSidebarProps) {
   const { t } = useTranslation()
 
@@ -26,15 +28,28 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
       className="border-border/45 bg-muted/10 relative flex min-w-0 shrink-0 flex-col border-r"
       style={{ width: sidebarWidth }}
     >
-      <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4">
+      <div
+        className={`relative flex h-full min-h-0 flex-col ${isCompact ? 'p-1.5' : 'p-3 sm:p-4'}`}
+      >
         <div className="relative min-h-0 flex-1">
-          <div ref={sidebarScrollRef} className="custom-scrollbar h-full overflow-y-auto pr-1">
-            <nav aria-label={t('settings_title')} className="flex flex-col gap-5">
+          <div
+            ref={sidebarScrollRef}
+            className={`custom-scrollbar h-full overflow-y-auto ${isCompact ? '' : 'pr-1'}`}
+          >
+            <nav
+              aria-label={t('settings_title')}
+              className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-5'}`}
+            >
               {sidebarSections.map((section) => (
-                <div key={section.id} className="flex flex-col gap-1.5">
-                  <div className="text-muted-foreground text-ql-10 tracking-ql-label px-2 font-semibold uppercase select-none">
-                    {section.label}
-                  </div>
+                <div
+                  key={section.id}
+                  className={`flex flex-col ${isCompact ? 'gap-1' : 'gap-1.5'}`}
+                >
+                  {!isCompact && (
+                    <div className="text-muted-foreground text-ql-10 tracking-ql-label px-2 font-semibold uppercase select-none">
+                      {section.label}
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-0.5">
                     {section.tabs.map((tab) => (
@@ -44,6 +59,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                         icon={tab.icon}
                         isActive={activeTab === tab.id}
                         onClick={() => setActiveTab(tab.id)}
+                        compact={isCompact}
                       />
                     ))}
                   </div>

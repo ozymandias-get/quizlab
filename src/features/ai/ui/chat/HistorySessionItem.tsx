@@ -68,10 +68,13 @@ const HistorySessionItem = memo(function HistorySessionItem({
   const editOutcomeRef = useRef<'idle' | 'confirmed' | 'cancelled'>('idle')
 
   useEffect(() => {
-    if (isEditing) {
-      editOutcomeRef.current = 'idle'
-      setTimeout(() => editInputRef.current?.focus(), FOCUS_DEFER_MS)
-    }
+    if (!isEditing) return
+
+    editOutcomeRef.current = 'idle'
+    const focusTimer = setTimeout(() => editInputRef.current?.focus(), FOCUS_DEFER_MS)
+    // A quick cancel/close must not leave a focus call queued for a row that
+    // has already left edit mode (or the DOM entirely).
+    return () => clearTimeout(focusTimer)
   }, [isEditing])
 
   const confirmEdit = useCallback(async () => {
@@ -201,7 +204,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
       {/* Action buttons are siblings of the selection button, never nested
           inside it: screen readers see one button to open the chat and separate
           buttons for rename/delete. */}
-      <div className="motion-normal absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100">
+      <div className="motion-normal absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
         {!isEditing && (
           <WithTooltip label={t('api_chat_rename_tooltip')}>
             <IconButton

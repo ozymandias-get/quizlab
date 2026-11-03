@@ -37,4 +37,18 @@ describe('useResizableColumns', () => {
 
     expect(result.current.sidebarWidth).toBe(380)
   })
+
+  it('collapses to an icon rail when the content minimum no longer fits', () => {
+    const { result } = renderHook(() => useResizableColumns())
+
+    setContainerWidth(result, 400)
+
+    act(() => {
+      result.current.handleSidebarResize(1000)
+    })
+
+    // A 190px sidebar would leave less than the 340px the form needs.
+    expect(result.current.isCompact).toBe(true)
+    expect(result.current.sidebarWidth).toBe(56)
+  })
 })

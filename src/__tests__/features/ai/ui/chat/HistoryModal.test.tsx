@@ -272,4 +272,27 @@ describe('HistoryModal', () => {
     expect(renderedRows.length).toBeGreaterThan(0)
     expect(renderedRows.length).toBeLessThan(60)
   })
+
+  it('keeps the row being edited mounted after scrolling it out of the virtual window', () => {
+    mockSessions = Array.from({ length: 1000 }, (_, index) => ({
+      id: `s${index}`,
+      title: `Session ${index}`,
+      messages: [],
+      createdAt: index
+    }))
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s0' }))
+    expect(screen.getByLabelText('edit-s0')).toBeInTheDocument()
+
+    const list = screen.getByText('Session 0').closest('.custom-scrollbar')
+    expect(list).not.toBeNull()
+
+    fireEvent.scroll(list!, { target: { scrollTop: 5000 } })
+
+    // The row is outside the visible slice but must not unmount: its draft,
+    // validation error and focused input live there.
+    expect(screen.getByLabelText('edit-s0')).toBeInTheDocument()
+  })
 })

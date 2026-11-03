@@ -1,4 +1,5 @@
 import type { Toast } from '@app/providers'
+import { TOAST_DURATION } from '@shared/constants/appConstants'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 import { Button, IconButton } from '@shared/ui/components/primitives'
@@ -66,7 +67,12 @@ const ToastItem = memo(
     const [isHovered, setIsHovered] = useState(false)
     const [isFocusWithin, setIsFocusWithin] = useState(false)
     const [animationKey, setAnimationKey] = useState(0)
-    const remainingTimeRef = useRef(toast.duration || 5000)
+    // `??` is deliberate: duration 0 means "stay until dismissed", while an
+    // omitted duration falls back to the standard toast lifetime. `||` would
+    // silently turn the former into the latter.
+    const configuredDuration = toast.duration ?? TOAST_DURATION.DEFAULT
+    const isPersistent = configuredDuration <= 0
+    const remainingTimeRef = useRef(configuredDuration)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const timerStartRef = useRef<number>(0)
 
@@ -84,12 +90,13 @@ const ToastItem = memo(
 
     const startTimer = useCallback(() => {
       clearTimer()
+      if (isPersistent) return
       timerStartRef.current = Date.now()
       timerRef.current = setTimeout(() => {
         timerRef.current = null
         onRemove(toastId)
       }, remainingTimeRef.current)
-    }, [clearTimer, toastId, onRemove])
+    }, [clearTimer, isPersistent, toastId, onRemove])
 
     const pauseTimer = useCallback(() => {
       // Cleanup runs before the paused effect, so the remaining time has to be
@@ -231,19 +238,21 @@ const ToastItem = memo(
           </IconButton>
         </div>
 
-        <div className="bg-border/40 absolute right-0 bottom-0 left-0 h-[2px]">
-          <div
-            key={animationKey}
-            className={cn('h-full', PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info)}
-            style={{
-              width: '100%',
-              transformOrigin: 'left',
-              animation: isPaused
-                ? 'none'
-                : `toast-progress-shrink ${remainingTimeRef.current}ms linear forwards`
-            }}
-          />
-        </div>
+        {!isPersistent && (
+          <div className="bg-border/40 absolute right-0 bottom-0 left-0 h-[2px]">
+            <div
+              key={animationKey}
+              className={cn('h-full', PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info)}
+              style={{
+                width: '100%',
+                transformOrigin: 'left',
+                animation: isPaused
+                  ? 'none'
+                  : `toast-progress-shrink ${remainingTimeRef.current}ms linear forwards`
+              }}
+            />
+          </div>
+        )}
       </motion.div>
     )
   })

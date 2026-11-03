@@ -11,7 +11,7 @@ import { useConfirmDialog, useDebouncedValue, useDialogBehavior } from '@shared/
 import { useToastActions } from '@shared/stores/toastStore'
 import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives'
 
-import { CircleOff, Clock, Search, Trash2, X } from 'lucide-react'
+import { CircleOff, Clock, Loader2, Search, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -59,11 +59,13 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
+  const [editingRowHeight, setEditingRowHeight] = useState(LIST_ROW_HEIGHT)
 
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const editingRowObserverRef = useRef<ResizeObserver | null>(null)
 
   const { confirm, props: confirmProps } = useConfirmDialog()
 
@@ -77,7 +79,33 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     setModalSearch('')
     setEditingId(null)
     setEditTitle('')
+    setEditingRowHeight(LIST_ROW_HEIGHT)
   }, [isOpen])
+
+  // The editor is the only row whose height can change (the inline validation
+  // error and the metadata block can wrap). Measure it instead of assuming the
+  // fixed stride, otherwise every row below it is positioned at the wrong
+  // offset while editing.
+  const measureEditingRow = useCallback((element: HTMLDivElement | null) => {
+    editingRowObserverRef.current?.disconnect()
+    editingRowObserverRef.current = null
+    if (!element) return
+
+    const measure = () => {
+      const height = element.getBoundingClientRect().height
+      if (height <= 0) return
+      setEditingRowHeight((previous) => (Math.abs(previous - height) < 0.5 ? previous : height))
+    }
+
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    editingRowObserverRef.current = observer
+  }, [])
+
+  useEffect(() => () => editingRowObserverRef.current?.disconnect(), [])
 
   // Debounce the search string so we don't re-run the filter on every
   // keystroke. The input updates instantly for typing; the actual filtering
@@ -138,21 +166,80 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
       .map((entry) => entry.session)
   }, [isOpen, sessions, searchIndex, debouncedSearch])
 
+  // If the active filter removes the row being edited, the editor has nowhere
+  // to live. Cancel explicitly instead of keeping a stale editing id around.
+  useEffect(() => {
+    if (!isOpen || !editingId) return
+    if (!filteredSessions.some((session) => session.id === editingId)) {
+      setEditingId(null)
+      setEditTitle('')
+    }
+  }, [editingId, filteredSessions, isOpen])
+
+  // Uniform rows keep the common case cheap; the single editing row uses its
+  // measured height. Prefix offsets let the virtual window and the spacers stay
+  // correct when that row grows or shrinks.
+  const rowLayout = useMemo(() => {
+    const total = filteredSessions.length
+    const offsets = new Array<number>(total + 1)
+    offsets[0] = 0
+
+    let editingIndex = -1
+    for (let index = 0; index < total; index += 1) {
+      const session = filteredSessions[index]
+      const height =
+        session.id === editingId ? Math.max(LIST_ROW_HEIGHT, editingRowHeight) : LIST_ROW_HEIGHT
+      offsets[index + 1] = offsets[index] + height + LIST_ROW_GAP
+      if (session.id === editingId) editingIndex = index
+    }
+
+    return { offsets, totalHeight: offsets[total] ?? 0, editingIndex }
+  }, [filteredSessions, editingId, editingRowHeight])
+
   const virtualRows = useMemo(() => {
     const total = filteredSessions.length
     if (total === 0) return { start: 0, end: 0, top: 0, bottom: 0 }
 
-    const stride = LIST_ROW_HEIGHT + LIST_ROW_GAP
+    const { offsets, totalHeight } = rowLayout
     const height = viewportHeight > 0 ? viewportHeight : LIST_FALLBACK_HEIGHT
-    const visibleCount = Math.ceil(height / stride) + LIST_OVERSCAN * 2
-    const rawStart = Math.max(0, Math.floor(scrollTop / stride) - LIST_OVERSCAN)
+
+    let firstVisible = 0
+    while (firstVisible < total && offsets[firstVisible + 1] <= scrollTop) {
+      firstVisible += 1
+    }
+
+    let lastVisible = firstVisible
+    while (lastVisible < total && offsets[lastVisible] < scrollTop + height) {
+      lastVisible += 1
+    }
+
     // A shrinking list (delete, external clear) must never leave every row
     // outside the window while the scroll offset is still catching up.
-    const start = Math.min(rawStart, total - 1)
-    const end = Math.min(total, start + visibleCount)
+    const start = Math.min(total - 1, Math.max(0, firstVisible - LIST_OVERSCAN))
+    const end = Math.min(total, Math.max(start + 1, lastVisible + LIST_OVERSCAN))
 
-    return { start, end, top: start * stride, bottom: (total - end) * stride }
-  }, [filteredSessions.length, scrollTop, viewportHeight])
+    return {
+      start,
+      end,
+      top: offsets[start],
+      bottom: totalHeight - offsets[end]
+    }
+  }, [filteredSessions.length, rowLayout, scrollTop, viewportHeight])
+
+  // Keep the scroll state in sync after the list shrinks (e.g. deleting rows
+  // near the bottom). Without this the browser clamps scrollTop but our state
+  // still points past the new maximum until the next scroll event.
+  useEffect(() => {
+    if (!isOpen) return
+    const element = listRef.current
+    if (!element) return
+
+    const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
+    if (element.scrollTop > maxScrollTop) {
+      element.scrollTop = maxScrollTop
+      setScrollTop(maxScrollTop)
+    }
+  }, [filteredSessions.length, editingRowHeight, isOpen, viewportHeight])
 
   // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)
@@ -164,6 +251,9 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   tabIdRef.current = tabId
 
   const handleStartEdit = useCallback((sessionId: string, currentTitle: string) => {
+    // Start from the uniform height; the row's real height is measured during
+    // commit and replaces this estimate before the observer takes over.
+    setEditingRowHeight(LIST_ROW_HEIGHT)
     setEditingId(sessionId)
     setEditTitle(currentTitle)
   }, [])
@@ -258,6 +348,44 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     }
   }, [clearAllSessions, confirm, onClose, showError, t])
 
+  const renderSessionRow = (session: (typeof filteredSessions)[number], absoluteTop?: number) => {
+    const isEditing = session.id === editingId
+    return (
+      <div
+        key={session.id}
+        ref={isEditing ? measureEditingRow : undefined}
+        className={absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'}
+        style={
+          absoluteTop === undefined
+            ? isEditing
+              ? { minHeight: LIST_ROW_HEIGHT }
+              : { height: LIST_ROW_HEIGHT }
+            : { top: absoluteTop }
+        }
+      >
+        <HistorySessionItem
+          session={session}
+          isActive={session.id === activeSessionId}
+          isDeleting={deletingIds.has(session.id)}
+          tabId={tabId}
+          editingId={editingId}
+          editTitle={session.id === editingId ? editTitle : ''}
+          isSavingEdit={renamingId === session.id}
+          onSelect={handleSelect}
+          onDelete={handleDelete}
+          onStartEdit={handleStartEdit}
+          onEditTitleChange={setEditTitle}
+          onCancelEdit={handleCancelEdit}
+          onConfirmEdit={handleConfirmEdit}
+        />
+      </div>
+    )
+  }
+
+  const isSearchPending = modalSearch !== debouncedSearch
+  const editingSession =
+    rowLayout.editingIndex >= 0 ? filteredSessions[rowLayout.editingIndex] : undefined
+
   if (!isOpen) return null
 
   return (
@@ -351,46 +479,53 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           <div
             ref={listRef}
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+            aria-busy={isSearchPending || undefined}
             className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4"
           >
             {filteredSessions.length > 0 ? (
-              <div>
+              <div className="relative">
                 {virtualRows.top > 0 && (
                   <div aria-hidden="true" style={{ height: virtualRows.top }} />
                 )}
-                {filteredSessions.slice(virtualRows.start, virtualRows.end).map((session) => (
-                  <div
-                    key={session.id}
-                    className="mb-2"
-                    style={session.id === editingId ? undefined : { height: LIST_ROW_HEIGHT }}
-                  >
-                    <HistorySessionItem
-                      session={session}
-                      isActive={session.id === activeSessionId}
-                      isDeleting={deletingIds.has(session.id)}
-                      tabId={tabId}
-                      editingId={editingId}
-                      editTitle={session.id === editingId ? editTitle : ''}
-                      isSavingEdit={renamingId === session.id}
-                      onSelect={handleSelect}
-                      onDelete={handleDelete}
-                      onStartEdit={handleStartEdit}
-                      onEditTitleChange={setEditTitle}
-                      onCancelEdit={handleCancelEdit}
-                      onConfirmEdit={handleConfirmEdit}
+                {filteredSessions.slice(virtualRows.start, virtualRows.end).map((session) =>
+                  session.id === editingId ? (
+                    // Reserve the editor's layout slot here; the real row is
+                    // rendered once below so scrolling cannot remount it.
+                    <div
+                      key={`editing-slot-${session.id}`}
+                      aria-hidden="true"
+                      style={{ height: Math.max(LIST_ROW_HEIGHT, editingRowHeight) + LIST_ROW_GAP }}
                     />
-                  </div>
-                ))}
+                  ) : (
+                    renderSessionRow(session)
+                  )
+                )}
                 {virtualRows.bottom > 0 && (
                   <div aria-hidden="true" style={{ height: virtualRows.bottom }} />
                 )}
+                {/* The row being edited always lives outside the virtual slice.
+                    It stays mounted while scrolling (keeping draft, focus and
+                    validation state) and is positioned over its reserved slot. */}
+                {editingSession &&
+                  renderSessionRow(editingSession, rowLayout.offsets[rowLayout.editingIndex])}
+              </div>
+            ) : isSearchPending ? (
+              <div
+                role="status"
+                aria-live="polite"
+                className="text-muted-foreground flex h-full items-center justify-center gap-2"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-ql-13">{t('api_chat_searching')}</span>
               </div>
             ) : (
               <EmptyState
                 icon={CircleOff}
                 title={t('api_chat_no_results_title')}
                 description={
-                  modalSearch ? t('api_chat_no_search_results') : t('api_chat_no_history_yet')
+                  debouncedSearch.trim()
+                    ? t('api_chat_no_search_results')
+                    : t('api_chat_no_history_yet')
                 }
                 className="h-full"
               />

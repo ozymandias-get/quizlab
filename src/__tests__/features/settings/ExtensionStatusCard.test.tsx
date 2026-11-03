@@ -26,4 +26,19 @@ describe('ExtensionStatusCard', () => {
     expect(getByText('ws_extension_status_error')).toBeInTheDocument()
     expect(container.querySelector('.bg-destructive')).toBeInTheDocument()
   })
+
+  it('announces connection status changes through a polite live region', () => {
+    const { getByRole } = render(
+      <ExtensionStatusCard
+        t={(key) => key}
+        onInstallExtension={vi.fn()}
+        onRemoveExtension={vi.fn()}
+      />
+    )
+
+    const status = getByRole('status')
+    expect(status).toHaveTextContent('ws_extension_status_error')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveAttribute('aria-atomic', 'true')
+  })
 })

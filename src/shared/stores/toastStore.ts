@@ -11,6 +11,7 @@ export interface Toast {
   title?: string
   type: NotificationType
   params?: Record<string, string>
+  /** Auto-dismiss delay in milliseconds. 0 keeps the toast open until dismissed. */
   duration?: number
   actionLabel?: string
   onAction?: () => void

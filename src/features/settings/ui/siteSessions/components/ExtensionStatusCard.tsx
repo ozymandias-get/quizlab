@@ -78,7 +78,15 @@ function ExtensionStatusCard({
             aria-hidden="true"
             className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`}
           />
-          <span className="text-ql-12 text-muted-foreground min-w-0">
+          {/* The text only changes when the status actually changes, so a
+              polite live region announces connect/disconnect transitions
+              without re-reading unchanged polling results. */}
+          <span
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-ql-12 text-muted-foreground min-w-0"
+          >
             {t(statusKey(extensionInfo ?? null))}
           </span>
         </div>

@@ -1,6 +1,6 @@
 import ExtensionWizardPanel from '@features/settings/ui/siteSessions/components/ExtensionWizardPanel'
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({
@@ -73,6 +73,40 @@ describe('ExtensionWizardPanel', () => {
     await waitFor(() =>
       expect(screen.queryByText('ws_extension_wizard_error_title')).not.toBeInTheDocument()
     )
+  })
+
+  it('starts only one retry when the button receives two clicks in one tick', async () => {
+    let resolveRetry: (value: { success: boolean } | null) => void = () => undefined
+    const onInstall = vi
+      .fn<() => Promise<{ success: boolean; error?: string } | null>>()
+      .mockResolvedValueOnce({ success: false, error: 'install_failed' })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRetry = resolve
+          })
+      )
+
+    renderWizard(onInstall)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_next_btn' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' }))
+
+    const retry = await screen.findByRole('button', {
+      name: 'ws_extension_wizard_retry_btn'
+    })
+
+    act(() => {
+      retry.click()
+      retry.click()
+    })
+
+    expect(onInstall).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      resolveRetry({ success: true })
+    })
   })
 
   it('explains why the wizard cannot be dismissed while the operation runs', async () => {

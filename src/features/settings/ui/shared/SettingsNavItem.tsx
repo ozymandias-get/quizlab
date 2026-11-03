@@ -6,13 +6,16 @@ interface SettingsNavItemProps {
   icon: React.ElementType
   isActive: boolean
   onClick: () => void
+  /** Icon-only rail used when the settings window is too narrow. */
+  compact?: boolean
 }
 
 const SettingsNavItem = memo(function SettingsNavItem({
   label,
   icon: Icon,
   isActive,
-  onClick
+  onClick,
+  compact = false
 }: SettingsNavItemProps) {
   const prefersReducedMotion = useReducedMotion()
 
@@ -22,7 +25,9 @@ const SettingsNavItem = memo(function SettingsNavItem({
       aria-current={isActive ? 'page' : undefined}
       onClick={onClick}
       title={label}
-      className={`group focus-visible:ring-ring/40 motion-normal relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
+      className={`group focus-visible:ring-ring/40 motion-normal relative flex w-full items-center rounded-lg py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
+        compact ? 'justify-center px-0' : 'gap-2.5 px-3'
+      } ${
         isActive
           ? 'bg-accent/40 text-foreground font-semibold'
           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
@@ -46,9 +51,13 @@ const SettingsNavItem = memo(function SettingsNavItem({
         />
       </div>
       <span
-        className={`motion-normal tracking-ql-label text-ql-12 line-clamp-2 min-w-0 font-medium [overflow-wrap:anywhere] break-words transition-colors ${
-          isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
-        }`}
+        className={
+          compact
+            ? 'sr-only'
+            : `motion-normal tracking-ql-label text-ql-12 line-clamp-2 min-w-0 font-medium [overflow-wrap:anywhere] break-words transition-colors ${
+                isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+              }`
+        }
       >
         {label}
       </span>

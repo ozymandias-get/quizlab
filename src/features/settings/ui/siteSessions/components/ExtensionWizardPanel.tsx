@@ -7,7 +7,7 @@ import { reportSuppressedError } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, useCallback, useEffect, useId, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
@@ -56,6 +56,10 @@ function ExtensionWizardPanel({
 
   const pathCopy = useClipboard()
   const linkCopy = useClipboard()
+  // React state updates are async, so two events dispatched in the same tick
+  // would both observe `loading === false`. This ref is the synchronous lock
+  // that actually serialises install/remove operations.
+  const actionLockRef = useRef(false)
 
   const isVisible = open
   useEffect(() => {
@@ -74,6 +78,8 @@ function ExtensionWizardPanel({
 
   const handleNext = useCallback(() => setStep(1), [])
   const handleInstallAction = useCallback(async () => {
+    if (actionLockRef.current) return
+    actionLockRef.current = true
     setStep(2)
     setLoading(true)
     try {
@@ -88,12 +94,15 @@ function ExtensionWizardPanel({
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
+      actionLockRef.current = false
       setLoading(false)
       setStep(3)
     }
   }, [onInstall, t])
 
   const handleRemoveAction = useCallback(async () => {
+    if (actionLockRef.current) return
+    actionLockRef.current = true
     setStep(1)
     setLoading(true)
     try {
@@ -104,6 +113,7 @@ function ExtensionWizardPanel({
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
+      actionLockRef.current = false
       setLoading(false)
       setStep(2)
     }
@@ -121,7 +131,7 @@ function ExtensionWizardPanel({
    * that lands before React re-renders the button away.
    */
   const handleRetry = useCallback(() => {
-    if (loading) return
+    if (loading || actionLockRef.current) return
     setError(null)
     setSuccess(false)
     if (mode === 'install') void handleInstallAction()

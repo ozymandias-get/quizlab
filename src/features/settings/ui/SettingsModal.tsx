@@ -37,7 +37,7 @@ const SettingsModal = memo(function SettingsModal({
 
   useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef: closeButtonRef })
 
-  const { sidebarWidth, handleSidebarResize, containerRef } = useResizableColumns()
+  const { sidebarWidth, handleSidebarResize, containerRef, isCompact } = useResizableColumns()
 
   if (!isOpen) {
     return null
@@ -94,11 +94,14 @@ const SettingsModal = memo(function SettingsModal({
             sidebarScrollRef={sidebarScrollRef}
             sidebarSections={sidebarSections}
             sidebarWidth={sidebarWidth}
+            isCompact={isCompact}
           />
 
-          <div className="max-[768px]:hidden">
-            <ResizableHandle onResize={handleSidebarResize} />
-          </div>
+          {!isCompact && (
+            <div className="max-[768px]:hidden">
+              <ResizableHandle onResize={handleSidebarResize} />
+            </div>
+          )}
 
           <SettingsModalContent
             activeTab={activeTab}
