@@ -15,8 +15,8 @@ function getMessagesBySessionId(sessions: ChatSession[], sessionId: string): Api
 export function useMessagesQuery(sessionId: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.AI.MESSAGES(sessionId || ''),
-    queryFn: () => {
-      const sessions = loadSessions()
+    queryFn: async () => {
+      const sessions = await loadSessions()
       return getMessagesBySessionId(sessions, sessionId || '')
     },
     enabled: !!sessionId,
@@ -30,7 +30,8 @@ export function useDeleteMessageMutation() {
 
   return useMutation({
     mutationFn: async ({ sessionId, messageId }: { sessionId: string; messageId: string }) => {
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+      const prev =
+        queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? (await loadSessions())
       const updated = removeMessageFromSession(prev, sessionId, messageId)
       persistSessions(updated, {
         messageIdsBySession: { [sessionId]: [messageId] }

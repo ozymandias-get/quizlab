@@ -3,7 +3,7 @@ import type { ApiChatMessage, ApiConfig } from '@shared-core/types'
 import { getElectronApi } from '@shared/lib/electronApi'
 
 import {
-  loadSessionsFromStorage,
+  loadSessionsFromStorageAsync,
   scheduleSaveSessions,
   type SessionDeletionMarks
 } from '../store/apiChatPersistence'
@@ -16,8 +16,8 @@ import {
   isDefaultSessionTitle
 } from '../store/apiChatSessionUtils'
 
-export function loadSessions(): ChatSession[] {
-  return loadSessionsFromStorage()
+export async function loadSessions(): Promise<ChatSession[]> {
+  return loadSessionsFromStorageAsync()
 }
 
 export function persistSessions(sessions: ChatSession[], deletions?: SessionDeletionMarks): void {

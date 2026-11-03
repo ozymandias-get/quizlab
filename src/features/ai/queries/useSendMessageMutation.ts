@@ -87,7 +87,8 @@ export async function sendApiChatMessage(
 
     // Never treat an unhydrated cache as "empty": falling back to storage
     // prevents persisting a truncated session list (history loss).
-    const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+    const prev =
+      queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? (await loadSessions())
     const sessionsWithUser = addMessageToSession(prev, activeSessionId, userMsg)
     // Kalıcı yazma başlıyor: bu satırdan sonraki her hata, hedefte bir kullanıcı
     // mesajının **durduğu** anlamına gelir.

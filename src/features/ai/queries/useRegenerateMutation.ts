@@ -54,7 +54,7 @@ export function useRegenerateMutation() {
         }
 
         const prev =
-          queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+          queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? (await loadSessions())
         const sessionsWithTrunc = prev.map((s) =>
           s.id === activeSessionId
             ? { ...s, messages: truncatedMessages, updatedAt: Date.now() }

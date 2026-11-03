@@ -18,8 +18,8 @@ import { useChatUiStore } from '../store/chatUiStore'
  * query cache has never been hydrated — treating "not loaded yet" as
  * "empty" would persist a truncated list and destroy stored history.
  */
-function currentSessions(queryClient: QueryClient): ChatSession[] {
-  return queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+async function currentSessions(queryClient: QueryClient): Promise<ChatSession[]> {
+  return queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? (await loadSessions())
 }
 
 // Rebinds every tab whose activeSessionId no longer exists in the session
@@ -51,7 +51,7 @@ export function useCreateSessionMutation() {
   return useMutation({
     mutationFn: async () => {
       const newSession = createNewSession()
-      const prev = currentSessions(queryClient)
+      const prev = await currentSessions(queryClient)
       const updated = [newSession, ...prev]
       persistSessions(updated)
       return { session: newSession, allSessions: updated }
@@ -67,7 +67,7 @@ export function useDeleteSessionMutation() {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const prev = currentSessions(queryClient)
+      const prev = await currentSessions(queryClient)
       const updated = deleteSessionFromList(prev, sessionId)
       persistSessions(updated, { sessionIds: [sessionId] })
       return { deletedId: sessionId, allSessions: updated }
@@ -84,7 +84,7 @@ export function useRenameSessionMutation() {
 
   return useMutation({
     mutationFn: async ({ sessionId, title }: { sessionId: string; title: string }) => {
-      const prev = currentSessions(queryClient)
+      const prev = await currentSessions(queryClient)
       const updated = renameSession(prev, sessionId, title)
       persistSessions(updated)
       return updated
@@ -100,7 +100,7 @@ export function useClearSessionMutation() {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const prev = currentSessions(queryClient)
+      const prev = await currentSessions(queryClient)
       const removedMessageIds =
         prev.find((session) => session.id === sessionId)?.messages.map((message) => message.id) ??
         []
@@ -122,7 +122,7 @@ export function useClearAllSessionsMutation() {
 
   return useMutation({
     mutationFn: async () => {
-      const prev = currentSessions(queryClient)
+      const prev = await currentSessions(queryClient)
       const newSession = createNewSession()
       persistSessions([newSession], { sessionIds: prev.map((session) => session.id) })
       return [newSession]

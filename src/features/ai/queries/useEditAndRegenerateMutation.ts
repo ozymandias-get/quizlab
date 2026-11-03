@@ -44,7 +44,8 @@ export function useEditAndRegenerateMutation() {
       const activeSessionId = useChatUiStore.getState().activeSessionIdByTab[tabId]
       if (!activeSessionId) throw new Error('No active session')
 
-      const prev = queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? loadSessions()
+      const prev =
+        queryClient.getQueryData<ChatSession[]>(QUERY_KEYS.AI.SESSIONS) ?? (await loadSessions())
       const session = prev.find((s) => s.id === activeSessionId)
       if (!session) throw new Error('Session not found')
 

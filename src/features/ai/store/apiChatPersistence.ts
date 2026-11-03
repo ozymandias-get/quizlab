@@ -12,6 +12,12 @@ import { useToastStore } from '@shared/stores/toastStore'
 
 import i18next from 'i18next'
 
+import {
+  notifyIndexedDbSessionsChanged,
+  readSessionsFromIndexedDb,
+  subscribeToIndexedDbSessionChanges,
+  writeSessionsToIndexedDb
+} from './apiChatIndexedDb'
 import type { ChatSession } from './apiChatSessionUtils'
 
 export const LOCAL_STORAGE_KEY = 'quizlab_api_chat_sessions_v2'
@@ -45,6 +51,10 @@ function isChatSession(value: unknown): value is ChatSession {
 let lastRawData: string | null = null
 let lastParsedSessions: ChatSession[] = []
 let isInternalWrite = false
+/** Which renderer tab this module lives in, for BroadcastChannel filtering. */
+const persistenceTabId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+/** Whether the localStorage quota forced the sessions into IndexedDB. */
+let indexedDbAuthoritative = false
 
 export function loadSessionsFromStorage(): ChatSession[] {
   try {
@@ -70,6 +80,44 @@ export function loadSessionsFromStorage(): ChatSession[] {
     Logger.error('[ChatPersistence] Failed to load api chat sessions', e)
     return []
   }
+}
+
+/**
+ * Loads the sessions, falling back to the IndexedDB overflow store.
+ *
+ * A missing or unreadable localStorage value is the signal that the previous
+ * write did not fit (the quota path removes the key after a successful
+ * IndexedDB write). A valid local value — including `[]` — stays authoritative.
+ */
+export async function loadSessionsFromStorageAsync(): Promise<ChatSession[]> {
+  const local = loadSessionsFromStorage()
+  if (local.length > 0) {
+    indexedDbAuthoritative = false
+    return local
+  }
+
+  const raw = getStorageItem(LOCAL_STORAGE_KEY)
+  if (raw !== null) {
+    try {
+      const parsed: unknown = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        indexedDbAuthoritative = false
+        return local
+      }
+    } catch {
+      // Corrupt local value: the IndexedDB copy is the better answer.
+    }
+  }
+
+  const stored = await readSessionsFromIndexedDb()
+  if (stored === null) return local
+  const sessions = stored.filter(isChatSession)
+  if (sessions.length === 0) return local
+
+  indexedDbAuthoritative = true
+  lastRawData = null
+  lastParsedSessions = sessions
+  return [...sessions]
 }
 
 // Surface storage failures exactly once per failure streak so a full quota
@@ -104,8 +152,37 @@ function notifyStorageFailure(error: unknown): void {
   }
 }
 
-function mergeSessionsWithStored(
+/** Reads the locally stored sessions, refreshing the in-memory snapshot. */
+function readStoredSessions(): ChatSession[] {
+  try {
+    const raw = getStorageItem(LOCAL_STORAGE_KEY)
+    if (!raw) return []
+    if (raw === lastRawData) {
+      // Same reasoning as `loadSessionsFromStorage`: the cached array is
+      // shared state and is never handed out directly.
+      return [...lastParsedSessions]
+    }
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const stored = parsed.filter(isChatSession)
+    lastRawData = raw
+    lastParsedSessions = stored
+    return [...stored]
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Merges the incoming list with what another tab already wrote.
+ *
+ * Read-modify-write: another window/tab may have persisted sessions after this
+ * tab last loaded. A blind overwrite would silently drop those
+ * (last-write-wins data loss). Merge by session id instead.
+ */
+function mergeSessionLists(
   incomingSessions: ChatSession[],
+  storedSessions: ChatSession[],
   deletions?: SessionDeletionMarks
 ): ChatSession[] {
   const deletedSessionIds = new Set(deletions?.sessionIds ?? [])
@@ -125,34 +202,11 @@ function mergeSessionsWithStored(
   const incoming = incomingSessions
     .filter((session) => !deletedSessionIds.has(session.id))
     .map(withoutDeletedMessages)
-  // Read-modify-write: another window/tab may have persisted sessions after
-  // this tab last loaded. A blind overwrite would silently drop those
-  // (last-write-wins data loss). Merge by session id instead.
-  let stored: ChatSession[] = []
-  try {
-    const raw = getStorageItem(LOCAL_STORAGE_KEY)
-    if (raw) {
-      if (raw === lastRawData) {
-        // Same reasoning as `loadSessionsFromStorage`: the cached array is
-        // shared state and is never handed out directly.
-        stored = [...lastParsedSessions]
-      } else {
-        const parsed: unknown = JSON.parse(raw)
-        if (Array.isArray(parsed)) {
-          stored = parsed.filter(isChatSession)
-          lastRawData = raw
-          lastParsedSessions = stored
-        }
-      }
-    }
-  } catch {
-    stored = []
-  }
 
   // Drop what this mutation deleted before the union below can resurrect it.
   // `lastParsedSessions` keeps the raw storage snapshot; only the merge view is
   // filtered.
-  stored = stored
+  const stored = storedSessions
     .filter((session) => !deletedSessionIds.has(session.id))
     .map(withoutDeletedMessages)
   if (stored.length === 0) return incoming
@@ -192,8 +246,37 @@ function mergeSessionsWithStored(
   return merged.sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-function saveSessionsToStorage(sessions: ChatSession[], deletions?: SessionDeletionMarks): boolean {
-  const merged = mergeSessionsWithStored(sessions, deletions)
+function mergeSessionsWithStored(
+  incomingSessions: ChatSession[],
+  deletions?: SessionDeletionMarks
+): ChatSession[] {
+  return mergeSessionLists(incomingSessions, readStoredSessions(), deletions)
+}
+
+async function saveSessionsToStorage(
+  sessions: ChatSession[],
+  deletions?: SessionDeletionMarks
+): Promise<boolean> {
+  const merged = indexedDbAuthoritative
+    ? mergeSessionLists(sessions, [...lastParsedSessions], deletions)
+    : mergeSessionsWithStored(sessions, deletions)
+
+  // Once the quota forced the sessions into IndexedDB, keep writing there.
+  // Falling back to localStorage on every save would only throw again.
+  if (indexedDbAuthoritative) {
+    if (await writeSessionsToIndexedDb(merged)) {
+      lastRawData = null
+      lastParsedSessions = merged
+      storageFailureNotified = false
+      notifyIndexedDbSessionsChanged(persistenceTabId)
+      try {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
+      } catch {}
+      return true
+    }
+    indexedDbAuthoritative = false
+  }
+
   const serialized = JSON.stringify(merged)
   // writeStorageItem keeps the raw failure cause so quota errors can be
   // reported with a dedicated message (see notifyStorageFailure).
@@ -205,6 +288,27 @@ function saveSessionsToStorage(sessions: ChatSession[], deletions?: SessionDelet
     isInternalWrite = false
   }
   if (!result.ok) {
+    if (isQuotaExceededError(result.error) && (await writeSessionsToIndexedDb(merged))) {
+      // The transcript is safe in IndexedDB. Removing the localStorage key is
+      // what tells the next start that the local copy is gone and the
+      // overflow store has to be read.
+      indexedDbAuthoritative = true
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY)
+      } catch {}
+      lastRawData = null
+      lastParsedSessions = merged
+      storageFailureNotified = false
+      Logger.warn(
+        '[ChatPersistence] localStorage quota exceeded; api chat sessions moved to IndexedDB'
+      )
+      notifyIndexedDbSessionsChanged(persistenceTabId)
+      try {
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
+      } catch {}
+      return true
+    }
+
     Logger.error('[ChatPersistence] Failed to save api chat sessions', result.error ?? undefined)
     notifyStorageFailure(result.error)
     return false
@@ -241,6 +345,22 @@ if (typeof window !== 'undefined') {
     }
     window.addEventListener('storage', handleStorage)
     window.addEventListener(LOCAL_STORAGE_SYNC_EVENT, handleLocalSync as EventListener)
+  } catch {}
+
+  // IndexedDB writes do not produce a `storage` event. BroadcastChannel
+  // restores the cross-tab refresh once the quota fallback is active.
+  try {
+    subscribeToIndexedDbSessionChanges((source) => {
+      if (source === persistenceTabId) return
+      if (indexedDbAuthoritative) {
+        void readSessionsFromIndexedDb().then((stored) => {
+          if (stored === null) return
+          lastParsedSessions = stored.filter(isChatSession)
+          lastRawData = null
+        })
+      }
+      handleExternalSessionsChange()
+    })
   } catch {}
 }
 
@@ -294,17 +414,22 @@ export function scheduleSaveSessions(sessions: ChatSession[], deletions?: Sessio
       const pending = pendingSaveSessions
       pendingSaveSessions = null
       const deletions = takeSessionDeletionMarks()
-      if (!saveSessionsToStorage(pending, deletions)) {
-        // Keep the tombstones for the next write: a failed save must not let
-        // the old transcript win once storage has room again.
-        addSessionDeletionMarks(deletions)
-      }
+      // The non-IndexedDB path writes localStorage before its first await, so
+      // a test or a shutdown sees the value synchronously; the IndexedDB
+      // fallback simply finishes a moment later.
+      void saveSessionsToStorage(pending, deletions).then((saved) => {
+        if (!saved) {
+          // Keep the tombstones for the next write: a failed save must not
+          // let the old transcript win once storage has room again.
+          addSessionDeletionMarks(deletions)
+        }
+      })
     }
   }, SESSION_SAVE_DEBOUNCE_MS)
 }
 
 /**
- * Writes any debounced-but-not-yet-persisted session state synchronously.
+ * Writes any debounced-but-not-yet-persisted session state.
  * Called on `beforeunload` so a message sent right before the app quits is
  * not lost to the save debounce window.
  */
@@ -317,9 +442,9 @@ function flushPendingSessions(): void {
     const sessions = pendingSaveSessions
     pendingSaveSessions = null
     const deletions = takeSessionDeletionMarks()
-    if (!saveSessionsToStorage(sessions, deletions)) {
-      addSessionDeletionMarks(deletions)
-    }
+    void saveSessionsToStorage(sessions, deletions).then((saved) => {
+      if (!saved) addSessionDeletionMarks(deletions)
+    })
   }
 }
 
