@@ -437,12 +437,12 @@ export class SiteSessionService {
             { ignoreEnabled: true, expectedAccountId: selected.accountId }
           )
           if (!preparation.ok || !preparation.ready) {
+            let error = 'account_not_ready'
+            if (preparation.status === 'rollback_failed') error = 'session_restore_failed'
+            else if (preparation.status === 'metadata_failed') error = 'write_failed'
             return {
               success: false,
-              error:
-                preparation.status === 'rollback_failed'
-                  ? 'session_restore_failed'
-                  : 'account_not_ready',
+              error,
               detail:
                 'The selected Google account could not be prepared; the previous account is still active.'
             }

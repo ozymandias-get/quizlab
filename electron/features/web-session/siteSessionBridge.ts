@@ -18,6 +18,7 @@ import { type Session, session as electronSession } from 'electron'
 import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY } from '../ai/aiManager.js'
+import { getGoogleAccountEntries } from './googleAccounts.js'
 import { seedGoogleSessionSlotUnderLock } from './googleSessionSlot.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
@@ -391,21 +392,23 @@ async function handleSiteSessionPacket(
 
   const targetPartition = partitionForTargetSlot(target.partition, slot)
   const targetSession = resolveSession(targetPartition)
-  const { imported, failed } = await importExternalCookies(
+  const { imported, failed, rollbackFailed } = await importExternalCookies(
     targetSession,
     packet.cookies.map(toImporterCookie),
-    target.cookieDomains
+    target.cookieDomains,
+    { rollbackOnPartialFailure: true }
   )
 
   // An import that wrote nothing is a failure the user has to see: without a
   // reason code the row would show the outcome without saying what went wrong,
-  // and `lastError` would stay empty.
+  // and `lastError` would stay empty. A failed rollback gets its own code so
+  // the partition is treated as unverified rather than merely "not imported".
   const wroteSomething = imported > 0 && failed === 0
   await recordResult(
     config,
     target.siteId,
     wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : 'import_failed',
+    wroteSomething ? undefined : rollbackFailed ? 'session_restore_failed' : 'import_failed',
     slot
   )
 
@@ -418,15 +421,34 @@ async function handleSiteSessionPacket(
       const slotNum = Number(slotKey)
       if (slotNum > 1 && slotEntry?.importedAt) secondarySlots.add(slotNum)
     }
-    for (const secondarySlot of secondarySlots) {
-      await seedGoogleSessionSlotUnderLock(secondarySlot, {
-        config: {
-          read: () => config.read(),
-          recordResult: (...args) => config.recordResult(...args),
-          isEnabled: (id) => isStillEnabled(config, id)
-        },
-        resolveSession
-      })
+
+    // Automatic seeding uses the same identity rule as a manual selection:
+    // a secondary slot must be prepared for the account that currently sits
+    // at that position. Without discovery there is nothing to verify, so the
+    // slots stay as they are and the next list/selection refreshes them.
+    const importKey = googleState?.slots?.[1]?.importedAt ?? googleState?.importedAt ?? ''
+    const entries = await getGoogleAccountEntries(resolveSession(target.partition), importKey)
+    if (entries === null) {
+      Logger.warn(
+        '[SiteSessionBridge] Google accounts could not be discovered; secondary slots were not refreshed.'
+      )
+    } else {
+      for (const secondarySlot of secondarySlots) {
+        const expected = entries.find((entry) => entry.slot === secondarySlot)
+        if (!expected) continue
+        await seedGoogleSessionSlotUnderLock(
+          secondarySlot,
+          {
+            config: {
+              read: () => config.read(),
+              recordResult: (...args) => config.recordResult(...args),
+              isEnabled: (id) => isStillEnabled(config, id)
+            },
+            resolveSession
+          },
+          { expectedAccountId: expected.accountId }
+        )
+      }
     }
   }
 

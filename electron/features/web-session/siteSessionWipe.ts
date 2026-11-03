@@ -95,7 +95,9 @@ export async function wipeSiteSession(
     if (storageFailed) throw new Error('Site storage could not be cleared')
   } finally {
     try {
-      targetSession.flushStorageData()
-    } catch {}
+      await targetSession.flushStorageData()
+    } catch (error) {
+      Logger.warn('[SiteSessionWipe] Storage could not be flushed:', error)
+    }
   }
 }

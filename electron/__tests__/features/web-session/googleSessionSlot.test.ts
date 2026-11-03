@@ -291,10 +291,14 @@ describe('Google session initialization', () => {
     expect(env.resolveSession).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps an imported account usable when saving the import status fails', async () => {
+  it('reports a metadata write failure instead of claiming the slot is ready', async () => {
     const env = setup()
     env.config.recordResult.mockRejectedValueOnce(new Error('disk unavailable'))
-    await expect(ensureGoogleSessionSlot(2, env)).resolves.toMatchObject({ ok: true })
+    await expect(ensureGoogleSessionSlot(2, env)).resolves.toMatchObject({
+      ok: false,
+      ready: false,
+      status: 'metadata_failed'
+    })
     expect(env.destination.cookies.set).toHaveBeenCalled()
   })
 

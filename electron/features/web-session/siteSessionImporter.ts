@@ -92,6 +92,45 @@ function cookieKey(
   return `${cookieIdentity(host, name, path)}::${scope}`
 }
 
+/** The identity of a browser-reported cookie. */
+export function externalCookieKey(cookie: ExternalBrowserCookie): string {
+  const domain = normalizeCookieDomain(cookie.domain) ?? ''
+  return cookieKey(domainHost(domain), cookie.name, cookie.path, packetScope(domain))
+}
+
+/** The identity of a cookie already in the target session. */
+export function electronCookieKey(cookie: Electron.Cookie): string | null {
+  const host = domainHost(normalizeCookieDomain(cookie.domain) ?? '')
+  const scope = sessionScope(cookie)
+  if (!host || scope === 'unknown') return null
+  return cookieKey(host, cookie.name, cookie.path, scope)
+}
+
+/** Rewrites an Electron cookie as the browser-shaped cookie the importer reads. */
+function toExternalCookie(cookie: Electron.Cookie): ExternalBrowserCookie {
+  return {
+    name: cookie.name,
+    value: cookie.value,
+    domain: cookie.hostOnly
+      ? domainHost(cookie.domain ?? '')
+      : cookie.hostOnly === false && cookie.domain
+        ? `.${domainHost(cookie.domain)}`
+        : (cookie.domain ?? ''),
+    path: cookie.path,
+    secure: cookie.secure,
+    httpOnly: cookie.httpOnly,
+    sameSite:
+      cookie.sameSite === 'lax'
+        ? 'Lax'
+        : cookie.sameSite === 'strict'
+          ? 'Strict'
+          : cookie.sameSite === 'no_restriction'
+            ? 'None'
+            : 'Unspecified',
+    expires: cookie.expirationDate
+  }
+}
+
 function normalizeSameSite(
   sameSite: ExternalBrowserCookie['sameSite']
 ): Electron.CookiesSetDetails['sameSite'] {
@@ -218,10 +257,44 @@ function isStillSent(
  * the partition is none of this site's business. Names shared with imported
  * cookies are kept because Electron cannot target an exact cookie for removal.
  */
+interface IncomingCookieIdentity {
+  key: string
+  host: string
+  name: string
+  path: string
+}
+
+/**
+ * Whether removing an existing cookie by URL+name could also remove an
+ * incoming cookie with the same name.
+ *
+ * Electron removes by URL and name, not by the exact cookie identity. When a
+ * namesake shares the host and an overlapping path, the removal is skipped:
+ * deleting a freshly written cookie would be worse than leaving a stale one.
+ */
+function removalConflictsWithIncoming(
+  existing: Electron.Cookie,
+  host: string,
+  incoming: readonly IncomingCookieIdentity[]
+): boolean {
+  const existingPath = existing.path || '/'
+  return incoming.some((cookie) => {
+    if (cookie.name !== existing.name || cookie.host !== host) return false
+    return cookie.path.startsWith(existingPath) || existingPath.startsWith(cookie.path)
+  })
+}
+
+/**
+ * Drops the cookies of this site that the browser no longer sends.
+ *
+ * Only the domains of the site are touched: a neighbour's cookie that shares
+ * the partition is none of this site's business. A stale cookie is matched by
+ * its full identity (host, name, path and scope); a same-named cookie under a
+ * different domain or path is no reason to keep it.
+ */
 async function removeStaleCookies(
   targetSession: Session,
-  incoming: ReadonlySet<string>,
-  incomingNames: ReadonlySet<string>,
+  incoming: readonly IncomingCookieIdentity[],
   allowedDomains: readonly string[]
 ): Promise<number> {
   let existingCookies: Electron.Cookie[]
@@ -231,6 +304,7 @@ async function removeStaleCookies(
     Logger.warn('[SiteSessionImporter] Existing cookies could not be read for cleanup.')
     return 1
   }
+  const incomingKeys = new Set(incoming.map((cookie) => cookie.key))
   const removals: Promise<boolean>[] = []
 
   for (const existing of existingCookies) {
@@ -238,11 +312,17 @@ async function removeStaleCookies(
 
     const host = domainHost(normalizeCookieDomain(existing.domain) ?? '')
     if (!host) continue
+    if (isStillSent(existing, host, incomingKeys)) continue
 
     // Electron removes by URL and name, not by exact domain, path and scope.
-    // A removal can therefore also delete a newly imported namesake.
-    if (incomingNames.has(existing.name)) continue
-    if (isStillSent(existing, host, incoming)) continue
+    // A removal can therefore also delete a freshly imported namesake.
+    if (removalConflictsWithIncoming(existing, host, incoming)) {
+      Logger.warn(
+        `[SiteSessionImporter] A stale cookie of "${host}" was kept because the removal API ` +
+          `cannot target its identity without touching an imported namesake.`
+      )
+      continue
+    }
 
     const domain = normalizeCookieDomain(existing.domain) ?? ''
     for (const url of cookieRemovalUrls(existing.domain, existing.path, existing.secure)) {
@@ -251,6 +331,70 @@ async function removeStaleCookies(
   }
 
   return (await Promise.all(removals)).filter((removed) => !removed).length
+}
+
+/** Removes only the cookies whose full identity is in `keys`. */
+async function removeCookiesByKeys(
+  targetSession: Session,
+  keys: ReadonlySet<string>,
+  allowedDomains: readonly string[]
+): Promise<boolean> {
+  if (keys.size === 0) return true
+  let existingCookies: Electron.Cookie[]
+  try {
+    existingCookies = await targetSession.cookies.get({})
+  } catch {
+    return false
+  }
+
+  let failed = false
+  for (const cookie of existingCookies) {
+    if (!isCookieDomainAllowed(cookie.domain, allowedDomains)) continue
+    const key = electronCookieKey(cookie)
+    if (!key || !keys.has(key)) continue
+    const domain = normalizeCookieDomain(cookie.domain) ?? ''
+    for (const url of cookieRemovalUrls(cookie.domain, cookie.path, cookie.secure)) {
+      if (!(await removeCookie(targetSession, url, cookie.name, domain))) failed = true
+    }
+  }
+  return !failed
+}
+
+/** Whether any of the identities still exist in the target. */
+async function hasAnyCookieKey(
+  targetSession: Session,
+  keys: ReadonlySet<string>,
+  allowedDomains: readonly string[]
+): Promise<boolean> {
+  if (keys.size === 0) return false
+  try {
+    const existing = await targetSession.cookies.get({})
+    return existing.some((cookie) => {
+      if (!isCookieDomainAllowed(cookie.domain, allowedDomains)) return false
+      const key = electronCookieKey(cookie)
+      return key !== null && keys.has(key)
+    })
+  } catch {
+    // An unreadable store cannot prove that the rollback is complete.
+    return true
+  }
+}
+
+export interface ImportExternalCookiesOptions {
+  /**
+   * Snapshot the target before writing and restore it when any cookie fails.
+   *
+   * Used by the Chrome bridge: a half-written packet must not leave a session
+   * that mixes the old and the new state.
+   */
+  rollbackOnPartialFailure?: boolean
+}
+
+export interface ImportExternalCookiesResult {
+  imported: number
+  failed: number
+  rolledBack?: boolean
+  rollbackFailed?: boolean
 }
 
 /**
@@ -265,8 +409,9 @@ async function removeStaleCookies(
 export async function importExternalCookies(
   targetSession: Session,
   cookies: ExternalBrowserCookie[],
-  allowedDomains: readonly string[]
-): Promise<{ imported: number; failed: number }> {
+  allowedDomains: readonly string[],
+  options: ImportExternalCookiesOptions = {}
+): Promise<ImportExternalCookiesResult> {
   const writes: { payload: Electron.CookiesSetDetails; domain: string; key: string }[] = []
   const refusedByDomain = new Map<string, number>()
 
@@ -296,20 +441,66 @@ export async function importExternalCookies(
     )
   }
 
+  // A rollback without a snapshot would be a guess. If the target cannot be
+  // read, fail closed instead of writing cookies that can never be undone.
+  let snapshot: ExternalBrowserCookie[] | null = null
+  if (options.rollbackOnPartialFailure && writes.length > 0) {
+    try {
+      const existing = await targetSession.cookies.get({})
+      snapshot = existing
+        .filter((cookie) => isCookieDomainAllowed(cookie.domain, allowedDomains))
+        .map(toExternalCookie)
+    } catch {
+      Logger.warn(
+        '[SiteSessionImporter] The target could not be read for a rollback snapshot; refusing the import.'
+      )
+      return {
+        imported: 0,
+        failed: writes.length + [...refusedByDomain.values()].reduce((a, b) => a + b, 0),
+        rolledBack: true,
+        rollbackFailed: true
+      }
+    }
+  }
+
   const outcomes = await Promise.all(
     writes.map((write) => writeCookie(targetSession, write.payload, write.domain))
   )
   const imported = outcomes.filter(Boolean).length
   let failed = outcomes.length - imported + [...refusedByDomain.values()].reduce((a, b) => a + b, 0)
 
-  const incoming = new Set<string>()
-  const incomingNames = new Set<string>()
+  const incoming: IncomingCookieIdentity[] = []
   for (const [index, outcome] of outcomes.entries()) {
+    if (!outcome) continue
     const write = writes[index]
-    if (outcome) {
-      incoming.add(write.key)
-      incomingNames.add(write.payload.name ?? '')
+    const host = domainHost(write.domain)
+    incoming.push({
+      key: write.key,
+      host,
+      name: write.payload.name ?? '',
+      path: write.payload.path || '/'
+    })
+  }
+
+  if (failed > 0 && options.rollbackOnPartialFailure && snapshot !== null) {
+    const snapshotKeys = new Set(snapshot.map(externalCookieKey))
+    const newOnlyKeys = new Set(
+      writes.map((write) => write.key).filter((key) => !snapshotKeys.has(key))
+    )
+    const restoredImport = await importExternalCookies(targetSession, snapshot, allowedDomains)
+    const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
+    const stillThere = await hasAnyCookieKey(targetSession, newOnlyKeys, allowedDomains)
+    const rollbackFailed = restoredImport.failed > 0 || !removed || stillThere
+    Logger.warn(
+      `[SiteSessionImporter] ${failed} cookie(s) could not be written; ` +
+        `rolled back ${rollbackFailed ? 'incompletely' : 'to the previous session'}.`
+    )
+    try {
+      await targetSession.flushStorageData()
+    } catch (error) {
+      Logger.warn('[SiteSessionImporter] Storage could not be flushed after a rollback:', error)
     }
+    return { imported, failed, rolledBack: true, rollbackFailed }
   }
 
   if (failed > 0) {
@@ -318,12 +509,14 @@ export async function importExternalCookies(
 
   // Only a complete import is a reliable basis for deleting old cookies.
   if (imported > 0 && failed === 0) {
-    failed += await removeStaleCookies(targetSession, incoming, incomingNames, allowedDomains)
+    failed += await removeStaleCookies(targetSession, incoming, allowedDomains)
   }
 
   try {
-    targetSession.flushStorageData()
-  } catch {}
+    await targetSession.flushStorageData()
+  } catch (error) {
+    Logger.warn('[SiteSessionImporter] Storage could not be flushed:', error)
+  }
 
   return { imported, failed }
 }

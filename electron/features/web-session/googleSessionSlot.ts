@@ -10,7 +10,12 @@ import { Logger } from '../../core/logger.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import { cookieRemovalUrls, domainHost, isCookieDomainAllowed } from './siteSessionCookies.js'
-import { type ExternalBrowserCookie, importExternalCookies } from './siteSessionImporter.js'
+import {
+  electronCookieKey,
+  type ExternalBrowserCookie,
+  externalCookieKey,
+  importExternalCookies
+} from './siteSessionImporter.js'
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionForTargetSlot } from './siteSessionTargets.js'
@@ -34,7 +39,7 @@ export type GoogleSlotPreparationResult =
   | {
       ok: false
       ready: false
-      status: 'import_failed' | 'rollback_failed'
+      status: 'import_failed' | 'rollback_failed' | 'metadata_failed'
       imported: number
       failed: number
     }
@@ -88,17 +93,18 @@ function toExternalCookie(cookie: Electron.Cookie): ExternalBrowserCookie {
   }
 }
 
-/** Best-effort rollback: removes the named Google cookies from the target. */
-async function removeGoogleCookiesByNames(
+/** Best-effort rollback: removes only the named cookie identities. */
+async function removeGoogleCookiesByKeys(
   targetSession: Session,
-  names: ReadonlySet<string>
+  keys: ReadonlySet<string>
 ): Promise<boolean> {
-  if (names.size === 0) return true
+  if (keys.size === 0) return true
   const existing = await targetSession.cookies.get({})
   let failed = false
   for (const cookie of existing) {
     if (!isCookieDomainAllowed(cookie.domain, SITE_SESSION_COOKIE_DOMAINS.google)) continue
-    if (!names.has(cookie.name)) continue
+    const key = electronCookieKey(cookie)
+    if (!key || !keys.has(key)) continue
     for (const url of cookieRemovalUrls(cookie.domain, cookie.path, cookie.secure)) {
       try {
         await targetSession.cookies.remove(url, cookie.name)
@@ -108,6 +114,24 @@ async function removeGoogleCookiesByNames(
     }
   }
   return !failed
+}
+
+/** Whether any imported-only identity still exists in the target. */
+async function hasAnyCookieKey(
+  targetSession: Session,
+  keys: ReadonlySet<string>
+): Promise<boolean> {
+  if (keys.size === 0) return false
+  try {
+    const existing = await targetSession.cookies.get({})
+    return existing.some((cookie) => {
+      if (!isCookieDomainAllowed(cookie.domain, SITE_SESSION_COOKIE_DOMAINS.google)) return false
+      const key = electronCookieKey(cookie)
+      return key !== null && keys.has(key)
+    })
+  } catch {
+    return true
+  }
 }
 
 /**
@@ -200,17 +224,21 @@ export async function seedGoogleSessionSlotUnderLock(
       // Restore in place first: the old values overwrite their namesakes and
       // no window exists in which every old cookie has been deleted. Cookies
       // that only the failed import introduced are removed afterwards.
-      const snapshotNames = new Set(snapshot.map((cookie) => cookie.name))
-      const newOnlyNames = new Set(
-        cookies.map((cookie) => cookie.name).filter((name) => !snapshotNames.has(name))
+      const snapshotKeys = new Set(snapshot.map(externalCookieKey))
+      const newOnlyKeys = new Set(
+        cookies
+          .map(toExternalCookie)
+          .map(externalCookieKey)
+          .filter((key) => !snapshotKeys.has(key))
       )
       const restoredImport = await importExternalCookies(
         destination,
         snapshot,
         SITE_SESSION_COOKIE_DOMAINS.google
       )
-      const extrasRemoved = await removeGoogleCookiesByNames(destination, newOnlyNames)
-      restored = restoredImport.failed === 0 && extrasRemoved
+      const extrasRemoved = await removeGoogleCookiesByKeys(destination, newOnlyKeys)
+      const stillThere = await hasAnyCookieKey(destination, newOnlyKeys)
+      restored = restoredImport.failed === 0 && extrasRemoved && !stillThere
     } catch (error) {
       Logger.warn('[SiteSession] The previous Google session could not be restored:', error)
     }
@@ -247,6 +275,7 @@ export async function seedGoogleSessionSlotUnderLock(
     }
   }
 
+  let metadataSaved = true
   try {
     if (expectedAccountId !== undefined) {
       await config.recordResult(
@@ -260,9 +289,19 @@ export async function seedGoogleSessionSlotUnderLock(
       await config.recordResult(GOOGLE_AI_WEB_SITE_ID, 'imported', undefined, slot)
     }
   } catch (error) {
+    metadataSaved = false
     Logger.warn('[SiteSession] The Google account import result could not be recorded:', error)
   }
   invalidateSiteSessionListCache()
   await broadcastSiteSessionsChanged()
+  if (!metadataSaved) {
+    return {
+      ok: false,
+      ready: false,
+      status: 'metadata_failed',
+      imported: result.imported,
+      failed: result.failed
+    }
+  }
   return { ok: true, ready: true, status: 'imported' }
 }

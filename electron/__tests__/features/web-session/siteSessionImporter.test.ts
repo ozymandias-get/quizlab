@@ -92,6 +92,94 @@ describe('importExternalCookies', () => {
     expect(remove).not.toHaveBeenCalled()
   })
 
+  it('removes the stale namesake under a different domain', async () => {
+    get.mockResolvedValue([
+      { name: 'session', domain: '.openai.com', path: '/', secure: true, hostOnly: false }
+    ])
+    await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ['.chatgpt.com', '.openai.com']
+    )
+    expect(remove).toHaveBeenCalledWith('https://openai.com/', 'session')
+  })
+
+  it('removes the stale namesake under a non-overlapping path', async () => {
+    get.mockResolvedValue([
+      { name: 'session', domain: '.chatgpt.com', path: '/a', secure: true, hostOnly: false }
+    ])
+    await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com', path: '/b' }],
+      ALLOWED
+    )
+    expect(remove).toHaveBeenCalledWith('https://chatgpt.com/a', 'session')
+  })
+
+  it('restores the previous cookies when a rollback-enabled import fails part-way', async () => {
+    const previous = {
+      name: 'old-session',
+      value: 'old',
+      domain: '.chatgpt.com',
+      path: '/',
+      secure: true,
+      hostOnly: false
+    }
+    get.mockResolvedValue([previous])
+    set.mockRejectedValueOnce(new Error('rejected'))
+
+    const result = await importExternalCookies(
+      fakeSession(),
+      [
+        { name: 'broken', value: 'v', domain: '.chatgpt.com' },
+        { name: 'good', value: 'v', domain: '.chatgpt.com' }
+      ],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({ rolledBack: true, rollbackFailed: false })
+    // The snapshot is written back after the failed import.
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ name: 'old-session', value: 'old' }))
+  })
+
+  it('fails closed when a rollback-enabled import cannot snapshot the target', async () => {
+    get.mockRejectedValue(new Error('unavailable'))
+
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({ imported: 0, rolledBack: true, rollbackFailed: true })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('reports a failed rollback when restoring the snapshot also fails', async () => {
+    get.mockResolvedValue([
+      {
+        name: 'old-session',
+        value: 'old',
+        domain: '.chatgpt.com',
+        path: '/',
+        secure: true,
+        hostOnly: false
+      }
+    ])
+    set.mockRejectedValue(new Error('rejected'))
+
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({ rolledBack: true, rollbackFailed: true })
+  })
+
   it('keeps the host-only cookie it just wrote', async () => {
     get.mockResolvedValue([
       { name: 'session', domain: 'chatgpt.com', path: '/', secure: true, hostOnly: true }
