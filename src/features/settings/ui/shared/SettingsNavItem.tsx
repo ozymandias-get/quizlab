@@ -21,6 +21,7 @@ const SettingsNavItem = memo(function SettingsNavItem({
       type="button"
       aria-current={isActive ? 'page' : undefined}
       onClick={onClick}
+      title={label}
       className={`group focus-visible:ring-ring/40 motion-normal relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
         isActive
           ? 'bg-accent/40 text-foreground font-semibold'
@@ -45,7 +46,7 @@ const SettingsNavItem = memo(function SettingsNavItem({
         />
       </div>
       <span
-        className={`motion-normal tracking-ql-label text-ql-12 block truncate font-medium transition-colors ${
+        className={`motion-normal tracking-ql-label text-ql-12 line-clamp-2 min-w-0 font-medium [overflow-wrap:anywhere] break-words transition-colors ${
           isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
         }`}
       >

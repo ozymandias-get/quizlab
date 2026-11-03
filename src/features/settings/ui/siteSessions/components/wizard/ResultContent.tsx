@@ -123,7 +123,10 @@ function ResultContent({
           </p>
           <div className="border-border/60 bg-background/40 w-full rounded-xl border p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-ql-12 text-muted-foreground truncate font-mono">
+              <span
+                className="text-ql-12 text-muted-foreground min-w-0 flex-1 truncate font-mono select-all"
+                title={installedPath}
+              >
                 {installedPath}
               </span>
               <IconButton

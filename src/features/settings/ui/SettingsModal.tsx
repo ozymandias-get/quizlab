@@ -37,7 +37,7 @@ const SettingsModal = memo(function SettingsModal({
 
   useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef: closeButtonRef })
 
-  const { sidebarWidth, handleSidebarResize } = useResizableColumns()
+  const { sidebarWidth, handleSidebarResize, containerRef } = useResizableColumns()
 
   if (!isOpen) {
     return null
@@ -87,7 +87,7 @@ const SettingsModal = memo(function SettingsModal({
         </header>
 
         <Separator />
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
           <SettingsModalSidebar
             activeTab={activeTab}
             setActiveTab={setActiveTab}

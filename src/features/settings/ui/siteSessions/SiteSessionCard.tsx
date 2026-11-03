@@ -65,8 +65,18 @@ function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSess
             </span>
           )}
           <div className="min-w-0">
-            <p className="text-ql-13 text-foreground font-semibold">{t(view.labelKey)}</p>
-            <p className="text-ql-11 text-muted-foreground mt-0.5">{subtitle}</p>
+            <p
+              className="text-ql-13 text-foreground font-semibold [overflow-wrap:anywhere] break-words"
+              title={t(view.labelKey)}
+            >
+              {t(view.labelKey)}
+            </p>
+            <p
+              className="text-ql-11 text-muted-foreground mt-0.5 [overflow-wrap:anywhere] break-words"
+              title={subtitle}
+            >
+              {subtitle}
+            </p>
           </div>
         </div>
 

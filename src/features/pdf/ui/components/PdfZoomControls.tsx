@@ -71,19 +71,14 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
             return (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="hover:bg-muted focus-visible:ring-ring/40 min-w-[50px] rounded-md px-1.5 py-0.5 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  {/* Read-only readout: the viewer owns zoom, so this must not
+                      look like a button that would open a level picker. */}
+                  <span
+                    className="text-ql-12 text-foreground inline-block min-w-[50px] rounded-md px-1.5 py-0.5 text-center font-medium tabular-nums select-none"
                     aria-label={label}
-                    onClick={() => {
-                      // Zoom controls are viewer-owned; this button surfaces the level for a11y
-                      // and keeps the toolbar keyboard-navigable (no-op).
-                    }}
                   >
-                    <span className="text-ql-12 text-foreground font-medium tabular-nums select-none">
-                      {pct}%
-                    </span>
-                  </button>
+                    {pct}%
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   {label} — {t('zoom_hint', { defaultValue: 'Use + / − to adjust' })}

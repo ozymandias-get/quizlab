@@ -50,6 +50,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const { confirm, props: confirmProps } = useConfirmDialog()
 
@@ -212,12 +213,30 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           <div className="border-border bg-muted/20 shrink-0 border-b px-5 py-3">
             <div className="group/modal-search relative">
               <Input
+                ref={searchInputRef}
                 value={modalSearch}
                 onChange={(e) => setModalSearch(e.target.value)}
                 placeholder={t('api_chat_modal_search_placeholder')}
-                className="text-ql-14 pl-9"
+                className="text-ql-14 pr-9 pl-9"
+                data-testid="history-search-input"
               />
-              <Search className="text-muted-foreground group-focus-within/modal-search:text-primary absolute top-2.5 left-3 h-3.5 w-3.5 transition-colors" />
+              <Search className="text-muted-foreground group-focus-within/modal-search:text-primary absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />
+              {modalSearch && (
+                <IconButton
+                  type="button"
+                  variant="ghost"
+                  size="compact"
+                  onClick={() => {
+                    setModalSearch('')
+                    searchInputRef.current?.focus()
+                  }}
+                  aria-label={t('api_chat_clear_search')}
+                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
+                  data-testid="history-search-clear"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </IconButton>
+              )}
             </div>
           </div>
 

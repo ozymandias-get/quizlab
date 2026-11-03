@@ -97,4 +97,34 @@ describe('ToastItem', () => {
 
     expect(mockOnRemove).toHaveBeenCalledWith('123')
   })
+
+  it('should pause the timer while keyboard focus is inside the toast', () => {
+    render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
+
+    const closeButton = screen.getByRole('button')
+
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+
+    act(() => {
+      closeButton.focus()
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(2000)
+    })
+
+    expect(mockOnRemove).not.toHaveBeenCalled()
+
+    act(() => {
+      closeButton.blur()
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(700)
+    })
+
+    expect(mockOnRemove).toHaveBeenCalledWith('123')
+  })
 })

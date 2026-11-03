@@ -52,6 +52,7 @@
   "api_chat_clear_all": "Clear All",
   "api_chat_clear_all_failed": "Chat history could not be cleared: {error}",
   "api_chat_modal_search_placeholder": "Search in titles or message contents...",
+  "api_chat_clear_search": "Clear search",
   "api_chat_save": "Save",
   "api_chat_active_badge": "Active",
   "api_chat_msg_count": "{count} messages",

@@ -4,7 +4,14 @@ import { useConfirmDialog } from '@shared/hooks/useConfirmDialog'
 import { IconButton } from '@shared/ui/components/primitives'
 
 import { MoreHorizontal, Trash2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface DraftOverflowMenuProps {
@@ -24,16 +31,40 @@ interface DraftOverflowMenuProps {
 function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
+  const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom')
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const { props: confirmProps, confirm } = useConfirmDialog()
 
-  useEffect(() => {
+  const closeMenu = useCallback((returnFocus = false) => {
+    setIsOpen(false)
+    if (returnFocus) triggerRef.current?.focus()
+  }, [])
+
+  // WAI-ARIA menu button behaviour: focus the first item, cycle with the arrow
+  // keys and give focus back to the trigger on Escape. Also measures the
+  // trigger before paint and flips the menu above it when there is no room
+  // below, so the single item cannot end up clipped off-screen.
+  useLayoutEffect(() => {
     if (!isOpen) return
+
+    const trigger = triggerRef.current
+    const menu = menuRef.current
+    if (trigger && menu) {
+      const rect = trigger.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+      setPlacement(spaceBelow < menu.offsetHeight + 8 && spaceAbove > spaceBelow ? 'top' : 'bottom')
+    }
+
+    menu?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
+
     const handlePointerDown = (event: PointerEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) setIsOpen(false)
+      if (!wrapperRef.current?.contains(event.target as Node)) closeMenu()
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false)
+      if (event.key === 'Escape') closeMenu(true)
     }
     document.addEventListener('pointerdown', handlePointerDown, true)
     document.addEventListener('keydown', handleKeyDown)
@@ -41,10 +72,40 @@ function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
       document.removeEventListener('pointerdown', handlePointerDown, true)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen])
+  }, [closeMenu, isOpen])
+
+  const handleMenuKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closeMenu(true)
+        return
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
+      const items = [
+        ...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ??
+          [])
+      ]
+      if (items.length === 0) return
+
+      event.preventDefault()
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+      if (event.key === 'Home') {
+        items[0].focus()
+      } else if (event.key === 'End') {
+        items[items.length - 1].focus()
+      } else {
+        const delta = event.key === 'ArrowDown' ? 1 : -1
+        items[(currentIndex + delta + items.length) % items.length].focus()
+      }
+    },
+    [closeMenu]
+  )
 
   const handleRequestClear = useCallback(() => {
-    setIsOpen(false)
+    closeMenu()
     // Yalnızca onay VERİLDİĞİNDE temizle; iptal hiçbir içeriğe dokunmaz.
     void confirm({
       title: t('ai_send_clear_all'),
@@ -55,11 +116,12 @@ function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
     }).then((confirmed) => {
       if (confirmed) onClearAll()
     })
-  }, [confirm, onClearAll, t, totalItems])
+  }, [closeMenu, confirm, onClearAll, t, totalItems])
 
   return (
     <div ref={wrapperRef} className="relative shrink-0">
       <IconButton
+        ref={triggerRef}
         type="button"
         variant="ghost"
         size="compact"
@@ -75,12 +137,15 @@ function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
 
       {isOpen && (
         <MenuSurface
+          ref={menuRef}
           role="menu"
           data-testid="ai-draft-overflow-menu"
-          // Aşağı doğru açılır: kart kendi köşesini yuvarlatıp taşmayı
-          // kırpmadan yüzeyi `overflow-hidden` yapmaz, dolayısıyla yukarı açan
-          // bir menü kartın üst kenarının dışına taşıp görünmez olurdu.
-          className="animate-in fade-in zoom-in-95 motion-fast absolute top-full right-0 mt-1 w-52"
+          onKeyDown={handleMenuKeyDown}
+          // Below the trigger by default. Cards do not clip overflow, but near
+          // the bottom edge the menu flips upward so it stays on screen.
+          className={`animate-in fade-in zoom-in-95 motion-fast absolute right-0 w-52 ${
+            placement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
         >
           <MenuItem
             data-testid="ai-draft-clear-all"

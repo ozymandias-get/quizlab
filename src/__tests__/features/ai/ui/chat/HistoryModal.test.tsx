@@ -103,6 +103,21 @@ describe('HistoryModal', () => {
     expect(SESSIONS).toHaveLength(2)
   })
 
+  it('clears the filter with one click and keeps focus in the search field', () => {
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    const input = screen.getByPlaceholderText('api_chat_modal_search_placeholder')
+    fireEvent.change(input, { target: { value: 'lupus' } })
+
+    fireEvent.click(screen.getByTestId('history-search-clear'))
+
+    expect(input).toHaveValue('')
+    expect(input).toHaveFocus()
+    expect(screen.getByText('Cardiology notes')).toBeInTheDocument()
+    expect(screen.getByText('Pharmacology')).toBeInTheDocument()
+    expect(screen.queryByTestId('history-search-clear')).not.toBeInTheDocument()
+  })
+
   it('keeps the modal open and reports an error when clearing history fails', async () => {
     mockConfirm.mockResolvedValue(true)
     mockClearAll.mockRejectedValue(new Error('disk full'))

@@ -6,6 +6,7 @@ import { Button, IconButton } from '@shared/ui/components/primitives'
 import { AlertTriangle, Check, Info, X, XCircle } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
+  type FocusEvent,
   forwardRef,
   memo,
   type MouseEvent,
@@ -62,14 +63,17 @@ interface ToastItemProps {
 const ToastItem = memo(
   forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
     const { t } = useTranslation()
-    const [isPaused, setIsPaused] = useState(false)
     const [isHovered, setIsHovered] = useState(false)
+    const [isFocusWithin, setIsFocusWithin] = useState(false)
     const [animationKey, setAnimationKey] = useState(0)
     const remainingTimeRef = useRef(toast.duration || 5000)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const timerStartRef = useRef<number>(0)
 
     const toastId = toast.id
+    // Pointer and keyboard both keep the toast alive: a user tabbing to the
+    // close/action button must not lose it mid-interaction.
+    const isPaused = isHovered || isFocusWithin
 
     const clearTimer = useCallback(() => {
       if (timerRef.current !== null) {
@@ -87,28 +91,42 @@ const ToastItem = memo(
       }, remainingTimeRef.current)
     }, [clearTimer, toastId, onRemove])
 
-    useEffect(() => {
-      if (!isPaused) {
-        startTimer()
-      }
-      return () => {
-        clearTimer()
-      }
-    }, [isPaused, startTimer, clearTimer])
-
-    const handleMouseEnter = useCallback(() => {
-      setIsHovered(true)
-      setIsPaused(true)
+    const pauseTimer = useCallback(() => {
+      // Cleanup runs before the paused effect, so the remaining time has to be
+      // captured here while the timeout is still live.
+      if (timerRef.current === null) return
       const elapsed = Date.now() - timerStartRef.current
-      const remaining = remainingTimeRef.current - elapsed
-      remainingTimeRef.current = Math.max(0, remaining)
+      remainingTimeRef.current = Math.max(0, remainingTimeRef.current - elapsed)
       clearTimer()
     }, [clearTimer])
 
-    const handleMouseLeave = useCallback(() => {
-      setIsHovered(false)
-      setIsPaused(false)
-      setAnimationKey((k) => k + 1)
+    const resumeTimer = useCallback(() => {
+      // Restarting the progress bar needs a new key; the timeout itself picks
+      // up from the remaining time captured when it was paused.
+      setAnimationKey((key) => key + 1)
+      startTimer()
+    }, [startTimer])
+
+    useEffect(() => {
+      if (isPaused) {
+        pauseTimer()
+        return
+      }
+      resumeTimer()
+    }, [isPaused, pauseTimer, resumeTimer])
+
+    // Unmount (or a toast id swap) is the only reason to drop the timeout.
+    useEffect(() => () => clearTimer(), [clearTimer])
+
+    const handleMouseEnter = useCallback(() => setIsHovered(true), [])
+    const handleMouseLeave = useCallback(() => setIsHovered(false), [])
+
+    const handleFocusCapture = useCallback(() => setIsFocusWithin(true), [])
+    const handleBlurCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
+      // Moving focus between the toast's own controls is not "leaving".
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        setIsFocusWithin(false)
+      }
     }, [])
 
     const handleClose = useCallback(
@@ -146,6 +164,8 @@ const ToastItem = memo(
         transition={{ type: 'spring', stiffness: 450, damping: 32, mass: 0.7 }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocusCapture}
+        onBlurCapture={handleBlurCapture}
         className={cn(
           'group pointer-events-auto relative',
           'mb-2 w-full overflow-hidden rounded-xl',
