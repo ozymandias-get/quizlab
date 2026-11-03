@@ -91,6 +91,8 @@ export interface SiteSessionListResult {
  *     selection is still active
  *   - `account_not_ready`: the selected account has no usable session to
  *     prepare; the old selection is still active
+ *   - `session_restore_failed`: the previous session could not be restored
+ *     after a failed import; the partition must be prepared again
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
  *     be cleared — `detail` says so
  *   - `invalid_site_id`: the site id was not a string

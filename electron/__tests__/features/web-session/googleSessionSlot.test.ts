@@ -183,11 +183,17 @@ describe('Google session initialization', () => {
 
     const result = await ensureGoogleSessionSlot(3, env)
 
-    expect(result).toMatchObject({ ok: false, status: 'import_failed' })
+    expect(result).toMatchObject({ ok: false, status: 'rollback_failed' })
     // The failed import is attempted once, then the snapshot restore is
     // attempted once; the test double rejects both writes.
     expect(env.destination.cookies.set).toHaveBeenCalledTimes(2)
-    expect(env.config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 3)
+    expect(env.config.recordResult).toHaveBeenCalledWith(
+      'google',
+      'failed',
+      'session_restore_failed',
+      3,
+      null
+    )
   })
 
   it('reports a failed import even when the rollback itself fails', async () => {
@@ -197,11 +203,85 @@ describe('Google session initialization', () => {
 
     const result = await ensureGoogleSessionSlot(3, env)
 
+    expect(result).toMatchObject({ ok: false, status: 'rollback_failed' })
+    expect(env.config.recordResult).toHaveBeenCalledWith(
+      'google',
+      'failed',
+      'session_restore_failed',
+      3,
+      null
+    )
+  })
+
+  it('reports a normal import failure when the rollback succeeds', async () => {
+    const env = setup({ existingAuth: true, newerSource: true })
+    env.destination.cookies.set.mockRejectedValueOnce(new Error('write failed'))
+
+    const result = await ensureGoogleSessionSlot(3, env)
+
     expect(result).toMatchObject({ ok: false, status: 'import_failed' })
-    // Two writes for the import (SID + the extra cookie), then one for the
-    // snapshot restore; every write is rejected, so the rollback fails safely.
-    expect(env.destination.cookies.set).toHaveBeenCalledTimes(3)
     expect(env.config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 3)
+  })
+
+  it('reseed when the partition is associated with a different Google account', async () => {
+    const env = setup({ existingAuth: true })
+    env.config.read.mockResolvedValue({
+      version: 1,
+      configVersion: 1,
+      targets: {
+        google: {
+          enabled: true,
+          importedAt: null,
+          lastResult: null,
+          lastError: null,
+          activeSlot: 2,
+          activeAccountId: 'id-a',
+          slots: {
+            2: {
+              importedAt: '2026-10-25T11:00:00Z',
+              lastResult: 'imported',
+              lastError: null,
+              accountId: 'id-b'
+            }
+          }
+        }
+      }
+    })
+
+    await ensureGoogleSessionSlot(2, env, { expectedAccountId: 'id-a' })
+
+    expect(env.destination.cookies.set).toHaveBeenCalled()
+    expect(env.config.recordResult).toHaveBeenCalledWith('google', 'imported', undefined, 2, 'id-a')
+  })
+
+  it('accepts an authenticated partition only when its account association matches', async () => {
+    const env = setup({ existingAuth: true })
+    env.config.read.mockResolvedValue({
+      version: 1,
+      configVersion: 1,
+      targets: {
+        google: {
+          enabled: true,
+          importedAt: null,
+          lastResult: null,
+          lastError: null,
+          activeSlot: 2,
+          activeAccountId: 'id-a',
+          slots: {
+            2: {
+              importedAt: '2026-10-25T11:00:00Z',
+              lastResult: 'imported',
+              lastError: null,
+              accountId: 'id-a'
+            }
+          }
+        }
+      }
+    })
+
+    await ensureGoogleSessionSlot(2, env, { expectedAccountId: 'id-a' })
+
+    expect(env.destination.cookies.set).not.toHaveBeenCalled()
   })
 
   it('preserves an already authenticated secondary session', async () => {

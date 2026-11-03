@@ -83,6 +83,7 @@ const ERROR_CODES = [
   'import_failed',
   'account_discovery_unavailable',
   'account_not_ready',
+  'session_restore_failed',
   'packet_too_large',
   'Unauthorized',
   'web_dev_mode_only'

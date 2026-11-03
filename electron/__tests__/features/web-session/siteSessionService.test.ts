@@ -265,7 +265,7 @@ describe('SiteSessionService', () => {
     expect(await service.setActiveSlot('google', 2)).toEqual({ success: true })
     expect(config.setActiveSlot).toHaveBeenCalledWith('google', 2, 'id-2')
     expect(setSecondary).toHaveBeenCalledTimes(1)
-    expect(config.recordResult).toHaveBeenCalledWith('google', 'imported', undefined, 2)
+    expect(config.recordResult).toHaveBeenCalledWith('google', 'imported', undefined, 2, 'id-2')
   })
 
   it('does not change the slot when Google discovery is unavailable', async () => {
@@ -367,6 +367,83 @@ describe('SiteSessionService', () => {
     expect(result).toMatchObject({ success: false, error: 'account_not_ready' })
     expect(config.setActiveSlot).not.toHaveBeenCalled()
     expect(config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 2)
+  })
+
+  it('reports an unrestorable previous session separately from a normal import failure', async () => {
+    const authCookie = {
+      name: 'SID',
+      value: 'v',
+      domain: '.google.com',
+      path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax'
+    }
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [
+        ['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1'],
+        ['gaia.l.a', 1, '', 'b@example.test', '', 1, 1, 0, 0, 1, 'id-2']
+      ]
+    ])
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 1,
+            slots: {
+              1: { importedAt: '2026-10-30T09:00:00Z', lastResult: 'imported' },
+              2: {
+                importedAt: '2026-10-30T09:00:00Z',
+                lastResult: 'imported',
+                accountId: 'id-other'
+              }
+            }
+          }
+        }
+      }),
+      isEnabled: vi.fn().mockResolvedValue(true),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn(),
+      setActiveSlot: vi.fn().mockResolvedValue(undefined),
+      recordResult: vi.fn().mockResolvedValue(undefined)
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: {
+            get: vi.fn(async () => [authCookie]),
+            set: vi.fn().mockRejectedValue(new Error('cookie write failed')),
+            remove: vi.fn().mockResolvedValue(undefined)
+          },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody }),
+          flushStorageData: vi.fn()
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    const result = await service.setActiveSlot('google', 2)
+
+    expect(result).toMatchObject({ success: false, error: 'session_restore_failed' })
+    expect(config.setActiveSlot).not.toHaveBeenCalled()
+    expect(config.recordResult).toHaveBeenCalledWith(
+      'google',
+      'failed',
+      'session_restore_failed',
+      2,
+      null
+    )
   })
 
   it('marks an imported Google session as unverified when discovery is unavailable', async () => {

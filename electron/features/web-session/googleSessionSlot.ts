@@ -31,7 +31,13 @@ interface GoogleSlotEnvironment {
 export type GoogleSlotPreparationResult =
   | { ok: true; ready: true; status: 'ready' | 'imported' }
   | { ok: true; ready: false; status: 'no_source' | 'disabled' }
-  | { ok: false; ready: false; status: 'import_failed'; imported: number; failed: number }
+  | {
+      ok: false
+      ready: false
+      status: 'import_failed' | 'rollback_failed'
+      imported: number
+      failed: number
+    }
 
 interface GoogleSlotOptions {
   /**
@@ -42,6 +48,14 @@ interface GoogleSlotOptions {
    * respecting the switch.
    */
   ignoreEnabled?: boolean
+  /**
+   * The stable account id the caller expects this slot to hold.
+   *
+   * A partition with an auth cookie is only accepted as ready when it was
+   * previously associated with this account. A missing or different
+   * association forces a reseed from the current Chrome bundle.
+   */
+  expectedAccountId?: string | null
 }
 
 const AUTH_COOKIES = new Set(['SID', '__Secure-1PSID', '__Secure-3PSID'])
@@ -135,12 +149,27 @@ export async function seedGoogleSessionSlotUnderLock(
   const destination = resolveSession(partitionForTargetSlot(GOOGLE_AI_WEB_SESSION_PARTITION, slot))
   const existing = await destination.cookies.get({})
   const state = await config.read()
-  const histories = state.targets[GOOGLE_AI_WEB_SITE_ID]?.slots
+  const googleState = state.targets[GOOGLE_AI_WEB_SITE_ID]
+  const histories = googleState?.slots
+  const slotState = histories?.[slot]
   const sourceTime = histories?.[1]?.importedAt
   const destinationTime = histories?.[slot]?.importedAt
   const sourceWasUpdated =
     sourceTime && destinationTime && Date.parse(sourceTime) > Date.parse(destinationTime)
-  if (existing.some(isGoogleAuthCookie) && !sourceWasUpdated) {
+  const expectedAccountId = options?.expectedAccountId
+  let associationVerified = true
+  if (expectedAccountId === null) {
+    associationVerified = (slotState?.accountId ?? null) === null
+  } else if (expectedAccountId !== undefined) {
+    associationVerified = slotState?.accountId === expectedAccountId
+  }
+  const lastImportFailed = slotState?.lastResult === 'failed'
+  if (
+    existing.some(isGoogleAuthCookie) &&
+    !sourceWasUpdated &&
+    associationVerified &&
+    !lastImportFailed
+  ) {
     return { ok: true, ready: true, status: 'ready' }
   }
   const source = resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION)
@@ -190,7 +219,20 @@ export async function seedGoogleSessionSlotUnderLock(
         `(${result.imported} written, ${result.failed} failed; restored=${restored}).`
     )
     try {
-      await config.recordResult(GOOGLE_AI_WEB_SITE_ID, 'failed', 'import_failed', slot)
+      // A failed rollback leaves the partition in an unknown state: clear the
+      // account association so the next preparation reseeds it instead of
+      // trusting the cookies that are there.
+      if (restored) {
+        await config.recordResult(GOOGLE_AI_WEB_SITE_ID, 'failed', 'import_failed', slot)
+      } else {
+        await config.recordResult(
+          GOOGLE_AI_WEB_SITE_ID,
+          'failed',
+          'session_restore_failed',
+          slot,
+          null
+        )
+      }
     } catch (error) {
       Logger.warn('[SiteSession] The Google account import result could not be recorded:', error)
     }
@@ -199,14 +241,24 @@ export async function seedGoogleSessionSlotUnderLock(
     return {
       ok: false,
       ready: false,
-      status: 'import_failed',
+      status: restored ? 'import_failed' : 'rollback_failed',
       imported: result.imported,
       failed: result.failed
     }
   }
 
   try {
-    await config.recordResult(GOOGLE_AI_WEB_SITE_ID, 'imported', undefined, slot)
+    if (expectedAccountId !== undefined) {
+      await config.recordResult(
+        GOOGLE_AI_WEB_SITE_ID,
+        'imported',
+        undefined,
+        slot,
+        expectedAccountId
+      )
+    } else {
+      await config.recordResult(GOOGLE_AI_WEB_SITE_ID, 'imported', undefined, slot)
+    }
   } catch (error) {
     Logger.warn('[SiteSession] The Google account import result could not be recorded:', error)
   }

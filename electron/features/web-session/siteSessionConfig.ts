@@ -438,7 +438,8 @@ export class SiteSessionConfig {
             : (existingSlots[targetSlot]?.importedAt ?? null),
         lastResult: result,
         lastError: error ?? null,
-        accountId: accountId ?? existingSlots[targetSlot]?.accountId ?? null
+        accountId:
+          accountId !== undefined ? accountId : (existingSlots[targetSlot]?.accountId ?? null)
       }
       const updatedSlots = { ...existingSlots, [targetSlot]: updatedSlot }
 

@@ -434,12 +434,15 @@ export class SiteSessionService {
               },
               resolveSession: this.deps.resolveSession
             },
-            { ignoreEnabled: true }
+            { ignoreEnabled: true, expectedAccountId: selected.accountId }
           )
           if (!preparation.ok || !preparation.ready) {
             return {
               success: false,
-              error: 'account_not_ready',
+              error:
+                preparation.status === 'rollback_failed'
+                  ? 'session_restore_failed'
+                  : 'account_not_ready',
               detail:
                 'The selected Google account could not be prepared; the previous account is still active.'
             }
