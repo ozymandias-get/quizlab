@@ -15,6 +15,8 @@ interface ResultContentProps {
   copiedLink: boolean
   onCopyPath: () => void
   onCopyLink: () => void
+  /** Re-runs the failed install/remove without leaving the wizard. */
+  onRetry: () => void
   onDone: () => void
   statusIndicator: ReactNode
 }
@@ -29,6 +31,7 @@ function ResultContent({
   copiedLink,
   onCopyPath,
   onCopyLink,
+  onRetry,
   onDone,
   statusIndicator
 }: ResultContentProps) {
@@ -41,10 +44,15 @@ function ResultContent({
         <h3 className="text-ql-16 text-foreground font-semibold">
           {t('ws_extension_wizard_error_title')}
         </h3>
-        {error ? <p className="text-ql-13 text-destructive">{error}</p> : null}
-        <Button type="button" onClick={onDone} className="mt-2 w-full">
-          <span className="text-ql-12">{t('ws_extension_wizard_done_btn')}</span>
-        </Button>
+        {error ? <p className="text-ql-13 text-destructive text-center">{error}</p> : null}
+        <div className="mt-2 flex w-full flex-col gap-2">
+          <Button type="button" onClick={onRetry} className="w-full">
+            <span className="text-ql-12">{t('ws_extension_wizard_retry_btn')}</span>
+          </Button>
+          <Button type="button" variant="outline" onClick={onDone} className="w-full">
+            <span className="text-ql-12">{t('ws_extension_wizard_done_btn')}</span>
+          </Button>
+        </div>
       </div>
     )
   }

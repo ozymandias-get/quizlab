@@ -50,6 +50,7 @@
   "api_chat_modal_subtitle": "Manage and search all your past chats",
   "api_chat_confirm_clear_all": "All your chat history will be permanently deleted. This action cannot be undone. Are you sure?",
   "api_chat_clear_all": "Clear All",
+  "api_chat_clear_all_failed": "Chat history could not be cleared: {error}",
   "api_chat_modal_search_placeholder": "Search in titles or message contents...",
   "api_chat_save": "Save",
   "api_chat_active_badge": "Active",

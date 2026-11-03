@@ -135,6 +135,41 @@ describe('PdfToolbar', () => {
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
+  it('moves focus into the compact menu and cycles it with the keyboard', () => {
+    const { getByTestId } = renderToolbar()
+
+    const trigger = getByTestId('pdf-toolbar-more')
+    fireEvent.click(trigger)
+
+    const items = screen.getAllByRole('menuitem')
+    expect(items[0]).toHaveFocus()
+
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' })
+    expect(items[1]).toHaveFocus()
+
+    fireEvent.keyDown(items[1], { key: 'ArrowDown' })
+    expect(items[0]).toHaveFocus()
+
+    fireEvent.keyDown(items[0], { key: 'End' })
+    expect(items[items.length - 1]).toHaveFocus()
+
+    fireEvent.keyDown(items[items.length - 1], { key: 'Home' })
+    expect(items[0]).toHaveFocus()
+  })
+
+  it('returns focus to the trigger when Escape closes the compact menu', () => {
+    const { getByTestId } = renderToolbar()
+
+    const trigger = getByTestId('pdf-toolbar-more')
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
   describe('viewer with no legacy renderer branch', () => {
     it('reveals the search bar when the shared store opens it', async () => {
       renderToolbar()

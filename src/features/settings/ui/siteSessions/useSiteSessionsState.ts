@@ -30,7 +30,7 @@ const NO_VIEWS: SiteSessionView[] = []
 export function useSiteSessionsState() {
   const { t: translate } = useTranslation()
   const t: SiteSessionTranslate = translate
-  const { showError } = useToastActions()
+  const { showError, showSuccess, showWarning } = useToastActions()
   const { data } = useSiteSessionListQuery()
   const setEnabledMutation = useSetSiteSessionEnabledMutation()
   const clearMutation = useClearSiteSessionMutation()
@@ -39,9 +39,12 @@ export function useSiteSessionsState() {
   const { mutateAsync: removeExtension } = useNativeMessagingRemoveExtension()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
+  /** Sites whose last clear failed; only these are offered for a retry. */
+  const [failedClearSiteIds, setFailedClearSiteIds] = useState<string[]>([])
   const { confirm, props: confirmProps } = useConfirmDialog()
 
   const views = data?.views ?? NO_VIEWS
+  const failedClearSites = views.filter((view) => failedClearSiteIds.includes(view.siteId))
 
   /** The service answers a refusal with a stable code the renderer can name. */
   const reportError = useCallback(
@@ -69,6 +72,55 @@ export function useSiteSessionsState() {
   )
 
   /**
+   * Clears the given sites and reports one aggregate result instead of one
+   * toast per failure, so a five-site run cannot look like "nothing happened".
+   */
+  const clearSites = useCallback(
+    async (siteIds: string[]) => {
+      if (siteIds.length === 0) return
+
+      const results = await Promise.all(
+        siteIds.map(async (siteId) => {
+          try {
+            const result = await clearMutation.mutateAsync({ siteId })
+            return { siteId, ok: result.success }
+          } catch {
+            // A thrown mutation already surfaced its own error toast.
+            return { siteId, ok: false }
+          }
+        })
+      )
+
+      const failedIds = results.filter((result) => !result.ok).map((result) => result.siteId)
+      const successCount = results.length - failedIds.length
+      setFailedClearSiteIds(failedIds)
+
+      if (failedIds.length === 0) {
+        showSuccess(t('ws_clear_all_result_success'), undefined, {
+          count: String(successCount)
+        })
+        return
+      }
+
+      const failedNames = views
+        .filter((view) => failedIds.includes(view.siteId))
+        .map((view) => t(view.labelKey))
+        .join(', ')
+
+      showWarning(
+        successCount > 0 ? t('ws_clear_all_result_partial') : t('ws_clear_all_result_failed'),
+        undefined,
+        {
+          success: String(successCount),
+          failed: String(failedIds.length),
+          sites: failedNames
+        }
+      )
+    },
+    [clearMutation, showSuccess, showWarning, t, views]
+  )
+
+  /**
    * Forgets the sessions the app pulled from Chrome.
    *
    * Only the sites whose import is on are cleared: the session of a site the
@@ -90,19 +142,13 @@ export function useSiteSessionsState() {
     })
     if (!confirmed) return
 
-    await Promise.all(
-      importedViews.map((view) =>
-        clearMutation
-          .mutateAsync({ siteId: view.siteId })
-          .then((result) => {
-            if (!result.success) reportError(result.error)
-          })
-          .catch(() => {
-            // A thrown mutation already reported itself through the toast.
-          })
-      )
-    )
-  }, [clearMutation, confirm, reportError, t, views])
+    await clearSites(importedViews.map((view) => view.siteId))
+  }, [clearSites, confirm, t, views])
+
+  /** Re-runs only the sites whose previous clear failed. */
+  const onRetryFailedClear = useCallback(async () => {
+    await clearSites(failedClearSiteIds)
+  }, [clearSites, failedClearSiteIds])
 
   const onSelectSlot = useCallback(
     (siteId: string, slot: number) => {
@@ -142,6 +188,8 @@ export function useSiteSessionsState() {
     onToggle,
     onSelectSlot,
     onClearAll,
+    onRetryFailedClear,
+    failedClearSites,
     confirmProps,
     riskItems,
     mitigationItems,

@@ -8,11 +8,12 @@ import {
   PanelHeaderTitle
 } from '@app/components/ui/panel-header'
 import { useConfirmDialog, useDebouncedValue, useDialogBehavior } from '@shared/hooks'
+import { useToastActions } from '@shared/stores/toastStore'
 import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives'
 
 import { CircleOff, Clock, Search, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -39,8 +40,9 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const activeSessionId = useChatUiStore((s) => s.activeSessionIdByTab[tabId])
   const { mutate: deleteSession } = useDeleteSessionMutation()
   const { mutate: renameSession } = useRenameSessionMutation()
-  const { mutate: clearAllSessions } = useClearAllSessionsMutation()
+  const { mutateAsync: clearAllSessions, isPending: isClearingAll } = useClearAllSessionsMutation()
   const selectSession = useChatUiStore((s) => s.setActiveSessionId)
+  const { showError } = useToastActions()
 
   const [modalSearch, setModalSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -53,21 +55,48 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef: closeButtonRef })
 
-  // Debounce the search string so we don't re-run the full O(n*m) filter on
-  // every keystroke. The input updates instantly for typing; the actual
-  // filtering catches up ~180ms after the user stops.
+  // Every open starts clean. The parent currently unmounts the modal when it
+  // closes, but that is the parent's choice: a search left behind here would
+  // make the reopened list look empty.
+  useEffect(() => {
+    if (!isOpen) return
+    setModalSearch('')
+    setEditingId(null)
+    setEditTitle('')
+  }, [isOpen])
+
+  // Debounce the search string so we don't re-run the filter on every
+  // keystroke. The input updates instantly for typing; the actual filtering
+  // catches up ~180ms after the user stops.
   const debouncedSearch = useDebouncedValue(modalSearch, SEARCH_DEBOUNCE_MS)
+
+  /**
+   * Lowercased haystacks, built once per session list instead of once per
+   * keystroke. `toLowerCase()` on every message for every query was the real
+   * O(n*m) cost; the scan itself stays synchronous because chat archives are
+   * small and a worker would add more latency than it saves.
+   */
+  const searchIndex = useMemo(
+    () =>
+      sessions.map((session) => ({
+        session,
+        title: session.title.toLowerCase(),
+        contents: session.messages.map((message) => message.content.toLowerCase())
+      })),
+    [sessions]
+  )
 
   const filteredSessions = useMemo(() => {
     if (!isOpen) return []
     const query = debouncedSearch.trim().toLowerCase()
     if (!query) return sessions
-    return sessions.filter(
-      (s) =>
-        s.title.toLowerCase().includes(query) ||
-        s.messages.some((m) => m.content.toLowerCase().includes(query))
-    )
-  }, [isOpen, sessions, debouncedSearch])
+    return searchIndex
+      .filter(
+        (entry) =>
+          entry.title.includes(query) || entry.contents.some((content) => content.includes(query))
+      )
+      .map((entry) => entry.session)
+  }, [isOpen, sessions, searchIndex, debouncedSearch])
 
   // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)
@@ -100,6 +129,26 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   )
 
   const handleDelete = useCallback((id: string) => deleteSession(id), [deleteSession])
+
+  /** Wait for the wipe before closing: a failure must stay visible. */
+  const handleClearAll = useCallback(async () => {
+    const confirmed = await confirm({
+      title: t('api_chat_confirm_clear_all'),
+      variant: 'destructive'
+    })
+    if (!confirmed) return
+
+    try {
+      await clearAllSessions()
+      onClose()
+    } catch (error) {
+      showError(
+        t('api_chat_clear_all_failed', {
+          error: error instanceof Error ? error.message : String(error)
+        })
+      )
+    }
+  }, [clearAllSessions, confirm, onClose, showError, t])
 
   if (!isOpen) return null
 
@@ -137,17 +186,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                   type="button"
                   variant="destructive"
                   size="sm"
-                  onClick={async () => {
-                    if (
-                      await confirm({
-                        title: t('api_chat_confirm_clear_all'),
-                        variant: 'destructive'
-                      })
-                    ) {
-                      clearAllSessions()
-                      onClose()
-                    }
-                  }}
+                  onClick={() => void handleClearAll()}
+                  disabled={isClearingAll}
                   className="text-ql-11 active:scale-98"
                 >
                   <Trash2 />

@@ -204,6 +204,43 @@ describe('useIsAnyDialogOpen', () => {
   // One dialog open must be visible to every subscriber, not just the one that
   // happened to mount last: two panels on opposite sides of the workspace each
   // close themselves when any dialog is open.
+  it('skips hidden and inert controls when trapping Tab', () => {
+    function HiddenControlsDialog() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: vi.fn(), dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="hidden-controls">
+          <button hidden>hidden-first</button>
+          <button>visible-first</button>
+          <button style={{ display: 'none' }}>hidden-middle</button>
+          <div inert>
+            <button>inert-button</button>
+          </div>
+          <button>visible-last</button>
+        </div>
+      )
+    }
+
+    render(<HiddenControlsDialog />)
+    const first = screen.getByRole('button', { name: 'visible-first' })
+    const last = screen.getByRole('button', { name: 'visible-last' })
+    first.focus()
+
+    // Shift+Tab at the first *visible* control wraps to the last visible one;
+    // hidden/inert controls never become the wrap target.
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(first).toHaveFocus()
+
+    const hiddenFirst = document.querySelector<HTMLButtonElement>('button[hidden]')
+    const hiddenMiddle = document.querySelector<HTMLButtonElement>('button[style]')
+    expect(hiddenFirst).not.toHaveFocus()
+    expect(hiddenMiddle).not.toHaveFocus()
+    expect(screen.getByRole('button', { name: 'inert-button' })).not.toHaveFocus()
+  })
+
   it('reports the same value to every subscriber', () => {
     render(
       <>

@@ -115,6 +115,19 @@ function ExtensionWizardPanel({
   const handleCopyLink = useCallback(() => {
     void linkCopy.copy('chrome://extensions')
   }, [linkCopy])
+  /**
+   * Retry from the error screen. Clearing the outcome first makes the wizard
+   * fall back to the loading step; the `loading` guard drops a second click
+   * that lands before React re-renders the button away.
+   */
+  const handleRetry = useCallback(() => {
+    if (loading) return
+    setError(null)
+    setSuccess(false)
+    if (mode === 'install') void handleInstallAction()
+    else void handleRemoveAction()
+  }, [handleInstallAction, handleRemoveAction, loading, mode])
+
   const handleDone = useCallback(() => onClose(), [onClose])
   const total = mode === 'install' ? 4 : 3
   const isConnected = extensionInfo?.status === 'connected'
@@ -144,7 +157,7 @@ function ExtensionWizardPanel({
             transition={{ duration: DURATION.slow, ease: 'easeOut' }}
           >
             {loading ? (
-              <LoadingContent mode={mode} />
+              <LoadingContent mode={mode} closeBlocked />
             ) : success || error ? (
               <ResultContent
                 success={success}
@@ -156,6 +169,7 @@ function ExtensionWizardPanel({
                 copiedLink={linkCopy.isCopied}
                 onCopyPath={handleCopyPath}
                 onCopyLink={handleCopyLink}
+                onRetry={handleRetry}
                 onDone={handleDone}
                 statusIndicator={<StatusIndicator isConnected={isConnected} mode={mode} />}
               />

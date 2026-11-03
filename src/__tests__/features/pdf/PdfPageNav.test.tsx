@@ -56,6 +56,31 @@ describe('PdfPageNav', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('cancels an invalid value on blur instead of leaving an unfocused field open', () => {
+    const { onJumpToPage } = renderNav()
+
+    fireEvent.click(screen.getByRole('button', { name: /61/ }))
+    const input = screen.getByRole('textbox')
+
+    fireEvent.change(input, { target: { value: '99' } })
+    fireEvent.blur(input)
+
+    expect(onJumpToPage).not.toHaveBeenCalled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it('commits a valid value on blur', () => {
+    const { onJumpToPage } = renderNav()
+
+    fireEvent.click(screen.getByRole('button', { name: /61/ }))
+    const input = screen.getByRole('textbox')
+
+    fireEvent.change(input, { target: { value: '7' } })
+    fireEvent.blur(input)
+
+    expect(onJumpToPage).toHaveBeenCalledWith(7)
+  })
+
   it('rejects non-numeric input instead of parsing its leading digits', () => {
     const { onJumpToPage } = renderNav()
 

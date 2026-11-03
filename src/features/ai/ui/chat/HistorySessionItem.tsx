@@ -126,9 +126,14 @@ const HistorySessionItem = memo(function HistorySessionItem({
                     else if (e.key === 'Escape') cancelEdit()
                   }}
                   size="sm"
-                  className="w-64"
+                  className="min-w-0 flex-1 sm:max-w-64"
                 />
-                <Button type="button" size="sm" onClick={confirmEdit} className="text-ql-11">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={confirmEdit}
+                  className="text-ql-11 shrink-0"
+                >
                   {t('api_chat_save')}
                 </Button>
               </div>

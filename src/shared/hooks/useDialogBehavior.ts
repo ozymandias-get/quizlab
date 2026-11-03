@@ -8,7 +8,29 @@ interface UseDialogBehaviorOptions {
 }
 
 const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Focusable elements that the user can actually reach right now.
+ *
+ * `querySelectorAll` alone also returns nodes hidden with `display:none`
+ * (the settings modal keeps inactive tabs mounted this way), inside an
+ * `inert` subtree, or clipped out of the layout — trapping Tab on one of
+ * those would look like the focus ring vanished.
+ */
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => {
+    if (element.closest('[inert]')) return false
+    if (element.hidden) return false
+    if (element.getAttribute('aria-hidden') === 'true') return false
+    const style = window.getComputedStyle(element)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+    // Zero client rects means clipped/`display:contents`-like; jsdom has no
+    // layout at all, so only enforce this when the document actually lays out.
+    const documentHasLayout = document.documentElement.getClientRects().length > 0
+    return !documentHasLayout || element.getClientRects().length > 0
+  })
+}
 
 /**
  * Every dialog in the app funnels through this hook, which makes it the one
@@ -80,7 +102,7 @@ export function useDialogBehavior({
       if (e.key !== 'Tab') return
       const dialogEl = dialogRef.current
       if (!dialogEl) return
-      const focusable = dialogEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      const focusable = getFocusableElements(dialogEl)
       if (focusable.length === 0) return
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
@@ -103,7 +125,7 @@ export function useDialogBehavior({
       const dialogEl = dialogRef.current
       const target =
         initialFocusRefRef.current?.current ??
-        dialogEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+        (dialogEl ? getFocusableElements(dialogEl)[0] : undefined)
       target?.focus()
     })
     return () => {

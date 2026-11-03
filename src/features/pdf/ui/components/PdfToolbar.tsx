@@ -6,7 +6,14 @@ import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/pri
 
 import { Hand, MoreHorizontal, RefreshCw } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { usePdfSearchStore } from '../hooks/usePdfSearchStore'
@@ -79,16 +86,27 @@ function PdfToolbar({
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false)
   const compactMenuRef = useRef<HTMLDivElement>(null)
+  const compactMenuTriggerRef = useRef<HTMLButtonElement>(null)
 
+  const closeCompactMenu = useCallback((returnFocus = false) => {
+    setIsCompactMenuOpen(false)
+    if (returnFocus) compactMenuTriggerRef.current?.focus()
+  }, [])
+
+  // WAI-ARIA menu button: focus moves to the first item on open and returns to
+  // the trigger on Escape/selection; outside clicks just dismiss.
   useEffect(() => {
     if (!isCompactMenuOpen) return
+    const menu = compactMenuRef.current?.querySelector<HTMLElement>('[role="menu"]')
+    menu?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+
     const handlePointerDown = (event: PointerEvent) => {
       if (!compactMenuRef.current?.contains(event.target as Node)) {
-        setIsCompactMenuOpen(false)
+        closeCompactMenu()
       }
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsCompactMenuOpen(false)
+      if (event.key === 'Escape') closeCompactMenu(true)
     }
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
@@ -96,7 +114,34 @@ function PdfToolbar({
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isCompactMenuOpen])
+  }, [closeCompactMenu, isCompactMenuOpen])
+
+  const handleCompactMenuKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeCompactMenu(true)
+        return
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+      const items = [
+        ...(compactMenuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+      ]
+      if (items.length === 0) return
+      event.preventDefault()
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+      if (event.key === 'Home') {
+        items[0].focus()
+      } else if (event.key === 'End') {
+        items[items.length - 1].focus()
+      } else {
+        const delta = event.key === 'ArrowDown' ? 1 : -1
+        const nextIndex = (currentIndex + delta + items.length) % items.length
+        items[nextIndex].focus()
+      }
+    },
+    [closeCompactMenu]
+  )
 
   const filePathRef = useRef(pdfFile?.path)
   useEffect(() => {
@@ -237,6 +282,7 @@ function PdfToolbar({
         <div ref={compactMenuRef} className="relative @min-[560px]:hidden">
           <WithTooltip label={t('pdf_more_tools')}>
             <IconButton
+              ref={compactMenuTriggerRef}
               type="button"
               variant="ghost"
               size="compact"
@@ -251,13 +297,16 @@ function PdfToolbar({
             </IconButton>
           </WithTooltip>
           {isCompactMenuOpen && (
-            <MenuSurface className="z-dropdown absolute bottom-full left-0 mb-2 w-48">
+            <MenuSurface
+              className="z-dropdown absolute bottom-full left-0 mb-2 w-48"
+              onKeyDown={handleCompactMenuKeyDown}
+            >
               <MenuItem
                 icon={<Hand />}
                 aria-pressed={panMode}
                 onClick={() => {
                   onTogglePanMode()
-                  setIsCompactMenuOpen(false)
+                  closeCompactMenu(true)
                 }}
               >
                 {t('pdf_pan_mode')}
@@ -267,7 +316,7 @@ function PdfToolbar({
                   icon={<RefreshCw />}
                   onClick={() => {
                     onReload()
-                    setIsCompactMenuOpen(false)
+                    closeCompactMenu(true)
                   }}
                 >
                   {t('ctx_reload')}

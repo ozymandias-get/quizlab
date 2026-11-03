@@ -36,6 +36,8 @@ let mockViews: SiteSessionView[] = []
 const mockSetEnabled = vi.fn()
 const mockClear = vi.fn()
 const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowWarning = vi.fn()
 const mockConfirm = vi.fn()
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
@@ -58,7 +60,11 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
-  useToastActions: () => ({ showError: mockShowError })
+  useToastActions: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showWarning: mockShowWarning
+  })
 }))
 
 vi.mock('@shared/hooks', () => ({
@@ -132,6 +138,43 @@ describe('useSiteSessionsState', () => {
     expect(mockConfirm).toHaveBeenCalledTimes(1)
     expect(mockClear).toHaveBeenCalledTimes(1)
     expect(mockClear).toHaveBeenCalledWith({ siteId: 'google' })
+    expect(mockShowSuccess).toHaveBeenCalledWith('ws_clear_all_result_success', undefined, {
+      count: '1'
+    })
+  })
+
+  it('summarises a partial failure and retries only the failed sites', async () => {
+    mockViews = [GOOGLE_VIEW, { ...CHATGPT_VIEW, enabled: true }]
+    mockClear.mockImplementation(({ siteId }: { siteId: string }) =>
+      siteId === 'chatgpt'
+        ? Promise.resolve({ success: false, error: 'wipe_failed' })
+        : Promise.resolve({ success: true })
+    )
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      await result.current.onClearAll()
+    })
+
+    expect(mockShowWarning).toHaveBeenCalledTimes(1)
+    expect(mockShowWarning.mock.calls[0][0]).toBe('ws_clear_all_result_partial')
+    expect(mockShowWarning.mock.calls[0][2]).toEqual({
+      success: '1',
+      failed: '1',
+      sites: 'ws_target_chatgpt'
+    })
+    expect(result.current.failedClearSites.map((view) => view.siteId)).toEqual(['chatgpt'])
+
+    mockClear.mockClear()
+    mockClear.mockResolvedValue({ success: true })
+    await act(async () => {
+      await result.current.onRetryFailedClear()
+    })
+
+    expect(mockClear).toHaveBeenCalledTimes(1)
+    expect(mockClear).toHaveBeenCalledWith({ siteId: 'chatgpt' })
+    expect(result.current.failedClearSites).toHaveLength(0)
   })
 
   it('does not clear anything when the confirmation is dismissed', async () => {

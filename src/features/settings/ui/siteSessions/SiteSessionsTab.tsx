@@ -31,6 +31,8 @@ const SiteSessionsTab = memo(() => {
     onToggle,
     onSelectSlot,
     onClearAll,
+    onRetryFailedClear,
+    failedClearSites,
     confirmProps,
     riskItems,
     mitigationItems,
@@ -94,6 +96,30 @@ const SiteSessionsTab = memo(() => {
         </div>
 
         <p className="text-ql-11 text-muted-foreground leading-relaxed">{t('ws_clear_all_hint')}</p>
+
+        {failedClearSites.length > 0 && (
+          <div
+            role="status"
+            className="border-destructive/30 bg-destructive/5 mt-2 flex flex-col gap-2 rounded-lg border p-3"
+          >
+            <p className="text-ql-12 text-destructive leading-relaxed">
+              {t('ws_clear_all_failed_notice', {
+                count: String(failedClearSites.length),
+                sites: failedClearSites.map((view) => t(view.labelKey)).join(', ')
+              })}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void onRetryFailedClear()}
+              disabled={isBusy}
+              className="self-start"
+            >
+              <span className="text-ql-11 font-semibold">{t('ws_clear_all_retry_btn')}</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {wizardOpen && wizardMode && (

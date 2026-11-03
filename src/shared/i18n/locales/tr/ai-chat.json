@@ -50,6 +50,7 @@
   "api_chat_modal_subtitle": "Tüm geçmiş sohbetlerinizi yönetin ve arayın",
   "api_chat_confirm_clear_all": "Tüm sohbet geçmişiniz kalıcı olarak silinecektir. Bu işlem geri alınamaz. Emin misiniz?",
   "api_chat_clear_all": "Tümünü Temizle",
+  "api_chat_clear_all_failed": "Sohbet geçmişi temizlenemedi: {error}",
   "api_chat_modal_search_placeholder": "Başlıklarda veya mesaj içeriklerinde arayın...",
   "api_chat_save": "Kaydet",
   "api_chat_active_badge": "Aktif",
