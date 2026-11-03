@@ -540,12 +540,13 @@ export async function importExternalCookies(
     const restoredImport = await importExternalCookies(targetSession, snapshot, allowedDomains)
     const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
     const snapshotRestored = await rollbackMatchesSnapshot(targetSession, snapshot, allowedDomains)
+    const flushFailed = await flush(' after a rollback')
     const rollbackFailed =
       restoredImport.failed > 0 ||
       restoredImport.flushFailed === true ||
       !removed ||
-      !snapshotRestored
-    const flushFailed = await flush(' after a rollback')
+      !snapshotRestored ||
+      flushFailed
     Logger.warn(
       `[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up; ` +
         `rolled back ${rollbackFailed ? 'incompletely' : 'to the previous session'}.`

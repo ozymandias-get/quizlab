@@ -186,6 +186,40 @@ describe('importExternalCookies', () => {
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ name: 'old-session', value: 'old' }))
   })
 
+  it('treats a failed final rollback flush as an unsuccessful rollback', async () => {
+    const previous = {
+      name: 'old-session',
+      value: 'old',
+      domain: '.chatgpt.com',
+      path: '/',
+      secure: true,
+      hostOnly: false
+    }
+    get.mockResolvedValue([previous])
+    set.mockRejectedValueOnce(new Error('rejected'))
+    const session = {
+      cookies: { set, remove, get },
+      // The snapshot import flushes first; the final rollback flush fails.
+      flushStorageData: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('disk full'))
+    } as never
+
+    const result = await importExternalCookies(
+      session,
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({
+      rolledBack: true,
+      rollbackFailed: true,
+      flushFailed: true
+    })
+  })
+
   it('separates a disk flush failure from a successful cookie write', async () => {
     const session = {
       cookies: { set, remove, get },

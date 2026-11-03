@@ -455,7 +455,12 @@ async function handleSiteSessionPacket(
     } else {
       for (const secondarySlot of secondarySlots) {
         const expected = entries.find((entry) => entry.slot === secondarySlot)
-        if (!expected) continue
+        if (!expected) {
+          // The slot has history but the account list no longer contains an
+          // account at that position: the old session cannot be verified.
+          secondaryFailures.push({ slot: secondarySlot, status: 'account_not_found' })
+          continue
+        }
         const preparation = await seedGoogleSessionSlotUnderLock(
           secondarySlot,
           {
