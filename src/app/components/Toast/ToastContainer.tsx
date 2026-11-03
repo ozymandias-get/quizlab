@@ -21,7 +21,7 @@ const ToastContainer = memo(function ToastContainer() {
     // region meant a critical failure waited behind informational messages.
     <div
       id="toast-root"
-      className="z-toast pointer-events-none fixed top-4 right-4 flex w-full max-w-[420px] flex-col items-end"
+      className="z-toast pointer-events-none fixed top-4 right-4 flex w-[calc(100vw-2rem)] max-w-[420px] flex-col items-end"
     >
       <div
         className="flex w-full flex-col items-end"

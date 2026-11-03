@@ -92,6 +92,7 @@
   "next_page": "Sonraki Sayfa",
   "prev_page": "Önceki Sayfa",
   "page_input_range": "1 ile {max} arasında tam bir sayfa numarası girin.",
+  "page_input_reverted": "Geçersiz sayfa numarası. 1 ile {max} arasında tam bir sayı girin; {page}. sayfada kalındı.",
   "feedback_like": "Beğen",
   "feedback_dislike": "Beğenme",
   "close_notification": "Bildirimi kapat",

@@ -16,6 +16,8 @@ import { useTranslation } from 'react-i18next'
 interface PdfPageNavProps {
   currentPage: number
   totalPages: number
+  /** Stable identity of the open document, used to cancel a pending page edit. */
+  documentId?: string | null
   onPreviousPage: () => void
   onNextPage: () => void
   onJumpToPage: (page: number) => void
@@ -27,6 +29,7 @@ const PAGE_INPUT_PATTERN = /^\d+$/
 function PdfPageNav({
   currentPage,
   totalPages,
+  documentId,
   onPreviousPage,
   onNextPage,
   onJumpToPage
@@ -35,9 +38,13 @@ function PdfPageNav({
   const [isEditingPage, setIsEditingPage] = useState(false)
   const [pageInputValue, setPageInputValue] = useState('')
   const [isPageInvalid, setIsPageInvalid] = useState(false)
+  const [showRevertNotice, setShowRevertNotice] = useState(false)
   const isPageEditActiveRef = useRef(false)
   const pageInputRef = useRef<HTMLInputElement>(null)
   const pageErrorId = useId()
+  const revertNoticeId = useId()
+  const documentIdRef = useRef(documentId)
+  const revertNoticeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!isEditingPage) return
@@ -45,12 +52,37 @@ function PdfPageNav({
     pageInputRef.current?.select()
   }, [isEditingPage])
 
+  const clearRevertNotice = useCallback(() => {
+    if (revertNoticeTimeoutRef.current) {
+      clearTimeout(revertNoticeTimeoutRef.current)
+      revertNoticeTimeoutRef.current = null
+    }
+    setShowRevertNotice(false)
+  }, [])
+
+  const announceRevert = useCallback(() => {
+    clearRevertNotice()
+    setShowRevertNotice(true)
+    revertNoticeTimeoutRef.current = setTimeout(() => {
+      revertNoticeTimeoutRef.current = null
+      setShowRevertNotice(false)
+    }, 4000)
+  }, [clearRevertNotice])
+
+  useEffect(
+    () => () => {
+      if (revertNoticeTimeoutRef.current) clearTimeout(revertNoticeTimeoutRef.current)
+    },
+    []
+  )
+
   const startPageInput = useCallback(() => {
+    clearRevertNotice()
     setPageInputValue(String(currentPage))
     setIsPageInvalid(false)
     isPageEditActiveRef.current = true
     setIsEditingPage(true)
-  }, [currentPage])
+  }, [clearRevertNotice, currentPage])
 
   const cancelPageInput = useCallback(() => {
     isPageEditActiveRef.current = false
@@ -58,6 +90,16 @@ function PdfPageNav({
     setIsEditingPage(false)
     setPageInputValue('')
   }, [])
+
+  // A different document must never inherit the previous document's open page
+  // editor or draft value. `currentPage` is deliberately not a dependency: a
+  // page change inside the same document should not close the editor.
+  useEffect(() => {
+    if (documentIdRef.current === documentId) return
+    documentIdRef.current = documentId
+    cancelPageInput()
+    clearRevertNotice()
+  }, [cancelPageInput, clearRevertNotice, documentId])
 
   const readPageInput = useCallback((): number | null => {
     const trimmed = pageInputValue.trim()
@@ -75,29 +117,34 @@ function PdfPageNav({
       return
     }
 
+    clearRevertNotice()
     isPageEditActiveRef.current = false
     setIsPageInvalid(false)
     onJumpToPage(page)
     setIsEditingPage(false)
-  }, [onJumpToPage, readPageInput])
+  }, [clearRevertNotice, onJumpToPage, readPageInput])
 
   /**
    * Blur: the user moved on. Commit a valid value, but never leave an empty
-   * invalid field behind with no focus — revert instead. (Enter keeps the
-   * field open so the error can be read and corrected.)
+   * invalid field behind with no focus — revert instead. Enter keeps the field
+   * open so the error can be read and corrected; blur closes it, so it shows a
+   * short message naming the page that was kept. Both paths now explain the
+   * rejection instead of one silently discarding the input.
    */
   const handleBlur = useCallback(() => {
     if (!isPageEditActiveRef.current) return
     const page = readPageInput()
     if (page === null) {
       cancelPageInput()
+      announceRevert()
       return
     }
+    clearRevertNotice()
     isPageEditActiveRef.current = false
     setIsPageInvalid(false)
     onJumpToPage(page)
     setIsEditingPage(false)
-  }, [cancelPageInput, onJumpToPage, readPageInput])
+  }, [announceRevert, cancelPageInput, clearRevertNotice, onJumpToPage, readPageInput])
 
   return (
     <ToolbarGroup>
@@ -156,16 +203,31 @@ function PdfPageNav({
           )}
         </span>
       ) : (
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          onClick={startPageInput}
-          className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums"
-        >
-          {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
-          <span className="text-muted-foreground">{totalPages}</span>
-        </Button>
+        <span className="relative inline-flex">
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={startPageInput}
+            aria-describedby={showRevertNotice ? revertNoticeId : undefined}
+            className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text px-2 text-center font-medium tabular-nums"
+          >
+            {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
+            <span className="text-muted-foreground">{totalPages}</span>
+          </Button>
+          {showRevertNotice && (
+            <span
+              id={revertNoticeId}
+              role="alert"
+              className="border-destructive/30 bg-popover text-destructive text-ql-11 shadow-ambient-sm z-dropdown absolute bottom-full left-1/2 mb-2 w-max max-w-64 -translate-x-1/2 rounded-md border px-2 py-1 text-center"
+            >
+              {t('page_input_reverted', {
+                page: String(currentPage),
+                max: String(totalPages)
+              })}
+            </span>
+          )}
+        </span>
       )}
 
       <ToolbarSeparator />

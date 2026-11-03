@@ -44,7 +44,11 @@ function ResultContent({
         <h3 className="text-ql-16 text-foreground font-semibold">
           {t('ws_extension_wizard_error_title')}
         </h3>
-        {error ? <p className="text-ql-13 text-destructive text-center">{error}</p> : null}
+        {error ? (
+          <p className="text-ql-13 text-destructive max-w-full text-center [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
+            {error}
+          </p>
+        ) : null}
         <div className="mt-2 flex w-full flex-col gap-2">
           <Button type="button" onClick={onRetry} className="w-full">
             <span className="text-ql-12">{t('ws_extension_wizard_retry_btn')}</span>

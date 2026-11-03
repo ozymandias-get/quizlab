@@ -1,11 +1,9 @@
-import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { Input } from '@app/components/ui/input'
 import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
-import { useConfirmDialog } from '@shared/hooks'
 import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
-import { MessageSquare, Pencil, Trash2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { Loader2, MessageSquare, Pencil, Trash2 } from 'lucide-react'
+import { memo, useCallback, useEffect, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Session {
@@ -21,13 +19,19 @@ interface HistorySessionItemProps {
   isActive: boolean
   tabId: string
   onSelect: (sessionId: string) => void
+  /** Asks the parent to confirm and start deletion. */
   onDelete: (sessionId: string) => void
+  /** True while this session's deletion is still running. */
+  isDeleting?: boolean
   editingId: string | null
   editTitle: string
+  /** True while the current rename request is in flight. */
+  isSavingEdit?: boolean
   onStartEdit: (sessionId: string, currentTitle: string) => void
   onEditTitleChange: (title: string) => void
   onCancelEdit: () => void
-  onConfirmEdit: (sessionId: string) => void
+  /** Resolves to whether the rename was saved; `false` keeps the editor open. */
+  onConfirmEdit: (sessionId: string) => Promise<boolean | void> | boolean | void
 }
 
 const HistorySessionItem = memo(function HistorySessionItem({
@@ -35,8 +39,10 @@ const HistorySessionItem = memo(function HistorySessionItem({
   isActive,
   onSelect,
   onDelete,
+  isDeleting = false,
   editingId,
   editTitle,
+  isSavingEdit = false,
   onStartEdit,
   onEditTitleChange,
   onCancelEdit,
@@ -45,7 +51,9 @@ const HistorySessionItem = memo(function HistorySessionItem({
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const editInputRef = useRef<HTMLInputElement>(null)
+  const editErrorId = useId()
   const isEditing = session.id === editingId
+  const isTitleEmpty = editTitle.trim().length === 0
   const msgCount = session.messages.length
 
   /**
@@ -53,10 +61,11 @@ const HistorySessionItem = memo(function HistorySessionItem({
    * `onBlur` afterwards. Without this latch the cancelled edit would still be
    * saved by the blur handler. It also makes Enter/click idempotent when the
    * button click's blur lands before the click itself.
+   *
+   * A failed save resets the latch so the user can retry without losing the
+   * draft they already typed.
    */
   const editOutcomeRef = useRef<'idle' | 'confirmed' | 'cancelled'>('idle')
-
-  const { confirm, props: confirmProps } = useConfirmDialog()
 
   useEffect(() => {
     if (isEditing) {
@@ -65,152 +74,165 @@ const HistorySessionItem = memo(function HistorySessionItem({
     }
   }, [isEditing])
 
-  const confirmEdit = useCallback(() => {
+  const confirmEdit = useCallback(async () => {
     if (editOutcomeRef.current !== 'idle') return
+    // An empty title never reaches the parent: the editor stays open and the
+    // inline error explains why nothing was saved.
+    if (isTitleEmpty) return
+
     editOutcomeRef.current = 'confirmed'
-    onConfirmEdit(session.id)
-  }, [onConfirmEdit, session.id])
+    const saved = await onConfirmEdit(session.id)
+    if (saved === false) editOutcomeRef.current = 'idle'
+  }, [isTitleEmpty, onConfirmEdit, session.id])
 
   const cancelEdit = useCallback(() => {
     editOutcomeRef.current = 'cancelled'
     onCancelEdit()
   }, [onCancelEdit])
 
+  const icon = (
+    <div
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+        isActive
+          ? 'border-primary/30 bg-primary/10 text-primary'
+          : 'border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground'
+      }`}
+    >
+      <MessageSquare className="h-4 w-4" />
+    </div>
+  )
+
+  const metadata = (
+    <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 select-none">
+      <span className="border-border/60 bg-muted/30 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5">
+        <MessageSquare className="h-3 w-3 shrink-0" />
+        {t('api_chat_msg_count', { count: String(msgCount) })}
+      </span>
+      <span className="shrink-0 opacity-30">•</span>
+      <span className="min-w-0 truncate">
+        {new Date(session.updatedAt || session.createdAt).toLocaleString(
+          language === 'tr' ? 'tr-TR' : 'en-US'
+        )}
+      </span>
+    </div>
+  )
+
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => {
-          if (!isEditing) onSelect(session.id)
-        }}
-        onKeyDown={(e) => {
-          if (!isEditing && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault()
-            onSelect(session.id)
-          }
-        }}
-        className={`group focus-visible:ring-ring/40 motion-normal relative flex cursor-pointer items-center justify-between overflow-hidden rounded-lg border p-3 shadow-xs transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-          isActive
-            ? 'border-ring/60 bg-accent/20'
-            : 'border-border bg-card hover:border-border hover:bg-muted/60'
-        }`}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          {/* Icon Container */}
-          <div
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
-              isActive
-                ? 'border-primary/30 bg-primary/10 text-primary'
-                : 'border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground'
-            }`}
-          >
-            <MessageSquare className="h-4 w-4" />
-          </div>
+    <div
+      className={`group focus-within:ring-ring/40 motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-lg border p-3 shadow-xs transition-colors focus-within:ring-2 ${
+        isActive
+          ? 'border-ring/60 bg-accent/20'
+          : 'border-border bg-card hover:border-border hover:bg-muted/60'
+      }`}
+    >
+      {isEditing ? (
+        <div className="flex min-w-0 flex-1 items-center gap-3 pr-8">
+          {icon}
 
           <div className="min-w-0 flex-1">
-            {isEditing ? (
-              <div
-                role="presentation"
-                className="flex items-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+            <div className="flex items-center gap-2">
+              <Input
+                ref={editInputRef}
+                value={editTitle}
+                onChange={(e) => onEditTitleChange(e.target.value)}
+                onBlur={confirmEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmEdit()
+                  else if (e.key === 'Escape') cancelEdit()
+                }}
+                size="sm"
+                aria-invalid={isTitleEmpty || undefined}
+                aria-describedby={isTitleEmpty ? editErrorId : undefined}
+                className="min-w-0 flex-1 sm:max-w-64"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={confirmEdit}
+                disabled={isTitleEmpty || isSavingEdit}
+                aria-busy={isSavingEdit || undefined}
+                className="text-ql-11 shrink-0"
               >
-                <Input
-                  ref={editInputRef}
-                  value={editTitle}
-                  onChange={(e) => onEditTitleChange(e.target.value)}
-                  onBlur={confirmEdit}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmEdit()
-                    else if (e.key === 'Escape') cancelEdit()
-                  }}
-                  size="sm"
-                  className="min-w-0 flex-1 sm:max-w-64"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={confirmEdit}
-                  className="text-ql-11 shrink-0"
-                >
-                  {t('api_chat_save')}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground font-bold' : 'text-foreground/90'}`}
-                >
-                  {session.title}
-                </span>
-                {isActive && (
-                  <span className="text-ql-10 border-primary/20 bg-primary/10 py-0.2 text-primary flex shrink-0 items-center gap-1 rounded-full border px-2 font-semibold select-none">
-                    <span className="bg-primary h-1 w-1 shrink-0 rounded-full" />
-                    {t('api_chat_active_badge')}
-                  </span>
-                )}
-              </div>
-            )}
-
-            <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 select-none">
-              <span className="border-border/60 bg-muted/30 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5">
-                <MessageSquare className="h-3 w-3 shrink-0" />
-                {t('api_chat_msg_count', { count: String(msgCount) })}
-              </span>
-              <span className="shrink-0 opacity-30">•</span>
-              <span className="min-w-0 truncate">
-                {new Date(session.updatedAt || session.createdAt).toLocaleString(
-                  language === 'tr' ? 'tr-TR' : 'en-US'
-                )}
-              </span>
+                {isSavingEdit && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {t('api_chat_save')}
+              </Button>
             </div>
+            {isTitleEmpty && (
+              <span
+                id={editErrorId}
+                role="alert"
+                className="text-destructive text-ql-11 mt-1 block"
+              >
+                {t('api_chat_title_required')}
+              </span>
+            )}
+            {metadata}
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div
-          role="presentation"
-          className="motion-normal absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
+      ) : (
+        <button
+          type="button"
+          onClick={() => onSelect(session.id)}
+          aria-label={session.title}
+          aria-current={isActive || undefined}
+          className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:ring-2 focus-visible:outline-none"
         >
-          {!isEditing && (
-            <WithTooltip label={t('api_chat_rename_tooltip')}>
-              <IconButton
-                type="button"
-                variant="outline"
-                size="compact"
-                onClick={() => onStartEdit(session.id, session.title)}
-                className="text-muted-foreground"
-                aria-label={t('api_chat_rename_tooltip')}
+          {icon}
+
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground font-bold' : 'text-foreground/90'}`}
               >
-                <Pencil />
-              </IconButton>
-            </WithTooltip>
-          )}
-          <WithTooltip label={t('api_chat_delete_tooltip')}>
+                {session.title}
+              </span>
+              {isActive && (
+                <span className="text-ql-10 border-primary/20 bg-primary/10 py-0.2 text-primary flex shrink-0 items-center gap-1 rounded-full border px-2 font-semibold select-none">
+                  <span className="bg-primary h-1 w-1 shrink-0 rounded-full" />
+                  {t('api_chat_active_badge')}
+                </span>
+              )}
+            </div>
+            {metadata}
+          </div>
+        </button>
+      )}
+
+      {/* Action buttons are siblings of the selection button, never nested
+          inside it: screen readers see one button to open the chat and separate
+          buttons for rename/delete. */}
+      <div className="motion-normal absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100">
+        {!isEditing && (
+          <WithTooltip label={t('api_chat_rename_tooltip')}>
             <IconButton
               type="button"
               variant="outline"
               size="compact"
-              onClick={async () => {
-                if (
-                  await confirm({ title: t('api_chat_confirm_delete'), variant: 'destructive' })
-                ) {
-                  onDelete(session.id)
-                }
-              }}
-              className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
-              aria-label={t('api_chat_delete_tooltip')}
+              onClick={() => onStartEdit(session.id, session.title)}
+              disabled={isDeleting}
+              className="text-muted-foreground"
+              aria-label={t('api_chat_rename_tooltip')}
             >
-              <Trash2 />
+              <Pencil />
             </IconButton>
           </WithTooltip>
-        </div>
+        )}
+        <WithTooltip label={t('api_chat_delete_tooltip')}>
+          <IconButton
+            type="button"
+            variant="outline"
+            size="compact"
+            onClick={() => onDelete(session.id)}
+            disabled={isDeleting}
+            aria-busy={isDeleting || undefined}
+            className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
+            aria-label={t('api_chat_delete_tooltip')}
+          >
+            {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}
+          </IconButton>
+        </WithTooltip>
       </div>
-      <ConfirmDialog {...confirmProps} />
-    </>
+    </div>
   )
 })
 

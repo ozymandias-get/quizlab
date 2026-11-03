@@ -92,6 +92,7 @@
   "next_page": "Next Page",
   "prev_page": "Previous Page",
   "page_input_range": "Enter a whole page number between 1 and {max}.",
+  "page_input_reverted": "Invalid page number. Enter a whole number between 1 and {max}; kept page {page}.",
   "feedback_like": "Like",
   "feedback_dislike": "Dislike",
   "close_notification": "Close notification",

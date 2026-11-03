@@ -65,6 +65,7 @@ function ExtensionStatusCard({
   const dotColor = (info: NativeMessagingExtensionInfo | null): string => {
     if (!info) return 'bg-muted-foreground'
     if (info.status === 'connected') return 'bg-emerald-500'
+    if (info.status === 'error') return 'bg-destructive'
     if (info.status === 'connecting' && info.installed) return 'bg-amber-500'
     return 'bg-muted-foreground'
   }
@@ -73,7 +74,10 @@ function ExtensionStatusCard({
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
       <div className="border-border/60 bg-background/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`} />
+          <span
+            aria-hidden="true"
+            className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`}
+          />
           <span className="text-ql-12 text-muted-foreground min-w-0">
             {t(statusKey(extensionInfo ?? null))}
           </span>

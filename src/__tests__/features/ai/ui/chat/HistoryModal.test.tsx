@@ -1,10 +1,12 @@
 import HistoryModal from '@features/ai/ui/chat/HistoryModal'
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockClearAll = vi.fn()
 const mockConfirm = vi.fn()
+const mockDelete = vi.fn()
+const mockRename = vi.fn()
 const mockShowError = vi.fn()
 
 const SESSIONS = [
@@ -21,6 +23,8 @@ const SESSIONS = [
     createdAt: 2
   }
 ]
+
+let mockSessions = SESSIONS
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
@@ -40,9 +44,9 @@ vi.mock('@shared/stores/toastStore', () => ({
 }))
 
 vi.mock('@features/ai/queries/useSessionsQuery', () => ({
-  useSessionsQuery: () => ({ data: SESSIONS }),
-  useDeleteSessionMutation: () => ({ mutate: vi.fn() }),
-  useRenameSessionMutation: () => ({ mutate: vi.fn() }),
+  useSessionsQuery: () => ({ data: mockSessions }),
+  useDeleteSessionMutation: () => ({ mutateAsync: mockDelete }),
+  useRenameSessionMutation: () => ({ mutateAsync: mockRename }),
   useClearAllSessionsMutation: () => ({ mutateAsync: mockClearAll, isPending: false })
 }))
 
@@ -68,12 +72,59 @@ vi.mock('motion/react', () => ({
 }))
 
 vi.mock('@features/ai/ui/chat/HistorySessionItem', () => ({
-  default: ({ session }: { session: { title: string } }) => <div>{session.title}</div>
+  default: ({
+    session,
+    editingId,
+    editTitle,
+    isSavingEdit,
+    isDeleting,
+    onStartEdit,
+    onEditTitleChange,
+    onConfirmEdit,
+    onDelete
+  }: {
+    session: { id: string; title: string }
+    editingId: string | null
+    editTitle: string
+    isSavingEdit: boolean
+    isDeleting: boolean
+    onStartEdit: (sessionId: string, title: string) => void
+    onEditTitleChange: (title: string) => void
+    onConfirmEdit: (sessionId: string) => Promise<boolean>
+    onDelete: (sessionId: string) => void
+  }) => (
+    <div>
+      <span>{session.title}</span>
+      <button type="button" onClick={() => onStartEdit(session.id, session.title)}>
+        rename-{session.id}
+      </button>
+      <button type="button" onClick={() => onDelete(session.id)} disabled={isDeleting}>
+        delete-{session.id}
+      </button>
+      {editingId === session.id && (
+        <>
+          <input
+            aria-label={`edit-${session.id}`}
+            value={editTitle}
+            onChange={(e) => onEditTitleChange(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => void onConfirmEdit(session.id)}
+            disabled={isSavingEdit || editTitle.trim().length === 0}
+          >
+            save-{session.id}
+          </button>
+        </>
+      )}
+    </div>
+  )
 }))
 
 describe('HistoryModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSessions = SESSIONS
   })
 
   it('starts with an empty search every time it is reopened', () => {
@@ -151,5 +202,74 @@ describe('HistoryModal', () => {
     resolveClear(undefined)
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('keeps the editor and the typed title open when renaming fails', async () => {
+    mockRename.mockRejectedValueOnce(new Error('disk full'))
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s1' }))
+    fireEvent.change(screen.getByLabelText('edit-s1'), { target: { value: 'New title' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save-s1' }))
+
+    await waitFor(() =>
+      expect(mockRename).toHaveBeenCalledWith({ sessionId: 's1', title: 'New title' })
+    )
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('api_chat_rename_failed'))
+
+    expect(screen.getByLabelText('edit-s1')).toHaveValue('New title')
+    expect(screen.getByRole('button', { name: 'save-s1' })).toBeInTheDocument()
+  })
+
+  it('never submits an empty title and keeps the editor open', async () => {
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s1' }))
+    fireEvent.change(screen.getByLabelText('edit-s1'), { target: { value: '   ' } })
+
+    expect(screen.getByRole('button', { name: 'save-s1' })).toBeDisabled()
+    expect(mockRename).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('edit-s1')).toBeInTheDocument()
+  })
+
+  it('disables the delete control for the session that is being deleted', async () => {
+    mockConfirm.mockResolvedValue(true)
+    let resolveDelete: (value: unknown) => void = () => undefined
+    mockDelete.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDelete = resolve
+      })
+    )
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'delete-s2' }))
+
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith('s2'))
+    expect(screen.getByRole('button', { name: 'delete-s2' })).toBeDisabled()
+
+    await act(async () => {
+      resolveDelete(undefined)
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'delete-s2' })).not.toBeDisabled()
+    )
+  })
+
+  it('only renders the visible window of a very large history', async () => {
+    mockSessions = Array.from({ length: 1000 }, (_, index) => ({
+      id: `s${index}`,
+      title: `Session ${index}`,
+      messages: [],
+      createdAt: index
+    }))
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    const renderedRows = screen.getAllByText(/^Session \d+$/)
+    expect(renderedRows.length).toBeGreaterThan(0)
+    expect(renderedRows.length).toBeLessThan(60)
   })
 })

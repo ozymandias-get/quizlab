@@ -26,6 +26,12 @@ const TOGGLE_ACTIVE = 'border-ring/50 bg-accent/30 text-foreground'
 const TOGGLE_IDLE =
   'border border-transparent text-muted-foreground hover:border-ring/30 hover:bg-accent/20 hover:text-foreground'
 
+/** Matches the viewer's document identity so a tab switch resets page edits. */
+function pdfDocumentId(pdfFile: PdfFile | null): string | null {
+  if (!pdfFile) return null
+  return `${pdfFile.path ?? ''}::${pdfFile.streamUrl ?? ''}::${pdfFile.name ?? ''}::${pdfFile.size ?? ''}`
+}
+
 /**
  * The search store is shared by every mounted toolbar (workspace + focus
  * overlay overlap during the focus transition). Only the last toolbar leaving
@@ -76,6 +82,7 @@ function PdfToolbar({
   onReload
 }: PdfToolbarProps) {
   const { t } = useTranslation()
+  const documentId = pdfDocumentId(pdfFile)
   const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
   const searchKeyword = usePdfSearchStore((s) => s.keyword)
   const openSearch = usePdfSearchStore((s) => s.open)
@@ -343,6 +350,7 @@ function PdfToolbar({
         <PdfPageNav
           currentPage={currentPage}
           totalPages={totalPages}
+          documentId={documentId}
           onPreviousPage={onPreviousPage}
           onNextPage={onNextPage}
           onJumpToPage={onJumpToPage}
