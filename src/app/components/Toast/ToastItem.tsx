@@ -73,6 +73,9 @@ const ToastItem = memo(
     const configuredDuration = toast.duration ?? TOAST_DURATION.DEFAULT
     const isPersistent = configuredDuration <= 0
     const remainingTimeRef = useRef(configuredDuration)
+    // Identifies which (toast, duration) pair the timer currently represents,
+    // so a duration update is applied once and does not fight pause/resume.
+    const appliedDurationRef = useRef(`${toast.id}:${configuredDuration}`)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const timerStartRef = useRef<number>(0)
 
@@ -121,6 +124,18 @@ const ToastItem = memo(
       }
       resumeTimer()
     }, [isPaused, pauseTimer, resumeTimer])
+
+    // A toast can be re-rendered with a new duration while keeping its id
+    // (for example when preferences change). Restart from the new duration
+    // instead of silently keeping the old remaining time.
+    useEffect(() => {
+      const key = `${toast.id}:${configuredDuration}`
+      if (appliedDurationRef.current === key) return
+      appliedDurationRef.current = key
+      remainingTimeRef.current = configuredDuration
+      setAnimationKey((animation) => animation + 1)
+      if (!isPaused) startTimer()
+    }, [configuredDuration, isPaused, startTimer, toast.id])
 
     // Unmount (or a toast id swap) is the only reason to drop the timeout.
     useEffect(() => () => clearTimer(), [clearTimer])

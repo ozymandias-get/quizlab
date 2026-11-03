@@ -34,7 +34,8 @@ vi.mock('motion/react', () => ({
 
 function renderWizard(
   onInstall: () => Promise<{ success: boolean; error?: string } | null>,
-  installedPath: string | null = null
+  installedPath: string | null = null,
+  onRemove: () => Promise<{ success: boolean; error?: string } | null> = vi.fn()
 ) {
   const view = render(
     <ExtensionWizardPanel
@@ -44,21 +45,25 @@ function renderWizard(
       mitigationItems={['mitigation one']}
       installedPath={installedPath}
       onInstall={onInstall}
-      onRemove={vi.fn()}
+      onRemove={onRemove}
       onClose={vi.fn()}
     />
   )
 
-  const rerenderWizard = (next: { open?: boolean; installedPath?: string | null }) =>
+  const rerenderWizard = (next: {
+    open?: boolean
+    installedPath?: string | null
+    mode?: 'install' | 'remove'
+  }) =>
     view.rerender(
       <ExtensionWizardPanel
         open={next.open ?? true}
-        mode="install"
+        mode={next.mode ?? 'install'}
         riskItems={['risk one']}
         mitigationItems={['mitigation one']}
         installedPath={next.installedPath ?? installedPath}
         onInstall={onInstall}
-        onRemove={vi.fn()}
+        onRemove={onRemove}
         onClose={vi.fn()}
       />
     )
@@ -145,6 +150,61 @@ describe('ExtensionWizardPanel', () => {
       screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' })
     ).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('keeps the path returned by a successful install over a stale parent update', async () => {
+    const onInstall = vi
+      .fn<() => Promise<{ success: boolean; installedPath?: string } | null>>()
+      .mockResolvedValue({ success: true, installedPath: 'C:/fresh/quizlab' })
+
+    const { rerenderWizard } = renderWizard(onInstall, 'C:/old/quizlab')
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_next_btn' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' }))
+
+    await waitFor(() => expect(screen.getByTitle('C:/fresh/quizlab')).toBeInTheDocument())
+
+    // A slower refresh from the parent still carries the previous location.
+    rerenderWizard({ installedPath: 'C:/old/quizlab' })
+
+    expect(screen.getByTitle('C:/fresh/quizlab')).toBeInTheDocument()
+    expect(screen.queryByTitle('C:/old/quizlab')).not.toBeInTheDocument()
+  })
+
+  it('defers a mode change until the running operation settles', async () => {
+    let resolveInstall: (value: { success: boolean } | null) => void = () => undefined
+    const onInstall = vi.fn(
+      () =>
+        new Promise<{ success: boolean } | null>((resolve) => {
+          resolveInstall = resolve
+        })
+    )
+    const onRemove = vi.fn()
+    const { rerenderWizard } = renderWizard(onInstall, null, onRemove)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_next_btn' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' }))
+
+    // The parent flips the wizard to remove mode mid-flight.
+    rerenderWizard({ mode: 'remove' })
+
+    // No second real operation may start while the first is alive.
+    expect(onRemove).not.toHaveBeenCalled()
+    expect(screen.getByText('ws_extension_wizard_loading_blocked')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveInstall({ success: true })
+    })
+
+    // Only after it settles does the remove flow appear, fresh at step 0.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'ws_extension_wizard_remove_confirm_btn' })
+      ).toBeInTheDocument()
+    )
+    expect(onRemove).not.toHaveBeenCalled()
   })
 
   it('ignores a result that belongs to a previous wizard session', async () => {

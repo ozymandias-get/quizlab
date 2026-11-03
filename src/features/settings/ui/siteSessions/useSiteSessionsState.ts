@@ -14,7 +14,7 @@ import {
 import { useConfirmDialog } from '@shared/hooks'
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { SiteSessionTranslate } from './types'
@@ -41,6 +41,9 @@ export function useSiteSessionsState() {
   const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
   /** Sites whose last clear failed; only these are offered for a retry. */
   const [failedClearSiteIds, setFailedClearSiteIds] = useState<string[]>([])
+  // A second click on the same switch before the first request settles would
+  // read the same stale `view.enabled` and send the same target state twice.
+  const pendingToggleSitesRef = useRef<Set<string>>(new Set())
   const { confirm, props: confirmProps } = useConfirmDialog()
 
   const views = data?.views ?? NO_VIEWS
@@ -56,9 +59,11 @@ export function useSiteSessionsState() {
 
   const onToggle = useCallback(
     (siteId: string) => {
+      if (pendingToggleSitesRef.current.has(siteId)) return
       const view = views.find((item) => item.siteId === siteId)
       if (!view) return
 
+      pendingToggleSitesRef.current.add(siteId)
       void setEnabledMutation
         .mutateAsync({ siteId, enabled: !view.enabled })
         .then((result) => {
@@ -66,6 +71,9 @@ export function useSiteSessionsState() {
         })
         .catch(() => {
           // A thrown mutation already reported itself through the toast.
+        })
+        .finally(() => {
+          pendingToggleSitesRef.current.delete(siteId)
         })
     },
     [reportError, setEnabledMutation, views]
@@ -145,10 +153,18 @@ export function useSiteSessionsState() {
     await clearSites(importedViews.map((view) => view.siteId))
   }, [clearSites, confirm, t, views])
 
-  /** Re-runs only the sites whose previous clear failed. */
+  /**
+   * Re-runs only the sites whose previous clear failed. A site whose import
+   * was switched off since then is no longer ours to clear, so it is dropped
+   * from the retry instead of being cleared behind the user's back.
+   */
   const onRetryFailedClear = useCallback(async () => {
-    await clearSites(failedClearSiteIds)
-  }, [clearSites, failedClearSiteIds])
+    const retryIds = failedClearSiteIds.filter(
+      (siteId) => views.find((view) => view.siteId === siteId)?.enabled
+    )
+    setFailedClearSiteIds(retryIds)
+    await clearSites(retryIds)
+  }, [clearSites, failedClearSiteIds, views])
 
   const onSelectSlot = useCallback(
     (siteId: string, slot: number) => {

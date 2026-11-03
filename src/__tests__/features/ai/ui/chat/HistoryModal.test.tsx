@@ -299,6 +299,25 @@ describe('HistoryModal', () => {
     expect(document.querySelectorAll('[data-history-row-index="0"]')).toHaveLength(1)
   })
 
+  it('keeps an unsaved title when a search hides the edited session', () => {
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s1' }))
+    fireEvent.change(screen.getByLabelText('edit-s1'), { target: { value: 'Draft title' } })
+
+    const search = screen.getByPlaceholderText('api_chat_modal_search_placeholder')
+    fireEvent.change(search, { target: { value: 'Pharmacology' } })
+
+    // The row is filtered out, but the draft is explicitly kept, not dropped.
+    expect(screen.queryByLabelText('edit-s1')).not.toBeInTheDocument()
+    expect(screen.getByText('api_chat_edit_hidden_by_search')).toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: '' } })
+
+    expect(screen.getByLabelText('edit-s1')).toHaveValue('Draft title')
+    expect(screen.queryByText('api_chat_edit_hidden_by_search')).not.toBeInTheDocument()
+  })
+
   it('does not open a second editor while a rename request is in flight', async () => {
     let resolveRename: (value: unknown) => void = () => undefined
     mockRename.mockReturnValueOnce(

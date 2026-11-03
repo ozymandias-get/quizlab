@@ -82,6 +82,27 @@ describe('ToastItem', () => {
     expect(mockOnRemove).not.toHaveBeenCalled()
   })
 
+  it('restarts the timer when the same toast receives a new duration', () => {
+    const { rerender } = render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
+
+    act(() => {
+      vi.advanceTimersByTime(600)
+    })
+
+    rerender(<ToastItem toast={{ ...mockToast, duration: 3000 }} onRemove={mockOnRemove} />)
+
+    // The old 1000ms deadline must not fire anymore.
+    act(() => {
+      vi.advanceTimersByTime(900)
+    })
+    expect(mockOnRemove).not.toHaveBeenCalled()
+
+    act(() => {
+      vi.advanceTimersByTime(2200)
+    })
+    expect(mockOnRemove).toHaveBeenCalledWith('123')
+  })
+
   it('should pause timer on mouse enter', () => {
     render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
 

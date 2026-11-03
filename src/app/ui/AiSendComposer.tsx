@@ -104,6 +104,7 @@ function AiSendComposer({
     return { textCount: text, imageCount: image }
   }, [items])
   const totalItems = textCount + imageCount
+  const draftItemIds = useMemo(() => items.map((draft) => draft.id), [items])
 
   const {
     sendFeedback,
@@ -331,7 +332,11 @@ function AiSendComposer({
                 {t('ai_draft_content_count', { count: totalItems })}
               </span>
               <span className="flex-1" />
-              <DraftOverflowMenu onClearAll={handleClearAll} totalItems={totalItems} />
+              <DraftOverflowMenu
+                onClearAll={handleClearAll}
+                totalItems={totalItems}
+                itemIds={draftItemIds}
+              />
               <IconButton
                 type="button"
                 variant="ghost"

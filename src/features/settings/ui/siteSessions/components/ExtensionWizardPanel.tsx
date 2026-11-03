@@ -65,6 +65,32 @@ function ExtensionWizardPanel({
   const operationIdRef = useRef(0)
   const wasVisibleRef = useRef(false)
   const previousModeRef = useRef(mode)
+  // Once an install reports its own path, a slower parent refresh must not
+  // overwrite it with an older value.
+  const pathFromResultRef = useRef(false)
+  // A session boundary that arrives mid-operation is applied after it settles,
+  // so a second real install/remove can never overlap the first.
+  const pendingResetRef = useRef<{ installedPath: string | null } | null>(null)
+
+  const resetSession = useCallback((nextInstalledPath: string | null) => {
+    operationIdRef.current += 1
+    actionLockRef.current = false
+    pathFromResultRef.current = false
+    setStep(0)
+    setLoading(false)
+    setError(null)
+    setSuccess(false)
+    setConfirmed(false)
+    setInstalledPath(nextInstalledPath)
+  }, [])
+
+  /** Applies a reset that was deferred while an operation was running. */
+  const flushPendingReset = useCallback(() => {
+    const pending = pendingResetRef.current
+    if (!pending) return
+    pendingResetRef.current = null
+    resetSession(pending.installedPath)
+  }, [resetSession])
 
   const isVisible = open
   useEffect(() => {
@@ -77,20 +103,19 @@ function ExtensionWizardPanel({
     // dialog or a parent refresh of `installedPathProp` must not rewind it.
     if (!becameVisible && !modeChanged) return
 
-    operationIdRef.current += 1
-    actionLockRef.current = false
-    setStep(0)
-    setLoading(false)
-    setError(null)
-    setSuccess(false)
-    setConfirmed(false)
-    setInstalledPath(installedPathProp)
-  }, [isVisible, mode, installedPathProp])
+    if (actionLockRef.current) {
+      pendingResetRef.current = { installedPath: installedPathProp }
+      return
+    }
+
+    resetSession(installedPathProp)
+  }, [isVisible, mode, installedPathProp, resetSession])
 
   // The path can also arrive late from the parent while the wizard is open.
-  // That is a data update, not a reason to restart the flow.
+  // That is a data update, not a reason to restart the flow, and it must not
+  // replace a path the install itself just returned.
   useEffect(() => {
-    if (!isVisible) return
+    if (!isVisible || pathFromResultRef.current) return
     setInstalledPath(installedPathProp)
   }, [installedPathProp, isVisible])
 
@@ -108,26 +133,34 @@ function ExtensionWizardPanel({
     try {
       const result = await onInstall()
       // The wizard may have been closed and reopened while the install was in
-      // flight; that result belongs to the previous session.
-      if (operationIdRef.current !== operationId) return
+      // flight; that result belongs to the previous session. A deferred reset
+      // counts as a new session even though the id is bumped only on flush.
+      if (operationIdRef.current !== operationId || pendingResetRef.current) return
       if (result?.success) {
         setSuccess(true)
-        if (result.installedPath) setInstalledPath(result.installedPath)
+        if (result.installedPath) {
+          pathFromResultRef.current = true
+          setInstalledPath(result.installedPath)
+        }
       } else {
         setError(result?.error ?? t('ws_extension_wizard_error_default'))
       }
     } catch (err) {
-      if (operationIdRef.current !== operationId) return
+      if (operationIdRef.current !== operationId || pendingResetRef.current) return
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
-      if (operationIdRef.current === operationId) {
+      if (operationIdRef.current === operationId && !pendingResetRef.current) {
         actionLockRef.current = false
         setLoading(false)
         setStep(3)
+      } else {
+        // A new session was requested while this one ran. Only now, with the
+        // real operation settled, is it safe to unlock and reset the UI.
+        flushPendingReset()
       }
     }
-  }, [onInstall, t])
+  }, [flushPendingReset, onInstall, t])
 
   const handleRemoveAction = useCallback(async () => {
     if (actionLockRef.current) return
@@ -137,21 +170,23 @@ function ExtensionWizardPanel({
     setLoading(true)
     try {
       const result = await onRemove()
-      if (operationIdRef.current !== operationId) return
+      if (operationIdRef.current !== operationId || pendingResetRef.current) return
       if (result?.success) setSuccess(true)
       else setError(result?.error ?? t('ws_extension_wizard_error_default'))
     } catch (err) {
-      if (operationIdRef.current !== operationId) return
+      if (operationIdRef.current !== operationId || pendingResetRef.current) return
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
-      if (operationIdRef.current === operationId) {
+      if (operationIdRef.current === operationId && !pendingResetRef.current) {
         actionLockRef.current = false
         setLoading(false)
         setStep(2)
+      } else {
+        flushPendingReset()
       }
     }
-  }, [onRemove, t])
+  }, [flushPendingReset, onRemove, t])
   const handleCopyPath = useCallback(() => {
     if (!installedPath) return
     void pathCopy.copy(installedPath)

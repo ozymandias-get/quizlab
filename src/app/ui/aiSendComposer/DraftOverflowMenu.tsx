@@ -18,6 +18,12 @@ interface DraftOverflowMenuProps {
   /** Taslak kuyruğu bu işlev üzerinden temizlenir (görsel kaynakları dahil). */
   onClearAll: () => void
   totalItems: number
+  /**
+   * Ids of the drafts visible when the menu is used. The confirmation is bound
+   * to this snapshot so a draft added while the dialog is open is not deleted
+   * without the user seeing it in the prompt.
+   */
+  itemIds: readonly string[]
 }
 
 /**
@@ -28,13 +34,17 @@ interface DraftOverflowMenuProps {
  * kompakt bir onay (`ConfirmDialog`) istenir; iptal edilirse hiçbir içerik
  * kaybolmaz, onaylanırsa mevcut kuyruk temizleme işlevi çağrılır.
  */
-function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
+function DraftOverflowMenu({ onClearAll, totalItems, itemIds }: DraftOverflowMenuProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom')
   const wrapperRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  // Latest queue, so a delayed confirmation can compare against what exists
+  // now instead of blindly clearing everything.
+  const itemIdsRef = useRef(itemIds)
+  itemIdsRef.current = itemIds
   const { props: confirmProps, confirm } = useConfirmDialog()
 
   const closeMenu = useCallback((returnFocus = false) => {
@@ -63,14 +73,11 @@ function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
     const handlePointerDown = (event: PointerEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) closeMenu()
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMenu(true)
-    }
+    // Escape is handled only by the menu's own React handler. A second
+    // document-level listener would close the surrounding dialog as well.
     document.addEventListener('pointerdown', handlePointerDown, true)
-    document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true)
-      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [closeMenu, isOpen])
 
@@ -104,19 +111,37 @@ function DraftOverflowMenu({ onClearAll, totalItems }: DraftOverflowMenuProps) {
     [closeMenu]
   )
 
-  const handleRequestClear = useCallback(() => {
+  const handleRequestClear = useCallback(async () => {
     closeMenu()
     // Yalnızca onay VERİLDİĞİNDE temizle; iptal hiçbir içeriğe dokunmaz.
-    void confirm({
-      title: t('ai_send_clear_all'),
-      description: t('ai_send_clear_all_confirm', { count: totalItems }),
-      confirmLabel: t('ai_send_clear_all'),
-      cancelLabel: t('cancel'),
-      variant: 'destructive'
-    }).then((confirmed) => {
-      if (confirmed) onClearAll()
-    })
-  }, [closeMenu, confirm, onClearAll, t, totalItems])
+    let snapshot = [...itemIdsRef.current]
+
+    // If the queue changes while the dialog is open, the earlier approval no
+    // longer covers it. Ask again for the new snapshot instead of deleting
+    // drafts the user never saw in the confirmation.
+    for (;;) {
+      if (snapshot.length === 0) return
+
+      const confirmed = await confirm({
+        title: t('ai_send_clear_all'),
+        description: t('ai_send_clear_all_confirm', { count: snapshot.length }),
+        confirmLabel: t('ai_send_clear_all'),
+        cancelLabel: t('cancel'),
+        variant: 'destructive'
+      })
+      if (!confirmed) return
+
+      const current = itemIdsRef.current
+      const unchanged =
+        current.length === snapshot.length && current.every((id, index) => id === snapshot[index])
+      if (unchanged) {
+        onClearAll()
+        return
+      }
+
+      snapshot = [...current]
+    }
+  }, [closeMenu, confirm, onClearAll, t])
 
   return (
     <div ref={wrapperRef} className="relative shrink-0">

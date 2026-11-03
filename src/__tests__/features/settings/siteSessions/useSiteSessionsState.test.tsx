@@ -177,6 +177,57 @@ describe('useSiteSessionsState', () => {
     expect(result.current.failedClearSites).toHaveLength(0)
   })
 
+  it('sends only one request for a switch that is clicked twice', async () => {
+    let resolveToggle: (value: { success: boolean }) => void = () => undefined
+    mockSetEnabled.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveToggle = resolve
+      })
+    )
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onToggle('chatgpt')
+      result.current.onToggle('chatgpt')
+      await Promise.resolve()
+    })
+
+    expect(mockSetEnabled).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveToggle({ success: true })
+    })
+  })
+
+  it('skips a failed-clear retry for a site whose import was turned off', async () => {
+    mockViews = [GOOGLE_VIEW, { ...CHATGPT_VIEW, enabled: true }]
+    mockClear.mockImplementation(({ siteId }: { siteId: string }) =>
+      siteId === 'chatgpt'
+        ? Promise.resolve({ success: false, error: 'wipe_failed' })
+        : Promise.resolve({ success: true })
+    )
+
+    const { result, rerender } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      await result.current.onClearAll()
+    })
+    expect(result.current.failedClearSites.map((view) => view.siteId)).toEqual(['chatgpt'])
+
+    // The user turned the import off while looking at the failure.
+    mockViews = [GOOGLE_VIEW, CHATGPT_VIEW]
+    rerender()
+    mockClear.mockClear()
+
+    await act(async () => {
+      await result.current.onRetryFailedClear()
+    })
+
+    expect(mockClear).not.toHaveBeenCalled()
+    expect(result.current.failedClearSites).toHaveLength(0)
+  })
+
   it('does not clear anything when the confirmation is dismissed', async () => {
     mockConfirm.mockResolvedValue(false)
 

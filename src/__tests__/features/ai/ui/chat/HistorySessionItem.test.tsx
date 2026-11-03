@@ -64,6 +64,13 @@ describe('HistorySessionItem interaction structure', () => {
     expect(remove).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('does not let a rename and a delete race for the same session', () => {
+    renderItem({ editingId: SESSION.id, editTitle: 'New title', isSavingEdit: true })
+
+    const remove = screen.getByRole('button', { name: 'api_chat_delete_tooltip' })
+    expect(remove).toBeDisabled()
+  })
+
   it('blocks an empty rename and explains why it cannot be saved', () => {
     const onConfirmEdit = vi.fn()
     renderItem({ editingId: SESSION.id, editTitle: '   ', onConfirmEdit })

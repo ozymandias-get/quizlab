@@ -226,7 +226,9 @@ const HistorySessionItem = memo(function HistorySessionItem({
             variant="outline"
             size="compact"
             onClick={() => onDelete(session.id)}
-            disabled={isDeleting}
+            // A rename for this row is in flight: deleting it now would race
+            // the write and could resurrect or lose the session.
+            disabled={isDeleting || isSavingEdit}
             aria-busy={isDeleting || undefined}
             className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
             aria-label={t('api_chat_delete_tooltip')}

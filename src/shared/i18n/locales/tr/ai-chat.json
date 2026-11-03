@@ -53,6 +53,7 @@
   "api_chat_clear_all_failed": "Sohbet geçmişi temizlenemedi: {error}",
   "api_chat_modal_search_placeholder": "Başlıklarda veya mesaj içeriklerinde arayın...",
   "api_chat_searching": "Aranıyor...",
+  "api_chat_edit_hidden_by_search": "Kaydedilmemiş başlığınız korunuyor, ancak sohbet arama nedeniyle gizli.",
   "api_chat_clear_search": "Aramayı temizle",
   "api_chat_save": "Kaydet",
   "api_chat_active_badge": "Aktif",
