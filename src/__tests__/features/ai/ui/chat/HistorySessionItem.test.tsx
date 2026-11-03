@@ -88,6 +88,29 @@ describe('HistorySessionItem interaction structure', () => {
     expect(onConfirmEdit).not.toHaveBeenCalled()
   })
 
+  it('keeps an edited draft open when the field loses focus', () => {
+    const onConfirmEdit = vi.fn()
+    renderItem({ editingId: SESSION.id, editTitle: 'Changed title', onConfirmEdit })
+
+    fireEvent.blur(screen.getByDisplayValue('Changed title'))
+
+    expect(onConfirmEdit).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue('Changed title')).toBeInTheDocument()
+  })
+
+  it('closes an untouched editor on blur instead of leaving it open', () => {
+    const onCancelEdit = vi.fn()
+    renderItem({
+      editingId: SESSION.id,
+      editTitle: SESSION.title,
+      onCancelEdit
+    })
+
+    fireEvent.blur(screen.getByDisplayValue(SESSION.title))
+
+    expect(onCancelEdit).toHaveBeenCalledTimes(1)
+  })
+
   it('resets the save latch after a failed rename so the draft can be retried', async () => {
     const onConfirmEdit = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
     renderItem({

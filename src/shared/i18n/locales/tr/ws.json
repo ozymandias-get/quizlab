@@ -127,6 +127,7 @@
   "ws_extension_wizard_installing": "Eklenti yükleniyor...",
   "ws_extension_wizard_install_success": "Eklenti Yüklendi",
   "ws_extension_wizard_install_success_desc": "Eklenti dosyaları şu konumda hazır:",
+  "ws_extension_wizard_copy_path": "Konumu panoya kopyala",
   "ws_extension_wizard_path_copied": "Konum panoya kopyalandı",
   "ws_extension_wizard_manual_title": "Manuel Adımlar",
   "ws_extension_wizard_manual_step1": "1. Chrome/Edge/Brave'de chrome://extensions adresini açın",

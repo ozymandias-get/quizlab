@@ -72,8 +72,8 @@ function ExtensionStatusCard({
 
   return (
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
-      <div className="border-border/60 bg-background/40 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <div className="border-border/60 bg-background/40 @container flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <span
             aria-hidden="true"
             className={`size-2 shrink-0 rounded-full ${dotColor(extensionInfo ?? null)}`}
@@ -91,7 +91,9 @@ function ExtensionStatusCard({
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        {/* In a narrow panel the actions take their own row instead of being
+            squeezed next to a long, translated status string. */}
+        <div className="flex w-full flex-wrap items-center gap-2 @min-[420px]:w-auto @min-[420px]:shrink-0">
           {extensionInfo?.installed && extensionInfo?.status !== 'connected' && (
             <Button
               type="button"
@@ -100,7 +102,7 @@ function ExtensionStatusCard({
               // Any supported site makes the extension talk to the app; Gemini
               // is the one the button has always opened, and the label says so.
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-              className="text-amber-600 hover:text-amber-700 dark:text-amber-400"
+              className="text-amber-600 hover:text-amber-700 @max-[420px]:flex-1 dark:text-amber-400"
             >
               <span className="text-ql-11 font-semibold">{t('ws_extension_wake_btn')}</span>
             </Button>
@@ -111,7 +113,7 @@ function ExtensionStatusCard({
               variant="ghost"
               size="xs"
               onClick={onRemoveExtension}
-              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive @max-[420px]:flex-1"
             >
               <span className="text-ql-11 font-semibold">{t('ws_extension_remove_btn')}</span>
             </Button>
@@ -121,7 +123,7 @@ function ExtensionStatusCard({
               size="xs"
               onClick={handleInstallClick}
               disabled={installing}
-              className="gap-1.5"
+              className="gap-1.5 @max-[420px]:flex-1"
             >
               {installing ? (
                 <LoaderIcon className="h-3.5 w-3.5 animate-spin" />

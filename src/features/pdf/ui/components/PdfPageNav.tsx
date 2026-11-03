@@ -41,6 +41,9 @@ function PdfPageNav({
   const [showRevertNotice, setShowRevertNotice] = useState(false)
   const isPageEditActiveRef = useRef(false)
   const pageInputRef = useRef<HTMLInputElement>(null)
+  const pageButtonRef = useRef<HTMLButtonElement>(null)
+  // Escape dismisses the editor and must not drop keyboard focus on <body>.
+  const restoreFocusRef = useRef(false)
   const pageErrorId = useId()
   const revertNoticeId = useId()
   const documentIdRef = useRef(documentId)
@@ -50,6 +53,14 @@ function PdfPageNav({
     if (!isEditingPage) return
     pageInputRef.current?.focus()
     pageInputRef.current?.select()
+  }, [isEditingPage])
+
+  // The display button replaces the input after Escape; focus it once it is
+  // actually mounted.
+  useEffect(() => {
+    if (isEditingPage || !restoreFocusRef.current) return
+    restoreFocusRef.current = false
+    pageButtonRef.current?.focus()
   }, [isEditingPage])
 
   const clearRevertNotice = useCallback(() => {
@@ -183,6 +194,7 @@ function PdfPageNav({
                 e.preventDefault()
                 submitPageInput()
               } else if (e.key === 'Escape') {
+                restoreFocusRef.current = true
                 cancelPageInput()
               }
             }}
@@ -205,6 +217,7 @@ function PdfPageNav({
       ) : (
         <span className="relative inline-flex">
           <Button
+            ref={pageButtonRef}
             type="button"
             variant="ghost"
             size="xs"

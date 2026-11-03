@@ -22,6 +22,8 @@ const CurrentScale = ({ children }: any) => children({ scale: 1.25 })
 interface PdfFileLike {
   path: string
   name: string
+  streamUrl?: string
+  size?: number
 }
 
 interface Overrides {
@@ -170,6 +172,45 @@ describe('PdfToolbar', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('handles Escape in one layer and does not leak it to outer listeners', () => {
+    const { getByTestId } = renderToolbar()
+    const documentKeyDown = vi.fn()
+    document.addEventListener('keydown', documentKeyDown)
+
+    fireEvent.click(getByTestId('pdf-toolbar-more'))
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(documentKeyDown).not.toHaveBeenCalled()
+
+    document.removeEventListener('keydown', documentKeyDown)
+  })
+
+  it('flips the compact menu when there is no room above or to the left', () => {
+    const rectSpy = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: Element) {
+        if (this.getAttribute('data-testid') === 'pdf-toolbar-more') {
+          return { top: 4, bottom: 24, left: 2, right: 22, width: 20, height: 20 } as DOMRect
+        }
+        if (this.getAttribute('data-slot') === 'menu-surface') {
+          return { top: 0, bottom: 0, left: 0, right: 0, width: 192, height: 100 } as DOMRect
+        }
+        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 } as DOMRect
+      })
+
+    try {
+      const { getByTestId } = renderToolbar()
+      fireEvent.click(getByTestId('pdf-toolbar-more'))
+
+      const menu = screen.getByRole('menu')
+      expect(menu).toHaveClass('top-full')
+      expect(menu).toHaveClass('right-0')
+    } finally {
+      rectSpy.mockRestore()
+    }
+  })
+
   describe('viewer with no legacy renderer branch', () => {
     it('reveals the search bar when the shared store opens it', async () => {
       renderToolbar()
@@ -233,6 +274,83 @@ describe('PdfToolbar', () => {
         await new Promise((resolve) => setTimeout(resolve, 400))
       })
       expect(highlight).not.toHaveBeenCalled()
+    })
+
+    it('resets the search when the same path opens different content', async () => {
+      const clearHighlights = vi.fn<() => void>()
+      const { setPdfFile } = renderToolbar({
+        clearHighlights,
+        pdfFile: { path: '/docs/same.pdf', name: 'same.pdf', streamUrl: 'blob:one' }
+      })
+
+      fireEvent.change(screen.getByPlaceholderText('search_placeholder'), {
+        target: { value: 'thermodynamics' }
+      })
+      expect(usePdfSearchStore.getState().keyword).toBe('thermodynamics')
+
+      // Same path, new stream (the file was regenerated or re-opened).
+      setPdfFile({ path: '/docs/same.pdf', name: 'same.pdf', streamUrl: 'blob:two' })
+
+      await waitFor(() => expect(clearHighlights).toHaveBeenCalled())
+      expect(usePdfSearchStore.getState().keyword).toBe('')
+    })
+
+    it('keeps two viewers with different documents from sharing one query', async () => {
+      const drawTwo = (first: string, second: string) => (
+        <TooltipProvider>
+          <PdfToolbar
+            {...({
+              pdfFile: { path: first, name: first, streamUrl: 'blob:a' },
+              panMode: false,
+              onTogglePanMode: vi.fn(),
+              currentPage: 1,
+              totalPages: 5,
+              onPreviousPage: vi.fn(),
+              onNextPage: vi.fn(),
+              onJumpToPage: vi.fn(),
+              highlight: vi.fn(),
+              clearHighlights: vi.fn(),
+              ZoomIn,
+              ZoomOut,
+              CurrentScale
+            } as React.ComponentProps<typeof PdfToolbar>)}
+          />
+          <PdfToolbar
+            {...({
+              pdfFile: { path: second, name: second, streamUrl: 'blob:b' },
+              panMode: false,
+              onTogglePanMode: vi.fn(),
+              currentPage: 1,
+              totalPages: 5,
+              onPreviousPage: vi.fn(),
+              onNextPage: vi.fn(),
+              onJumpToPage: vi.fn(),
+              highlight: vi.fn(),
+              clearHighlights: vi.fn(),
+              ZoomIn,
+              ZoomOut,
+              CurrentScale
+            } as React.ComponentProps<typeof PdfToolbar>)}
+          />
+        </TooltipProvider>
+      )
+
+      const { rerender } = render(drawTwo('/docs/a.pdf', '/docs/b.pdf'))
+
+      const inputs = screen.getAllByPlaceholderText('search_placeholder')
+      expect(inputs).toHaveLength(2)
+
+      fireEvent.change(inputs[0], { target: { value: 'lupus' } })
+
+      // Document B no longer mirrors document A's query.
+      expect(usePdfSearchStore.getState().ownerId).toContain('/docs/a.pdf')
+      // AnimatePresence keeps B's exiting bar mounted briefly.
+      await waitFor(() =>
+        expect(screen.getAllByPlaceholderText('search_placeholder')).toHaveLength(1)
+      )
+      expect(screen.getByPlaceholderText('search_placeholder')).toHaveValue('lupus')
+
+      rerender(drawTwo('/docs/a.pdf', '/docs/b.pdf'))
     })
   })
 })

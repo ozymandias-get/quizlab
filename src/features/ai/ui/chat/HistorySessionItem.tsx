@@ -93,6 +93,17 @@ const HistorySessionItem = memo(function HistorySessionItem({
     onCancelEdit()
   }, [onCancelEdit])
 
+  /**
+   * Blur is not a save: the explicit Save button and Enter own that decision.
+   * Clicking elsewhere keeps the editor (and the draft) open. Only an
+   * untouched title is closed, so tabbing through the list does not leave a
+   * pointless editor behind.
+   */
+  const handleEditBlur = useCallback(() => {
+    if (editOutcomeRef.current !== 'idle') return
+    if (editTitle.trim() === session.title.trim()) cancelEdit()
+  }, [cancelEdit, editTitle, session.title])
+
   const icon = (
     <div
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
@@ -138,7 +149,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
                 ref={editInputRef}
                 value={editTitle}
                 onChange={(e) => onEditTitleChange(e.target.value)}
-                onBlur={confirmEdit}
+                onBlur={handleEditBlur}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') confirmEdit()
                   else if (e.key === 'Escape') cancelEdit()

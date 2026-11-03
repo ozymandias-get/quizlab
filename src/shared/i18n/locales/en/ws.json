@@ -127,6 +127,7 @@
   "ws_extension_wizard_installing": "Installing extension...",
   "ws_extension_wizard_install_success": "Extension Installed",
   "ws_extension_wizard_install_success_desc": "Extension files are ready at:",
+  "ws_extension_wizard_copy_path": "Copy path to clipboard",
   "ws_extension_wizard_path_copied": "Path copied to clipboard",
   "ws_extension_wizard_manual_title": "Manual Steps",
   "ws_extension_wizard_manual_step1": "1. Open chrome://extensions in Chrome/Edge/Brave",

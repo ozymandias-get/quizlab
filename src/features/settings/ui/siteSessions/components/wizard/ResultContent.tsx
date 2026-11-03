@@ -139,7 +139,11 @@ function ResultContent({
                 size="compact"
                 onClick={onCopyPath}
                 className="text-muted-foreground hover:text-foreground"
-                aria-label={t('ws_extension_wizard_path_copied')}
+                // Label the action before the click and the outcome after it;
+                // "copied" as a standing label misdescribes an untouched button.
+                aria-label={
+                  copied ? t('ws_extension_wizard_path_copied') : t('ws_extension_wizard_copy_path')
+                }
               >
                 {copied ? (
                   <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />

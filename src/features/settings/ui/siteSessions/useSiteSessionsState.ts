@@ -44,9 +44,16 @@ export function useSiteSessionsState() {
   // A second click on the same switch before the first request settles would
   // read the same stale `view.enabled` and send the same target state twice.
   const pendingToggleSitesRef = useRef<Set<string>>(new Set())
+  // Per-site FIFO for slot changes: a rapid second click must not reach the
+  // backend before the first request, or a slow earlier response could win.
+  const slotQueuesRef = useRef<Map<string, Promise<void>>>(new Map())
   const { confirm, props: confirmProps } = useConfirmDialog()
 
   const views = data?.views ?? NO_VIEWS
+  // Confirmation dialogs resolve asynchronously; re-check against the latest
+  // render's views instead of the snapshot captured before the dialog opened.
+  const viewsRef = useRef(views)
+  viewsRef.current = views
   const failedClearSites = views.filter((view) => failedClearSiteIds.includes(view.siteId))
 
   /** The service answers a refusal with a stable code the renderer can name. */
@@ -150,7 +157,13 @@ export function useSiteSessionsState() {
     })
     if (!confirmed) return
 
-    await clearSites(importedViews.map((view) => view.siteId))
+    // The user may have toggled imports while the dialog was open. Clear only
+    // the confirmed sites that are still enabled right now.
+    const latestViews = viewsRef.current
+    const stillEnabledIds = importedViews
+      .map((view) => view.siteId)
+      .filter((siteId) => latestViews.find((view) => view.siteId === siteId)?.enabled)
+    await clearSites(stillEnabledIds)
   }, [clearSites, confirm, t, views])
 
   /**
@@ -168,14 +181,25 @@ export function useSiteSessionsState() {
 
   const onSelectSlot = useCallback(
     (siteId: string, slot: number) => {
-      void setActiveSlotMutation
-        .mutateAsync({ siteId, slot })
-        .then((result) => {
-          if (!result.success) reportError(result.error)
+      const previous = slotQueuesRef.current.get(siteId) ?? Promise.resolve()
+      const run = previous
+        .catch(() => undefined)
+        .then(async () => {
+          try {
+            const result = await setActiveSlotMutation.mutateAsync({ siteId, slot })
+            if (!result.success) reportError(result.error)
+          } catch {
+            reportError('write_failed')
+          }
         })
-        .catch(() => {
-          reportError('write_failed')
-        })
+
+      slotQueuesRef.current.set(siteId, run)
+      void run.finally(() => {
+        // Drop the chain only if no newer selection was queued meanwhile.
+        if (slotQueuesRef.current.get(siteId) === run) {
+          slotQueuesRef.current.delete(siteId)
+        }
+      })
     },
     [setActiveSlotMutation, reportError]
   )

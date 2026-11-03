@@ -16,6 +16,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { pdfDocumentId } from '../hooks/pdfDocumentIdentity'
 import { usePdfSearchStore } from '../hooks/usePdfSearchStore'
 import PdfPageNav from './PdfPageNav'
 import PdfSearchBar from './PdfSearchBar'
@@ -26,11 +27,11 @@ const TOGGLE_ACTIVE = 'border-ring/50 bg-accent/30 text-foreground'
 const TOGGLE_IDLE =
   'border border-transparent text-muted-foreground hover:border-ring/30 hover:bg-accent/20 hover:text-foreground'
 
-/** Matches the viewer's document identity so a tab switch resets page edits. */
-function pdfDocumentId(pdfFile: PdfFile | null): string | null {
-  if (!pdfFile) return null
-  return `${pdfFile.path ?? ''}::${pdfFile.streamUrl ?? ''}::${pdfFile.name ?? ''}::${pdfFile.size ?? ''}`
-}
+type MenuVertical = 'top' | 'bottom'
+type MenuHorizontal = 'left' | 'right'
+
+/** Gap between the compact menu and its trigger, in pixels. */
+const MENU_GAP = 8
 
 /**
  * The search store is shared by every mounted toolbar (workspace + focus
@@ -83,15 +84,24 @@ function PdfToolbar({
 }: PdfToolbarProps) {
   const { t } = useTranslation()
   const documentId = pdfDocumentId(pdfFile)
-  const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
-  const searchKeyword = usePdfSearchStore((s) => s.keyword)
+  const storeSearchOpen = usePdfSearchStore((s) => s.isOpen)
+  const storeSearchKeyword = usePdfSearchStore((s) => s.keyword)
+  const searchOwnerId = usePdfSearchStore((s) => s.ownerId)
   const openSearch = usePdfSearchStore((s) => s.open)
   const setSearchKeyword = usePdfSearchStore((s) => s.setKeyword)
   const resetSearch = usePdfSearchStore((s) => s.reset)
+  const resetSearchForOwner = usePdfSearchStore((s) => s.resetOwner)
+  // A viewer only mirrors the shared query while it belongs to its document.
+  // `null` means the shortcut opened the bar without a document yet.
+  const ownsSearch = searchOwnerId === null || searchOwnerId === documentId
+  const isSearchOpen = storeSearchOpen && ownsSearch
+  const searchKeyword = ownsSearch ? storeSearchKeyword : ''
   const searchKeywordRef = useRef(searchKeyword)
   searchKeywordRef.current = searchKeyword
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false)
+  const [compactMenuVertical, setCompactMenuVertical] = useState<MenuVertical>('top')
+  const [compactMenuHorizontal, setCompactMenuHorizontal] = useState<MenuHorizontal>('left')
   const compactMenuRef = useRef<HTMLDivElement>(null)
   const compactMenuTriggerRef = useRef<HTMLButtonElement>(null)
 
@@ -107,19 +117,41 @@ function PdfToolbar({
     const menu = compactMenuRef.current?.querySelector<HTMLElement>('[role="menu"]')
     menu?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
 
+    // Keep the menu inside the visible toolbar band: prefer opening upward,
+    // but flip below the trigger (and to the other edge horizontally) when the
+    // available space is too small. jsdom reports zero sizes, in which case the
+    // defaults stay in place.
+    const trigger = compactMenuTriggerRef.current
+    if (trigger && menu) {
+      const triggerRect = trigger.getBoundingClientRect()
+      const menuRect = menu.getBoundingClientRect()
+      const spaceAbove = triggerRect.top
+      const spaceBelow = window.innerHeight - triggerRect.bottom
+      const nextVertical: MenuVertical =
+        spaceAbove >= menuRect.height + MENU_GAP || spaceAbove > spaceBelow ? 'top' : 'bottom'
+
+      // The menu is left-aligned by default. If that would cross the left
+      // viewport edge but there is room to the right, align its right edge with
+      // the trigger instead.
+      const spaceToLeft = triggerRect.left
+      const spaceToRight = window.innerWidth - triggerRect.right
+      const overflowsLeft = menuRect.width > 0 && spaceToLeft < menuRect.width + MENU_GAP
+      const canFlipRight = spaceToRight >= menuRect.width + MENU_GAP
+
+      setCompactMenuVertical(nextVertical)
+      setCompactMenuHorizontal(overflowsLeft && canFlipRight ? 'right' : 'left')
+    }
+
     const handlePointerDown = (event: PointerEvent) => {
       if (!compactMenuRef.current?.contains(event.target as Node)) {
         closeCompactMenu()
       }
     }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeCompactMenu(true)
-    }
+    // Escape is handled only by the menu's React handler. A second document
+    // listener would let the same key also close the surrounding layer.
     document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
     }
   }, [closeCompactMenu, isCompactMenuOpen])
 
@@ -127,6 +159,7 @@ function PdfToolbar({
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
       if (event.key === 'Escape') {
         event.preventDefault()
+        event.stopPropagation()
         closeCompactMenu(true)
         return
       }
@@ -150,18 +183,20 @@ function PdfToolbar({
     [closeCompactMenu]
   )
 
-  const filePathRef = useRef(pdfFile?.path)
+  // The document identity is the same value the viewer uses for page edits:
+  // path alone misses a reopened file whose stream/content changed.
+  const documentIdRef = useRef(documentId)
   useEffect(() => {
-    if (pdfFile?.path !== filePathRef.current) {
-      filePathRef.current = pdfFile?.path
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current)
-        searchDebounceRef.current = null
-      }
-      resetSearch()
-      clearHighlights()
+    if (documentId === documentIdRef.current) return
+    const previousDocumentId = documentIdRef.current
+    documentIdRef.current = documentId
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current)
+      searchDebounceRef.current = null
     }
-  }, [pdfFile?.path, resetSearch, clearHighlights])
+    resetSearchForOwner(previousDocumentId)
+    clearHighlights()
+  }, [documentId, resetSearchForOwner, clearHighlights])
 
   useEffect(() => {
     mountedToolbarCount += 1
@@ -209,15 +244,15 @@ function PdfToolbar({
       clearTimeout(searchDebounceRef.current)
       searchDebounceRef.current = null
     }
-    resetSearch()
+    resetSearchForOwner(documentId)
     clearHighlights()
-  }, [resetSearch, clearHighlights])
+  }, [resetSearchForOwner, documentId, clearHighlights])
 
-  const handleOpenSearch = useCallback(() => openSearch(), [openSearch])
+  const handleOpenSearch = useCallback(() => openSearch(documentId), [openSearch, documentId])
 
   const handleKeywordChange = useCallback(
     (keyword: string) => {
-      setSearchKeyword(keyword)
+      setSearchKeyword(keyword, documentId)
       // Emptying the field is an explicit clear, not an edit to debounce: the
       // highlights must disappear with the text (same as the panel's X).
       if (!keyword) {
@@ -230,7 +265,7 @@ function PdfToolbar({
       }
       scheduleHighlight(keyword)
     },
-    [clearHighlights, scheduleHighlight, setSearchKeyword]
+    [clearHighlights, documentId, scheduleHighlight, setSearchKeyword]
   )
 
   return (
@@ -305,7 +340,11 @@ function PdfToolbar({
           </WithTooltip>
           {isCompactMenuOpen && (
             <MenuSurface
-              className="z-dropdown absolute bottom-full left-0 mb-2 w-48"
+              className={cn(
+                'z-dropdown absolute w-48',
+                compactMenuVertical === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
+                compactMenuHorizontal === 'left' ? 'left-0' : 'right-0'
+              )}
               onKeyDown={handleCompactMenuKeyDown}
             >
               <MenuItem

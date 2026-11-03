@@ -31,4 +31,38 @@ describe('ResultContent', () => {
     expect(message.className).toContain('break-words')
     expect(message.className).toContain('[overflow-wrap:anywhere]')
   })
+
+  it('labels the copy button as an action until the copy succeeds', () => {
+    const draw = (copied: boolean) => (
+      <ResultContent
+        success
+        error={null}
+        mode="install"
+        isConnected
+        installedPath="C:/extensions/quizlab"
+        copied={copied}
+        copiedLink={false}
+        onCopyPath={vi.fn()}
+        onCopyLink={vi.fn()}
+        onRetry={vi.fn()}
+        onDone={vi.fn()}
+        statusIndicator={null}
+      />
+    )
+
+    const { rerender } = render(draw(false))
+
+    expect(
+      screen.getByRole('button', { name: 'ws_extension_wizard_copy_path' })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'ws_extension_wizard_path_copied' })
+    ).not.toBeInTheDocument()
+
+    rerender(draw(true))
+
+    expect(
+      screen.getByRole('button', { name: 'ws_extension_wizard_path_copied' })
+    ).toBeInTheDocument()
+  })
 })

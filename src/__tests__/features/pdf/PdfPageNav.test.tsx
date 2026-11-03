@@ -69,6 +69,18 @@ describe('PdfPageNav', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
+  it('returns focus to the page button when Escape cancels the edit', () => {
+    renderNav()
+
+    const openButton = screen.getByRole('button', { name: /61/ })
+    fireEvent.click(openButton)
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /61/ })).toHaveFocus()
+  })
+
   it('commits a valid value on blur', () => {
     const { onJumpToPage } = renderNav()
 

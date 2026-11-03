@@ -4,6 +4,7 @@ import { isMacPlatform } from '@shared/lib/shortcutUtils'
 
 import { useEffect, useRef } from 'react'
 
+import { pdfDocumentId } from './pdfDocumentIdentity'
 import { usePdfSearchStore } from './usePdfSearchStore'
 
 interface UsePdfShortcutsOptions {
@@ -33,6 +34,12 @@ export function usePdfShortcuts({ onSelectPdf, isMac = isMacPlatform() }: UsePdf
     const tab = s.pdfTabs.find((t) => t.id === s.activePdfTabId)
     return tab?.kind === 'pdf' && !!tab.file
   })
+  // Ctrl+F must claim the query for the document in the active tab; otherwise
+  // a second viewer showing another PDF could mirror the same search.
+  const activeDocumentId = usePdfTabStore((s) => {
+    const tab = s.pdfTabs.find((t) => t.id === s.activePdfTabId)
+    return tab?.kind === 'pdf' ? pdfDocumentId(tab.file ?? null) : null
+  })
   const openSearch = usePdfSearchStore((s) => s.open)
 
   const onSelectPdfRef = useRef(onSelectPdf)
@@ -41,6 +48,8 @@ export function usePdfShortcuts({ onSelectPdf, isMac = isMacPlatform() }: UsePdf
   openSearchRef.current = openSearch
   const canOpenSearchRef = useRef(canOpenSearch)
   canOpenSearchRef.current = canOpenSearch
+  const activeDocumentIdRef = useRef(activeDocumentId)
+  activeDocumentIdRef.current = activeDocumentId
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -59,7 +68,7 @@ export function usePdfShortcuts({ onSelectPdf, isMac = isMacPlatform() }: UsePdf
         case 'f':
           if (!canOpenSearchRef.current) return
           event.preventDefault()
-          openSearchRef.current()
+          openSearchRef.current(activeDocumentIdRef.current)
           break
       }
     }
