@@ -67,10 +67,10 @@ export const GOOGLE_WEB_SESSION_APPS: GoogleWebSessionAppDefinition[] = [
   {
     id: 'notebooklm',
     name: 'NotebookLM',
-    url: 'https://notebooklm.google.com',
-    hostname: 'notebooklm.google.com',
+    url: 'https://notebook.google.com',
+    hostname: 'notebook.google.com',
     icon: 'notebooklm',
-    color: '#4b5563',
+    color: '#4285f4',
     surface: 'ai',
     registryEligible: true
   }

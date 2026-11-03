@@ -106,7 +106,7 @@ describe('built-in site session targets', () => {
       'https://aistudio.google.com',
       'https://www.youtube.com',
       'https://drive.google.com',
-      'https://notebooklm.google.com'
+      'https://notebook.google.com'
     ])
   })
 
@@ -225,7 +225,7 @@ describe('site session view', () => {
       siteId: 'google',
       labelKey: 'ws_target_google',
       hostname:
-        'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com, notebooklm.google.com',
+        'gemini.google.com, aistudio.google.com, www.youtube.com, drive.google.com, notebook.google.com',
       kind: 'google',
       memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive', 'notebooklm'],
       enabled: true,

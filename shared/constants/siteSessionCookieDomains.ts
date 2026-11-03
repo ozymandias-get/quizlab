@@ -59,7 +59,7 @@ export const SITE_SESSION_COOKIE_DOMAINS = {
   ernie: ['.wenxin.baidu.com', '.yiyan.baidu.com'],
   spark: ['.xinghuo.xfyun.cn'],
   stepfun: ['.stepfun.com'],
-  longcat: ['.longcat.ai'],
+  longcat: ['.longcat.ai', '.longcat.chat'],
   allenai: ['.allenai.org'],
   monica: ['.monica.im'],
   merlin: ['.getmerlin.in'],

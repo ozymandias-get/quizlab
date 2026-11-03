@@ -105,6 +105,56 @@ describe('systemHandlers/cache', () => {
     }
   })
 
+  it('retries a locked cache directory before giving up', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'quizlab-cache-retry-'))
+    const cacheDir = path.join(root, 'Cache')
+    await fs.mkdir(cacheDir, { recursive: true })
+    const originalRm = fs.rm.bind(fs)
+    let attempts = 0
+    const rmSpy = vi.spyOn(fs, 'rm').mockImplementation((async (target: any, options: any) => {
+      if (path.basename(String(target)) === 'Cache') {
+        attempts += 1
+        if (attempts === 1) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EBUSY' })
+        }
+      }
+      return (originalRm as any)(target, options)
+    }) as any)
+    try {
+      const { clearSafeCacheDirectories } = await import('../../../core/systemHandlers/cache.js')
+      await expect(clearSafeCacheDirectories(root, new Set(), true)).resolves.toBeUndefined()
+      expect(attempts).toBeGreaterThanOrEqual(2)
+      await expect(fs.access(cacheDir)).rejects.toThrow()
+    } finally {
+      rmSpy.mockRestore()
+      await fs.rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not fail the whole cleanup when one directory stays locked', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'quizlab-cache-locked-'))
+    const cacheDir = path.join(root, 'Cache')
+    const lockedDir = path.join(root, 'Code Cache')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.mkdir(lockedDir, { recursive: true })
+    const originalRm = fs.rm.bind(fs)
+    const rmSpy = vi.spyOn(fs, 'rm').mockImplementation((async (target: any, options: any) => {
+      if (path.basename(String(target)) === 'Code Cache') {
+        throw Object.assign(new Error('access denied'), { code: 'EIO' })
+      }
+      return (originalRm as any)(target, options)
+    }) as any)
+    try {
+      const { clearSafeCacheDirectories } = await import('../../../core/systemHandlers/cache.js')
+      await expect(clearSafeCacheDirectories(root, new Set(), true)).resolves.toBeUndefined()
+      await expect(fs.access(cacheDir)).rejects.toThrow()
+      await expect(fs.access(lockedDir)).resolves.toBeUndefined()
+    } finally {
+      rmSpy.mockRestore()
+      await fs.rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('finds persisted custom and secondary Google partitions for cache cleanup', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'quizlab-cache-partitions-'))
     try {

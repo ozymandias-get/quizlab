@@ -64,7 +64,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             detail={t('ai_home.favorites_detail')}
             icon={FAVORITES_SECTION_ICON}
             count={favoriteOrder.length}
-            defaultOpen
+            defaultOpen={false}
           >
             {favoriteOrder.length > 0 ? (
               <AiHomeCardGrid
@@ -89,7 +89,7 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
             detail={t('ai_home.models_detail')}
             icon={MODELS_SECTION_ICON}
             count={modelOrder.length}
-            defaultOpen
+            defaultOpen={false}
           >
             <AiHomeCardGrid
               activeModelIds={activeModelIds}

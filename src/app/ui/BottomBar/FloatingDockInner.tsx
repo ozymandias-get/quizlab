@@ -47,7 +47,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
   return (
     <TooltipProvider delayDuration={200}>
       <DockTooltipAlignProvider value={tooltipAlign}>
-        <motion.div className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-2 backdrop-blur-md">
+        <motion.div className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-8 backdrop-blur-md">
           <div className="flex w-full flex-col items-center gap-0.5">
             {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
               <SettingsToolButton onOpenSettings={onOpenSettings} />
