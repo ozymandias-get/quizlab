@@ -61,38 +61,40 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
         )}
       </ZoomOut>
 
-      <ToolbarSeparator />
+      <ToolbarSeparator className="@max-[430px]:hidden" />
 
-      <CurrentScale>
-        {(props: { scale: number }) => {
-          const pct = Math.round(props.scale * 100)
-          const label = t('zoom_level', { value: pct }) || `${pct}%`
-          return (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="hover:bg-muted focus-visible:ring-ring/40 min-w-[50px] rounded-md px-1.5 py-0.5 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                  aria-label={label}
-                  onClick={() => {
-                    // Zoom controls are viewer-owned; this button surfaces the level for a11y
-                    // and keeps the toolbar keyboard-navigable (no-op).
-                  }}
-                >
-                  <span className="text-ql-12 text-foreground font-medium tabular-nums select-none">
-                    {pct}%
-                  </span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {label} — {t('zoom_hint', { defaultValue: 'Use + / − to adjust' })}
-              </TooltipContent>
-            </Tooltip>
-          )
-        }}
-      </CurrentScale>
+      <div className="@max-[430px]:hidden">
+        <CurrentScale>
+          {(props: { scale: number }) => {
+            const pct = Math.round(props.scale * 100)
+            const label = t('zoom_level', { value: pct }) || `${pct}%`
+            return (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="hover:bg-muted focus-visible:ring-ring/40 min-w-[50px] rounded-md px-1.5 py-0.5 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    aria-label={label}
+                    onClick={() => {
+                      // Zoom controls are viewer-owned; this button surfaces the level for a11y
+                      // and keeps the toolbar keyboard-navigable (no-op).
+                    }}
+                  >
+                    <span className="text-ql-12 text-foreground font-medium tabular-nums select-none">
+                      {pct}%
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {label} — {t('zoom_hint', { defaultValue: 'Use + / − to adjust' })}
+                </TooltipContent>
+              </Tooltip>
+            )
+          }}
+        </CurrentScale>
+      </div>
 
-      <ToolbarSeparator />
+      <ToolbarSeparator className="@max-[430px]:hidden" />
 
       <ZoomIn>
         {(props: RenderChildProps) => (

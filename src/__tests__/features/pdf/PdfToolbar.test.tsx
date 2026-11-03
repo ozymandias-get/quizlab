@@ -1,5 +1,5 @@
 import PdfToolbar from '@features/pdf/ui/components/PdfToolbar'
-import { usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
+import { resetPdfSearchStore, usePdfSearchStore } from '@features/pdf/ui/hooks/usePdfSearchStore'
 
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 beforeEach(() => {
+  resetPdfSearchStore()
   usePdfSearchStore.setState({ isOpen: true })
 })
 
@@ -117,6 +118,23 @@ describe('PdfToolbar', () => {
     expect(onReload).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the secondary tools reachable from the compact menu', () => {
+    const onReload = vi.fn()
+    const onTogglePanMode = vi.fn()
+    const { getByTestId } = renderToolbar({ onReload, onTogglePanMode })
+
+    fireEvent.click(getByTestId('pdf-toolbar-more'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'pdf_pan_mode' }))
+    expect(onTogglePanMode).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+
+    fireEvent.click(getByTestId('pdf-toolbar-more'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ctx_reload' }))
+    expect(onReload).toHaveBeenCalledTimes(1)
+  })
+
   describe('viewer with no legacy renderer branch', () => {
     it('reveals the search bar when the shared store opens it', async () => {
       renderToolbar()
@@ -142,9 +160,21 @@ describe('PdfToolbar', () => {
 
       fireEvent.click(screen.getByLabelText('clear'))
 
-      await waitFor(() => expect(clearHighlights).toHaveBeenCalledTimes(1))
+      // Emptying the field is an explicit clear: no 300 ms debounce window in
+      // which the old highlights remain visible.
+      expect(clearHighlights).toHaveBeenCalledTimes(1)
       expect(highlight).toHaveBeenCalledTimes(1)
       expect(screen.getByPlaceholderText('search_placeholder')).toHaveValue('')
+    })
+
+    it('keeps the query in the shared store so overlapping toolbars agree', () => {
+      renderToolbar()
+
+      fireEvent.change(screen.getByPlaceholderText('search_placeholder'), {
+        target: { value: 'entropy' }
+      })
+
+      expect(usePdfSearchStore.getState().keyword).toBe('entropy')
     })
 
     it('does not carry a pending search into the next document', async () => {

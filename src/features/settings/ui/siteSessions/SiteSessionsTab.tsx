@@ -1,3 +1,4 @@
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { GlobeIcon, XIcon } from '@ui/components/Icons'
 
@@ -30,6 +31,7 @@ const SiteSessionsTab = memo(() => {
     onToggle,
     onSelectSlot,
     onClearAll,
+    confirmProps,
     riskItems,
     mitigationItems,
     wizardOpen,
@@ -106,6 +108,8 @@ const SiteSessionsTab = memo(() => {
           onClose={closeWizard}
         />
       )}
+
+      <ConfirmDialog {...confirmProps} />
     </div>
   )
 })

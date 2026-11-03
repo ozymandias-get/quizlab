@@ -5,7 +5,7 @@ import { useConfirmDialog } from '@shared/hooks'
 import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { MessageSquare, Pencil, Trash2 } from 'lucide-react'
-import { memo, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Session {
@@ -48,13 +48,33 @@ const HistorySessionItem = memo(function HistorySessionItem({
   const isEditing = session.id === editingId
   const msgCount = session.messages.length
 
+  /**
+   * Escape calls `onCancelEdit`, which unmounts the input; that unmount fires
+   * `onBlur` afterwards. Without this latch the cancelled edit would still be
+   * saved by the blur handler. It also makes Enter/click idempotent when the
+   * button click's blur lands before the click itself.
+   */
+  const editOutcomeRef = useRef<'idle' | 'confirmed' | 'cancelled'>('idle')
+
   const { confirm, props: confirmProps } = useConfirmDialog()
 
   useEffect(() => {
     if (isEditing) {
+      editOutcomeRef.current = 'idle'
       setTimeout(() => editInputRef.current?.focus(), FOCUS_DEFER_MS)
     }
   }, [isEditing])
+
+  const confirmEdit = useCallback(() => {
+    if (editOutcomeRef.current !== 'idle') return
+    editOutcomeRef.current = 'confirmed'
+    onConfirmEdit(session.id)
+  }, [onConfirmEdit, session.id])
+
+  const cancelEdit = useCallback(() => {
+    editOutcomeRef.current = 'cancelled'
+    onCancelEdit()
+  }, [onCancelEdit])
 
   return (
     <>
@@ -100,20 +120,15 @@ const HistorySessionItem = memo(function HistorySessionItem({
                   ref={editInputRef}
                   value={editTitle}
                   onChange={(e) => onEditTitleChange(e.target.value)}
-                  onBlur={() => onConfirmEdit(session.id)}
+                  onBlur={confirmEdit}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') onConfirmEdit(session.id)
-                    else if (e.key === 'Escape') onCancelEdit()
+                    if (e.key === 'Enter') confirmEdit()
+                    else if (e.key === 'Escape') cancelEdit()
                   }}
                   size="sm"
                   className="w-64"
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => onConfirmEdit(session.id)}
-                  className="text-ql-11"
-                >
+                <Button type="button" size="sm" onClick={confirmEdit} className="text-ql-11">
                   {t('api_chat_save')}
                 </Button>
               </div>

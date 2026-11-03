@@ -115,7 +115,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.14 }}
-          className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border"
+          className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border"
           onClick={(e) => e.stopPropagation()}
         >
           <PanelHeader>

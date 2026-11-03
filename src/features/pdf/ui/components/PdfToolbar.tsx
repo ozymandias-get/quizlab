@@ -1,9 +1,10 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Hand, RefreshCw } from 'lucide-react'
+import { Hand, MoreHorizontal, RefreshCw } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -69,12 +70,33 @@ function PdfToolbar({
 }: PdfToolbarProps) {
   const { t } = useTranslation()
   const isSearchOpen = usePdfSearchStore((s) => s.isOpen)
+  const searchKeyword = usePdfSearchStore((s) => s.keyword)
   const openSearch = usePdfSearchStore((s) => s.open)
-  const closeSearch = usePdfSearchStore((s) => s.close)
-  const [searchKeyword, setSearchKeyword] = useState('')
+  const setSearchKeyword = usePdfSearchStore((s) => s.setKeyword)
+  const resetSearch = usePdfSearchStore((s) => s.reset)
   const searchKeywordRef = useRef(searchKeyword)
   searchKeywordRef.current = searchKeyword
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false)
+  const compactMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isCompactMenuOpen) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!compactMenuRef.current?.contains(event.target as Node)) {
+        setIsCompactMenuOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsCompactMenuOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isCompactMenuOpen])
 
   const filePathRef = useRef(pdfFile?.path)
   useEffect(() => {
@@ -84,11 +106,10 @@ function PdfToolbar({
         clearTimeout(searchDebounceRef.current)
         searchDebounceRef.current = null
       }
-      closeSearch()
-      setSearchKeyword('')
+      resetSearch()
       clearHighlights()
     }
-  }, [pdfFile?.path, closeSearch, clearHighlights])
+  }, [pdfFile?.path, resetSearch, clearHighlights])
 
   useEffect(() => {
     mountedToolbarCount += 1
@@ -100,9 +121,9 @@ function PdfToolbar({
       // Search is document-scoped state in a module store; without this close
       // a reopened viewer inherited the previous document's open search bar.
       // Wait for the last viewer: LeftPanel and FocusOverlay can overlap.
-      if (mountedToolbarCount === 0) closeSearch()
+      if (mountedToolbarCount === 0) resetSearch()
     }
-  }, [closeSearch])
+  }, [resetSearch])
 
   const scheduleHighlight = useCallback(
     (keyword: string) => {
@@ -136,19 +157,28 @@ function PdfToolbar({
       clearTimeout(searchDebounceRef.current)
       searchDebounceRef.current = null
     }
-    closeSearch()
-    setSearchKeyword('')
+    resetSearch()
     clearHighlights()
-  }, [closeSearch, clearHighlights])
+  }, [resetSearch, clearHighlights])
 
   const handleOpenSearch = useCallback(() => openSearch(), [openSearch])
 
   const handleKeywordChange = useCallback(
     (keyword: string) => {
       setSearchKeyword(keyword)
+      // Emptying the field is an explicit clear, not an edit to debounce: the
+      // highlights must disappear with the text (same as the panel's X).
+      if (!keyword) {
+        if (searchDebounceRef.current) {
+          clearTimeout(searchDebounceRef.current)
+          searchDebounceRef.current = null
+        }
+        clearHighlights()
+        return
+      }
       scheduleHighlight(keyword)
     },
-    [scheduleHighlight]
+    [clearHighlights, scheduleHighlight, setSearchKeyword]
   )
 
   return (
@@ -160,10 +190,14 @@ function PdfToolbar({
       // açık tonunu (`bg-card/60`) korur: iki yüzey bitişik olduğunda bile tek
       // kart gibi okunmamalı, aralarında kalan hava ikisini ayırır. Araç çubuğunun
       // içindeki kontrollerin görünümü değişmemiştir.
-      className="border-border bg-card/60 relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-4 py-2.5 select-none sm:gap-3"
+      className="border-border bg-card/60 @container relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-2 py-2.5 select-none sm:gap-3 sm:px-4"
     >
-      <div className="relative flex items-center gap-2">
-        <ToolbarGroup>
+      {/* Secondary controls yield first on narrow toolbars; page navigation,
+          zoom and search stay reachable. Container queries follow the viewer
+          width, not the app window, so the compact layout also applies when
+          the reader sits in a narrow split pane. */}
+      <div className="relative flex shrink-0 items-center gap-2">
+        <ToolbarGroup className="@max-[560px]:hidden">
           <WithTooltip label={t('pdf_pan_mode')}>
             <IconButton
               type="button"
@@ -197,9 +231,54 @@ function PdfToolbar({
             </WithTooltip>
           )}
         </ToolbarGroup>
+
+        {/* Narrow viewers keep the secondary tools in a menu instead of
+            dropping them: page navigation, zoom and search remain inline. */}
+        <div ref={compactMenuRef} className="relative @min-[560px]:hidden">
+          <WithTooltip label={t('pdf_more_tools')}>
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="compact"
+              onClick={() => setIsCompactMenuOpen((open) => !open)}
+              aria-label={t('pdf_more_tools')}
+              aria-haspopup="menu"
+              aria-expanded={isCompactMenuOpen}
+              className={cn(TOGGLE_IDLE, 'motion-normal transition-colors')}
+              data-testid="pdf-toolbar-more"
+            >
+              <MoreHorizontal className="size-3.5" aria-hidden="true" />
+            </IconButton>
+          </WithTooltip>
+          {isCompactMenuOpen && (
+            <MenuSurface className="z-dropdown absolute bottom-full left-0 mb-2 w-48">
+              <MenuItem
+                icon={<Hand />}
+                aria-pressed={panMode}
+                onClick={() => {
+                  onTogglePanMode()
+                  setIsCompactMenuOpen(false)
+                }}
+              >
+                {t('pdf_pan_mode')}
+              </MenuItem>
+              {onReload && (
+                <MenuItem
+                  icon={<RefreshCw />}
+                  onClick={() => {
+                    onReload()
+                    setIsCompactMenuOpen(false)
+                  }}
+                >
+                  {t('ctx_reload')}
+                </MenuItem>
+              )}
+            </MenuSurface>
+          )}
+        </div>
       </div>
 
-      <div className="mx-2 flex min-w-0 flex-1 items-center justify-center">
+      <div className="mx-1 flex min-w-0 flex-1 items-center justify-center sm:mx-2">
         <PdfSearchBar
           isOpen={isSearchOpen}
           onToggle={handleOpenSearch}
@@ -211,7 +290,7 @@ function PdfToolbar({
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <PdfPageNav
           currentPage={currentPage}
           totalPages={totalPages}

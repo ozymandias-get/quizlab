@@ -36,20 +36,21 @@ const TabPanel = memo(function TabPanel({
   return (
     <div
       role="presentation"
+      aria-hidden={!isActive}
       inert={!isActive ? true : undefined}
       style={{ display: isActive ? 'block' : 'none' }}
     >
-      {isActive && (
-        <Suspense
-          fallback={
-            <div className="flex h-full items-center justify-center p-12">
-              <InlineSpinner size="lg" className="border-border border-t-foreground/50" />
-            </div>
-          }
-        >
-          <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
-        </Suspense>
-      )}
+      {/* Once a tab has been visited it stays mounted (hidden, inert) so
+          drafts and local form state survive switching away and back. */}
+      <Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center p-12">
+            <InlineSpinner size="lg" className="border-border border-t-foreground/50" />
+          </div>
+        }
+      >
+        <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
+      </Suspense>
     </div>
   )
 })
@@ -82,7 +83,7 @@ export default memo(function SettingsModalContent({
     >
       <ScrollArea className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10">
         <AnimatePresence mode="wait">
-          {!activeTab || !activeTabMeta ? (
+          {visitedTabsList.length === 0 || !activeTabMeta ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
@@ -103,7 +104,9 @@ export default memo(function SettingsModalContent({
             </motion.div>
           ) : (
             <motion.div
-              key={`tab-${activeTab}`}
+              // A single stable key: keying by tab would remount the whole
+              // container and throw away the state we just kept mounted.
+              key="tabs"
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}

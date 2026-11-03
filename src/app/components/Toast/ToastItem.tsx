@@ -176,7 +176,14 @@ const ToastItem = memo(
             <h4 className="text-ql-13 text-foreground mb-0.5 leading-tight font-semibold">
               {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
             </h4>
-            <p className="text-ql-12 text-muted-foreground line-clamp-2 leading-relaxed break-words">
+            {/* Errors are diagnostic: clamping them can hide the part the user
+                needs. Other toast types keep the compact two-line preview. */}
+            <p
+              className={cn(
+                'text-ql-12 text-muted-foreground leading-relaxed break-words',
+                toast.type !== 'error' && 'line-clamp-2'
+              )}
+            >
               {t(toast.message, toast.params)}
             </p>
             {toast.actionLabel && (
@@ -197,7 +204,7 @@ const ToastItem = memo(
             size="compact"
             variant="ghost"
             onClick={handleClose}
-            className="motion-normal mt-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+            className="motion-normal mt-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100 pointer-coarse:opacity-100"
             aria-label={t('close_notification')}
           >
             <X />

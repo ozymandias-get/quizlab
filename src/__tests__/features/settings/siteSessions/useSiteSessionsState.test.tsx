@@ -36,6 +36,7 @@ let mockViews: SiteSessionView[] = []
 const mockSetEnabled = vi.fn()
 const mockClear = vi.fn()
 const mockShowError = vi.fn()
+const mockConfirm = vi.fn()
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSiteSessionListQuery: () => ({
@@ -60,6 +61,13 @@ vi.mock('@shared/stores/toastStore', () => ({
   useToastActions: () => ({ showError: mockShowError })
 }))
 
+vi.mock('@shared/hooks', () => ({
+  useConfirmDialog: () => ({
+    confirm: mockConfirm,
+    props: { isOpen: false, onConfirm: vi.fn(), onCancel: vi.fn(), title: '' }
+  })
+}))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
@@ -74,6 +82,7 @@ describe('useSiteSessionsState', () => {
     mockViews = [CHATGPT_VIEW, GOOGLE_VIEW]
     mockSetEnabled.mockResolvedValue({ success: true })
     mockClear.mockResolvedValue({ success: true })
+    mockConfirm.mockResolvedValue(true)
   })
 
   it('turns the import of a site on', async () => {
@@ -117,12 +126,25 @@ describe('useSiteSessionsState', () => {
     const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
 
     await act(async () => {
-      result.current.onClearAll()
-      await Promise.resolve()
+      await result.current.onClearAll()
     })
 
+    expect(mockConfirm).toHaveBeenCalledTimes(1)
     expect(mockClear).toHaveBeenCalledTimes(1)
     expect(mockClear).toHaveBeenCalledWith({ siteId: 'google' })
+  })
+
+  it('does not clear anything when the confirmation is dismissed', async () => {
+    mockConfirm.mockResolvedValue(false)
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      await result.current.onClearAll()
+    })
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1)
+    expect(mockClear).not.toHaveBeenCalled()
   })
 
   it('has nothing to clear when no site imports a session', async () => {
@@ -131,10 +153,10 @@ describe('useSiteSessionsState', () => {
     const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
 
     await act(async () => {
-      result.current.onClearAll()
-      await Promise.resolve()
+      await result.current.onClearAll()
     })
 
+    expect(mockConfirm).not.toHaveBeenCalled()
     expect(mockClear).not.toHaveBeenCalled()
   })
 })

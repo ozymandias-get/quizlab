@@ -11,6 +11,7 @@ import {
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
 
+import { useConfirmDialog } from '@shared/hooks'
 import { useToastActions } from '@shared/stores/toastStore'
 
 import { useCallback, useState } from 'react'
@@ -38,6 +39,7 @@ export function useSiteSessionsState() {
   const { mutateAsync: removeExtension } = useNativeMessagingRemoveExtension()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
+  const { confirm, props: confirmProps } = useConfirmDialog()
 
   const views = data?.views ?? NO_VIEWS
 
@@ -72,11 +74,23 @@ export function useSiteSessionsState() {
    * Only the sites whose import is on are cleared: the session of a site the
    * user signed into inside the app is not ours to throw away.
    */
-  const onClearAll = useCallback(() => {
+  const onClearAll = useCallback(async () => {
     const importedViews = views.filter((view) => view.enabled)
     if (importedViews.length === 0) return
 
-    void Promise.all(
+    const count = importedViews.length
+    const confirmed = await confirm({
+      title: t('ws_clear_all_confirm_title'),
+      description:
+        count === 1
+          ? t('ws_clear_all_confirm_one', { count: String(count) })
+          : t('ws_clear_all_confirm_other', { count: String(count) }),
+      confirmLabel: t('ws_clear_all_btn'),
+      variant: 'destructive'
+    })
+    if (!confirmed) return
+
+    await Promise.all(
       importedViews.map((view) =>
         clearMutation
           .mutateAsync({ siteId: view.siteId })
@@ -88,7 +102,7 @@ export function useSiteSessionsState() {
           })
       )
     )
-  }, [clearMutation, reportError, views])
+  }, [clearMutation, confirm, reportError, t, views])
 
   const onSelectSlot = useCallback(
     (siteId: string, slot: number) => {
@@ -128,6 +142,7 @@ export function useSiteSessionsState() {
     onToggle,
     onSelectSlot,
     onClearAll,
+    confirmProps,
     riskItems,
     mitigationItems,
     wizardOpen,

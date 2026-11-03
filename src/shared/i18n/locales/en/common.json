@@ -91,6 +91,7 @@
   "confirm_delete": "Do you want to delete?",
   "next_page": "Next Page",
   "prev_page": "Previous Page",
+  "page_input_range": "Enter a whole page number between 1 and {max}.",
   "feedback_like": "Like",
   "feedback_dislike": "Dislike",
   "close_notification": "Close notification",
