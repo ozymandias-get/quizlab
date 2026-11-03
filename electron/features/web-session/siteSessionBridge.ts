@@ -169,6 +169,8 @@ export interface SiteSessionPacketOutcome {
   reason?: CookiePacketRejection
   imported?: number
   failed?: number
+  /** Secondary Google slots that could not be prepared after a primary import. */
+  secondaryFailures?: { slot: number; status: string }[]
 }
 
 const COOKIE_PACKET_STATUSES: ReadonlySet<string> = new Set([
@@ -426,6 +428,7 @@ async function handleSiteSessionPacket(
     }
   }
 
+  const secondaryFailures: { slot: number; status: string }[] = []
   if (wroteSomething && target.kind === 'google' && slot === 1) {
     const latestState = await config.read()
     const googleState = latestState.targets[target.siteId]
@@ -450,7 +453,7 @@ async function handleSiteSessionPacket(
       for (const secondarySlot of secondarySlots) {
         const expected = entries.find((entry) => entry.slot === secondarySlot)
         if (!expected) continue
-        await seedGoogleSessionSlotUnderLock(
+        const preparation = await seedGoogleSessionSlotUnderLock(
           secondarySlot,
           {
             config: {
@@ -462,11 +465,28 @@ async function handleSiteSessionPacket(
           },
           { expectedAccountId: expected.accountId }
         )
+        // The primary packet can succeed while a secondary account is not
+        // ready. Report the two outcomes separately instead of hiding the
+        // secondary failure behind the primary success.
+        if (!preparation.ok || !preparation.ready) {
+          secondaryFailures.push({ slot: secondarySlot, status: preparation.status })
+        }
+      }
+      if (secondaryFailures.length > 0) {
+        Logger.warn(
+          `[SiteSessionBridge] ${secondaryFailures.length} secondary Google slot(s) could not be prepared: ` +
+            secondaryFailures.map((failure) => `${failure.slot}:${failure.status}`).join(', ')
+        )
       }
     }
   }
 
-  return { accepted: true, imported, failed }
+  return {
+    accepted: true,
+    imported,
+    failed,
+    ...(secondaryFailures.length > 0 ? { secondaryFailures } : {})
+  }
 }
 
 /**

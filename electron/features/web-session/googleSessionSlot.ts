@@ -14,7 +14,8 @@ import {
   electronCookieKey,
   type ExternalBrowserCookie,
   externalCookieKey,
-  importExternalCookies
+  importExternalCookies,
+  rollbackMatchesSnapshot
 } from './siteSessionImporter.js'
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
@@ -114,24 +115,6 @@ async function removeGoogleCookiesByKeys(
     }
   }
   return !failed
-}
-
-/** Whether any imported-only identity still exists in the target. */
-async function hasAnyCookieKey(
-  targetSession: Session,
-  keys: ReadonlySet<string>
-): Promise<boolean> {
-  if (keys.size === 0) return false
-  try {
-    const existing = await targetSession.cookies.get({})
-    return existing.some((cookie) => {
-      if (!isCookieDomainAllowed(cookie.domain, SITE_SESSION_COOKIE_DOMAINS.google)) return false
-      const key = electronCookieKey(cookie)
-      return key !== null && keys.has(key)
-    })
-  } catch {
-    return true
-  }
 }
 
 /**
@@ -237,8 +220,12 @@ export async function seedGoogleSessionSlotUnderLock(
         SITE_SESSION_COOKIE_DOMAINS.google
       )
       const extrasRemoved = await removeGoogleCookiesByKeys(destination, newOnlyKeys)
-      const stillThere = await hasAnyCookieKey(destination, newOnlyKeys)
-      restored = restoredImport.failed === 0 && extrasRemoved && !stillThere
+      const snapshotRestored = await rollbackMatchesSnapshot(
+        destination,
+        snapshot,
+        SITE_SESSION_COOKIE_DOMAINS.google
+      )
+      restored = restoredImport.failed === 0 && extrasRemoved && snapshotRestored
     } catch (error) {
       Logger.warn('[SiteSession] The previous Google session could not be restored:', error)
     }

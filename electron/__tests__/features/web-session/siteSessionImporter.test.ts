@@ -201,6 +201,32 @@ describe('importExternalCookies', () => {
     expect(result).toMatchObject({ imported: 1, failed: 0, flushFailed: true })
   })
 
+  it('reports a rollback failure when the restored value does not match the snapshot', async () => {
+    const previous = {
+      name: 'old-session',
+      value: 'old',
+      domain: '.chatgpt.com',
+      path: '/',
+      secure: true,
+      hostOnly: false
+    }
+    get
+      .mockResolvedValueOnce([previous])
+      .mockResolvedValueOnce([previous])
+      .mockResolvedValueOnce([previous])
+      .mockResolvedValueOnce([{ ...previous, value: 'tampered' }])
+    set.mockRejectedValueOnce(new Error('rejected'))
+
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({ rolledBack: true, rollbackFailed: true })
+  })
+
   it('reports a failed rollback when restoring the snapshot also fails', async () => {
     get.mockResolvedValue([
       {

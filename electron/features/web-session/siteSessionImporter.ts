@@ -360,24 +360,55 @@ async function removeCookiesByKeys(
   return !failed
 }
 
-/** Whether any of the identities still exist in the target. */
-async function hasAnyCookieKey(
+/** Whether the final cookie store matches the snapshot for this site. */
+export async function rollbackMatchesSnapshot(
   targetSession: Session,
-  keys: ReadonlySet<string>,
+  snapshot: readonly ExternalBrowserCookie[],
   allowedDomains: readonly string[]
 ): Promise<boolean> {
-  if (keys.size === 0) return false
+  let existing: Electron.Cookie[]
   try {
-    const existing = await targetSession.cookies.get({})
-    return existing.some((cookie) => {
-      if (!isCookieDomainAllowed(cookie.domain, allowedDomains)) return false
-      const key = electronCookieKey(cookie)
-      return key !== null && keys.has(key)
-    })
+    existing = await targetSession.cookies.get({})
   } catch {
-    // An unreadable store cannot prove that the rollback is complete.
-    return true
+    return false
   }
+
+  const finalByKey = new Map<string, Electron.Cookie>()
+  for (const cookie of existing) {
+    if (!isCookieDomainAllowed(cookie.domain, allowedDomains)) continue
+    const key = electronCookieKey(cookie)
+    if (!key) return false
+    finalByKey.set(key, cookie)
+  }
+
+  const sameSite = (value: unknown): string => String(value ?? 'unspecified').toLowerCase()
+  const expirationMatches = (expected: ExternalBrowserCookie, actual: Electron.Cookie): boolean => {
+    if (typeof expected.expires !== 'number' || !Number.isFinite(expected.expires)) {
+      return typeof actual.expirationDate !== 'number'
+    }
+    if (typeof actual.expirationDate !== 'number') return false
+    return Math.abs(expected.expires - actual.expirationDate) <= 1
+  }
+
+  for (const expected of snapshot) {
+    const key = externalCookieKey(expected)
+    const actual = finalByKey.get(key)
+    if (!actual) return false
+    if (
+      actual.value !== expected.value ||
+      !!actual.secure !== !!expected.secure ||
+      !!actual.httpOnly !== !!expected.httpOnly ||
+      sameSite(actual.sameSite) !== sameSite(expected.sameSite) ||
+      !expirationMatches(expected, actual)
+    ) {
+      return false
+    }
+    finalByKey.delete(key)
+  }
+
+  // Anything left is a cookie the rollback failed to remove or an old cookie
+  // the snapshot did not describe.
+  return finalByKey.size === 0
 }
 
 export interface ImportExternalCookiesOptions {
@@ -508,9 +539,12 @@ export async function importExternalCookies(
     )
     const restoredImport = await importExternalCookies(targetSession, snapshot, allowedDomains)
     const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
-    const stillThere = await hasAnyCookieKey(targetSession, newOnlyKeys, allowedDomains)
+    const snapshotRestored = await rollbackMatchesSnapshot(targetSession, snapshot, allowedDomains)
     const rollbackFailed =
-      restoredImport.failed > 0 || restoredImport.flushFailed === true || !removed || stillThere
+      restoredImport.failed > 0 ||
+      restoredImport.flushFailed === true ||
+      !removed ||
+      !snapshotRestored
     const flushFailed = await flush(' after a rollback')
     Logger.warn(
       `[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up; ` +

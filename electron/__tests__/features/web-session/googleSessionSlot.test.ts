@@ -83,7 +83,7 @@ describe('Google session initialization', () => {
       secure: true,
       httpOnly: true,
       sameSite: 'lax',
-      hostOnly: options.hostOnly
+      hostOnly: options.hostOnly ?? false
     }
     const sourceCookies = [
       ...(options.sourceAuth === false ? [] : [authCookie]),
