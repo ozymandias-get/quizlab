@@ -76,6 +76,7 @@
   "ws_error_account_discovery_unavailable": "Google hesap listesi okunamadı; hesap değiştirilmedi.",
   "ws_error_account_not_ready": "Seçilen Google hesabının henüz kullanılabilir oturumu yok; önceki hesap etkin kaldı.",
   "ws_error_session_restore_failed": "Başarısız aktarım sonrası önceki oturum geri yüklenemedi. Oturumu yeniden aktarın.",
+  "ws_error_flush_failed": "Oturum çerezleri yazıldı ancak diske kaydedilemedi.",
   "ws_error_packet_too_large": "Oturum aktarılamayacak kadar büyüktü; Chrome köprünün kabul ettiğinden daha fazla çerez gönderdi.",
   "ws_error_switch_off_wipe_failed": "Anahtar kapatıldı ama oturum temizlenemedi.",
   "ws_error_invalid_site_id": "Geçersiz site.",

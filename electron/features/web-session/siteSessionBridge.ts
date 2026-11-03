@@ -64,7 +64,7 @@ interface SiteSessionBridgeTarget {
  */
 export interface SiteSessionImportEnvironment {
   /** The persisted state of the import switches. */
-  config: Pick<SiteSessionConfig, 'read' | 'recordResult'>
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult' | 'clearSlotAccountId'>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -392,7 +392,7 @@ async function handleSiteSessionPacket(
 
   const targetPartition = partitionForTargetSlot(target.partition, slot)
   const targetSession = resolveSession(targetPartition)
-  const { imported, failed, rollbackFailed } = await importExternalCookies(
+  const { imported, failed, rollbackFailed, flushFailed } = await importExternalCookies(
     targetSession,
     packet.cookies.map(toImporterCookie),
     target.cookieDomains,
@@ -403,14 +403,28 @@ async function handleSiteSessionPacket(
   // reason code the row would show the outcome without saying what went wrong,
   // and `lastError` would stay empty. A failed rollback gets its own code so
   // the partition is treated as unverified rather than merely "not imported".
-  const wroteSomething = imported > 0 && failed === 0
+  const wroteSomething = imported > 0 && failed === 0 && !flushFailed
+  let error = 'import_failed'
+  if (rollbackFailed) error = 'session_restore_failed'
+  else if (flushFailed) error = 'flush_failed'
   await recordResult(
     config,
     target.siteId,
     wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : rollbackFailed ? 'session_restore_failed' : 'import_failed',
+    wroteSomething ? undefined : error,
     slot
   )
+
+  if (!wroteSomething && rollbackFailed && target.kind === 'google') {
+    try {
+      await config.clearSlotAccountId(target.siteId, slot)
+    } catch (clearError) {
+      Logger.warn(
+        `[SiteSessionBridge] The Google account association of "${target.siteId}" could not be cleared:`,
+        clearError
+      )
+    }
+  }
 
   if (wroteSomething && target.kind === 'google' && slot === 1) {
     const latestState = await config.read()

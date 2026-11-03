@@ -395,6 +395,8 @@ export interface ImportExternalCookiesResult {
   failed: number
   rolledBack?: boolean
   rollbackFailed?: boolean
+  /** Cookies reached the store but the explicit disk flush failed. */
+  flushFailed?: boolean
 }
 
 /**
@@ -482,6 +484,23 @@ export async function importExternalCookies(
     })
   }
 
+  // Only a complete write is a reliable basis for deleting old cookies. A
+  // cleanup failure is part of the same import transaction: it must roll back
+  // together with a partial write instead of reporting a half-changed session.
+  if (imported > 0 && failed === 0) {
+    failed += await removeStaleCookies(targetSession, incoming, allowedDomains)
+  }
+
+  const flush = async (context: string): Promise<boolean> => {
+    try {
+      await targetSession.flushStorageData()
+      return false
+    } catch (error) {
+      Logger.warn(`[SiteSessionImporter] Storage could not be flushed${context}:`, error)
+      return true
+    }
+  }
+
   if (failed > 0 && options.rollbackOnPartialFailure && snapshot !== null) {
     const snapshotKeys = new Set(snapshot.map(externalCookieKey))
     const newOnlyKeys = new Set(
@@ -490,33 +509,26 @@ export async function importExternalCookies(
     const restoredImport = await importExternalCookies(targetSession, snapshot, allowedDomains)
     const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
     const stillThere = await hasAnyCookieKey(targetSession, newOnlyKeys, allowedDomains)
-    const rollbackFailed = restoredImport.failed > 0 || !removed || stillThere
+    const rollbackFailed =
+      restoredImport.failed > 0 || restoredImport.flushFailed === true || !removed || stillThere
+    const flushFailed = await flush(' after a rollback')
     Logger.warn(
-      `[SiteSessionImporter] ${failed} cookie(s) could not be written; ` +
+      `[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up; ` +
         `rolled back ${rollbackFailed ? 'incompletely' : 'to the previous session'}.`
     )
-    try {
-      await targetSession.flushStorageData()
-    } catch (error) {
-      Logger.warn('[SiteSessionImporter] Storage could not be flushed after a rollback:', error)
+    return {
+      imported,
+      failed,
+      rolledBack: true,
+      rollbackFailed,
+      ...(flushFailed ? { flushFailed: true } : {})
     }
-    return { imported, failed, rolledBack: true, rollbackFailed }
   }
 
   if (failed > 0) {
-    Logger.warn(`[SiteSessionImporter] ${failed} cookie(s) could not be written.`)
+    Logger.warn(`[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up.`)
   }
 
-  // Only a complete import is a reliable basis for deleting old cookies.
-  if (imported > 0 && failed === 0) {
-    failed += await removeStaleCookies(targetSession, incoming, allowedDomains)
-  }
-
-  try {
-    await targetSession.flushStorageData()
-  } catch (error) {
-    Logger.warn('[SiteSessionImporter] Storage could not be flushed:', error)
-  }
-
-  return { imported, failed }
+  const flushFailed = await flush('')
+  return { imported, failed, ...(flushFailed ? { flushFailed: true } : {}) }
 }

@@ -216,7 +216,7 @@ export async function seedGoogleSessionSlotUnderLock(
     cookies.map(toExternalCookie),
     SITE_SESSION_COOKIE_DOMAINS.google
   )
-  const imported = result.imported > 0 && result.failed === 0
+  const imported = result.imported > 0 && result.failed === 0 && !result.flushFailed
 
   if (!imported) {
     let restored = false

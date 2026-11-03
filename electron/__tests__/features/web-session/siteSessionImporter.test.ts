@@ -157,6 +157,50 @@ describe('importExternalCookies', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('restores the snapshot when stale-cookie cleanup fails', async () => {
+    get.mockResolvedValue([
+      {
+        name: 'old-session',
+        value: 'old',
+        domain: '.chatgpt.com',
+        path: '/',
+        secure: true,
+        hostOnly: false
+      }
+    ])
+    remove.mockRejectedValue(new Error('remove failed'))
+
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { rollbackOnPartialFailure: true }
+    )
+
+    expect(result).toMatchObject({
+      imported: 1,
+      failed: 1,
+      rolledBack: true,
+      rollbackFailed: false
+    })
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ name: 'old-session', value: 'old' }))
+  })
+
+  it('separates a disk flush failure from a successful cookie write', async () => {
+    const session = {
+      cookies: { set, remove, get },
+      flushStorageData: vi.fn().mockRejectedValue(new Error('disk full'))
+    } as never
+
+    const result = await importExternalCookies(
+      session,
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED
+    )
+
+    expect(result).toMatchObject({ imported: 1, failed: 0, flushFailed: true })
+  })
+
   it('reports a failed rollback when restoring the snapshot also fails', async () => {
     get.mockResolvedValue([
       {

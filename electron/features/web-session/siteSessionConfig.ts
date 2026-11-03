@@ -505,6 +505,49 @@ export class SiteSessionConfig {
   }
 
   /**
+   * Clears the stable account association of one slot.
+   *
+   * Used when a rollback failed: the cookies on disk no longer describe a
+   * known account, so the next preparation must verify or reseed the slot.
+   */
+  async clearSlotAccountId(siteId: string, slot: number): Promise<void> {
+    if (!isSiteSessionSlot(slot)) return
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId]
+      if (!existing) return currentState
+      const slotState = existing.slots?.[slot]
+      const activeSlot = existing.activeSlot ?? 1
+      return {
+        ...currentState,
+        targets: {
+          ...currentState.targets,
+          [siteId]: {
+            ...existing,
+            activeAccountId: activeSlot === slot ? null : existing.activeAccountId,
+            slots: {
+              ...(existing.slots ?? {}),
+              [slot]: {
+                importedAt: slotState?.importedAt ?? null,
+                lastResult: slotState?.lastResult ?? null,
+                lastError: slotState?.lastError ?? null,
+                accountId: null
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The account of "${siteId}" could not be cleared.`)
+    }
+  }
+
+  /**
    * Switches the active account slot for a site (e.g. 1 or 2).
    *
    * `accountId` binds the selection to Google's stable account identifier, so

@@ -230,7 +230,7 @@ describe('site session bridge', () => {
       })
     )!
     await acceptSiteSessionPacket(packet, {
-      config: { read, recordResult },
+      config: { read, recordResult, clearSlotAccountId: vi.fn(async () => {}) },
       loadTargets: async () => [TARGET],
       resolveSession
     })
