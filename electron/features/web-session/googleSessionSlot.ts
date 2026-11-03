@@ -225,7 +225,11 @@ export async function seedGoogleSessionSlotUnderLock(
         snapshot,
         SITE_SESSION_COOKIE_DOMAINS.google
       )
-      restored = restoredImport.failed === 0 && extrasRemoved && snapshotRestored
+      restored =
+        restoredImport.failed === 0 &&
+        restoredImport.flushFailed !== true &&
+        extrasRemoved &&
+        snapshotRestored
     } catch (error) {
       Logger.warn('[SiteSession] The previous Google session could not be restored:', error)
     }

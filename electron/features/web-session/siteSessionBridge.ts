@@ -446,6 +446,9 @@ async function handleSiteSessionPacket(
     const importKey = googleState?.slots?.[1]?.importedAt ?? googleState?.importedAt ?? ''
     const entries = await getGoogleAccountEntries(resolveSession(target.partition), importKey)
     if (entries === null) {
+      for (const secondarySlot of secondarySlots) {
+        secondaryFailures.push({ slot: secondarySlot, status: 'discovery_failed' })
+      }
       Logger.warn(
         '[SiteSessionBridge] Google accounts could not be discovered; secondary slots were not refreshed.'
       )
@@ -472,12 +475,12 @@ async function handleSiteSessionPacket(
           secondaryFailures.push({ slot: secondarySlot, status: preparation.status })
         }
       }
-      if (secondaryFailures.length > 0) {
-        Logger.warn(
-          `[SiteSessionBridge] ${secondaryFailures.length} secondary Google slot(s) could not be prepared: ` +
-            secondaryFailures.map((failure) => `${failure.slot}:${failure.status}`).join(', ')
-        )
-      }
+    }
+    if (secondaryFailures.length > 0) {
+      Logger.warn(
+        `[SiteSessionBridge] ${secondaryFailures.length} secondary Google slot(s) could not be prepared: ` +
+          secondaryFailures.map((failure) => `${failure.slot}:${failure.status}`).join(', ')
+      )
     }
   }
 
