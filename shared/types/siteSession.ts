@@ -89,6 +89,8 @@ export interface SiteSessionListResult {
  *     the slot was not changed
  *   - `import_failed`: preparing the selected Google account failed; the old
  *     selection is still active
+ *   - `account_not_ready`: the selected account has no usable session to
+ *     prepare; the old selection is still active
  *   - `switch_off_wipe_failed`: the switch was written, the session could not
  *     be cleared — `detail` says so
  *   - `invalid_site_id`: the site id was not a string

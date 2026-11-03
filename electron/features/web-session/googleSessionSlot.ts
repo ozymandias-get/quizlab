@@ -23,14 +23,26 @@ interface GoogleSlotEnvironment {
 /**
  * What preparing a secondary Google partition produced.
  *
- * `ok: false` means the destination is not safe to select: the import failed
- * and the previous cookies were restored as far as the cookie store allowed.
- * `no_source` is not a failure: there is simply no Google login in the primary
- * partition to copy yet, so the next import will seed the slot.
+ * `ok: false` means the import itself failed and the previous cookies were
+ * restored as far as the cookie store allowed. `ready: false` means no
+ * session was written or confirmed (the switch is off, or there is no Google
+ * login to copy yet): the caller must not treat the slot as selectable.
  */
 export type GoogleSlotPreparationResult =
-  | { ok: true; status: 'ready' | 'imported' | 'no_source' | 'disabled' }
-  | { ok: false; status: 'import_failed'; imported: number; failed: number }
+  | { ok: true; ready: true; status: 'ready' | 'imported' }
+  | { ok: true; ready: false; status: 'no_source' | 'disabled' }
+  | { ok: false; ready: false; status: 'import_failed'; imported: number; failed: number }
+
+interface GoogleSlotOptions {
+  /**
+   * Prepare even when the Google switch is off.
+   *
+   * An explicit account selection is a user action; it may seed the slot
+   * before the switch is turned on. Automatic seeding after an import keeps
+   * respecting the switch.
+   */
+  ignoreEnabled?: boolean
+}
 
 const AUTH_COOKIES = new Set(['SID', '__Secure-1PSID', '__Secure-3PSID'])
 const SAME_SITE: Record<string, ExternalBrowserCookie['sameSite']> = {
@@ -62,12 +74,17 @@ function toExternalCookie(cookie: Electron.Cookie): ExternalBrowserCookie {
   }
 }
 
-/** Best-effort rollback: removes every Google cookie the target holds. */
-async function clearGoogleCookies(targetSession: Session): Promise<boolean> {
+/** Best-effort rollback: removes the named Google cookies from the target. */
+async function removeGoogleCookiesByNames(
+  targetSession: Session,
+  names: ReadonlySet<string>
+): Promise<boolean> {
+  if (names.size === 0) return true
   const existing = await targetSession.cookies.get({})
   let failed = false
   for (const cookie of existing) {
     if (!isCookieDomainAllowed(cookie.domain, SITE_SESSION_COOKIE_DOMAINS.google)) continue
+    if (!names.has(cookie.name)) continue
     for (const url of cookieRemovalUrls(cookie.domain, cookie.path, cookie.secure)) {
       try {
         await targetSession.cookies.remove(url, cookie.name)
@@ -86,23 +103,33 @@ async function clearGoogleCookies(targetSession: Session): Promise<boolean> {
  */
 export async function ensureGoogleSessionSlot(
   slot: number,
-  environment?: GoogleSlotEnvironment
+  environment?: GoogleSlotEnvironment,
+  options?: GoogleSlotOptions
 ): Promise<GoogleSlotPreparationResult> {
-  if (!isSiteSessionSlot(slot) || slot === 1) return { ok: true, status: 'ready' }
+  if (!isSiteSessionSlot(slot) || slot === 1) {
+    return { ok: true, ready: true, status: 'ready' }
+  }
   const config = environment?.config ?? getSiteSessionConfig()
-  if (!(await config.isEnabled(GOOGLE_AI_WEB_SITE_ID))) return { ok: true, status: 'disabled' }
+  if (!options?.ignoreEnabled && !(await config.isEnabled(GOOGLE_AI_WEB_SITE_ID))) {
+    return { ok: true, ready: false, status: 'disabled' }
+  }
   return withSiteSessionLock(GOOGLE_AI_WEB_SITE_ID, () =>
-    seedGoogleSessionSlotUnderLock(slot, environment)
+    seedGoogleSessionSlotUnderLock(slot, environment, options)
   )
 }
 
 export async function seedGoogleSessionSlotUnderLock(
   slot: number,
-  environment?: GoogleSlotEnvironment
+  environment?: GoogleSlotEnvironment,
+  options?: GoogleSlotOptions
 ): Promise<GoogleSlotPreparationResult> {
-  if (!isSiteSessionSlot(slot) || slot === 1) return { ok: true, status: 'ready' }
+  if (!isSiteSessionSlot(slot) || slot === 1) {
+    return { ok: true, ready: true, status: 'ready' }
+  }
   const config = environment?.config ?? getSiteSessionConfig()
-  if (!(await config.isEnabled(GOOGLE_AI_WEB_SITE_ID))) return { ok: true, status: 'disabled' }
+  if (!options?.ignoreEnabled && !(await config.isEnabled(GOOGLE_AI_WEB_SITE_ID))) {
+    return { ok: true, ready: false, status: 'disabled' }
+  }
   const resolveSession =
     environment?.resolveSession ?? ((partition: string) => session.fromPartition(partition))
   const destination = resolveSession(partitionForTargetSlot(GOOGLE_AI_WEB_SESSION_PARTITION, slot))
@@ -114,14 +141,14 @@ export async function seedGoogleSessionSlotUnderLock(
   const sourceWasUpdated =
     sourceTime && destinationTime && Date.parse(sourceTime) > Date.parse(destinationTime)
   if (existing.some(isGoogleAuthCookie) && !sourceWasUpdated) {
-    return { ok: true, status: 'ready' }
+    return { ok: true, ready: true, status: 'ready' }
   }
   const source = resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION)
   const cookies = (await source.cookies.get({})).filter((cookie) =>
     isCookieDomainAllowed(cookie.domain, SITE_SESSION_COOKIE_DOMAINS.google)
   )
   if (!cookies.some(isGoogleAuthCookie)) {
-    return { ok: true, status: 'no_source' }
+    return { ok: true, ready: false, status: 'no_source' }
   }
 
   // The new import replaces the catalog of Google cookies. Keep a snapshot so
@@ -141,13 +168,20 @@ export async function seedGoogleSessionSlotUnderLock(
   if (!imported) {
     let restored = false
     try {
-      const cleared = await clearGoogleCookies(destination)
+      // Restore in place first: the old values overwrite their namesakes and
+      // no window exists in which every old cookie has been deleted. Cookies
+      // that only the failed import introduced are removed afterwards.
+      const snapshotNames = new Set(snapshot.map((cookie) => cookie.name))
+      const newOnlyNames = new Set(
+        cookies.map((cookie) => cookie.name).filter((name) => !snapshotNames.has(name))
+      )
       const restoredImport = await importExternalCookies(
         destination,
         snapshot,
         SITE_SESSION_COOKIE_DOMAINS.google
       )
-      restored = cleared && restoredImport.failed === 0
+      const extrasRemoved = await removeGoogleCookiesByNames(destination, newOnlyNames)
+      restored = restoredImport.failed === 0 && extrasRemoved
     } catch (error) {
       Logger.warn('[SiteSession] The previous Google session could not be restored:', error)
     }
@@ -164,6 +198,7 @@ export async function seedGoogleSessionSlotUnderLock(
     await broadcastSiteSessionsChanged()
     return {
       ok: false,
+      ready: false,
       status: 'import_failed',
       imported: result.imported,
       failed: result.failed
@@ -177,5 +212,5 @@ export async function seedGoogleSessionSlotUnderLock(
   }
   invalidateSiteSessionListCache()
   await broadcastSiteSessionsChanged()
-  return { ok: true, status: 'imported' }
+  return { ok: true, ready: true, status: 'imported' }
 }

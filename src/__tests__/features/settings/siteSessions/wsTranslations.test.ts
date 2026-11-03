@@ -82,6 +82,7 @@ const ERROR_CODES = [
   'invalid_enabled',
   'import_failed',
   'account_discovery_unavailable',
+  'account_not_ready',
   'packet_too_large',
   'Unauthorized',
   'web_dev_mode_only'

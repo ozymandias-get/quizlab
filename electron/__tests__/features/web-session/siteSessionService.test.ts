@@ -263,7 +263,7 @@ describe('SiteSessionService', () => {
       isExtensionVersionOk: () => true
     })
     expect(await service.setActiveSlot('google', 2)).toEqual({ success: true })
-    expect(config.setActiveSlot).toHaveBeenCalledWith('google', 2)
+    expect(config.setActiveSlot).toHaveBeenCalledWith('google', 2, 'id-2')
     expect(setSecondary).toHaveBeenCalledTimes(1)
     expect(config.recordResult).toHaveBeenCalledWith('google', 'imported', undefined, 2)
   })
@@ -364,7 +364,7 @@ describe('SiteSessionService', () => {
 
     const result = await service.setActiveSlot('google', 2)
 
-    expect(result).toMatchObject({ success: false, error: 'import_failed' })
+    expect(result).toMatchObject({ success: false, error: 'account_not_ready' })
     expect(config.setActiveSlot).not.toHaveBeenCalled()
     expect(config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 2)
   })
@@ -411,6 +411,104 @@ describe('SiteSessionService', () => {
 
     const [view] = (await service.list()).views
     expect(view.status).toBe('session_unverified')
+  })
+
+  it('follows the stable account id when Google reorders its account list', async () => {
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [
+        ['gaia.l.a', 1, '', 'b@example.test', '', 1, 1, 0, 0, 1, 'id-2'],
+        ['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1']
+      ]
+    ])
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 1,
+            activeAccountId: 'id-1',
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: {}
+          }
+        }
+      }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn()
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: { get: vi.fn(async () => []) },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody })
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    const [view] = (await service.list()).views
+    expect(view.accountSlots).toEqual([1, 2])
+    expect(view.activeSlot).toBe(2)
+  })
+
+  it('migrates a position-only selection to the current stable account id', async () => {
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [
+        ['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1'],
+        ['gaia.l.a', 1, '', 'b@example.test', '', 1, 1, 0, 0, 1, 'id-2']
+      ]
+    ])
+    const setActiveAccountId = vi.fn().mockResolvedValue(undefined)
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 2,
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: {}
+          }
+        }
+      }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn(),
+      migrateActiveAccountId: setActiveAccountId
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: { get: vi.fn(async () => []) },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody })
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    await service.list()
+    expect(setActiveAccountId).toHaveBeenCalledWith('google', 'id-2')
   })
 
   it('clears an existing Google partition even if its slot has no history', async () => {

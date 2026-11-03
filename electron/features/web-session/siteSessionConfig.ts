@@ -44,6 +44,8 @@ interface SiteSessionSlotState {
   importedAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
+  /** Google's stable id for the account this slot was last associated with. */
+  accountId: string | null
 }
 
 export interface SiteSessionTargetState {
@@ -52,6 +54,8 @@ export interface SiteSessionTargetState {
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
   activeSlot?: number
+  /** The stable Google account id selected by the user, when known. */
+  activeAccountId?: string | null
   slots?: Record<number, SiteSessionSlotState>
 }
 
@@ -106,6 +110,7 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
     lastResult: null,
     lastError: null,
     activeSlot: 1,
+    activeAccountId: null,
     slots: {}
   }
 }
@@ -158,7 +163,8 @@ function normalizeTargetState(raw: unknown, siteId: string): SiteSessionTargetSt
         slots[slotNum] = {
           importedAt: typeof slotObj.importedAt === 'string' ? slotObj.importedAt : null,
           lastResult: isLastResult(slotObj.lastResult) ? slotObj.lastResult : null,
-          lastError: typeof slotObj.lastError === 'string' ? slotObj.lastError : null
+          lastError: typeof slotObj.lastError === 'string' ? slotObj.lastError : null,
+          accountId: typeof slotObj.accountId === 'string' ? slotObj.accountId : null
         }
       }
     }
@@ -183,11 +189,16 @@ function normalizeTargetState(raw: unknown, siteId: string): SiteSessionTargetSt
         ? source.lastError
         : null,
     activeSlot,
+    activeAccountId:
+      siteId === GOOGLE_AI_WEB_SITE_ID && typeof source.activeAccountId === 'string'
+        ? source.activeAccountId
+        : null,
     slots: {
       [activeSlot]: {
         importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
         lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
-        lastError: typeof source.lastError === 'string' ? source.lastError : null
+        lastError: typeof source.lastError === 'string' ? source.lastError : null,
+        accountId: typeof source.activeAccountId === 'string' ? source.activeAccountId : null
       },
       ...slots
     }
@@ -409,7 +420,8 @@ export class SiteSessionConfig {
     siteId: string,
     result: SiteSessionTargetState['lastResult'],
     error?: string,
-    slot: number = 1
+    slot: number = 1,
+    accountId?: string | null
   ): Promise<void> {
     await this.loadState()
     if (PROHIBITED_KEYS.has(siteId)) return
@@ -425,7 +437,8 @@ export class SiteSessionConfig {
             ? new Date().toISOString()
             : (existingSlots[targetSlot]?.importedAt ?? null),
         lastResult: result,
-        lastError: error ?? null
+        lastError: error ?? null,
+        accountId: accountId ?? existingSlots[targetSlot]?.accountId ?? null
       }
       const updatedSlots = { ...existingSlots, [targetSlot]: updatedSlot }
 
@@ -468,6 +481,7 @@ export class SiteSessionConfig {
             importedAt: null,
             lastResult: null,
             lastError: null,
+            activeAccountId: null,
             slots: Object.fromEntries(
               [
                 ...new Set([
@@ -477,7 +491,10 @@ export class SiteSessionConfig {
                 ])
               ]
                 .filter(isSiteSessionSlot)
-                .map((slot) => [slot, { importedAt: null, lastResult: null, lastError: null }])
+                .map((slot) => [
+                  slot,
+                  { importedAt: null, lastResult: null, lastError: null, accountId: null }
+                ])
             )
           }
         }
@@ -488,8 +505,12 @@ export class SiteSessionConfig {
 
   /**
    * Switches the active account slot for a site (e.g. 1 or 2).
+   *
+   * `accountId` binds the selection to Google's stable account identifier, so
+   * a later reorder of the account list can be detected instead of silently
+   * selecting whatever account now sits at the old position.
    */
-  async setActiveSlot(siteId: string, slot: number): Promise<void> {
+  async setActiveSlot(siteId: string, slot: number, accountId?: string | null): Promise<void> {
     if (!isSiteSessionSlot(slot) || (siteId !== GOOGLE_AI_WEB_SITE_ID && slot !== 1))
       throw new Error('invalid_slot')
     await this.loadState()
@@ -500,6 +521,16 @@ export class SiteSessionConfig {
       const existing = currentState.targets[siteId] ?? createTargetState(false)
       const targetSlot = isSiteSessionSlot(slot) ? slot : 1
       const slotState = existing.slots?.[targetSlot]
+      const targetAccountId = accountId !== undefined ? accountId : (slotState?.accountId ?? null)
+      const updatedSlots = {
+        ...(existing.slots ?? {}),
+        [targetSlot]: {
+          importedAt: slotState?.importedAt ?? null,
+          lastResult: slotState?.lastResult ?? null,
+          lastError: slotState?.lastError ?? null,
+          accountId: targetAccountId
+        }
+      }
 
       return {
         ...currentState,
@@ -508,9 +539,11 @@ export class SiteSessionConfig {
           [siteId]: {
             ...existing,
             activeSlot: targetSlot,
+            activeAccountId: targetAccountId,
             importedAt: slotState?.importedAt ?? null,
             lastResult: slotState?.lastResult ?? null,
-            lastError: slotState?.lastError ?? null
+            lastError: slotState?.lastError ?? null,
+            slots: updatedSlots
           }
         }
       }
@@ -518,6 +551,36 @@ export class SiteSessionConfig {
 
     if (!written) {
       throw new Error(`[Web Session] The active slot of "${siteId}" could not be written.`)
+    }
+  }
+
+  /**
+   * Backfills the stable account id of a position-only selection.
+   *
+   * This is a compare-and-set used by the read path: it only writes while the
+   * target still has no account id, so a concurrent explicit selection is
+   * never overwritten by the migration.
+   */
+  async migrateActiveAccountId(siteId: string, accountId: string): Promise<void> {
+    if (siteId !== GOOGLE_AI_WEB_SITE_ID) return
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId]
+      if (!existing || existing.activeAccountId) return currentState
+      return {
+        ...currentState,
+        targets: {
+          ...currentState.targets,
+          [siteId]: { ...existing, activeAccountId: accountId }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The active account of "${siteId}" could not be written.`)
     }
   }
 

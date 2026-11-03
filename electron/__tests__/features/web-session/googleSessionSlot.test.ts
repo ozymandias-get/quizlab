@@ -70,6 +70,7 @@ describe('Google session initialization', () => {
       enabled?: boolean
       existingAuth?: boolean
       sourceAuth?: boolean
+      sourceExtra?: boolean
       newerSource?: boolean
       hostOnly?: boolean
     } = {}
@@ -86,6 +87,7 @@ describe('Google session initialization', () => {
     }
     const sourceCookies = [
       ...(options.sourceAuth === false ? [] : [authCookie]),
+      ...(options.sourceExtra ? [{ ...authCookie, name: 'extra-google-cookie' }] : []),
       { ...authCookie, name: 'browser-data', domain: '.unrelated.test' }
     ]
     const destination = {
@@ -114,8 +116,18 @@ describe('Google session initialization', () => {
             lastError: null,
             slots: options.newerSource
               ? {
-                  1: { importedAt: '2026-10-25T12:00:00Z', lastResult: null, lastError: null },
-                  3: { importedAt: '2026-10-25T11:00:00Z', lastResult: null, lastError: null }
+                  1: {
+                    importedAt: '2026-10-25T12:00:00Z',
+                    lastResult: null,
+                    lastError: null,
+                    accountId: null
+                  },
+                  3: {
+                    importedAt: '2026-10-25T11:00:00Z',
+                    lastResult: null,
+                    lastError: null,
+                    accountId: null
+                  }
                 }
               : {}
           }
@@ -172,7 +184,23 @@ describe('Google session initialization', () => {
     const result = await ensureGoogleSessionSlot(3, env)
 
     expect(result).toMatchObject({ ok: false, status: 'import_failed' })
-    expect(env.destination.cookies.remove).toHaveBeenCalled()
+    // The failed import is attempted once, then the snapshot restore is
+    // attempted once; the test double rejects both writes.
+    expect(env.destination.cookies.set).toHaveBeenCalledTimes(2)
+    expect(env.config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 3)
+  })
+
+  it('reports a failed import even when the rollback itself fails', async () => {
+    const env = setup({ existingAuth: true, newerSource: true, sourceExtra: true })
+    env.destination.cookies.set.mockRejectedValue(new Error('write failed'))
+    env.destination.cookies.remove.mockRejectedValue(new Error('remove failed'))
+
+    const result = await ensureGoogleSessionSlot(3, env)
+
+    expect(result).toMatchObject({ ok: false, status: 'import_failed' })
+    // Two writes for the import (SID + the extra cookie), then one for the
+    // snapshot restore; every write is rejected, so the rollback fails safely.
+    expect(env.destination.cookies.set).toHaveBeenCalledTimes(3)
     expect(env.config.recordResult).toHaveBeenCalledWith('google', 'failed', 'import_failed', 3)
   })
 

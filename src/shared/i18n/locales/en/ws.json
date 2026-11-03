@@ -74,6 +74,7 @@
   "ws_error_wipe_failed": "The session could not be cleared.",
   "ws_error_import_failed": "The session was not imported; no cookie could be written.",
   "ws_error_account_discovery_unavailable": "The Google account list could not be read; the account was not changed.",
+  "ws_error_account_not_ready": "The selected Google account has no usable session yet; the previous account is still active.",
   "ws_error_packet_too_large": "The session was too big to transfer; Chrome sent more cookies than the bridge accepts.",
   "ws_error_switch_off_wipe_failed": "The switch was turned off but the session could not be cleared.",
   "ws_error_invalid_site_id": "Invalid site.",

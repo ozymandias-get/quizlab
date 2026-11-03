@@ -89,6 +89,25 @@ function watchAuthCookieChanges(primary: Session): void {
 }
 
 /**
+ * The last known account entries without touching the network.
+ *
+ * `known` is false until a discovery has finished for this import key. A
+ * known `null` is an authoritative "Google did not answer", not "no accounts".
+ */
+export function peekGoogleAccountEntries(
+  primary: Session,
+  importKey: string
+): { known: boolean; entries: GoogleAccountEntry[] | null } {
+  watchAuthCookieChanges(primary)
+  const entry = lastKnown.get(primary)
+  if (!entry || entry.key !== importKey) return { known: false, entries: null }
+  return {
+    known: true,
+    entries: entry.entries === null ? null : entry.entries.map((account) => ({ ...account }))
+  }
+}
+
+/**
  * The last known slots without touching the network.
  *
  * `known` is false until a discovery has finished for this import key. A
@@ -98,12 +117,10 @@ export function peekGoogleAccountSlots(
   primary: Session,
   importKey: string
 ): { known: boolean; slots: number[] | null } {
-  watchAuthCookieChanges(primary)
-  const entry = lastKnown.get(primary)
-  if (!entry || entry.key !== importKey) return { known: false, slots: null }
+  const peeked = peekGoogleAccountEntries(primary, importKey)
   return {
-    known: true,
-    slots: entry.entries === null ? null : entry.entries.map((account) => account.slot)
+    known: peeked.known,
+    slots: peeked.entries === null ? null : peeked.entries.map((account) => account.slot)
   }
 }
 
