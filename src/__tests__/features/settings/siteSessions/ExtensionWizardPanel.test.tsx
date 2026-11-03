@@ -32,19 +32,38 @@ vi.mock('motion/react', () => ({
   }
 }))
 
-function renderWizard(onInstall: () => Promise<{ success: boolean; error?: string } | null>) {
-  render(
+function renderWizard(
+  onInstall: () => Promise<{ success: boolean; error?: string } | null>,
+  installedPath: string | null = null
+) {
+  const view = render(
     <ExtensionWizardPanel
       open
       mode="install"
       riskItems={['risk one']}
       mitigationItems={['mitigation one']}
-      installedPath={null}
+      installedPath={installedPath}
       onInstall={onInstall}
       onRemove={vi.fn()}
       onClose={vi.fn()}
     />
   )
+
+  const rerenderWizard = (next: { open?: boolean; installedPath?: string | null }) =>
+    view.rerender(
+      <ExtensionWizardPanel
+        open={next.open ?? true}
+        mode="install"
+        riskItems={['risk one']}
+        mitigationItems={['mitigation one']}
+        installedPath={next.installedPath ?? installedPath}
+        onInstall={onInstall}
+        onRemove={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+  return { ...view, rerenderWizard }
 }
 
 describe('ExtensionWizardPanel', () => {
@@ -107,6 +126,54 @@ describe('ExtensionWizardPanel', () => {
     await act(async () => {
       resolveRetry({ success: true })
     })
+  })
+
+  it('does not reset the open wizard when the installed path updates', async () => {
+    const onInstall = vi.fn<() => Promise<{ success: boolean } | null>>()
+    const { rerenderWizard } = renderWizard(onInstall)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_next_btn' }))
+    expect(
+      screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' })
+    ).toBeInTheDocument()
+
+    rerenderWizard({ installedPath: 'C:/extensions/quizlab' })
+
+    // A late path update must not send the user back to the risk step.
+    expect(
+      screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('ignores a result that belongs to a previous wizard session', async () => {
+    let resolveInstall: (value: { success: boolean } | null) => void = () => undefined
+    const onInstall = vi.fn(
+      () =>
+        new Promise<{ success: boolean } | null>((resolve) => {
+          resolveInstall = resolve
+        })
+    )
+    const { rerenderWizard } = renderWizard(onInstall)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_next_btn' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_wizard_install_btn' }))
+
+    expect(await screen.findByText('ws_extension_wizard_loading_blocked')).toBeInTheDocument()
+
+    // Close and reopen while the old install is still pending.
+    rerenderWizard({ open: false })
+    rerenderWizard({ open: true })
+
+    await act(async () => {
+      resolveInstall({ success: true })
+    })
+
+    // The old success must not drive the fresh session's screen.
+    expect(screen.queryByText('ws_extension_wizard_manual_title')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox')).toBeInTheDocument()
   })
 
   it('explains why the wizard cannot be dismissed while the operation runs', async () => {

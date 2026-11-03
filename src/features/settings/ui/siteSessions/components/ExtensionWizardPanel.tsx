@@ -60,10 +60,25 @@ function ExtensionWizardPanel({
   // would both observe `loading === false`. This ref is the synchronous lock
   // that actually serialises install/remove operations.
   const actionLockRef = useRef(false)
+  // Bumped whenever the wizard starts a new session (open or mode change).
+  // An operation that finishes after that must not write into the new session.
+  const operationIdRef = useRef(0)
+  const wasVisibleRef = useRef(false)
+  const previousModeRef = useRef(mode)
 
   const isVisible = open
   useEffect(() => {
-    if (!isVisible) return
+    const becameVisible = isVisible && !wasVisibleRef.current
+    const modeChanged = isVisible && previousModeRef.current !== mode
+    wasVisibleRef.current = isVisible
+    previousModeRef.current = mode
+
+    // Only a genuine session boundary resets the wizard. Movement inside the
+    // dialog or a parent refresh of `installedPathProp` must not rewind it.
+    if (!becameVisible && !modeChanged) return
+
+    operationIdRef.current += 1
+    actionLockRef.current = false
     setStep(0)
     setLoading(false)
     setError(null)
@@ -71,6 +86,13 @@ function ExtensionWizardPanel({
     setConfirmed(false)
     setInstalledPath(installedPathProp)
   }, [isVisible, mode, installedPathProp])
+
+  // The path can also arrive late from the parent while the wizard is open.
+  // That is a data update, not a reason to restart the flow.
+  useEffect(() => {
+    if (!isVisible) return
+    setInstalledPath(installedPathProp)
+  }, [installedPathProp, isVisible])
 
   // Live extension status via TanStack Query — polling and connect/disconnect
   // event invalidation are handled centrally in the platform hook (STD-014).
@@ -80,10 +102,14 @@ function ExtensionWizardPanel({
   const handleInstallAction = useCallback(async () => {
     if (actionLockRef.current) return
     actionLockRef.current = true
+    const operationId = operationIdRef.current
     setStep(2)
     setLoading(true)
     try {
       const result = await onInstall()
+      // The wizard may have been closed and reopened while the install was in
+      // flight; that result belongs to the previous session.
+      if (operationIdRef.current !== operationId) return
       if (result?.success) {
         setSuccess(true)
         if (result.installedPath) setInstalledPath(result.installedPath)
@@ -91,31 +117,39 @@ function ExtensionWizardPanel({
         setError(result?.error ?? t('ws_extension_wizard_error_default'))
       }
     } catch (err) {
+      if (operationIdRef.current !== operationId) return
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.install', { cause: err })
     } finally {
-      actionLockRef.current = false
-      setLoading(false)
-      setStep(3)
+      if (operationIdRef.current === operationId) {
+        actionLockRef.current = false
+        setLoading(false)
+        setStep(3)
+      }
     }
   }, [onInstall, t])
 
   const handleRemoveAction = useCallback(async () => {
     if (actionLockRef.current) return
     actionLockRef.current = true
+    const operationId = operationIdRef.current
     setStep(1)
     setLoading(true)
     try {
       const result = await onRemove()
+      if (operationIdRef.current !== operationId) return
       if (result?.success) setSuccess(true)
       else setError(result?.error ?? t('ws_extension_wizard_error_default'))
     } catch (err) {
+      if (operationIdRef.current !== operationId) return
       setError(ensureErrorMessage(err, t('ws_extension_wizard_error_default')))
       reportSuppressedError('extensionWizard.remove', { cause: err })
     } finally {
-      actionLockRef.current = false
-      setLoading(false)
-      setStep(2)
+      if (operationIdRef.current === operationId) {
+        actionLockRef.current = false
+        setLoading(false)
+        setStep(2)
+      }
     }
   }, [onRemove, t])
   const handleCopyPath = useCallback(() => {

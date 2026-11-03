@@ -10,6 +10,12 @@ const MIN_CONTENT_WIDTH = 340
  */
 const COMPACT_BREAKPOINT = MIN_WIDTH + MIN_CONTENT_WIDTH
 const COMPACT_WIDTH = 56
+/**
+ * Enter compact below the breakpoint, leave it only a little above. Without
+ * this gap a window parked exactly on the threshold would flip between the
+ * 56px rail and the full sidebar on every minor layout change.
+ */
+const COMPACT_EXIT_MARGIN = 24
 
 function maxSidebarWidthFor(containerWidth: number): number {
   if (containerWidth <= 0) return MAX_WIDTH
@@ -26,15 +32,30 @@ function maxSidebarWidthFor(containerWidth: number): number {
  */
 export function useResizableColumns(initialSidebar = 240) {
   const [sidebarWidth, setSidebarWidth] = useState(initialSidebar)
-  const [containerWidth, setContainerWidth] = useState(0)
+  const [isCompact, setIsCompact] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const isCompactRef = useRef(false)
+
+  const applyContainerWidth = useCallback((width: number) => {
+    // Hysteresis: compact is entered below the breakpoint but only left once
+    // the container is comfortably wide again.
+    const shouldBeCompact = isCompactRef.current
+      ? width < COMPACT_BREAKPOINT + COMPACT_EXIT_MARGIN
+      : width < COMPACT_BREAKPOINT
+
+    if (width > 0 && shouldBeCompact !== isCompactRef.current) {
+      isCompactRef.current = shouldBeCompact
+      setIsCompact(shouldBeCompact)
+    }
+
+    return width
+  }, [])
 
   const clampToContainer = useCallback(() => {
-    const width = containerRef.current?.clientWidth ?? 0
-    setContainerWidth(width)
+    const width = applyContainerWidth(containerRef.current?.clientWidth ?? 0)
     const max = maxSidebarWidthFor(width)
     setSidebarWidth((prev) => Math.min(max, Math.max(MIN_WIDTH, prev)))
-  }, [])
+  }, [applyContainerWidth])
 
   useEffect(() => {
     clampToContainer()
@@ -46,16 +67,16 @@ export function useResizableColumns(initialSidebar = 240) {
     return () => observer.disconnect()
   }, [clampToContainer])
 
-  const handleSidebarResize = useCallback((delta: number) => {
-    const width = containerRef.current?.clientWidth ?? 0
-    setContainerWidth(width)
-    if (width > 0 && width < COMPACT_BREAKPOINT) return
+  const handleSidebarResize = useCallback(
+    (delta: number) => {
+      const width = applyContainerWidth(containerRef.current?.clientWidth ?? 0)
+      if (isCompactRef.current) return
 
-    const max = maxSidebarWidthFor(width)
-    setSidebarWidth((prev) => Math.min(max, Math.max(MIN_WIDTH, prev + delta)))
-  }, [])
-
-  const isCompact = containerWidth > 0 && containerWidth < COMPACT_BREAKPOINT
+      const max = maxSidebarWidthFor(width)
+      setSidebarWidth((prev) => Math.min(max, Math.max(MIN_WIDTH, prev + delta)))
+    },
+    [applyContainerWidth]
+  )
 
   return {
     sidebarWidth: isCompact ? COMPACT_WIDTH : sidebarWidth,

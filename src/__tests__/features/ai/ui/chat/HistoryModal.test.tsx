@@ -294,5 +294,93 @@ describe('HistoryModal', () => {
     // The row is outside the visible slice but must not unmount: its draft,
     // validation error and focused input live there.
     expect(screen.getByLabelText('edit-s0')).toBeInTheDocument()
+    // And it must exist exactly once, never duplicated over a rendered row.
+    expect(screen.getAllByLabelText('edit-s0')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-history-row-index="0"]')).toHaveLength(1)
+  })
+
+  it('does not open a second editor while a rename request is in flight', async () => {
+    let resolveRename: (value: unknown) => void = () => undefined
+    mockRename.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRename = resolve
+      })
+    )
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s1' }))
+    fireEvent.change(screen.getByLabelText('edit-s1'), { target: { value: 'Renamed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save-s1' }))
+
+    await waitFor(() =>
+      expect(mockRename).toHaveBeenCalledWith({ sessionId: 's1', title: 'Renamed' })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'rename-s2' }))
+    expect(screen.queryByLabelText('edit-s2')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('edit-s1')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveRename(undefined)
+    })
+  })
+
+  it('opens only one confirmation when delete is triggered twice for the same row', async () => {
+    let resolveConfirm: (value: boolean) => void = () => undefined
+    mockConfirm.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveConfirm = resolve
+      })
+    )
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    const remove = screen.getByRole('button', { name: 'delete-s1' })
+    act(() => {
+      remove.click()
+      remove.click()
+    })
+
+    expect(mockConfirm).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveConfirm(false)
+    })
+
+    // The lock is released after the dialog resolves, so a later attempt works.
+    mockConfirm.mockResolvedValueOnce(false)
+    fireEvent.click(screen.getByRole('button', { name: 'delete-s1' }))
+    expect(mockConfirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('moves keyboard focus into the next virtual page instead of leaving the list', async () => {
+    mockSessions = Array.from({ length: 1000 }, (_, index) => ({
+      id: `s${index}`,
+      title: `Session ${index}`,
+      messages: [],
+      createdAt: index
+    }))
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    // The mock row renders rename then delete, so the last delete is also the
+    // last focusable element inside the scroll container.
+    const lastFocusable = screen
+      .getAllByRole('button', { name: /^delete-s\d+$/ })
+      .at(-1) as HTMLElement
+    const lastRenderedIndex = Number(
+      lastFocusable.closest('[data-history-row-index]')?.getAttribute('data-history-row-index')
+    )
+    const nextIndex = lastRenderedIndex + 1
+
+    act(() => {
+      lastFocusable.focus()
+    })
+    fireEvent.keyDown(lastFocusable, { key: 'Tab' })
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `rename-s${nextIndex}` })).toHaveFocus()
+    )
   })
 })

@@ -23,18 +23,20 @@ import {
   useSessionsQuery
 } from '../../queries/useSessionsQuery'
 import { useChatUiStore } from '../../store/chatUiStore'
+import {
+  buildRowLayout,
+  findFirstRowAfter,
+  findFirstVisibleRow,
+  getFocusableElements,
+  LIST_FALLBACK_HEIGHT,
+  LIST_OVERSCAN,
+  LIST_ROW_GAP,
+  LIST_ROW_HEIGHT
+} from './historyListVirtualization'
 import HistorySessionItem from './HistorySessionItem'
 
 // Debounced so keystrokes don't trigger a full O(sessions × messages) scan.
 const SEARCH_DEBOUNCE_MS = 180
-
-// The history list is virtualised once it grows past a viewport's worth of
-// rows. Rows are uniform apart from the single row being renamed, so a fixed
-// stride keeps scrolling predictable without measuring every item.
-const LIST_ROW_HEIGHT = 72
-const LIST_ROW_GAP = 8
-const LIST_OVERSCAN = 4
-const LIST_FALLBACK_HEIGHT = 480
 
 interface HistoryModalProps {
   isOpen: boolean
@@ -66,6 +68,12 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const searchInputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const editingRowObserverRef = useRef<ResizeObserver | null>(null)
+  // Sessions whose confirmation dialog is already open. The lock has to exist
+  // before `await confirm(...)`, because two rapid clicks would otherwise open
+  // two dialogs for the same row.
+  const pendingDeleteIdsRef = useRef<Set<string>>(new Set())
+  // Row to focus after the virtual window advances for keyboard navigation.
+  const pendingFocusRowRef = useRef<{ index: number; fromEnd: boolean } | null>(null)
 
   const { confirm, props: confirmProps } = useConfirmDialog()
 
@@ -138,26 +146,29 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     setScrollTop(0)
   }, [isOpen, debouncedSearch])
 
+  const isSearchActive = debouncedSearch.trim().length > 0
+
   /**
-   * Lowercased haystacks, built once per session list instead of once per
-   * keystroke. `toLowerCase()` on every message for every query was the real
-   * O(n*m) cost; the scan itself stays synchronous because chat archives are
-   * small and a worker would add more latency than it saves.
+   * Lowercased haystacks are only built while a search is active. Opening the
+   * history to browse therefore costs no extra string memory, and clearing the
+   * query releases the index instead of keeping a second copy of every message
+   * alive for the lifetime of the modal. While searching, the index is built
+   * once per session-list change, not once per keystroke.
    */
-  const searchIndex = useMemo(
-    () =>
-      sessions.map((session) => ({
-        session,
-        title: session.title.toLowerCase(),
-        contents: session.messages.map((message) => message.content.toLowerCase())
-      })),
-    [sessions]
-  )
+  const searchIndex = useMemo(() => {
+    if (!isOpen || !isSearchActive) return null
+    return sessions.map((session) => ({
+      session,
+      title: session.title.toLowerCase(),
+      contents: session.messages.map((message) => message.content.toLowerCase())
+    }))
+  }, [isOpen, isSearchActive, sessions])
 
   const filteredSessions = useMemo(() => {
     if (!isOpen) return []
     const query = debouncedSearch.trim().toLowerCase()
     if (!query) return sessions
+    if (!searchIndex) return []
     return searchIndex
       .filter(
         (entry) =>
@@ -179,22 +190,10 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   // Uniform rows keep the common case cheap; the single editing row uses its
   // measured height. Prefix offsets let the virtual window and the spacers stay
   // correct when that row grows or shrinks.
-  const rowLayout = useMemo(() => {
-    const total = filteredSessions.length
-    const offsets = new Array<number>(total + 1)
-    offsets[0] = 0
-
-    let editingIndex = -1
-    for (let index = 0; index < total; index += 1) {
-      const session = filteredSessions[index]
-      const height =
-        session.id === editingId ? Math.max(LIST_ROW_HEIGHT, editingRowHeight) : LIST_ROW_HEIGHT
-      offsets[index + 1] = offsets[index] + height + LIST_ROW_GAP
-      if (session.id === editingId) editingIndex = index
-    }
-
-    return { offsets, totalHeight: offsets[total] ?? 0, editingIndex }
-  }, [filteredSessions, editingId, editingRowHeight])
+  const rowLayout = useMemo(
+    () => buildRowLayout(filteredSessions, editingId, editingRowHeight),
+    [filteredSessions, editingId, editingRowHeight]
+  )
 
   const virtualRows = useMemo(() => {
     const total = filteredSessions.length
@@ -203,15 +202,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     const { offsets, totalHeight } = rowLayout
     const height = viewportHeight > 0 ? viewportHeight : LIST_FALLBACK_HEIGHT
 
-    let firstVisible = 0
-    while (firstVisible < total && offsets[firstVisible + 1] <= scrollTop) {
-      firstVisible += 1
-    }
-
-    let lastVisible = firstVisible
-    while (lastVisible < total && offsets[lastVisible] < scrollTop + height) {
-      lastVisible += 1
-    }
+    const firstVisible = findFirstVisibleRow(offsets, total, scrollTop)
+    const lastVisible = findFirstRowAfter(offsets, total, firstVisible, scrollTop + height)
 
     // A shrinking list (delete, external clear) must never leave every row
     // outside the window while the scroll offset is still catching up.
@@ -251,6 +243,10 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   tabIdRef.current = tabId
 
   const handleStartEdit = useCallback((sessionId: string, currentTitle: string) => {
+    // A rename that is still in flight owns the draft. Opening a second editor
+    // now would let the first request's completion clear the new draft.
+    if (renamingRef.current) return
+
     // Start from the uniform height; the row's real height is measured during
     // commit and replaces this estimate before the observer takes over.
     setEditingRowHeight(LIST_ROW_HEIGHT)
@@ -302,27 +298,36 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const confirmed = await confirm({
-        title: t('api_chat_confirm_delete'),
-        variant: 'destructive'
-      })
-      if (!confirmed) return
+      // The lock is taken before the dialog opens, so a second click (or a
+      // programmatic replay) cannot stack a second confirmation on top.
+      if (pendingDeleteIdsRef.current.has(id)) return
+      pendingDeleteIdsRef.current.add(id)
 
-      setDeletingIds((current) => new Set(current).add(id))
       try {
-        await deleteSession(id)
-      } catch (error) {
-        showError(
-          t('api_chat_delete_failed', {
-            error: error instanceof Error ? error.message : String(error)
-          })
-        )
-      } finally {
-        setDeletingIds((current) => {
-          const next = new Set(current)
-          next.delete(id)
-          return next
+        const confirmed = await confirm({
+          title: t('api_chat_confirm_delete'),
+          variant: 'destructive'
         })
+        if (!confirmed) return
+
+        setDeletingIds((current) => new Set(current).add(id))
+        try {
+          await deleteSession(id)
+        } catch (error) {
+          showError(
+            t('api_chat_delete_failed', {
+              error: error instanceof Error ? error.message : String(error)
+            })
+          )
+        } finally {
+          setDeletingIds((current) => {
+            const next = new Set(current)
+            next.delete(id)
+            return next
+          })
+        }
+      } finally {
+        pendingDeleteIdsRef.current.delete(id)
       }
     },
     [confirm, deleteSession, showError, t]
@@ -348,17 +353,23 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     }
   }, [clearAllSessions, confirm, onClose, showError, t])
 
-  const renderSessionRow = (session: (typeof filteredSessions)[number], absoluteTop?: number) => {
+  const renderSessionRow = (
+    session: (typeof filteredSessions)[number],
+    index: number,
+    absoluteTop?: number
+  ) => {
     const isEditing = session.id === editingId
     return (
       <div
         key={session.id}
         ref={isEditing ? measureEditingRow : undefined}
+        data-history-row-index={index}
+        data-history-session-id={session.id}
         className={absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'}
         style={
           absoluteTop === undefined
             ? isEditing
-              ? { minHeight: LIST_ROW_HEIGHT }
+              ? { minHeight: Math.max(LIST_ROW_HEIGHT, editingRowHeight) }
               : { height: LIST_ROW_HEIGHT }
             : { top: absoluteTop }
         }
@@ -385,6 +396,80 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const isSearchPending = modalSearch !== debouncedSearch
   const editingSession =
     rowLayout.editingIndex >= 0 ? filteredSessions[rowLayout.editingIndex] : undefined
+
+  /**
+   * Virtualisation removes off-screen rows from the DOM, so the browser's own
+   * Tab order would jump straight out of the list once the rendered window
+   * ends. At that boundary we advance the window ourselves, then hand focus to
+   * the neighbouring row after it renders.
+   */
+  const handleListKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return
+
+      const list = listRef.current
+      if (!list) return
+      const focusable = getFocusableElements(list)
+      if (focusable.length === 0) return
+
+      const active = document.activeElement as HTMLElement | null
+      if (!active || !list.contains(active)) return
+      const position = focusable.indexOf(active)
+      if (position === -1) return
+
+      const total = filteredSessions.length
+      const rowElement = active.closest<HTMLElement>('[data-history-row-index]')
+      const rowIndex = rowElement ? Number(rowElement.dataset.historyRowIndex) : -1
+      if (rowIndex < 0) return
+
+      let targetIndex: number
+      if (event.shiftKey) {
+        if (position !== 0) return
+        targetIndex = rowIndex - 1
+        if (targetIndex < 0) return
+      } else {
+        if (position !== focusable.length - 1) return
+        targetIndex = rowIndex + 1
+        if (targetIndex >= total) return
+      }
+
+      event.preventDefault()
+      const offset = rowLayout.offsets[targetIndex]
+      list.scrollTop = Math.max(0, offset - LIST_ROW_GAP)
+      setScrollTop(list.scrollTop)
+      pendingFocusRowRef.current = { index: targetIndex, fromEnd: event.shiftKey }
+    },
+    [filteredSessions.length, rowLayout.offsets]
+  )
+
+  // Registered imperatively: the scroll container is not an interactive
+  // element itself, so a JSX key handler would be an a11y anti-pattern.
+  useEffect(() => {
+    if (!isOpen) return
+    const list = listRef.current
+    if (!list) return
+
+    list.addEventListener('keydown', handleListKeyDown)
+    return () => list.removeEventListener('keydown', handleListKeyDown)
+  }, [handleListKeyDown, isOpen])
+
+  // Focus the row requested by the keyboard handler once the window includes
+  // it. Runs after commit, so the target row is in the DOM by now.
+  useEffect(() => {
+    const pending = pendingFocusRowRef.current
+    if (!pending) return
+
+    const row = listRef.current?.querySelector<HTMLElement>(
+      `[data-history-row-index="${pending.index}"]`
+    )
+    if (!row) return
+
+    const focusable = getFocusableElements(row)
+    if (focusable.length === 0) return
+
+    focusable[pending.fromEnd ? focusable.length - 1 : 0]?.focus()
+    pendingFocusRowRef.current = null
+  }, [virtualRows.start, virtualRows.end, filteredSessions, editingId])
 
   if (!isOpen) return null
 
@@ -487,19 +572,25 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 {virtualRows.top > 0 && (
                   <div aria-hidden="true" style={{ height: virtualRows.top }} />
                 )}
-                {filteredSessions.slice(virtualRows.start, virtualRows.end).map((session) =>
-                  session.id === editingId ? (
-                    // Reserve the editor's layout slot here; the real row is
-                    // rendered once below so scrolling cannot remount it.
-                    <div
-                      key={`editing-slot-${session.id}`}
-                      aria-hidden="true"
-                      style={{ height: Math.max(LIST_ROW_HEIGHT, editingRowHeight) + LIST_ROW_GAP }}
-                    />
-                  ) : (
-                    renderSessionRow(session)
-                  )
-                )}
+                {filteredSessions
+                  .slice(virtualRows.start, virtualRows.end)
+                  .map((session, sliceIndex) => {
+                    const index = virtualRows.start + sliceIndex
+                    if (session.id === editingId) {
+                      // Reserve the editor's layout slot here; the real row is
+                      // rendered once below so scrolling cannot remount it.
+                      return (
+                        <div
+                          key={`editing-slot-${session.id}`}
+                          aria-hidden="true"
+                          style={{
+                            height: Math.max(LIST_ROW_HEIGHT, editingRowHeight) + LIST_ROW_GAP
+                          }}
+                        />
+                      )
+                    }
+                    return renderSessionRow(session, index)
+                  })}
                 {virtualRows.bottom > 0 && (
                   <div aria-hidden="true" style={{ height: virtualRows.bottom }} />
                 )}
@@ -507,7 +598,11 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                     It stays mounted while scrolling (keeping draft, focus and
                     validation state) and is positioned over its reserved slot. */}
                 {editingSession &&
-                  renderSessionRow(editingSession, rowLayout.offsets[rowLayout.editingIndex])}
+                  renderSessionRow(
+                    editingSession,
+                    rowLayout.editingIndex,
+                    rowLayout.offsets[rowLayout.editingIndex]
+                  )}
               </div>
             ) : isSearchPending ? (
               <div
