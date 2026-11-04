@@ -6,6 +6,12 @@
  * signals agree: tight baseline alignment per row, stable column starts, a
  * minimum number of rows, short cells, and (for two columns) a label/value width
  * profile. Anything ambiguous stays plain text.
+ *
+ * Irregular tables are handled without guessing: a single-fragment row between
+ * two normal rows is accepted only when it genuinely spans another column start.
+ * Such a row makes the table non-confident, so the serializer keeps the row/cell
+ * relationships in labelled or pipe-separated plain text instead of inventing
+ * Markdown cells.
  */
 import { groupByRow, median } from './pdfTextGeometry'
 import type { PdfTableBlock, PdfTextFragment } from './types'
@@ -38,6 +44,51 @@ export function isCandidateTableRow(row: PdfTextFragment[]): boolean {
   const verticalSpread = Math.max(...tops) - Math.min(...tops)
   const alignmentTolerance = Math.max(2, median(cells.map((cell) => cell.fontSize)) * 0.3)
   return verticalSpread <= alignmentTolerance
+}
+
+interface TableRunEntry {
+  row: number
+  fragments: PdfTextFragment[]
+}
+
+/**
+ * A merged cell appears as one fragment that spans at least two of the table's
+ * established column starts. It is accepted inside a run only when the run
+ * already has a skeleton, the next row is a normal candidate, the row is
+ * vertically adjacent and the fragment really crosses another column centre.
+ */
+function isMergedRowForRun(
+  row: PdfTextFragment[],
+  run: TableRunEntry[],
+  nextRow: PdfTextFragment[] | undefined
+): boolean {
+  if (row.length !== 1 || run.length < 2 || !nextRow || !isCandidateTableRow(nextRow)) {
+    return false
+  }
+
+  const fragment = row[0]
+  if (fragment.text.length > MAX_TABLE_CELL_LENGTH) return false
+
+  const previousRow = run.at(-1)?.fragments
+  if (!previousRow) return false
+  const previousBottom = Math.max(...previousRow.map((cell) => cell.bottom))
+  const nextTop = Math.min(...nextRow.map((cell) => cell.top))
+  const verticalTolerance = Math.max(8, fragment.fontSize * 2.5)
+  if (fragment.top - previousBottom > verticalTolerance) return false
+  if (nextTop - fragment.bottom > verticalTolerance) return false
+
+  const { centres, tolerance } = clusterColumnStarts(run.flatMap((entry) => entry.fragments))
+  const columnIndex = fragmentColumnIndex(fragment, centres, tolerance)
+  if (columnIndex === null) return false
+
+  const nextCentre = centres[columnIndex + 1]
+  const previousCentre = centres[columnIndex - 1]
+  const spansAnotherColumn =
+    nextCentre !== undefined
+      ? fragment.right >= nextCentre - tolerance
+      : previousCentre !== undefined && fragment.left <= previousCentre + tolerance
+
+  return spansAnotherColumn
 }
 
 function clusterColumnStarts(fragments: PdfTextFragment[]): {
@@ -134,13 +185,18 @@ function buildTableFromRows(rows: PdfTextFragment[][]): PdfTableBlock | null {
       if (cell) columnHits[index] += 1
     }
     for (const fragment of row) {
+      if (row.length !== columnCount) continue
       const columnIndex = fragmentColumnIndex(fragment, centres, tolerance)
       if (columnIndex !== null) widthsByColumn[columnIndex].push(fragment.right - fragment.left)
     }
   }
 
-  // Every column has to occur in the header and at least one data row.
-  if (columnHits.some((hits) => hits < 2)) return null
+  // A merged row can legitimately leave a column blank in one data row, so the
+  // skeleton is checked structurally: at least two complete rows (the header and
+  // one data row) and at least two columns that occur more than once.
+  const fullRows = matrix.filter((row) => row.every((cell) => cell.length > 0)).length
+  if (fullRows < 2) return null
+  if (columnHits.filter((hits) => hits >= 2).length < Math.min(2, columnCount)) return null
 
   const cellLengths = matrix
     .flat()
@@ -154,7 +210,8 @@ function buildTableFromRows(rows: PdfTextFragment[][]): PdfTableBlock | null {
     // width profiles (label/value); an equal-width pair is more likely a
     // two-column text layout than a table, so it stays text.
     if (rows.length < 3) return null
-    if (rows.some((row) => row.length !== 2)) return null
+    const fullTwoCellRows = rows.filter((row) => row.length === 2).length
+    if (fullTwoCellRows < 2) return null
     const widths = widthsByColumn.map((column) => median(column))
     if (widths.some((width) => width <= 0)) return null
     const widthRatio = Math.min(...widths) / Math.max(...widths)
@@ -196,7 +253,7 @@ function buildTableFromRows(rows: PdfTextFragment[][]): PdfTableBlock | null {
 export function detectTables(fragments: PdfTextFragment[]): DetectedTable[] {
   const rows = [...groupByRow(fragments).entries()].sort((a, b) => a[0] - b[0])
   const tables: DetectedTable[] = []
-  let run: { row: number; fragments: PdfTextFragment[] }[] = []
+  let run: TableRunEntry[] = []
 
   const closeRun = () => {
     if (run.length === 0) return
@@ -213,12 +270,20 @@ export function detectTables(fragments: PdfTextFragment[]): DetectedTable[] {
     run = []
   }
 
-  for (const [rowNumber, rowFragments] of rows) {
+  for (let index = 0; index < rows.length; index += 1) {
+    const [rowNumber, rowFragments] = rows[index]
     if (isCandidateTableRow(rowFragments)) {
       run.push({ row: rowNumber, fragments: rowFragments })
-    } else {
-      closeRun()
+      continue
     }
+
+    const nextRow = rows[index + 1]?.[1]
+    if (isMergedRowForRun(rowFragments, run, nextRow)) {
+      run.push({ row: rowNumber, fragments: rowFragments })
+      continue
+    }
+
+    closeRun()
   }
   closeRun()
 

@@ -66,6 +66,24 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('Kısa bir paragraf.\n\nSonraki paragraf ayrı bir bloktur.')
   })
 
+  it('merges a short middle line when the next line is a lowercase continuation', () => {
+    const text = page([
+      run('Bu paragrafın ilk satırı kısa kalıyor', 50, 100, 200),
+      run('ve devamı sonraki satırda sürüyor', 50, 114, 300)
+    ])
+
+    expect(text).toBe('Bu paragrafın ilk satırı kısa kalıyor ve devamı sonraki satırda sürüyor')
+  })
+
+  it('keeps two sentences in one paragraph when the line spacing is tight', () => {
+    const text = page([
+      run('İlk cümle burada biter.', 50, 100, 300),
+      run('İkinci cümle aynı paragrafta sürer.', 50, 114, 300)
+    ])
+
+    expect(text).toBe('İlk cümle burada biter. İkinci cümle aynı paragrafta sürer.')
+  })
+
   it('preserves a visible line-break hyphen instead of deleting a character', () => {
     const text = page([
       run('Kronik böbrek hasta-', 50, 100, 300),
@@ -104,15 +122,15 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('Hastalık sosyo-ekonomik bir sorundur.')
   })
 
-  it('preserves a hyphen when the line does not reach the column margin', () => {
+  it('preserves a visible hyphen and still merges a lowercase continuation', () => {
     const text = page([
       run('Kronik böbrek hasta-', 50, 100, 160),
       run('lığı tedavi edilir.', 50, 114, 250)
     ])
 
-    // No strong geometric evidence of a line break: keep the visible hyphen
-    // instead of guessing that it was inserted by hyphenation.
-    expect(text).toBe('Kronik böbrek hasta-\n\nlığı tedavi edilir.')
+    // The previous line is short, but the next line starts lowercase and the
+    // sentence is not finished, so it is a continuation. The hyphen stays.
+    expect(text).toBe('Kronik böbrek hasta-lığı tedavi edilir.')
   })
 })
 
@@ -390,6 +408,27 @@ describe('layout — tables', () => {
     expect(text).toBe(
       'Demir eksikliği:\nMCV: Düşük\nRetikülosit: Düşük\n\n' + 'Hemoliz:\nRetikülosit: Yüksek'
     )
+  })
+
+  it('keeps a merged row inside a table instead of splitting the table into columns', () => {
+    const text = page([
+      run('Bulgu', 50, 100, 60),
+      run('MCV', 200, 100, 40),
+      run('Retikülosit', 300, 100, 80),
+      run('Demir eksikliği', 50, 120, 100),
+      run('Düşük', 200, 120, 40),
+      run('Düşük', 300, 120, 40),
+      run('Tedavi gerekli', 50, 140, 200),
+      run('Hemoliz', 50, 160, 60),
+      run('Normal', 200, 160, 50),
+      run('Yüksek', 300, 160, 50)
+    ])
+
+    expect(text).not.toContain('| --- |')
+    expect(text).toContain('Demir eksikliği:')
+    expect(text).toContain('Tedavi gerekli:')
+    expect(text).toContain('Hemoliz:')
+    expect(text).not.toContain('Demir eksikliği\n\nDüşük')
   })
 
   it('does not treat two side-by-side prose columns as a table', () => {

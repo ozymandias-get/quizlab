@@ -80,18 +80,82 @@ function estimateBodyFontSize(lines: PdfTextLine[]): number {
 }
 
 /**
- * The modal distance between consecutive line tops. It is measured from the
- * document itself instead of assuming `1.2 × font-size`: slides, medical notes
- * and exam papers all use different leading, and the paragraph decision has to
- * follow the page's own rhythm.
+ * The modal distance between consecutive line tops.
+ *
+ * A plain median is dragged upward by paragraph gaps and can make a normal
+ * line break look like a paragraph break. The mode is the page's actual leading;
+ * deltas larger than a few line heights are excluded so section gaps cannot
+ * distort it.
  */
-function estimateLinePitch(lines: PdfTextLine[]): number {
+function estimateLinePitch(lines: PdfTextLine[], bodySize: number): number {
+  const counts = new Map<number, number>()
   const deltas: number[] = []
+
   for (let index = 1; index < lines.length; index += 1) {
     const delta = lines[index].top - lines[index - 1].top
-    if (delta > 0) deltas.push(delta)
+    if (delta <= 0 || delta > bodySize * 4) continue
+    const bucket = Math.round(delta * 2) / 2
+    counts.set(bucket, (counts.get(bucket) ?? 0) + 1)
+    deltas.push(delta)
   }
-  return median(deltas)
+
+  if (counts.size === 0) return deltas.length > 0 ? median(deltas) : Math.max(1, bodySize * 1.4)
+
+  let bestValue = Number.POSITIVE_INFINITY
+  let bestCount = -1
+  for (const [value, count] of counts) {
+    if (count > bestCount || (count === bestCount && value < bestValue)) {
+      bestValue = value
+      bestCount = count
+    }
+  }
+  return bestValue
+}
+
+/**
+ * The column's body left margin, as a mode rather than a minimum.
+ *
+ * Using the minimum would treat a single deeply indented line as the margin and
+ * flatten every paragraph decision around it. The mode is the edge most lines
+ * actually start from; ties go to the smaller (leftmost) edge.
+ */
+function estimateParagraphBaseLeft(lines: PdfTextLine[], bodySize: number): number {
+  const tolerance = Math.max(2, bodySize * 0.5)
+  const buckets = new Map<number, { sum: number; count: number; minimum: number }>()
+
+  for (const line of lines) {
+    const key = Math.round(line.left / tolerance)
+    const bucket = buckets.get(key)
+    if (bucket) {
+      bucket.sum += line.left
+      bucket.count += 1
+      bucket.minimum = Math.min(bucket.minimum, line.left)
+    } else {
+      buckets.set(key, { sum: line.left, count: 1, minimum: line.left })
+    }
+  }
+
+  let bestKey: number | null = null
+  let bestCount = -1
+  let bestMinimum = Number.POSITIVE_INFINITY
+  for (const [key, bucket] of buckets) {
+    if (bucket.count > bestCount || (bucket.count === bestCount && bucket.minimum < bestMinimum)) {
+      bestKey = key
+      bestCount = bucket.count
+      bestMinimum = bucket.minimum
+    }
+  }
+
+  const best = bestKey === null ? null : buckets.get(bestKey)
+  return best ? best.sum / best.count : Math.min(...lines.map((line) => line.left))
+}
+
+function startsLowercase(text: string): boolean {
+  return /^[a-zçğıöşü]/u.test(text.trim())
+}
+
+function endsTerminalPunctuation(text: string): boolean {
+  return /[.!?…]["'”’)\]]?$/u.test(text.trim())
 }
 
 function headingRatio(line: PdfTextLine, bodySize: number, groupWidth: number): number | null {
@@ -163,21 +227,33 @@ function shouldMergeParagraph(
   if (matchListMarker(next.text)) return false
   if (Math.abs(next.fontSize - current.fontSize) > Math.max(1, bodySize * 0.15)) return false
 
-  const topDelta = next.top - current.top
-  if (topDelta <= 0) return false
+  const advance = next.top - current.top
+  if (advance <= 0) return false
 
-  const maxLinePitch = pitch > 0 ? pitch * 1.45 + Math.max(1, bodySize * 0.2) : bodySize * 2.1
-  if (topDelta > maxLinePitch) return false
+  const linePitch = pitch > 0 ? pitch : Math.max(1, bodySize * 1.4)
+  const tightMaximum = linePitch * 1.35 + Math.max(1, bodySize * 0.15)
+  const looseMinimum = linePitch * 1.75 + Math.max(1, bodySize * 0.2)
+  if (advance >= looseMinimum) return false
+
+  const isTight = advance <= tightMaximum
+  if (!isTight) {
+    // In the ambiguous band only an explicit continuation merges: the next line
+    // starts lowercase and the previous line did not finish a sentence.
+    if (!startsLowercase(next.text) || endsTerminalPunctuation(current.text)) return false
+  }
 
   const alignmentTolerance = Math.max(2, bodySize * 0.6)
   if (next.left > current.left + alignmentTolerance) return false
   if (next.left < baseLeft - alignmentTolerance) return false
 
-  // A line that stops well before the column's right edge is the last line of a
-  // paragraph. Continuing after it would merge two paragraphs that the writer
-  // separated with a short final line.
+  // A short line is usually the last line of a paragraph. It can also be a
+  // middle line shortened by a floating figure or a table; in that case the next
+  // line starts lowercase and no sentence has ended, which is strong evidence of
+  // continuation. Without that evidence the short line ends the paragraph.
   const rightSlack = Math.max(14, bodySize * 1.8)
-  if (current.right < groupRight - rightSlack) return false
+  if (current.right < groupRight - rightSlack) {
+    if (endsTerminalPunctuation(current.text) || !startsLowercase(next.text)) return false
+  }
 
   return true
 }
@@ -268,11 +344,17 @@ function serializeLineGroup(
   if (sorted.length === 0) return ''
 
   const bodySize = documentBodySize > 0 ? documentBodySize : estimateBodyFontSize(sorted)
-  const pitch = estimateLinePitch(sorted)
+  const pitch = estimateLinePitch(sorted, bodySize)
   const baseLeft = Math.min(...sorted.map((line) => line.left))
+  const paragraphBaseLeft = estimateParagraphBaseLeft(sorted, bodySize)
   const groupRight = Math.max(...sorted.map((line) => line.right))
   const groupWidth = groupRight - baseLeft
-  const context: ParagraphContext = { bodySize, pitch, baseLeft, groupRight }
+  const context: ParagraphContext = {
+    bodySize,
+    pitch,
+    baseLeft: paragraphBaseLeft,
+    groupRight
+  }
   const blocks: { text: string; isListItem: boolean }[] = []
 
   let index = 0

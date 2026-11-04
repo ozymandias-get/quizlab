@@ -505,6 +505,19 @@ function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFr
     isTableLike: isCandidateTableRow(rowFragments)
   }))
 
+  // A merged table cell is one fragment between two normal table rows. It is not
+  // a layout change: borrowing the neighbours' signature keeps the table in one
+  // region instead of cutting it after the merged row.
+  for (let index = 1; index < measured.length - 1; index += 1) {
+    const row = measured[index]
+    if (row.fragments.length !== 1) continue
+    const previous = measured[index - 1]
+    const next = measured[index + 1]
+    if (previous.isTableLike && next.isTableLike && previous.signature === next.signature) {
+      row.signature = previous.signature
+    }
+  }
+
   const segments: PdfTextFragment[][] = []
   let current: PdfTextFragment[] = []
   let previousBottom = Number.NEGATIVE_INFINITY
