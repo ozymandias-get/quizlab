@@ -201,6 +201,10 @@ describe('SiteSessionService', () => {
     const [view] = (await service.list()).views
     expect(view.activeSlot).toBe(1)
     expect(view.accountSlots).toEqual([1, 2])
+    expect(view.accounts).toEqual([
+      { slot: 1, email: 'a@example.test' },
+      { slot: 2, email: 'b@example.test' }
+    ])
     expect(view.status).toBe('imported')
     expect(view.importedAt).toBe('2026-10-30T09:00:00Z')
   })

@@ -28,6 +28,14 @@ export interface GoogleAccountEntry {
   slot: number
   /** Google's stable account identifier, when the response carries one. */
   accountId: string | null
+  /**
+   * The account email, for local UI display only.
+   *
+   * It may leave the main process inside a site-session view so the account
+   * selector labels its slots, but it is never persisted or logged. Absent
+   * when the list carries nothing worth rendering.
+   */
+  email?: string
 }
 
 const cache = new WeakMap<
@@ -60,9 +68,12 @@ const ACCOUNT_VALID_INDEX = 9
 const ACCOUNT_GAIA_INDEX = 10
 /** `1` marks an entry that only remembers a signed-out account. */
 const ACCOUNT_SIGNED_OUT_INDEX = 14
+/** A display email is bounded so a malformed list cannot bloat the view. */
+const ACCOUNT_EMAIL_MAX_LENGTH = 128
 
 /** Same ListAccounts JSON shape used by Chromium's Gaia account parser. */
-function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
+/** Same entries as the discovery, exposed for tests and future callers. */
+export function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
   if (body.length > 1_000_000) throw new Error('Google account response too large')
   const data: unknown = JSON.parse(body.replace(/^\s*\)\]\}'[^\n]*\n/, ''))
   if (!Array.isArray(data) || data[0] !== 'gaia.l.a.r' || !Array.isArray(data[1])) {
@@ -71,7 +82,8 @@ function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
   const entries: GoogleAccountEntry[] = []
   for (const [index, account] of data[1].entries()) {
     if (!Array.isArray(account) || account[0] !== 'gaia.l.a') continue
-    if (typeof account[ACCOUNT_EMAIL_INDEX] !== 'string' || !account[ACCOUNT_EMAIL_INDEX]) continue
+    const rawEmail = account[ACCOUNT_EMAIL_INDEX]
+    if (typeof rawEmail !== 'string' || !rawEmail) continue
     // A Gaia entry carries two independent booleans: validity (whether the
     // entry may hold a session at all) and verification. Verification is
     // separate from session validity — Google can report a signed-in account
@@ -83,7 +95,8 @@ function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
     const gaia = account[ACCOUNT_GAIA_INDEX]
     entries.push({
       slot: index + 1,
-      accountId: typeof gaia === 'string' && gaia ? gaia : null
+      accountId: typeof gaia === 'string' && gaia ? gaia : null,
+      email: rawEmail.length <= ACCOUNT_EMAIL_MAX_LENGTH ? rawEmail : undefined
     })
   }
   return entries
@@ -142,7 +155,7 @@ export function peekGoogleAccountEntries(
   }
 }
 
-/** Only numeric positions leave main; account names and emails are never retained. */
+/** Compact list for callers that only need positions; see the entries variant. */
 export async function getGoogleAccountSlots(
   primary: Session,
   importKey: string
@@ -152,10 +165,12 @@ export async function getGoogleAccountSlots(
 }
 
 /**
- * The same discovery with Google's stable account ids.
+ * The same discovery with Google's stable account ids and display emails.
  *
- * The ids stay in the main process; callers only use them to notice that the
- * order of the accounts changed.
+ * The ids stay in the main process; callers use them to notice that the order
+ * of the accounts changed. The email may leave it only inside a
+ * site-session view, as the account selector's label — see
+ * `GoogleAccountEntry.email`.
  */
 export async function getGoogleAccountEntries(
   primary: Session,

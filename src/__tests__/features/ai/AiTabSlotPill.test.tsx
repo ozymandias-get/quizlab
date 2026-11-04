@@ -3,7 +3,10 @@ import { TooltipProvider } from '@shared/ui/components/primitives'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-const accountState = vi.hoisted(() => ({ slots: [1, 2, 3] }))
+const accountState = vi.hoisted(() => ({
+  slots: [1, 2, 3] as number[],
+  accounts: [] as Array<{ slot: number; email?: string }>
+}))
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSiteSessionListQuery: () => ({
@@ -14,7 +17,8 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
           kind: 'google',
           memberAppIds: ['gemini', 'aistudio', 'youtube'],
           activeSlot: 1,
-          accountSlots: accountState.slots
+          accountSlots: accountState.slots,
+          accounts: accountState.accounts
         },
         { siteId: 'chatgpt', kind: 'builtin', memberAppIds: ['chatgpt'], activeSlot: 2 }
       ]
@@ -54,6 +58,26 @@ describe('Google-only account selector', () => {
     expect(screen.queryByRole('option', { name: 'Hesap 3' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Hesap 5' })).not.toBeInTheDocument()
     accountState.slots = [1, 2, 3]
+  })
+
+  it('labels the options with the discovered account emails and shows the slot badge', () => {
+    accountState.accounts = [
+      { slot: 1, email: 'primary@example.test' },
+      { slot: 2, email: 'work@example.test' },
+      { slot: 3, email: 'third@example.test' }
+    ]
+    const onSwitchSlot = vi.fn()
+    render(
+      <TooltipProvider>
+        <AiTabSlotPill modelId="gemini" sessionSlot={2} onSwitchSlot={onSwitchSlot} />
+      </TooltipProvider>
+    )
+    expect(screen.getAllByRole('option')).toHaveLength(3)
+    expect(screen.getByRole('option', { name: 'third@example.test' })).toHaveValue('3')
+    expect(screen.queryByRole('option', { name: 'Hesap 3' })).not.toBeInTheDocument()
+    // The badge shows the initial of the tab's own slot, not the active view's.
+    expect(screen.getByText('W')).toBeInTheDocument()
+    accountState.accounts = []
   })
 
   it('hides account switching on non-Google sites even for a legacy secondary tab', () => {

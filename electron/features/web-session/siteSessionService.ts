@@ -35,6 +35,7 @@ import {
 } from '../../../shared/constants/siteSessionSlots.js'
 import type {
   SiteSessionActionResult,
+  SiteSessionGoogleAccount,
   SiteSessionListResult
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
@@ -141,6 +142,7 @@ export class SiteSessionService {
         const enabled = targetState?.enabled === true
         let activeSlot = target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
         let accountSlots: number[] | undefined
+        let accounts: SiteSessionGoogleAccount[] | undefined
         let googleDiscoveryUnverified = false
         let googleSelectionUnverified = false
         if (target.kind === 'google') {
@@ -148,6 +150,9 @@ export class SiteSessionService {
           const primary = this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION)
           const applyEntries = (entries: GoogleAccountEntry[]) => {
             accountSlots = googleAccountSlotOptions(entries.map((entry) => entry.slot))
+            accounts = entries.flatMap((entry) =>
+              entry.email === undefined ? [] : [{ slot: entry.slot, email: entry.email }]
+            )
             const storedAccountId = targetState?.activeAccountId ?? null
             if (storedAccountId) {
               // Follow the account, not the position: Google may move it when
@@ -236,6 +241,9 @@ export class SiteSessionService {
         if (accountSlots !== undefined) {
           view.accountSlots = accountSlots
         }
+        if (accounts !== undefined && accounts.length > 0) {
+          view.accounts = accounts
+        }
         return view
       })
     )
@@ -262,7 +270,9 @@ export class SiteSessionService {
         previous.length === discovered.length &&
         previous.every(
           (entry, index) =>
-            entry.slot === discovered[index].slot && entry.accountId === discovered[index].accountId
+            entry.slot === discovered[index].slot &&
+            entry.accountId === discovered[index].accountId &&
+            entry.email === discovered[index].email
         )
       ) {
         return

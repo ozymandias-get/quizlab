@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { googleAccountSlotOptions } from '../../../../shared/constants/siteSessionSlots.js'
 import {
   getGoogleAccountSlots,
+  parseGoogleAccountEntries,
   parseGoogleAccountSlots
 } from '../../../features/web-session/googleAccounts.js'
 
@@ -31,6 +32,21 @@ describe('Google account discovery', () => {
     expect(parseGoogleAccountSlots(responseFor(2))).toEqual([1, 2])
     expect(googleAccountSlotOptions([1, 2, 2])).toEqual([1, 2])
     expect(googleAccountSlotOptions()).toEqual([])
+  })
+
+  it('carries the account email for the local display label', () => {
+    expect(parseGoogleAccountEntries(responseFor(2))).toEqual([
+      { slot: 1, accountId: 'id-0', email: 'test0@example.test' },
+      { slot: 2, accountId: 'id-1', email: 'test1@example.test' }
+    ])
+  })
+
+  it('drops a display email that exceeds the bounded length', () => {
+    const data = JSON.parse(responseFor(1))
+    data[1][0][3] = 'a'.repeat(200) + '@example.test'
+    expect(parseGoogleAccountEntries(JSON.stringify(data))).toEqual([
+      { slot: 1, accountId: 'id-0', email: undefined }
+    ])
   })
 
   it('accepts XSSI and preserves indices while excluding signed-out accounts', () => {

@@ -24,6 +24,13 @@ export type SiteSessionStatusCode =
   | 'manual_session'
   | 'signed_out'
 
+/** Display-only label for one discovered Google account. */
+export interface SiteSessionGoogleAccount {
+  slot: number
+  /** Local-render email for the label; absent when Google offers none. */
+  email?: string
+}
+
 /** One row of the settings list: everything the renderer needs to draw a site. */
 export interface SiteSessionView {
   siteId: string
@@ -42,6 +49,8 @@ export interface SiteSessionView {
   activeSlot?: number
   /** Discovered Google account positions; absent when discovery is unavailable. */
   accountSlots?: number[]
+  /** Display-only account labels for the Google family; absent otherwise. */
+  accounts?: SiteSessionGoogleAccount[]
 }
 
 /**
