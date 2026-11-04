@@ -13,7 +13,7 @@ and partition. API Chat has no browser session to import.
    extension cannot authenticate without that file.
 3. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
    and select the folder path the app copied to the clipboard (version
-   **1.1.0**). The extension key and identity are unchanged.
+   **1.2.0**). The extension key and identity are unchanged.
 4. Sign in to the desired service in Chrome.
 5. In Quizlab, enable that service's switch. This is separate from enabling
    its launcher in **Models**.

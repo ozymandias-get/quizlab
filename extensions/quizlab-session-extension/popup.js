@@ -294,8 +294,7 @@ async function initImportControls() {
   const showFeedback = (text, isSuccess) => {
     if (!feedback) return
     feedback.textContent = text
-    feedback.style.color = isSuccess ? '#16a34a' : '#dc2626'
-    feedback.style.display = 'block'
+    feedback.dataset.state = isSuccess ? 'success' : 'error'
   }
   auto?.addEventListener('change', () => {
     chrome.runtime.sendMessage({ type: 'set_auto_sync', enabled: auto.checked }, (response) => {

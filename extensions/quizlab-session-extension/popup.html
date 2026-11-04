@@ -6,109 +6,734 @@
     <style>
       :root {
         color-scheme: light dark;
+
+        --font-sans:
+          'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+        /* Quizlab OKLCH palette (hue ~260) - Light Mode */
+        --background: oklch(0.985 0.002 260);
+        --foreground: oklch(0.15 0.01 260);
+        --card: oklch(1 0 0);
+        --card-foreground: oklch(0.15 0.01 260);
+        --primary: oklch(0.2 0.015 260);
+        --primary-foreground: oklch(0.985 0 0);
+        --secondary: oklch(0.95 0.004 260);
+        --secondary-foreground: oklch(0.2 0.01 260);
+        --muted: oklch(0.96 0.004 260);
+        --muted-foreground: oklch(0.48 0.01 260);
+        --accent: oklch(0.935 0.005 260);
+        --accent-foreground: oklch(0.18 0.01 260);
+        --border: oklch(0.89 0.004 260);
+        --border-hover: oklch(0.76 0.008 260);
+        --input: oklch(0.89 0.004 260);
+        --ring: oklch(0.5 0.01 260);
+
+        /* Status colors */
+        --granted-bg: oklch(0.95 0.04 150);
+        --granted-border: oklch(0.86 0.07 150);
+        --granted-text: oklch(0.36 0.12 150);
+
+        --missing-bg: oklch(0.96 0.04 70);
+        --missing-border: oklch(0.88 0.08 70);
+        --missing-text: oklch(0.44 0.14 65);
+
+        --destructive-bg: oklch(0.96 0.04 25);
+        --destructive-border: oklch(0.88 0.08 25);
+        --destructive-text: oklch(0.44 0.16 25);
+
+        --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 0 0 1px oklch(var(--border) / 0.6);
+        --shadow-card:
+          0 1px 3px oklch(0 0 0 / 0.04), 0 4px 12px -2px oklch(0 0 0 / 0.03),
+          0 0 0 1px var(--border);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: oklch(0.13 0.006 260);
+          --foreground: oklch(0.965 0.003 260);
+          --card: oklch(0.165 0.007 260);
+          --card-foreground: oklch(0.965 0.003 260);
+          --primary: oklch(0.94 0.004 260);
+          --primary-foreground: oklch(0.13 0.008 260);
+          --secondary: oklch(0.22 0.008 260);
+          --secondary-foreground: oklch(0.95 0.004 260);
+          --muted: oklch(0.195 0.007 260);
+          --muted-foreground: oklch(0.68 0.008 260);
+          --accent: oklch(0.24 0.008 260);
+          --accent-foreground: oklch(0.965 0.003 260);
+          --border: oklch(0.25 0.008 260);
+          --border-hover: oklch(0.35 0.01 260);
+          --input: oklch(0.25 0.008 260);
+          --ring: oklch(0.65 0.01 260);
+
+          --granted-bg: oklch(0.22 0.05 150);
+          --granted-border: oklch(0.34 0.08 150);
+          --granted-text: oklch(0.85 0.1 150);
+
+          --missing-bg: oklch(0.24 0.05 70);
+          --missing-border: oklch(0.36 0.08 70);
+          --missing-text: oklch(0.88 0.12 70);
+
+          --destructive-bg: oklch(0.22 0.05 25);
+          --destructive-border: oklch(0.35 0.09 25);
+          --destructive-text: oklch(0.88 0.14 25);
+
+          --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.25), 0 0 0 1px oklch(var(--border) / 0.8);
+          --shadow-card: 0 1px 3px oklch(0 0 0 / 0.3), 0 0 0 1px var(--border);
+        }
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
       }
 
       body {
-        width: 320px;
+        width: 360px;
         margin: 0;
         padding: 12px;
-        font-family: system-ui, sans-serif;
+        font-family: var(--font-sans);
         font-size: 13px;
-        line-height: 1.4;
+        line-height: 1.45;
+        color: var(--foreground);
+        background-color: var(--background);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow-x: hidden;
       }
 
-      h1 {
-        margin: 0 0 8px;
-        font-size: 14px;
+      /* Header */
+      .header {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        margin-bottom: 10px;
       }
 
+      .header-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .app-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        flex-shrink: 0;
+        display: block;
+      }
+
+      .app-title {
+        margin: 0;
+        font-size: 13.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+      }
+
+      /* Status Pill */
       #status {
-        margin: 0 0 8px;
-        color: #666;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.35;
+        border-radius: 9999px;
+        background: var(--muted);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        width: fit-content;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.03);
+        transition:
+          background-color 150ms ease,
+          border-color 150ms ease,
+          color 150ms ease;
+      }
+
+      #status:empty {
+        display: none;
+      }
+
+      #status::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: currentColor;
+        opacity: 0.85;
+        flex-shrink: 0;
+      }
+
+      body:has(#sites .grant) #status {
+        background: var(--missing-bg);
+        border-color: var(--missing-border);
+        color: var(--missing-text);
+      }
+
+      body:has(#sites .site):not(:has(#sites .grant)) #status {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      /* Card Surface */
+      .card {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .card-intro {
+        margin: 0;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--muted-foreground);
+      }
+
+      /* Field Controls */
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+
+      .select-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+      }
+
+      .select-control {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 32px;
+        padding: 0 30px 0 10px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--foreground);
+        background-color: var(--background);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+        cursor: pointer;
+        transition:
+          border-color 150ms ease,
+          box-shadow 150ms ease;
+      }
+
+      .select-control:hover {
+        border-color: var(--border-hover);
+      }
+
+      .select-control:focus-visible {
+        border-color: var(--ring);
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+
+      .select-arrow {
+        position: absolute;
+        right: 9px;
+        width: 15px;
+        height: 15px;
+        pointer-events: none;
+        color: var(--muted-foreground);
+        transition: color 150ms ease;
+      }
+
+      .select-control:hover + .select-arrow {
+        color: var(--foreground);
+      }
+
+      /* Toggle Row */
+      .toggle-box {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px;
+        background: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .toggle-input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+        pointer-events: none;
+        margin: 0;
+      }
+
+      .toggle-track {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        width: 32px;
+        height: 18px;
+        background-color: var(--input);
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        transition:
+          background-color 150ms ease,
+          border-color 150ms ease;
+        flex-shrink: 0;
+      }
+
+      .toggle-thumb {
+        position: absolute;
+        left: 1px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background-color: var(--card);
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.16);
+        transition:
+          transform 150ms cubic-bezier(0.2, 0.9, 0.22, 1),
+          background-color 150ms ease;
+      }
+
+      .toggle-input:checked + .toggle-track {
+        background-color: var(--primary);
+        border-color: var(--primary);
+      }
+
+      .toggle-input:checked + .toggle-track .toggle-thumb {
+        transform: translateX(14px);
+        background-color: var(--primary-foreground);
+      }
+
+      .toggle-input:focus-visible + .toggle-track {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      .toggle-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--foreground);
+        line-height: 1.35;
+      }
+
+      .toggle-desc {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted-foreground);
+      }
+
+      /* Primary Button */
+      #sync-btn {
+        width: 100%;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 14px;
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--primary-foreground);
+        background: var(--primary);
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.12);
+        transition:
+          opacity 150ms ease,
+          transform 100ms ease,
+          box-shadow 150ms ease;
+      }
+
+      #sync-btn:hover:not(:disabled) {
+        opacity: 0.9;
+        box-shadow: 0 2px 4px oklch(0 0 0 / 0.16);
+      }
+
+      #sync-btn:active:not(:disabled) {
+        transform: translateY(1px);
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
+      }
+
+      #sync-btn:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      #sync-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+
+      /* Feedback Area */
+      #sync-feedback {
+        display: none;
+        margin-top: 2px;
+        padding: 8px 10px;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 500;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        align-items: flex-start;
+        gap: 8px;
+        overflow-wrap: anywhere;
+      }
+
+      #sync-feedback[data-state] {
+        display: flex;
+      }
+
+      #sync-feedback[data-state='success'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      #sync-feedback[data-state='error'] {
+        background: var(--destructive-bg);
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      #sync-feedback::before {
+        content: '';
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        background-color: currentColor;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+      }
+
+      #sync-feedback[data-state='success']::before {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
+
+      #sync-feedback[data-state='error']::before {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+      }
+
+      /* Sites Section */
+      .sites-section:has(#sites:empty) {
+        display: none;
+      }
+
+      .sites-title {
+        margin: 0 0 8px 2px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted-foreground);
       }
 
       #sites {
         margin: 0;
         padding: 0;
         list-style: none;
-      }
-
-      .site {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        padding: 8px 0;
-        border-top: 1px solid rgba(128, 128, 128, 0.35);
+        gap: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 2px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+
+      #sites::-webkit-scrollbar {
+        width: 5px;
+      }
+
+      #sites::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      #sites::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 9999px;
+      }
+
+      #sites::-webkit-scrollbar-thumb:hover {
+        background: var(--muted-foreground);
+      }
+
+      /* Generated Site Card */
+      .site {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 4px 8px;
+        padding: 10px 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: var(--shadow-sm);
+        transition:
+          border-color 150ms ease,
+          box-shadow 150ms ease;
+      }
+
+      .site:hover {
+        border-color: var(--border-hover);
       }
 
       .site-name {
+        grid-column: 1 / 2;
+        grid-row: 1;
+        font-size: 12.5px;
         font-weight: 600;
+        color: var(--foreground);
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
 
-      .site-domains,
       .site-state {
-        color: #666;
+        grid-column: 2 / 3;
+        grid-row: 1;
+        justify-self: end;
+        align-self: start;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 7px;
+        border-radius: 9999px;
+        line-height: 1.35;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--muted);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+      }
+
+      .site-domains {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        font-size: 11px;
+        line-height: 1.4;
+        color: var(--muted-foreground);
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .site:has(.grant) {
+        border-color: var(--missing-border);
+      }
+
+      .site:has(.grant) .site-state {
+        background: var(--missing-bg);
+        border-color: var(--missing-border);
+        color: var(--missing-text);
+      }
+
+      .site:has(.grant) .site-state::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: currentColor;
+      }
+
+      .site:not(:has(.grant)) .site-state {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      .site:not(:has(.grant)) .site-state::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: currentColor;
       }
 
       .grant {
-        align-self: flex-start;
+        grid-column: 1 / -1;
+        grid-row: 3;
+        justify-self: end;
         margin-top: 4px;
-        padding: 4px 10px;
+        height: 26px;
+        padding: 0 10px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--foreground);
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+        transition:
+          background-color 150ms ease,
+          border-color 150ms ease,
+          color 150ms ease,
+          transform 100ms ease;
+      }
+
+      .grant:hover {
+        background: var(--accent);
+        border-color: var(--ring);
+        color: var(--accent-foreground);
+      }
+
+      .grant:active {
+        transform: translateY(1px);
+      }
+
+      .grant:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+
+      .grant::before {
+        content: '';
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        background-color: currentColor;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 3v10M3 8h10' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 3v10M3 8h10' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+      }
+
+      /* Reduced Motion */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Quizlab site oturumları</h1>
-    <div
-      class="slot-container"
-      style="
-        margin-bottom: 12px;
-        padding: 8px;
-        background: rgba(128, 128, 128, 0.1);
-        border-radius: 6px;
-      "
-    >
-      <div style="font-size: 11px; color: #888; margin-top: 4px">
+    <header class="header">
+      <div class="header-brand">
+        <img src="icons/icon48.png" alt="" class="app-icon" width="22" height="22" />
+        <h1 class="app-title">Quizlab site oturumları</h1>
+      </div>
+      <p id="status" class="status-pill" role="status"></p>
+    </header>
+
+    <div class="card slot-container">
+      <p class="card-intro">
         Chrome’daki site oturumunu uygulamaya aktarın. Aynı profildeki sekmeler ayrı çerez depoları
         değildir. Google için tek aktarım yeterlidir: Quizlab Hesap 1 ilk Google hesabını, hesap
         seçicisinden ikinci, üçüncü ve sonraki hesaplara geçebilirsiniz.
-      </div>
-      <label for="site-select">Aktarılacak site:</label>
-      <select id="site-select">
-        <option value="">Etkin tüm siteler</option>
-      </select>
-      <label style="display: block; margin-top: 8px"
-        ><input id="auto-sync" type="checkbox" /> Siteleri Chrome ile otomatik eşitle</label
-      >
-      <p style="font-size: 11px">
-        Elle aktarım otomatik eşitlemeyi durdurur; böylece Chrome’da hesap değiştirirken kayıtlı
-        oturumlar korunur. Google dışındaki sitelerde tek oturum kullanılır.
       </p>
-      <button
-        id="sync-btn"
-        type="button"
-        style="
-          margin-top: 8px;
-          width: 100%;
-          padding: 6px 12px;
-          background: #0284c7;
-          color: #fff;
-          border: none;
-          border-radius: 4px;
-          font-weight: 600;
-          font-size: 12px;
-          cursor: pointer;
-        "
-      >
-        Oturumları Quizlab'a Aktar
+
+      <div class="field">
+        <label for="site-select" class="field-label">Aktarılacak site:</label>
+        <div class="select-wrapper">
+          <select id="site-select" class="select-control">
+            <option value="">Etkin tüm siteler</option>
+          </select>
+          <svg class="select-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M4 6l4 4 4-4"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div class="toggle-box">
+        <label class="toggle-row" for="auto-sync">
+          <input id="auto-sync" type="checkbox" class="toggle-input" />
+          <span class="toggle-track" aria-hidden="true">
+            <span class="toggle-thumb"></span>
+          </span>
+          <span class="toggle-label">Siteleri Chrome ile otomatik eşitle</span>
+        </label>
+        <p class="toggle-desc">
+          Elle aktarım otomatik eşitlemeyi durdurur; böylece Chrome’da hesap değiştirirken kayıtlı
+          oturumlar korunur. Google dışındaki sitelerde tek oturum kullanılır.
+        </p>
+      </div>
+
+      <button id="sync-btn" type="button">
+        <svg class="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path
+            d="M2.5 8a5.5 5.5 0 0 1 9.35-3.92l1.65-1.58v4.5h-4.5l1.73-1.73A3.5 3.5 0 0 0 4.5 8H2.5zm11 0a5.5 5.5 0 0 1-9.35 3.92l-1.65 1.58v-4.5h4.5l-1.73 1.73A3.5 3.5 0 0 0 11.5 8h2z"
+            fill="currentColor"
+          />
+        </svg>
+        <span>Oturumları Quizlab'a Aktar</span>
       </button>
-      <div
-        id="sync-feedback"
-        style="font-size: 11px; margin-top: 6px; font-weight: 500; display: none"
-      ></div>
+
+      <div id="sync-feedback" role="status" aria-live="polite"></div>
     </div>
-    <p id="status"></p>
-    <ul id="sites"></ul>
+
+    <section class="sites-section" aria-label="Site İzinleri">
+      <h2 class="sites-title">Site İzinleri</h2>
+      <ul id="sites"></ul>
+    </section>
+
     <script src="popup.js"></script>
   </body>
 </html>
