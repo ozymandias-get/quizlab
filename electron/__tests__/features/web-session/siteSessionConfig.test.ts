@@ -476,6 +476,34 @@ describe('site session config', () => {
     expect(raw.future).toEqual({ keep: true })
   })
 
+  it('moves the stored active slot only while the bound account still matches', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('google', true)
+    await config.setActiveSlot('google', 1, 'id-1')
+    await config.recordResult('google', 'imported', undefined, 2)
+
+    await config.syncActiveSlotToAccount('google', 'id-1', 2)
+    const moved = (await config.read()).targets.google
+    expect(moved.activeSlot).toBe(2)
+    expect(moved.activeAccountId).toBe('id-1')
+    expect(moved.lastResult).toBe('imported')
+
+    // An explicit selection rebinds the account afterwards: a late discovery
+    // refresh that still carries the old id must not clobber it.
+    await config.setActiveSlot('google', 1, 'id-2')
+    await config.syncActiveSlotToAccount('google', 'id-1', 3)
+    const settled = (await config.read()).targets.google
+    expect(settled.activeSlot).toBe(1)
+    expect(settled.activeAccountId).toBe('id-2')
+  })
+
+  it('ignores a discovery sync for a non-Google site or an out-of-range slot', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    await expect(config.syncActiveSlotToAccount('chatgpt', 'id-1', 2)).resolves.toBeUndefined()
+    await expect(config.syncActiveSlotToAccount('google', 'id-1', 99)).resolves.toBeUndefined()
+  })
+
   it('reports a failed write instead of pretending the switch was set', async () => {
     // A folder where the state file should be: every write fails.
     mkdirSync(configPath(), { recursive: true })

@@ -629,6 +629,53 @@ export class SiteSessionConfig {
   }
 
   /**
+   * Moves the stored active slot to where discovery reports the bound account.
+   *
+   * A compare-and-set for the read path: it writes only while the target still
+   * binds the same account id, so a concurrent explicit selection (which
+   * rebinds `activeAccountId` first) is never overwritten by a discovery
+   * refresh that merely noticed Google reordering its list.
+   *
+   * The version counters stay as they are: nothing here changes what the
+   * extension should push, only what this app considers the running selection.
+   *
+   * @throws when a matching update could not be written.
+   */
+  async syncActiveSlotToAccount(siteId: string, accountId: string, slot: number): Promise<void> {
+    if (siteId !== GOOGLE_AI_WEB_SITE_ID || !isSiteSessionSlot(slot)) return
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId]
+      if (!existing || existing.activeAccountId !== accountId) return currentState
+      const storedSlot = existing.activeSlot ?? 1
+      if (!isSiteSessionSlot(storedSlot) || storedSlot === slot) return currentState
+      // The moved-to slot keeps its own import history; a selection that was
+      // never imported must not borrow this slot's timestamps.
+      const slotState = existing.slots?.[slot]
+      return {
+        ...currentState,
+        targets: {
+          ...currentState.targets,
+          [siteId]: {
+            ...existing,
+            activeSlot: slot,
+            importedAt: slotState?.importedAt ?? null,
+            lastResult: slotState?.lastResult ?? null,
+            lastError: slotState?.lastError ?? null
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The active slot of "${siteId}" could not be written.`)
+    }
+  }
+
+  /**
    * Removes the state of a site that does not exist any more.
    *
    * A user-added site the user deleted leaves an entry behind otherwise, and

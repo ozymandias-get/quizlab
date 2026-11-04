@@ -11,6 +11,7 @@ import {
   isAllowedManagedViewPartition,
   isHostTrustedForPartition
 } from '../../app/window/permissionPolicy.js'
+import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../ai/aiManager.js'
 import { readCustomPlatforms } from '../ai/customPlatformStore.js'
 import { ensureGoogleSessionSlot } from '../web-session/googleSessionSlot.js'
@@ -71,6 +72,38 @@ async function activeSlotForSite(siteId: string): Promise<number> {
   }
 }
 
+/**
+ * Prepares a secondary Google slot for use and reports which slot is safe.
+ *
+ * The caller asked for `wanted` and gets a slot number back, which is 1 when
+ * the preparation cannot make `wanted` usable:
+ *
+ *   - a failed seed (`ok: false`) leaves the slot partition in a state that no
+ *     cookie could vouch for — restoring the known-good primary session there
+ *     beats loading half a copy;
+ *   - `no_source` means there is no Google login to copy at all, so no slot
+ *     could show a signed-in session and the primary partition is still the
+ *     place a renderer sign-in would be seen.
+ *
+ * A slot the switch simply has not enabled keeps pointing where asked: nothing
+ * about it is broken, and a user who opens a slot with the switch off must not
+ * be silently moved onto another partition.
+ */
+async function preparedGoogleSlot(wanted: number): Promise<number> {
+  try {
+    const preparation = await ensureGoogleSessionSlot(wanted)
+    if (preparation.ok && preparation.ready) return wanted
+    if (preparation.status === 'disabled') return wanted
+    Logger.warn(
+      `[AiView] Google slot ${wanted} could not be prepared (${preparation.status}); ` +
+        'falling back to the primary Google session.'
+    )
+  } catch (error) {
+    Logger.warn(`[AiView] Google slot ${wanted} could not be prepared:`, error)
+  }
+  return 1
+}
+
 async function resolvePlatformTarget(
   modelId: string,
   sessionSlot?: number
@@ -86,8 +119,11 @@ async function resolvePlatformTarget(
     const partition = basePartition ? partitionForTargetSlot(basePartition, slot) : undefined
     const target = toTarget(platform, partition)
     if (target && siteId === GOOGLE_AI_WEB_SITE_ID) {
-      await ensureGoogleSessionSlot(slot)
-      target.url = googleSessionUrl(target.url, slot)
+      const usableSlot = await preparedGoogleSlot(slot)
+      if (usableSlot !== slot && basePartition) {
+        target.partition = partitionForTargetSlot(basePartition, usableSlot)
+      }
+      target.url = googleSessionUrl(target.url, usableSlot)
     }
     return target
   }
@@ -115,9 +151,13 @@ async function resolveGoogleAppTarget(
   }
   if (parsed.protocol !== 'https:') return null
   const slot = sessionSlot ?? (await activeSlotForSite(GOOGLE_AI_WEB_SITE_ID))
-  const partition = partitionForTargetSlot(GOOGLE_AI_WEB_SESSION_PARTITION, slot)
-  await ensureGoogleSessionSlot(slot)
-  return { partition, url: googleSessionUrl(parsed.toString(), slot), label: app.name }
+  const usableSlot = await preparedGoogleSlot(slot)
+  const partition = partitionForTargetSlot(GOOGLE_AI_WEB_SESSION_PARTITION, usableSlot)
+  return {
+    partition,
+    url: googleSessionUrl(parsed.toString(), usableSlot),
+    label: app.name
+  }
 }
 
 export async function resolveAiViewTarget(source: AiViewSource): Promise<AiViewTarget | null> {

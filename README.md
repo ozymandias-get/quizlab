@@ -99,14 +99,17 @@ diagnostics:
   any compatible gateway. Requests are made from the main process with SSRF
   validation and DNS pinning.
 - **Site sessions and multi-account** — every site you use has its own "Pull
-  from Chrome" switch and account list in **Settings → Session Import**. With it
-  on, the bundled Chrome extension hands the site the cookies of your Chrome
-  profile over a localhost bridge; with it off, the site asks you to sign in
-  inside the app. A site can hold multiple accounts, each isolated in its own
-  persistent Chromium cookie jar partition. You can label accounts, switch the
-  active account directly from the AI tab strip context menu or settings, and
-  safely resolve pending sessions. The Google family (Gemini, AI Studio,
-  YouTube, Google Drive) shares one account group and is unified into a single row.
+  from Chrome" switch in **Settings → Session Import**. With it on, the bundled
+  Chrome extension hands the site the cookies of your Chrome profile over a
+  localhost bridge; with it off, the site asks you to sign in inside the app.
+  Multi-account support is limited to the Google family: Gemini, AI Studio,
+  YouTube, NotebookLM and Google Drive share one account group and one settings
+  row, and up to 20 Google accounts can run across separate tabs. Other sites
+  hold a single session in their own persistent cookie-jar partition. A single
+  Google import carries the whole account list; accounts are switched per tab
+  in the AI tab strip, inside the Drive panel, or globally in settings. Only
+  account numbers ever leave the main process — accounts are not labelled and
+  no emails or names are stored.
 - **Appearance** — animated or solid backgrounds, glass scaling, selection
   colour, accent colour, and a configurable hub/dock for the tools you actually
   use.

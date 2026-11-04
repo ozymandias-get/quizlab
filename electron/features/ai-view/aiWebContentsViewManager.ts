@@ -1,6 +1,7 @@
 import type { WebContents } from 'electron'
 import { WebContentsView } from 'electron'
 
+import { googleSessionUrl, googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import type {
   AiContentInputEvent,
   AiViewAttachRequest,
@@ -574,7 +575,14 @@ export function loadAiViewUrl(viewId: string, rawUrl: unknown): boolean {
     })
     return false
   }
-  void entry.webContents.loadURL(url).catch((error: unknown) => {
+  // A Google slot view keeps its account in the address. Rendering a plain URL
+  // as-is would let a later navigation drop the `/u/N` or `authuser` choice the
+  // view was created with and silently land in a different account's pages.
+  // The rewrite only touches the registry's own Google hosts and is idempotent;
+  // every other trusted URL loads exactly as the caller asked.
+  const googleSlot = googleSlotForPartition(entry.partition)
+  const requestUrl = googleSlot === null ? url : googleSessionUrl(url, googleSlot)
+  void entry.webContents.loadURL(requestUrl).catch((error: unknown) => {
     Logger.warn('[AiView] loadURL failed:', { viewId, error })
   })
   return true

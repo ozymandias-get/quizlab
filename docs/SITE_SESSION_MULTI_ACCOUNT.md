@@ -1,9 +1,9 @@
 # Google çoklu hesap ve diğer sitelerde tek oturum
 
-Çoklu hesap yalnızca Google ailesinde (Gemini, AI Studio, YouTube ve Drive)
-etkindir. Diğer AI ve özel siteler tek kalıcı uygulama oturumu kullanır;
-bu sitelerde hesap seçici gösterilmez ve backend eski sekme tercihlerindeki
-ikinci/üçüncü yuva isteklerini tek oturuma yönlendirir.
+Çoklu hesap yalnızca Google ailesinde (Gemini, AI Studio, YouTube, NotebookLM
+ve Drive) etkindir. Diğer AI ve özel siteler tek kalıcı uygulama oturumu
+kullanır; bu sitelerde hesap seçici gösterilmez ve backend eski sekme
+tercihlerindeki ikinci/üçüncü yuva isteklerini tek oturuma yönlendirir.
 
 ## Google kullanımı
 
@@ -20,13 +20,19 @@ ikinci/üçüncü yuva isteklerini tek oturuma yönlendirir.
    Hesap 2 `/u/1`, Hesap 3 `/u/2` ile açılır. Eski sayfa adreslerinin hesap
    numarası da seçilen yuvaya göre düzeltilir.
 
-Liste, Google'ın oturumdaki hesap yanıtından okunur. Seçim yaptıkça yeni
+Liste, Google'ın oturumdaki hesap yanıtından okunur; istek, Chrome ile aynı
+biçimde `POST ListAccounts` olarak gönderilir. Seçim yaptıkça yeni
 seçenek eklenmez; geçmişte kullanılan yuva numaraları hesap sayılmaz. Çıkış
 yapılmış veya oturumu geçersiz hesaplar listelenmez. Okuma başarısız olduğunda
 ilave hesap tahmin edilmez. Yalnızca hesap numaraları arayüze gönderilir;
 hesap e-postaları ve adları kaydedilmez. Uygulama en fazla 20 Google yuvasını
 kabul eder. Yeni hesap ekledikten sonra aktarımı yenileyin.
-Hesapları farklı sırada yeniden açarsanız Google hesap numaraları da değişebilir.
+Hesapları farklı sırada yeniden açarsanız Google hesap numaraları da değişebilir;
+uygulama Kararlı hesap kimliğiyle takip ettiği hesabı yeni yuvasına taşır.
+Sekmeye bağlı yuva değiştirilmediği sürece Drive paneli de global seçimi izler;
+Drive paneli başlığında bu sekmeye bağlı bir hesap seçici vardır. Google
+oturumu bir yuvada imzalı çıkarılırsa aynı sunucu oturumunun kopyalarını taşıyan
+diğer yuvalar da geçersiz olabilir; yeniden aktarım gerekir.
 
 ## Diğer AI siteleri
 

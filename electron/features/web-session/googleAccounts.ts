@@ -4,7 +4,23 @@ import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js
 
 const LIST_ACCOUNTS_URL =
   'https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser&json=standard'
-const AUTH_COOKIE_NAMES = new Set(['SID', '__Secure-1PSID', '__Secure-3PSID'])
+/**
+ * The cookies a Google sign-in in this app writes.
+ *
+ * The SID variants are the accepted ones and the PSIDTS twins rotate on their
+ * own schedule, so they are deliberately not here: watching them would drop
+ * the cache on every refresh without telling it anything new. The LSID and
+ * __Host-*SID cookies are what a sign-in or an added account leaves behind on
+ * accounts.google.com and *.google.com, which the SID set alone can miss.
+ */
+const AUTH_COOKIE_NAMES = new Set([
+  'SID',
+  '__Secure-1PSID',
+  '__Secure-3PSID',
+  '__Host-1PLSID',
+  '__Host-3PLSID',
+  'LSID'
+])
 
 /** One account as Google's session list reports it. */
 export interface GoogleAccountEntry {
@@ -30,6 +46,21 @@ const lastKnown = new WeakMap<Session, { key: string; entries: GoogleAccountEntr
 /** Sessions whose auth-cookie changes already invalidate the cache. */
 const watchedSessions = new WeakSet<Session>()
 
+/**
+ * ListAccounts entry fields, per Chromium's Gaia account parser.
+ *
+ * The layout is undocumented: these positions are how Google actually answers
+ * and how Chromium reads the same response, so they are named once here rather
+ * than guessed at array literals throughout the parser.
+ */
+const ACCOUNT_EMAIL_INDEX = 3
+/** `0` when Google does not treat the entry as a valid list member. */
+const ACCOUNT_VALID_INDEX = 9
+/** Google's stable account identifier, present for most signed-in entries. */
+const ACCOUNT_GAIA_INDEX = 10
+/** `1` marks an entry that only remembers a signed-out account. */
+const ACCOUNT_SIGNED_OUT_INDEX = 14
+
 /** Same ListAccounts JSON shape used by Chromium's Gaia account parser. */
 function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
   if (body.length > 1_000_000) throw new Error('Google account response too large')
@@ -40,15 +71,19 @@ function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
   const entries: GoogleAccountEntry[] = []
   for (const [index, account] of data[1].entries()) {
     if (!Array.isArray(account) || account[0] !== 'gaia.l.a') continue
-    if (typeof account[3] !== 'string' || !account[3]) continue
-    // Verification is separate from session validity: Google can report a
-    // signed-in account as unverified without signing it out.
-    if (account[9] === 0 || account[14] === 1) continue
+    if (typeof account[ACCOUNT_EMAIL_INDEX] !== 'string' || !account[ACCOUNT_EMAIL_INDEX]) continue
+    // A Gaia entry carries two independent booleans: validity (whether the
+    // entry may hold a session at all) and verification. Verification is
+    // separate from session validity — Google can report a signed-in account
+    // as unverified without signing it out — so only validity is filtered on
+    // here, alongside the explicit signed-out marker.
+    if (account[ACCOUNT_VALID_INDEX] === 0 || account[ACCOUNT_SIGNED_OUT_INDEX] === 1) continue
     // Keep Google's original positions even when a signed-out entry is skipped.
     if (!isSiteSessionSlot(index + 1)) continue
+    const gaia = account[ACCOUNT_GAIA_INDEX]
     entries.push({
       slot: index + 1,
-      accountId: typeof account[10] === 'string' && account[10] ? account[10] : null
+      accountId: typeof gaia === 'string' && gaia ? gaia : null
     })
   }
   return entries
@@ -145,7 +180,12 @@ export async function getGoogleAccountEntries(
   entry.result = (async () => {
     let entries: GoogleAccountEntry[] | null = null
     try {
+      // Google's ListAccounts endpoint answers a GET with HTTP 400 and an HTML
+      // error page, so every lookup used to fail and the list fell back to
+      // "unverified". Chromium issues the same request as a POST; matching it
+      // is what makes the JSON account list come back.
       const response = await primary.fetch(LIST_ACCOUNTS_URL, {
+        method: 'POST',
         credentials: 'include',
         cache: 'no-store',
         signal: AbortSignal.timeout(5000)

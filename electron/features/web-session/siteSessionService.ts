@@ -77,7 +77,11 @@ export interface SiteSessionServiceDeps {
     Partial<
       Pick<
         SiteSessionConfig,
-        'setActiveSlot' | 'isEnabled' | 'recordResult' | 'migrateActiveAccountId'
+        | 'setActiveSlot'
+        | 'isEnabled'
+        | 'recordResult'
+        | 'migrateActiveAccountId'
+        | 'syncActiveSlotToAccount'
       >
     >
   loadTargets: () => Promise<SiteSessionTargetRow[]>
@@ -90,6 +94,8 @@ export class SiteSessionService {
   private readonly deps: SiteSessionServiceDeps
   /** One in-flight migration write for the Google account id. */
   private googleAccountIdMigration: Promise<void> | null = null
+  /** One in-flight sync write for an account discovery moved. */
+  private googleSlotSync: Promise<void> | null = null
 
   constructor(deps: SiteSessionServiceDeps) {
     this.deps = deps
@@ -148,7 +154,14 @@ export class SiteSessionService {
               // another account is added, removed or reordered.
               const match = entries.find((entry) => entry.accountId === storedAccountId)
               if (match) {
-                if (match.slot !== activeSlot) activeSlot = match.slot
+                if (match.slot !== activeSlot) {
+                  activeSlot = match.slot
+                  // The view follows the account now; persisting the move keeps
+                  // the next tabs and the next list read consistent with it.
+                  // A compare-and-set guards the write: an explicit selection
+                  // that lands in between is never overwritten.
+                  this.persistGoogleSlotSync(storedAccountId, match.slot)
+                }
               } else {
                 googleSelectionUnverified = true
               }
@@ -275,6 +288,29 @@ export class SiteSessionService {
         Logger.warn('[SiteSession] The Google account id could not be recorded:', error)
       } finally {
         this.googleAccountIdMigration = null
+      }
+    })()
+  }
+
+  /**
+   * Re-points the stored active slot at the account discovery moved.
+   *
+   * Discovery reports Google's list, not the config's; a refresh that finds
+   * the bound account at another position updates the view at once and writes
+   * the move in the background, so the list never waits on a config write.
+   * A failed sync leaves the derived behaviour in place: the next read clamps
+   * again, so the view stays correct even when the write could not land.
+   */
+  private persistGoogleSlotSync(accountId: string, slot: number): void {
+    const write = this.deps.config.syncActiveSlotToAccount
+    if (!write || this.googleSlotSync) return
+    this.googleSlotSync = (async () => {
+      try {
+        await write.call(this.deps.config, GOOGLE_AI_WEB_SITE_ID, accountId, slot)
+      } catch (error) {
+        Logger.warn('[SiteSession] The moved Google account slot could not be recorded:', error)
+      } finally {
+        this.googleSlotSync = null
       }
     })()
   }

@@ -539,6 +539,111 @@ describe('SiteSessionService', () => {
     expect(view.activeSlot).toBe(2)
   })
 
+  it('persists the location discovery reports for the bound account', async () => {
+    // The view follows the account immediately; the stored active slot must be
+    // moved as well, or the next tab after a restart opens on Google's old
+    // position and lands in a different account than the user selected.
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [
+        ['gaia.l.a', 1, '', 'b@example.test', '', 1, 1, 0, 0, 1, 'id-2'],
+        ['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1']
+      ]
+    ])
+    const syncActiveSlotToAccount = vi.fn().mockResolvedValue(undefined)
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 1,
+            activeAccountId: 'id-1',
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: {}
+          }
+        }
+      }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn(),
+      syncActiveSlotToAccount
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: { get: vi.fn(async () => []) },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody })
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    const [view] = (await service.list()).views
+    expect(view.activeSlot).toBe(2)
+    expect(syncActiveSlotToAccount).toHaveBeenCalledWith('google', 'id-1', 2)
+  })
+
+  it('does not rewrite the stored slot when an unbound selection cannot be confirmed', async () => {
+    const listAccountsBody = JSON.stringify([
+      'gaia.l.a.r',
+      [['gaia.l.a', 1, '', 'a@example.test', '', 1, 1, 0, 0, 1, 'id-1']]
+    ])
+    const syncActiveSlotToAccount = vi.fn().mockResolvedValue(undefined)
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        targets: {
+          google: {
+            enabled: true,
+            activeSlot: 3,
+            activeAccountId: 'id-gone',
+            importedAt: null,
+            lastResult: null,
+            lastError: null,
+            slots: {
+              1: { importedAt: '2026-10-30T09:00:00Z', lastResult: 'imported' }
+            }
+          }
+        }
+      }),
+      setEnabled: vi.fn(),
+      resetResults: vi.fn(),
+      syncActiveSlotToAccount
+    }
+    const google = {
+      ...CHATGPT,
+      siteId: 'google',
+      kind: 'google' as const,
+      partition: 'persist:gemini_web_profile',
+      cookieDomains: ['.google.com']
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [google],
+      resolveSession: () =>
+        ({
+          cookies: { get: vi.fn(async () => []) },
+          fetch: vi.fn().mockResolvedValue({ ok: true, text: async () => listAccountsBody })
+        }) as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    const [view] = (await service.list()).views
+    expect(view.activeSlot).toBe(1)
+    expect(view.status).toBe('session_unverified')
+    expect(syncActiveSlotToAccount).not.toHaveBeenCalled()
+  })
+
   it('migrates a position-only selection to the current stable account id', async () => {
     const listAccountsBody = JSON.stringify([
       'gaia.l.a.r',

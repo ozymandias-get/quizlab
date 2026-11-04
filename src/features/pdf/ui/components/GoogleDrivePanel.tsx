@@ -7,6 +7,7 @@ import { Button } from '@shared/ui/components/primitives'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
 import { memo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { usePdfTabStore } from '../../store/usePdfTabStore'
 
@@ -42,6 +43,7 @@ function GoogleDrivePanel({
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
   const { showWarning } = useToastActions()
+  const { t } = useTranslation()
   const setPdfTabSessionSlot = usePdfTabStore((state) => state.setPdfTabSessionSlot)
   const { data: sessionList } = useSiteSessionListQuery()
   const googleView = sessionList?.views.find((view) => view.kind === 'google')
@@ -62,6 +64,19 @@ function GoogleDrivePanel({
       setPdfTabSessionSlot(tabId, sessionSlot)
     }
   }, [tabId, tabSessionSlot, sessionSlot, setPdfTabSessionSlot])
+  // The per-tab choice lives in the PDF tab store: switching it re-attaches the
+  // Drive view on the slot's own partition, and the tab keeps that slot on its
+  // next visit instead of inheriting the global default again.
+  const currentSlot = availableSlots?.includes(sessionSlot ?? 1) ? (sessionSlot ?? 1) : undefined
+  const slotOptions = availableSlots?.length
+    ? [
+        ...availableSlots,
+        ...(currentSlot && !availableSlots.includes(currentSlot) ? [currentSlot] : [])
+      ]
+    : currentSlot
+      ? [currentSlot]
+      : []
+  const sortedSlotOptions = [...slotOptions].sort((a, b) => a - b)
   const { setHostElement, reload } = useManagedContentView({
     viewId,
     showWarning,
@@ -93,10 +108,28 @@ function GoogleDrivePanel({
             <div className="text-ql-12 text-muted-foreground truncate">{description}</div>
           </div>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={reload} className="text-ql-12">
-          <RefreshIcon className="h-3.5 w-3.5" />
-          {reloadLabel}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {sortedSlotOptions.length > 1 && (
+            <select
+              aria-label={t('ws_google_account_select')}
+              className="text-ql-12 border-border/60 bg-background rounded-md border px-2 py-1"
+              value={currentSlot ?? sortedSlotOptions[0]}
+              onChange={(event) => {
+                setPdfTabSessionSlot(tabId, Number(event.target.value))
+              }}
+            >
+              {sortedSlotOptions.map((slot) => (
+                <option key={slot} value={slot}>
+                  {t('ws_account_slot', { slot: String(slot) })}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={reload} className="text-ql-12">
+            <RefreshIcon className="h-3.5 w-3.5" />
+            {reloadLabel}
+          </Button>
+        </div>
       </div>
 
       <div className="relative min-h-0 flex-1">

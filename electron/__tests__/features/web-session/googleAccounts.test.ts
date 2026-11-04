@@ -45,6 +45,14 @@ describe('Google account discovery', () => {
     expect(parseGoogleAccountSlots(JSON.stringify(data))).toEqual([1, 2])
   })
 
+  it('drops entries Google does not treat as valid list members', () => {
+    // Field 9 is separate from the verification flags: a zero there means the
+    // entry may not hold a session at all, so the slot must not be offered.
+    const data = JSON.parse(responseFor(2))
+    data[1][1][9] = 0
+    expect(parseGoogleAccountSlots(JSON.stringify(data))).toEqual([1])
+  })
+
   it('does not interpret malformed or unrelated JSON as a list of accounts', () => {
     expect(() => parseGoogleAccountSlots('{}')).toThrow()
     expect(() => parseGoogleAccountSlots('<html>Sign in</html>')).toThrow()
@@ -60,7 +68,7 @@ describe('Google account discovery', () => {
     fetch.mockResolvedValue({ ok: true, text: async () => responseFor(3) })
     expect(await getGoogleAccountSlots(primary, 'import-2')).toEqual([1, 2, 3])
     expect(fetch).toHaveBeenCalledTimes(2)
-    expect(fetch.mock.calls[0][1]).toMatchObject({ credentials: 'include' })
+    expect(fetch.mock.calls[0][1]).toMatchObject({ method: 'POST', credentials: 'include' })
   })
 
   it('never falls back to historical or guessed extra accounts after a network failure', async () => {
@@ -85,6 +93,33 @@ describe('Google account discovery', () => {
     expect(fetch).toHaveBeenCalledTimes(1)
 
     listener?.({}, { name: 'SID', domain: '.google.com' } as Electron.Cookie)
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('drops the discovery cache also when a web sign-in cookie changes', async () => {
+    let listener: ((event: unknown, cookie: Electron.Cookie) => void) | undefined
+    const fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => responseFor(2) })
+    const primary = {
+      fetch,
+      cookies: {
+        on: vi.fn((_event: string, callback: typeof listener) => {
+          listener = callback
+        })
+      }
+    } as unknown as Session
+
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    // A sign-in that happens inside the app (not through an import) writes the
+    // LSID cookie on accounts.google.com; the list must not go stale on it.
+    listener?.({}, { name: 'LSID', domain: 'accounts.google.com' } as Electron.Cookie)
+    expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
+    expect(fetch).toHaveBeenCalledTimes(2)
+
+    // A rotating, non-auth cookie must not drop the cache.
+    listener?.({}, { name: '__Secure-1PSIDTS', domain: '.google.com' } as Electron.Cookie)
     expect(await getGoogleAccountSlots(primary, 'import-1')).toEqual([1, 2])
     expect(fetch).toHaveBeenCalledTimes(2)
   })

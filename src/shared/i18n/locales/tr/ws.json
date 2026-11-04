@@ -40,7 +40,7 @@
   "ws_toggle_label": "Chrome'dan Çek",
   "ws_toggle_hint": "Anahtarı kapatmak o sitenin oturumunu siler; site yeniden giriş ister.",
   "ws_last_pull": "Son çekme: {time}",
-  "ws_google_drive_note": "Google oturumu tek hesap olduğu için bu anahtarı kapatmak Google Drive panelini de çıkış yaptırır.",
+  "ws_google_drive_note": "Bu satır Gemini, AI Studio, YouTube, NotebookLM ve Drive'ı tek oturum kümesinde toplar; anahtarı kapatmak Google Drive panelini de çıkış yaptırır.",
   "ws_clear_all_btn": "Çekilen Oturumları Temizle",
   "ws_clear_all_hint": "Yalnızca içe aktarma anahtarı açık olan siteler temizlenir; uygulama içinde yaptığınız giriş korunur. Anahtarlar açık kalır, bu yüzden oturumlar bir sonraki turda yeniden çekilir.",
   "ws_clear_all_result_success": "{count} sitenin oturumu temizlendi.",

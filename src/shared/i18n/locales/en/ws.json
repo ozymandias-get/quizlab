@@ -40,7 +40,7 @@
   "ws_toggle_label": "Pull from Chrome",
   "ws_toggle_hint": "Turning the switch off erases that site's session; the site asks for a sign-in again.",
   "ws_last_pull": "Last pull: {time}",
-  "ws_google_drive_note": "One Google account is one session, so turning this switch off also signs the Google Drive panel out.",
+  "ws_google_drive_note": "This row gathers Gemini, AI Studio, YouTube, NotebookLM and Google Drive into one session set, so turning this switch off also signs the Google Drive panel out.",
   "ws_clear_all_btn": "Clear Imported Sessions",
   "ws_clear_all_hint": "Only the sites whose import switch is on are cleared; a session you signed into inside the app is kept. The switches stay on, so the sessions are pulled again at the next round.",
   "ws_clear_all_result_success": "{count} site sessions were cleared.",

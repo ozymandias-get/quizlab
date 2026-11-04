@@ -204,7 +204,8 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
 }))
 
 vi.mock('../../../features/web-session/googleSessionSlot.js', () => ({
-  ensureGoogleSessionSlot: vi.fn(async () => {})
+  // A prepared slot is what most tests assume; the fallback test overrides it.
+  ensureGoogleSessionSlot: vi.fn(async () => ({ ok: true, ready: true, status: 'ready' }))
 }))
 
 const manager = await import('../../../features/ai-view/aiWebContentsViewManager.js')
@@ -489,6 +490,31 @@ describe('AiWebContentsViewManager - navigation policy', () => {
 
     expect(manager.loadAiViewUrl('tab-1', 'https://auth.chatgpt.com/login')).toBe(true)
     expect(entry.webContents.loadURL).toHaveBeenCalledWith('https://auth.chatgpt.com/login')
+  })
+
+  it('rewrites a renderer-supplied Gemini url onto the view account slot', async () => {
+    // Regression guard. A renderer handover of a plain URL used to drop the
+    // `/u/N` choice, so a later load silently moved onto a different account.
+    await reset()
+    await manager.attachAiView({
+      viewId: 'tab-1',
+      source: { kind: 'google-web-app' as const, appId: 'gemini', sessionSlot: 2 }
+    })
+    const entry = manager.getManagedAiView('tab-1')!
+    vi.mocked(entry.webContents.loadURL).mockClear()
+
+    expect(manager.loadAiViewUrl('tab-1', 'https://gemini.google.com/app')).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledWith(
+      'https://gemini.google.com/u/1/app?authuser=1'
+    )
+    // An already-slotted URL is left exactly as it is.
+    vi.mocked(entry.webContents.loadURL).mockClear()
+    expect(manager.loadAiViewUrl('tab-1', 'https://gemini.google.com/u/1/app?authuser=1')).toBe(
+      true
+    )
+    expect(entry.webContents.loadURL).toHaveBeenCalledWith(
+      'https://gemini.google.com/u/1/app?authuser=1'
+    )
   })
 
   it('refuses to walk a managed view onto a foreign https origin', async () => {
