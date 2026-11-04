@@ -66,9 +66,20 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('Kısa bir paragraf.\n\nSonraki paragraf ayrı bir bloktur.')
   })
 
-  it('removes a line-break hyphen but keeps the word intact', () => {
+  it('preserves a visible line-break hyphen instead of deleting a character', () => {
     const text = page([
       run('Kronik böbrek hasta-', 50, 100, 300),
+      run('lığı tedavi edilir.', 50, 114, 250)
+    ])
+
+    // No dictionary can prove this hyphen was inserted by the typesetter. The
+    // lossless default keeps the visible character and joins without a space.
+    expect(text).toBe('Kronik böbrek hasta-lığı tedavi edilir.')
+  })
+
+  it('removes only an invisible soft hyphen', () => {
+    const text = page([
+      run('Kronik böbrek hasta\u00AD', 50, 100, 300),
       run('lığı tedavi edilir.', 50, 114, 250)
     ])
 
@@ -160,6 +171,49 @@ describe('layout — columns and reading order', () => {
     // each band's own left-to-right order.
     expect(text).toBe('Sol üst\n\nSağ üst\n\nSol alt\n\nSağ alt')
   })
+
+  it('detects a column-layout change without a large vertical gap', () => {
+    const text = page([
+      run('Sol bölge birinci sütunun uzun metni burada devam ediyor', 50, 100, 180),
+      run('Sağ bölge birinci sütunun uzun metni burada devam ediyor', 250, 100, 180),
+      run('Sol bölge ikinci sütunun uzun metni burada devam ediyor', 50, 114, 180),
+      run('Sağ bölge ikinci sütunun uzun metni burada devam ediyor', 250, 114, 180),
+      run('Üç sütunlu bölgenin birinci sütunu uzun metinle devam ediyor', 50, 128, 150),
+      run('Üç sütunlu bölgenin ikinci sütunu uzun metinle devam ediyor', 220, 128, 150),
+      run('Üç sütunlu bölgenin üçüncü sütunu uzun metinle devam ediyor', 390, 128, 150),
+      run('Üç sütunlu bölgenin birinci sütunu ikinci satırla sürüyor', 50, 142, 150),
+      run('Üç sütunlu bölgenin ikinci sütunu ikinci satırla sürüyor', 220, 142, 150),
+      run('Üç sütunlu bölgenin üçüncü sütunu ikinci satırla sürüyor', 390, 142, 150)
+    ])
+
+    expect(text).toBe(
+      'Sol bölge birinci sütunun uzun metni burada devam ediyor ' +
+        'Sol bölge ikinci sütunun uzun metni burada devam ediyor\n\n' +
+        'Sağ bölge birinci sütunun uzun metni burada devam ediyor ' +
+        'Sağ bölge ikinci sütunun uzun metni burada devam ediyor\n\n' +
+        'Üç sütunlu bölgenin birinci sütunu uzun metinle devam ediyor ' +
+        'Üç sütunlu bölgenin birinci sütunu ikinci satırla sürüyor\n\n' +
+        'Üç sütunlu bölgenin ikinci sütunu uzun metinle devam ediyor ' +
+        'Üç sütunlu bölgenin ikinci sütunu ikinci satırla sürüyor\n\n' +
+        'Üç sütunlu bölgenin üçüncü sütunu uzun metinle devam ediyor ' +
+        'Üç sütunlu bölgenin üçüncü sütunu ikinci satırla sürüyor'
+    )
+  })
+
+  it('does not split a region when a single row is missing one column line', () => {
+    const text = page([
+      run('Sol birinci uzun sütun metni', 50, 100, 180),
+      run('Sağ birinci uzun sütun metni', 250, 100, 180),
+      run('Sol ikinci uzun sütun metni', 50, 114, 180),
+      run('Sol üçüncü uzun sütun metni', 50, 128, 180),
+      run('Sağ üçüncü uzun sütun metni', 250, 128, 180)
+    ])
+
+    expect(text).toBe(
+      'Sol birinci uzun sütun metni Sol ikinci uzun sütun metni Sol üçüncü uzun sütun metni\n\n' +
+        'Sağ birinci uzun sütun metni Sağ üçüncü uzun sütun metni'
+    )
+  })
 })
 
 describe('layout — lists', () => {
@@ -244,6 +298,46 @@ describe('layout — tables', () => {
         '| Nabız | 92 |\n' +
         '| Solunum | 18 |'
     )
+  })
+
+  it('serializes a three-row two-column label/value table when the shape is strong', () => {
+    const text = page([
+      run('Bulgu', 50, 100, 80),
+      run('Sonuç', 200, 100, 30),
+      run('Ateş', 50, 120, 80),
+      run('38 °C', 200, 120, 30),
+      run('Nabız', 50, 140, 80),
+      run('92', 200, 140, 30)
+    ])
+
+    expect(text).toBe('| Bulgu | Sonuç |\n| --- | --- |\n| Ateş | 38 °C |\n| Nabız | 92 |')
+  })
+
+  it('does not turn three equal-width short rows into a table', () => {
+    const text = page([
+      run('Elma', 50, 100, 60),
+      run('Apple', 200, 100, 60),
+      run('Armut', 50, 120, 60),
+      run('Pear', 200, 120, 60),
+      run('Üzüm', 50, 140, 60),
+      run('Grape', 200, 140, 60)
+    ])
+
+    expect(text).not.toContain('| --- |')
+    expect(text).toBe('Elma Armut Üzüm\n\nApple Pear Grape')
+  })
+
+  it('uses a visible header separator to recognise a three-row equal-width table', () => {
+    const text = page([
+      run('Elma', 50, 100, 60),
+      run('Apple', 200, 100, 60),
+      run('Armut', 50, 130, 60),
+      run('Pear', 200, 130, 60),
+      run('Üzüm', 50, 150, 60),
+      run('Grape', 200, 150, 60)
+    ])
+
+    expect(text).toBe('| Elma | Apple |\n| --- | --- |\n| Armut | Pear |\n| Üzüm | Grape |')
   })
 
   it('does not turn equal-width short two-column notes into a table', () => {

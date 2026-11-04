@@ -22,7 +22,7 @@ export interface DetectedTable {
   bottom: number
 }
 
-function isCandidateTableRow(row: PdfTextFragment[]): boolean {
+export function isCandidateTableRow(row: PdfTextFragment[]): boolean {
   if (row.length < 2) return false
   const cells = [...row].sort((a, b) => a.left - b.left)
   for (let index = 0; index < cells.length; index += 1) {
@@ -153,13 +153,28 @@ function buildTableFromRows(rows: PdfTextFragment[][]): PdfTableBlock | null {
     // consistent starts. A table's two columns usually have visibly different
     // width profiles (label/value); an equal-width pair is more likely a
     // two-column text layout than a table, so it stays text.
-    if (rows.length < 4) return null
+    if (rows.length < 3) return null
     if (rows.some((row) => row.length !== 2)) return null
     const widths = widthsByColumn.map((column) => median(column))
     if (widths.some((width) => width <= 0)) return null
     const widthRatio = Math.min(...widths) / Math.max(...widths)
-    if (widthRatio > 0.72) return null
-    if (median(cellLengths) > MAX_TWO_COLUMN_CELL_LENGTH) return null
+    if (rows.length === 3) {
+      // Three rows are accepted only for a strong label/value shape: non-numeric
+      // header labels, short cells, and either a clear width difference or a
+      // visible header separator. Equal-width, evenly spaced short rows are
+      // still treated as a two-column text layout.
+      const headerLooksLikeLabels = matrix[0].every((cell) => cell.length > 0 && !/^\d/.test(cell))
+      if (!headerLooksLikeLabels) return null
+      if (median(cellLengths) > 20) return null
+      const tops = rows.map((row) => Math.min(...row.map((fragment) => fragment.top)))
+      const headerGap = tops[1] - tops[0]
+      const dataGap = tops[2] - tops[1]
+      const hasHeaderSeparator = headerGap > Math.max(1, dataGap) * 1.25
+      if (widthRatio > 0.6 && !hasHeaderSeparator) return null
+    } else {
+      if (widthRatio > 0.72) return null
+      if (median(cellLengths) > MAX_TWO_COLUMN_CELL_LENGTH) return null
+    }
   }
 
   const rowTops = rows.map((row) => Math.min(...row.map((fragment) => fragment.top)))

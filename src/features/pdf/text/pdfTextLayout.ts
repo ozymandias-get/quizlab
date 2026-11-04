@@ -18,7 +18,7 @@
  * worse than leaving a two-column page in its original order.
  */
 import { groupByRow, median } from './pdfTextGeometry'
-import { detectTables } from './pdfTextTableDetection'
+import { detectTables, isCandidateTableRow } from './pdfTextTableDetection'
 import type { PdfFlowBlock, PdfTextFragment, PdfTextItem, PdfTextLine } from './types'
 
 const EPSILON = 0.5
@@ -441,9 +441,51 @@ function buildPdfFlowForItems(items: PdfTextItem[], options: BuildPdfFlowOptions
 }
 
 /**
- * Splits fragments into horizontal bands at gaps that are clearly larger than
- * line/paragraph spacing. The threshold is derived from the page's own font
- * size so dense slides and sparse notes both keep their regions intact.
+ * A stable description of which column starts a row uses. Small x differences
+ * are clustered; wide/spanner rows are marked separately. The signature is used
+ * to notice a layout change even when the regions touch with normal leading.
+ */
+function rowLayoutSignature(
+  rowFragments: PdfTextFragment[],
+  overallWidth: number,
+  tolerance: number
+): string {
+  const narrow = rowFragments.filter(
+    (fragment) => fragment.right - fragment.left < overallWidth * SPANNER_WIDTH_RATIO
+  )
+  if (narrow.length === 0) return 'span'
+
+  const lefts = [...narrow.map((fragment) => fragment.left)].sort((a, b) => a - b)
+  const starts: number[] = []
+  for (const left of lefts) {
+    const previous = starts.at(-1)
+    if (previous !== undefined && Math.abs(left - previous) <= tolerance) continue
+    starts.push(left)
+  }
+
+  return starts.map((left) => Math.round(left / tolerance)).join(',')
+}
+
+interface MeasuredRow {
+  fragments: PdfTextFragment[]
+  top: number
+  bottom: number
+  signature: string
+  isTableLike: boolean
+}
+
+/**
+ * Splits fragments into horizontal regions.
+ *
+ * Two independent signals are used:
+ *  - a vertical gap larger than normal line/paragraph spacing, and
+ *  - a persistent change in the row's column-start signature (e.g. two columns
+ *    becoming three without a large gap).
+ *
+ * A one-row signature change is ignored: a missing line in one column or a
+ * single indented line must not split a paragraph. Consecutive table-like rows
+ * are kept together so a header/data cell-count change does not cut a table in
+ * half.
  */
 function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFragment[][] {
   const rows = [...groupByRow(fragments).entries()].sort((a, b) => a[0] - b[0])
@@ -451,22 +493,51 @@ function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFr
 
   const fontSize = median(fragments.map((fragment) => fragment.fontSize))
   const cutGap = Math.max(18, fontSize * 2.2)
+  const bounds = boundsOf(fragments)
+  const overallWidth = Math.max(bounds.right - bounds.left, 1)
+  const tolerance = Math.max(4, fontSize * 1.2)
+
+  const measured: MeasuredRow[] = rows.map(([, rowFragments]) => ({
+    fragments: rowFragments,
+    top: Math.min(...rowFragments.map((fragment) => fragment.top)),
+    bottom: Math.max(...rowFragments.map((fragment) => fragment.bottom)),
+    signature: rowLayoutSignature(rowFragments, overallWidth, tolerance),
+    isTableLike: isCandidateTableRow(rowFragments)
+  }))
+
   const segments: PdfTextFragment[][] = []
   let current: PdfTextFragment[] = []
   let previousBottom = Number.NEGATIVE_INFINITY
 
-  for (const [, rowFragments] of rows) {
-    const rowTop = Math.min(...rowFragments.map((fragment) => fragment.top))
-    const rowBottom = Math.max(...rowFragments.map((fragment) => fragment.bottom))
+  for (let index = 0; index < measured.length; index += 1) {
+    const row = measured[index]
+    let cut = false
 
-    if (current.length > 0 && rowTop - previousBottom > cutGap) {
+    if (current.length > 0) {
+      const gap = row.top - previousBottom
+      if (gap > cutGap) {
+        cut = true
+      } else if (index > 0) {
+        const previous = measured[index - 1]
+        const next = measured[index + 1]
+        const changed = row.signature !== previous.signature
+        // A layout change must be confirmed by the following row. Otherwise a
+        // single missing column line, an indented list continuation or the last
+        // row of a region would be treated as a new region.
+        const persists = next !== undefined && next.signature === row.signature
+        const tableContinuation = row.isTableLike && previous.isTableLike
+        cut = changed && persists && !tableContinuation
+      }
+    }
+
+    if (cut) {
       segments.push(current)
       current = []
       previousBottom = Number.NEGATIVE_INFINITY
     }
 
-    current.push(...rowFragments)
-    previousBottom = Math.max(previousBottom, rowBottom)
+    current.push(...row.fragments)
+    previousBottom = Math.max(previousBottom, row.bottom)
   }
 
   if (current.length > 0) segments.push(current)

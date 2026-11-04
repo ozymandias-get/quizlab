@@ -124,113 +124,19 @@ function isCjkCharacter(character: string): boolean {
 }
 
 /**
- * Prefixes that are much more likely to be a real compound than a hyphenation
- * break. Turkish and English both build compounds this way, and deleting the
- * hyphen from `well-known` or `sosyo-ekonomik` changes a word that the document
- * actually printed. A line-break hyphen inside an ordinary word (`hasta-` +
- * `lığı`) is not in this set, so it is removed.
- *
- * This is a heuristic, not a dictionary. Its failure mode is deliberately a
- * preserved hyphen (`uzun-vadeli` stays hyphenated) rather than a deleted one.
- */
-const COMPOUND_HYPHEN_PREFIXES = new Set([
-  'well',
-  'self',
-  'non',
-  'pre',
-  'post',
-  'anti',
-  'co',
-  'multi',
-  'semi',
-  'mid',
-  'inter',
-  'intra',
-  'sub',
-  'super',
-  'over',
-  'under',
-  'cross',
-  'counter',
-  'ultra',
-  'hyper',
-  'hypo',
-  'micro',
-  'macro',
-  'sosyo',
-  'biyo',
-  'psiko',
-  'nöro',
-  'kardiyo',
-  'hepato',
-  'nefro',
-  'gastro',
-  'eko',
-  'türk',
-  'alman',
-  'ingiliz',
-  'fransız',
-  'tıbbi',
-  'cerrahi',
-  'uzun',
-  'kısa',
-  'çok',
-  'iç',
-  'dış',
-  'alt',
-  'üst',
-  'ön',
-  'son',
-  'ana',
-  'yan',
-  'karşı',
-  'öz',
-  'genel',
-  'tek',
-  'çift',
-  'yeni',
-  'eski',
-  'batı',
-  'doğu',
-  'kuzey',
-  'güney'
-])
-
-/**
- * Decides whether a trailing ASCII hyphen is a line-break hyphen.
- *
- * Removing a hyphen changes a visible character, so the evidence has to be
- * stronger than "the next line starts with a lowercase letter": the hyphenated
- * line must actually reach the column's right margin (the word was broken to
- * fit) and the continuation must start at the column's left edge. Soft hyphens
- * (U+00AD) are handled separately because they are invisible break markers.
- * When the geometry is ambiguous, the hyphen is preserved.
- */
-function canRemoveHyphen(
-  current: PdfTextLine,
-  next: PdfTextLine,
-  context: ParagraphContext
-): boolean {
-  const margin = Math.max(2, context.bodySize * 0.5)
-  if (current.right < context.groupRight - margin) return false
-  if (next.left > context.baseLeft + margin) return false
-
-  const first = next.text.trim()[0] ?? ''
-  if (!/[a-zçğıöşü]/u.test(first)) return false
-
-  const prefix = (/([^\s]+)-$/u.exec(current.text)?.[1] ?? '').toLocaleLowerCase('tr')
-  return !COMPOUND_HYPHEN_PREFIXES.has(prefix)
-}
-
-/**
  * Joins two visual lines of the same paragraph.
  *
- * A soft hyphen is always a break marker and is removed. An ASCII hyphen is
- * preserved unless `allowHyphenRemoval` says the geometry proves a line break
- * and the prefix is not a known compound (`well-known`, `sosyo-ekonomik`).
- * Without that evidence the visible character wins.
+ * The default is deliberately lossless: an ASCII or Unicode hyphen a reader can
+ * see is never deleted, even when it sits at a line break. Geometry cannot prove
+ * that `well-known`, `sosyo-ekonomik` or a medical compound was hyphenated by the
+ * typesetter rather than printed with its hyphen intact, and a wrong deletion is
+ * a content change. The hyphen is kept and the next line is joined directly
+ * (`hasta-` + `lığı` becomes `hasta-lığı`), so no character disappears.
+ *
+ * The only exception is U+00AD SOFT HYPHEN: it is invisible and exists solely to
+ * mark a possible break, so removing it loses nothing the reader could see.
  */
-function joinParagraphLines(previous: string, next: string, allowHyphenRemoval = false): string {
+function joinParagraphLines(previous: string, next: string): string {
   const left = previous.replace(/\s+$/u, '')
   const right = next.replace(/^\s+/u, '')
   if (!left) return right
@@ -239,16 +145,9 @@ function joinParagraphLines(previous: string, next: string, allowHyphenRemoval =
   const last = left.at(-1) ?? ''
   const first = right[0] ?? ''
 
-  // A soft hyphen is invisible and always a break marker; removing it loses
-  // nothing the reader could see.
   if (last === '\u00AD') return `${left.slice(0, -1)}${right}`
 
-  if (last === '-' || last === '‐') {
-    if (allowHyphenRemoval && /[a-zçğıöşü]/u.test(first)) {
-      return `${left.slice(0, -1)}${right}`
-    }
-    return `${left}${right}`
-  }
+  if (last === '-' || last === '‐') return `${left}${right}`
 
   if (isCjkCharacter(last) || isCjkCharacter(first)) return `${left}${right}`
 
@@ -401,7 +300,7 @@ function serializeLineGroup(
           break
         }
         if (!shouldContinueListItem(line, last, next, context)) break
-        content = joinParagraphLines(content, next.text, canRemoveHyphen(last, next, context))
+        content = joinParagraphLines(content, next.text)
         last = next
         index += 1
       }
@@ -424,7 +323,7 @@ function serializeLineGroup(
         break
       }
       if (!shouldMergeParagraph(last, next, context)) break
-      text = joinParagraphLines(text, next.text, canRemoveHyphen(last, next, context))
+      text = joinParagraphLines(text, next.text)
       last = next
       index += 1
     }
