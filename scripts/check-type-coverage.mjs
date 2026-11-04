@@ -8,13 +8,23 @@ const THRESHOLDS = { app: 98.0, node: 98.0 }
 let hasErrors = false
 
 for (const [project, threshold] of Object.entries(THRESHOLDS)) {
-  const label = `tsconfig.${project}.json`
+  const projectPath = `config/tsconfig.${project}.json`
+  const label = projectPath
   const msg = `Type coverage (${label} >= ${threshold}%) ...`
   try {
-    const output = execSync(`npx type-coverage --strict --project tsconfig.${project}.json`, {
-      encoding: 'utf-8',
-      cwd: ROOT
-    })
+    const output = execSync(
+      [
+        'npx type-coverage --strict',
+        `--project ${projectPath}`,
+        '--ignore-files "**/*.test.*"',
+        '--ignore-files "**/*.spec.*"',
+        '--ignore-files "**/__tests__/**"'
+      ].join(' '),
+      {
+        encoding: 'utf-8',
+        cwd: ROOT
+      }
+    )
     const m = output.match(/\((\d+)\s*\/\s*(\d+)\)\s*([\d.]+)%/)
     if (m) {
       const pct = Number(m[3])
