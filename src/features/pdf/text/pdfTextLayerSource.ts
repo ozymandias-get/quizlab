@@ -19,7 +19,6 @@
  */
 import {
   findNativePageElement,
-  findNativeTextLayer,
   findNativeTextLayerForPage,
   findNativeTextLayers,
   NATIVE_TEXT_SPAN_SELECTOR
@@ -60,16 +59,6 @@ export function readTextLayerPage(layer: HTMLElement): number | undefined {
   if (!raw) return undefined
   const page = Number.parseInt(raw, 10)
   return Number.isFinite(page) && page >= 1 ? page : undefined
-}
-
-/**
- * The text layer inside `root`.
- *
- * `root` is the shared viewer container, which is where the layer is mounted.
- */
-export function findTextLayerSource(root: ParentNode): TextLayerSource | null {
-  const layer = findNativeTextLayer(root)
-  return layer ? { layer, spanSelector: NATIVE_TEXT_SPAN_SELECTOR } : null
 }
 
 /**

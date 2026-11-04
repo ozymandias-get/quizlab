@@ -149,7 +149,7 @@ function makeFragment(items: PdfTextItem[], row: number): PdfTextFragment {
  * runs in content-stream order, which on a two-column page is top-left block then
  * top-right block, not line by line.
  */
-export function buildTextFragments(items: PdfTextItem[]): PdfTextFragment[] {
+function buildTextFragments(items: PdfTextItem[]): PdfTextFragment[] {
   const usable = items.filter(
     (item) =>
       item.text.length > 0 && item.width > 0 && item.height > 0 && item.text.trim().length > 0
@@ -407,9 +407,6 @@ function assembleFlow(groups: PdfTextLine[][], anchors: FlowAnchor[]): PdfFlowBl
  * `top` as page 1's first line. Grouping them by measured rows would merge text
  * across the page boundary, so each page gets its own analysis and the resulting
  * flows are concatenated in page order.
- *
- * `orderTextItems` remains the plain "visual lines in reading order" view used
- * by callers that do not need paragraph reconstruction.
  */
 export function buildPdfFlow(
   items: PdfTextItem[],
@@ -515,21 +512,4 @@ function buildPdfFlowForFragments(
   }
 
   return assembleFlow([linesFromFragments(freeFragments)], anchors)
-}
-
-/**
- * Visual lines in reading order, with paragraphs left as separate lines.
- *
- * This is the historical `orderTextItems` contract. It is kept separate from
- * paragraph reconstruction so a caller that needs physical lines (for geometry
- * or for tests that assert line selection) does not get merged prose.
- */
-export function orderTextItems(items: PdfTextItem[]): string[] {
-  const blocks = buildPdfFlow(items, { detectTables: false })
-  const lines: string[] = []
-  for (const block of blocks) {
-    if (block.kind === 'lines') lines.push(...block.lines.map((line) => line.text))
-    else if (block.kind === 'spanner') lines.push(block.line.text)
-  }
-  return lines
 }

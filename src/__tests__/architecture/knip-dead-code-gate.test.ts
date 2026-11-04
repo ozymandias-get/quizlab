@@ -54,7 +54,7 @@ interface KnipConfig {
   ignoreBinaries?: string[]
 }
 
-const knip = JSON.parse(read('knip.json')) as KnipConfig
+const knip = packageJson.knip as KnipConfig
 const scripts = packageJson.scripts as Record<string, string>
 const workflow = read('.github', 'workflows', 'build.yml')
 
@@ -197,10 +197,11 @@ describe('knip: the electronegativity ignore is justified, not blanket', () => {
     expect(knip.ignoreDependencies).toEqual(['@doyensec/electronegativity'])
   })
 
-  it('ignores the Windows-only binary the dev script cannot declare', () => {
-    // `taskkill` ships with Windows. There is no package to declare, and the
-    // call site is guarded, so this is a knip limitation rather than a leak.
-    expect(knip.ignoreBinaries).toEqual(['taskkill'])
+  it('does not carry a stale ignore for the Windows-only binary', () => {
+    // `taskkill` ships with Windows. The call site is guarded, and knip resolves
+    // the literal in `spawn('taskkill', ...)`, so an `ignoreBinaries` entry is
+    // reported as an unused configuration hint rather than protecting anything.
+    expect(knip.ignoreBinaries).toBeUndefined()
     expect(DEV_SCRIPT).toMatch(/if \(process\.platform === 'win32'\) \{\s*spawn\('taskkill'/)
   })
 

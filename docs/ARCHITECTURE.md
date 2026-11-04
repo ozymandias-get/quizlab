@@ -63,7 +63,7 @@ Two design points that shape everything below:
 `@ui/*` is an alias into the shared layer (`src/shared/ui/*`), not a layer of
 its own — it exists so UI primitives get their own import-sort group.
 
-The feature set is fixed by `FEATURE_NAMES` in `.dependency-cruiser.cjs:15`:
+The feature set is fixed by `FEATURE_NAMES` in `config/dependency-cruiser.cjs:15`:
 `ai`, `automation`, `onboarding`, `pdf`, `screenshot`, `settings`.
 A new feature directory must be added there (and to `FEATURE_DIRS` in
 `src/__tests__/architecture/feature-privacy-gate.test.ts`) or its cross-feature
@@ -113,7 +113,7 @@ screenshot/tool    lazy chunk — ScreenshotTool
 ```
 
 The list is duplicated on purpose in two configs that must be kept in sync:
-`PUBLIC_FEATURE_ENTRYPOINTS` in `.dependency-cruiser.cjs:7` and in
+`PUBLIC_FEATURE_ENTRYPOINTS` in `config/dependency-cruiser.cjs:7` and in
 `eslint.config.mjs:41`. Everything else under a feature root (`ui/`, `model/`,
 `api/`, `hooks/`, `lib/`, `store/`, `queries/`, `constants/`, `capture/`,
 `text/`, `viewport/`, `interaction/`, `errors/`, …) is an implementation detail
@@ -121,10 +121,10 @@ and must be re-exported from the barrel instead.
 
 Enforced twice, because each tool is blind where the other is not:
 
-- **dependency-cruiser** — `app-no-feature-internals` (`.dependency-cruiser.cjs:68`)
+- **dependency-cruiser** — `app-no-feature-internals` (`config/dependency-cruiser.cjs:68`)
   covers `src/app/**`, `src/shared/**` and `shared/**`; the generated
   `no-cross-feature-internals:<from>-><to>` rules
-  (`.dependency-cruiser.cjs:38`, one per ordered feature pair) cover feature →
+  (`config/dependency-cruiser.cjs:38`, one per ordered feature pair) cover feature →
   feature. Both allow the target's `index.ts` barrel.
 - **ESLint** — `featureInternalImportPattern` (`eslint.config.mjs:58`) plus the
   matching `no-restricted-syntax` selector for dynamic `import()`
@@ -139,7 +139,7 @@ Deep imports from **tests** are allowed: the `src/**` block ignores
 **2. `src/shared` sits below `src/app`.** The order is
 **App → Features → Shared**, and shared code may not reach back up:
 
-- `shared-no-app` (`.dependency-cruiser.cjs:82`) — `^src/shared/` → `^src/app/`
+- `shared-no-app` (`config/dependency-cruiser.cjs:82`) — `^src/shared/` → `^src/app/`
   is an error.
 - `sharedToAppPattern` (`eslint.config.mjs:78`) — `@app/*` is banned in
   `src/shared/**`, repeated in the `no-restricted-syntax` selector at
@@ -150,7 +150,7 @@ Both are asserted for wiring, not presence, in
 
 **3. Renderer code must not import Electron.**
 
-- `renderer-no-electron-direct` (`.dependency-cruiser.cjs:106`) — `^src/` →
+- `renderer-no-electron-direct` (`config/dependency-cruiser.cjs:106`) — `^src/` →
   `^electron/` is an error.
 - ESLint bans the bare `electron` package in `src/**` (`eslint.config.mjs:266`)
   with the message "Use the preload bridge via `@platform/electron`."
@@ -161,7 +161,7 @@ Both are asserted for wiring, not presence, in
 
 **4. `shared/` stays platform-agnostic.** No Electron, no DOM globals:
 
-- `shared-core-no-electron` (`.dependency-cruiser.cjs:94`) — `^shared/` →
+- `shared-core-no-electron` (`config/dependency-cruiser.cjs:94`) — `^shared/` →
   `electron` is an **error**.
 - ESLint warns on `electron`, `electron/*`, `@electron/*` and on the `window`
   / `document` globals in `shared/**` (`eslint.config.mjs:327-358`). ESLint
@@ -169,13 +169,13 @@ Both are asserted for wiring, not presence, in
   (`package.json:21`).
 
 **5. `electron/` must not import renderer aliases.**
-`electron-no-renderer` (`.dependency-cruiser.cjs:118`) and the ESLint block at
+`electron-no-renderer` (`config/dependency-cruiser.cjs:118`) and the ESLint block at
 `eslint.config.mjs:367` both forbid `@features/*`, `@shared/*`, `@app/*`,
 `@platform/*`, `@ui/*` from main. dependency-cruiser marks this one `warn`
 (advisory); the ESLint half is blocking because of `--max-warnings=0`.
 
 **6. Browser code must not import Node built-ins.**
-`no-nodejs-from-browser` (`.dependency-cruiser.cjs:129`) — `^src/` may not
+`no-nodejs-from-browser` (`config/dependency-cruiser.cjs:129`) — `^src/` may not
 import `fs`, `path`, `child_process`, … (tests exempted).
 
 ### B.4 Do / Don't
@@ -887,23 +887,23 @@ enforces that.
 
 | Direction                                                                          | Verdict   | Enforced by                                                                                       |
 | ---------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------- |
-| `src/app` → `src/features` → `src/shared`                                          | allowed   | the intended order; `shared-no-app` stops the reverse (`.dependency-cruiser.cjs:82`)              |
+| `src/app` → `src/features` → `src/shared`                                          | allowed   | the intended order; `shared-no-app` stops the reverse (`config/dependency-cruiser.cjs:82`)        |
 | `src/*` → `@shared-core/*` (`shared/`)                                             | allowed   | contracts are shared deliberately                                                                 |
 | `shared/*` → `@shared-core/*` via **relative** paths                               | allowed   | main/shared import relatively; `@shared-core` is the renderer spelling                            |
 | feature → feature **barrel**                                                       | allowed   | `pathNot: index.ts` in the generated cross-feature rules                                          |
-| feature → feature **internals**                                                    | error     | `no-cross-feature-internals:*` (`.dependency-cruiser.cjs:38`) + ESLint pattern                    |
-| `src/app`, `src/shared`, `shared/` → feature internals                             | error     | `app-no-feature-internals` (`.dependency-cruiser.cjs:68`) + ESLint                                |
+| feature → feature **internals**                                                    | error     | `no-cross-feature-internals:*` (`config/dependency-cruiser.cjs:38`) + ESLint pattern              |
+| `src/app`, `src/shared`, `shared/` → feature internals                             | error     | `app-no-feature-internals` (`config/dependency-cruiser.cjs:68`) + ESLint                          |
 | `src/shared` → `src/app`                                                           | error     | `shared-no-app` + `sharedToAppPattern`                                                            |
-| `src/**` → `electron/**`                                                           | error     | `renderer-no-electron-direct` (`.dependency-cruiser.cjs:106`) + ESLint `^electron(/`              |
+| `src/**` → `electron/**`                                                           | error     | `renderer-no-electron-direct` (`config/dependency-cruiser.cjs:106`) + ESLint `^electron(/`        |
 | `src/**` → bare `electron` package                                                 | error     | ESLint `no-restricted-imports` (`eslint.config.mjs:266`)                                          |
 | `shared/**` → `electron` / `@electron/*` / DOM globals                             | lint-warn | `shared-core-no-electron` (error in depcruise) + ESLint (`eslint.config.mjs:327-358`)             |
 | `electron/**` → `@features` / `@shared` / `@app` / `@platform` / `@ui`             | lint-warn | `electron-no-renderer` (warn) + ESLint (`eslint.config.mjs:367`), blocking via `--max-warnings=0` |
-| `src/**` → Node built-ins                                                          | error     | `no-nodejs-from-browser` (`.dependency-cruiser.cjs:129`)                                          |
+| `src/**` → Node built-ins                                                          | error     | `no-nodejs-from-browser` (`config/dependency-cruiser.cjs:129`)                                    |
 | `src/**` → `@src/*`                                                                | error     | `legacySrcAliasPattern` (`eslint.config.mjs:16`)                                                  |
 | `engine/` → React, DOM, zustand, `@features/pdf/{native,ui}`, `@app`, `@shared/ui` | forbidden | `pdfjs-single-runtime.test.ts:260`                                                                |
 
 dependency-cruiser runs with `tsPreCompilationDeps: true`
-(`.dependency-cruiser.cjs:149`) so `import type` edges are in the graph — type
+(`config/dependency-cruiser.cjs:149`) so `import type` edges are in the graph — type
 -only cycles count as cycles.
 
 ### H.2 Circular-dependency control
@@ -912,13 +912,13 @@ Two independent gates:
 
 - **madge** — `npm run analyze:circular`
   (`package.json:30`) over `src/ electron/ shared/`. It only resolves the
-  aliases because `.madgerc:8` supplies `tsConfig: tsconfig.json`; without it
+  aliases because `package.json#madge` supplies `tsConfig: tsconfig.json`; without it
   every aliased import lands in madge's `skipped` list and the gate passes on a
   fraction of the tree. Coverage of that fact (skipped must not contain
   first-party aliases) is asserted in
   `src/__tests__/architecture/circular-import-gate.test.ts`.
 - **dependency-cruiser** — the `no-circular` rule
-  (`.dependency-cruiser.cjs:52`), scoped away from `node_modules` on purpose so
+  (`config/dependency-cruiser.cjs:52`), scoped away from `node_modules` on purpose so
   a cycle inside a third-party package cannot fail the build.
 
 Currently both report clean (`1143 modules / 4158 dependencies` cruised,
@@ -972,7 +972,7 @@ Scripts, by what they gate (`package.json:11-52`):
 | `npm run analyze:css`          | Stylelint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run analyze:spell:ci`     | cspell (advisory in CI)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `npm run analyze:security`     | Semgrep + `check:audit` + `check:electron-security`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `npm run analyze:mutation`     | Stryker (`stryker.config.mjs`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `npm run analyze:mutation`     | Stryker (`config/stryker.config.mjs`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `npm run analyze:all`          | the blocking analyses above, chained; `analyze:bundle` is deliberately **not** in it (it opens a browser)                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 
 Before a structural change lands, the minimum is:

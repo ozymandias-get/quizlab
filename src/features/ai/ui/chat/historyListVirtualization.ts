@@ -12,7 +12,7 @@ export const LIST_ROW_GAP = 8
 export const LIST_OVERSCAN = 4
 export const LIST_FALLBACK_HEIGHT = 480
 
-export const FOCUSABLE_SELECTOR =
+const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export interface HistoryRowLayout {

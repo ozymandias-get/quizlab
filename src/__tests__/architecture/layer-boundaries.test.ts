@@ -46,7 +46,7 @@ interface Rule {
   severity?: string
 }
 
-const depcruiseConfig = require('../../../.dependency-cruiser.cjs') as {
+const depcruiseConfig = require('../../../config/dependency-cruiser.cjs') as {
   forbidden: Rule[]
   options: { tsPreCompilationDeps?: boolean }
 }

@@ -97,7 +97,7 @@ export default [
       'build/**',
       'coverage/**',
       '*.json',
-      '.dependency-cruiser.cjs'
+      'config/dependency-cruiser.cjs'
     ]
   },
   prettierConfig,

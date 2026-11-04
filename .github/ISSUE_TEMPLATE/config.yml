@@ -7,5 +7,5 @@ contact_links:
     url: https://github.com/ozymandias-get/quizlab/blob/main/README.md
     about: Check the README for common questions
   - name: Contributing Guidelines
-    url: https://github.com/ozymandias-get/quizlab/blob/main/CONTRIBUTING.md
+    url: https://github.com/ozymandias-get/quizlab/blob/main/.github/CONTRIBUTING.md
     about: Please read before submitting PRs

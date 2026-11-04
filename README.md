@@ -9,9 +9,9 @@
   &nbsp;•&nbsp;
   <a href="https://github.com/ozymandias-get/quizlab/releases">Releases</a>
   &nbsp;•&nbsp;
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href=".github/CONTRIBUTING.md">Contributing</a>
   &nbsp;•&nbsp;
-  <a href="SECURITY.md">Security</a>
+  <a href=".github/SECURITY.md">Security</a>
   &nbsp;•&nbsp;
   <a href="docs/ARCHITECTURE.md">Architecture</a>
   &nbsp;•&nbsp;
@@ -453,10 +453,10 @@ access to your machine profile; and builds are unsigned.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch strategy, the pull
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup, branch strategy, the pull
 request checklist, and the coding rules in
 [docs/CODING_STANDARD.md](docs/CODING_STANDARD.md). Please read
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) as well.
+[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) as well.
 
 ## License
 

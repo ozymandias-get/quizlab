@@ -9,9 +9,9 @@
   &nbsp;•&nbsp;
   <a href="https://github.com/ozymandias-get/quizlab/releases">Sürümler</a>
   &nbsp;•&nbsp;
-  <a href="CONTRIBUTING.md">Katkıda bulunma</a>
+  <a href=".github/CONTRIBUTING.md">Katkıda bulunma</a>
   &nbsp;•&nbsp;
-  <a href="SECURITY.md">Güvenlik</a>
+  <a href=".github/SECURITY.md">Güvenlik</a>
   &nbsp;•&nbsp;
   <a href="docs/ARCHITECTURE.md">Mimari</a>
   &nbsp;•&nbsp;
@@ -471,8 +471,8 @@ karşı koruma değildir; ve derlemeler imzasızdır.
 
 Kurulum, dal stratejisi, pull request kontrol listesi ve
 [docs/CODING_STANDARD.md](docs/CODING_STANDARD.md) içindeki yazım kuralları için
-[CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bakın. Lütfen
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) dosyasını da okuyun.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) dosyasına bakın. Lütfen
+[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) dosyasını da okuyun.
 
 ## Lisans
 

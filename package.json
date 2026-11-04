@@ -30,14 +30,14 @@
     "analyze:bundle": "vite-bundle-visualizer",
     "analyze:knip": "knip",
     "analyze:deadcode": "npm run analyze:knip",
-    "analyze:duplicates": "jscpd src electron shared --reporters console",
+    "analyze:duplicates": "jscpd --config config/jscpd.json src electron shared --reporters console",
     "analyze:circular": "madge --circular --extensions ts,tsx,js,jsx src/ electron/ shared/",
-    "analyze:architecture": "depcruise --config .dependency-cruiser.cjs --validate --output-type err --do-not-follow node_modules src electron shared",
+    "analyze:architecture": "depcruise --config config/dependency-cruiser.cjs --validate --output-type err --do-not-follow node_modules src electron shared",
     "analyze:security": "npm run analyze:semgrep && npm run check:audit && npm run check:electron-security",
     "analyze:semgrep": "node scripts/check-semgrep.mjs",
     "analyze:types": "type-coverage --strict --project tsconfig.app.json --detail --ignore-files \"**/*.test.*\" --ignore-files \"**/*.spec.*\" --ignore-files \"**/__tests__/**\"",
     "analyze:types:ci": "node scripts/check-type-coverage.mjs",
-    "analyze:mutation": "stryker run",
+    "analyze:mutation": "stryker run config/stryker.config.mjs",
     "analyze:css": "stylelint \"src/**/*.css\"",
     "analyze:spell:ci": "cspell --no-progress --show-context --no-exit-code \"src/**/*.{ts,tsx}\" \"electron/**/*.{ts,tsx}\" \"shared/**/*.ts\"",
     "analyze:file-sizes": "node scripts/check-file-sizes.mjs",
@@ -214,7 +214,6 @@
     "patch-package": "^8.0.1",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "rc": "^1.2.8",
     "shadcn": "^4.23.0",
     "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0",
@@ -268,5 +267,210 @@
   "lint-staged": {
     "!(package-lock).{ts,tsx,js,jsx,json,md,css}": "prettier --write",
     "*.{ts,tsx,js,jsx}": "eslint --fix"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "trailingComma": "none",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "endOfLine": "lf",
+    "plugins": [
+      "prettier-plugin-tailwindcss"
+    ]
+  },
+  "stylelint": {
+    "extends": "stylelint-config-standard",
+    "rules": {
+      "at-rule-no-unknown": [
+        true,
+        {
+          "ignoreAtRules": [
+            "tailwind",
+            "apply",
+            "layer",
+            "config",
+            "theme",
+            "custom-variant",
+            "utility",
+            "variant",
+            "source",
+            "reference"
+          ]
+        }
+      ],
+      "at-rule-prelude-no-invalid": [
+        true,
+        {
+          "ignoreAtRules": [
+            "apply"
+          ]
+        }
+      ],
+      "alpha-value-notation": null,
+      "lightness-notation": null,
+      "color-function-notation": null,
+      "color-function-alias-notation": null,
+      "custom-property-empty-line-before": null,
+      "font-family-no-missing-generic-family-keyword": null,
+      "no-duplicate-selectors": null,
+      "selector-class-pattern": null,
+      "keyframes-name-pattern": null,
+      "property-no-vendor-prefix": null,
+      "selector-no-vendor-prefix": null,
+      "value-keyword-case": null,
+      "comment-empty-line-before": null,
+      "declaration-empty-line-before": null,
+      "declaration-property-value-keyword-no-deprecated": null,
+      "selector-type-no-unknown": true,
+      "custom-property-pattern": null,
+      "media-feature-range-notation": null,
+      "hue-degree-notation": "number",
+      "no-descending-specificity": null,
+      "declaration-block-no-redundant-longhand-properties": true,
+      "rule-empty-line-before": [
+        "always-multi-line",
+        {
+          "except": [
+            "first-nested"
+          ],
+          "ignore": [
+            "inside-block"
+          ]
+        }
+      ],
+      "at-rule-empty-line-before": [
+        "always",
+        {
+          "except": [
+            "first-nested",
+            "blockless-after-same-name-blockless"
+          ],
+          "ignore": [
+            "after-comment"
+          ],
+          "ignoreAtRules": [
+            "utility"
+          ]
+        }
+      ],
+      "color-hex-length": "long",
+      "import-notation": "string"
+    },
+    "ignoreFiles": [
+      "dist/**",
+      "node_modules/**",
+      "coverage/**",
+      "release/**",
+      ".cache/**"
+    ]
+  },
+  "cspell": {
+    "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+    "version": "0.2",
+    "language": "en",
+    "words": [
+      "devtools",
+      "elec",
+      "electronjs",
+      "eslint",
+      "loglevel",
+      "oklch",
+      "openai",
+      "pdfjs",
+      "pdfs",
+      "playwright",
+      "prefs",
+      "quizlab",
+      "revalidate",
+      "scrollbar",
+      "subdir",
+      "tanstack",
+      "tsup",
+      "unsub",
+      "vaapi",
+      "vite",
+      "vitest",
+      "webp"
+    ],
+    "flagWords": [],
+    "ignorePaths": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      "release/**",
+      ".git/**",
+      "*.json",
+      "*.lock",
+      "*.svg",
+      "*.png",
+      "*.jpg",
+      "*.woff",
+      "*.woff2",
+      "pnpm-lock.yaml",
+      "src/shared/i18n/locales/**",
+      "**/__tests__/**"
+    ],
+    "allowCompoundWords": true,
+    "dictionaries": [
+      "en_US",
+      "softwareTerms",
+      "node",
+      "typescript",
+      "css",
+      "html"
+    ]
+  },
+  "knip": {
+    "$schema": "https://knip.dev/schema.json",
+    "entry": [
+      "src/index.html",
+      "src/shared/styles/index.css",
+      "electron/preload/index.ts",
+      "electron/preload/displayMediaPickerPreload.ts",
+      "scripts/{dev,build-electron,check-repo-hygiene,check-version-consistency}.mjs",
+      "scripts/{check-audit,check-declaration-consistency,check-electron-security}.d.mts"
+    ],
+    "project": [
+      "src/**/*.{ts,tsx,css}",
+      "electron/**/*.{ts,tsx}",
+      "shared/**/*.ts",
+      "scripts/**/*.{mjs,mts}"
+    ],
+    "ignoreDependencies": [
+      "@doyensec/electronegativity"
+    ]
+  },
+  "madge": {
+    "tsConfig": "tsconfig.json",
+    "fileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ],
+    "rules": {
+      "type-enum": [
+        2,
+        "always",
+        [
+          "feat",
+          "fix",
+          "docs",
+          "style",
+          "refactor",
+          "perf",
+          "test",
+          "chore",
+          "ci",
+          "revert"
+        ]
+      ]
+    }
   }
 }

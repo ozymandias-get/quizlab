@@ -48,7 +48,7 @@ const EXCLUDES = ['*__tests__*']
 const ARGS = [
   'scan',
   '--config',
-  '.semgrep.yml',
+  'config/semgrep.yml',
   '--error',
   '--severity',
   'ERROR',

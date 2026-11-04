@@ -5,7 +5,7 @@
  * said so.
  *
  * **The Node floor is stated six times.** `package.json` `engines.node`,
- * `README.md`, `README_TR.md`, `CONTRIBUTING.md`, and the two `node-version`
+ * `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`, and the two `node-version`
  * pins in `.github/workflows/build.yml`. Only the first of the six is a
  * declaration the others could be derived from; three are prose a contributor
  * might read and two are CI pins that decide what actually ran. No gate
@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..')
 
 /** The documents that state the floor in prose, so a reader can find it. */
-const DOC_FILES = ['README.md', 'README_TR.md', 'CONTRIBUTING.md']
+const DOC_FILES = ['README.md', 'README_TR.md', '.github/CONTRIBUTING.md']
 const WORKFLOW_FILE = join('.github', 'workflows', 'build.yml')
 
 /** A `major.minor.patch` triple. `null` in the upper bound means unbounded. */

@@ -32,5 +32,5 @@ on Windows (the app adds a right-click entry only).
 - [GitHub Issues](https://github.com/ozymandias-get/quizlab/issues)
 - [GitHub Discussions](https://github.com/ozymandias-get/quizlab/discussions)
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for the development workflow and
+See [CONTRIBUTING.md](../.github/CONTRIBUTING.md) for the development workflow and
 [ARCHITECTURE.md](ARCHITECTURE.md) for the boundaries changes must respect.

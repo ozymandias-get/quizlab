@@ -8,7 +8,7 @@ export const EXTENSION_SOURCE_DIR = 'extensions/quizlab-session-extension'
  * the extension, so the fallback in `startServer` must stop at the end
  * instead of walking towards the 65535 limit.
  */
-export const BRIDGE_PORT_RANGE_START = 51999
+const BRIDGE_PORT_RANGE_START = 51999
 export const BRIDGE_PORT_RANGE_END = 52009
 
 export const BRIDGE_PORT = (() => {

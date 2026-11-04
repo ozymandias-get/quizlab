@@ -25,7 +25,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 // The cruiser config is plain JS with no type declarations; load it as-is
 // rather than widening `*.cjs` to `any` project-wide.
 const require = createRequire(import.meta.url)
-const depcruiseConfig = require('../../../.dependency-cruiser.cjs') as {
+const depcruiseConfig = require('../../../config/dependency-cruiser.cjs') as {
   forbidden: Array<{ name: string; from?: { pathNot?: string } }>
 }
 

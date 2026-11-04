@@ -81,13 +81,13 @@ export interface PdfTableBlock {
 }
 
 /** A group of lines that belong to the same reading block (one column). */
-export interface PdfLinesBlock {
+interface PdfLinesBlock {
   kind: 'lines'
   lines: PdfTextLine[]
 }
 
 /** A line that spans the column layout (heading, caption, divider). */
-export interface PdfSpannerBlock {
+interface PdfSpannerBlock {
   kind: 'spanner'
   line: PdfTextLine
 }

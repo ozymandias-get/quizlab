@@ -10,7 +10,7 @@ import { buildPdfFlow } from './pdfTextLayout'
 import { serializePdfFlow } from './pdfTextSerialization'
 import type { PdfTextItem } from './types'
 
-export type PdfTextExtractionMode = 'page' | 'selection'
+type PdfTextExtractionMode = 'page' | 'selection'
 
 export interface ExtractStructuredPdfTextOptions {
   /**

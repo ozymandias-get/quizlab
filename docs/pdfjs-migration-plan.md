@@ -72,7 +72,7 @@ destroy what it created.
 
 `src/features/pdf/` — 79 files. Public entry points are only `index.ts` (light),
 `viewer.ts` (heavy, lazy-loaded), `types.ts` (type-only), all allow-listed in
-`.dependency-cruiser.cjs` `PUBLIC_FEATURE_ENTRYPOINTS` and mirrored in
+`config/dependency-cruiser.cjs` `PUBLIC_FEATURE_ENTRYPOINTS` and mirrored in
 `eslint.config.mjs`.
 
 | Domain                   | Files                                                                                                                                                                                                                                                         |
@@ -2689,7 +2689,7 @@ per-item walk of any list**, so every line above stays open. The wording here ma
 
 ## Dependency rules this must respect
 
-`.dependency-cruiser.cjs`:
+`config/dependency-cruiser.cjs`:
 
 - `no-cross-feature-internals:*` — `pdf` may reach another feature only via
   `src/features/<other>/index.ts`.

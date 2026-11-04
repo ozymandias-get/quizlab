@@ -31,7 +31,7 @@ const lastKnown = new WeakMap<Session, { key: string; entries: GoogleAccountEntr
 const watchedSessions = new WeakSet<Session>()
 
 /** Same ListAccounts JSON shape used by Chromium's Gaia account parser. */
-export function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
+function parseGoogleAccountEntries(body: string): GoogleAccountEntry[] {
   if (body.length > 1_000_000) throw new Error('Google account response too large')
   const data: unknown = JSON.parse(body.replace(/^\s*\)\]\}'[^\n]*\n/, ''))
   if (!Array.isArray(data) || data[0] !== 'gaia.l.a.r' || !Array.isArray(data[1])) {
@@ -59,7 +59,7 @@ export function parseGoogleAccountSlots(body: string): number[] {
 }
 
 /** Drops the discovery cache for a session, e.g. after an auth cookie changed. */
-export function invalidateGoogleAccountSlotsCache(primary: Session): void {
+function invalidateGoogleAccountSlotsCache(primary: Session): void {
   cache.delete(primary)
   lastKnown.delete(primary)
 }
@@ -104,23 +104,6 @@ export function peekGoogleAccountEntries(
   return {
     known: true,
     entries: entry.entries === null ? null : entry.entries.map((account) => ({ ...account }))
-  }
-}
-
-/**
- * The last known slots without touching the network.
- *
- * `known` is false until a discovery has finished for this import key. A
- * known `null` is an authoritative "Google did not answer", not "no accounts".
- */
-export function peekGoogleAccountSlots(
-  primary: Session,
-  importKey: string
-): { known: boolean; slots: number[] | null } {
-  const peeked = peekGoogleAccountEntries(primary, importKey)
-  return {
-    known: peeked.known,
-    slots: peeked.entries === null ? null : peeked.entries.map((account) => account.slot)
   }
 }
 

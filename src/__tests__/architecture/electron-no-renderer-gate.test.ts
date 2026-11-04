@@ -5,7 +5,7 @@
  * idi, oysa dependency-cruiser `from`/`to` eşleşmesini **çözümlenmiş** dosya
  * yollarına uygular (`electron/core/logger.ts` → `src/shared/lib/logger.ts`).
  * Alias yazımı çözümlemeden önce kaybolduğu için desen hiçbir şeyi yakalayamıyor,
- * kapı yeşil kalıyordu. `.dependency-cruiser.cjs` içindeki düzeltme deseni
+ * kapı yeşil kalıyordu. `config/dependency-cruiser.cjs` içindeki düzeltme deseni
  * `^src/(app|features|shared|platform)/` yapar.
  *
  * Bu dosya yalnızca konfigürasyon metnini değil, gerçek çözümlemeyi sınar:
@@ -32,7 +32,7 @@ interface Rule {
   to?: { path?: string; pathNot?: string }
 }
 
-const depcruiseConfig = require('../../../.dependency-cruiser.cjs') as {
+const depcruiseConfig = require('../../../config/dependency-cruiser.cjs') as {
   forbidden: Rule[]
 }
 

@@ -5,7 +5,7 @@
  * coincidence, and nothing said so:
  *
  *  - **The Node floor is stated six times.** `package.json` `engines.node`,
- *    `README.md`, `README_TR.md`, `CONTRIBUTING.md`, and the two
+ *    `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`, and the two
  *    `node-version` pins in `.github/workflows/build.yml`. Five of the six are
  *    prose, and no gate compared them. The floor is set by a transitive
  *    dependency (jsdom 30), so the next bump of *that* package moves the truth
@@ -63,7 +63,7 @@ const scripts = packageJson.scripts as Record<string, string>
  * Written out as a literal rather than derived, so that a gate which silently
  * stopped checking one of them cannot make this list shrink to match.
  */
-const DOC_NAMES = ['README.md', 'README_TR.md', 'CONTRIBUTING.md']
+const DOC_NAMES = ['README.md', 'README_TR.md', '.github/CONTRIBUTING.md']
 
 const realDocs = (): Record<string, string> =>
   Object.fromEntries(DOC_NAMES.map((name) => [name, read(name)]))
@@ -430,7 +430,7 @@ describe('declaration gate: the script fails the build when it should', () => {
     }),
     'README.md': 'Requires Node.js 24.15+ or 26+.',
     'README_TR.md': 'Node.js 24.15+ veya 26+ gerekir.',
-    'CONTRIBUTING.md': 'Node.js 24.15+ / 26+',
+    '.github/CONTRIBUTING.md': 'Node.js 24.15+ / 26+',
     '.github/workflows/build.yml': "jobs:\n  quality:\n    steps:\n      - node-version: '24'\n",
     'node_modules/alpha/package.json': JSON.stringify({ name: 'alpha', version: '1.0.0' })
   })

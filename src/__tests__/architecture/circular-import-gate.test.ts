@@ -12,8 +12,8 @@
  *
  * Two things had to change for the gate to mean anything:
  *
- *  1. `.madgerc` now supplies `tsConfig`, which madge reads through `rc('madge')`
- *     (`madge/bin/cli.js:7` -> `node_modules/rc/index.js:44`, `cc.find('.madgerc')`).
+ *  1. `package.json#madge` now supplies `tsConfig`, which the madge CLI merges
+ *     over `rc('madge')` (`madge/bin/cli.js`).
  *     Skipped drops 330 -> 5, and the 5 are npm/CSS asset specifiers, not code.
  *  2. madge *cannot* be configured to fail on skipped files, so coverage is
  *     asserted here instead. This file resolves the whole graph the same way the
@@ -33,6 +33,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { beforeAll, describe, expect, it } from 'vitest'
+
+import packageJson from '../../../package.json'
 
 const require = createRequire(import.meta.url)
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -66,8 +68,6 @@ interface MadgeConfig {
   tsConfig?: string
   fileExtensions?: string[]
   detectiveOptions?: Record<string, unknown>
-  /** Set by `rc` to the config file it actually loaded, if any. */
-  config?: string
 }
 
 const tsconfig = JSON.parse(
@@ -86,21 +86,16 @@ function firstPartyAlias(specifier: string): boolean {
 /**
  * Reads madge's own config channel the way the CLI does, so this file asserts
  * the configuration that ships rather than a copy of it that could drift.
- * `rc('madge')` is the loader (`madge/bin/cli.js:7`); a missing `.madgerc` is a
- * hard failure rather than a fallback to defaults.
+ * `madge/bin/cli.js` merges `rc('madge')` with `package.json#madge`; the field
+ * in package.json is the channel this repository ships.
  */
-function readMadgeConfig(): MadgeConfig {
-  const rc = require('rc')('madge', {}, []) as MadgeConfig
-  return rc
-}
+const madgeConfig = packageJson.madge as MadgeConfig
 
 describe('circular gate: madge resolves the whole tree', () => {
   let full: MadgeResult
   let runtimeOnly: MadgeResult
-  let madgeConfig: MadgeConfig
 
   beforeAll(async () => {
-    madgeConfig = readMadgeConfig()
     const base = {
       tsConfig: madgeConfig.tsConfig
         ? join(repoRoot, madgeConfig.tsConfig)
@@ -111,17 +106,16 @@ describe('circular gate: madge resolves the whole tree', () => {
     runtimeOnly = await madge(ROOTS, { ...base, detectiveOptions: SKIP_TYPE_IMPORTS })
   }, 300_000)
 
-  it('reads its tsConfig from .madgerc, which is the channel madge actually reads', () => {
+  it('reads its tsConfig from package.json#madge, which is the channel madge actually reads', () => {
     // `madge/bin/cli.js` merges `rc('madge')` with `package.json#madge` and then
-    // lets truthy CLI flags win. `.madge.json` is not one of them — that file was
+    // lets truthy CLI flags win. `.madge.json` is not one of them - that file was
     // dead config, deleted in caab598.
-    expect(madgeConfig.config).toBeDefined()
     expect(madgeConfig.tsConfig).toBe('tsconfig.json')
   })
 
   it('skips no first-party import, so the graph covers the tree', () => {
     // The regression this file exists for. 330 aliased specifiers were skipped
-    // before `.madgerc`; only npm packages and CSS assets may be skipped now.
+    // before `package.json#madge`; only npm packages and CSS assets may be skipped now.
     const skippedFirstParty = full.warnings().skipped.filter(firstPartyAlias)
     expect(skippedFirstParty).toEqual([])
   })

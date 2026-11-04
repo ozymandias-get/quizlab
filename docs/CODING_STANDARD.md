@@ -223,7 +223,7 @@ Bu kural `STORAGE_KEYS`, `IPC_CHANNELS`, `SCREENSHOT_TYPES`, `APP_CONFIG` gibi t
 - Renk paleti: Tailwind v4 `@theme` bloğu `src/shared/styles/index.css` içinde tanımlıdır; repo'da `tailwind.config.js` **yoktur** (Tailwind `@tailwindcss/vite` plugin'i ile yüklenir). Yeni renk eklenirse `@theme` bloğuna eklenir, hex literal JSX/CSS içinde yazılmaz.
 - `cn(...)` her zaman `@shared/lib/uiUtils`'tan alınır; `clsx`/`classnames` doğrudan kullanılmaz.
 - Tailwind utility class'ları `prettier-plugin-tailwindcss` ile otomatik sıralanır (`npm run format`). `w-4 h-4` yerine `h-4 w-4` şeklinde düzenlenir.
-- CSS dosyaları `npm run analyze:css` (Stylelint) ile denetlenir. `.stylelintrc.json` yapılandırması projenin mevcut CSS kod stiline uyumludur.
+- CSS dosyaları `npm run analyze:css` (Stylelint) ile denetlenir. `package.json#stylelint` yapılandırması projenin mevcut CSS kod stiline uyumludur.
 - `framer-motion` (`motion`) kullanımı: `prefers-reduced-motion` kontrolü `src/shared/hooks` veya ilgili component'te sağlanır.
 - Erişilebilirlik: interaktif elementlerde `aria-*`, `role`, klavye etkileşimi, odak halkası zorunludur; `react/no-danger` ESLint kuralı warn seviyesindedir, üretim kodu `dangerouslySetInnerHTML` ile yazmaz.
 

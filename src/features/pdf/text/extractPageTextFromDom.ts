@@ -24,7 +24,6 @@ import {
   readTextRunFontSize,
   type TextLayerSource
 } from './pdfTextLayerSource'
-import { orderTextItems } from './pdfTextLayout'
 import { extractStructuredPdfText } from './pdfTextPipeline'
 import type { PdfTextItem } from './types'
 
@@ -183,5 +182,3 @@ export function extractPageTextFromDom(pageNumber: number): string | null {
 export function invalidatePageCache(pageNumber: number): void {
   PAGE_LAYER_CACHE.delete(pageNumber)
 }
-
-export { orderTextItems }
