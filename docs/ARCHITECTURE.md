@@ -73,16 +73,16 @@ edges are not policed.
 
 The same seven aliases are declared in four places and must stay in sync:
 
-| Alias            | Path              | Declared in                                                                                        |
-| ---------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `@app/*`         | `src/app/*`       | `tsconfig.json:5`, `tsconfig.app.json:27`, `tsconfig.node.json:19`, `vite.aliases.mts:7`           |
-| `@shared/*`      | `src/shared/*`    | same four files                                                                                    |
-| `@shared-core/*` | `shared/*`        | same four files                                                                                    |
-| `@electron/*`    | `electron/*`      | same four files (currently used only by `electron/__tests__/`)                                     |
-| `@ui/*`          | `src/shared/ui/*` | same four files                                                                                    |
-| `@features/*`    | `src/features/*`  | same four files                                                                                    |
-| `@platform/*`    | `src/platform/*`  | same four files                                                                                    |
-| `@src/*`         | —                 | **forbidden**: `legacySrcAliasPattern`, `eslint.config.mjs:16`, applied at `eslint.config.mjs:135` |
+| Alias            | Path              | Declared in                                                                                                   |
+| ---------------- | ----------------- | ------------------------------------------------------------------------------------------------------------- |
+| `@app/*`         | `src/app/*`       | `tsconfig.json:5`, `config/tsconfig.app.json:27`, `config/tsconfig.node.json:19`, `config/vite.aliases.mts:7` |
+| `@shared/*`      | `src/shared/*`    | same four files                                                                                               |
+| `@shared-core/*` | `shared/*`        | same four files                                                                                               |
+| `@electron/*`    | `electron/*`      | same four files (currently used only by `electron/__tests__/`)                                                |
+| `@ui/*`          | `src/shared/ui/*` | same four files                                                                                               |
+| `@features/*`    | `src/features/*`  | same four files                                                                                               |
+| `@platform/*`    | `src/platform/*`  | same four files                                                                                               |
+| `@src/*`         | —                 | **forbidden**: `legacySrcAliasPattern`, `eslint.config.mjs:16`, applied at `eslint.config.mjs:135`            |
 
 > Write aliases in backticks (`` `@features/*` ``) so GitHub does not render
 > them as user mentions.
@@ -295,13 +295,13 @@ main ──► webContents.send(channel, …) ──► onEvent(channel, cb) ─
 
 ### C.5 Build outputs
 
-| Output                                                        | Produced by                                                                                        |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `dist/index.html`, `dist/assets/*`                            | `vite build` — `root: './src'`, `outDir: '../dist'` (`vite.config.mts:116,120`)                    |
-| `dist/pdfjs/{cmaps,standard_fonts,wasm,iccs}`                 | `pdfjsAssets()` `closeBundle` hook (`vite.config.mts:73`)                                          |
-| `dist/electron/**`                                            | `tsc -b tsconfig.node.json` — `outDir: dist/electron`, `rootDir: '.'` (`tsconfig.node.json:27-28`) |
-| `dist/electron/electron/preload/index.js`                     | esbuild bundle over the tsc output (`package.json:42`)                                             |
-| `dist/electron/electron/preload/displayMediaPickerPreload.js` | tsc output only (esbuild bundles `index.ts` exclusively)                                           |
+| Output                                                        | Produced by                                                                                                          |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `dist/index.html`, `dist/assets/*`                            | `vite build` — `root: './src'`, `outDir: '../dist'` (`vite.config.mts:116,120`)                                      |
+| `dist/pdfjs/{cmaps,standard_fonts,wasm,iccs}`                 | `pdfjsAssets()` `closeBundle` hook (`vite.config.mts:73`)                                                            |
+| `dist/electron/**`                                            | `tsc -b config/tsconfig.node.json` — `outDir: ../dist/electron`, `rootDir: '..'` (`config/tsconfig.node.json:27-28`) |
+| `dist/electron/electron/preload/index.js`                     | esbuild bundle over the tsc output (`package.json:42`)                                                               |
+| `dist/electron/electron/preload/displayMediaPickerPreload.js` | tsc output only (esbuild bundles `index.ts` exclusively)                                                             |
 
 `npm run build` = `tsc -b` (all three projects) + `build:renderer:electron`
 (`scripts/build-electron.mjs` → `vite build` with `ELECTRON=1`) +
@@ -793,7 +793,7 @@ Rules that are easy to break and are therefore covered by tests
 
 `vite.config.mts`: `root: './src'`, `base: './'` (so `file://` works),
 `outDir: '../dist'`, `emptyOutDir: true`. Aliases come from
-`vite.aliases.mts`. `manualChunks` (`:92`) and the matching `rolldownOptions`
+`config/vite.aliases.mts`. `manualChunks` (`:92`) and the matching `rolldownOptions`
 groups (`:138`) split vendor chunks — `vendor-pdf` for `pdfjs-dist` among them.
 The `pdfjsAssets()` plugin serves/stages the PDF.js assets (§E.11).
 `npm run dev:web` runs Vite alone against the browser API stub.
@@ -801,10 +801,10 @@ The `pdfjsAssets()` plugin serves/stages the PDF.js assets (§E.11).
 ### G.2 Main and preload — `tsc` + esbuild
 
 - `typecheck` / `build` use `tsc -b` over three project references declared in
-  `tsconfig.json:15`: `tsconfig.app.json` (renderer, `noEmit`, includes
-  `src` + `shared`), `tsconfig.node.json` (main, emits to `dist/electron`),
-  `tsconfig.node.test.json` (`noEmit`, `Bundler` resolution for tests).
-- `build:backend` (`package.json:42`) = `tsc -b tsconfig.node.json --force`
+  `tsconfig.json:15`: `config/tsconfig.app.json` (renderer, `noEmit`, includes
+  `src` + `shared`), `config/tsconfig.node.json` (main, emits to `dist/electron`),
+  `config/tsconfig.node.test.json` (`noEmit`, `Bundler` resolution for tests).
+- `build:backend` (`package.json:42`) = `tsc -b config/tsconfig.node.json --force`
   **and** an esbuild bundle of `electron/preload/index.ts` to
   `dist/electron/electron/preload/index.js` (`--platform=node --format=cjs
 --external:electron`), so the preload ships as one CJS file with `shared/`

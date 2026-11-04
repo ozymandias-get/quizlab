@@ -18,20 +18,20 @@
     "strictNullChecks": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "tsBuildInfoFile": "./.cache/tsconfig.app.tsbuildinfo",
+    "tsBuildInfoFile": "../.cache/tsconfig.app.tsbuildinfo",
     "noFallthroughCasesInSwitch": true,
     "allowJs": false,
     "types": ["node"],
     // Renderer path aliases
     "paths": {
-      "@app/*": ["./src/app/*"],
-      "@shared/*": ["./src/shared/*"],
-      "@shared-core/*": ["./shared/*"],
-      "@electron/*": ["./electron/*"],
-      "@ui/*": ["./src/shared/ui/*"],
-      "@features/*": ["./src/features/*"],
-      "@platform/*": ["./src/platform/*"]
+      "@app/*": ["../src/app/*"],
+      "@shared/*": ["../src/shared/*"],
+      "@shared-core/*": ["../shared/*"],
+      "@electron/*": ["../electron/*"],
+      "@ui/*": ["../src/shared/ui/*"],
+      "@features/*": ["../src/features/*"],
+      "@platform/*": ["../src/platform/*"]
     }
   },
-  "include": ["src", "shared"]
+  "include": ["../src", "../shared"]
 }

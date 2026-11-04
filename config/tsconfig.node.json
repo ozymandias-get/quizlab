@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": false,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "tsBuildInfoFile": "../.cache/tsconfig.node.tsbuildinfo",
+    "types": ["node"],
+    // Node/Electron path aliases
+    "paths": {
+      "@app/*": ["../src/app/*"],
+      "@shared/*": ["../src/shared/*"],
+      "@shared-core/*": ["../shared/*"],
+      "@electron/*": ["../electron/*"],
+      "@ui/*": ["../src/shared/ui/*"],
+      "@features/*": ["../src/features/*"],
+      "@platform/*": ["../src/platform/*"]
+    },
+    "outDir": "../dist/electron",
+    "rootDir": "..",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["../electron/**/*", "../shared/**/*", "../src/shared/lib/logger.ts"],
+  "exclude": ["../electron/**/__tests__/**/*", "../electron/__tests__/**/*"]
+}

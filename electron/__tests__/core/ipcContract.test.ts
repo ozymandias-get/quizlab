@@ -196,7 +196,7 @@ const rendererKeysMatch: RendererKeysMatchContract extends true[] ? true : false
 
 // Everything below this line is a COMPILE-TIME assertion, not a runtime one:
 // each helper body is an empty function whose only job is to make `tsc -b`
-// (tsconfig.node.test.json, which includes electron/**/*) reject a drift
+// (config/tsconfig.node.test.json, which includes electron/**/*) reject a drift
 // between the contract, the preload and the renderer-facing API. They are
 // therefore evaluated at module scope, so they hold for the whole file
 // regardless of how many runtime `it()` blocks wrap them. Wrapping them in

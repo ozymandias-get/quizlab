@@ -1,7 +1,7 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-const rootDir = path.dirname(fileURLToPath(import.meta.url))
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 export const viteAliases: Record<string, string> = {
   '@app': path.resolve(rootDir, 'src/app'),

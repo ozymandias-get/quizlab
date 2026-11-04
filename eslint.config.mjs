@@ -96,7 +96,7 @@ export default [
       'out.txt',
       'build/**',
       'coverage/**',
-      '*.json',
+      '**/*.json',
       'config/dependency-cruiser.cjs'
     ]
   },

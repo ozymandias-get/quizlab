@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { viteAliases } from './vite.aliases.mts'
+import { viteAliases } from './config/vite.aliases.mts'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
