@@ -836,15 +836,19 @@ context-menu entry and signing, is [windows-installer.md](windows-installer.md).
 
 ### G.5 CI — `.github/workflows/build.yml`
 
+The workflow is release-only: it starts for `v*` tag pushes and manual
+`workflow_dispatch`, not for ordinary branch pushes or pull requests.
+
 Three jobs:
 
-1. **`quality`** (job `quality`) — `ubuntu-latest`, on push/PR to `main`/`master`,
-   Node 24, blocking except where noted: `ci:check-hygiene`, `ci:check-version`,
-   `lint`, `format:check`, `typecheck`, `analyze:architecture`, `analyze:css`,
-   `analyze:knip`, `test:coverage`, `analyze:types:ci`, `analyze:duplicates`,
-   `analyze:circular`, `build`, `analyze:semgrep`, `check:audit`,
-   `check:electron-security`. **Advisory** (`continue-on-error: true`):
-   `analyze:file-sizes` (step `File Size Check`) and `analyze:spell:ci`.
+1. **`quality`** (job `quality`) — `ubuntu-latest`, on `v*` tag pushes and manual
+   dispatch, Node 24, blocking except where noted: `ci:check-hygiene`,
+   `ci:check-version`, `lint`, `format:check`, `typecheck`,
+   `analyze:architecture`, `analyze:css`, `analyze:knip`, `test:coverage`,
+   `analyze:types:ci`, `analyze:duplicates`, `analyze:circular`, `build`,
+   `analyze:semgrep`, `check:audit`, `check:electron-security`. **Advisory**
+   (`continue-on-error: true`): `analyze:file-sizes` (step `File Size Check`)
+   and `analyze:spell:ci`.
 
    Two of these are blocking by design rather than by accident, and the
    workflow tests pin both:
@@ -853,9 +857,9 @@ Three jobs:
      unused export, type, file or dependency fails the build rather than
      merely being reported. `knip-dead-code-gate.test.ts` asserts the command
      carries no tolerance and that no _other_ script reintroduces one.
-   - **`build`** is in this job, not only in the tag-driven `build` job: without
-     it a pull request could be green while the renderer or the Electron backend
-     produced no artifact on Linux.
+   - **`build`** is in this job, not only in the tag-driven `build` job: a
+     release tag reaches the packaging job only after this gate has compiled the
+     renderer and the Electron backend successfully.
 
    Shell portability is not implicit here. npm runs scripts through `cmd.exe`
    on Windows and `bash` on Linux, so a single-quoted npm argument arrives at

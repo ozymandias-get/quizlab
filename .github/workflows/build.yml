@@ -1,16 +1,12 @@
 name: Build and Release
 
 on:
+  # CI is release-only: a normal branch push must not start this workflow.
+  # Pushing a `v*` tag is the release path; manual dispatch keeps a way to
+  # validate or rebuild without cutting a release.
   push:
-    branches:
-      - main
-      - master
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
-      - master
   # No `inputs`: the release version comes from the pushed tag, which
   # `ci:check-version` reconciles against package.json. An `inputs.version`
   # was declared here once and read by nothing, so it is gone.
@@ -97,12 +93,9 @@ jobs:
       - name: Circular Dependency Check
         run: npm run analyze:circular
 
-      # Nothing else on a pull request or a branch push compiles the app on
-      # Linux: the `build` job (which runs `npm run build` + electron-builder on
-      # ubuntu-22.04) only fires for tags and workflow_dispatch, so a PR could
-      # be green here while the renderer or the Electron backend fails to
-      # produce an artifact. This is the same command packaging uses, so a red
-      # step means the shipped build is broken, not that a lint rule moved.
+      # This job already runs on every release tag, so compile the same target
+      # the packaging job uses before it starts. A failure here stops the release
+      # at the quality gate instead of after the artifact build.
       - name: Build (renderer + backend)
         run: npm run build
 
