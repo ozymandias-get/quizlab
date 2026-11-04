@@ -138,5 +138,13 @@ describe('normalizePdfText', () => {
     it('still normalizes whitespace around text it leaves unchanged', () => {
       expect(normalizePdfText('  François ¸  façon  ')).toBe('François ¸ façon')
     })
+
+    it('preserves indentation only on nested list lines', () => {
+      // The layout serializer emits nested list levels as leading spaces. Those
+      // spaces are structure, not accidental PDF whitespace, so they survive.
+      expect(normalizePdfText('  • alt madde\n    - daha alt\n  metin')).toBe(
+        '  • alt madde\n    - daha alt\nmetin'
+      )
+    })
   })
 })

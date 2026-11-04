@@ -54,11 +54,57 @@ const LIGATURE_MAP = {
 
 const LIGATURE_REGEX = /[ﬀﬁﬂﬃﬄﬅﬆ]/g
 
+/**
+ * A line that starts with an indented list marker. The leading whitespace of
+ * these lines is the only indentation the layout serializer emits, so it has to
+ * survive the general "trim leading whitespace" rule below; nested lists would
+ * otherwise collapse to one level and lose their hierarchy.
+ */
+const INDENTED_LIST_LINE =
+  /^([ \t]+)(?=(?:[•·▪◦‣∙*+\-–—]|\d{1,3}[.)]|[a-zA-ZçğıöşüÇĞİÖŞÜ][.)]|[IVXLC]{1,5}[.)])\s+\S)/u
+
+const LIST_INDENT_SENTINEL_START = '\uE000'
+const LIST_INDENT_SENTINEL_END = '\uE001'
+
 function expandLigatures(text: string): string {
   return text.replaceAll(
     LIGATURE_REGEX,
     (match) => LIGATURE_MAP[match as keyof typeof LIGATURE_MAP] || match
   )
+}
+
+/**
+ * Replaces the leading spaces of indented list lines with a private-use
+ * sentinel so the global `[\t ]+ -> ' '` cleanup cannot flatten them. The
+ * sentinel is restored after normalization. PDF text can legitimately contain
+ * any printable character, but U+E000/U+E001 are private-use code points that
+ * no font mapping in this pipeline emits.
+ */
+function protectListIndentation(raw: string): { text: string; indents: string[] } {
+  const indents: string[] = []
+  const text = raw
+    .split('\n')
+    .map((line) => {
+      const match = INDENTED_LIST_LINE.exec(line)
+      if (!match) return line
+      const indent = match[1].replaceAll('\t', '  ')
+      const index = indents.push(indent) - 1
+      return `${LIST_INDENT_SENTINEL_START}${index}${LIST_INDENT_SENTINEL_END}${line.slice(match[1].length)}`
+    })
+    .join('\n')
+
+  return { text, indents }
+}
+
+function restoreListIndentation(text: string, indents: string[]): string {
+  let restored = text
+  for (const [index, indent] of indents.entries()) {
+    restored = restored.replaceAll(
+      `${LIST_INDENT_SENTINEL_START}${index}${LIST_INDENT_SENTINEL_END}`,
+      indent
+    )
+  }
+  return restored
 }
 
 /**
@@ -68,9 +114,11 @@ function expandLigatures(text: string): string {
  * Shared across all text extraction paths.
  */
 export function normalizePdfText(raw: string): string {
-  const normalized = raw
-    .replaceAll('\r\n', '\n')
-    .replaceAll('\r', '\n')
+  const { text: protectedText, indents } = protectListIndentation(
+    raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n')
+  )
+
+  const normalized = protectedText
     .replaceAll(/[\t ]+/g, ' ')
     .replaceAll(/\n[\t ]+/g, '\n')
     .replaceAll(/\n{3,}/g, '\n\n')
@@ -80,8 +128,8 @@ export function normalizePdfText(raw: string): string {
   // without this "ﬁzyoloji" would keep the single U+FB01 glyph.
   const deligatured = expandLigatures(normalized)
 
-  // NFC combines decomposed characters (e.g. o + combining diaeresis → ö),
+  // NFC combines decomposed characters (e.g., o + combining diaeresis → ö),
   // which fixes text pdf.js emitted in NFD form. This is a composition, so the
   // characters are preserved.
-  return deligatured.normalize('NFC')
+  return restoreListIndentation(deligatured.normalize('NFC'), indents)
 }

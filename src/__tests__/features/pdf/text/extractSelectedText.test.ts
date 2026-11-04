@@ -1,5 +1,8 @@
 import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
-import { computeSelectionMenuAnchor } from '@features/pdf/text/selectionPage'
+import {
+  computeSelectionMenuAnchor,
+  resolveSelectionPageRange
+} from '@features/pdf/text/selectionPage'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -245,5 +248,71 @@ describe('extractSelectedText', () => {
 
     expect(result?.position?.top).toBe(endRect.bottom + 8)
     expect(result?.position?.left).toBe((endRect.left + endRect.right) / 2)
+  })
+
+  it('keeps the real page range and page boundary of a multi-page selection', () => {
+    const firstPage = document.createElement('div')
+    firstPage.setAttribute('data-native-pdf-page', '3')
+    const firstRun = textRunIn(layer, 'page three')
+    firstPage.appendChild(layer)
+    container.appendChild(firstPage)
+
+    const secondLayer = document.createElement('div')
+    secondLayer.setAttribute('data-native-pdf-text-layer', '')
+    secondLayer.setAttribute('data-native-pdf-text-page', '5')
+    const secondPage = document.createElement('div')
+    secondPage.setAttribute('data-native-pdf-page', '5')
+    secondPage.appendChild(secondLayer)
+    const secondRun = textRunIn(secondLayer, 'page five')
+    container.appendChild(secondPage)
+
+    // Both pages use the same local coordinates: a page boundary must come from
+    // the page marker, not from the measured `top`.
+    const rectFor = (top: number, width: number) => ({
+      left: 50,
+      top,
+      right: 50 + width,
+      bottom: top + 12,
+      width,
+      height: 12,
+      x: 50,
+      y: top,
+      toJSON: () => ({})
+    })
+    const firstSpan = firstRun.parentElement
+    const secondSpan = secondRun.parentElement
+    if (!firstSpan || !secondSpan) throw new Error('missing text run spans')
+    Object.defineProperty(firstSpan, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rectFor(100, 70)
+    })
+    Object.defineProperty(secondSpan, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rectFor(100, 60)
+    })
+
+    const range = document.createRange()
+    range.setStart(firstRun, 0)
+    range.setEnd(secondRun, secondRun.length)
+    Object.defineProperty(range, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rectFor(100, 400)
+    })
+    Object.defineProperty(range, 'getClientRects', {
+      configurable: true,
+      value: () => [rectFor(100, 70), rectFor(100, 60)]
+    })
+
+    const selection = {
+      toString: () => 'page three page five',
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode: firstRun,
+      focusNode: secondRun,
+      getRangeAt: () => range
+    } as unknown as Selection
+
+    expect(resolveSelectionPageRange(selection, 3)).toEqual({ page: 3, pageEnd: 5 })
+    expect(extractSelectedText(selection, container)?.text).toBe('page three\n\npage five')
   })
 })

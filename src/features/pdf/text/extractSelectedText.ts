@@ -8,10 +8,10 @@
  * as PDF text when it actually lands on the live text layer — see
  * `selectionBelongsToTextLayer`.
  */
-import { findNativeTextLayer } from '../native/nativePdfDom'
-import { orderTextItems } from './extractPageTextFromDom'
+import { findNativeTextLayers } from '../native/nativePdfDom'
 import { normalizePdfText } from './normalizePdfText'
-import { findTextLayerSource } from './pdfTextLayerSource'
+import { findTextLayerSources, readTextLayerPage, readTextRunFontSize } from './pdfTextLayerSource'
+import { extractStructuredPdfText } from './pdfTextPipeline'
 import { SELECTION_MENU_GAP } from './selectionPage'
 import type { PdfTextItem, SelectionPosition } from './types'
 
@@ -55,13 +55,14 @@ function selectionBelongsToTextLayer(
   selection: Selection,
   container: HTMLElement
 ): boolean {
-  const nativeLayer = findNativeTextLayer(container)
-  if (!nativeLayer) return false
+  const nativeLayers = findNativeTextLayers(container)
+  if (nativeLayers.length === 0) return false
 
-  return (
-    nativeLayer.contains(range.commonAncestorContainer) ||
-    nativeLayer.contains(selection.anchorNode) ||
-    nativeLayer.contains(selection.focusNode)
+  return nativeLayers.some(
+    (layer) =>
+      layer.contains(range.commonAncestorContainer) ||
+      layer.contains(selection.anchorNode) ||
+      layer.contains(selection.focusNode)
   )
 }
 
@@ -140,7 +141,8 @@ function selectedContentsOf(range: Range, node: Node): Range | null {
 function collectSelectedTextItems(
   range: Range,
   layer: HTMLElement,
-  spanSelector: string
+  spanSelector: string,
+  page?: number
 ): PdfTextItem[] {
   const items: PdfTextItem[] = []
   for (const span of layer.querySelectorAll<HTMLElement>(spanSelector)) {
@@ -150,10 +152,20 @@ function collectSelectedTextItems(
     const covered = selectedContentsOf(range, span)
     if (!covered) continue
 
-    const text = covered.toString().trim()
-    if (!text) continue
+    const text = covered.toString()
+    if (!text.trim()) continue
 
-    items.push({ text, left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+    const item: PdfTextItem = {
+      text,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    }
+    if (page !== undefined) item.page = page
+    const fontSize = readTextRunFontSize(span)
+    if (fontSize !== undefined) item.fontSize = fontSize
+    items.push(item)
   }
   return items
 }
@@ -163,22 +175,30 @@ function collectSelectedTextItems(
  *
  * `selection.toString()` returns the text in DOM (content-stream) order, which
  * interleaves left/right column lines on two-column PDF pages. Instead we take the
- * text-layer spans the range covers and re-order them by (column cluster, Y)
- * exactly like extractPageTextFromDom does for whole pages.
+ * text-layer spans the range covers and run them through the same layout pipeline
+ * as whole-page extraction: fragments → columns → paragraphs → lists → tables.
  *
  * What each span contributes is the range's own intersection with it, so a drag
  * that covers three words of one run yields those three words rather than the run.
- * Only the *order* is geometric; the *extent* is the browser's.
+ * Only the *order and grouping* is geometric; the *extent* is the browser's.
+ * Selection mode never infers heading markers, because the user selected text,
+ * not a document position.
  */
 function extractOrderedSelectionText(range: Range, container: HTMLElement): string | null {
-  const source = findTextLayerSource(container)
-  if (!source) return null
+  const sources = findTextLayerSources(container)
+  if (sources.length === 0) return null
 
-  const items = collectSelectedTextItems(range, source.layer, source.spanSelector)
+  const items = sources.flatMap((source) =>
+    collectSelectedTextItems(
+      range,
+      source.layer,
+      source.spanSelector,
+      readTextLayerPage(source.layer)
+    )
+  )
   if (items.length === 0) return null
 
-  const lines = orderTextItems(items)
-  const text = lines.join('\n')
+  const text = extractStructuredPdfText(items, { mode: 'selection' })
   return text || null
 }
 

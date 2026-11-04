@@ -21,6 +21,7 @@ import {
   findNativePageElement,
   findNativeTextLayer,
   findNativeTextLayerForPage,
+  findNativeTextLayers,
   NATIVE_TEXT_SPAN_SELECTOR
 } from '../native/nativePdfDom'
 
@@ -33,6 +34,35 @@ export interface TextLayerSource {
 }
 
 /**
+ * The font height PDF.js assigned to one text run, or `undefined`.
+ *
+ * `TextLayer` writes `--font-height` inline from the run's own transform, which
+ * makes this a layout-free read — no `getComputedStyle`, no style recalculation.
+ * Both extractors use it so heading detection sees the same size signal on the
+ * page and selection paths. A layer that is not PDF.js's (or a fixture) simply
+ * has no value; callers must not substitute a default size.
+ */
+export function readTextRunFontSize(span: HTMLElement): number | undefined {
+  const raw = span.style.getPropertyValue('--font-height')
+  if (!raw) return undefined
+  const parsed = Number.parseFloat(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+/**
+ * The 1-based page a text layer belongs to, or `undefined` when the marker is
+ * absent. PDF.js does not write this attribute — the native viewer does — so a
+ * fixture or a foreign layer without it is treated as a single anonymous page
+ * rather than being assigned a guessed page number.
+ */
+export function readTextLayerPage(layer: HTMLElement): number | undefined {
+  const raw = layer.getAttribute('data-native-pdf-text-page')
+  if (!raw) return undefined
+  const page = Number.parseInt(raw, 10)
+  return Number.isFinite(page) && page >= 1 ? page : undefined
+}
+
+/**
  * The text layer inside `root`.
  *
  * `root` is the shared viewer container, which is where the layer is mounted.
@@ -40,6 +70,20 @@ export interface TextLayerSource {
 export function findTextLayerSource(root: ParentNode): TextLayerSource | null {
   const layer = findNativeTextLayer(root)
   return layer ? { layer, spanSelector: NATIVE_TEXT_SPAN_SELECTOR } : null
+}
+
+/**
+ * Every mounted text layer inside `root`, in document order.
+ *
+ * Selection is a browser range, so it can cross page boxes even though the
+ * current viewer normally mounts one page. Reading all layers keeps that
+ * selection complete instead of silently returning only the first page.
+ */
+export function findTextLayerSources(root: ParentNode): TextLayerSource[] {
+  return findNativeTextLayers(root).map((layer) => ({
+    layer,
+    spanSelector: NATIVE_TEXT_SPAN_SELECTOR
+  }))
 }
 
 /**

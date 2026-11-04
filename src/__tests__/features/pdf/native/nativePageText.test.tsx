@@ -217,8 +217,11 @@ describe('native page text — content', () => {
     await waitFor(() => expect(harness.onTextExtracted).toHaveBeenCalledTimes(1))
 
     // DOM order is content-stream order; reading order has to come from geometry.
+    // The two lines inside each column are one paragraph (same left edge, normal
+    // leading, no paragraph gap), so paragraph reconstruction joins them. The
+    // blank line separates the two columns as independent blocks.
     expect(harness.onTextExtracted.mock.calls[0][0]).toBe(
-      'left one\nleft two\nright one\nright two'
+      'left one left two\n\nright one right two'
     )
   })
 

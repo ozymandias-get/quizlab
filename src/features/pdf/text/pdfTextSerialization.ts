@@ -1,0 +1,446 @@
+/**
+ * Serialization of the layout flow into AI-safe Markdown / plain text.
+ *
+ * This layer never reads geometry. It receives lines that are already in reading
+ * order and only decides where a paragraph ends, which lines are list items,
+ * which lines are headings, and how a detected table is rendered. That split
+ * keeps the layout rules testable without a DOM and keeps this file free of any
+ * PDF.js knowledge.
+ *
+ * The governing rule is the same as `normalizePdfText`: losing structure is
+ * better than inventing it. A line is only marked as a heading when its font is
+ * measurably larger than the body; a table only becomes Markdown when its rows
+ * map to the same columns; a bullet keeps the document's own marker instead of
+ * being renumbered.
+ */
+import { normalizePdfText } from './normalizePdfText'
+import type { PdfFlowBlock, PdfTableBlock, PdfTextLine } from './types'
+
+export interface SerializePdfFlowOptions {
+  /** Emit Markdown heading markers for measurably larger lines. */
+  inferHeadings?: boolean
+}
+
+interface ListMarker {
+  marker: string
+  content: string
+}
+
+interface ParagraphContext {
+  bodySize: number
+  pitch: number
+  baseLeft: number
+  groupRight: number
+}
+
+const BULLET_MARKER = /^([•·▪◦‣∙*+\-–—])\s+(.*)$/u
+const NUMBERED_MARKER = /^(\d{1,3}[.)]|[a-zA-ZçğıöşüÇĞİÖŞÜ][.)]|[IVXLC]{1,5}[.)])\s+(.*)$/u
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+}
+
+function matchListMarker(text: string): ListMarker | null {
+  const bullet = BULLET_MARKER.exec(text)
+  if (bullet) return { marker: bullet[1], content: bullet[2].trim() }
+
+  const numbered = NUMBERED_MARKER.exec(text)
+  if (numbered) return { marker: numbered[1], content: numbered[2].trim() }
+
+  return null
+}
+
+/**
+ * Body size is the text-length-weighted median of the page's lines. A page can
+ * have one heading and fifty body lines, and the heading must not drag the
+ * baseline upward: the weight makes the answer follow the bulk of the text.
+ */
+function estimateBodyFontSize(lines: PdfTextLine[]): number {
+  const entries = lines
+    .map((line) => ({
+      size: line.fontSize,
+      weight: Math.max(1, Math.min(line.text.length, 200))
+    }))
+    .filter((entry) => Number.isFinite(entry.size) && entry.size > 0)
+    .sort((a, b) => a.size - b.size)
+
+  if (entries.length === 0) return 12
+
+  const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0)
+  let cumulative = 0
+  for (const entry of entries) {
+    cumulative += entry.weight
+    if (cumulative >= totalWeight / 2) return entry.size
+  }
+
+  return entries.at(-1)?.size ?? 12
+}
+
+/**
+ * The modal distance between consecutive line tops. It is measured from the
+ * document itself instead of assuming `1.2 × font-size`: slides, medical notes
+ * and exam papers all use different leading, and the paragraph decision has to
+ * follow the page's own rhythm.
+ */
+function estimateLinePitch(lines: PdfTextLine[]): number {
+  const deltas: number[] = []
+  for (let index = 1; index < lines.length; index += 1) {
+    const delta = lines[index].top - lines[index - 1].top
+    if (delta > 0) deltas.push(delta)
+  }
+  return median(deltas)
+}
+
+function headingRatio(line: PdfTextLine, bodySize: number, groupWidth: number): number | null {
+  if (bodySize <= 0) return null
+  const ratio = line.fontSize / bodySize
+  if (ratio < 1.15) return null
+  if (line.text.length > 90) return null
+  if (line.text.split(/\s+/).length > 14) return null
+  if (matchListMarker(line.text)) return null
+  if (/^\d+(?:[.,]\d+)?$/.test(line.text)) return null
+
+  const width = line.right - line.left
+  // A large-font full-width line with a lot of text is more likely a lead
+  // paragraph than a heading. Keep it as text rather than adding `##` to prose.
+  if (ratio < 1.6 && groupWidth > 0 && width > groupWidth * 0.85 && line.text.length > 48) {
+    return null
+  }
+
+  return ratio
+}
+
+function headingPrefix(ratio: number): string {
+  if (ratio >= 1.6) return '##'
+  if (ratio >= 1.3) return '###'
+  return '####'
+}
+
+function isCjkCharacter(character: string): boolean {
+  return /[\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff]/u.test(character)
+}
+
+/**
+ * Prefixes that are much more likely to be a real compound than a hyphenation
+ * break. Turkish and English both build compounds this way, and deleting the
+ * hyphen from `well-known` or `sosyo-ekonomik` changes a word that the document
+ * actually printed. A line-break hyphen inside an ordinary word (`hasta-` +
+ * `lığı`) is not in this set, so it is removed.
+ *
+ * This is a heuristic, not a dictionary. Its failure mode is deliberately a
+ * preserved hyphen (`uzun-vadeli` stays hyphenated) rather than a deleted one.
+ */
+const COMPOUND_HYPHEN_PREFIXES = new Set([
+  'well',
+  'self',
+  'non',
+  'pre',
+  'post',
+  'anti',
+  'co',
+  'multi',
+  'semi',
+  'mid',
+  'inter',
+  'intra',
+  'sub',
+  'super',
+  'over',
+  'under',
+  'cross',
+  'counter',
+  'ultra',
+  'hyper',
+  'hypo',
+  'micro',
+  'macro',
+  'sosyo',
+  'biyo',
+  'psiko',
+  'nöro',
+  'kardiyo',
+  'hepato',
+  'nefro',
+  'gastro',
+  'eko',
+  'türk',
+  'alman',
+  'ingiliz',
+  'fransız',
+  'tıbbi',
+  'cerrahi',
+  'uzun',
+  'kısa',
+  'çok',
+  'iç',
+  'dış',
+  'alt',
+  'üst',
+  'ön',
+  'son',
+  'ana',
+  'yan',
+  'karşı',
+  'öz',
+  'genel',
+  'tek',
+  'çift',
+  'yeni',
+  'eski',
+  'batı',
+  'doğu',
+  'kuzey',
+  'güney'
+])
+
+/**
+ * Joins two visual lines of the same paragraph.
+ *
+ * A trailing hyphen is removed only when the next line starts with a lowercase
+ * letter AND the fragment before the hyphen is not a known compound prefix.
+ * That preserves a real compound (`well-known`, `sosyo-ekonomik`) while still
+ * repairing an ordinary word broken at the margin (`hasta-` + `lığı`).
+ */
+function joinParagraphLines(previous: string, next: string): string {
+  const left = previous.replace(/\s+$/u, '')
+  const right = next.replace(/^\s+/u, '')
+  if (!left) return right
+  if (!right) return left
+
+  const last = left.at(-1) ?? ''
+  const first = right[0] ?? ''
+
+  // A soft hyphen is invisible and always a break marker; removing it loses
+  // nothing the reader could see.
+  if (last === '\u00AD') return `${left.slice(0, -1)}${right}`
+
+  if (last === '-' || last === '‐') {
+    const prefix = (/([^\s]+)-$/u.exec(left)?.[1] ?? '').toLocaleLowerCase('tr')
+    if (/[a-zçğıöşü]/u.test(first) && !COMPOUND_HYPHEN_PREFIXES.has(prefix)) {
+      return `${left.slice(0, -1)}${right}`
+    }
+    return `${left}${right}`
+  }
+
+  if (isCjkCharacter(last) || isCjkCharacter(first)) return `${left}${right}`
+
+  return `${left} ${right}`
+}
+
+function shouldMergeParagraph(
+  current: PdfTextLine,
+  next: PdfTextLine,
+  context: ParagraphContext
+): boolean {
+  const { bodySize, pitch, baseLeft, groupRight } = context
+  if (matchListMarker(next.text)) return false
+  if (Math.abs(next.fontSize - current.fontSize) > Math.max(1, bodySize * 0.15)) return false
+
+  const topDelta = next.top - current.top
+  if (topDelta <= 0) return false
+
+  const maxLinePitch = pitch > 0 ? pitch * 1.45 + Math.max(1, bodySize * 0.2) : bodySize * 2.1
+  if (topDelta > maxLinePitch) return false
+
+  const alignmentTolerance = Math.max(2, bodySize * 0.6)
+  if (next.left > current.left + alignmentTolerance) return false
+  if (next.left < baseLeft - alignmentTolerance) return false
+
+  // A line that stops well before the column's right edge is the last line of a
+  // paragraph. Continuing after it would merge two paragraphs that the writer
+  // separated with a short final line.
+  const rightSlack = Math.max(14, bodySize * 1.8)
+  if (current.right < groupRight - rightSlack) return false
+
+  return true
+}
+
+function shouldContinueListItem(
+  itemStart: PdfTextLine,
+  current: PdfTextLine,
+  next: PdfTextLine,
+  context: ParagraphContext
+): boolean {
+  if (matchListMarker(next.text)) return false
+  if (Math.abs(next.fontSize - current.fontSize) > Math.max(1, context.bodySize * 0.15)) {
+    return false
+  }
+
+  const topDelta = next.top - current.top
+  if (topDelta <= 0) return false
+  const maxLinePitch =
+    context.pitch > 0
+      ? context.pitch * 1.45 + Math.max(1, context.bodySize * 0.2)
+      : context.bodySize * 2.1
+  if (topDelta > maxLinePitch) return false
+
+  const minimumContinuationLeft = itemStart.left + Math.max(3, context.bodySize * 0.35)
+  return next.left >= minimumContinuationLeft - Math.min(2, context.bodySize * 0.15)
+}
+
+function indentLevel(line: PdfTextLine, baseLeft: number, bodySize: number): number {
+  const unit = Math.max(10, bodySize * 1.2)
+  const level = Math.round((line.left - baseLeft) / unit)
+  return Math.max(0, Math.min(3, level))
+}
+
+function escapeTableCell(cell: string): string {
+  return cell
+    .replaceAll('|', '\\|')
+    .replaceAll(/\s*\n\s*/gu, ' ')
+    .trim()
+}
+
+function formatTable(block: PdfTableBlock): string {
+  const header = block.header.map(escapeTableCell)
+  const rows = block.rows.map((row) => row.map(escapeTableCell))
+
+  if (block.confident && header.length >= 2) {
+    const headerLine = `| ${header.join(' | ')} |`
+    const separator = `| ${header.map(() => '---').join(' | ')} |`
+    const dataLines = rows.map((row) => `| ${row.join(' | ')} |`)
+    return [headerLine, separator, ...dataLines].join('\n')
+  }
+
+  // Markdown needs a header line. When the first row is not a usable header
+  // (all numbers, an empty cell, a merged cell), inventing one would change the
+  // meaning, so the cell relationships are preserved as labelled plain text.
+  if (
+    header.length >= 2 &&
+    header.every((cell) => cell.length > 0) &&
+    rows.length > 0 &&
+    rows.every((row) => row[0])
+  ) {
+    const blocks = rows.map((row) => {
+      const fields = row
+        .slice(1)
+        .map((cell, index) => (cell ? `${header[index + 1]}: ${cell}` : ''))
+        .filter(Boolean)
+        .join('\n')
+      return fields ? `${row[0]}:\n${fields}` : `${row[0]}:`
+    })
+    return blocks.join('\n\n')
+  }
+
+  return [header, ...rows].map((row) => row.join(' | ')).join('\n')
+}
+
+/**
+ * Reconstructs logical blocks from one column's visual lines.
+ *
+ * Ordering inside the group is already correct; the only decisions left are
+ * paragraph continuation, list continuation and heading level. A line is never
+ * merged into a list item or a heading just because it is nearby.
+ */
+function serializeLineGroup(
+  lines: PdfTextLine[],
+  options: SerializePdfFlowOptions,
+  documentBodySize: number
+): string {
+  const sorted = [...lines].sort((a, b) => a.top - b.top || a.left - b.left)
+  if (sorted.length === 0) return ''
+
+  const bodySize = documentBodySize > 0 ? documentBodySize : estimateBodyFontSize(sorted)
+  const pitch = estimateLinePitch(sorted)
+  const baseLeft = Math.min(...sorted.map((line) => line.left))
+  const groupRight = Math.max(...sorted.map((line) => line.right))
+  const groupWidth = groupRight - baseLeft
+  const context: ParagraphContext = { bodySize, pitch, baseLeft, groupRight }
+  const blocks: { text: string; isListItem: boolean }[] = []
+
+  let index = 0
+  while (index < sorted.length) {
+    const line = sorted[index]
+    const ratio = headingRatio(line, bodySize, groupWidth)
+
+    if (options.inferHeadings === true && ratio !== null) {
+      blocks.push({ text: `${headingPrefix(ratio)} ${line.text}`, isListItem: false })
+      index += 1
+      continue
+    }
+
+    const marker = matchListMarker(line.text)
+    if (marker) {
+      const level = indentLevel(line, baseLeft, bodySize)
+      let content = marker.content
+      let last = line
+      index += 1
+
+      while (index < sorted.length) {
+        const next = sorted[index]
+        if (matchListMarker(next.text)) break
+        if (options.inferHeadings === true && headingRatio(next, bodySize, groupWidth) !== null) {
+          break
+        }
+        if (!shouldContinueListItem(line, last, next, context)) break
+        content = joinParagraphLines(content, next.text)
+        last = next
+        index += 1
+      }
+
+      blocks.push({
+        text: `${'  '.repeat(level)}${marker.marker} ${content}`,
+        isListItem: true
+      })
+      continue
+    }
+
+    let text = line.text
+    let last = line
+    index += 1
+
+    while (index < sorted.length) {
+      const next = sorted[index]
+      if (matchListMarker(next.text)) break
+      if (options.inferHeadings === true && headingRatio(next, bodySize, groupWidth) !== null) {
+        break
+      }
+      if (!shouldMergeParagraph(last, next, context)) break
+      text = joinParagraphLines(text, next.text)
+      last = next
+      index += 1
+    }
+
+    blocks.push({ text, isListItem: false })
+  }
+
+  return blocks
+    .map((block, index) => {
+      if (index === 0) return block.text
+      const previous = blocks[index - 1]
+      // Consecutive list items are one list, not separate paragraphs.
+      return previous.isListItem && block.isListItem ? `\n${block.text}` : `\n\n${block.text}`
+    })
+    .join('')
+}
+
+/** Serializes the ordered flow into a document-shaped string. */
+export function serializePdfFlow(
+  blocks: PdfFlowBlock[],
+  options: SerializePdfFlowOptions = {}
+): string {
+  const parts: string[] = []
+  const allLines = blocks.flatMap((block) => {
+    if (block.kind === 'lines') return block.lines
+    if (block.kind === 'spanner') return [block.line]
+    return []
+  })
+  const documentBodySize = estimateBodyFontSize(allLines)
+
+  for (const block of blocks) {
+    if (block.kind === 'table') {
+      const table = formatTable(block)
+      if (table) parts.push(table)
+      continue
+    }
+
+    const lines = block.kind === 'lines' ? block.lines : [block.line]
+    const text = serializeLineGroup(lines, options, documentBodySize)
+    if (text) parts.push(text)
+  }
+
+  return normalizePdfText(parts.join('\n\n'))
+}

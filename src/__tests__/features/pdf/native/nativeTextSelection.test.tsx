@@ -377,7 +377,9 @@ describe('native text layer — reading order', () => {
     )
 
     // Column order, not DOM order: the left column top-to-bottom, then the right.
-    expect(text?.text).toBe('left one\nleft two\nright one\nright two')
+    // Within each column the two lines are one paragraph, so they are joined; the
+    // blank line marks the independent right-hand block.
+    expect(text?.text).toBe('left one left two\n\nright one right two')
   })
 })
 
@@ -482,7 +484,7 @@ describe('native text layer — selection extent', () => {
     ])
 
     expect(extractSelectedText(selectionOver(range, first, second), container)?.text).toBe(
-      'agents are the drugs used\nto treat'
+      'agents are the drugs used to treat'
     )
   })
 
@@ -542,7 +544,7 @@ describe('native text layer — selection extent', () => {
     )
 
     expect(extractSelectedText(selectionOver(range, first, last), container)?.text).toBe(
-      longPage.join('\n')
+      longPage.join(' ')
     )
   })
 

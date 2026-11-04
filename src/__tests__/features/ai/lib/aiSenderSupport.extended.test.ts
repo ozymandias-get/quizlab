@@ -6,6 +6,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { AiConfig } from '@features/ai/lib/aiSenderSupport'
 import {
+  buildPromptText,
   getCachedAiConfig,
   mergeAiConfigs,
   normalizeSendErrorCode,
@@ -313,5 +314,25 @@ describe('normalizeSendErrorCode - additional edge cases', () => {
     ['the string "0" is preserved, not falsy-coerced', '0', '0']
   ])('%s', (_case, raw, expected) => {
     expect(normalizeSendErrorCode(raw, 'fb')).toBe(expected)
+  })
+})
+
+describe('buildPromptText - PDF formatting survives the AI transfer boundary', () => {
+  it('prepends the prompt without collapsing paragraphs, tables or Unicode', () => {
+    const extracted =
+      '## Başlık\n\n' +
+      'Kronik böbrek hastalığı ilerleyici ve kalıcı kayıpla karakterizedir.\n\n' +
+      '| Hastalık | MCV | Retikülosit |\n' +
+      '| --- | --- | --- |\n' +
+      '| Demir eksikliği | Düşük | Düşük |\n\n' +
+      'Na⁺ 140 mmol/L, HCO₃⁻ 24 mmol/L, HbA1c %5–10.'
+
+    const finalText = buildPromptText(extracted, 'Aşağıdaki metni özetle:')
+
+    expect(finalText).toBe(`Aşağıdaki metni özetle:\n\n${extracted}`)
+    expect(finalText).toContain('| --- | --- |')
+    expect(finalText).toContain('Na⁺ 140 mmol/L')
+    expect(finalText).toContain('HCO₃⁻ 24 mmol/L')
+    expect(finalText.split('\n\n').length).toBeGreaterThan(3)
   })
 })

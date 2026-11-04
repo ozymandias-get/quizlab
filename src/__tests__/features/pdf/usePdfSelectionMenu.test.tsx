@@ -314,6 +314,19 @@ describe('usePdfSelectionMenu — action contract', () => {
     expect(removeAllRanges).toHaveBeenCalled()
   })
 
+  it('preserves the leading indentation of a selected nested list item', () => {
+    const { result } = setup()
+
+    act(() => {
+      result.current.handleSelection('  • alt madde  ', position)
+    })
+    act(() => {
+      result.current.handleAddToDraft()
+    })
+
+    expect(mocks.queueTextForAi.mock.calls[0][0]).toBe('  • alt madde')
+  })
+
   // Regression: "Taslağa Ekle" used to report `added` without looking at the
   // queue's verdict, so a full queue produced a success badge for content that
   // was never stored.

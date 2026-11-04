@@ -137,8 +137,11 @@ export function usePdfSelectionMenu({
 
   const handleSelection = useCallback(
     (text: string, position: SelectionPosition | null) => {
-      const normalized = text.trim()
-      if (!normalized || !position) {
+      // Trailing whitespace is noise, but leading whitespace can be a nested
+      // list level produced by the layout serializer. Trimming it would flatten
+      // the selected item's hierarchy, so only the tail is removed.
+      const normalized = text.replace(/\s+$/u, '')
+      if (normalized.trim().length === 0 || !position) {
         // Seçim yapılmayan sıradan tıklamada menü görünmesin; mevcut taslak silinmez.
         if (menuRef.current) closeMenu()
         return

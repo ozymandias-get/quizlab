@@ -181,4 +181,65 @@ describe('extractPageTextFromDom - extended', () => {
     expect(result).toBeDefined()
     expect(result).toContain('word599')
   })
+
+  it('uses PDF.js --font-height for headings and merges paragraph lines', () => {
+    const box = mountPage(1, {
+      runs: [
+        'Tedavi Yaklaşımı',
+        'Kronik böbrek hastalığı böbrek',
+        'fonksiyonlarının ilerleyici kaybı'
+      ]
+    })
+
+    const spans = box.querySelectorAll<HTMLElement>('span[role="presentation"]')
+    const boxes = [
+      { left: 50, top: 90, width: 300, height: 24 },
+      { left: 50, top: 130, width: 300, height: 12 },
+      { left: 50, top: 144, width: 200, height: 12 }
+    ]
+
+    spans.forEach((span, index) => {
+      const geometry = boxes[index]
+      Object.defineProperty(span, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({
+          ...geometry,
+          right: geometry.left + geometry.width,
+          bottom: geometry.top + geometry.height,
+          x: geometry.left,
+          y: geometry.top,
+          toJSON: () => ({})
+        })
+      })
+      span.style.setProperty('--font-height', `${geometry.height}px`)
+    })
+
+    expect(extractPageTextFromDom(1)).toBe(
+      '## Tedavi Yaklaşımı\n\n' + 'Kronik böbrek hastalığı böbrek fonksiyonlarının ilerleyici kaybı'
+    )
+  })
+
+  it('returns a short text layer page instead of reporting no text', () => {
+    const box = mountPage(1, { runs: ['Not'] })
+    const span = box.querySelector<HTMLElement>('span[role="presentation"]')
+    if (!span) throw new Error('missing text run')
+
+    Object.defineProperty(span, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        left: 50,
+        top: 100,
+        right: 74,
+        bottom: 112,
+        width: 24,
+        height: 12,
+        x: 50,
+        y: 100,
+        toJSON: () => ({})
+      })
+    })
+    span.style.setProperty('--font-height', '12px')
+
+    expect(extractPageTextFromDom(1)).toBe('Not')
+  })
 })

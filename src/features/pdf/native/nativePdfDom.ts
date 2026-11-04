@@ -194,6 +194,18 @@ export function findNativeTextLayerForPage(
 }
 
 /**
+ * Every text layer under `root`, in document order.
+ *
+ * The native viewer currently mounts one page at a time, but a selection is a
+ * browser range and nothing in the DOM guarantees that. Reading *all* layers is
+ * what lets a future multi-page/scroll surface select across pages without the
+ * extractor silently dropping every page after the first one.
+ */
+export function findNativeTextLayers(root: ParentNode): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(NATIVE_TEXT_LAYER_SELECTOR)]
+}
+
+/**
  * The text layer under `root`, whatever page it holds. `null` when none is mounted.
  *
  * This is the selection-scope check's only entry point: a browser selection is PDF
