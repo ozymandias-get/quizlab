@@ -471,8 +471,7 @@ karşı koruma değildir; ve derlemeler imzasızdır.
 
 Kurulum, dal stratejisi, pull request kontrol listesi ve
 [docs/CODING_STANDARD.md](docs/CODING_STANDARD.md) içindeki yazım kuralları için
-[CONTRIBUTING.md](.github/CONTRIBUTING.md) dosyasına bakın. Lütfen
-[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) dosyasını da okuyun.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) dosyasına bakın.
 
 ## Lisans
 

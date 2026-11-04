@@ -5,11 +5,10 @@
 Security updates go to the current major line only. Older lines do not receive
 backported fixes.
 
-| Version  | Supported |
-| -------- | --------- |
-| **6.x**  | Yes       |
-| 5.x, 4.x | No        |
-| ≤ 3.x    | No        |
+| Version | Supported |
+| ------- | --------- |
+| **7.x** | Yes       |
+| ≤ 6.x   | No        |
 
 The current major is whatever `package.json` declares — see
 [Releases](https://github.com/ozymandias-get/quizlab/releases) for what is
@@ -43,8 +42,8 @@ Report it through GitHub Security Advisories:
 
 ## Hardening in This Repository
 
-The Electron layer enforces the following, and CI fails the build if it is
-regressed:
+The Electron layer enforces the following, and the release CI fails the build if
+it is regressed:
 
 - **Window isolation** — `contextIsolation: true`, `nodeIntegration: false`,
   `sandbox: true`, `webSecurity: true` in
@@ -91,7 +90,7 @@ regressed:
   AES-256-GCM under a PBKDF2-derived machine key. The fallback obfuscates the
   value at rest; it is not a substitute for a keychain.
 - **Automated scanning** — Electronegativity, Semgrep, `npm audit` and
-  dependency-cruiser all run in the `quality` CI job. The Electronegativity
+  dependency-cruiser all run in the release quality CI job. The Electronegativity
   baseline (12 MEDIUM, 1 LOW) is documented in
   `scripts/check-electron-security.mjs`; the gate fails on HIGH/CRITICAL.
 - **Dependency exceptions** — accepted advisories live in
@@ -130,4 +129,4 @@ regressed:
 
 ---
 
-Last reviewed: 2026-09-28
+Last reviewed: 2026-11-04

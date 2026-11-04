@@ -455,8 +455,7 @@ access to your machine profile; and builds are unsigned.
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup, branch strategy, the pull
 request checklist, and the coding rules in
-[docs/CODING_STANDARD.md](docs/CODING_STANDARD.md). Please read
-[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) as well.
+[docs/CODING_STANDARD.md](docs/CODING_STANDARD.md).
 
 ## License
 

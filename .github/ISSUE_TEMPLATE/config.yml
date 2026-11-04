@@ -1,4 +1,6 @@
-blank_issues_enabled: false
+# No issue forms are configured. Keep blank issues enabled so a report can still
+# be opened; the contact links below remain useful for questions and setup help.
+blank_issues_enabled: true
 contact_links:
   - name: GitHub Discussions
     url: https://github.com/ozymandias-get/quizlab/discussions

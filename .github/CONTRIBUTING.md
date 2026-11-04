@@ -278,7 +278,7 @@ the only one today.
 
 ## Reporting Bugs
 
-Open a [GitHub Issue](https://github.com/ozymandias-get/quizlab/issues/new?template=bug_report.md) and include:
+Open a [GitHub Issue](https://github.com/ozymandias-get/quizlab/issues/new) and include:
 
 - Clear description of the bug
 - Steps to reproduce
@@ -298,14 +298,12 @@ We welcome suggestions. Please:
 
 ---
 
-## Code of Conduct
+## Community Guidelines
 
 - Be respectful and constructive
 - Welcome newcomers
 - Focus on what is best for the community
 - Show empathy towards others
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ---
 
