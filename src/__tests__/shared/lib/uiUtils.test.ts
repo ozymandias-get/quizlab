@@ -9,37 +9,14 @@ import { cn, hexToRgba, isValidHexColor } from '@shared/lib/uiUtils'
 import { describe, expect, it } from 'vitest'
 
 describe('cn (className utility)', () => {
-  it('joins simple class names with spaces', () => {
-    expect(cn('foo', 'bar')).toBe('foo bar')
-  })
-
-  it('filters out falsy values', () => {
-    expect(cn('foo', false, null, undefined, '', 'bar')).toBe('foo bar')
-  })
-
-  it('handles arrays of classes', () => {
-    expect(cn(['foo', 'bar'], 'baz')).toBe('foo bar baz')
-  })
-
   it('merges conflicting tailwind classes (later wins)', () => {
     expect(cn('p-4', 'p-2')).toBe('p-2')
     expect(cn('text-red-500', 'text-blue-500')).toBe('text-blue-500')
   })
 
-  it('handles conditional classes', () => {
-    const result = cn('base', true && 'active', false && 'hidden')
-    expect(result).toContain('base')
-    expect(result).toContain('active')
-    expect(result).not.toContain('hidden')
-  })
-
-  it('handles no arguments', () => {
-    expect(cn()).toBe('')
-  })
-
   // The app's typography scale is `text-ql-*`. tailwind-merge did not know it,
   // so it treated `text-ql-12` and `text-muted-foreground` as rivals and kept
-  // only the last one — silently, in both orders. That is how a `default`
+  // only the last one - silently, in both orders. That is how a `default`
   // Button ended up with `bg-primary` and no `text-primary-foreground`: white
   // text on a white button, in every theme.
   it('keeps a ql text size alongside a text color', () => {

@@ -45,14 +45,13 @@ describe('getElectronApi', () => {
 })
 
 describe('hasElectronApi', () => {
-  it.each([
-    ['an object', {}, true],
-    ['undefined', undefined, false],
-    ['null', null, false],
-    ['an empty string', '', false],
-    ['zero', 0, false]
-  ])('returns %j for %s', (_label, value, expected) => {
-    setElectronAPI(value)
-    expect(hasElectronApi()).toBe(expected)
+  it('detects an electron API from truthy values only', () => {
+    setElectronAPI({})
+    expect(hasElectronApi()).toBe(true)
+
+    for (const value of [undefined, null, '', 0]) {
+      setElectronAPI(value)
+      expect(hasElectronApi(), String(value)).toBe(false)
+    }
   })
 })

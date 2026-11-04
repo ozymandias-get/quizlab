@@ -165,25 +165,16 @@ describe('the site session helpers', () => {
     expect(hasEnabledSiteSession([view({ enabled: true })])).toBe(true)
   })
 
-  it('asks for attention when Chrome has no session for the site', () => {
-    expect(
-      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'no_cookies_in_browser' })])
-    ).toBe(true)
-  })
-
-  it('asks for attention when the extension or the permission is missing', () => {
-    expect(
-      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'extension_missing' })])
-    ).toBe(true)
-    expect(
-      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'extension_outdated' })])
-    ).toBe(true)
-    expect(
-      hasSiteSessionNeedingAttention([view({ enabled: true, status: 'permission_missing' })])
-    ).toBe(true)
-    expect(hasSiteSessionNeedingAttention([view({ enabled: true, status: 'import_failed' })])).toBe(
-      true
-    )
+  it('asks for attention when Chrome, the extension, or a permission is missing', () => {
+    for (const status of [
+      'no_cookies_in_browser',
+      'extension_missing',
+      'extension_outdated',
+      'permission_missing',
+      'import_failed'
+    ] as const) {
+      expect(hasSiteSessionNeedingAttention([view({ enabled: true, status })])).toBe(true)
+    }
   })
 
   it('stays quiet about a site whose import is off', () => {

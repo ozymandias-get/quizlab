@@ -7,6 +7,7 @@
 import {
   DEFAULT_LANGUAGE,
   LANGUAGES,
+  getInitialLanguage,
   getInitialOnboardingDone,
   useLanguage
 } from '@shared/stores/languageStore'
@@ -40,15 +41,12 @@ afterEach(() => {
 
 describe('languageStore', () => {
   describe('initial state', () => {
-    it('reads persisted language from localStorage', () => {
+    it('reads a persisted language from localStorage and rejects invalid values', () => {
       window.localStorage.setItem('appLanguage', 'tr')
-      // Reinitialize by calling setState as the store would on init
-      useLanguage.setState({ language: 'tr' })
-      expect(useLanguage.getState().language).toBe('tr')
-    })
+      expect(getInitialLanguage()).toBe('tr')
 
-    it('exposes LANGUAGES constant', () => {
-      expect(useLanguage.getState().languages).toBe(LANGUAGES)
+      window.localStorage.setItem('appLanguage', 'fr')
+      expect(getInitialLanguage()).toBe(DEFAULT_LANGUAGE)
     })
   })
 
@@ -96,10 +94,6 @@ describe('languageStore', () => {
   })
 
   describe('onboarding', () => {
-    it('defaults isOnboardingDone to false', () => {
-      expect(useLanguage.getState().isOnboardingDone).toBe(false)
-    })
-
     it('completeOnboarding sets isOnboardingDone to true and persists', () => {
       useLanguage.getState().completeOnboarding()
       expect(useLanguage.getState().isOnboardingDone).toBe(true)

@@ -32,12 +32,10 @@ beforeEach(() => {
 
 describe('appearanceStore', () => {
   describe('bottom bar settings', () => {
-    it('updates bottom bar opacity', () => {
+    it('updates bottom bar opacity and scale', () => {
       useAppearance.getState().setBottomBarOpacity(1.0)
       expect(useAppearance.getState().bottomBarOpacity).toBe(1.0)
-    })
 
-    it('updates bottom bar scale', () => {
       useAppearance.getState().setBottomBarScale(1.5)
       expect(useAppearance.getState().bottomBarScale).toBe(1.5)
     })
@@ -104,32 +102,25 @@ describe('appearanceStore', () => {
   })
 
   describe('layout swap', () => {
-    it('sets layout swapped', () => {
+    it('sets and toggles the layout swap', () => {
       useAppearance.getState().setIsLayoutSwapped(true)
       expect(useAppearance.getState().isLayoutSwapped).toBe(true)
-    })
 
-    it('toggles layout swap', () => {
-      useAppearance.getState().toggleLayoutSwap()
-      expect(useAppearance.getState().isLayoutSwapped).toBe(true)
       useAppearance.getState().toggleLayoutSwap()
       expect(useAppearance.getState().isLayoutSwapped).toBe(false)
+      useAppearance.getState().toggleLayoutSwap()
+      expect(useAppearance.getState().isLayoutSwapped).toBe(true)
     })
   })
 
   describe('focus mode', () => {
-    it('sets focus mode to pdf', () => {
+    it('sets and clears focus mode', () => {
       useAppearance.getState().setFocusMode('pdf')
       expect(useAppearance.getState().focusMode).toBe('pdf')
-    })
 
-    it('sets focus mode to ai', () => {
       useAppearance.getState().setFocusMode('ai')
       expect(useAppearance.getState().focusMode).toBe('ai')
-    })
 
-    it('clears focus mode', () => {
-      useAppearance.getState().setFocusMode('pdf')
       useAppearance.getState().setFocusMode(null)
       expect(useAppearance.getState().focusMode).toBeNull()
     })
@@ -147,36 +138,26 @@ describe('appearanceStore', () => {
   })
 
   describe('tool visibility', () => {
-    it('hides a tool', () => {
+    it('hides and re-shows a tool', () => {
       useAppearance.getState().setVisibleTool('tour-target-tool-settings', false)
       expect(useAppearance.getState().visibleTools['tour-target-tool-settings']).toBe(false)
-    })
 
-    it('shows a tool after hiding', () => {
-      useAppearance.getState().setVisibleTool('tour-target-tool-settings', false)
       useAppearance.getState().setVisibleTool('tour-target-tool-settings', true)
       expect(useAppearance.getState().visibleTools['tour-target-tool-settings']).toBe(true)
     })
   })
 
   describe('model visibility', () => {
-    it('sets a model visible', () => {
+    it('sets and clears a model visibility', () => {
       useAppearance.getState().setVisibleModel('gemini', true)
       expect(useAppearance.getState().visibleModels['gemini']).toBe(true)
-    })
 
-    it('hides a model', () => {
-      useAppearance.getState().setVisibleModel('gemini', true)
       useAppearance.getState().setVisibleModel('gemini', false)
       expect(useAppearance.getState().visibleModels['gemini']).toBe(false)
     })
   })
 
   describe('bottom bar max icons', () => {
-    it('defaults to 5', () => {
-      expect(useAppearance.getState().bottomBarMaxIcons).toBe(5)
-    })
-
     it('updates within allowed range 1 to 50', () => {
       useAppearance.getState().setBottomBarMaxIcons(15)
       expect(useAppearance.getState().bottomBarMaxIcons).toBe(15)

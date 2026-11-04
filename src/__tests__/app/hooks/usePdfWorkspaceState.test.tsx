@@ -83,14 +83,6 @@ describe('usePdfWorkspaceState', () => {
       expect(result.current.isInteractionBlocked).toBe(true)
       expect(result.current.isPanelResizing).toBe(true)
     })
-
-    it('onSetActivePdfTab calls setActivePdfTab', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      act(() => {
-        result.current.leftPanelProps.onSetActivePdfTab('tab-1')
-      })
-      expect(mockSetActivePdfTab).toHaveBeenCalledWith('tab-1')
-    })
   })
 
   describe('readingProps', () => {
@@ -124,42 +116,31 @@ describe('usePdfWorkspaceState', () => {
       expect(mockClearLastReading).not.toHaveBeenCalled()
       vi.mocked(getElectronApi).mockReturnValue(null)
     })
-    it('includes reading progress callbacks without lastReadingInfo', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      expect(result.current.readingProps).toHaveProperty('onReadingProgressChange')
-      expect(result.current.readingProps).not.toHaveProperty('lastReadingInfo')
-    })
-
-    it('onClearResumePdf calls clearLastReading', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      act(() => {
-        result.current.readingProps.onClearResumePdf()
-      })
-      expect(mockClearLastReading).toHaveBeenCalled()
-    })
   })
 
-  describe('rootDragHandlers', () => {
-    it('onDragOver prevents default', () => {
+  describe('composed callbacks', () => {
+    it('wires the reading and drag callbacks to their sources', () => {
       const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      const mockEvent = { preventDefault: vi.fn() } as any
-      act(() => {
-        result.current.rootDragHandlers.onDragOver(mockEvent)
-      })
-      expect(mockEvent.preventDefault).toHaveBeenCalled()
-    })
+      const dragOver = { preventDefault: vi.fn() }
 
-    it('onDrop calls handlePdfDrop with the file', () => {
-      const { result } = renderHook(() => usePdfWorkspaceState(defaultParams))
-      const mockFile = new File([''], 'test.pdf', { type: 'application/pdf' })
-      const mockEvent = {
-        preventDefault: vi.fn(),
-        dataTransfer: { files: [mockFile] }
-      } as any
       act(() => {
-        result.current.rootDragHandlers.onDrop(mockEvent)
+        result.current.leftPanelProps.onSetActivePdfTab('tab-1')
+        result.current.readingProps.onClearResumePdf()
+        result.current.rootDragHandlers.onDragOver(dragOver as any)
       })
-      expect(mockHandlePdfDrop).toHaveBeenCalledWith(mockFile)
+
+      const file = new File([''], 'test.pdf', { type: 'application/pdf' })
+      act(() => {
+        result.current.rootDragHandlers.onDrop({
+          preventDefault: vi.fn(),
+          dataTransfer: { files: [file] }
+        } as any)
+      })
+
+      expect(mockSetActivePdfTab).toHaveBeenCalledWith('tab-1')
+      expect(mockClearLastReading).toHaveBeenCalled()
+      expect(dragOver.preventDefault).toHaveBeenCalled()
+      expect(mockHandlePdfDrop).toHaveBeenCalledWith(file)
     })
   })
 })

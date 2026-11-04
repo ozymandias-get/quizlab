@@ -72,7 +72,7 @@ describe('useAutomationApi', () => {
     expect(script).toBe('console.log("clickSend")')
   })
 
-  it('useGenerateAutoSendScript generates auto-send script with text', async () => {
+  it('useGenerateAutoSendScript generates auto-send script with text and optional params', async () => {
     const { result } = renderHook(() => useGenerateAutoSendScript(), { wrapper })
     const params = {
       config: mockConfig as any,
@@ -92,16 +92,14 @@ describe('useAutomationApi', () => {
       50
     )
     expect(script).toBe('console.log("autoSend")')
-  })
 
-  it('useGenerateAutoSendScript works without optional params', async () => {
-    const { result } = renderHook(() => useGenerateAutoSendScript(), { wrapper })
-    const params = {
+    mockAutomation.generateAutoSendScript.mockClear()
+    const minimal = {
       config: mockConfig as any,
       text: 'Hi',
       submit: false
     }
-    await result.current.mutateAsync(params as any)
+    await result.current.mutateAsync(minimal as any)
     // append === true evaluates to false when append is undefined
     expect(mockAutomation.generateAutoSendScript).toHaveBeenCalledWith(
       mockConfig,
@@ -132,16 +130,14 @@ describe('useAutomationApi', () => {
     })
   })
 
-  it('useGeneratePickerScript generates picker script with translations', async () => {
+  it('useGeneratePickerScript generates picker script with translations and an optional session id', async () => {
     const { result } = renderHook(() => useGeneratePickerScript(), { wrapper })
     const translations = { picker_title: 'Select element' }
-    await result.current.mutateAsync({ translations })
+    const script = await result.current.mutateAsync({ translations })
     expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, undefined)
-  })
+    expect(script).toBe('console.log("picker")')
 
-  it('useGeneratePickerScript forwards the picker session id', async () => {
-    const { result } = renderHook(() => useGeneratePickerScript(), { wrapper })
-    const translations = { picker_title: 'Select element' }
+    mockAutomation.generatePickerScript.mockClear()
     await result.current.mutateAsync({ translations, sessionId: 'session-1' })
     expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, 'session-1')
   })

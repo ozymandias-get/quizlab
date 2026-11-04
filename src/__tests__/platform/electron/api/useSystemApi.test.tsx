@@ -83,7 +83,7 @@ describe('useSystemApi', () => {
     expect(mockElectronApi.openExternal).toHaveBeenCalledWith('https://google.com')
   })
 
-  it('useCopyImageToClipboard should copy data url', async () => {
+  it('useCopyImageToClipboard copies a data URL and forwards the send scope', async () => {
     const { result } = renderHook(() => useCopyImageToClipboard(), { wrapper })
 
     await result.current.mutateAsync({ dataUrl: 'data:image/png;base64,123' })
@@ -92,10 +92,8 @@ describe('useSystemApi', () => {
       'data:image/png;base64,123',
       undefined
     )
-  })
 
-  it('useCopyImageToClipboard should forward the send scope', async () => {
-    const { result } = renderHook(() => useCopyImageToClipboard(), { wrapper })
+    mockElectronApi.copyImageToClipboard.mockClear()
 
     await result.current.mutateAsync({
       dataUrl: 'data:image/png;base64,456',

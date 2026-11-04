@@ -81,25 +81,23 @@ describe('useSettingsSystemApi', () => {
     expect(result.current.data).toBe('4.0.0')
   })
 
-  it('useClearCache should clear cache and show success', async () => {
-    const { result } = renderHook(() => useClearCache(), { wrapper })
+  it('useClearCache and useDeepCleanCache invalidate the info and show success', async () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await result.current.mutateAsync()
+
+    const clear = renderHook(() => useClearCache(), { wrapper })
+    await clear.result.current.mutateAsync()
     expect(mockElectronApi.clearCache).toHaveBeenCalled()
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['system', 'cache-info'] })
     expect(showSuccessMock).toHaveBeenCalledWith(
       'translated_toast_cache_cleared',
       'translated_toast_system_title'
     )
-  })
 
-  it('useDeepCleanCache should call deepCleanCache and show success', async () => {
-    const { result } = renderHook(() => useDeepCleanCache(), { wrapper })
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await result.current.mutateAsync()
+    const deep = renderHook(() => useDeepCleanCache(), { wrapper })
+    await deep.result.current.mutateAsync()
     expect(mockElectronApi.deepCleanCache).toHaveBeenCalled()
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['system', 'cache-info'] })
-    expect(showSuccessMock).toHaveBeenCalled()
+    expect(showSuccessMock).toHaveBeenCalledTimes(2)
   })
 
   it('uses cache-only mode with the selected partition', async () => {

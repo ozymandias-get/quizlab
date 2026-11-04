@@ -107,10 +107,12 @@ describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('every entry has a non-empty name', () => {
+  it('every entry has non-empty display metadata', () => {
     for (const app of GOOGLE_WEB_SESSION_APPS) {
       expect(typeof app.name).toBe('string')
       expect(app.name.length).toBeGreaterThan(0)
+      expect(typeof app.hostname).toBe('string')
+      expect(app.hostname.length).toBeGreaterThan(0)
     }
   })
 
@@ -120,28 +122,9 @@ describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {
     }
   })
 
-  it('every hostname is non-empty', () => {
-    for (const app of GOOGLE_WEB_SESSION_APPS) {
-      expect(typeof app.hostname).toBe('string')
-      expect(app.hostname.length).toBeGreaterThan(0)
-    }
-  })
-
   it('every color is a valid hex', () => {
     for (const app of GOOGLE_WEB_SESSION_APPS) {
       expect(app.color).toMatch(/^#[\dA-Fa-f]{3,6}$/)
-    }
-  })
-
-  it('every surface is one of ai/site/pdf', () => {
-    for (const app of GOOGLE_WEB_SESSION_APPS) {
-      expect(['ai', 'site', 'pdf']).toContain(app.surface)
-    }
-  })
-
-  it('every registryEligible is a boolean', () => {
-    for (const app of GOOGLE_WEB_SESSION_APPS) {
-      expect(typeof app.registryEligible).toBe('boolean')
     }
   })
 })

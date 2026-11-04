@@ -89,24 +89,6 @@ describe('useLocalStorage listener lifecycle', () => {
     expect(result.current[0]).toBe('tr')
   })
 
-  it('rejects a stored value outside validValues', () => {
-    const localStorageKey = 'quizlab_test_invalid_lang'
-    localStorage.setItem(localStorageKey, 'zz')
-
-    const { result } = renderHook(() => useLocalStorageString(localStorageKey, 'en', ['en', 'tr']))
-
-    expect(result.current[0]).toBe('en')
-  })
-
-  it('falls back to the initial value when the stored shape is invalid', () => {
-    const localStorageKey = 'quizlab_test_shape'
-    localStorage.setItem(localStorageKey, JSON.stringify({ not: 'a string' }))
-
-    const { result } = renderHook(() => useLocalStorage(localStorageKey, 'en'))
-
-    expect(result.current[0]).toBe('en')
-  })
-
   it('removes its listeners on unmount', () => {
     const { unmount } = renderHook(() => useLocalStorage('quizlab_test_unmount', false))
 

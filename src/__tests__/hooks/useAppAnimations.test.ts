@@ -4,7 +4,7 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 describe('useAppAnimations', () => {
-  it('should return default layout animation config when isLayoutSwapped is false or not provided', () => {
+  it('returns the default config and swaps the panel sides when the layout is swapped', () => {
     const { result } = renderHook(() => useAppAnimations())
 
     const { leftPanelVariants, rightPanelVariants, resizerVariants, containerVariants } =
@@ -19,16 +19,12 @@ describe('useAppAnimations', () => {
     expect(leftPanelVariants.hidden.x).toBe(-30)
     // Standard rightPanel transitions right (30 x coordinate for hidden state)
     expect(rightPanelVariants.hidden.x).toBe(30)
-  })
 
-  it('should swap left and right panel animation configs when isLayoutSwapped is true', () => {
-    const { result } = renderHook(() => useAppAnimations(true))
-
-    const { leftPanelVariants, rightPanelVariants } = result.current
+    const swapped = renderHook(() => useAppAnimations(true)).result.current
 
     // Swapped leftPanel transitions right (30 x coordinate for hidden state)
-    expect(leftPanelVariants.hidden.x).toBe(30)
+    expect(swapped.leftPanelVariants.hidden.x).toBe(30)
     // Swapped rightPanel transitions left (-30 x coordinate for hidden state)
-    expect(rightPanelVariants.hidden.x).toBe(-30)
+    expect(swapped.rightPanelVariants.hidden.x).toBe(-30)
   })
 })

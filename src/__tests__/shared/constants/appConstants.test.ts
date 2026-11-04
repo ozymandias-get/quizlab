@@ -10,16 +10,14 @@ describe('APP_CONSTANTS', () => {
     expect(APP_CONSTANTS[key as 'GITHUB_REPO_URL']).toMatch(pattern)
   })
 
-  it('should have TOUR_TARGETS with all required targets', () => {
+  it('should expose complete, prefixed TOUR_TARGETS', () => {
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('HUB_BTN')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOLS_PANEL')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('MODELS_LIST')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_PICKER')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_SWAP')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_SETTINGS')
-  })
 
-  it('should have all TOUR_TARGETS values as strings with tour-target- prefix', () => {
     Object.values(APP_CONSTANTS.TOUR_TARGETS).forEach((value) => {
       expect(value).toMatch(/^tour-target-/)
     })

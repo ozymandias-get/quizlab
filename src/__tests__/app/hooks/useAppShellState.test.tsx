@@ -87,19 +87,15 @@ describe('useAppShellState', () => {
   })
 
   describe('focus', () => {
-    it('toggle calls toggleFocusMode', () => {
+    it('routes focus actions to the appearance context', () => {
       const { result } = renderHook(() => useAppShellState())
+
       act(() => {
         result.current.focus.toggle('pdf')
-      })
-      expect(mockToggleFocusMode).toHaveBeenCalledWith('pdf')
-    })
-
-    it('close calls setFocusMode with null', () => {
-      const { result } = renderHook(() => useAppShellState())
-      act(() => {
         result.current.focus.close()
       })
+
+      expect(mockToggleFocusMode).toHaveBeenCalledWith('pdf')
       expect(mockSetFocusMode).toHaveBeenCalledWith(null)
     })
   })

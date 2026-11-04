@@ -73,16 +73,14 @@ describe('useSettingsAiApi', () => {
     vi.mocked(getElectronApi).mockReturnValue(mockElectronApi)
   })
 
-  it('useAiConfig fetches config for a given hostname', async () => {
-    const { result } = renderHook(() => useAiConfig('example.com'), { wrapper })
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  it('useAiConfig fetches config for a hostname and the global config without one', async () => {
+    const scoped = renderHook(() => useAiConfig('example.com'), { wrapper })
+    await waitFor(() => expect(scoped.result.current.isSuccess).toBe(true))
     expect(mockElectronApi.getAiConfig).toHaveBeenCalledWith('example.com')
-    expect(result.current.data).toEqual(mockConfig)
-  })
+    expect(scoped.result.current.data).toEqual(mockConfig)
 
-  it('useAiConfig fetches global config when no hostname given', async () => {
-    const { result } = renderHook(() => useAiConfig(), { wrapper })
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    const global = renderHook(() => useAiConfig(), { wrapper })
+    await waitFor(() => expect(global.result.current.isSuccess).toBe(true))
     expect(mockElectronApi.getAiConfig).toHaveBeenCalledWith(undefined)
   })
 

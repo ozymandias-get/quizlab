@@ -1,5 +1,4 @@
 import { clamp, getVisibleTabIds } from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
-import { isValidHexColor } from '@shared/lib/uiUtils'
 
 import type { Tab } from '@app/providers/ai-context'
 
@@ -49,19 +48,5 @@ describe('clamp', () => {
     ['equal min and max', 5, 3, 3, 3]
   ])('%s', (_case, value, min, max, expected) => {
     expect(clamp(value, min, max)).toBe(expected)
-  })
-})
-
-describe('isValidHexColor', () => {
-  it.each([
-    ['#fff', true],
-    ['#FFFFFF', true],
-    ['#abcdef', true],
-    ['#ABCDEF12', false],
-    ['rgb(0,0,0)', false],
-    ['white', false],
-    ['', false]
-  ])('returns %s for %s', (input, expected) => {
-    expect(isValidHexColor(input)).toBe(expected)
   })
 })
