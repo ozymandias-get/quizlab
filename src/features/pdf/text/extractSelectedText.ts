@@ -146,14 +146,26 @@ function collectSelectedTextItems(
 ): PdfTextItem[] {
   const items: PdfTextItem[] = []
   for (const span of layer.querySelectorAll<HTMLElement>(spanSelector)) {
-    const rect = span.getBoundingClientRect()
-    if (rect.width <= 0 || rect.height <= 0) continue
+    const spanRect = span.getBoundingClientRect()
+    if (spanRect.width <= 0 || spanRect.height <= 0) continue
 
     const covered = selectedContentsOf(range, span)
     if (!covered) continue
 
     const text = covered.toString()
     if (!text.trim()) continue
+
+    // Use the selected characters' own box, not the whole run's. PDF.js emits
+    // one run per text item, often a whole line; a drag over the last word of a
+    // wide left-column run must not be assigned the run's full width, or column
+    // detection sees the selection crossing the gutter and mis-orders it.
+    // `Range#getBoundingClientRect` is the browser's own measurement of exactly
+    // those characters. It is zero in jsdom/no-layout, where the span box is the
+    // only available fallback.
+    const coveredRect =
+      typeof covered.getBoundingClientRect === 'function' ? covered.getBoundingClientRect() : null
+    const rect =
+      coveredRect && coveredRect.width > 0 && coveredRect.height > 0 ? coveredRect : spanRect
 
     const item: PdfTextItem = {
       text,

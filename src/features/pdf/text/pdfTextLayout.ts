@@ -17,13 +17,9 @@
  * order is kept. A wrong column split reorders whole paragraphs, which is far
  * worse than leaving a two-column page in its original order.
  */
-import type {
-  PdfFlowBlock,
-  PdfTableBlock,
-  PdfTextFragment,
-  PdfTextItem,
-  PdfTextLine
-} from './types'
+import { groupByRow, median } from './pdfTextGeometry'
+import { detectTables } from './pdfTextTableDetection'
+import type { PdfFlowBlock, PdfTextFragment, PdfTextItem, PdfTextLine } from './types'
 
 const EPSILON = 0.5
 /** Two runs belong to the same visual row when their tops are this close. */
@@ -40,10 +36,6 @@ const FRAGMENT_GAP_FACTOR = 0.8
 const SUPER_SUBSCRIPT = /[\u00B2\u00B3\u00B9\u2070-\u209F]/u
 /** A fragment wider than this share of the content is a full-width spanner. */
 const SPANNER_WIDTH_RATIO = 0.7
-/** Maximum cells per detected table. More than this is almost never a table. */
-const MAX_TABLE_COLUMNS = 8
-const MAX_TABLE_CELL_LENGTH = 45
-const MAX_TWO_COLUMN_CELL_LENGTH = 28
 
 interface Bounds {
   left: number
@@ -57,13 +49,6 @@ interface FragmentGroup {
   bounds: Bounds
 }
 
-interface DetectedTable {
-  block: PdfTableBlock
-  fragments: PdfTextFragment[]
-  top: number
-  bottom: number
-}
-
 interface FlowAnchor {
   top: number
   block: PdfFlowBlock
@@ -72,13 +57,6 @@ interface FlowAnchor {
 export interface BuildPdfFlowOptions {
   /** Turn reliable row/cell geometry into table blocks. Defaults to true. */
   detectTables?: boolean
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
 }
 
 function itemFontSize(item: PdfTextItem): number {
@@ -253,16 +231,6 @@ function boundsOf(fragments: PdfTextFragment[]): Bounds {
   }
 }
 
-function groupByRow(fragments: PdfTextFragment[]): Map<number, PdfTextFragment[]> {
-  const rows = new Map<number, PdfTextFragment[]>()
-  for (const fragment of fragments) {
-    const row = rows.get(fragment.row)
-    if (row) row.push(fragment)
-    else rows.set(fragment.row, [fragment])
-  }
-  return rows
-}
-
 /** Rebuilds lines for one column: fragments on the same measured row are joined. */
 function linesFromFragments(fragments: PdfTextFragment[]): PdfTextLine[] {
   if (fragments.length === 0) return []
@@ -398,169 +366,6 @@ function groupByColumns(fragments: PdfTextFragment[], depth = 0): FragmentGroup[
   return [...groupByColumns(left, depth + 1), ...groupByColumns(right, depth + 1)]
 }
 
-function isCandidateTableRow(row: PdfTextFragment[]): boolean {
-  if (row.length < 2) return false
-  const cells = [...row].sort((a, b) => a.left - b.left)
-  for (let index = 0; index < cells.length; index += 1) {
-    const cell = cells[index]
-    if (cell.text.length > MAX_TABLE_CELL_LENGTH) return false
-    if (index > 0 && cell.left <= cells[index - 1].left + EPSILON) return false
-  }
-  return true
-}
-
-function clusterColumnStarts(fragments: PdfTextFragment[]): {
-  centres: number[]
-  tolerance: number
-} {
-  const tolerance = Math.max(6, median(fragments.map((fragment) => fragment.fontSize)) * 0.9)
-  const sorted = [...fragments.map((fragment) => fragment.left)].sort((a, b) => a - b)
-  const clusters: number[][] = []
-
-  for (const left of sorted) {
-    const cluster = clusters.at(-1)
-    if (cluster) {
-      const average = cluster.reduce((sum, value) => sum + value, 0) / cluster.length
-      if (Math.abs(left - average) <= tolerance) {
-        cluster.push(left)
-        continue
-      }
-    }
-    clusters.push([left])
-  }
-
-  return {
-    centres: clusters.map(
-      (cluster) => cluster.reduce((sum, value) => sum + value, 0) / cluster.length
-    ),
-    tolerance
-  }
-}
-
-function mapRowToColumns(
-  row: PdfTextFragment[],
-  centres: number[],
-  tolerance: number
-): string[] | null {
-  const cells = new Array<string>(centres.length).fill('')
-  const used = new Set<number>()
-
-  for (const fragment of [...row].sort((a, b) => a.left - b.left)) {
-    let best = -1
-    let bestDistance = Number.POSITIVE_INFINITY
-    for (const [index, centre] of centres.entries()) {
-      const distance = Math.abs(fragment.left - centre)
-      if (distance < bestDistance) {
-        bestDistance = distance
-        best = index
-      }
-    }
-    if (best < 0 || bestDistance > tolerance || used.has(best)) return null
-    used.add(best)
-    cells[best] = fragment.text
-  }
-
-  return cells
-}
-
-/**
- * Builds a table block from a run of consecutive candidate rows.
- *
- * The test is intentionally strict. Two side-by-side paragraphs also look like
- * two columns of a table at the box level. A two-column candidate therefore needs
- * at least four rows, or three rows whose cells are genuinely short; prose
- * columns are long and numerous.
- */
-function buildTableFromRows(rows: PdfTextFragment[][]): PdfTableBlock | null {
-  if (rows.length === 0) return null
-
-  const allCells = rows.flat()
-  const { centres, tolerance } = clusterColumnStarts(allCells)
-  const columnCount = centres.length
-  if (columnCount < 2 || columnCount > MAX_TABLE_COLUMNS) return null
-
-  const minimumRows = 3
-  if (rows.length < minimumRows) return null
-
-  const matrix: string[][] = []
-  const columnHits = new Array<number>(columnCount).fill(0)
-
-  for (const row of rows) {
-    const mapped = mapRowToColumns(row, centres, tolerance)
-    if (!mapped) return null
-    matrix.push(mapped)
-    for (const [index, cell] of mapped.entries()) {
-      if (cell) columnHits[index] += 1
-    }
-  }
-
-  // Every column has to occur in the header and at least one data row.
-  if (columnHits.some((hits) => hits < 2)) return null
-
-  const cellLengths = matrix
-    .flat()
-    .filter(Boolean)
-    .map((cell) => cell.length)
-  const longestCell = Math.max(...cellLengths)
-  if (longestCell > MAX_TABLE_CELL_LENGTH) return null
-  if (columnCount === 2) {
-    // Two columns need a stronger signal: side-by-side prose also has two
-    // consistent starts. With three rows the cells must be genuinely short, and
-    // with four or more the ordinary filter below is enough.
-    const strictTwoColumn = rows.length < 4
-    if (strictTwoColumn && (longestCell > 24 || median(cellLengths) > 16)) return null
-    if (median(cellLengths) > MAX_TWO_COLUMN_CELL_LENGTH) return null
-    if (rows.some((row) => row.length !== 2)) return null
-  }
-
-  const rowTops = rows.map((row) => Math.min(...row.map((fragment) => fragment.top)))
-  const rowGaps = rowTops.slice(1).map((top, index) => top - rowTops[index])
-  const fontSizes = allCells.map((fragment) => fragment.fontSize)
-  const maxRowGap = Math.max(...rowGaps, 0)
-  if (maxRowGap > median(fontSizes) * 4 + 8) return null
-
-  const header = matrix[0]
-  const dataRows = matrix.slice(1)
-  const confident =
-    header.every((cell) => cell.length > 0 && !/^\d+(?:[.,]\d+)?$/.test(cell)) &&
-    dataRows.length > 0 &&
-    matrix.every((row) => row.every((cell) => cell.length > 0))
-
-  return { kind: 'table', header, rows: dataRows, confident }
-}
-
-function detectTables(fragments: PdfTextFragment[]): DetectedTable[] {
-  const rows = [...groupByRow(fragments).entries()].sort((a, b) => a[0] - b[0])
-  const tables: DetectedTable[] = []
-  let run: { row: number; fragments: PdfTextFragment[] }[] = []
-
-  const closeRun = () => {
-    if (run.length === 0) return
-    const table = buildTableFromRows(run.map((entry) => entry.fragments))
-    if (table) {
-      const tableFragments = run.flatMap((entry) => entry.fragments)
-      tables.push({
-        block: table,
-        fragments: tableFragments,
-        top: Math.min(...tableFragments.map((fragment) => fragment.top)),
-        bottom: Math.max(...tableFragments.map((fragment) => fragment.bottom))
-      })
-    }
-    run = []
-  }
-
-  for (const [rowNumber, rowFragments] of rows) {
-    if (isCandidateTableRow(rowFragments)) {
-      run.push({ row: rowNumber, fragments: rowFragments })
-    } else {
-      closeRun()
-    }
-  }
-  closeRun()
-
-  return tables
-}
-
 /**
  * Places column groups and full-width/table anchors into one reading sequence.
  *
@@ -626,6 +431,55 @@ export function buildPdfFlow(
 
 function buildPdfFlowForItems(items: PdfTextItem[], options: BuildPdfFlowOptions): PdfFlowBlock[] {
   const fragments = buildTextFragments(items)
+  if (fragments.length === 0) return []
+
+  // A page can change layout more than once: a two-column body, a full-width
+  // section, then three columns. A single global gutter cannot describe that.
+  // Large vertical gaps are the reliable separator between such regions; each
+  // region then gets its own column/table analysis. Normal paragraph gaps are
+  // smaller than the cut threshold, so prose is not split unnecessarily.
+  const segments = segmentFragmentsByVerticalGaps(fragments)
+  if (segments.length <= 1) return buildPdfFlowForFragments(fragments, options)
+  return segments.flatMap((segment) => buildPdfFlowForFragments(segment, options))
+}
+
+/**
+ * Splits fragments into horizontal bands at gaps that are clearly larger than
+ * line/paragraph spacing. The threshold is derived from the page's own font
+ * size so dense slides and sparse notes both keep their regions intact.
+ */
+function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFragment[][] {
+  const rows = [...groupByRow(fragments).entries()].sort((a, b) => a[0] - b[0])
+  if (rows.length <= 1) return [fragments]
+
+  const fontSize = median(fragments.map((fragment) => fragment.fontSize))
+  const cutGap = Math.max(18, fontSize * 2.2)
+  const segments: PdfTextFragment[][] = []
+  let current: PdfTextFragment[] = []
+  let previousBottom = Number.NEGATIVE_INFINITY
+
+  for (const [, rowFragments] of rows) {
+    const rowTop = Math.min(...rowFragments.map((fragment) => fragment.top))
+    const rowBottom = Math.max(...rowFragments.map((fragment) => fragment.bottom))
+
+    if (current.length > 0 && rowTop - previousBottom > cutGap) {
+      segments.push(current)
+      current = []
+      previousBottom = Number.NEGATIVE_INFINITY
+    }
+
+    current.push(...rowFragments)
+    previousBottom = Math.max(previousBottom, rowBottom)
+  }
+
+  if (current.length > 0) segments.push(current)
+  return segments.length > 0 ? segments : [fragments]
+}
+
+function buildPdfFlowForFragments(
+  fragments: PdfTextFragment[],
+  options: BuildPdfFlowOptions
+): PdfFlowBlock[] {
   if (fragments.length === 0) return []
 
   const detectedTables = options.detectTables === false ? [] : detectTables(fragments)

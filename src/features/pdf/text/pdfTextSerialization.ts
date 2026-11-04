@@ -197,14 +197,40 @@ const COMPOUND_HYPHEN_PREFIXES = new Set([
 ])
 
 /**
+ * Decides whether a trailing ASCII hyphen is a line-break hyphen.
+ *
+ * Removing a hyphen changes a visible character, so the evidence has to be
+ * stronger than "the next line starts with a lowercase letter": the hyphenated
+ * line must actually reach the column's right margin (the word was broken to
+ * fit) and the continuation must start at the column's left edge. Soft hyphens
+ * (U+00AD) are handled separately because they are invisible break markers.
+ * When the geometry is ambiguous, the hyphen is preserved.
+ */
+function canRemoveHyphen(
+  current: PdfTextLine,
+  next: PdfTextLine,
+  context: ParagraphContext
+): boolean {
+  const margin = Math.max(2, context.bodySize * 0.5)
+  if (current.right < context.groupRight - margin) return false
+  if (next.left > context.baseLeft + margin) return false
+
+  const first = next.text.trim()[0] ?? ''
+  if (!/[a-zçğıöşü]/u.test(first)) return false
+
+  const prefix = (/([^\s]+)-$/u.exec(current.text)?.[1] ?? '').toLocaleLowerCase('tr')
+  return !COMPOUND_HYPHEN_PREFIXES.has(prefix)
+}
+
+/**
  * Joins two visual lines of the same paragraph.
  *
- * A trailing hyphen is removed only when the next line starts with a lowercase
- * letter AND the fragment before the hyphen is not a known compound prefix.
- * That preserves a real compound (`well-known`, `sosyo-ekonomik`) while still
- * repairing an ordinary word broken at the margin (`hasta-` + `lığı`).
+ * A soft hyphen is always a break marker and is removed. An ASCII hyphen is
+ * preserved unless `allowHyphenRemoval` says the geometry proves a line break
+ * and the prefix is not a known compound (`well-known`, `sosyo-ekonomik`).
+ * Without that evidence the visible character wins.
  */
-function joinParagraphLines(previous: string, next: string): string {
+function joinParagraphLines(previous: string, next: string, allowHyphenRemoval = false): string {
   const left = previous.replace(/\s+$/u, '')
   const right = next.replace(/^\s+/u, '')
   if (!left) return right
@@ -218,8 +244,7 @@ function joinParagraphLines(previous: string, next: string): string {
   if (last === '\u00AD') return `${left.slice(0, -1)}${right}`
 
   if (last === '-' || last === '‐') {
-    const prefix = (/([^\s]+)-$/u.exec(left)?.[1] ?? '').toLocaleLowerCase('tr')
-    if (/[a-zçğıöşü]/u.test(first) && !COMPOUND_HYPHEN_PREFIXES.has(prefix)) {
+    if (allowHyphenRemoval && /[a-zçğıöşü]/u.test(first)) {
       return `${left.slice(0, -1)}${right}`
     }
     return `${left}${right}`
@@ -376,7 +401,7 @@ function serializeLineGroup(
           break
         }
         if (!shouldContinueListItem(line, last, next, context)) break
-        content = joinParagraphLines(content, next.text)
+        content = joinParagraphLines(content, next.text, canRemoveHyphen(last, next, context))
         last = next
         index += 1
       }
@@ -399,7 +424,7 @@ function serializeLineGroup(
         break
       }
       if (!shouldMergeParagraph(last, next, context)) break
-      text = joinParagraphLines(text, next.text)
+      text = joinParagraphLines(text, next.text, canRemoveHyphen(last, next, context))
       last = next
       index += 1
     }

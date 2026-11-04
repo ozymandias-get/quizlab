@@ -92,6 +92,17 @@ describe('layout — paragraph reconstruction', () => {
 
     expect(text).toBe('Hastalık sosyo-ekonomik bir sorundur.')
   })
+
+  it('preserves a hyphen when the line does not reach the column margin', () => {
+    const text = page([
+      run('Kronik böbrek hasta-', 50, 100, 160),
+      run('lığı tedavi edilir.', 50, 114, 250)
+    ])
+
+    // No strong geometric evidence of a line break: keep the visible hyphen
+    // instead of guessing that it was inserted by hyphenation.
+    expect(text).toBe('Kronik böbrek hasta-\n\nlığı tedavi edilir.')
+  })
 })
 
 describe('layout — columns and reading order', () => {
@@ -134,6 +145,20 @@ describe('layout — columns and reading order', () => {
     expect(text).toBe(
       'Uzun bir gövde satırı burada devam ediyor Kısa satır\n\nYeni bir gövde satırı'
     )
+  })
+
+  it('analyses each horizontal region with its own column layout', () => {
+    const text = page([
+      run('Sol üst', 50, 100, 100),
+      run('Sağ üst', 250, 100, 100),
+      run('Sol alt', 100, 300, 100),
+      run('Sağ alt', 350, 300, 100)
+    ])
+
+    // The two regions have different column positions. A single global gutter
+    // would read "Sol üst, Sol alt, Sağ üst, Sağ alt"; region segmentation keeps
+    // each band's own left-to-right order.
+    expect(text).toBe('Sol üst\n\nSağ üst\n\nSol alt\n\nSağ alt')
   })
 })
 
@@ -202,15 +227,39 @@ describe('layout — tables', () => {
 
   it('serializes a small two-column table when the cells are genuinely short', () => {
     const text = page([
-      run('Bulgu', 50, 100, 50),
-      run('Sonuç', 200, 100, 50),
-      run('Ateş', 50, 120, 40),
-      run('38 °C', 200, 120, 40),
-      run('Nabız', 50, 140, 46),
-      run('92', 200, 140, 20)
+      run('Bulgu', 50, 100, 80),
+      run('Sonuç', 200, 100, 30),
+      run('Ateş', 50, 120, 80),
+      run('38 °C', 200, 120, 30),
+      run('Nabız', 50, 140, 80),
+      run('92', 200, 140, 30),
+      run('Solunum', 50, 160, 80),
+      run('18', 200, 160, 30)
     ])
 
-    expect(text).toBe('| Bulgu | Sonuç |\n| --- | --- |\n| Ateş | 38 °C |\n| Nabız | 92 |')
+    expect(text).toBe(
+      '| Bulgu | Sonuç |\n' +
+        '| --- | --- |\n' +
+        '| Ateş | 38 °C |\n' +
+        '| Nabız | 92 |\n' +
+        '| Solunum | 18 |'
+    )
+  })
+
+  it('does not turn equal-width short two-column notes into a table', () => {
+    const text = page([
+      run('Elma', 50, 100, 60),
+      run('Apple', 200, 100, 60),
+      run('Armut', 50, 120, 60),
+      run('Pear', 200, 120, 60),
+      run('Üzüm', 50, 140, 60),
+      run('Grape', 200, 140, 60),
+      run('Kiraz', 50, 160, 60),
+      run('Cherry', 200, 160, 60)
+    ])
+
+    expect(text).not.toContain('| --- |')
+    expect(text).toBe('Elma Armut Üzüm Kiraz\n\nApple Pear Grape Cherry')
   })
 
   it('falls back to row-preserving text when a cell is missing', () => {

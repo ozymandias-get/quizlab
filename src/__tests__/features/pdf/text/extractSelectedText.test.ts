@@ -315,4 +315,75 @@ describe('extractSelectedText', () => {
     expect(resolveSelectionPageRange(selection, 3)).toEqual({ page: 3, pageEnd: 5 })
     expect(extractSelectedText(selection, container)?.text).toBe('page three\n\npage five')
   })
+
+  it('uses the selected characters\u2019 own geometry, not the whole run\u2019s', () => {
+    const leftSpan = document.createElement('span')
+    leftSpan.setAttribute('role', 'presentation')
+    const leftNode = document.createTextNode('prefix selectedtail')
+    leftSpan.appendChild(leftNode)
+    layer.appendChild(leftSpan)
+
+    const rightSpan = document.createElement('span')
+    rightSpan.setAttribute('role', 'presentation')
+    const rightNode = document.createTextNode('right column')
+    rightSpan.appendChild(rightNode)
+    layer.appendChild(rightSpan)
+
+    const rectFor = (left: number, top: number, width: number): DOMRect =>
+      ({
+        left,
+        top,
+        right: left + width,
+        bottom: top + 12,
+        width,
+        height: 12,
+        x: left,
+        y: top,
+        toJSON: () => ({})
+      }) as DOMRect
+
+    // The left run is wide (20..300), but only its tail is selected (200..280).
+    // Reporting the run box would make the selection cross the column gutter.
+    Object.defineProperty(leftSpan, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rectFor(20, 100, 280)
+    })
+    Object.defineProperty(rightSpan, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => rectFor(320, 100, 100)
+    })
+
+    const originalCreateRange = document.createRange.bind(document)
+    vi.spyOn(document, 'createRange').mockImplementation(() => {
+      const created = originalCreateRange()
+      Object.defineProperty(created, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => {
+          const text = created.toString()
+          if (text === 'selectedtail') return rectFor(200, 100, 80)
+          if (text === 'right column') return rectFor(320, 100, 100)
+          if (text.includes('selectedtail') && text.includes('right column')) {
+            return rectFor(200, 100, 220)
+          }
+          return rectFor(0, 0, 0)
+        }
+      })
+      return created
+    })
+
+    const range = document.createRange()
+    range.setStart(leftNode, 'prefix '.length)
+    range.setEnd(rightNode, rightNode.length)
+
+    const selection = {
+      toString: () => 'selectedtailright column',
+      isCollapsed: false,
+      rangeCount: 1,
+      anchorNode: leftNode,
+      focusNode: rightNode,
+      getRangeAt: () => range
+    } as unknown as Selection
+
+    expect(extractSelectedText(selection, container)?.text).toBe('selectedtail\n\nright column')
+  })
 })
