@@ -7,7 +7,6 @@
  * part of the public surface.
  */
 
-export type { AiLifecycleSettingsReturn } from './hooks/useAiLifecycleSettings'
 export {
   MAX_ALIVE_TABS_OPTIONS,
   SLEEP_TIMEOUT_OPTIONS,
@@ -20,9 +19,7 @@ export {
   type QuickPresetKey,
   useQuickAiPresets
 } from './hooks/useQuickAiPresets'
-export type { UseTextInputModeReturn } from './hooks/useTextInputMode'
 export { TYPING_SPEED_OPTIONS, useTextInputMode } from './hooks/useTextInputMode'
-export { isVisionCapable } from './lib/apiChatUtils'
 export { prepareImageForUpload } from './lib/imageDownscale'
 export { normalizeExecutionResult } from './lib/send/scriptExecution'
 /**
@@ -31,10 +28,9 @@ export { normalizeExecutionResult } from './lib/send/scriptExecution'
  * diagnostics, so the recorded stages stay comparable.
  */
 export { nowMs, roundMs } from './lib/send/sendDiagnostics'
-export { isDeliveredSendResult, isStagedSendResult, resolveAutoSend } from './lib/sendUtils'
+export { resolveAutoSend } from './lib/sendUtils'
 export type { AiSendOptions, AiSendResult, SendStage } from './model/types'
-export type { SendApiChatResult } from './queries/useSendMessageMutation'
-export { sendApiChatMessage, useSendMessageMutation } from './queries/useSendMessageMutation'
+export { sendApiChatMessage } from './queries/useSendMessageMutation'
 export { useChatUiStore } from './store/chatUiStore'
 /**
  * Per-hostname serialization for selector config writes. Exported so the
