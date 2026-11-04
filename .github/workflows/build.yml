@@ -125,8 +125,39 @@ jobs:
       - name: Electron Hardening (Electronegativity)
         run: npm run check:electron-security
 
+  # The declared range in package.json admits two majors: the 24.x floor the
+  # `quality` job pins, and 26.x+. README and CONTRIBUTING promise both, but
+  # only the floor is exercised above. This job runs the same install,
+  # typecheck and test path on 26 so the upper branch cannot rot unnoticed.
+  # `build` depends on it, so a failure here blocks the release rather than
+  # sitting beside it as an advisory signal.
+  quality-node-26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          node --version
+          npm --version
+          npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run Tests
+        run: npm test
+
   build:
-    needs: quality
+    needs: [quality, quality-node-26]
     runs-on: ${{ matrix.os }}
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     timeout-minutes: 45

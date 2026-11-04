@@ -18,7 +18,7 @@
     "",
     "`exceptions` is currently empty: the PDF.js migration removed the last",
     "accepted advisory (CVE-2024-4367 / GHSA-wgrm-67xf-hhpq, which needed",
-    "pdfjs-dist@3.11.174). `pdfjs-dist@6.4.299` is outside the affected range",
+    "pdfjs-dist@3.11.174). `pdfjs-dist@6.5.438` is outside the affected range",
     "(`<=4.1.392`), so the finding is genuinely fixed rather than mitigated, and",
     "an entry left behind would itself fail the gate as stale."
   ],

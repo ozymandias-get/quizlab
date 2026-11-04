@@ -398,7 +398,7 @@ renderer never hands main a filesystem path to read.
 ## E. PDF.js architecture
 
 **One runtime, one version, one worker, one viewer.** `pdfjs-dist` is pinned
-exactly at **6.4.299** (`package.json:238`), there is no `overrides` entry for
+exactly at **6.5.438** (`package.json:246`), there is no `overrides` entry for
 it, no `@react-pdf-viewer` package in the tree, and no second copy on disk.
 All of that — plus the absence of a feature flag and of any legacy viewer
 markup — is asserted by `src/__tests__/architecture/pdfjs-single-runtime.test.ts`

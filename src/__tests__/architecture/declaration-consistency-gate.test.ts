@@ -4,14 +4,14 @@
  * The gate exists because two things in this repository were correct by
  * coincidence, and nothing said so:
  *
- *  - **The Node floor is stated six times.** `package.json` `engines.node`,
- *    `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`, and the two
- *    `node-version` pins in `.github/workflows/build.yml`. Five of the six are
- *    prose, and no gate compared them. The floor is set by a transitive
- *    dependency (jsdom 30), so the next bump of *that* package moves the truth
- *    while every document keeps its old claim — a green build shipping six
- *    different answers, and a contributor told by the Turkish README to
- *    install a Node that CI does not use.
+ *  - **The Node floor is stated in several places.** `package.json`
+ *    `engines.node`, `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`,
+ *    and the `node-version` pins in `.github/workflows/build.yml`. All but the
+ *    first are prose or CI pins, and no gate compared them. The floor is set by
+ *    a transitive dependency (jsdom 30), so the next bump of *that* package
+ *    moves the truth while every document keeps its old claim — a green build
+ *    shipping different answers, and a contributor told by the Turkish README
+ *    to install a Node that CI does not use.
  *  - **"Declared floor == installed version" was unasserted.** `npm install`
  *    respects `package.json`, so `npm ci` is reproducible from the manifest
  *    alone. `npm update` does something else entirely: it rewrites only
@@ -224,10 +224,15 @@ describe('declaration gate: the CI pin has to be a major the range admits', () =
       docs: {},
       workflow: drifted
     })
-    const pins = (WORKFLOW.match(/node-version:/g) ?? []).length
-    // One finding per pin: the workflow pins the same major in two jobs, and
-    // checking only the first would let the second drift unnoticed.
-    expect(findings).toHaveLength(pins)
+    const pins = [...drifted.matchAll(/node-version:\s*['"]?v?(\d+)/g)].map((match) =>
+      Number(match[1])
+    )
+    // One finding per rejected pin. The workflow deliberately pins two
+    // admitted majors (24 for the floor gate, 26 for the next-LTS smoke job),
+    // so counting every pin would now fail on the one that is supposed to pass.
+    const rejected = pins.filter((major) => !admitsMajor(ENGINES_NODE, major))
+    expect(rejected.length).toBeGreaterThan(0)
+    expect(findings).toHaveLength(rejected.length)
     expect(findings.join('\n')).toMatch(/22/)
   })
 
@@ -310,11 +315,11 @@ describe('declaration gate: a declared floor equals the installed version', () =
     // a tilde would either reject the pin or read a floor that is not there.
     expect(
       checkDeclaredFloors({
-        declared: { 'pdfjs-dist': '6.4.299' },
-        installed: { 'pdfjs-dist': '6.4.299' }
+        declared: { 'pdfjs-dist': '6.5.438' },
+        installed: { 'pdfjs-dist': '6.5.438' }
       })
     ).toEqual([])
-    expect(rangeFloor(packageJson.dependencies['pdfjs-dist'])).toBe('6.4.299')
+    expect(rangeFloor(packageJson.dependencies['pdfjs-dist'])).toBe('6.5.438')
   })
 
   it('rejects a floor below the installed version, naming the package', () => {
@@ -376,7 +381,7 @@ describe('declaration gate: a declared floor equals the installed version', () =
     ['1.2.3', '1.2.3'],
     ['=1.2.3', '1.2.3'],
     ['^0.2.3', '0.2.3'],
-    ['^6.4.299', '6.4.299']
+    ['^6.5.438', '6.5.438']
   ])('reads the floor of %s as %s', (range, expected) => {
     expect(rangeFloor(range)).toBe(expected)
   })

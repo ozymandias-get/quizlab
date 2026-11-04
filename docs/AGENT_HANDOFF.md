@@ -196,7 +196,7 @@ LeftPanel / FocusPdfBody
         └─ usePdfViewerState                        ← owns the live state
              ├─ useNativePdfController              ← the single renderer
              │    └─ @features/pdf/engine            ← the only PDF.js importer
-             │         pdfjs-dist@6.4.299 → pdf.worker.min.mjs
+             │         pdfjs-dist@6.5.438 → pdf.worker.min.mjs
              ├─ usePdfCaptureActions                 (renderer-agnostic)
              ├─ usePdfPanTool                        (renderer-agnostic)
              ├─ usePdfTextActions                    (renderer-agnostic)
@@ -216,12 +216,12 @@ replaces `lib/` → `native/`.
 
 | Entry                     | Value             | Role                |
 | ------------------------- | ----------------- | ------------------- |
-| `pdfjs-dist`              | `6.4.299` (exact) | **the only PDF.js** |
+| `pdfjs-dist`              | `6.5.438` (exact) | **the only PDF.js** |
 | `overrides["pdfjs-dist"]` | _gone_            | no longer needed    |
 | `pdfjs-6` alias           | _gone_            | collapsed           |
 | `@react-pdf-viewer/*`     | _gone_            | removed             |
 
-`npm ls pdfjs-dist` → `pdfjs-dist@6.4.299`. `npm ls @react-pdf-viewer/*` → `(empty)`.
+`npm ls pdfjs-dist` → `pdfjs-dist@6.5.438`. `npm ls @react-pdf-viewer/*` → `(empty)`.
 
 `.npmrc` still has `legacy-peer-deps=true`. It was needed to suppress RPV's peer
 `ERESOLVE`; that is gone, but the setting also governs an eslint peer conflict that is
@@ -419,7 +419,7 @@ code and stop PDF.js reusing its global worker.
 - **`isEvalSupported` is at zero occurrences in production code.** The knob was removed
   in PDF.js 4.x, so there was nothing to port.
 - **`security/audit-exceptions.json` is empty.** `CVE-2024-4367` /
-  `GHSA-wgrm-67xf-hhpq` affects `pdfjs-dist <=4.1.392`; 6.4.299 is outside that range, so
+  `GHSA-wgrm-67xf-hhpq` affects `pdfjs-dist <=4.1.392`; 6.5.438 is outside that range, so
   the finding is fixed rather than mitigated. The entry is **deleted, not re-dated** —
   `check-audit.mjs` fails an exception whose advisory is no longer reported.
 - `npm run check:audit` reports a **clean shipped tree with 0 exceptions**. The 33
@@ -437,7 +437,7 @@ only while a PDF panel existed.
 ## Critical Invariants
 
 1. The native viewer is the only PDF renderer. Do not reintroduce a second one.
-2. `pdfjs-dist@6.4.299` is pinned exactly, and it is the only PDF.js. Engine and worker
+2. `pdfjs-dist@6.5.438` is pinned exactly, and it is the only PDF.js. Engine and worker
    are the same dependency, so a range could hand the engine a worker from another major.
 3. `engine/pdfWorker.ts` is the only place that assigns `GlobalWorkerOptions.workerSrc`.
 4. Only `features/pdf/native/**` + `lib/renderPageToImage.ts` may import
@@ -559,7 +559,7 @@ tree with 0 exceptions. `check:electron-security` reports no HIGH/CRITICAL.
 `npm run build` (`tsc -b` + renderer + backend) succeeds. `npm run build:renderer:electron`
 emits **one** PDF chunk (`vendor-pdf-DSIvYwED.js`, 436.85 kB), **one** worker
 (`pdf.worker.min-CjEcRF4W.mjs`) and the full `dist/pdfjs/` tree (200 files). Zero RPV
-and zero PDF.js 3 traces in `dist/`. `npm ls pdfjs-dist` → `pdfjs-dist@6.4.299`,
+and zero PDF.js 3 traces in `dist/`. `npm ls pdfjs-dist` → `pdfjs-dist@6.5.438`,
 one resolved runtime.
 
 ## Deferred-Debt Decisions (Phase 10)
@@ -870,7 +870,7 @@ the interactive smoke list.
 it described a shortcut the viewer really handled. Dropping it silently would have removed
 an accessibility affordance that is now ours to keep.
 
-**Delete the CVE exception rather than re-date it.** _Reason:_ 6.4.299 is outside the
+**Delete the CVE exception rather than re-date it.** _Reason:_ 6.5.438 is outside the
 affected range, so the finding is fixed, and `check-audit.mjs` fails an exception whose
 advisory is no longer reported. Keeping it would break the gate, not preserve a decision.
 

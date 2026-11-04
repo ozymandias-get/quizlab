@@ -5,7 +5,7 @@
  *
  * For most of the migration there were two PDF.js runtimes installed on purpose —
  * `pdfjs-dist@3.11.174` under `@react-pdf-viewer` (the shipped viewer) and
- * `pdfjs-dist@6.4.299` under the `pdfjs-6` alias (the native viewer) — and this
+ * `pdfjs-dist@6.5.438` under the `pdfjs-6` alias (the native viewer) — and this
  * file's predecessor pinned the relationship between them. Most of that contract
  * was negative: *these two must never mix, this alias must not be hijacked, this
  * chunk must stay separate from that one.*
@@ -40,7 +40,7 @@ const pdfFeatureDir = join(repoRoot, 'src/features/pdf')
 const engineDir = join(pdfFeatureDir, 'engine')
 
 /** The one runtime the whole app is allowed to have. */
-const PDFJS_VERSION = '6.4.299'
+const PDFJS_VERSION = '6.5.438'
 
 /** Source and styles under `src/`, for the production sweeps. */
 function productionFiles(dir: string): string[] {
@@ -145,7 +145,7 @@ describe('single runtime: one PDF.js dependency', () => {
 
   it('declares no audit exception for a runtime that no longer ships', () => {
     // CVE-2024-4367 / GHSA-wgrm-67xf-hhpq affects `pdfjs-dist <=4.1.392`.
-    // 6.4.299 is outside that range, so the finding is fixed rather than
+    // 6.5.438 is outside that range, so the finding is fixed rather than
     // mitigated. `check-audit.mjs` fails an exception whose advisory is no longer
     // reported, so a leftover entry would break the gate rather than sit quietly.
     const exceptions = JSON.parse(

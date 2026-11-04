@@ -44,6 +44,12 @@ updates:
       - dependency-name: typescript
         update-types:
           - version-update:semver-major
+      # @types/node is held on the 24.x line because Electron 45 bundles Node
+      # 24.22.2 and CI runs Node 24; 26.x types would describe APIs the app
+      # never runs on. Revisit when the Electron Node major moves.
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: 'chore(deps)'
     labels:

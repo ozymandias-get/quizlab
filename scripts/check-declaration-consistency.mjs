@@ -4,15 +4,15 @@
  * Two invariants in this repository were correct by coincidence, and nothing
  * said so.
  *
- * **The Node floor is stated six times.** `package.json` `engines.node`,
- * `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`, and the two `node-version`
- * pins in `.github/workflows/build.yml`. Only the first of the six is a
- * declaration the others could be derived from; three are prose a contributor
- * might read and two are CI pins that decide what actually ran. No gate
+ * **The Node floor is stated in several places.** `package.json`
+ * `engines.node`, `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`, and
+ * the `node-version` pins in `.github/workflows/build.yml`. Only the first is a
+ * declaration the others could be derived from; the rest are prose a
+ * contributor might read and CI pins that decide what actually ran. No gate
  * compared them, so the next thing that moves the floor — and it moves when the
  * dependency that sets it is bumped, which today is jsdom 30 — would leave a
- * green build shipping six different answers, and a contributor reading the
- * Turkish README would be told to install a Node that CI does not use.
+ * green build shipping different answers, and a contributor reading the Turkish
+ * README would be told to install a Node that CI does not use.
  *
  * **"Declared floor == installed version" was unasserted.** Every direct
  * dependency's range floor is pinned to the version actually installed, which
@@ -31,7 +31,7 @@
  * Every problem is reported before exiting, unlike `check-version-consistency.mjs`
  * beside it, which stops at the first. That gate's inputs are one version
  * string and two badges, so one problem is the normal case. Here a floor bump
- * desynchronises all six statements at once, and an `npm update` re-opens the
+ * desynchronises every statement at once, and an `npm update` re-opens the
  * gap for every package it moved — a first-failure exit would print one of a
  * dozen and send the reader straight back to this command for the rest. The
  * cost of aggregating is that the first line of output is not always the most
