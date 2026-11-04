@@ -396,7 +396,7 @@ describe('extension permission popup', () => {
 
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.1.0')
+    expect(manifest.version).toBe('1.2.0')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
