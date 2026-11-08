@@ -1,3 +1,4 @@
+import type { NativeMessagingProfileSelectionResult } from '@shared-core/types/native-messaging'
 import type {
   SiteSessionActionResult,
   SiteSessionListResult,
@@ -60,9 +61,20 @@ export function useSiteSessionListQuery() {
     const api = getElectronApi()
     if (!api?.siteSession) return
 
-    return api.siteSession.onChanged(() => {
+    const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
-    })
+    }
+    const unsubChanged = api.siteSession.onChanged(invalidate)
+    // The selected Chrome profile can connect, disconnect or be renamed while
+    // this list is on screen. The rows show its state, so they have to refetch
+    // when the extension bridge reports a change.
+    const unsubConnected = api.nativeMessaging?.onExtensionConnected(invalidate) ?? (() => {})
+    const unsubDisconnected = api.nativeMessaging?.onExtensionDisconnected(invalidate) ?? (() => {})
+    return () => {
+      unsubChanged()
+      unsubConnected()
+      unsubDisconnected()
+    }
   }, [queryClient])
 
   return useElectronQuery<SiteSessionListResult>({
@@ -82,6 +94,20 @@ export function useSetSiteSessionEnabledMutation() {
 
   return useElectronMutation<SiteSessionActionResult, { siteId: string; enabled: boolean }>(
     (api, { siteId, enabled }) => api.siteSession.setEnabled(siteId, enabled),
+    {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
+      }
+    }
+  )
+}
+
+/** Chooses which Chrome profile's sessions are imported. */
+export function useSelectExtensionProfileMutation() {
+  const queryClient = useQueryClient()
+
+  return useElectronMutation<NativeMessagingProfileSelectionResult, { profileId: string }>(
+    (api, { profileId }) => api.siteSession.selectExtensionProfile(profileId),
     {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })

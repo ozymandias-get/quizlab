@@ -4,7 +4,7 @@ import { GlobeIcon, XIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
 
-import { ExtensionPairingDialog, ExtensionStatusCard } from './components'
+import { ExtensionPairingDialog, ExtensionProfileSelector, ExtensionStatusCard } from './components'
 import SiteSessionList from './SiteSessionList'
 import SiteSessionRiskNotice from './SiteSessionRiskNotice'
 import { useSiteSessionsState } from './useSiteSessionsState'
@@ -45,6 +45,8 @@ const SiteSessionsTab = memo(() => {
       <SettingsTabIntro icon={SITE_SESSIONS_ICON} description={t('ws_settings_desc')} />
 
       <ExtensionStatusCard t={t} onShowPairing={openPairing} />
+
+      <ExtensionProfileSelector t={t} />
 
       <SiteSessionRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
 

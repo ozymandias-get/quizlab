@@ -26,10 +26,14 @@ const HEARTBEAT_ALARM = 'quizlabHeartbeat'
  * and 30 seconds is the shortest period `chrome.alarms` accepts.
  */
 const POLL_INTERVAL_MIN = 0.5
-const PROTOCOL_VERSION = 2
+const PROTOCOL_VERSION = 3
 const HEALTH_PATH = '/api/health'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
+const PROFILE_ID_KEY = 'profileId'
+const PROFILE_NAME_KEY = 'profileName'
+const DEFAULT_PROFILE_NAME = 'Chrome'
+const MAX_PROFILE_NAME_LENGTH = 60
 /**
  * The pairing code the user copies from the app's settings page.
  *
@@ -45,7 +49,9 @@ const STORAGE_KEYS = [
   'bridgeInstanceId',
   'pendingSiteIds',
   'outdatedState',
-  'tooLargeSiteIds'
+  'tooLargeSiteIds',
+  'lastSelectedProfileId',
+  'lastSelectionVersion'
 ]
 
 /** The sync with the app went through. */
@@ -54,6 +60,8 @@ const SYNC_OK = 'ok'
 const SYNC_UNREACHABLE = 'unreachable'
 /** The bridge answered but refused a packet. */
 const SYNC_REFUSED = 'refused'
+/** This Chrome profile is not the cookie source the user selected. */
+const SYNC_NOT_SELECTED = 'not_selected'
 
 /** The app took the packet. */
 const PACKET_SENT = 'sent'
@@ -68,6 +76,14 @@ let connected = false
 let cookieDebounceTimer = null
 const changedDomains = new Set()
 let bridgeSecret = null
+/** The id of this Chrome profile's extension instance. */
+let profileId = null
+/** The name the user gave this Chrome profile. */
+let profileName = DEFAULT_PROFILE_NAME
+/** The profile the app last named as the cookie source. */
+let lastSelectedProfileId = null
+/** The app's selection revision this worker last saw. */
+let lastSelectionVersion = null
 /** The running bridge this worker last talked to (a restart changes it). */
 let bridgeInstanceId = null
 let lastConfigVersion = null
@@ -114,12 +130,74 @@ function getExtensionOrigin() {
   }
 }
 
-/** The headers every request to the bridge carries. */
+/** A name the popup may show and the app may display. */
+function normalizeProfileName(value) {
+  if (typeof value !== 'string') return ''
+  return value.trim().replaceAll(/\s+/g, ' ').slice(0, MAX_PROFILE_NAME_LENGTH)
+}
+
+/**
+ * The headers every request to the bridge carries.
+ *
+ * Chrome gives every profile a separate extension storage, so `profileId` is
+ * different in each profile even though the extension files are the same. The
+ * name is URL-encoded because it may contain Turkish characters, and HTTP
+ * header values are not Unicode.
+ */
 function baseHeaders() {
   const headers = { 'x-protocol-version': String(PROTOCOL_VERSION) }
   const origin = getExtensionOrigin()
   if (origin) headers['Origin'] = origin
+  if (profileId) headers['x-quizlab-profile-id'] = profileId
+  if (profileName) headers['x-quizlab-profile-name'] = encodeURIComponent(profileName)
   return headers
+}
+
+/** The payload the HMAC covers: the profile id plus the request payload. */
+function signingPayload(payload) {
+  return `${profileId || ''}\n${payload}`
+}
+
+/**
+ * Makes sure this profile has an id and a name.
+ *
+ * The id is created once and kept in `chrome.storage.local`, which is separate
+ * per Chrome profile. It is what lets the app tell two installed copies of the
+ * same extension apart.
+ */
+async function ensureProfileIdentity() {
+  try {
+    const stored = await chrome.storage.local.get([PROFILE_ID_KEY, PROFILE_NAME_KEY])
+    let id = typeof stored[PROFILE_ID_KEY] === 'string' ? stored[PROFILE_ID_KEY].trim() : ''
+    if (!id) {
+      id = crypto.randomUUID()
+      await chrome.storage.local.set({ [PROFILE_ID_KEY]: id })
+    }
+    profileId = id
+    profileName = normalizeProfileName(stored[PROFILE_NAME_KEY]) || DEFAULT_PROFILE_NAME
+    if (profileName !== stored[PROFILE_NAME_KEY]) {
+      await chrome.storage.local.set({ [PROFILE_NAME_KEY]: profileName })
+    }
+    await applyActionIdentity()
+  } catch (error) {
+    console.warn('[Quizlab Bridge] The profile identity could not be read:', errorMessage(error))
+  }
+}
+
+/** Shows the profile name on the toolbar button and in its tooltip. */
+async function applyActionIdentity() {
+  if (!chrome.action) return
+  try {
+    const title = profileName ? `Quizlab Site Sessions — ${profileName}` : 'Quizlab Site Sessions'
+    await chrome.action.setTitle({ title })
+    const badge = profileName.replaceAll(/\s+/g, '').slice(0, 4).toUpperCase()
+    await chrome.action.setBadgeText({ text: badge })
+    if (chrome.action.setBadgeBackgroundColor) {
+      await chrome.action.setBadgeBackgroundColor({ color: '#4f46e5' })
+    }
+  } catch (error) {
+    console.warn('[Quizlab Bridge] The profile name could not be shown:', errorMessage(error))
+  }
 }
 
 /** The storage area the state survives a service worker restart in. */
@@ -188,6 +266,12 @@ async function readPersistedState() {
     if (typeof stored.outdatedState === 'string') {
       outdatedState = stored.outdatedState
     }
+    if (typeof stored.lastSelectedProfileId === 'string') {
+      lastSelectedProfileId = stored.lastSelectedProfileId
+    }
+    if (typeof stored.lastSelectionVersion === 'number') {
+      lastSelectionVersion = stored.lastSelectionVersion
+    }
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
   }
@@ -215,7 +299,7 @@ async function persistState(values) {
   }
 }
 
-const stateReady = readPersistedState()
+const stateReady = ensureProfileIdentity().then(() => readPersistedState())
 
 /**
  * Asks the app which sites it wants cookies for.
@@ -228,7 +312,7 @@ async function fetchSiteList(port) {
   try {
     const headers = baseHeaders()
     if (bridgeSecret) {
-      headers['x-hmac-signature'] = await computeHmac(SITE_LIST_PATH, bridgeSecret)
+      headers['x-hmac-signature'] = await computeHmac(signingPayload(SITE_LIST_PATH), bridgeSecret)
     }
     const response = await fetch(`http://${BRIDGE_HOST}:${port}${SITE_LIST_PATH}`, {
       method: 'GET',
@@ -263,6 +347,14 @@ async function fetchSiteList(port) {
       protocolVersion,
       configVersion: typeof data.configVersion === 'number' ? data.configVersion : 0,
       targets,
+      selectedProfileId:
+        typeof data.selectedProfileId === 'string' && data.selectedProfileId
+          ? data.selectedProfileId
+          : null,
+      selectionVersion:
+        typeof data.selectionVersion === 'number' && Number.isFinite(data.selectionVersion)
+          ? Math.max(0, Math.floor(data.selectionVersion))
+          : 0,
       outdated: false
     }
   } catch (error) {
@@ -490,14 +582,9 @@ async function collectTargetPacket(target) {
 async function postPacket(packet, port) {
   try {
     const body = JSON.stringify(packet)
-    const headers = {
-      'Content-Type': 'application/json',
-      'x-protocol-version': String(PROTOCOL_VERSION)
-    }
-    const origin = getExtensionOrigin()
-    if (origin) headers['Origin'] = origin
+    const headers = { ...baseHeaders(), 'Content-Type': 'application/json' }
     if (bridgeSecret) {
-      headers['x-hmac-signature'] = await computeHmac(body, bridgeSecret)
+      headers['x-hmac-signature'] = await computeHmac(signingPayload(body), bridgeSecret)
     }
 
     const response = await fetch(`http://${BRIDGE_HOST}:${port}${COOKIE_PATH}`, {
@@ -681,11 +768,6 @@ async function reportOutdatedOnce(list, port) {
 async function sendCookiesToApp(options) {
   const settings = options || {}
   await stateReady
-  if (settings.forceAll === true) {
-    autoSync = false
-    await chrome.storage.local.set({ autoSync })
-    pendingSiteIds.clear()
-  }
 
   const port = typeof settings.port === 'number' ? settings.port : bridgePort
   if (!port) return SYNC_UNREACHABLE
@@ -707,7 +789,47 @@ async function sendCookiesToApp(options) {
     await persistState({ outdatedState: null })
   }
 
+  const isSelected = Boolean(profileId) && list.selectedProfileId === profileId
+  const selectionVersion = list.selectionVersion
+  // The revision catches A -> B -> A between two polls: the profile sees that
+  // the source changed even though it is selected again by the time it asks.
+  const selectionChanged =
+    isSelected && (lastSelectedProfileId !== profileId || lastSelectionVersion !== selectionVersion)
+
+  if (!isSelected) {
+    // Another Chrome profile is the cookie source. Keep the site list so the
+    // popup can still show permissions, but do not push anything: the app
+    // would refuse the packets anyway.
+    lastSelectedProfileId = list.selectedProfileId
+    lastSelectionVersion = selectionVersion
+    knownTargets = list.targets
+    lastConfigVersion = list.configVersion
+    pendingSiteIds.clear()
+    applyWakeUpFilter()
+    await persistState({
+      knownTargets,
+      lastConfigVersion,
+      pendingSiteIds: [],
+      lastSelectedProfileId,
+      lastSelectionVersion
+    })
+    // A manual "sync now" from a profile that is not the source has nothing
+    // to deliver; saying "ok" would tell the user the sessions were imported.
+    return settings.forceAll === true ? SYNC_NOT_SELECTED : SYNC_OK
+  }
+
+  if (settings.forceAll === true) {
+    // A manual sync only switches auto-sync off when it can actually deliver;
+    // a profile that is not the source must not change the user's setting.
+    autoSync = false
+    await chrome.storage.local.set({ autoSync })
+    pendingSiteIds.clear()
+  }
+
   if (!autoSync && settings.forceAll !== true) {
+    // Auto-sync is off, so the selection markers are deliberately left alone:
+    // when the user syncs manually or turns auto-sync back on, the profile
+    // still sees that it has not pushed since it became the source.
     knownTargets = list.targets
     lastConfigVersion = list.configVersion
     applyWakeUpFilter()
@@ -715,9 +837,14 @@ async function sendCookiesToApp(options) {
     return SYNC_OK
   }
 
+  lastSelectedProfileId = profileId
+  lastSelectionVersion = selectionVersion
+
   const fingerprint = targetsFingerprint(list.targets)
   const changed =
-    list.configVersion !== lastConfigVersion || fingerprint !== targetsFingerprint(knownTargets)
+    selectionChanged ||
+    list.configVersion !== lastConfigVersion ||
+    fingerprint !== targetsFingerprint(knownTargets)
 
   if (changed || settings.forceAll === true || settings.resync === true) {
     // The app asked for something else than it did the last time: a site whose
@@ -727,10 +854,11 @@ async function sendCookiesToApp(options) {
   }
 
   // The sites that have to be pushed: the ones the app refused, the ones the
-  // browser changed and — when the bridge is a new one — all of them.
+  // browser changed and — when the bridge is a new one or this profile just
+  // became the selected one — all of them.
   const wanted = new Set(pendingSiteIds)
   for (const target of list.targets) {
-    if (changed || settings.forceAll === true) wanted.add(target.siteId)
+    if (changed || selectionChanged || settings.forceAll === true) wanted.add(target.siteId)
     if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
       if (targetCoversDomain(target, settings.changedDomain)) {
         // A changed cookie can make a previously oversized packet smaller.
@@ -772,11 +900,24 @@ async function sendCookiesToApp(options) {
       await persistState({
         lastConfigVersion,
         knownTargets,
-        tooLargeSiteIds: [...tooLargeSiteIds]
+        tooLargeSiteIds: [...tooLargeSiteIds],
+        lastSelectedProfileId,
+        lastSelectionVersion
       })
     }
     return SYNC_OK
   }
+
+  // Remember the whole round before the first packet leaves. A worker that is
+  // killed halfway through pushes the unfinished sites again on its next run;
+  // the writes are idempotent, so retrying a sent site is safe.
+  for (const target of targets) pendingSiteIds.add(target.siteId)
+  await persistState({
+    lastSelectedProfileId,
+    lastSelectionVersion,
+    pendingSiteIds: [...pendingSiteIds],
+    tooLargeSiteIds: [...tooLargeSiteIds]
+  })
 
   const refused = await pushTargets(targets, port)
   if (changed) {
@@ -792,7 +933,9 @@ async function sendCookiesToApp(options) {
     lastConfigVersion,
     knownTargets,
     pendingSiteIds: [...pendingSiteIds],
-    tooLargeSiteIds: [...tooLargeSiteIds]
+    tooLargeSiteIds: [...tooLargeSiteIds],
+    lastSelectedProfileId,
+    lastSelectionVersion
   })
   return refused ? SYNC_REFUSED : SYNC_OK
 }
@@ -1000,6 +1143,25 @@ if (chrome.runtime?.onMessage?.addListener) {
       queueSend({ forceAll: true, targetId: message.targetId })
         .then((result) => sendResponse({ success: result === SYNC_OK, result, autoSync }))
         .catch((error) => sendResponse({ success: false, error: errorMessage(error), autoSync }))
+      return true
+    }
+    if (message?.type === 'set_profile_name') {
+      const name = normalizeProfileName(message.name)
+      if (!name) {
+        sendResponse({ success: false, error: 'invalid_name' })
+        return false
+      }
+      stateReady
+        .then(async () => {
+          profileName = name
+          await chrome.storage.local.set({ [PROFILE_NAME_KEY]: name })
+          await applyActionIdentity()
+          return true
+        })
+        .then(
+          () => sendResponse({ success: true }),
+          (error) => sendResponse({ success: false, error: errorMessage(error) })
+        )
       return true
     }
     if (message?.type === 'pair') {

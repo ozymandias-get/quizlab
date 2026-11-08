@@ -405,6 +405,8 @@ describe('extension permission popup', () => {
     expect(popupHtml).toContain('id="pair-state"')
     expect(popupJs).toContain("type: 'pair'")
     expect(popupJs).toContain('chrome.storage.local')
+    expect(popupHtml).toContain('profile-name-input')
+    expect(popupJs).toContain("type: 'set_profile_name'")
   })
 
   it('keeps the pinned Origin allowlist in sync with the manifest key', () => {
@@ -415,7 +417,7 @@ describe('extension permission popup', () => {
 
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.3.0')
+    expect(manifest.version).toBe('1.4.0')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',

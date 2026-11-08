@@ -40,7 +40,8 @@ export type { CacheInfoResponse } from './ipcContract.js'
 export type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
-  NativeMessagingExtensionInfo
+  NativeMessagingExtensionInfo,
+  NativeMessagingExtensionProfile
 } from './native-messaging.js'
 export type {
   PdfActionPoint,

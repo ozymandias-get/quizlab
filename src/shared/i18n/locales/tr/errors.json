@@ -29,6 +29,7 @@
   "error_unexpected_retry": "Beklenmeyen bir hata oluştu. Lütfen dosya izinlerini kontrol edip tekrar deneyin.",
   "error_send_failed": "Metin gönderilemedi. AI sayfasının yüklendiğinden emin olun.",
   "error_unknown_error": "Bilinmeyen bir hata oluştu",
+  "error_unknown_profile": "Chrome profili bulunamadı.",
   "error_webview_api_missing": "Tarayıcı motoru hazır değil",
   "error_webview_url_missing": "AI sayfa adresi okunamadı. AI sekmesini yenileyip tekrar deneyin.",
   "error_web_dev_mode_only": "Bu işlem yalnızca masaüstü uygulamasında kullanılabilir.",

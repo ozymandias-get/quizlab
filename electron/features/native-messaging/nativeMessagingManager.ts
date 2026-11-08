@@ -1,6 +1,7 @@
 import type {
   NativeMessagingConnectionStatus,
-  NativeMessagingExtensionInfo
+  NativeMessagingExtensionInfo,
+  NativeMessagingExtensionProfile
 } from '@shared-core/types'
 
 import crypto from 'crypto'
@@ -13,7 +14,33 @@ import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
 import { createBridgeRequestHandler } from './nativeMessagingBridgeHandler.js'
 import { NativeMessagingCredentials } from './nativeMessagingCredentials.js'
+import {
+  isProfileId,
+  NativeMessagingProfileStore,
+  normalizeProfileName,
+  type PersistedExtensionProfile
+} from './nativeMessagingProfiles.js'
 import { BRIDGE_PORT, BRIDGE_PORT_RANGE_END } from './nativeMessagingTypes.js'
+
+/**
+ * What the app knows about one Chrome profile's extension.
+ *
+ * The state is keyed by the profile id the extension generates and persists in
+ * its own `chrome.storage.local`: Chrome gives every profile a separate store,
+ * so each profile yields a different id even though the extension files are the
+ * same.
+ */
+interface ExtensionProfileState {
+  id: string
+  name: string
+  connected: boolean
+  paired: boolean
+  protocolVersion: number | null
+  lastSeenAt: number
+}
+
+/** The default name of a profile the user has not named yet. */
+const DEFAULT_PROFILE_NAME = 'Chrome'
 
 class NativeMessagingManager {
   private httpServer: http.Server | null = null
@@ -25,8 +52,15 @@ class NativeMessagingManager {
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
   private readonly _instanceId: string = crypto.randomBytes(16).toString('hex')
   private _extensionLastSeenAt: number = 0
+  private _legacyConnectedAt: number = 0
   private _extensionProtocolVersion: number | null = null
   private _expectedExtensionOrigin: string | null = null
+  private readonly _profileStore = new NativeMessagingProfileStore()
+  private readonly _profiles = new Map<string, ExtensionProfileState>()
+  private _selectedProfileId: string | null = null
+  private _selectionVersion: number = 0
+  private _selectionChangeDepth: number = 0
+  private _profilesWrite: Promise<void> = Promise.resolve()
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
@@ -42,13 +76,139 @@ class NativeMessagingManager {
   }
 
   getExtensionInfo(): NativeMessagingExtensionInfo {
+    const selectedProfileId = this.getSelectedProfileId()
+    const selected = selectedProfileId ? this._profiles.get(selectedProfileId) : undefined
+    const status = this.deriveStatus()
+    const legacyActive = this.isLegacyConnected()
+    const paired = selected?.connected
+      ? selected.paired
+      : legacyActive
+        ? this._paired
+        : (selected?.paired ?? this._paired)
+    const profiles: NativeMessagingExtensionProfile[] = [...this._profiles.values()]
+      .map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        connected: profile.connected,
+        paired: profile.paired,
+        protocolVersion: profile.protocolVersion,
+        selected: profile.id === selectedProfileId
+      }))
+      .sort((left, right) => {
+        if (left.selected !== right.selected) return left.selected ? -1 : 1
+        return left.name.localeCompare(right.name)
+      })
+
     return {
-      status: this._connectionStatus,
-      paired: this._paired,
-      error: this._connectionStatus === 'error' ? 'Bridge server not running' : undefined,
+      status,
+      paired,
+      error: status === 'error' ? 'Bridge server not running' : undefined,
       waitingSince: this._waitingSince,
-      userHint: this.computeUserHint()
+      userHint: this.computeUserHint(status),
+      profiles,
+      selectedProfileId
     }
+  }
+
+  /**
+   * The profile whose cookies the app imports.
+   *
+   * An explicit selection survives restarts. Before the user picked one, the
+   * first profile the app heard from is used, which keeps a single-profile
+   * setup working without an extra step.
+   */
+  getSelectedProfileId(): string | null {
+    // The selection is materialized when a profile first pairs, not derived
+    // from whichever profile happens to be connected. A live fallback would
+    // silently switch the cookie source when a Chrome window closes.
+    return this._selectedProfileId
+  }
+
+  /** The revision the extension compares to notice a selection change. */
+  getSelectionVersion(): number {
+    return this._selectionVersion
+  }
+
+  /**
+   * Whether the app is clearing the sessions of the previous profile.
+   *
+   * While this is true the bridge refuses cookie packets: a packet from the
+   * newly selected profile could otherwise land between the switch and the
+   * wipe and be deleted by it.
+   */
+  beginSelectionChange(): void {
+    this._selectionChangeDepth += 1
+  }
+
+  endSelectionChange(): void {
+    this._selectionChangeDepth = Math.max(0, this._selectionChangeDepth - 1)
+  }
+
+  isSelectionChanging(): boolean {
+    return this._selectionChangeDepth > 0
+  }
+
+  /** Whether the app has heard from this profile. */
+  hasProfile(profileId: string): boolean {
+    return isProfileId(profileId) && this._profiles.has(profileId.trim())
+  }
+
+  /**
+   * Selects the Chrome profile to take cookies from.
+   *
+   * The selection is written to disk before it is reported, so a restart does
+   * not silently fall back to another profile. A profile that has not
+   * contacted the app yet cannot be selected.
+   */
+  async selectProfile(profileId: string): Promise<boolean> {
+    if (!this.hasProfile(profileId)) return false
+    const id = profileId.trim()
+    if (this._selectedProfileId === id) return true
+
+    const previous = this._selectedProfileId
+    const previousVersion = this._selectionVersion
+    this._selectedProfileId = id
+    this._selectionVersion += 1
+    try {
+      await this.persistProfiles()
+    } catch (error) {
+      this._selectedProfileId = previous
+      this._selectionVersion = previousVersion
+      Logger.warn('[NativeMessaging] The profile selection could not be saved:', error)
+      return false
+    }
+    // The status page shows which profile is selected; the event makes it
+    // refetch without waiting for its poll.
+    this.broadcastExtensionConnected()
+    return true
+  }
+
+  /** The live status of the profile the user selected. */
+  private selectedProfileState(): ExtensionProfileState | undefined {
+    const id = this.getSelectedProfileId()
+    return id ? this._profiles.get(id) : undefined
+  }
+
+  /** Whether a protocol-2 extension is currently talking to the app. */
+  private isLegacyConnected(): boolean {
+    return this._legacyConnectedAt > 0 && Date.now() - this._legacyConnectedAt <= 120000
+  }
+
+  /** The status of the selected profile, or the legacy single-extension state. */
+  private deriveStatus(): NativeMessagingConnectionStatus {
+    const selected = this.selectedProfileState()
+    if (selected?.connected) return 'connected'
+    if (this.isLegacyConnected()) return 'connected'
+    if ([...this._profiles.values()].some((profile) => profile.connected)) return 'connecting'
+
+    // Before the first profile-aware request the old single-extension state is
+    // still the only thing the app knows.
+    if (this._profiles.size === 0) return this._connectionStatus
+    if (this._connectionStatus === 'error') return 'error'
+    if (this._connectionStatus === 'connecting' && this._extensionLastSeenAt === 0) {
+      return 'connecting'
+    }
+    return 'disconnected'
   }
 
   /**
@@ -69,7 +229,10 @@ class NativeMessagingManager {
    * has to reload: it may be an old copy that predates the handshake.
    */
   getExtensionProtocolVersion(): number | null {
-    return this._extensionProtocolVersion
+    const selected = this.selectedProfileState()
+    if (selected?.connected) return selected.protocolVersion
+    if (this.isLegacyConnected()) return this._extensionProtocolVersion
+    return selected?.protocolVersion ?? this._extensionProtocolVersion
   }
 
   /**
@@ -80,11 +243,12 @@ class NativeMessagingManager {
    */
   private forgetExtensionProtocolVersion(): void {
     this._extensionProtocolVersion = null
+    for (const profile of this._profiles.values()) profile.protocolVersion = null
   }
 
-  private computeUserHint(): string | null {
-    if (this._connectionStatus !== 'connecting') return null
-    if (!this._waitingSince) return null
+  private computeUserHint(status: NativeMessagingConnectionStatus): string | null {
+    if (status !== 'connecting') return null
+    if (!this._waitingSince) return 'waiting'
 
     const elapsed = Date.now() - this._waitingSince
     if (elapsed > 30000) {
@@ -102,13 +266,62 @@ class NativeMessagingManager {
    * its own. The bridge calls this for every request that passed the origin
    * check.
    */
-  markExtensionSeen(): void {
-    const wasConnected = this._connectionStatus === 'connected'
-    this._extensionLastSeenAt = Date.now()
-    if (wasConnected) return
+  markExtensionSeen(profileId?: string, profileName?: string): void {
+    const now = Date.now()
+    this._extensionLastSeenAt = now
+
+    if (!isProfileId(profileId)) {
+      // A request from an extension that predates profile identities. Keeping
+      // the old state means the settings page can still say "outdated" instead
+      // of "not connected".
+      this._legacyConnectedAt = now
+      const wasConnected = this._connectionStatus === 'connected'
+      if (wasConnected) return
+      this._connectionStatus = 'connected'
+      this._waitingSince = null
+      this.broadcastExtensionConnected()
+      return
+    }
+
+    const id = profileId.trim()
+    const name = normalizeProfileName(profileName) || DEFAULT_PROFILE_NAME
+    let profile = this._profiles.get(id)
+    const isNew = !profile
+    let nameChanged = false
+    if (!profile) {
+      profile = {
+        id,
+        name,
+        connected: true,
+        paired: false,
+        protocolVersion: null,
+        lastSeenAt: now
+      }
+      this._profiles.set(id, profile)
+    } else {
+      profile.lastSeenAt = now
+      const wasDisconnected = !profile.connected
+      profile.connected = true
+      if (name && profile.name !== name) {
+        profile.name = name
+        nameChanged = true
+      }
+      if (!wasDisconnected && !isNew && !nameChanged) {
+        // Nothing visible changed. The liveness is remembered, the renderer
+        // does not need an event for every poll.
+        this._connectionStatus = 'connected'
+        this._waitingSince = null
+        return
+      }
+    }
 
     this._connectionStatus = 'connected'
     this._waitingSince = null
+    if (isNew || nameChanged) {
+      void this.persistProfiles().catch((error) => {
+        Logger.warn('[NativeMessaging] The Chrome profile list could not be saved:', error)
+      })
+    }
     this.broadcastExtensionConnected()
   }
 
@@ -118,8 +331,49 @@ class NativeMessagingManager {
    * The settings page uses this to tell an extension that is installed but
    * not paired from one that is ready to import.
    */
-  markExtensionPaired(): void {
+  markExtensionPaired(profileId?: string): void {
+    if (isProfileId(profileId)) {
+      const profile = this._profiles.get(profileId.trim())
+      if (profile) {
+        profile.paired = true
+        // The first profile that proves it holds the pairing code becomes the
+        // source. Pinning it here is what keeps a later disconnect from
+        // silently moving the source to the other Chrome profile.
+        if (!this._selectedProfileId) {
+          this._selectedProfileId = profile.id
+          this._selectionVersion += 1
+          void this.persistProfiles().catch((error) => {
+            Logger.warn(
+              '[NativeMessaging] The initial profile selection could not be saved:',
+              error
+            )
+          })
+        }
+        return
+      }
+    }
+    // A legacy request proves the old extension holds the secret, but it is
+    // not a request from the selected profile: only that profile's own signed
+    // request may mark it paired.
     this._paired = true
+  }
+
+  /**
+   * Remembers the protocol version named by one extension instance.
+   *
+   * A request without a profile id comes from an extension that predates the
+   * profile handshake; its version is kept in the old single-extension slot so
+   * the settings page can still report it as outdated.
+   */
+  recordExtensionProtocolVersion(profileId: string | undefined, version: number): void {
+    if (isProfileId(profileId)) {
+      const profile = this._profiles.get(profileId.trim())
+      if (profile) {
+        profile.protocolVersion = version
+        return
+      }
+    }
+    this._extensionProtocolVersion = version
   }
 
   async initialize(): Promise<void> {
@@ -129,8 +383,51 @@ class NativeMessagingManager {
     // signature it is supposed to enable.
     this._sharedSecret = await NativeMessagingCredentials.loadOrCreateSharedSecret()
     this._expectedExtensionOrigin = QUIZLAB_EXTENSION_ORIGIN
+    await this.loadProfiles()
     Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
     await this.startServer()
+  }
+
+  /**
+   * Reads the names and the selection from the last run.
+   *
+   * A profile that is not running right now starts disconnected. The selection
+   * is kept even while its profile is away, so a restart does not silently
+   * switch the cookie source to another Chrome profile.
+   */
+  private async loadProfiles(): Promise<void> {
+    const stored = await this._profileStore.load()
+    this._selectedProfileId = stored.selectedProfileId
+    this._selectionVersion = stored.selectionVersion
+    for (const profile of stored.profiles) {
+      if (this._profiles.has(profile.id)) continue
+      this._profiles.set(profile.id, {
+        id: profile.id,
+        name: profile.name,
+        connected: false,
+        paired: false,
+        protocolVersion: null,
+        lastSeenAt: 0
+      })
+    }
+  }
+
+  /** Writes the names and the selection, one write at a time. */
+  private persistProfiles(): Promise<void> {
+    const profiles: PersistedExtensionProfile[] = [...this._profiles.values()].map((profile) => ({
+      id: profile.id,
+      name: profile.name
+    }))
+    const snapshot = {
+      version: 1 as const,
+      selectedProfileId: this._selectedProfileId,
+      selectionVersion: this._selectionVersion,
+      profiles
+    }
+    this._profilesWrite = this._profilesWrite
+      .catch(() => undefined)
+      .then(() => this._profileStore.save(snapshot))
+    return this._profilesWrite
   }
 
   private startServer(): Promise<void> {
@@ -227,6 +524,8 @@ class NativeMessagingManager {
     }
     this._connectionStatus = 'disconnected'
     this._waitingSince = null
+    this._legacyConnectedAt = 0
+    for (const profile of this._profiles.values()) profile.connected = false
     this.forgetExtensionProtocolVersion()
   }
 
@@ -235,6 +534,24 @@ class NativeMessagingManager {
 
     this.healthCheckInterval = setInterval(() => {
       const now = Date.now()
+
+      if (this._profiles.size > 0) {
+        let lostOne = false
+        for (const profile of this._profiles.values()) {
+          if (!profile.connected) continue
+          if (now - profile.lastSeenAt <= 120000) continue
+          profile.connected = false
+          profile.protocolVersion = null
+          lostOne = true
+        }
+        if (![...this._profiles.values()].some((profile) => profile.connected)) {
+          this._connectionStatus = 'disconnected'
+          this._waitingSince = null
+        }
+        if (lostOne) this.broadcastExtensionDisconnected()
+        return
+      }
+
       const elapsed = now - this._extensionLastSeenAt
 
       if (this._connectionStatus === 'connected' && elapsed > 120000) {

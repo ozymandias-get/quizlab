@@ -77,6 +77,7 @@
   "ws_target_huggingchat": "HuggingChat",
   "ws_target_manus": "Manus",
   "ws_error_unknown_target": "The app does not know this site.",
+  "ws_error_unknown_profile": "The Chrome profile could not be found.",
   "ws_error_write_failed": "The setting could not be saved.",
   "ws_error_wipe_failed": "The session could not be cleared.",
   "ws_error_import_failed": "The session was not imported; no cookie could be written.",
@@ -128,5 +129,15 @@
   "ws_extension_pairing_status_paired": "Paired. Sessions can now be imported.",
   "ws_extension_pairing_status_unpaired": "The extension is visible but not paired yet.",
   "ws_extension_pairing_status_waiting": "Waiting for the extension. Keep Chrome open after pairing.",
-  "ws_extension_pairing_done_btn": "Done"
+  "ws_extension_pairing_done_btn": "Done",
+  "ws_profile_title": "Chrome profile",
+  "ws_profile_desc": "Each Chrome profile runs its own copy of the extension. Choose the profile whose sessions Quizlab should import.",
+  "ws_profile_connected": "Connected",
+  "ws_profile_disconnected": "Not connected",
+  "ws_profile_pairing": "Waiting for pairing",
+  "ws_profile_outdated": "Extension update needed",
+  "ws_profile_selected": "Selected",
+  "ws_profile_select_btn": "Use this profile",
+  "ws_profile_select_error": "The Chrome profile could not be selected.",
+  "ws_profile_hint": "To add another profile, install the same extension in that Chrome profile, open its popup and give it a name you recognize."
 }

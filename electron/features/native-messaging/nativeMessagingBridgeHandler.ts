@@ -15,10 +15,15 @@ import {
 } from '../web-session/siteSessionBridge.js'
 import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin } from './nativeMessagingOrigin.js'
+import { isProfileId, normalizeProfileName } from './nativeMessagingProfiles.js'
 import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
 
 /** The payload the extension signs when it asks for the site list. */
 const SITE_LIST_SIGNING_PAYLOAD = '/api/sites'
+
+/** The headers that identify the Chrome profile an extension instance runs in. */
+const PROFILE_ID_HEADER = 'x-quizlab-profile-id'
+const PROFILE_NAME_HEADER = 'x-quizlab-profile-name'
 
 /**
  * The status a packet that does not fit into the bridge is answered with.
@@ -64,16 +69,70 @@ function readProtocolVersion(header: string | string[] | undefined): number | nu
   return Math.floor(parsed)
 }
 
+interface RequestProfile {
+  id: string | undefined
+  name: string
+}
+
+/**
+ * The Chrome profile that made the request.
+ *
+ * The id is generated and persisted by the extension itself; Chrome gives each
+ * profile its own `chrome.storage.local`, so two profiles never share one. The
+ * name is display data the user typed in the popup and is URL-encoded because
+ * it may contain Turkish characters.
+ */
+function readRequestProfile(req: IncomingMessage): RequestProfile {
+  const rawId = req.headers[PROFILE_ID_HEADER as never]
+  const idValue = Array.isArray(rawId) ? rawId[0] : rawId
+  const id = isProfileId(idValue) ? idValue.trim() : undefined
+
+  const rawName = req.headers[PROFILE_NAME_HEADER as never]
+  const nameValue = Array.isArray(rawName) ? rawName[0] : rawName
+  let name = ''
+  if (typeof nameValue === 'string' && nameValue) {
+    try {
+      name = normalizeProfileName(decodeURIComponent(nameValue))
+    } catch {
+      name = ''
+    }
+  }
+  return { id, name }
+}
+
+/**
+ * What the extension signs.
+ *
+ * The profile id is part of the signed payload, so a captured request cannot
+ * be relabelled as another profile without the pairing secret. This is not a
+ * cryptographic identity between profiles: every paired copy holds the same
+ * secret, which is why the selection check is enforced by the app.
+ */
+function signingPayload(profileId: string, payload: string): string {
+  return `${profileId}\n${payload}`
+}
+
 /**
  * Remembers the protocol version the extension reported.
  *
  * The manager holds it, so that the settings page can tell an extension that
  * is too old from one that is not there at all.
  */
-function recordProtocolVersion(manager: unknown, req: IncomingMessage): void {
+function recordProtocolVersion(
+  manager: unknown,
+  req: IncomingMessage,
+  profileId: string | undefined
+): void {
   const version = readProtocolVersion(req.headers['x-protocol-version' as never])
   if (version === null) return
-  const mgr = manager as unknown as { _extensionProtocolVersion: number | null }
+  const mgr = manager as unknown as {
+    _extensionProtocolVersion?: number | null
+    recordExtensionProtocolVersion?: (id: string | undefined, value: number) => void
+  }
+  if (typeof mgr.recordExtensionProtocolVersion === 'function') {
+    mgr.recordExtensionProtocolVersion(profileId, version)
+    return
+  }
   mgr._extensionProtocolVersion = version
 }
 
@@ -87,41 +146,48 @@ function recordProtocolVersion(manager: unknown, req: IncomingMessage): void {
  * that is running perfectly, and the row of an outdated extension would say
  * "not connected" instead of "reload the extension".
  */
-function markExtensionSeen(manager: unknown): void {
-  const mgr = manager as unknown as { markExtensionSeen(): void }
-  mgr.markExtensionSeen()
+function markExtensionSeen(manager: unknown, profile: RequestProfile): void {
+  const mgr = manager as unknown as {
+    markExtensionSeen(profileId?: string, profileName?: string): void
+  }
+  mgr.markExtensionSeen(profile.id, profile.name)
 }
 
 /** Remembers that the extension knows the pairing code. */
-function markExtensionPaired(manager: unknown): void {
-  const mgr = manager as unknown as { markExtensionPaired(): void }
-  mgr.markExtensionPaired()
+function markExtensionPaired(manager: unknown, profile: RequestProfile): void {
+  const mgr = manager as unknown as { markExtensionPaired(profileId?: string): void }
+  mgr.markExtensionPaired(profile.id)
 }
 
 export function createBridgeRequestHandler(manager: unknown) {
   /**
-   * The round of the extension.
+   * One round per Chrome profile.
    *
-   * The extension asks which sites it should push and then sends one packet
-   * per site: the sites of that round do not change while it pushes them, so
-   * the round holds the target list and every packet of the round shares it.
+   * Two profiles can ask for their site list at the same time. Each gets its
+   * own round, so the packets of one profile are never accepted against the
+   * target list that another profile opened.
    */
-  let round: SiteSessionRound | null = null
+  const rounds = new Map<string, SiteSessionRound>()
 
-  /** The round of the packets that are on their way. */
-  async function currentRound(): Promise<SiteSessionRound> {
-    round ??= await openSiteSessionRound()
+  /** The round of the packets that are on their way for this profile. */
+  async function currentRound(profileId: string): Promise<SiteSessionRound> {
+    let round = rounds.get(profileId)
+    if (!round) {
+      round = await openSiteSessionRound()
+      rounds.set(profileId, round)
+    }
     return round
   }
 
   return (req: IncomingMessage, res: ServerResponse): void => {
     const requestOrigin = req.headers.origin as string | undefined
     const originAllowed = isAllowedBridgeOrigin(requestOrigin, getOriginPolicy(manager))
+    const profile = readRequestProfile(req)
 
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader(
       'Access-Control-Allow-Headers',
-      'Content-Type, x-hmac-signature, x-protocol-version'
+      `Content-Type, x-hmac-signature, x-protocol-version, ${PROFILE_ID_HEADER}, ${PROFILE_NAME_HEADER}`
     )
     res.setHeader('Vary', 'Origin')
     if (originAllowed && requestOrigin) {
@@ -147,12 +213,12 @@ export function createBridgeRequestHandler(manager: unknown) {
     // happens before the routing: a request that is refused further down — a
     // packet for a site that is switched off, an old extension that still
     // speaks the old protocol — still proves that the extension is there.
-    markExtensionSeen(manager)
+    markExtensionSeen(manager, profile)
 
     // The extension names the protocol it speaks in every request it makes to
     // the bridge. The version is remembered before the request is answered,
     // so that the settings page knows how old the extension is.
-    recordProtocolVersion(manager, req)
+    recordProtocolVersion(manager, req, profile.id)
 
     if (req.method === 'GET' && req.url === '/api/health') {
       const mgr = manager as unknown as {
@@ -178,17 +244,30 @@ export function createBridgeRequestHandler(manager: unknown) {
     }
 
     if (req.method === 'GET' && req.url === '/api/sites') {
-      handleSiteListRequest(req, res, manager, async () => {
+      if (!profile.id) {
+        // An extension that predates profile identities still reaches this
+        // endpoint. Refusing it with 400 would make the app show "not paired"
+        // forever instead of "update the extension", and would make the
+        // pairing dialog fail even though the code is correct.
+        handleLegacySiteListRequest(req, res, manager)
+        return
+      }
+      handleSiteListRequest(req, res, manager, profile.id, async () => {
         // The site list request opens the round: the packets that follow it
         // belong to it and share its target list.
-        round = await openSiteSessionRound()
+        const round = await openSiteSessionRound()
+        rounds.set(profile.id as string, round)
         return round
       })
       return
     }
 
     if (req.method === 'POST' && req.url === '/api/cookies') {
-      handleCookiePost(req, res, manager, currentRound)
+      if (!profile.id) {
+        sendJson(res, 400, { error: 'Missing profile id' })
+        return
+      }
+      handleCookiePost(req, res, manager, profile.id, currentRound)
       return
     }
 
@@ -218,24 +297,80 @@ function handleSiteListRequest(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown,
+  profileId: string,
   openRound: () => Promise<SiteSessionRound>
 ): void {
-  const mgr = manager as unknown as { _sharedSecret: string }
+  const mgr = manager as unknown as {
+    _sharedSecret: string
+    getSelectedProfileId?: () => string | null
+    getSelectionVersion?: () => number
+  }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
-  if (!isValidSignature(SITE_LIST_SIGNING_PAYLOAD, signature, mgr._sharedSecret)) {
+  if (
+    !isValidSignature(
+      signingPayload(profileId, SITE_LIST_SIGNING_PAYLOAD),
+      signature,
+      mgr._sharedSecret
+    )
+  ) {
     Logger.warn('[NativeMessaging] Rejected site list request: invalid signature')
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
-  markExtensionPaired(manager)
+  markExtensionPaired(manager, { id: profileId, name: '' })
 
   void openRound()
     .then((round) => listEnabledSiteSessionTargets(round))
     .then((list) => {
-      sendJson(res, 200, list)
+      // Every profile asks for the same list. The selection tells each one
+      // whether it is the source the user picked; only that profile pushes.
+      sendJson(res, 200, {
+        ...list,
+        selectedProfileId: mgr.getSelectedProfileId?.() ?? null,
+        selectionVersion: mgr.getSelectionVersion?.() ?? 0
+      })
     })
     .catch((error: unknown) => {
       Logger.error('[NativeMessaging] Failed to list the site session targets:', error)
+      sendJson(res, 500, { error: 'Internal error' })
+    })
+}
+
+/**
+ * Answers an extension that predates profile ids.
+ *
+ * The signature is the old one (the path alone), and the answer deliberately
+ * says protocol 1: an old extension reads that as "the app is too old for me"
+ * and stops pushing instead of filling the bridge with packets that cannot
+ * carry a profile id. The app has already recorded the version the extension
+ * reported, so the settings row says "update the extension".
+ */
+function handleLegacySiteListRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  manager: unknown
+): void {
+  const mgr = manager as unknown as { _sharedSecret: string }
+  const signature = req.headers['x-hmac-signature' as never] as string | undefined
+  if (!isValidSignature(SITE_LIST_SIGNING_PAYLOAD, signature, mgr._sharedSecret)) {
+    Logger.warn('[NativeMessaging] Rejected legacy site list request: invalid signature')
+    sendJson(res, 401, { error: 'Invalid signature' })
+    return
+  }
+  markExtensionPaired(manager, { id: undefined, name: '' })
+
+  void openSiteSessionRound()
+    .then((round) => listEnabledSiteSessionTargets(round))
+    .then((list) => {
+      sendJson(res, 200, {
+        ...list,
+        protocolVersion: 1,
+        selectedProfileId: null,
+        selectionVersion: 0
+      })
+    })
+    .catch((error: unknown) => {
+      Logger.error('[NativeMessaging] Failed to list the targets for a legacy extension:', error)
       sendJson(res, 500, { error: 'Internal error' })
     })
 }
@@ -276,10 +411,13 @@ function handleCookiePost(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown,
-  currentRound: () => Promise<SiteSessionRound>
+  profileId: string,
+  currentRound: (profileId: string) => Promise<SiteSessionRound>
 ): void {
   const mgr = manager as unknown as {
     _sharedSecret: string
+    getSelectedProfileId?: () => string | null
+    isSelectionChanging?: () => boolean
   }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
   if (!signature) {
@@ -291,10 +429,11 @@ function handleCookiePost(
   let bodySize = 0
   let oversized = false
   const chunks: Buffer[] = []
-  // The signature covers the whole body, so it is hashed while the body comes
-  // in: a body that does not fit is never kept in memory as a whole, and it
-  // is still signed.
+  // The signature covers the profile id and the whole body, so it is hashed
+  // while the body comes in: a body that does not fit is never kept in memory
+  // as a whole, and it is still signed.
   const digest = crypto.createHmac('sha256', mgr._sharedSecret)
+  digest.update(`${profileId}\n`)
 
   req.on('data', (chunk: Buffer) => {
     const remaining = Math.max(0, MAX_COOKIE_BODY_SIZE - bodySize)
@@ -311,7 +450,23 @@ function handleCookiePost(
         sendJson(res, 401, { error: 'Invalid signature' })
         return
       }
-      markExtensionPaired(manager)
+      markExtensionPaired(manager, { id: profileId, name: '' })
+
+      // Another profile may still have packets in flight when the user
+      // switches the source. They carry a valid signature, but they are no
+      // longer the session the user asked for.
+      const selectedProfileId = mgr.getSelectedProfileId?.() ?? null
+      if (selectedProfileId && selectedProfileId !== profileId) {
+        Logger.warn('[NativeMessaging] Refused a packet from a profile that is not selected')
+        sendJson(res, 403, { error: 'not_selected' })
+        return
+      }
+      if (mgr.isSelectionChanging?.()) {
+        // The app is wiping the previous source's sessions. Accepting a packet
+        // now would race the wipe, so the extension retries on its next poll.
+        sendJson(res, 409, { error: 'selection_changing' })
+        return
+      }
 
       if (oversized) {
         // The packet is bigger than the bridge reads, so it can never be
@@ -335,7 +490,7 @@ function handleCookiePost(
         return
       }
 
-      const outcome = await (await currentRound()).accept(packet)
+      const outcome = await (await currentRound(profileId)).accept(packet)
       if (!outcome.accepted) {
         Logger.warn(`[NativeMessaging] Refused a cookie packet: ${outcome.reason}`)
         sendJson(res, outcome.reason === 'domain_mismatch' ? 400 : 403, {

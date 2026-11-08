@@ -133,6 +133,14 @@
         color: var(--foreground);
       }
 
+      .profile-label {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted-foreground);
+        overflow-wrap: anywhere;
+      }
+
       /* Status Pill */
       #status {
         display: inline-flex;
@@ -301,7 +309,8 @@
         color: var(--missing-text);
       }
 
-      .pair-state[data-paired='true'] {
+      .pair-state[data-paired='true'],
+      .pair-state[data-saved='true'] {
         color: var(--granted-text);
       }
 
@@ -322,6 +331,26 @@
       }
 
       #pair-feedback[data-state='error'] {
+        color: var(--destructive-text);
+      }
+
+      #profile-feedback {
+        display: none;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+
+      #profile-feedback[data-state] {
+        display: block;
+      }
+
+      #profile-feedback[data-state='success'] {
+        color: var(--granted-text);
+      }
+
+      #profile-feedback[data-state='error'] {
         color: var(--destructive-text);
       }
 
@@ -733,8 +762,33 @@
         <img src="icons/icon48.png" alt="" class="app-icon" width="22" height="22" />
         <h1 class="app-title">Quizlab site oturumları</h1>
       </div>
+      <p id="profile-label" class="profile-label">Bu Chrome profili</p>
       <p id="status" class="status-pill" role="status"></p>
     </header>
+
+    <section class="card" aria-label="Chrome profili adı">
+      <div class="pair-header">
+        <span class="field-label">Bu Chrome profili</span>
+        <span id="profile-state" class="pair-state" data-saved="false">Kaydedilmedi</span>
+      </div>
+      <p class="card-intro">
+        Bu eklenti her Chrome profilinde ayrı çalışır. Birden fazla profil kullanıyorsanız her birine
+        tanıyacağınız bir ad verin; Quizlab hangi profilden oturum alacağını bu adla seçer.
+      </p>
+      <div class="field">
+        <label for="profile-name-input" class="field-label">Profil adı:</label>
+        <input
+          id="profile-name-input"
+          class="code-input"
+          type="text"
+          maxlength="60"
+          autocomplete="off"
+          placeholder="Örn. Ana Chrome, İş Chrome"
+        />
+      </div>
+      <button id="profile-name-btn" type="button">Adı kaydet</button>
+      <div id="profile-feedback" role="status" aria-live="polite"></div>
+    </section>
 
     <section class="card" aria-label="Quizlab eşleştirmesi">
       <div class="pair-header">

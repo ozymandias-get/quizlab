@@ -38,6 +38,7 @@ const mockCreateServer = vi.hoisted(() => vi.fn((_handler: unknown) => mockServe
 const mockFsMkdir = vi.hoisted(() => vi.fn())
 const mockFsWriteFile = vi.hoisted(() => vi.fn())
 const mockFsReadFile = vi.hoisted(() => vi.fn())
+const mockFsRename = vi.hoisted(() => vi.fn())
 
 const mockCryptoRandomBytes = vi.hoisted(() => vi.fn(() => Buffer.alloc(32, 0xab)))
 
@@ -51,13 +52,15 @@ vi.mock('fs', () => ({
     promises: {
       mkdir: mockFsMkdir,
       writeFile: mockFsWriteFile,
-      readFile: mockFsReadFile
+      readFile: mockFsReadFile,
+      rename: mockFsRename
     }
   },
   promises: {
     mkdir: mockFsMkdir,
     writeFile: mockFsWriteFile,
-    readFile: mockFsReadFile
+    readFile: mockFsReadFile,
+    rename: mockFsRename
   }
 }))
 
@@ -99,6 +102,7 @@ describe('NativeMessagingManager', () => {
     mockFsMkdir.mockReset()
     mockFsWriteFile.mockReset()
     mockFsReadFile.mockReset()
+    mockFsRename.mockReset()
     mockCryptoRandomBytes.mockReset()
     mockServerListen.mockReset()
     mockServerOn.mockReset()
@@ -109,11 +113,28 @@ describe('NativeMessagingManager', () => {
     mockCryptoRandomBytes.mockReturnValue(Buffer.alloc(32, 0xab))
     mockFsMkdir.mockResolvedValue(undefined)
     mockFsWriteFile.mockResolvedValue(undefined)
+    mockFsRename.mockResolvedValue(undefined)
     // A missing secret file: the manager generates one.
     mockFsReadFile.mockRejectedValue(new Error('ENOENT'))
 
     const mod = await import('../../../features/native-messaging/nativeMessagingManager.js')
     manager = mod.nativeMessagingManager
+    // The manager is a singleton, so a profile one test heard from would
+    // otherwise be selected by the next one.
+    const state = manager as unknown as {
+      _profiles: Map<string, unknown>
+      _selectedProfileId: string | null
+      _selectionVersion: number
+      _extensionProtocolVersion: number | null
+      _legacyConnectedAt: number
+      _paired: boolean
+    }
+    state._profiles.clear()
+    state._selectedProfileId = null
+    state._selectionVersion = 0
+    state._extensionProtocolVersion = null
+    state._legacyConnectedAt = 0
+    state._paired = false
   })
 
   afterEach(() => {
@@ -141,7 +162,9 @@ describe('NativeMessagingManager', () => {
         paired: false,
         error: undefined,
         waitingSince: null,
-        userHint: null
+        userHint: null,
+        profiles: [],
+        selectedProfileId: null
       })
     })
   })
@@ -186,6 +209,90 @@ describe('NativeMessagingManager', () => {
   describe('markExtensionPaired', () => {
     it('reports a paired extension after a signed request', () => {
       manager.markExtensionPaired()
+      expect(manager.getExtensionInfo().paired).toBe(true)
+    })
+  })
+
+  describe('Chrome profiles', () => {
+    it('tracks two extension instances and selects one', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+
+      let info = manager.getExtensionInfo()
+      expect(info.profiles.map((profile) => [profile.id, profile.name])).toEqual([
+        ['profile-a-1234', 'Ana Chrome'],
+        ['profile-b-1234', 'İş Chrome']
+      ])
+      expect(info.selectedProfileId).toBeNull()
+
+      manager.markExtensionPaired('profile-a-1234')
+      info = manager.getExtensionInfo()
+      expect(info.selectedProfileId).toBe('profile-a-1234')
+
+      await expect(manager.selectProfile('profile-b-1234')).resolves.toBe(true)
+
+      info = manager.getExtensionInfo()
+      expect(info.selectedProfileId).toBe('profile-b-1234')
+      expect(info.profiles[0]).toMatchObject({
+        id: 'profile-b-1234',
+        name: 'İş Chrome',
+        selected: true
+      })
+    })
+
+    it('refuses to select a profile the app has never heard from', async () => {
+      await expect(manager.selectProfile('ghost-profile-1234')).resolves.toBe(false)
+      expect(manager.getSelectedProfileId()).toBeNull()
+    })
+
+    it('pins the first paired profile instead of re-deriving the source', () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      expect(manager.getSelectedProfileId()).toBeNull()
+
+      manager.markExtensionPaired('profile-b-1234')
+      expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
+
+      // A later pairing must not move the source to the other profile.
+      manager.markExtensionPaired('profile-a-1234')
+      expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
+    })
+
+    it('reports a legacy extension as outdated even when a profile is stored', () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen()
+      manager.markExtensionPaired()
+      manager.recordExtensionProtocolVersion(undefined, 2)
+
+      const info = manager.getExtensionInfo()
+      expect(info.status).toBe('connected')
+      expect(info.paired).toBe(true)
+      expect(manager.getExtensionProtocolVersion()).toBe(2)
+    })
+
+    it('advances the selection revision only when the profile changes', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      expect(manager.getSelectionVersion()).toBe(0)
+
+      await manager.selectProfile('profile-a-1234')
+      expect(manager.getSelectionVersion()).toBe(1)
+
+      await manager.selectProfile('profile-a-1234')
+      expect(manager.getSelectionVersion()).toBe(1)
+
+      await manager.selectProfile('profile-b-1234')
+      expect(manager.getSelectionVersion()).toBe(2)
+    })
+
+    it('keeps the selected profile paired separately from the other one', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await manager.selectProfile('profile-a-1234')
+      manager.markExtensionPaired('profile-b-1234')
+
+      expect(manager.getExtensionInfo().paired).toBe(false)
+      manager.markExtensionPaired('profile-a-1234')
       expect(manager.getExtensionInfo().paired).toBe(true)
     })
   })

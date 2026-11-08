@@ -55,6 +55,7 @@ export const IPC_CHANNELS = {
   SITE_SESSION_LIST: 'site-session-list',
   SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
   SITE_SESSION_CLEAR: 'site-session-clear',
+  SITE_SESSION_SELECT_EXTENSION_PROFILE: 'site-session-select-extension-profile',
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',

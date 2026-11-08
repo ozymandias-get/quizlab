@@ -1,10 +1,10 @@
 /**
  * The IPC surface of the per-site session import.
  *
- * Three channels reach the settings page: the list of the sites, the switch
- * of one site and the "forget this session" action. Every one of them comes
- * from the trusted main window and validates its payload before it reaches
- * the service.
+ * Four channels reach the settings page: the list of the sites, the switch of
+ * one site, the "forget this session" action and the choice of the Chrome
+ * profile the sessions come from. Every one of them comes from the trusted
+ * main window and validates its payload before it reaches the service.
  *
  * A payload that is not what the action needs is refused with a code of its
  * own — `invalid_site_id`, `invalid_enabled` — and changes nothing: a switch
@@ -72,6 +72,21 @@ export function registerSiteSessionHandlers(): void {
       }
 
       const result = await siteSessionService.clear(siteId)
+      await broadcastSiteSessionsChanged()
+      return success(result)
+    },
+    requireTrustedIpcSender,
+    success({ success: false, error: 'Unauthorized' })
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.SITE_SESSION_SELECT_EXTENSION_PROFILE,
+    async (_event, profileId: unknown) => {
+      if (typeof profileId !== 'string' || profileId.length === 0) {
+        return success({ success: false, error: 'unknown_profile' })
+      }
+
+      const result = await siteSessionService.selectExtensionProfile(profileId)
       await broadcastSiteSessionsChanged()
       return success(result)
     },

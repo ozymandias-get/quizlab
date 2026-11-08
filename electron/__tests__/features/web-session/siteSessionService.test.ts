@@ -12,7 +12,15 @@ const fakeSession = {
 }
 
 /** The protocol version the mocked extension reported. */
-const extensionProtocolVersion = { value: 2 as number | null }
+const extensionProtocolVersion = { value: 3 as number | null }
+/** The profile selection the mocked native-messaging manager exposes. */
+const profileSelection = vi.hoisted(() => ({
+  hasProfile: vi.fn((profileId: string) => profileId === 'known-profile-1234'),
+  getSelectedProfileId: vi.fn((): string | null => null),
+  selectProfile: vi.fn(async () => true),
+  beginSelectionChange: vi.fn(),
+  endSelectionChange: vi.fn()
+}))
 
 vi.mock('electron', () => ({
   session: { fromPartition: () => fakeSession },
@@ -22,7 +30,12 @@ vi.mock('electron', () => ({
 vi.mock('../../../features/native-messaging/nativeMessagingManager.js', () => ({
   nativeMessagingManager: {
     getExtensionInfo: () => ({ status: 'connected', paired: true }),
-    getExtensionProtocolVersion: () => extensionProtocolVersion.value
+    getExtensionProtocolVersion: () => extensionProtocolVersion.value,
+    hasProfile: profileSelection.hasProfile,
+    getSelectedProfileId: profileSelection.getSelectedProfileId,
+    selectProfile: profileSelection.selectProfile,
+    beginSelectionChange: profileSelection.beginSelectionChange,
+    endSelectionChange: profileSelection.endSelectionChange
   }
 }))
 
@@ -454,9 +467,46 @@ describe('the list of the sites', () => {
   })
 })
 
+describe('the Chrome profile selection', () => {
+  beforeEach(() => {
+    profileSelection.hasProfile.mockClear()
+    profileSelection.selectProfile.mockClear()
+    profileSelection.selectProfile.mockResolvedValue(true)
+  })
+
+  it('selects a profile the extension bridge has seen', async () => {
+    const { service } = makeService()
+
+    await expect(service.selectExtensionProfile('known-profile-1234')).resolves.toEqual({
+      success: true
+    })
+    expect(profileSelection.selectProfile).toHaveBeenCalledWith('known-profile-1234')
+  })
+
+  it('refuses a profile the app has never heard from', async () => {
+    const { service } = makeService()
+
+    await expect(service.selectExtensionProfile('ghost-profile-1234')).resolves.toEqual({
+      success: false,
+      error: 'unknown_profile'
+    })
+    expect(profileSelection.selectProfile).not.toHaveBeenCalled()
+  })
+
+  it('reports a selection that could not be written', async () => {
+    profileSelection.selectProfile.mockResolvedValue(false)
+    const { service } = makeService()
+
+    await expect(service.selectExtensionProfile('known-profile-1234')).resolves.toEqual({
+      success: false,
+      error: 'write_failed'
+    })
+  })
+})
+
 describe('the extension version', () => {
   beforeEach(() => {
-    extensionProtocolVersion.value = 2
+    extensionProtocolVersion.value = 3
   })
 
   it('accepts an extension that speaks the protocol of this build', () => {

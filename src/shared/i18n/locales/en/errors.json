@@ -29,6 +29,7 @@
   "error_unexpected_retry": "An unexpected error occurred. Please check file permissions and try again.",
   "error_send_failed": "Failed to send text. Make sure AI page is loaded.",
   "error_unknown_error": "An unknown error occurred",
+  "error_unknown_profile": "The Chrome profile could not be found.",
   "error_webview_api_missing": "AI view engine not ready",
   "error_webview_url_missing": "Could not read the AI page address. Reload the AI tab and try again.",
   "error_web_dev_mode_only": "This action is only available in the desktop app.",

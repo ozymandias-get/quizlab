@@ -24,6 +24,7 @@
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
+import type { NativeMessagingProfileSelectionResult } from '../../../shared/types/native-messaging.js'
 import type {
   SiteSessionActionResult,
   SiteSessionListResult
@@ -84,7 +85,13 @@ export class SiteSessionService {
    */
   async list(): Promise<SiteSessionListResult> {
     const cached = readCachedSiteSessionList()
-    if (cached) return cached
+    if (
+      cached &&
+      cached.extensionConnected === this.deps.isExtensionConnected() &&
+      cached.extensionVersionOk === this.deps.isExtensionVersionOk()
+    ) {
+      return cached
+    }
 
     for (let attempt = 0; ; attempt++) {
       const generation = siteSessionListGeneration()
@@ -189,6 +196,73 @@ export class SiteSessionService {
       })
     } finally {
       invalidateSiteSessionListCache()
+    }
+  }
+
+  /**
+   * Selects the Chrome profile the sessions are imported from.
+   *
+   * The manager persists the choice and rejects packets from the other
+   * profiles. The cached list is dropped because the extension rows depend on
+   * whether the selected profile is connected and paired.
+   */
+  async selectExtensionProfile(profileId: string): Promise<NativeMessagingProfileSelectionResult> {
+    if (!nativeMessagingManager.hasProfile(profileId)) {
+      return { success: false, error: 'unknown_profile' }
+    }
+    const previous = nativeMessagingManager.getSelectedProfileId()
+    if (previous === profileId) return { success: true }
+
+    // The cookies the app holds may belong to the previous Chrome profile.
+    // The old source is wiped *before* the switch is persisted: if a wipe
+    // fails, the old profile stays selected and can re-import, instead of the
+    // app claiming a new source while the old account is still signed in.
+    // The bridge refuses packets until this whole block finishes.
+    nativeMessagingManager.beginSelectionChange()
+    let result: NativeMessagingProfileSelectionResult
+    try {
+      const cleared = await this.clearImportedSessionsAfterSourceChange()
+      if (!cleared) {
+        result = { success: false, error: 'wipe_failed' }
+      } else {
+        const selected = await nativeMessagingManager.selectProfile(profileId)
+        result = selected ? { success: true } : { success: false, error: 'write_failed' }
+      }
+    } finally {
+      nativeMessagingManager.endSelectionChange()
+      invalidateSiteSessionListCache()
+    }
+    return result
+  }
+
+  /**
+   * Forgets every enabled site's session after the cookie source changed.
+   *
+   * A site that cannot be cleared is reported to the caller: the switch has
+   * already moved, and silently keeping one site's old account would defeat
+   * the point of choosing a source.
+   */
+  private async clearImportedSessionsAfterSourceChange(): Promise<boolean> {
+    try {
+      const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
+      let cleared = true
+      for (const target of targets) {
+        if (state.targets[target.siteId]?.enabled !== true) continue
+        try {
+          await withSiteSessionLock(target.siteId, () => this.wipe(target))
+        } catch (error) {
+          cleared = false
+          Logger.warn(
+            `[SiteSession] The session of "${target.siteId}" could not be cleared after ` +
+              `the Chrome profile changed:`,
+            error
+          )
+        }
+      }
+      return cleared
+    } catch (error) {
+      Logger.warn('[SiteSession] The imported sessions could not be cleared:', error)
+      return false
     }
   }
 

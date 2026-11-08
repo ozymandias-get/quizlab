@@ -5,6 +5,7 @@ import vm from 'node:vm'
 
 import { describe, expect, it } from 'vitest'
 import { ADDITIONAL_AI_CHAT_PLATFORMS } from '../../../../shared/constants/aiChatCatalog.js'
+import { SITE_SESSION_PROTOCOL_VERSION } from '../../../../shared/constants/siteSessionProtocol.js'
 import { getSiteSessionCookieDomains } from '../../../../shared/constants/siteSessionCookieDomains.js'
 
 const BACKGROUND_PATH = path.join(
@@ -17,6 +18,8 @@ const source = readFileSync(BACKGROUND_PATH, 'utf-8')
 const BRIDGE_SECRET = 'ab'.repeat(32)
 const EXTENSION_ID = 'quizlab-test-extension'
 const EXTENSION_ORIGIN = `chrome-extension://${EXTENSION_ID}`
+const TEST_PROFILE_ID = 'test-profile-1234'
+const TEST_PROFILE_NAME = 'Test Chrome'
 const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const SITE_LIST_PATH = '/api/sites'
@@ -44,6 +47,8 @@ interface SiteList {
   protocolVersion: number
   configVersion: number
   targets: SiteTarget[]
+  selectedProfileId?: string | null
+  selectionVersion?: number
 }
 
 interface FetchCall {
@@ -65,12 +70,13 @@ interface LogEntry {
 }
 
 const DEFAULT_SITE_LIST: SiteList = {
-  protocolVersion: 2,
+  protocolVersion: 3,
   configVersion: 7,
   targets: [
     { siteId: 'chatgpt', cookieDomains: ['.chatgpt.com', '.openai.com'] },
     { siteId: 'claude', cookieDomains: ['.claude.ai'] }
-  ]
+  ],
+  selectedProfileId: TEST_PROFILE_ID
 }
 
 const DEFAULT_COOKIES: Record<string, FakeCookie[]> = {
@@ -123,7 +129,7 @@ interface HarnessOptions {
 }
 
 interface Harness {
-  message(message: Record<string, unknown>): Promise<{ success: boolean }>
+  message(message: Record<string, unknown>): Promise<{ success: boolean; result?: string }>
   readonly fetchCalls: FetchCall[]
   readonly cookieQueries: string[]
   /** Every packet the extension sent, accepted or not. */
@@ -173,6 +179,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
   // local store. A harness without one cannot sign its requests.
   const storage = new Map<string, unknown>(
     Object.entries({
+      profileId: TEST_PROFILE_ID,
+      profileName: TEST_PROFILE_NAME,
       ...(options.paired === false ? {} : { bridgeSecret: BRIDGE_SECRET }),
       ...(options.storage ?? {})
     })
@@ -194,7 +202,14 @@ function createHarness(options: HarnessOptions = {}): Harness {
     filter: { url?: { hostSuffix?: string }[] } | undefined
   }[] = []
 
-  let siteList = options.siteList ?? DEFAULT_SITE_LIST
+  let siteList: SiteList = {
+    ...(options.siteList ?? DEFAULT_SITE_LIST),
+    selectedProfileId:
+      options.siteList?.selectedProfileId === undefined
+        ? TEST_PROFILE_ID
+        : options.siteList.selectedProfileId,
+    selectionVersion: options.siteList?.selectionVersion ?? 0
+  }
   const cookies = options.cookies ?? DEFAULT_COOKIES
   const granted = options.grantedOrigins ?? 'all'
   const bridgePortOption = options.bridgePort ?? null
@@ -373,7 +388,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
         status: 'ok',
         timestamp: '2026-01-01T00:00:00.000Z',
         instanceId: 'bridge-instance-1',
-        protocolVersion: 2
+        protocolVersion: 3
       })
     }
     return jsonResponse({ error: 'Not found' }, 404)
@@ -462,7 +477,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
 
 /** The signature the app expects for a payload. */
 function sign(payload: string): string {
-  return createHmac('sha256', BRIDGE_SECRET).update(payload).digest('hex')
+  return createHmac('sha256', BRIDGE_SECRET).update(`${TEST_PROFILE_ID}\n${payload}`).digest('hex')
 }
 
 /** The requests the extension sent to a path. */
@@ -484,6 +499,12 @@ describe('extension bridge contract', () => {
     expect(source).toContain('protocolVersion')
   })
 
+  it('speaks the same protocol as the app', () => {
+    const declared = /const PROTOCOL_VERSION = (\d+)/.exec(source)
+    expect(declared).not.toBeNull()
+    expect(Number(declared?.[1])).toBe(SITE_SESSION_PROTOCOL_VERSION)
+  })
+
   it('never writes a cookie itself', () => {
     expect(source).not.toContain('chrome.cookies.set')
     expect(source).not.toContain('chrome.cookies.remove')
@@ -491,6 +512,15 @@ describe('extension bridge contract', () => {
 
   it('names the protocol version on every request it makes', () => {
     expect(source).toContain('x-protocol-version')
+  })
+
+  it('identifies the Chrome profile on every request it makes', () => {
+    expect(source).toContain('x-quizlab-profile-id')
+    expect(source).toContain('x-quizlab-profile-name')
+  })
+
+  it('lets the user name this Chrome profile', () => {
+    expect(source).toContain('set_profile_name')
   })
 })
 
@@ -512,7 +542,7 @@ describe('extension bridge behaviour', () => {
       )
     )
     const harness = createHarness({
-      siteList: { protocolVersion: 2, configVersion: 8, targets },
+      siteList: { protocolVersion: 3, configVersion: 8, targets },
       cookies
     })
     await harness.settle()
@@ -533,7 +563,7 @@ describe('extension bridge behaviour', () => {
   it('does not read a new service until its optional host permission is granted', async () => {
     const harness = createHarness({
       siteList: {
-        protocolVersion: 2,
+        protocolVersion: 3,
         configVersion: 8,
         targets: [{ siteId: 'poe', label: 'Poe', cookieDomains: ['.poe.com'] }]
       },
@@ -553,9 +583,77 @@ describe('extension bridge behaviour', () => {
     const call = callsTo(harness, SITE_LIST_PATH)[0]
     expect(call, 'the site list was never requested').toBeDefined()
     expect(call?.method).toBe('GET')
-    expect(call?.headers['x-protocol-version']).toBe('2')
+    expect(call?.headers['x-protocol-version']).toBe('3')
     expect(call?.headers['Origin']).toBe(EXTENSION_ORIGIN)
+    expect(call?.headers['x-quizlab-profile-id']).toBe(TEST_PROFILE_ID)
+    expect(call?.headers['x-quizlab-profile-name']).toBe(encodeURIComponent(TEST_PROFILE_NAME))
     expect(call?.headers['x-hmac-signature']).toBe(sign(SITE_LIST_PATH))
+  })
+
+  it('does not push cookies while another Chrome profile is the selected source', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, selectedProfileId: 'another-profile-1234' }
+    })
+    await harness.settle()
+
+    expect(harness.packets).toHaveLength(0)
+    expect(harness.cookieQueries).toEqual([])
+    // The popup still needs the list to show the permissions of each site.
+    expect(harness.storage.get('knownTargets')).toHaveLength(2)
+  })
+
+  it('pushes everything when this profile becomes the selected source', async () => {
+    const harness = createHarness({
+      storage: {
+        lastSelectedProfileId: 'another-profile-1234',
+        lastSelectionVersion: 0,
+        lastConfigVersion: DEFAULT_SITE_LIST.configVersion,
+        knownTargets: DEFAULT_SITE_LIST.targets
+      },
+      siteList: { ...DEFAULT_SITE_LIST, selectionVersion: 1 }
+    })
+    await harness.settle()
+
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
+  })
+
+  it('names "not selected" when a manual sync comes from another profile', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, selectedProfileId: 'another-profile-1234' }
+    })
+    await harness.settle()
+
+    const response = await harness.message({ type: 'sync_now' })
+
+    expect(response.success).toBe(false)
+    expect(response.result).toBe('not_selected')
+  })
+
+  it('does not lose the selection change while auto-sync is off', async () => {
+    const harness = createHarness({
+      storage: {
+        autoSync: false,
+        lastSelectedProfileId: 'another-profile-1234',
+        lastSelectionVersion: 0
+      },
+      siteList: { ...DEFAULT_SITE_LIST, selectionVersion: 1 }
+    })
+    await harness.settle()
+    expect(harness.packets).toHaveLength(0)
+
+    const response = await harness.message({ type: 'sync_now' })
+    await harness.settle()
+
+    expect(response.success).toBe(true)
+    expect(harness.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
+  })
+
+  it('stores the name the user gives this Chrome profile', async () => {
+    const harness = createHarness()
+    const response = await harness.message({ type: 'set_profile_name', name: '  Ana   Chrome  ' })
+
+    expect(response.success).toBe(true)
+    expect(harness.storage.get('profileName')).toBe('Ana Chrome')
   })
 
   it('sends one packet per target and signs every packet over its own body', async () => {
@@ -567,8 +665,10 @@ describe('extension bridge behaviour', () => {
 
     const call = callsTo(harness, COOKIE_PATH)[0]
     expect(call?.method).toBe('POST')
-    expect(call?.headers['x-protocol-version']).toBe('2')
+    expect(call?.headers['x-protocol-version']).toBe('3')
     expect(call?.headers['Origin']).toBe(EXTENSION_ORIGIN)
+    expect(call?.headers['x-quizlab-profile-id']).toBe(TEST_PROFILE_ID)
+    expect(call?.headers['x-quizlab-profile-name']).toBe(encodeURIComponent(TEST_PROFILE_NAME))
     expect(call?.headers['x-hmac-signature']).toBe(sign(call?.body ?? ''))
   })
 
@@ -595,7 +695,7 @@ describe('extension bridge behaviour', () => {
   it('reads a domain that is written without a leading dot in both spellings too', async () => {
     const harness = createHarness({
       siteList: {
-        protocolVersion: 2,
+        protocolVersion: 3,
         configVersion: 7,
         targets: [{ siteId: 'custom', cookieDomains: ['example.org'] }]
       }
@@ -643,7 +743,7 @@ describe('extension bridge behaviour', () => {
   it('refuses an exact-host-only grant before reading potentially incomplete cookies', async () => {
     const harness = createHarness({
       siteList: {
-        protocolVersion: 2,
+        protocolVersion: 3,
         configVersion: 7,
         targets: [{ siteId: 'chatgpt', cookieDomains: ['.chatgpt.com'] }]
       },

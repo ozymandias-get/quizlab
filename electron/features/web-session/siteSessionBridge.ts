@@ -15,6 +15,13 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { type Session, session as electronSession } from 'electron'
 
+/**
+ * The protocol the extension and the app agree on.
+ *
+ * The constant lives in `shared/` so the settings UI can compare a profile's
+ * reported version against the same number the bridge answers with.
+ */
+import { SITE_SESSION_PROTOCOL_VERSION } from '../../../shared/constants/siteSessionProtocol.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY } from '../ai/aiManager.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
@@ -31,14 +38,7 @@ import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
 import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
-/**
- * The protocol the extension and the app agree on.
- *
- * The version travels with every answer so that an extension the user has
- * not reloaded — an unpacked copy whose host permissions are still the old
- * ones — can be told apart from a browser that simply holds no cookies.
- */
-export const SITE_SESSION_PROTOCOL_VERSION = 2
+export { SITE_SESSION_PROTOCOL_VERSION }
 
 /** One site the extension may read cookies for. */
 interface SiteSessionBridgeTarget {

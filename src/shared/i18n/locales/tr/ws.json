@@ -77,6 +77,7 @@
   "ws_target_huggingchat": "HuggingChat",
   "ws_target_manus": "Manus",
   "ws_error_unknown_target": "Uygulama bu siteyi tanımıyor.",
+  "ws_error_unknown_profile": "Chrome profili bulunamadı.",
   "ws_error_write_failed": "Ayar kaydedilemedi.",
   "ws_error_wipe_failed": "Oturum temizlenemedi.",
   "ws_error_import_failed": "Oturum içe aktarılamadı; hiçbir çerez yazılamadı.",
@@ -128,5 +129,15 @@
   "ws_extension_pairing_status_paired": "Eşleştirildi. Oturumlar artık aktarılabilir.",
   "ws_extension_pairing_status_unpaired": "Eklenti görünüyor ancak henüz eşleştirilmedi.",
   "ws_extension_pairing_status_waiting": "Eklenti bekleniyor. Eşleştirdikten sonra Chrome açık kalsın.",
-  "ws_extension_pairing_done_btn": "Tamam"
+  "ws_extension_pairing_done_btn": "Tamam",
+  "ws_profile_title": "Chrome profili",
+  "ws_profile_desc": "Her Chrome profili eklentinin kendi kopyasını çalıştırır. Quizlab'ın oturumlarını alacağı profili seçin.",
+  "ws_profile_connected": "Bağlı",
+  "ws_profile_disconnected": "Bağlı değil",
+  "ws_profile_pairing": "Eşleştirme bekleniyor",
+  "ws_profile_outdated": "Eklenti güncellemesi gerekiyor",
+  "ws_profile_selected": "Seçili",
+  "ws_profile_select_btn": "Bu profili kullan",
+  "ws_profile_select_error": "Chrome profili seçilemedi.",
+  "ws_profile_hint": "Başka bir profil eklemek için aynı eklentiyi o Chrome profiline kurun, eklenti penceresini açın ve tanıyacağınız bir ad verin."
 }

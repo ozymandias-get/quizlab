@@ -22,7 +22,10 @@ import type {
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'
-import type { NativeMessagingExtensionInfo } from './native-messaging.js'
+import type {
+  NativeMessagingExtensionInfo,
+  NativeMessagingProfileSelectionResult
+} from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
 import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
@@ -304,6 +307,11 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.SITE_SESSION_CLEAR]: {
     args: [siteId: string]
     result: IpcResult<SiteSessionActionResult>
+  }
+
+  [IPC_CHANNELS.SITE_SESSION_SELECT_EXTENSION_PROFILE]: {
+    args: [profileId: string]
+    result: IpcResult<NativeMessagingProfileSelectionResult>
   }
 
   // App settings sync (renderer localStorage <-> main ConfigManager)

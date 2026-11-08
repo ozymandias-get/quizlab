@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const SECRET = 'bridge-secret-for-the-test'
 const EXTENSION_ORIGIN = 'chrome-extension://quizlab-test-extension'
+const PROFILE_ID = 'test-profile-1234'
+const PROFILE_NAME = 'Test%20Chrome'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
 
@@ -19,10 +21,10 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionBridge.js', () => ({
-  SITE_SESSION_PROTOCOL_VERSION: 2,
+  SITE_SESSION_PROTOCOL_VERSION: 3,
   PACKET_TOO_LARGE: 'packet_too_large',
   listEnabledSiteSessionTargets: vi.fn(async () => ({
-    protocolVersion: 2,
+    protocolVersion: 3,
     configVersion: 1,
     targets: []
   })),
@@ -42,6 +44,9 @@ function createManager() {
     _extensionProtocolVersion: null,
     _expectedExtensionOrigin: EXTENSION_ORIGIN,
     instanceId: 'test-bridge',
+    getSelectedProfileId: () => PROFILE_ID,
+    getSelectionVersion: () => 4,
+    isSelectionChanging: () => false,
     markExtensionSeen: vi.fn(),
     markExtensionPaired: vi.fn()
   }
@@ -49,7 +54,16 @@ function createManager() {
 
 /** The signature the app expects for a body. */
 function sign(body: string): string {
-  return createHmac('sha256', SECRET).update(body).digest('hex')
+  return createHmac('sha256', SECRET).update(`${PROFILE_ID}\n${body}`).digest('hex')
+}
+
+/** The headers every request of the extension carries for its profile. */
+function profileHeaders(): Record<string, string> {
+  return {
+    Origin: EXTENSION_ORIGIN,
+    'x-quizlab-profile-id': PROFILE_ID,
+    'x-quizlab-profile-name': PROFILE_NAME
+  }
 }
 
 describe('the bridge of the site session', () => {
@@ -74,12 +88,29 @@ describe('the bridge of the site session', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Origin: EXTENSION_ORIGIN,
+        ...profileHeaders(),
         'x-hmac-signature': signature ?? sign(body)
       },
       body,
       // A request that is answered with a broken connection never ends: the
       // test fails fast instead of waiting for the timeout of the runner.
+      signal: AbortSignal.timeout(2000)
+    })
+  }
+
+  /** Posts a body as another profile, signed with that profile's id. */
+  async function postAs(profileId: string, body: string): Promise<Response> {
+    const signature = createHmac('sha256', SECRET).update(`${profileId}\n${body}`).digest('hex')
+    return fetch(`http://127.0.0.1:${port}${COOKIE_PATH}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: EXTENSION_ORIGIN,
+        'x-quizlab-profile-id': profileId,
+        'x-quizlab-profile-name': PROFILE_NAME,
+        'x-hmac-signature': signature
+      },
+      body,
       signal: AbortSignal.timeout(2000)
     })
   }
@@ -118,7 +149,12 @@ describe('the bridge of the site session', () => {
     const request = Object.assign(new EventEmitter(), {
       method: 'POST',
       url: COOKIE_PATH,
-      headers: { origin: EXTENSION_ORIGIN, 'x-hmac-signature': sign(body) }
+      headers: {
+        origin: EXTENSION_ORIGIN,
+        'x-quizlab-profile-id': PROFILE_ID,
+        'x-quizlab-profile-name': PROFILE_NAME,
+        'x-hmac-signature': sign(body)
+      }
     })
     const response = { setHeader: vi.fn(), writeHead: vi.fn(), end: vi.fn() }
     createBridgeRequestHandler(createManager())(request as never, response as never)
@@ -140,6 +176,20 @@ describe('the bridge of the site session', () => {
 
     expect(response.status).toBe(401)
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+  })
+
+  it('refuses a valid packet from a Chrome profile the user did not select', async () => {
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await postAs('other-profile-1234', body)
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({ error: 'not_selected' })
+    expect(acceptPacket).not.toHaveBeenCalled()
   })
 
   it('still imports a packet that fits', async () => {
@@ -169,9 +219,29 @@ describe('the bridge of the site session', () => {
 
   it('answers the signed site list request', async () => {
     const response = await fetch(`http://127.0.0.1:${port}${SITE_LIST_PATH}`, {
-      headers: { Origin: EXTENSION_ORIGIN, 'x-hmac-signature': sign(SITE_LIST_PATH) }
+      headers: {
+        ...profileHeaders(),
+        'x-hmac-signature': sign(SITE_LIST_PATH)
+      }
     })
 
     expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      selectedProfileId: PROFILE_ID,
+      selectionVersion: 4
+    })
+  })
+
+  it('answers a legacy extension with protocol 1 so it reports itself outdated', async () => {
+    const signature = createHmac('sha256', SECRET).update(SITE_LIST_PATH).digest('hex')
+    const response = await fetch(`http://127.0.0.1:${port}${SITE_LIST_PATH}`, {
+      headers: { Origin: EXTENSION_ORIGIN, 'x-hmac-signature': signature }
+    })
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      protocolVersion: 1,
+      selectedProfileId: null
+    })
   })
 })

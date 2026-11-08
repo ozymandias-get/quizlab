@@ -23,7 +23,10 @@ import type {
 } from './aiView.js'
 import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
-import type { NativeMessagingExtensionInfo } from './native-messaging.js'
+import type {
+  NativeMessagingExtensionInfo,
+  NativeMessagingProfileSelectionResult
+} from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
 import type { SiteSessionActionResult, SiteSessionListResult } from './siteSession.js'
 import type { ScreenshotType, UpdateCheckResult } from './system.js'
@@ -182,6 +185,7 @@ export interface ElectronApi {
     list: () => Promise<SiteSessionListResult>
     setEnabled: (siteId: string, enabled: boolean) => Promise<SiteSessionActionResult>
     clear: (siteId: string) => Promise<SiteSessionActionResult>
+    selectExtensionProfile: (profileId: string) => Promise<NativeMessagingProfileSelectionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {

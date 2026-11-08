@@ -203,6 +203,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       list: stubReturn({ views: [], extensionConnected: false, extensionVersionOk: false }),
       setEnabled: stubReturn({ success: false, error: 'web_dev_mode_only' }),
       clear: stubReturn({ success: false, error: 'web_dev_mode_only' }),
+      selectExtensionProfile: stubReturn({ success: false, error: 'unknown_profile' }),
       onChanged: () => () => {}
     },
     nativeMessaging: {
@@ -210,7 +211,9 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         status: 'disconnected',
         paired: false,
         waitingSince: null,
-        userHint: null
+        userHint: null,
+        profiles: [],
+        selectedProfileId: null
       } as NativeMessagingExtensionInfo),
       getPairingCode: () => Promise.reject(new Error('web_dev_mode_only')),
       onExtensionConnected: () => () => {},

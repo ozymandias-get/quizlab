@@ -1,5 +1,23 @@
 export type NativeMessagingConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
+/**
+ * One installed copy of the extension.
+ *
+ * Chrome keeps `chrome.storage.local` separate per profile, so every profile
+ * gets its own extension instance with its own profile id and its own
+ * user-chosen name. The app can talk to all of them at once and has to know
+ * which one the user selected as the cookie source.
+ */
+export interface NativeMessagingExtensionProfile {
+  id: string
+  /** The name the user gave this Chrome profile in the extension popup. */
+  name: string
+  connected: boolean
+  paired: boolean
+  protocolVersion: number | null
+  selected: boolean
+}
+
 export interface NativeMessagingExtensionInfo {
   status: NativeMessagingConnectionStatus
   /**
@@ -15,6 +33,15 @@ export interface NativeMessagingExtensionInfo {
   waitingSince: number | null
   /** Localized hint text shown to the user when waiting. */
   userHint: string | null
+  /** Every extension instance the app has heard from. */
+  profiles: NativeMessagingExtensionProfile[]
+  /** The profile whose cookies are imported, or null before the first one. */
+  selectedProfileId: string | null
+}
+
+export interface NativeMessagingProfileSelectionResult {
+  success: boolean
+  error?: 'unknown_profile' | 'write_failed' | 'wipe_failed' | 'Unauthorized'
 }
 
 export interface ChromeExtensionCookie {

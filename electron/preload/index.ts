@@ -139,6 +139,8 @@ const electronApi: ElectronApi = {
     setEnabled: (siteId, enabled) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ENABLED, siteId, enabled)),
     clear: (siteId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR, siteId)),
+    selectExtensionProfile: (profileId) =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SELECT_EXTENSION_PROFILE, profileId)),
     onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
   },
 

@@ -718,6 +718,13 @@ packet only when something changed, so the app learns that it is alive from
 the requests themselves: a request from the pinned extension origin marks the
 bridge as connected, and a valid signature marks it as paired.
 
+A Chrome profile is a separate extension storage, so the same folder can be
+loaded in several profiles. Each copy generates a profile id, carries it (and
+the user-given name) on every signed request, and the app keeps them in
+`bridge-profiles.json` (`nativeMessagingProfiles.ts`). Settings selects one
+profile as the cookie source; the bridge refuses signed packets from the other
+profiles, so two profiles cannot overwrite each other's sessions.
+
 The site list request opens a **round**: the packets that follow it belong to
 that round and share its target list, so a round with N sites reads the list
 once instead of N times. The stdio path of the native messaging host handles
