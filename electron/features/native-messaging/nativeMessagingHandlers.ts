@@ -22,20 +22,11 @@ export function registerNativeMessagingHandlers(): void {
   )
 
   registerIpcHandler(
-    IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
+    IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE,
     async () => {
-      return success(await nativeMessagingManager.installExtension())
+      return success({ code: nativeMessagingManager.getPairingCode() })
     },
     requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION,
-    async () => {
-      return success(await nativeMessagingManager.removeExtension())
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
+    failure('unauthorized', 'Not authorized')
   )
 }

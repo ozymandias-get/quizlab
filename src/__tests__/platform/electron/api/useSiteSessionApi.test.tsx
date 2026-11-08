@@ -89,11 +89,10 @@ describe('useSiteSessionApi', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: SITE_SESSION_LIST_KEY })
   })
 
-  it('retries unavailable Google account discovery and refreshes successful discovery', async () => {
+  it('does not poll the site list', async () => {
     const google: SiteSessionView = {
       siteId: 'google',
       kind: 'google',
-      activeSlot: 2,
       memberAppIds: ['gemini'],
       labelKey: 'google',
       hostname: 'google.com',
@@ -105,10 +104,7 @@ describe('useSiteSessionApi', () => {
     mockSiteSession.list.mockResolvedValue({ ...LIST_RESULT, views: [google] })
     const { result } = renderHook(() => useSiteSessionListQuery(), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(siteSessionRefreshInterval(result.current.data)).toBe(10_000)
-    expect(
-      siteSessionRefreshInterval({ ...LIST_RESULT, views: [{ ...google, accountSlots: [1, 2] }] })
-    ).toBe(60_000)
+    expect(siteSessionRefreshInterval(result.current.data)).toBe(false)
     expect(siteSessionRefreshInterval(LIST_RESULT)).toBe(false)
   })
 

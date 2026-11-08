@@ -32,7 +32,6 @@ import {
   GOOGLE_AI_WEB_SESSION_PARTITION,
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
-import { googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 
 /** Partition key used for `session.defaultSession` (the app's own UI). */
@@ -192,10 +191,6 @@ export function unregisterCustomPlatformOrigin(partition: string): void {
   customTrustedHosts.delete(partition)
 }
 
-function basePartitionOf(partition: string): string {
-  return googleSlotForPartition(partition) === null ? partition : GOOGLE_AI_WEB_SESSION_PARTITION
-}
-
 /**
  * Partitions a managed remote view may use. Derived from the registry, so this
  * stays in sync with AI_REGISTRY / INACTIVE_PLATFORMS / the Google session
@@ -204,9 +199,8 @@ function basePartitionOf(partition: string): string {
 export function isAllowedManagedViewPartition(partition: unknown): boolean {
   if (typeof partition !== 'string' || partition.length === 0) return false
   if (partition === GENERIC_AI_PARTITION) return true
-  const base = basePartitionOf(partition)
-  if (builtinTrustedHosts.has(base)) return true
-  return isCustomPartition(base)
+  if (builtinTrustedHosts.has(partition)) return true
+  return isCustomPartition(partition)
 }
 
 /**
@@ -230,8 +224,7 @@ function trustedHostsFor(partition: string): ReadonlySet<string> | null {
     // origin to bind to. Treated as untrusted for every permission.
     return null
   }
-  const base = basePartitionOf(partition)
-  return builtinTrustedHosts.get(base) ?? customTrustedHosts.get(base) ?? null
+  return builtinTrustedHosts.get(partition) ?? customTrustedHosts.get(partition) ?? null
 }
 
 /**
@@ -354,9 +347,7 @@ export function evaluateWebPermission(request: WebPermissionRequest): WebPermiss
     return deny('permission_not_allowlisted')
   }
 
-  const allowedForProvider =
-    PARTITION_AMBIENT_ALLOWLIST[partition] ??
-    PARTITION_AMBIENT_ALLOWLIST[basePartitionOf(partition)]
+  const allowedForProvider = PARTITION_AMBIENT_ALLOWLIST[partition]
   if (!allowedForProvider || !allowedForProvider.has(permission)) {
     return deny('ambient_not_supported_by_provider')
   }

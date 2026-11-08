@@ -98,18 +98,13 @@ diagnostics:
   templates ship for OpenAI, Anthropic, Google and NVIDIA, and `custom` covers
   any compatible gateway. Requests are made from the main process with SSRF
   validation and DNS pinning.
-- **Site sessions and multi-account** — every site you use has its own "Pull
-  from Chrome" switch in **Settings → Session Import**. With it on, the bundled
-  Chrome extension hands the site the cookies of your Chrome profile over a
-  localhost bridge; with it off, the site asks you to sign in inside the app.
-  Multi-account support is limited to the Google family: Gemini, AI Studio,
-  YouTube, NotebookLM and Google Drive share one account group and one settings
-  row, and up to 20 Google accounts can run across separate tabs. Other sites
-  hold a single session in their own persistent cookie-jar partition. A single
-  Google import carries the whole account list; accounts are switched per tab
-  in the AI tab strip, inside the Drive panel, or globally in settings. Only
-  account numbers ever leave the main process — accounts are not labelled and
-  no emails or names are stored.
+- **Site sessions** — every site you use has its own "Pull from Chrome" switch
+  in **Settings → Session Import**. With it on, the separately installed Chrome
+  extension hands the site the cookies of your Chrome profile over a localhost bridge;
+  with it off, the site asks you to sign in inside the app. Every site holds a
+  single session in its own persistent cookie-jar partition, and the Google
+  family (Gemini, AI Studio, YouTube, NotebookLM and Google Drive) shares one
+  account group and one settings row.
 - **Appearance** — animated or solid backgrounds, glass scaling, selection
   colour, accent colour, and a configurable hub/dock for the tools you actually
   use.
@@ -214,8 +209,8 @@ else runs, so profiles never mix:
 | override | `QUIZLAB_USER_DATA_DIR`                                            |
 
 Inside it: JSON configuration files, `Partitions/<name>/` Chromium session and
-cache data, `logs/`, and the installed copy of the Chrome extension. There is no
-database.
+cache data, `logs/`, and the bridge secret shared with the Chrome extension.
+The extension itself is a separate download. There is no database.
 
 **API keys** are stored in `api_chat_config.json` (mode `0600`) encrypted with
 Electron `safeStorage` where the OS keychain is available, and otherwise with
@@ -389,7 +384,8 @@ npm run build:linux   # then electron-builder --linux -> release/*.AppImage, *.d
 ```
 
 Packaging output goes to `release/`. Only `dist/**` is packed into `app.asar`;
-the icons and the Chrome extension are shipped as extra resources. Windows
+the icons are shipped as extra resources. The Chrome extension is its own
+release artifact and is not bundled. Windows
 builds are unsigned by default — see
 [docs/windows-installer.md](docs/windows-installer.md) for the signing variables
 if you want to change that.
@@ -444,9 +440,10 @@ Verified properties of this build:
   checked against private and reserved address space, pinned to a resolved IP
   with TLS SNI preserved, and the `Authorization` header is dropped across
   redirects.
-- **Bridge authentication** — the cookie bridge requires an exact extension
-  origin, HMAC-SHA256 over the request body with a per-run secret compared in
-  constant time, a 512 KB body cap, and a cookie-domain allowlist.
+- **Bridge authentication** - the cookie bridge requires an exact extension
+  origin and HMAC-SHA256 over the request body with the pairing code shared
+  with the extension, compared in constant time, plus a 512 KB body cap and a
+  cookie-domain allowlist.
 - **Electronegativity and Semgrep** run in CI.
 
 What this does **not** give you: live AI session cookies are stored by Chromium

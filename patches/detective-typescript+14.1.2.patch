@@ -1,0 +1,13 @@
+diff --git a/node_modules/detective-typescript/index.js b/node_modules/detective-typescript/index.js
+index 0000000..0000000 100644
+--- a/node_modules/detective-typescript/index.js
++++ b/node_modules/detective-typescript/index.js
+@@ -92,6 +92,6 @@
+       case 'TSImportType': {
+-        if (!skipTypeImports && node.argument.type === 'TSLiteralType') {
+-          dependencies.push(node.argument.literal.value);
++        if (!skipTypeImports && node.source?.value) {
++          dependencies.push(node.source.value);
+         }
+ 
+         break;

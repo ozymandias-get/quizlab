@@ -24,6 +24,4 @@ export interface PdfTab {
   kind?: 'pdf' | 'drive'
   webviewUrl?: string
   viewerSessionKey?: string
-  /** The Google account slot this view was opened with (per-tab choice). */
-  sessionSlot?: number
 }

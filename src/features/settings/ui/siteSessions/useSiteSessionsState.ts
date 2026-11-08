@@ -1,12 +1,7 @@
 import type { SiteSessionView } from '@shared-core/types/siteSession'
 
 import {
-  useNativeMessagingInstallExtension,
-  useNativeMessagingRemoveExtension
-} from '@platform/electron/api/useNativeMessagingApi'
-import {
   useClearSiteSessionMutation,
-  useSetSiteSessionActiveSlotMutation,
   useSetSiteSessionEnabledMutation,
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
@@ -17,15 +12,15 @@ import { useToastActions } from '@shared/stores/toastStore'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useMitigationItems, useRiskItems } from './riskContent'
 import type { SiteSessionTranslate } from './types'
-import { useMitigationItems, useRiskItems } from './wizardContent'
 
 /** The empty list, so the rows keep the same reference between two fetches. */
 const NO_VIEWS: SiteSessionView[] = []
 
 /**
  * The state of the site sessions tab: the rows, the two mutations and the
- * extension wizard that sits next to them.
+ * extension pairing dialog that sits next to them.
  */
 export function useSiteSessionsState() {
   const { t: translate } = useTranslation()
@@ -34,19 +29,12 @@ export function useSiteSessionsState() {
   const { data } = useSiteSessionListQuery()
   const setEnabledMutation = useSetSiteSessionEnabledMutation()
   const clearMutation = useClearSiteSessionMutation()
-  const setActiveSlotMutation = useSetSiteSessionActiveSlotMutation()
-  const { mutateAsync: installExtension } = useNativeMessagingInstallExtension()
-  const { mutateAsync: removeExtension } = useNativeMessagingRemoveExtension()
-  const [wizardOpen, setWizardOpen] = useState(false)
-  const [wizardMode, setWizardMode] = useState<'install' | 'remove' | null>(null)
+  const [pairingOpen, setPairingOpen] = useState(false)
   /** Sites whose last clear failed; only these are offered for a retry. */
   const [failedClearSiteIds, setFailedClearSiteIds] = useState<string[]>([])
   // A second click on the same switch before the first request settles would
   // read the same stale `view.enabled` and send the same target state twice.
   const pendingToggleSitesRef = useRef<Set<string>>(new Set())
-  // Per-site FIFO for slot changes: a rapid second click must not reach the
-  // backend before the first request, or a slow earlier response could win.
-  const slotQueuesRef = useRef<Map<string, Promise<void>>>(new Map())
   const { confirm, props: confirmProps } = useConfirmDialog()
 
   const views = data?.views ?? NO_VIEWS
@@ -179,40 +167,8 @@ export function useSiteSessionsState() {
     await clearSites(retryIds)
   }, [clearSites, failedClearSiteIds, views])
 
-  const onSelectSlot = useCallback(
-    (siteId: string, slot: number) => {
-      const previous = slotQueuesRef.current.get(siteId) ?? Promise.resolve()
-      const run = previous
-        .catch(() => undefined)
-        .then(async () => {
-          try {
-            const result = await setActiveSlotMutation.mutateAsync({ siteId, slot })
-            if (!result.success) reportError(result.error)
-          } catch {
-            reportError('write_failed')
-          }
-        })
-
-      slotQueuesRef.current.set(siteId, run)
-      void run.finally(() => {
-        // Drop the chain only if no newer selection was queued meanwhile.
-        if (slotQueuesRef.current.get(siteId) === run) {
-          slotQueuesRef.current.delete(siteId)
-        }
-      })
-    },
-    [setActiveSlotMutation, reportError]
-  )
-
-  const openWizard = useCallback((mode: 'install' | 'remove') => {
-    setWizardMode(mode)
-    setWizardOpen(true)
-  }, [])
-
-  const closeWizard = useCallback(() => {
-    setWizardOpen(false)
-    setWizardMode(null)
-  }, [])
+  const openPairing = useCallback(() => setPairingOpen(true), [])
+  const closePairing = useCallback(() => setPairingOpen(false), [])
 
   const riskItems = useRiskItems(t)
   const mitigationItems = useMitigationItems(t)
@@ -221,23 +177,18 @@ export function useSiteSessionsState() {
     t,
     views,
     /** True while a switch or a clear is on its way to the main process. */
-    isBusy:
-      setEnabledMutation.isPending || clearMutation.isPending || setActiveSlotMutation.isPending,
+    isBusy: setEnabledMutation.isPending || clearMutation.isPending,
     /** Whether there is a session of ours to forget. */
     canClearAll: views.some((view) => view.enabled),
     onToggle,
-    onSelectSlot,
     onClearAll,
     onRetryFailedClear,
     failedClearSites,
     confirmProps,
     riskItems,
     mitigationItems,
-    wizardOpen,
-    wizardMode,
-    openWizard,
-    closeWizard,
-    installExtension,
-    removeExtension
+    pairingOpen,
+    openPairing,
+    closePairing
   }
 }

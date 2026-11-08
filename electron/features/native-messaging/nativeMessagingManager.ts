@@ -5,21 +5,21 @@ import type {
 
 import crypto from 'crypto'
 import { BrowserWindow } from 'electron'
-import { promises as fs } from 'fs'
 import http from 'http'
 import type { AddressInfo } from 'net'
 
+import { QUIZLAB_EXTENSION_ORIGIN } from '../../../shared/constants/extensionRelease.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
 import { createBridgeRequestHandler } from './nativeMessagingBridgeHandler.js'
-import { NativeMessagingInstaller } from './nativeMessagingInstaller.js'
+import { NativeMessagingCredentials } from './nativeMessagingCredentials.js'
 import { BRIDGE_PORT, BRIDGE_PORT_RANGE_END } from './nativeMessagingTypes.js'
 
 class NativeMessagingManager {
   private httpServer: http.Server | null = null
   private _connectionStatus: NativeMessagingConnectionStatus = 'disconnected'
   private _port: number = BRIDGE_PORT
-  private _bridgeInfoExists = false
+  private _paired = false
   private _waitingSince: number | null = null
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
   private _sharedSecret: string = crypto.randomBytes(32).toString('hex')
@@ -36,10 +36,7 @@ class NativeMessagingManager {
     return this._port
   }
 
-  get sharedSecret(): string {
-    return this._sharedSecret
-  }
-
+  /** Identifies this running bridge; the health answer carries it. */
   get instanceId(): string {
     return this._instanceId
   }
@@ -47,11 +44,21 @@ class NativeMessagingManager {
   getExtensionInfo(): NativeMessagingExtensionInfo {
     return {
       status: this._connectionStatus,
-      installed: this._bridgeInfoExists,
+      paired: this._paired,
       error: this._connectionStatus === 'error' ? 'Bridge server not running' : undefined,
       waitingSince: this._waitingSince,
       userHint: this.computeUserHint()
     }
+  }
+
+  /**
+   * The code the user copies into the extension popup.
+   *
+   * It is the signing secret itself. The settings UI shows it behind an
+   * explicit action; it never travels on the HTTP bridge.
+   */
+  getPairingCode(): string {
+    return this._sharedSecret
   }
 
   /**
@@ -76,7 +83,6 @@ class NativeMessagingManager {
   }
 
   private computeUserHint(): string | null {
-    if (!this._bridgeInfoExists) return null
     if (this._connectionStatus !== 'connecting') return null
     if (!this._waitingSince) return null
 
@@ -106,54 +112,25 @@ class NativeMessagingManager {
     this.broadcastExtensionConnected()
   }
 
+  /**
+   * Remembers that the extension proved it holds the pairing code.
+   *
+   * The settings page uses this to tell an extension that is installed but
+   * not paired from one that is ready to import.
+   */
+  markExtensionPaired(): void {
+    this._paired = true
+  }
+
   async initialize(): Promise<void> {
-    // The secret is persisted once and shared with the installed extension
-    // through `bridge-secret.json`. It is never handed out over HTTP: an HTTP
-    // response can be read by any local process that can forge the Origin
-    // header, which would defeat the signature it is supposed to enable.
-    this._sharedSecret = await NativeMessagingInstaller.loadOrCreateSharedSecret()
-    await this.loadExpectedExtensionOrigin()
+    // The secret is persisted once and paired with the extension by hand. It
+    // is never handed out over HTTP: an HTTP response can be read by any local
+    // process that can forge the Origin header, which would defeat the
+    // signature it is supposed to enable.
+    this._sharedSecret = await NativeMessagingCredentials.loadOrCreateSharedSecret()
+    this._expectedExtensionOrigin = QUIZLAB_EXTENSION_ORIGIN
+    Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
     await this.startServer()
-
-    const bridgeInfoPath = NativeMessagingInstaller.resolveBridgeInfoPath()
-    this._bridgeInfoExists = await fs
-      .stat(bridgeInfoPath)
-      .then(() => true)
-      .catch(() => false)
-  }
-
-  private async loadExpectedExtensionOrigin(): Promise<void> {
-    this._expectedExtensionOrigin = await NativeMessagingInstaller.deriveExtensionOrigin()
-    if (this._expectedExtensionOrigin) {
-      Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
-    }
-  }
-
-  async installExtension(): Promise<{
-    success: boolean
-    error?: string
-    installedPath?: string
-  }> {
-    const result = await NativeMessagingInstaller.install(this._port)
-    // The secret stays in the main process. Returning it from this method
-    // would put it on the IPC channel to the renderer.
-    const { secret, ...publicResult } = result
-    if (publicResult.success) {
-      // Make sure the extension received the same secret this process uses.
-      // A secret generated at construction would be lost on the next start and
-      // the extension could no longer sign its packets.
-      if (secret) this._sharedSecret = secret
-      this._bridgeInfoExists = true
-    }
-    return publicResult
-  }
-
-  async removeExtension(): Promise<{ success: boolean; error?: string }> {
-    this._connectionStatus = 'disconnected'
-    this._waitingSince = null
-    this._bridgeInfoExists = false
-    this.forgetExtensionProtocolVersion()
-    return NativeMessagingInstaller.remove()
   }
 
   private startServer(): Promise<void> {
@@ -267,7 +244,7 @@ class NativeMessagingManager {
         this.broadcastExtensionDisconnected()
       }
 
-      if (this._connectionStatus === 'connecting' && !this._bridgeInfoExists) {
+      if (this._connectionStatus === 'connecting' && elapsed > 120000) {
         this._connectionStatus = 'disconnected'
         this._waitingSince = null
       }

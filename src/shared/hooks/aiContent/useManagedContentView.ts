@@ -105,7 +105,7 @@ export function useManagedContentView({
     // `source` is a stable object literal per call site; the viewId is the
     // identity that matters, a changed model arrives as a new source object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewId, source.kind, 'modelId' in source ? source.modelId : source.appId, source.sessionSlot]
+    [viewId, source.kind, 'modelId' in source ? source.modelId : source.appId]
   )
 
   useEffect(() => {

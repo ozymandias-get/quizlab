@@ -182,13 +182,12 @@ export interface ElectronApi {
     list: () => Promise<SiteSessionListResult>
     setEnabled: (siteId: string, enabled: boolean) => Promise<SiteSessionActionResult>
     clear: (siteId: string) => Promise<SiteSessionActionResult>
-    setActiveSlot: (siteId: string, slot: number) => Promise<SiteSessionActionResult>
     onChanged: (callback: (result: SiteSessionListResult) => void) => () => void
   }
   nativeMessaging: {
     getStatus: () => Promise<NativeMessagingExtensionInfo | null>
-    installExtension: () => Promise<{ success: boolean; error?: string; installedPath?: string }>
-    removeExtension: () => Promise<{ success: boolean; error?: string }>
+    /** The code the user pastes into the separately installed extension. */
+    getPairingCode: () => Promise<{ code: string }>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
   }

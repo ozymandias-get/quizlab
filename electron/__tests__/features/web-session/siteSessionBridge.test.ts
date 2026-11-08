@@ -52,9 +52,7 @@ vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
-  buildSiteSessionTargets: async () => [TARGET],
-  partitionForTargetSlot: (base: string, slot?: number) =>
-    !slot || slot <= 1 ? base : `${base}_slot_${slot}`
+  buildSiteSessionTargets: async () => [TARGET]
 }))
 
 vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
@@ -90,20 +88,6 @@ function stateWith(enabled: boolean, configVersion = 3) {
 }
 
 describe('site session packet parsing', () => {
-  it('preserves the secondary slot across the JSON boundary', () => {
-    expect(
-      parseSiteSessionPacket(
-        JSON.stringify({ targetId: 'chatgpt', status: 'ok', cookies: [], profileSlot: 2 })
-      )?.profileSlot
-    ).toBe(2)
-  })
-  it.each([0, -1, 1.5, 21, '2', null])('rejects invalid slot %s', (profileSlot) => {
-    expect(
-      parseSiteSessionPacket(
-        JSON.stringify({ targetId: 'chatgpt', status: 'ok', cookies: [], profileSlot })
-      )
-    ).toBeNull()
-  })
   it('reads a well formed packet', () => {
     const packet = parseSiteSessionPacket(
       JSON.stringify({
@@ -216,26 +200,6 @@ describe('site session bridge', () => {
     expect(outcome.reason).toBe('target_disabled')
     expect(set).not.toHaveBeenCalled()
     expect(recordResult).not.toHaveBeenCalled()
-  })
-
-  it('keeps legacy non-Google secondary imports in the single primary session', async () => {
-    read.mockResolvedValue(stateWith(true))
-    const resolveSession = vi.fn(() => fakeSession as never)
-    const packet = parseSiteSessionPacket(
-      JSON.stringify({
-        targetId: 'chatgpt',
-        status: 'ok',
-        profileSlot: 2,
-        cookies: [{ name: 'session', value: 'secondary', domain: '.chatgpt.com', secure: true }]
-      })
-    )!
-    await acceptSiteSessionPacket(packet, {
-      config: { read, recordResult, clearSlotAccountId: vi.fn(async () => {}) },
-      loadTargets: async () => [TARGET],
-      resolveSession
-    })
-    expect(resolveSession).toHaveBeenCalledExactlyOnceWith('persist:ai_chatgpt')
-    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
   })
 
   it('writes the cookies of an enabled site into its own session', async () => {

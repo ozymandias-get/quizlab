@@ -5,10 +5,7 @@ import { APP_CONFIG } from '../../../app/constants.js'
 const ipcHandle = vi.fn()
 const requireTrustedIpcSender = vi.fn()
 const getExtensionInfo = vi.fn()
-const installExtension = vi.fn()
-const removeExtension = vi.fn()
-const mockPort = 51999
-const mockSecret = 'abc123'
+const getPairingCode = vi.fn()
 
 vi.mock('electron', () => ({
   ipcMain: { handle: ipcHandle },
@@ -22,14 +19,7 @@ vi.mock('../../../core/ipcSecurity', () => ({
 vi.mock('../../../features/native-messaging/nativeMessagingManager', () => ({
   nativeMessagingManager: {
     getExtensionInfo,
-    installExtension,
-    removeExtension,
-    get port() {
-      return mockPort
-    },
-    get sharedSecret() {
-      return mockSecret
-    }
+    getPairingCode
   }
 }))
 
@@ -44,26 +34,21 @@ describe('registerNativeMessagingHandlers', () => {
     ipcHandle.mockReset()
     requireTrustedIpcSender.mockReset()
     getExtensionInfo.mockReset()
-    installExtension.mockReset()
-    removeExtension.mockReset()
+    getPairingCode.mockReset()
   })
 
-  it('registers all 3 IPC handlers', async () => {
+  it('registers the status and pairing handlers', async () => {
     const { registerNativeMessagingHandlers } =
       await import('../../../features/native-messaging/nativeMessagingHandlers.js')
     registerNativeMessagingHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(3)
+    expect(ipcHandle).toHaveBeenCalledTimes(2)
     expect(ipcHandle).toHaveBeenCalledWith(
       APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_STATUS,
       expect.any(Function)
     )
     expect(ipcHandle).toHaveBeenCalledWith(
-      APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
-      expect.any(Function)
-    )
-    expect(ipcHandle).toHaveBeenCalledWith(
-      APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION,
+      APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE,
       expect.any(Function)
     )
   })
@@ -75,7 +60,7 @@ describe('registerNativeMessagingHandlers', () => {
     registerNativeMessagingHandlers()
     registerNativeMessagingHandlers()
 
-    expect(ipcHandle).toHaveBeenCalledTimes(3)
+    expect(ipcHandle).toHaveBeenCalledTimes(2)
   })
 
   describe('NATIVE_MESSAGING_STATUS handler', () => {
@@ -83,7 +68,9 @@ describe('registerNativeMessagingHandlers', () => {
       requireTrustedIpcSender.mockReturnValue(true)
       getExtensionInfo.mockReturnValue({
         status: 'disconnected',
-        installed: false
+        paired: false,
+        waitingSince: null,
+        userHint: null
       })
 
       const { registerNativeMessagingHandlers } =
@@ -93,11 +80,19 @@ describe('registerNativeMessagingHandlers', () => {
       const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_STATUS)
       const result = await handler({ sender: { id: 1 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: true, data: { status: 'disconnected', installed: false } })
+      expect(result).toEqual({
+        ok: true,
+        data: {
+          status: 'disconnected',
+          paired: false,
+          waitingSince: null,
+          userHint: null
+        }
+      })
       expect(getExtensionInfo).toHaveBeenCalledTimes(1)
     })
 
-    it('returns null when sender is untrusted', async () => {
+    it('returns an error when sender is untrusted', async () => {
       requireTrustedIpcSender.mockReturnValue(false)
 
       const { registerNativeMessagingHandlers } =
@@ -115,47 +110,37 @@ describe('registerNativeMessagingHandlers', () => {
     })
   })
 
-  describe.each([
-    [
-      'NATIVE_MESSAGING_INSTALL_EXTENSION',
-      () => installExtension,
-      { success: true, installedPath: '/ext' }
-    ],
-    ['NATIVE_MESSAGING_REMOVE_EXTENSION', () => removeExtension, { success: true }]
-  ])('%s handler', (channelKey, getSpy, payload) => {
-    it('runs the manager action when the sender is trusted', async () => {
+  describe('NATIVE_MESSAGING_PAIRING_CODE handler', () => {
+    it('returns the pairing code when sender is trusted', async () => {
       requireTrustedIpcSender.mockReturnValue(true)
-      const spy = getSpy()
-      spy.mockResolvedValue(payload)
+      getPairingCode.mockReturnValue('a'.repeat(64))
 
       const { registerNativeMessagingHandlers } =
         await import('../../../features/native-messaging/nativeMessagingHandlers.js')
       registerNativeMessagingHandlers()
 
-      const handler = getHandler(
-        APP_CONFIG.IPC_CHANNELS[channelKey as 'NATIVE_MESSAGING_INSTALL_EXTENSION']
-      )
+      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE)
       const result = await handler({ sender: { id: 1 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: true, data: payload })
-      expect(spy).toHaveBeenCalledTimes(1)
+      expect(result).toEqual({ ok: true, data: { code: 'a'.repeat(64) } })
+      expect(getPairingCode).toHaveBeenCalledTimes(1)
     })
 
     it('refuses and does not call the manager when the sender is untrusted', async () => {
       requireTrustedIpcSender.mockReturnValue(false)
-      const spy = getSpy()
 
       const { registerNativeMessagingHandlers } =
         await import('../../../features/native-messaging/nativeMessagingHandlers.js')
       registerNativeMessagingHandlers()
 
-      const handler = getHandler(
-        APP_CONFIG.IPC_CHANNELS[channelKey as 'NATIVE_MESSAGING_INSTALL_EXTENSION']
-      )
+      const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE)
       const result = await handler({ sender: { id: 404 }, type: 'invoke' })
 
-      expect(result).toEqual({ ok: true, data: { success: false, error: 'Unauthorized' } })
-      expect(spy).not.toHaveBeenCalled()
+      expect(result).toEqual({
+        ok: false,
+        error: { code: 'unauthorized', message: 'Not authorized' }
+      })
+      expect(getPairingCode).not.toHaveBeenCalled()
     })
   })
 })

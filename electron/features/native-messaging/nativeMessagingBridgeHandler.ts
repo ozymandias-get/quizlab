@@ -83,13 +83,19 @@ function recordProtocolVersion(manager: unknown, req: IncomingMessage): void {
  * A request from the paired extension's origin is the proof that the
  * extension is alive. The old heartbeat that posted cookies every minute is
  * gone — the extension pushes only when something changed — so without this
- * the app would keep saying "the extension is not installed" to an extension
+ * the app would keep saying "the extension is not connected" to an extension
  * that is running perfectly, and the row of an outdated extension would say
- * "not installed" instead of "reload the extension".
+ * "not connected" instead of "reload the extension".
  */
 function markExtensionSeen(manager: unknown): void {
   const mgr = manager as unknown as { markExtensionSeen(): void }
   mgr.markExtensionSeen()
+}
+
+/** Remembers that the extension knows the pairing code. */
+function markExtensionPaired(manager: unknown): void {
+  const mgr = manager as unknown as { markExtensionPaired(): void }
+  mgr.markExtensionPaired()
 }
 
 export function createBridgeRequestHandler(manager: unknown) {
@@ -115,7 +121,7 @@ export function createBridgeRequestHandler(manager: unknown) {
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader(
       'Access-Control-Allow-Headers',
-      'Content-Type, x-hmac-signature, x-bridge-secret, x-protocol-version'
+      'Content-Type, x-hmac-signature, x-protocol-version'
     )
     res.setHeader('Vary', 'Origin')
     if (originAllowed && requestOrigin) {
@@ -151,27 +157,23 @@ export function createBridgeRequestHandler(manager: unknown) {
     if (req.method === 'GET' && req.url === '/api/health') {
       const mgr = manager as unknown as {
         _extensionLastSeenAt: number
-        _sharedSecret: string
-        _instanceId?: string
+        instanceId: string
       }
       mgr._extensionLastSeenAt = Date.now()
       Logger.info(`[NativeMessaging] Served bridge health check to origin: ${requestOrigin}`)
-      const healthResponse: Record<string, unknown> = {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        // Identifies this running bridge, so the extension can tell a restart
-        // from the same bridge without seeing the secret itself.
-        instanceId: mgr._instanceId ?? null,
-        protocolVersion: SITE_SESSION_PROTOCOL_VERSION
-      }
-      // Development escape hatch: an extension loaded from the source tree has
-      // no installed `bridge-secret.json`. A packaged app never hands the
-      // secret out over HTTP.
-      if (!app.isPackaged) {
-        healthResponse.secret = mgr._sharedSecret
-      }
+      // The health answer carries no secret: the user pairs the extension by
+      // pasting the code from the settings page into its popup.
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify(healthResponse))
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          // Identifies this running bridge, so the extension can tell a restart
+          // from the same bridge without seeing the secret itself.
+          instanceId: mgr.instanceId,
+          protocolVersion: SITE_SESSION_PROTOCOL_VERSION
+        })
+      )
       return
     }
 
@@ -198,9 +200,9 @@ export function createBridgeRequestHandler(manager: unknown) {
 /**
  * The list of sites the extension may read cookies for.
  *
- * The list is signed like the cookie packets are: the installed extension
- * reads its secret from `bridge-secret.json` in its own package, and every
- * request proves it holds that secret.
+ * The list is signed like the cookie packets are: the paired extension reads
+ * its copy of the pairing code from `chrome.storage.local`, and every request
+ * proves it holds that code.
  *
  * The signature is not the boundary that keeps a local process out. A local
  * process that can read the app's user data can read the same file, and one
@@ -225,6 +227,7 @@ function handleSiteListRequest(
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
+  markExtensionPaired(manager)
 
   void openRound()
     .then((round) => listEnabledSiteSessionTargets(round))
@@ -308,6 +311,7 @@ function handleCookiePost(
         sendJson(res, 401, { error: 'Invalid signature' })
         return
       }
+      markExtensionPaired(manager)
 
       if (oversized) {
         // The packet is bigger than the bridge reads, so it can never be

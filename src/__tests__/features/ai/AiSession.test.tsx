@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 const useManagedContentView = vi.fn()
 
 vi.mock('@app/providers/ai-context', () => ({
-  useAiTabActions: () => ({ setTabSessionSlot: vi.fn() }),
+  useAiTabActions: () => ({}),
   useAiSites: () => ({
     'gpt-4': { url: 'https://chat.openai.com', displayName: 'ChatGPT' },
     'claude-3': { url: 'https://claude.ai', displayName: 'Claude' },
@@ -112,7 +112,7 @@ describe('AiSession', () => {
       revealAfterFirstLoad: boolean
     }
     expect(options.viewId).toBe(defaultTab.id)
-    expect(options.source).toEqual({ kind: 'ai-platform', modelId: 'gpt-4', sessionSlot: 1 })
+    expect(options.source).toEqual({ kind: 'ai-platform', modelId: 'gpt-4' })
     expect(options.isHostOwner).toBe(true)
     expect(options.revealAfterFirstLoad).toBe(true)
   })
@@ -133,33 +133,6 @@ describe('AiSession', () => {
     const secondOptions = lastOptions() as { viewId: string; source: unknown }
     expect(secondOptions.viewId).toBe(firstOptions.viewId)
     expect(secondOptions.source).toEqual(firstOptions.source)
-  })
-
-  it('refreshes the entry URL to the latest restoredUrl when the tab sessionSlot changes', () => {
-    const { rerender } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
-    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe('https://chat.openai.com')
-
-    rerender(
-      <AiSession
-        tab={defaultTab}
-        isActive
-        restoredUrl="https://chat.openai.com/c/existing-chat"
-        {...defaultProps}
-      />
-    )
-    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe('https://chat.openai.com')
-
-    rerender(
-      <AiSession
-        tab={{ ...defaultTab, sessionSlot: 2 }}
-        isActive
-        restoredUrl="https://chat.openai.com/c/existing-chat"
-        {...defaultProps}
-      />
-    )
-    expect((lastOptions() as { restoredUrl: string }).restoredUrl).toBe(
-      'https://chat.openai.com/c/existing-chat'
-    )
   })
 
   it('hides when inactive', () => {

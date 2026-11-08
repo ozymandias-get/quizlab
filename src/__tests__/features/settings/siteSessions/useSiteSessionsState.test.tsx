@@ -35,7 +35,6 @@ let mockViews: SiteSessionView[] = []
 
 const mockSetEnabled = vi.fn()
 const mockClear = vi.fn()
-const mockSetActiveSlot = vi.fn()
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
@@ -52,10 +51,6 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   }),
   useClearSiteSessionMutation: () => ({
     mutateAsync: mockClear,
-    isPending: false
-  }),
-  useSetSiteSessionActiveSlotMutation: () => ({
-    mutateAsync: mockSetActiveSlot,
     isPending: false
   })
 }))
@@ -89,7 +84,6 @@ describe('useSiteSessionsState', () => {
     mockViews = [CHATGPT_VIEW, GOOGLE_VIEW]
     mockSetEnabled.mockResolvedValue({ success: true })
     mockClear.mockResolvedValue({ success: true })
-    mockSetActiveSlot.mockResolvedValue({ success: true })
     mockConfirm.mockResolvedValue(true)
   })
 
@@ -256,40 +250,6 @@ describe('useSiteSessionsState', () => {
 
     expect(mockClear).toHaveBeenCalledTimes(1)
     expect(mockClear).toHaveBeenCalledWith({ siteId: 'google' })
-  })
-
-  it('sends rapid slot changes in order so the last choice wins', async () => {
-    const calls: number[] = []
-    const resolvers: Array<(value: { success: boolean }) => void> = []
-    mockSetActiveSlot.mockImplementation(({ slot }: { slot: number }) => {
-      calls.push(slot)
-      return new Promise((resolve) => {
-        resolvers.push(resolve)
-      })
-    })
-
-    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
-
-    await act(async () => {
-      result.current.onSelectSlot('google', 1)
-      result.current.onSelectSlot('google', 2)
-      await Promise.resolve()
-    })
-
-    // The second request waits for the first; neither is sent out of order.
-    expect(calls).toEqual([1])
-
-    await act(async () => {
-      resolvers[0]({ success: true })
-      await Promise.resolve()
-    })
-
-    await waitFor(() => expect(calls).toEqual([1, 2]))
-
-    await act(async () => {
-      resolvers[1]({ success: true })
-      await Promise.resolve()
-    })
   })
 
   it('does not clear anything when the confirmation is dismissed', async () => {

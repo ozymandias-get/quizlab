@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { QUIZLAB_EXTENSION_ORIGIN } from '../../../../shared/constants/extensionRelease.js'
+
 const mockAppGetPath = vi.hoisted(() =>
   vi.fn((name: string) => {
     if (name === 'userData') return '/tmp/quizlab-userdata'
@@ -8,23 +10,8 @@ const mockAppGetPath = vi.hoisted(() =>
 )
 const mockApp = {
   isPackaged: false,
-  getAppPath: vi.fn(() => '/app'),
   getPath: mockAppGetPath
 }
-
-// Only `electron` is mocked — the clipboard adapter the installer calls is the
-// real one. Hoisted with the mock factory so `FakeClipboardItem` is initialized
-// before the adapter's `electron` import is resolved.
-const { mockClipboardWrite, FakeClipboardItem } = vi.hoisted(() => {
-  class FakeClipboardItem {
-    constructor(public readonly items: Record<string, string>) {}
-  }
-
-  return {
-    mockClipboardWrite: vi.fn((_items: FakeClipboardItem[]) => Promise.resolve()),
-    FakeClipboardItem
-  }
-})
 
 const mockServerListen = vi.hoisted(() =>
   vi.fn((_port: number, _host: string, cb: () => void) => {
@@ -48,51 +35,28 @@ const mockServer = {
 }
 const mockCreateServer = vi.hoisted(() => vi.fn((_handler: unknown) => mockServer))
 
-const mockFsStat = vi.hoisted(() => vi.fn())
-const mockFsReaddir = vi.hoisted(() => vi.fn())
-const mockFsCopyFile = vi.hoisted(() => vi.fn())
 const mockFsMkdir = vi.hoisted(() => vi.fn())
 const mockFsWriteFile = vi.hoisted(() => vi.fn())
-const mockFsRm = vi.hoisted(() => vi.fn())
 const mockFsReadFile = vi.hoisted(() => vi.fn())
 
 const mockCryptoRandomBytes = vi.hoisted(() => vi.fn(() => Buffer.alloc(32, 0xab)))
 
-const mockExecFile = vi.hoisted(() =>
-  vi.fn(
-    (_cmd: string, _args: string[], cb: (err: unknown, stdout: string, stderr: string) => void) => {
-      cb(null, '', '')
-    }
-  )
-)
-
 vi.mock('electron', () => ({
   app: mockApp,
-  clipboard: { write: mockClipboardWrite },
-  ClipboardItem: FakeClipboardItem,
-  session: { fromPartition: vi.fn(() => ({ cookies: { set: vi.fn() } })) },
   BrowserWindow: { getAllWindows: vi.fn(() => []) }
 }))
 
 vi.mock('fs', () => ({
   default: {
     promises: {
-      stat: mockFsStat,
-      readdir: mockFsReaddir,
-      copyFile: mockFsCopyFile,
       mkdir: mockFsMkdir,
       writeFile: mockFsWriteFile,
-      rm: mockFsRm,
       readFile: mockFsReadFile
     }
   },
   promises: {
-    stat: mockFsStat,
-    readdir: mockFsReaddir,
-    copyFile: mockFsCopyFile,
     mkdir: mockFsMkdir,
     writeFile: mockFsWriteFile,
-    rm: mockFsRm,
     readFile: mockFsReadFile
   }
 }))
@@ -102,18 +66,9 @@ vi.mock('crypto', async () => {
   return {
     default: { ...actual, randomBytes: mockCryptoRandomBytes },
     ...actual,
-    randomBytes: mockCryptoRandomBytes,
-    createHmac: vi.fn(() => ({
-      update: vi.fn(() => ({ digest: vi.fn(() => 'mock-hmac') }))
-    })),
-    timingSafeEqual: vi.fn(() => true)
+    randomBytes: mockCryptoRandomBytes
   }
 })
-
-vi.mock('child_process', () => ({
-  execFile: mockExecFile,
-  default: { execFile: mockExecFile }
-}))
 
 vi.mock('http', () => ({
   default: {
@@ -135,58 +90,35 @@ vi.mock('../../../core/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
-function expectedBridgeInfo(port: number) {
-  return JSON.stringify(
-    {
-      port,
-      host: '127.0.0.1',
-      endpoints: { cookies: '/api/cookies', health: '/api/health' }
-    },
-    null,
-    2
-  )
-}
-
 describe('NativeMessagingManager', () => {
   let manager: typeof import('../../../features/native-messaging/nativeMessagingManager.js').nativeMessagingManager
 
   beforeEach(async () => {
     vi.clearAllMocks()
     mockApp.isPackaged = false
-    mockFsStat.mockReset()
-    mockFsReaddir.mockReset()
-    mockFsCopyFile.mockReset()
     mockFsMkdir.mockReset()
     mockFsWriteFile.mockReset()
-    mockFsRm.mockReset()
+    mockFsReadFile.mockReset()
     mockCryptoRandomBytes.mockReset()
     mockServerListen.mockReset()
     mockServerOn.mockReset()
     mockServerClose.mockReset()
     mockServerRemoveAllListeners.mockReset()
     mockServerAddress.mockReset()
-    mockExecFile.mockReset()
-    mockExecFile.mockImplementation(
-      (
-        _cmd: string,
-        _args: string[],
-        cb: (err: unknown, stdout: string, stderr: string) => void
-      ) => {
-        cb(null, '', '')
-      }
-    )
 
     mockCryptoRandomBytes.mockReturnValue(Buffer.alloc(32, 0xab))
-    mockFsStat.mockRejectedValue(new Error('ENOENT'))
-    mockFsReaddir.mockResolvedValue([])
-    mockFsRm.mockResolvedValue(undefined)
     mockFsMkdir.mockResolvedValue(undefined)
     mockFsWriteFile.mockResolvedValue(undefined)
-    mockFsReadFile.mockReset()
-    mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
+    // A missing secret file: the manager generates one.
+    mockFsReadFile.mockRejectedValue(new Error('ENOENT'))
 
     const mod = await import('../../../features/native-messaging/nativeMessagingManager.js')
     manager = mod.nativeMessagingManager
+  })
+
+  afterEach(() => {
+    mockApp.isPackaged = false
+    manager.stopServer()
   })
 
   describe('getters', () => {
@@ -198,15 +130,15 @@ describe('NativeMessagingManager', () => {
       expect(manager.port).toBe(51999)
     })
 
-    it('sharedSecret returns a 64-char hex string', () => {
-      expect(manager.sharedSecret).toMatch(/^[\da-f]{64}$/)
+    it('getPairingCode returns a 64-char hex string', () => {
+      expect(manager.getPairingCode()).toMatch(/^[\da-f]{64}$/)
     })
 
-    it('getExtensionInfo returns disconnected state with new fields', () => {
+    it('getExtensionInfo returns disconnected state', () => {
       const info = manager.getExtensionInfo()
       expect(info).toEqual({
         status: 'disconnected',
-        installed: false,
+        paired: false,
         error: undefined,
         waitingSince: null,
         userHint: null
@@ -214,121 +146,47 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  describe('installExtension', () => {
-    beforeEach(() => {
-      mockFsStat.mockResolvedValue(undefined)
-      mockFsReaddir.mockResolvedValue([{ name: 'manifest.json', isDirectory: () => false }])
-    })
+  describe('initialize', () => {
+    it('persists a fresh secret when none exists', async () => {
+      await manager.initialize()
 
-    it('copies extension, writes bridge-info, copies path to clipboard', async () => {
-      const result = await manager.installExtension()
-
-      expect(result.success).toBe(true)
-      expect(result.installedPath).toMatch(/quizlab-session-extension$/)
-
-      expect(mockFsRm).toHaveBeenCalledWith(expect.stringMatching(/quizlab-session-extension$/), {
-        recursive: true,
-        force: true
-      })
-      expect(mockFsMkdir).toHaveBeenCalledWith(
-        expect.stringMatching(/quizlab-session-extension$/),
-        { recursive: true }
-      )
-      expect(mockFsCopyFile).toHaveBeenCalled()
-
-      expect(mockFsWriteFile).toHaveBeenCalledWith(
-        expect.stringContaining('chrome-bridge-info.json'),
-        expectedBridgeInfo(51999),
+      expect(mockFsReadFile).toHaveBeenCalledWith(
+        expect.stringContaining('bridge-secret.json'),
         'utf-8'
       )
-      expect(mockClipboardWrite).toHaveBeenCalledTimes(1)
-      expect(mockClipboardWrite.mock.calls[0][0]).toEqual([
-        { items: { 'text/plain': expect.stringMatching(/quizlab-session-extension$/) } }
-      ])
-      expect(manager.getExtensionInfo().installed).toBe(true)
-    })
-
-    it('still reports success when only the clipboard copy fails', async () => {
-      // The extension files, the bridge info and the native host manifest are
-      // already written and the host is registered by this point, so a
-      // clipboard failure must not turn a finished install into a failure.
-      mockClipboardWrite.mockRejectedValueOnce(new Error('clipboard locked'))
-
-      const result = await manager.installExtension()
-
-      expect(result.success).toBe(true)
-      expect(result.installedPath).toMatch(/quizlab-session-extension$/)
-      expect(mockClipboardWrite).toHaveBeenCalledTimes(1)
-    })
-
-    it('writes the shared secret into the installed extension package', async () => {
-      const result = await manager.installExtension()
-
-      expect(result.success).toBe(true)
-
-      const secretCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
+      const writeCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
         String(filePath).endsWith('bridge-secret.json')
       )
-      expect(secretCall).toBeDefined()
-      const content = JSON.parse(String(secretCall![1])) as { secret: string }
-      expect(content.secret).toBe(manager.sharedSecret)
-      expect(content.secret).toMatch(/^[\da-f]{64}$/)
+      expect(writeCall).toBeDefined()
+      expect(JSON.parse(String(writeCall![1]))).toEqual({ secret: manager.getPairingCode() })
+      expect(manager.getPairingCode()).toMatch(/^[\da-f]{64}$/)
     })
 
-    it('returns error when source extension missing', async () => {
-      mockFsStat.mockRejectedValue(new Error('ENOENT'))
+    it('reuses a persisted secret', async () => {
+      const persisted = 'a'.repeat(64)
+      mockFsReadFile.mockResolvedValue(JSON.stringify({ secret: persisted }))
 
-      const result = await manager.installExtension()
+      await manager.initialize()
 
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('Extension not found at')
+      expect(manager.getPairingCode()).toBe(persisted)
       expect(mockFsWriteFile).not.toHaveBeenCalled()
-      expect(mockClipboardWrite).not.toHaveBeenCalled()
     })
 
-    it('returns error when fs operation fails', async () => {
-      mockFsMkdir.mockRejectedValue(new Error('Disk full'))
+    it('starts the bridge server and enters the connecting state', async () => {
+      await manager.initialize()
 
-      const result = await manager.installExtension()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Disk full')
+      expect(mockCreateServer).toHaveBeenCalledTimes(1)
+      expect(mockServerListen).toHaveBeenCalledWith(51999, '127.0.0.1', expect.any(Function))
+      expect(manager.connectionStatus).toBe('connecting')
+      expect(manager.getExtensionInfo().waitingSince).toBeTypeOf('number')
+      expect(manager.getExtensionInfo().userHint).toBe('waiting')
     })
   })
 
-  describe('removeExtension', () => {
-    it('removes files and resets state', async () => {
-      const result = await manager.removeExtension()
-
-      expect(result.success).toBe(true)
-      expect(mockFsRm).toHaveBeenCalledWith(expect.stringContaining('chrome-bridge-info.json'), {
-        force: true
-      })
-      expect(mockFsRm).toHaveBeenCalledWith(expect.stringMatching(/quizlab-session-extension$/), {
-        recursive: true,
-        force: true
-      })
-      expect(manager.connectionStatus).toBe('disconnected')
-      expect(manager.getExtensionInfo().installed).toBe(false)
-    })
-
-    it('removes the persisted shared secret on uninstall', async () => {
-      const result = await manager.removeExtension()
-
-      expect(result.success).toBe(true)
-      expect(mockFsRm).toHaveBeenCalledWith(expect.stringContaining('bridge-secret.json'), {
-        force: true
-      })
-    })
-
-    it('returns error when fs.rm fails', async () => {
-      mockFsRm.mockRejectedValue(new Error('Access denied'))
-
-      const result = await manager.removeExtension()
-
-      expect(result.success).toBe(false)
-      expect(result.error).toBe('Access denied')
-      expect(manager.connectionStatus).toBe('disconnected')
+  describe('markExtensionPaired', () => {
+    it('reports a paired extension after a signed request', () => {
+      manager.markExtensionPaired()
+      expect(manager.getExtensionInfo().paired).toBe(true)
     })
   })
 
@@ -359,23 +217,10 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  // NOTE: the former `dispose > delegates to stopServer` test asserted only
-  // `connectionStatus === 'disconnected'`, which is the field's initial value,
-  // so it passed even with an empty dispose() body. The delegation itself is
-  // already covered by `stopServer` above.
-
   describe('bridge origin validation', () => {
-    // Verified key->ID pair (JSONView extension): the derived ID must be
-    // chklaanhfefbnpoihckbnefhakgolnmc per Chromium's id_util.
-    // This is a PUBLIC key (in the extension's manifest) — not a secret.
-    /* eslint-disable no-secrets/no-secrets */
-    const JSONVIEW_KEY =
-      'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCsTeRKuxevWiein7geQszhb8mHRpLByZbXX8tR0m1GPBkN8SN9xgo7NijAYAqa3H5rGuDmNZm2k7UzdlVfC5+gO6uf/rVOPx7kHJNQBQaBuWUEd4KHLWa3jOy+mllD72TwXNdtJJdX6TWf115SGHlLzZRg7S47dke6KTZI6O8gcQIDAQAB'
-    /* eslint-enable no-secrets/no-secrets */
+    const EXTENSION_ORIGIN = QUIZLAB_EXTENSION_ORIGIN
 
     beforeEach(async () => {
-      mockFsReadFile.mockResolvedValue(JSON.stringify({ key: JSONVIEW_KEY }))
-      mockFsStat.mockRejectedValue(new Error('ENOENT'))
       await manager.initialize()
     })
 
@@ -392,20 +237,14 @@ describe('NativeMessagingManager', () => {
       }
     }
 
-    it('derives the extension ID from the manifest key (verified against JSONView)', () => {
+    it('pins the expected origin to the release extension id', () => {
       const managerAny = manager as unknown as { _expectedExtensionOrigin: string | null }
-      const derived = managerAny._expectedExtensionOrigin
-      expect(derived).toBe('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
+      expect(managerAny._expectedExtensionOrigin).toBe(
+        'chrome-extension://follalbajmbjmkejipfikekdiodbkggp'
+      )
     })
 
-    // The dev and production policies were previously asserted by two
-    // near-identical tests each. `isPackaged` is the only switch between them,
-    // so every origin case is now a single row driven twice.
     const PACKAGED = [false, true]
-
-    afterEach(() => {
-      mockApp.isPackaged = false
-    })
 
     function requestHealth(origin: string | undefined): ReturnType<typeof fakeRes> {
       const handler = getRequestHandler()
@@ -421,44 +260,28 @@ describe('NativeMessagingManager', () => {
       return res
     }
 
-    it('does not serve the secret to a packaged app', () => {
-      mockApp.isPackaged = true
-      const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
+    it.each(PACKAGED)('never serves the pairing code over HTTP (packaged=%s)', (packaged) => {
+      mockApp.isPackaged = packaged
+      const res = requestHealth(EXTENSION_ORIGIN)
       expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
       expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-    })
-
-    it('serves the secret only as the development escape hatch', () => {
-      mockApp.isPackaged = false
-      const res = requestHealth('chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc')
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeTypeOf('string')
     })
 
     it.each(PACKAGED)('rejects arbitrary website origins (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged
       const res = requestHealth('https://evil.example.com')
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
 
     it.each(PACKAGED)('rejects requests with no Origin header (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged
       const res = requestHealth(undefined)
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
 
     it.each(PACKAGED)('rejects localhost origins on any other port (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged
       const res = requestHealth('http://localhost:9999')
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
-    })
-
-    it.each(PACKAGED)('rejects a non-localhost loopback origin (packaged=%s)', (packaged) => {
-      mockApp.isPackaged = packaged
-      const res = requestHealth('http://127.0.0.1:5173')
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
     })
 
@@ -472,10 +295,7 @@ describe('NativeMessagingManager', () => {
       mockApp.isPackaged = true
       const res = requestHealth('http://localhost:5173')
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-      expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
-
-    // CORS headers (never a wildcard; OPTIONS obeys the origin policy).
 
     describe('CORS headers', () => {
       function acaoValues(res: ReturnType<typeof fakeRes>) {
@@ -491,12 +311,12 @@ describe('NativeMessagingManager', () => {
           {
             method: 'GET',
             url: '/api/health',
-            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+            headers: { origin: EXTENSION_ORIGIN }
           },
           res
         )
         expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
-        expect(acaoValues(res)).toEqual(['chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc'])
+        expect(acaoValues(res)).toEqual([EXTENSION_ORIGIN])
         expect(res.setHeader.mock.calls.flat()).not.toContain('*')
       })
 
@@ -522,12 +342,12 @@ describe('NativeMessagingManager', () => {
           {
             method: 'OPTIONS',
             url: '/api/health',
-            headers: { origin: 'chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc' }
+            headers: { origin: EXTENSION_ORIGIN }
           },
           res
         )
         expect(res.writeHead).toHaveBeenCalledWith(204)
-        expect(acaoValues(res)).toEqual(['chrome-extension://chklaanhfefbnpoihckbnefhakgolnmc'])
+        expect(acaoValues(res)).toEqual([EXTENSION_ORIGIN])
       })
 
       it('rejects OPTIONS preflights from disallowed origins with 403', () => {
@@ -563,24 +383,19 @@ describe('NativeMessagingManager', () => {
   })
 
   describe('the liveness of the extension', () => {
-    const EXTENSION_ORIGIN = 'chrome-extension://quizlab-liveness-extension'
-
     beforeEach(async () => {
-      // The manager is a singleton: the state of a previous test has to go
-      // before the next one looks at it.
       const state = manager as unknown as {
         _connectionStatus: string
         _waitingSince: number | null
         _extensionLastSeenAt: number
-        _expectedExtensionOrigin: string | null
       }
       state._connectionStatus = 'connecting'
       state._waitingSince = Date.now()
       state._extensionLastSeenAt = 0
-      mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
-      mockFsStat.mockRejectedValue(new Error('ENOENT'))
       await manager.initialize()
-      state._expectedExtensionOrigin = EXTENSION_ORIGIN
+      ;(
+        manager as unknown as { _expectedExtensionOrigin: string | null }
+      )._expectedExtensionOrigin = QUIZLAB_EXTENSION_ORIGIN
     })
 
     function request(url: string, origin: string | undefined) {
@@ -599,20 +414,9 @@ describe('NativeMessagingManager', () => {
     }
 
     it('marks the extension as connected when a request comes from its origin', () => {
-      // The extension pushes a packet only when something changed, so the
-      // requests of its poll are the only proof that it is alive. Without
-      // them the app would say "the extension is not installed" to an
-      // extension that is running perfectly.
       expect(manager.connectionStatus).toBe('connecting')
 
-      request('/api/health', EXTENSION_ORIGIN)
-
-      expect(manager.connectionStatus).toBe('connected')
-    })
-
-    it('keeps the extension connected while it asks for the site list', () => {
-      request('/api/health', EXTENSION_ORIGIN)
-      request('/api/sites', EXTENSION_ORIGIN)
+      request('/api/health', QUIZLAB_EXTENSION_ORIGIN)
 
       expect(manager.connectionStatus).toBe('connected')
     })
@@ -624,47 +428,15 @@ describe('NativeMessagingManager', () => {
     })
   })
 
-  describe('getExtensionInfo new fields', () => {
-    it('sets waitingSince after initialize (connecting state)', async () => {
-      await manager.initialize()
-      const info = manager.getExtensionInfo()
-      expect(info.waitingSince).toBeTypeOf('number')
-      expect(info.waitingSince).toBeGreaterThan(0)
-    })
-
-    it('returns userHint when bridge info exists and status is connecting', async () => {
-      mockFsStat.mockResolvedValue(undefined)
-      await manager.initialize()
-      const info = manager.getExtensionInfo()
-      expect(info.installed).toBe(true)
-      expect(info.userHint).toBe('waiting')
-    })
-
-    it('returns userHint null when extension is not installed', async () => {
-      // mockFsStat is already set to reject (no bridge info)
-      await manager.initialize()
-      const info = manager.getExtensionInfo()
-      expect(info.installed).toBe(false)
-      expect(info.userHint).toBeNull()
-    })
-  })
-
   describe('the protocol version of the extension', () => {
-    const EXTENSION_ORIGIN = 'chrome-extension://quizlab-test-extension'
-
     beforeEach(async () => {
-      // The manager is a singleton: the version of a previous test has to go
-      // before the next one looks at it.
       ;(
         manager as unknown as { _extensionProtocolVersion: number | null }
       )._extensionProtocolVersion = null
-      mockFsReadFile.mockResolvedValue('{"key": "placeholder"}')
-      mockFsStat.mockRejectedValue(new Error('ENOENT'))
       await manager.initialize()
-      // The request has to carry the origin the manager expects.
       ;(
         manager as unknown as { _expectedExtensionOrigin: string | null }
-      )._expectedExtensionOrigin = EXTENSION_ORIGIN
+      )._expectedExtensionOrigin = QUIZLAB_EXTENSION_ORIGIN
     })
 
     function requestHealth(version?: string) {
@@ -676,7 +448,7 @@ describe('NativeMessagingManager', () => {
           method: 'GET',
           url: '/api/health',
           headers: {
-            origin: EXTENSION_ORIGIN,
+            origin: QUIZLAB_EXTENSION_ORIGIN,
             ...(version === undefined ? {} : { 'x-protocol-version': version })
           }
         },
@@ -699,14 +471,12 @@ describe('NativeMessagingManager', () => {
       expect(manager.getExtensionProtocolVersion()).toBeNull()
     })
 
-    it('forgets the version when the extension is removed', async () => {
+    it('forgets the version when the bridge stops', () => {
       requestHealth('2')
       expect(manager.getExtensionProtocolVersion()).toBe(2)
 
-      await manager.removeExtension()
+      manager.stopServer()
 
-      // A version that outlived its extension would tell the settings page
-      // that an extension is ready while none is talking to the app.
       expect(manager.getExtensionProtocolVersion()).toBeNull()
     })
   })

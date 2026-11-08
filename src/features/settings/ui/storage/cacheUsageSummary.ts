@@ -43,7 +43,6 @@ export function groupPartitionCacheRows(
   for (const row of rows) {
     const key = row.key
       .replace(/^persist:/, '')
-      .replace(/_slot_\d+$/, '')
       .replace(/_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, '')
     const group = groups.get(key)
     if (group) {

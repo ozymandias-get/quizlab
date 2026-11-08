@@ -38,7 +38,6 @@
   "storage_category_active": "Active",
   "storage_services_count": "AI caches ({count})",
   "storage_profiles_count": "{count} profile caches",
-  "storage_google_profile": "Gemini Web · Profile",
   "storage_other_profile": "Other profile",
   "storage_category_cold": "Cold",
   "storage_category_passive": "Idle",

@@ -221,13 +221,5 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         tab.id === tabId ? { ...tab, title: normalizedTitle } : tab
       )
     }))
-  },
-
-  setPdfTabSessionSlot: (tabId, slot) => {
-    const targetTab = get().pdfTabs.find((tab) => tab.id === tabId)
-    if (!targetTab || targetTab.sessionSlot === slot) return
-    set((state) => ({
-      pdfTabs: state.pdfTabs.map((tab) => (tab.id === tabId ? { ...tab, sessionSlot: slot } : tab))
-    }))
   }
 }))

@@ -20,16 +20,8 @@ export type SiteSessionStatusCode =
   | 'no_cookies_in_browser'
   | 'imported'
   | 'import_failed'
-  | 'session_unverified'
   | 'manual_session'
   | 'signed_out'
-
-/** Display-only label for one discovered Google account. */
-export interface SiteSessionGoogleAccount {
-  slot: number
-  /** Local-render email for the label; absent when Google offers none. */
-  email?: string
-}
 
 /** One row of the settings list: everything the renderer needs to draw a site. */
 export interface SiteSessionView {
@@ -45,12 +37,6 @@ export interface SiteSessionView {
   /** ISO timestamp of the last successful import, or null. */
   importedAt: string | null
   lastError: string | null
-  /** Currently active account slot (1 = default, 2 = secondary). */
-  activeSlot?: number
-  /** Discovered Google account positions; absent when discovery is unavailable. */
-  accountSlots?: number[]
-  /** Display-only account labels for the Google family; absent otherwise. */
-  accounts?: SiteSessionGoogleAccount[]
 }
 
 /**
@@ -94,14 +80,6 @@ export interface SiteSessionListResult {
  *   - `unknown_target`: the app does not know the site the action was for
  *   - `write_failed`: the switch could not be written; nothing else happened
  *   - `wipe_failed`: the session could not be cleared; the switch was not touched
- *   - `account_discovery_unavailable`: the Google account list could not be read;
- *     the slot was not changed
- *   - `import_failed`: preparing the selected Google account failed; the old
- *     selection is still active
- *   - `account_not_ready`: the selected account has no usable session to
- *     prepare; the old selection is still active
- *   - `session_restore_failed`: the previous session could not be restored
- *     after a failed import; the partition must be prepared again
  *   - `flush_failed`: the cookies reached the session but could not be
  *     flushed to disk
  *   - `switch_off_wipe_failed`: the switch was written, the session could not

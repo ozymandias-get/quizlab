@@ -71,7 +71,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     addTab,
     closeTab,
     setActiveTab,
-    setTabSessionSlot,
     renameTab,
     togglePinTab,
     setCurrentAI
@@ -177,7 +176,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     addTab,
     handleCloseTab,
     setActiveTab,
-    setTabSessionSlot,
     openAiWorkspace,
     renameTab,
     togglePinTab,

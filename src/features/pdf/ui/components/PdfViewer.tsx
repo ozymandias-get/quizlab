@@ -117,7 +117,6 @@ function PdfViewer({
         <GoogleDrivePanel
           tabId={activePdfTab.id}
           webviewUrl={activePdfTab.webviewUrl || GOOGLE_DRIVE_WEB_APP.url}
-          sessionSlot={activePdfTab.sessionSlot}
           title={GOOGLE_DRIVE_WEB_APP.name}
           description={t('gdrive_pdf_desc')}
           reloadLabel={t('ctx_reload')}

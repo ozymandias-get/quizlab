@@ -31,22 +31,21 @@ const HEALTH_PATH = '/api/health'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
 /**
- * The file the app writes into the extension package at install time.
+ * The pairing code the user copies from the app's settings page.
  *
- * The shared secret must not be fetched over HTTP: any local process can send
- * an `Origin` header. The extension reads the copy next to its manifest
- * instead, which requires access to the app's user data.
+ * It is stored in `chrome.storage.local` by the popup and read by this worker.
+ * The code is never fetched over HTTP: any local process can send an `Origin`
+ * header, so the shared secret only travels by the user's copy/paste.
  */
-const SECRET_FILE = 'bridge-secret.json'
 const STORAGE_KEYS = [
   'bridgeSecret',
   'lastConfigVersion',
   'knownTargets',
   'bridgePort',
+  'bridgeInstanceId',
   'pendingSiteIds',
   'outdatedState',
-  'tooLargeSiteIds',
-  'profileSlot'
+  'tooLargeSiteIds'
 ]
 
 /** The sync with the app went through. */
@@ -81,8 +80,6 @@ let pendingSiteIds = new Set()
 let tooLargeSiteIds = new Set()
 /** The state the app was last told about while it speaks an older protocol. */
 let outdatedState = null
-/** The profile slot this Chrome profile syncs to (1 = default, 2 = secondary). */
-let profileSlot = 1
 let autoSync = true
 /** What the last push sent, so that the same state is not sent twice. */
 let lastPush = null
@@ -176,6 +173,12 @@ async function readPersistedState() {
     if (typeof stored.bridgePort === 'number') {
       bridgePort = stored.bridgePort
     }
+    // The running bridge this worker last talked to. Without this, every
+    // service-worker restart looks like a brand-new bridge and re-pushes every
+    // session, even though the app never changed.
+    if (typeof stored.bridgeInstanceId === 'string') {
+      bridgeInstanceId = stored.bridgeInstanceId
+    }
     if (Array.isArray(stored.pendingSiteIds)) {
       pendingSiteIds = new Set(stored.pendingSiteIds.filter((id) => typeof id === 'string'))
     }
@@ -188,11 +191,14 @@ async function readPersistedState() {
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
   }
-  // Preferences survive browser restarts; transient bridge state does not.
+  // Preferences and the pairing code survive browser restarts; transient
+  // bridge state does not.
   try {
-    const preferences = await chrome.storage.local.get(['profileSlot', 'autoSync'])
-    profileSlot = preferences.profileSlot === 2 ? 2 : 1
+    const preferences = await chrome.storage.local.get(['autoSync', 'bridgeSecret'])
     autoSync = preferences.autoSync !== false
+    if (typeof preferences.bridgeSecret === 'string' && preferences.bridgeSecret) {
+      bridgeSecret = preferences.bridgeSecret
+    }
   } catch {}
   // The wake-up listens for the sites of the saved list until the app names
   // its own list.
@@ -214,9 +220,9 @@ const stateReady = readPersistedState()
 /**
  * Asks the app which sites it wants cookies for.
  *
- * The answer is signed like every other request: the extension reads its
- * secret from `bridge-secret.json` in its own package, and the site list is
- * only given to a caller that proves it holds that secret.
+ * The answer is signed like every other request: the extension reads the
+ * pairing code the user pasted into the popup, and the site list is only
+ * given to a caller that proves it holds that code.
  */
 async function fetchSiteList(port) {
   try {
@@ -296,39 +302,27 @@ async function fetchHealth(port) {
   }
 }
 
+/** Whether a value looks like the pairing code the app shows. */
+function isPairingCode(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value.trim())
+}
+
 /**
- * The secret the app wrote into the extension package at install time.
+ * Stores the code the user pasted into the popup.
  *
- * A missing file means the extension was loaded straight from the source tree;
- * there the app's development health response still carries the secret so the
- * flow stays usable.
+ * The local store keeps it across browser restarts; the session store keeps
+ * the running worker's quick copy. The app's site list is only readable with
+ * this code.
  */
-async function readBundledSecret() {
-  try {
-    if (!chrome.runtime || typeof chrome.runtime.getURL !== 'function') return null
-    const response = await fetch(chrome.runtime.getURL(SECRET_FILE), { cache: 'no-store' })
-    if (!response.ok) return null
-    const data = await response.json()
-    return typeof data.secret === 'string' && data.secret ? data.secret : null
-  } catch {
-    return null
-  }
-}
-
-async function ensureBridgeSecret(health, force = false) {
-  if (bridgeSecret && !force) return true
-  const secret =
-    (await readBundledSecret()) ||
-    (health && typeof health.secret === 'string' ? health.secret : null)
-  if (!secret) return bridgeSecret !== null
-  await rememberSecret(secret)
-  return true
-}
-
 async function rememberSecret(secret) {
   if (secret === bridgeSecret) return
   bridgeSecret = secret
   await persistState({ bridgeSecret: secret })
+  try {
+    await chrome.storage.local.set({ bridgeSecret: secret })
+  } catch (error) {
+    console.warn('[Quizlab Bridge] The pairing code could not be saved:', errorMessage(error))
+  }
 }
 
 /** The identity of a cookie: host, name, path and scope. */
@@ -453,11 +447,10 @@ function normalizeCookie(cookie) {
  * some of its cookies were read: the app would otherwise import the session it
  * could see and delete the cookies of the domain it could not.
  */
-async function collectTargetPacket(target, slot = 1) {
-  if (target.siteId !== 'google') slot = 1
+async function collectTargetPacket(target) {
   // New catalogue sites need an explicit optional grant before any cookie read.
   if (!(await hasPermission(target.cookieDomains))) {
-    return { targetId: target.siteId, status: 'permission_missing', cookies: [], profileSlot: slot }
+    return { targetId: target.siteId, status: 'permission_missing', cookies: [] }
   }
   const collected = new Map()
   for (const domain of target.cookieDomains) {
@@ -474,17 +467,16 @@ async function collectTargetPacket(target, slot = 1) {
   const cookies = [...collected.values()]
   const permitted = await hasPermission(target.cookieDomains)
   if (!permitted) {
-    return { targetId: target.siteId, status: 'permission_missing', cookies: [], profileSlot: slot }
+    return { targetId: target.siteId, status: 'permission_missing', cookies: [] }
   }
   if (cookies.length > 0) {
     return {
       targetId: target.siteId,
       status: 'ok',
-      cookies: cookies.map(normalizeCookie),
-      profileSlot: slot
+      cookies: cookies.map(normalizeCookie)
     }
   }
-  return { targetId: target.siteId, status: 'no_cookies', cookies: [], profileSlot: slot }
+  return { targetId: target.siteId, status: 'no_cookies', cookies: [] }
 }
 
 /**
@@ -586,7 +578,7 @@ function isKnownDomain(domain) {
 function statePushedTo(list, fingerprint) {
   return (
     lastPush !== null &&
-    lastPush.secret === bridgeSecret &&
+    lastPush.instanceId === bridgeInstanceId &&
     lastPush.configVersion === list.configVersion &&
     lastPush.fingerprint === fingerprint
   )
@@ -603,13 +595,13 @@ function statePushedTo(list, fingerprint) {
  * other way round: it is not pushed again, because a packet that is too large
  * stays too large.
  */
-async function pushTargets(targets, port, slot = 1) {
+async function pushTargets(targets, port) {
   let refused = false
   for (const target of targets) {
     if (tooLargeSiteIds.has(target.siteId)) continue
     let packet
     try {
-      packet = await collectTargetPacket(target, slot)
+      packet = await collectTargetPacket(target)
     } catch {
       // Retain the site for the next poll, but keep syncing the other sites.
       pendingSiteIds.add(target.siteId)
@@ -690,19 +682,17 @@ async function sendCookiesToApp(options) {
   const settings = options || {}
   await stateReady
   if (settings.forceAll === true) {
-    profileSlot = settings.slot === 2 ? 2 : 1
     autoSync = false
-    await chrome.storage.local.set({ profileSlot, autoSync })
+    await chrome.storage.local.set({ autoSync })
     pendingSiteIds.clear()
   }
 
   const port = typeof settings.port === 'number' ? settings.port : bridgePort
   if (!port) return SYNC_UNREACHABLE
 
-  if (!bridgeSecret) {
-    const health = await fetchHealth(port)
-    if (!health || !(await ensureBridgeSecret(health))) return SYNC_UNREACHABLE
-  }
+  // Without the pairing code the site list is signed wrong and refused; the
+  // popup is where the user enters it.
+  if (!bridgeSecret) return SYNC_UNREACHABLE
 
   const list = await fetchSiteList(port)
   if (!list) return SYNC_UNREACHABLE
@@ -788,7 +778,7 @@ async function sendCookiesToApp(options) {
     return SYNC_OK
   }
 
-  const refused = await pushTargets(targets, port, settings.slot === 2 ? 2 : 1)
+  const refused = await pushTargets(targets, port)
   if (changed) {
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
@@ -796,7 +786,7 @@ async function sendCookiesToApp(options) {
   }
   if (!refused && targets.length === list.targets.length) {
     // The whole state reached the bridge: it does not have to be sent again.
-    lastPush = { secret: bridgeSecret, configVersion: list.configVersion, fingerprint }
+    lastPush = { instanceId: bridgeInstanceId, configVersion: list.configVersion, fingerprint }
   }
   await persistState({
     lastConfigVersion,
@@ -846,9 +836,12 @@ async function scanForBridge() {
     for (let port = PORT_START; port <= PORT_END; port++) {
       const health = await fetchHealth(port)
       if (!health) continue
-      // Reload the packaged secret on every scan: reinstalling the app may
-      // have replaced the file while this worker kept the old copy in memory.
-      if (!(await ensureBridgeSecret(health, true))) continue
+      if (!bridgeSecret) {
+        // The bridge is there, but the extension is not paired yet. Staying in
+        // scan mode keeps the popup's pairing action the only way forward.
+        enterScanMode()
+        return SYNC_UNREACHABLE
+      }
 
       // The instance id identifies the running bridge: a bridge that answers
       // with another id is a new one, and the app may have lost its session in
@@ -859,7 +852,7 @@ async function scanForBridge() {
       if (typeof health.instanceId === 'string') bridgeInstanceId = health.instanceId
       bridgePort = port
       connected = true
-      await persistState({ bridgePort: port })
+      await persistState({ bridgePort: port, bridgeInstanceId })
 
       const result = await queueSend({ port, connect: justConnected })
       if (result === SYNC_UNREACHABLE) {
@@ -869,16 +862,18 @@ async function scanForBridge() {
       } else {
         setupHeartbeat()
       }
-      return
+      return result
     }
 
     // Bridge not found — enter scan mode if not already scanning.
     if (!connected) {
       enterScanMode()
     }
+    return SYNC_UNREACHABLE
   } catch (error) {
     console.warn('[Quizlab Bridge] The bridge scan failed:', errorMessage(error))
     if (!connected) enterScanMode()
+    return SYNC_UNREACHABLE
   }
 }
 
@@ -1002,13 +997,43 @@ if (chrome.runtime?.onMessage?.addListener) {
       return true
     }
     if (message?.type === 'sync_now') {
-      if (message.slot !== 1 && message.slot !== 2) {
-        sendResponse({ success: false, result: 'invalid_slot' })
-        return
-      }
-      queueSend({ forceAll: true, slot: message.slot, targetId: message.targetId })
+      queueSend({ forceAll: true, targetId: message.targetId })
         .then((result) => sendResponse({ success: result === SYNC_OK, result, autoSync }))
         .catch((error) => sendResponse({ success: false, error: errorMessage(error), autoSync }))
+      return true
+    }
+    if (message?.type === 'pair') {
+      const code = typeof message.secret === 'string' ? message.secret.trim().toLowerCase() : ''
+      if (!isPairingCode(code)) {
+        sendResponse({ success: false, error: 'invalid_code' })
+        return false
+      }
+      stateReady
+        .then(async () => {
+          // The code is tried in memory first. A wrong code must not replace
+          // the working one or survive in the storage, so it is only saved
+          // after the app accepted it.
+          const previousSecret = bridgeSecret
+          const previousInstanceId = bridgeInstanceId
+          bridgeInstanceId = null
+          bridgeSecret = code
+          const result = await scanForBridge()
+          if (result === SYNC_UNREACHABLE) {
+            bridgeSecret = previousSecret
+            bridgeInstanceId = previousInstanceId
+            return false
+          }
+          bridgeSecret = previousSecret
+          await rememberSecret(code)
+          return true
+        })
+        .then(
+          (paired) =>
+            sendResponse(
+              paired ? { success: true } : { success: false, error: 'bridge_unreachable' }
+            ),
+          (error) => sendResponse({ success: false, error: errorMessage(error) })
+        )
       return true
     }
   })

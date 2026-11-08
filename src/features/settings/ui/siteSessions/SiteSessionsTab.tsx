@@ -2,9 +2,9 @@ import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { GlobeIcon, XIcon } from '@ui/components/Icons'
 
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 
-import { ExtensionStatusCard, ExtensionWizardPanel } from './components'
+import { ExtensionPairingDialog, ExtensionStatusCard } from './components'
 import SiteSessionList from './SiteSessionList'
 import SiteSessionRiskNotice from './SiteSessionRiskNotice'
 import { useSiteSessionsState } from './useSiteSessionsState'
@@ -29,56 +29,28 @@ const SiteSessionsTab = memo(() => {
     isBusy,
     canClearAll,
     onToggle,
-    onSelectSlot,
     onClearAll,
     onRetryFailedClear,
     failedClearSites,
     confirmProps,
     riskItems,
     mitigationItems,
-    wizardOpen,
-    wizardMode,
-    openWizard,
-    closeWizard,
-    installExtension,
-    removeExtension
+    pairingOpen,
+    openPairing,
+    closePairing
   } = useSiteSessionsState()
-
-  const handleInstall = useCallback(async () => {
-    const result = await installExtension()
-    return result ?? { success: false, error: t('error_unknown_error') }
-  }, [installExtension, t])
-
-  const handleRemove = useCallback(async () => {
-    const result = await removeExtension()
-    return result ?? { success: false, error: t('error_unknown_error') }
-  }, [removeExtension, t])
 
   return (
     <div className="space-y-6 pb-4">
       <SettingsTabIntro icon={SITE_SESSIONS_ICON} description={t('ws_settings_desc')} />
 
-      <ExtensionStatusCard
-        t={t}
-        onInstallExtension={() => openWizard('install')}
-        onRemoveExtension={() => openWizard('remove')}
-      />
+      <ExtensionStatusCard t={t} onShowPairing={openPairing} />
 
       <SiteSessionRiskNotice t={t} riskItems={riskItems} mitigationItems={mitigationItems} />
 
       <p className="text-ql-12 text-muted-foreground leading-relaxed">{t('ws_toggle_hint')}</p>
 
-      <p className="text-ql-12 text-muted-foreground leading-relaxed">
-        {t('ws_multi_session_note')}
-      </p>
-
-      <SiteSessionList
-        views={views}
-        disabled={isBusy}
-        onToggle={onToggle}
-        onSelectSlot={onSelectSlot}
-        t={t}
-      />
+      <SiteSessionList views={views} disabled={isBusy} onToggle={onToggle} t={t} />
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-start">
@@ -122,18 +94,7 @@ const SiteSessionsTab = memo(() => {
         )}
       </div>
 
-      {wizardOpen && wizardMode && (
-        <ExtensionWizardPanel
-          open={wizardOpen}
-          mode={wizardMode}
-          riskItems={riskItems}
-          mitigationItems={mitigationItems}
-          installedPath={null}
-          onInstall={handleInstall}
-          onRemove={handleRemove}
-          onClose={closeWizard}
-        />
-      )}
+      <ExtensionPairingDialog open={pairingOpen} onClose={closePairing} />
 
       <ConfirmDialog {...confirmProps} />
     </div>

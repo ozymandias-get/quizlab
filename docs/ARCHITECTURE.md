@@ -711,9 +711,12 @@ before it writes a cookie. The renderer reaches the feature through
 `src/platform/electron/api/useSiteSessionApi.ts` and renders it in
 `src/features/settings/ui/siteSessions/`.
 
-The extension pushes a packet only when something changed, so the app learns
-that it is alive from the requests themselves: a request from the paired
-extension's origin marks the bridge as connected.
+The extension is installed separately and paired by pasting the code from
+Settings into its popup. The code is the HMAC secret; it is stored in
+`chrome.storage.local` and never served over HTTP. The extension pushes a
+packet only when something changed, so the app learns that it is alive from
+the requests themselves: a request from the pinned extension origin marks the
+bridge as connected, and a valid signature marks it as paired.
 
 The site list request opens a **round**: the packets that follow it belong to
 that round and share its target list, so a round with N sites reads the list
@@ -813,7 +816,8 @@ The `pdfjsAssets()` plugin serves/stages the PDF.js assets (§E.11).
 ### G.3 Packaging — electron-builder
 
 The `build` block in `package.json:53`: `appId com.quizlab.reader`,
-`files: ["dist/**/*"]`, icons and `extensions/` as `extraResources`, output to
+`files: ["dist/**/*"]`, icons as `extraResources` (the Chrome extension is a
+separate release asset), output to
 `release/`, publish to GitHub Releases. Targets: NSIS x64 (per-user,
 `requestedExecutionLevel: asInvoker`), dmg/zip for macOS, AppImage/deb for
 Linux; `npmRebuild: false`. Install-time customisation is in

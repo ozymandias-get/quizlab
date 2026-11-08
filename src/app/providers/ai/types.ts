@@ -39,14 +39,12 @@ import type { PdfSourceMeta } from './pdfSource'
 export interface PinnedTabStorage {
   id: string
   modelId: string
-  sessionSlot?: number
   title?: string
 }
 
 export interface Tab {
   id: string
   modelId: string
-  sessionSlot?: number
   title?: string
   pinned?: boolean
 }
@@ -128,7 +126,6 @@ interface AiContextActions {
   addTab: (modelId: string) => void
   closeTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
-  setTabSessionSlot: (tabId: string, slot: number) => void
   openAiWorkspace: (modelId: string) => void
   renameTab: (tabId: string, title?: string) => void
   togglePinTab: (tabId: string) => void
@@ -146,7 +143,7 @@ interface AiContextActions {
   ) => void
   /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron content.reload). */
   reloadActiveContent: () => void
-  /** Aktif sekmedeki AI web görünümünü sıfırdan yeniden oluşturur (partition/slot değişimi). */
+  /** Aktif sekmedeki AI web görünümünü sıfırdan yeniden oluşturur (partition değişimi). */
   recreateActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
@@ -177,13 +174,7 @@ export type AiCoreWorkspaceActions = Omit<
 
 export type AiTabActions = Pick<
   AiContextActions,
-  | 'addTab'
-  | 'closeTab'
-  | 'setActiveTab'
-  | 'openAiWorkspace'
-  | 'renameTab'
-  | 'togglePinTab'
-  | 'setTabSessionSlot'
+  'addTab' | 'closeTab' | 'setActiveTab' | 'openAiWorkspace' | 'renameTab' | 'togglePinTab'
 >
 
 export type AiModelActions = Pick<

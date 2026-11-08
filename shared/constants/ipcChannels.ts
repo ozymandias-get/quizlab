@@ -55,7 +55,6 @@ export const IPC_CHANNELS = {
   SITE_SESSION_LIST: 'site-session-list',
   SITE_SESSION_SET_ENABLED: 'site-session-set-enabled',
   SITE_SESSION_CLEAR: 'site-session-clear',
-  SITE_SESSION_SET_ACTIVE_SLOT: 'site-session-set-active-slot',
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',
@@ -69,10 +68,9 @@ export const IPC_CHANNELS = {
   GET_APP_SETTINGS: 'get-app-settings',
   SAVE_APP_SETTINGS: 'save-app-settings',
 
-  // Native Messaging (Chrome Extension auth)
+  // Native Messaging (Chrome Extension pairing)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
-  NATIVE_MESSAGING_INSTALL_EXTENSION: 'native-messaging-install-extension',
-  NATIVE_MESSAGING_REMOVE_EXTENSION: 'native-messaging-remove-extension',
+  NATIVE_MESSAGING_PAIRING_CODE: 'native-messaging-pairing-code',
   NATIVE_MESSAGING_EXTENSION_CONNECTED: 'native-messaging-extension-connected',
   NATIVE_MESSAGING_EXTENSION_DISCONNECTED: 'native-messaging-extension-disconnected',
 

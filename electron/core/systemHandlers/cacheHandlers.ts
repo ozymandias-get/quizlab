@@ -8,7 +8,6 @@
  */
 import { app, session } from 'electron'
 
-import { googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
@@ -107,18 +106,6 @@ export function registerCacheHandlers(): void {
 
         const userDataPath = app.getPath('userData')
         const targetPartitions = new Set<string>([partition])
-        if (!cacheOnly && googleSlotForPartition(partition) !== null) {
-          const stored = await getStoredPartitions(userDataPath)
-          for (const storedPartition of stored) {
-            if (googleSlotForPartition(storedPartition) !== null) {
-              if (isProtectedPartition(storedPartition)) {
-                logProtectedPartitionSkip('CLEAR_AI_MODEL_DATA', storedPartition)
-                return success(false)
-              }
-              targetPartitions.add(storedPartition)
-            }
-          }
-        }
 
         for (const targetPartition of targetPartitions) {
           const pSession = session.fromPartition(targetPartition)

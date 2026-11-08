@@ -8,8 +8,16 @@
  */
 import StorageTab from '@features/settings/ui/StorageTab'
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { TooltipProvider } from '@shared/ui/components/primitives'
+
+import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+/** The partition rows use tooltips, so the provider has to wrap every render. */
+function render(ui: ReactElement) {
+  return rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
+}
 
 const {
   clearCache,

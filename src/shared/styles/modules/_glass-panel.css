@@ -83,5 +83,7 @@
 .glass-tier-1.panel-3d-left,
 .glass-tier-1.panel-3d-right {
   box-shadow: var(--shadow-ambient-md);
-  background-color: oklch(var(--card));
+  /* Both side panels share the PDF workspace surface color so the two halves
+     read as one continuous canvas. */
+  background-color: oklch(var(--background));
 }

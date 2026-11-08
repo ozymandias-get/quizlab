@@ -634,7 +634,10 @@ describe('aiAutosendReliability', () => {
           </form>
         </main>
       `
-      document.getElementById('send')?.addEventListener('click', () => {
+      document.getElementById('send')?.addEventListener('click', (event) => {
+        // SPA composer'ları formu tarayıcıya göndertmez; gönderimi kendi
+        // JavaScript'i yönetir. jsdom'a da gezinme denemesi yaptırmayız.
+        event.preventDefault()
         // Gerçek davranış: mesaj konuşmaya eklenir ve React composer düğümünü
         // YENİLER. Parmakizin tuttuğu `inputElement` referansı eski ( kopmuş )
         // düğümde kalır ve içindeki metin DONAR — yani "metin değişti" sinyali

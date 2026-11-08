@@ -274,6 +274,13 @@ jobs:
       - name: List downloaded files
         run: find artifacts -type f
 
+      # The Chrome extension is not bundled into the app. It is shipped as its
+      # own zip so the user can download it, unzip it and load it unpacked.
+      - name: Package Chrome extension
+        run: |
+          cd extensions
+          zip -r ../artifacts/quizlab-session-extension.zip quizlab-session-extension
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
@@ -289,6 +296,11 @@ jobs:
             **Windows:** `QuizLab-Setup-*-x64.exe` — run the installer (per-user, no admin required).
 
             **Linux:** `*.AppImage` (run directly) or `*.deb` (install with dpkg).
+
+            **Chrome extension:** `quizlab-session-extension.zip` — unzip it, open
+            `chrome://extensions`, enable Developer mode, choose **Load unpacked**
+            and select the unzipped folder. Pair it with the code shown in
+            **Settings → Site Sessions**.
 
             ### Core Features
             - **Embedded AI panels** (ChatGPT, Gemini, Claude, and more)

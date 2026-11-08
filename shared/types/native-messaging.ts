@@ -2,7 +2,14 @@ export type NativeMessagingConnectionStatus = 'disconnected' | 'connecting' | 'c
 
 export interface NativeMessagingExtensionInfo {
   status: NativeMessagingConnectionStatus
-  installed: boolean
+  /**
+   * Whether the extension has proved that it holds the pairing code.
+   *
+   * A separately installed extension can reach the health endpoint with its
+   * pinned origin before it is paired. Only a signed request proves that the
+   * user paired it, and only a paired extension can import sessions.
+   */
+  paired: boolean
   error?: string
   /** Timestamp (ms) when the connecting state began, or null. */
   waitingSince: number | null

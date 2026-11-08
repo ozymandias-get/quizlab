@@ -174,7 +174,7 @@ function collectAllPartitionKeys(): Set<string> {
     if (p.partition) keys.add(p.partition.replace('persist:', ''))
   }
 
-  // 4. Dinamik (çoklu hesap yuvası veya özel platform) aktif partition'lar
+  // 4. Dinamik (özel platform) aktif partition'lar
   for (const key of partitionActivity.keys()) {
     keys.add(key)
   }

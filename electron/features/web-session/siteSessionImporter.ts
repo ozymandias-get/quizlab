@@ -93,13 +93,13 @@ function cookieKey(
 }
 
 /** The identity of a browser-reported cookie. */
-export function externalCookieKey(cookie: ExternalBrowserCookie): string {
+function externalCookieKey(cookie: ExternalBrowserCookie): string {
   const domain = normalizeCookieDomain(cookie.domain) ?? ''
   return cookieKey(domainHost(domain), cookie.name, cookie.path, packetScope(domain))
 }
 
 /** The identity of a cookie already in the target session. */
-export function electronCookieKey(cookie: Electron.Cookie): string | null {
+function electronCookieKey(cookie: Electron.Cookie): string | null {
   const host = domainHost(normalizeCookieDomain(cookie.domain) ?? '')
   const scope = sessionScope(cookie)
   if (!host || scope === 'unknown') return null
@@ -361,7 +361,7 @@ async function removeCookiesByKeys(
 }
 
 /** Whether the final cookie store matches the snapshot for this site. */
-export async function rollbackMatchesSnapshot(
+async function rollbackMatchesSnapshot(
   targetSession: Session,
   snapshot: readonly ExternalBrowserCookie[],
   allowedDomains: readonly string[]

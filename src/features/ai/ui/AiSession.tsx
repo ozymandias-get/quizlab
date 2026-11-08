@@ -1,16 +1,14 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
-import { useSiteSessionListQuery } from '@platform/electron/api/useSiteSessionApi'
-
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 
 import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
-import { useAiContentHostActions, useAiSites, useAiTabActions } from '@app/providers/ai-context'
+import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
 import AestheticLoader from '@ui/components/AestheticLoader'
 
-import { type CSSProperties, lazy, memo, Suspense, useCallback, useEffect, useMemo } from 'react'
+import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import SleepPlaceholderView from './SleepPlaceholderView'
@@ -58,23 +56,6 @@ const AiSession = memo(
     onTabUrlRecorded
   }: AiSessionProps) => {
     const aiSites = useAiSites()
-    const { data: sessionList } = useSiteSessionListQuery()
-    const { setTabSessionSlot } = useAiTabActions()
-    const sessionView = sessionList?.views.find((view) => view.memberAppIds.includes(tab.modelId))
-    const sessionSlot =
-      sessionView?.kind === 'google'
-        ? (tab.sessionSlot ?? sessionView.activeSlot ?? 1)
-        : sessionView
-          ? 1
-          : (tab.sessionSlot ?? 1)
-    const availableSlots = sessionView?.kind === 'google' ? sessionView.accountSlots : undefined
-    const resolvedSlot =
-      availableSlots && !availableSlots.includes(sessionSlot)
-        ? (availableSlots[0] ?? 1)
-        : sessionSlot
-    useEffect(() => {
-      if (sessionView && tab.sessionSlot !== resolvedSlot) setTabSessionSlot(tab.id, resolvedSlot)
-    }, [tab.id, tab.sessionSlot, sessionView, resolvedSlot, setTabSessionSlot])
     const { registerContent } = useAiContentHostActions()
     const { t } = useTranslation()
     const { sleepTimeoutMs, isNeverSleepSite } = useAiLifecycleSettings()
@@ -89,13 +70,7 @@ const AiSession = memo(
       tab.modelId
     )
 
-    const { entryUrl } = useAiSessionEntryUrl(
-      tab.modelId,
-      isSleeping,
-      restoredUrl,
-      siteConfig?.url,
-      resolvedSlot
-    )
+    const { entryUrl } = useAiSessionEntryUrl(tab.modelId, isSleeping, restoredUrl, siteConfig?.url)
     const { handlePageSettled } = useAiSessionStaleCheck(siteConfig?.url, isActive)
 
     const canHostRemoteView = Boolean(siteConfig) && !isApiChat && !isSleeping
@@ -118,7 +93,7 @@ const AiSession = memo(
     const managed = useManagedContentView({
       viewId: tab.id,
       showWarning,
-      source: { kind: 'ai-platform', modelId: tab.modelId, sessionSlot: resolvedSlot },
+      source: { kind: 'ai-platform', modelId: tab.modelId },
       restoredUrl: entryUrl,
       modelId: tab.modelId,
       isEnabled: canHostRemoteView,

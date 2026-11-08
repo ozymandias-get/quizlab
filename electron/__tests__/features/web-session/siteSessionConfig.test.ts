@@ -476,34 +476,6 @@ describe('site session config', () => {
     expect(raw.future).toEqual({ keep: true })
   })
 
-  it('moves the stored active slot only while the bound account still matches', async () => {
-    const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('google', true)
-    await config.setActiveSlot('google', 1, 'id-1')
-    await config.recordResult('google', 'imported', undefined, 2)
-
-    await config.syncActiveSlotToAccount('google', 'id-1', 2)
-    const moved = (await config.read()).targets.google
-    expect(moved.activeSlot).toBe(2)
-    expect(moved.activeAccountId).toBe('id-1')
-    expect(moved.lastResult).toBe('imported')
-
-    // An explicit selection rebinds the account afterwards: a late discovery
-    // refresh that still carries the old id must not clobber it.
-    await config.setActiveSlot('google', 1, 'id-2')
-    await config.syncActiveSlotToAccount('google', 'id-1', 3)
-    const settled = (await config.read()).targets.google
-    expect(settled.activeSlot).toBe(1)
-    expect(settled.activeAccountId).toBe('id-2')
-  })
-
-  it('ignores a discovery sync for a non-Google site or an out-of-range slot', async () => {
-    const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('chatgpt', true)
-    await expect(config.syncActiveSlotToAccount('chatgpt', 'id-1', 2)).resolves.toBeUndefined()
-    await expect(config.syncActiveSlotToAccount('google', 'id-1', 99)).resolves.toBeUndefined()
-  })
-
   it('reports a failed write instead of pretending the switch was set', async () => {
     // A folder where the state file should be: every write fails.
     mkdirSync(configPath(), { recursive: true })
@@ -520,76 +492,6 @@ describe('site session config', () => {
     const config = new SiteSessionConfig(path.join(blocker, 'site-sessions.json'))
 
     await expect(config.read()).rejects.toThrow(/could not be migrated/)
-  })
-
-  it('allows Google account 3 but rejects secondary accounts on other sites', async () => {
-    const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('google', true)
-    await config.setActiveSlot('google', 3)
-    await config.recordResult('google', 'imported', undefined, 3)
-    expect((await config.read()).targets.google.activeSlot).toBe(3)
-    await expect(config.setActiveSlot('chatgpt', 2)).rejects.toThrow('invalid_slot')
-    await config.resetResults('google')
-    expect((await config.read()).targets.google.slots?.[3]?.lastResult).toBeNull()
-  })
-
-  it('keeps independent history for both slots and never borrows the other account status', async () => {
-    const config = new SiteSessionConfig(configPath())
-    await config.setEnabled('google', true)
-    await config.recordResult('google', 'imported')
-    await config.setActiveSlot('google', 2)
-    expect((await config.read()).targets.google.lastResult).toBeNull()
-    await config.recordResult('google', 'failed', 'import_failed', 2)
-    await config.setActiveSlot('google', 1)
-    expect((await config.read()).targets.google.lastResult).toBe('imported')
-    await config.setActiveSlot('google', 2)
-    const restored = new SiteSessionConfig(configPath())
-    expect((await restored.read()).targets.google).toMatchObject({
-      activeSlot: 2,
-      lastResult: 'failed'
-    })
-    await expect(config.setActiveSlot('google', 1.5)).rejects.toThrow('invalid_slot')
-  })
-
-  it('attributes legacy top-level history to the selected Google account only', async () => {
-    writeRawConfig({
-      version: 1,
-      configVersion: 0,
-      targets: {
-        google: {
-          enabled: true,
-          activeSlot: 2,
-          importedAt: '2026-10-25T12:00:00Z',
-          lastResult: 'imported',
-          lastError: null
-        }
-      }
-    })
-    const config = new SiteSessionConfig(configPath())
-    const state = (await config.read()).targets.google
-    expect(state.slots?.[2]?.lastResult).toBe('imported')
-    expect(state.slots?.[1]).toBeUndefined()
-    await config.setActiveSlot('google', 1)
-    expect((await config.read()).targets.google.lastResult).toBeNull()
-  })
-
-  it('does not replace an explicit empty slot result with stale top-level history', async () => {
-    writeRawConfig({
-      version: 1,
-      configVersion: 0,
-      targets: {
-        google: {
-          enabled: true,
-          activeSlot: 2,
-          importedAt: '2026-10-25T12:00:00Z',
-          lastResult: 'imported',
-          slots: { 2: { importedAt: null, lastResult: null, lastError: null } }
-        }
-      }
-    })
-    const state = (await new SiteSessionConfig(configPath()).read()).targets.google
-    expect(state.importedAt).toBeNull()
-    expect(state.lastResult).toBeNull()
   })
 
   it('removes the state of a site that does not exist any more', async () => {

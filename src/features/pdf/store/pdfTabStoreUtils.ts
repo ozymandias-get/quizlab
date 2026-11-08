@@ -49,7 +49,6 @@ interface PdfTabActions {
   goToPdfHome: () => void
   openGoogleDriveTab: () => void
   renamePdfTab: (tabId: string, title?: string) => void
-  setPdfTabSessionSlot: (tabId: string, slot: number) => void
 }
 
 export type PdfTabStore = PdfTabState & PdfTabActions

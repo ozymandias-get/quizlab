@@ -12,7 +12,6 @@ async function popup(
 ) {
   document.body.innerHTML = html
   const stored: Record<string, unknown> = {
-    profileSlot: 2,
     autoSync: false,
     knownTargets: [{ siteId: 'claude', cookieDomains: ['.claude.ai'] }]
   }
@@ -37,15 +36,14 @@ async function popup(
 }
 
 describe('extension popup import feedback', () => {
-  it('selects a destination without importing, then imports the chosen site and slot once', async () => {
+  it('selects a destination without importing, then imports the chosen site once', async () => {
     const { sendMessage } = await popup({ success: true })
-    expect(document.getElementById('slot-select')).toBeNull()
     expect(sendMessage).not.toHaveBeenCalled()
     const site = document.getElementById('site-select') as HTMLSelectElement
     site.value = 'claude'
     document.getElementById('sync-btn')!.click()
     expect(sendMessage).toHaveBeenCalledExactlyOnceWith(
-      { type: 'sync_now', slot: 1, targetId: 'claude' },
+      { type: 'sync_now', targetId: 'claude' },
       expect.any(Function)
     )
     expect(document.getElementById('sync-feedback')?.textContent).toContain('Oturumlar aktarıldı')

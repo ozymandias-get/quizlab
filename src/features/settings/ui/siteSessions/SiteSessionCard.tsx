@@ -1,6 +1,6 @@
 import { getSiteSessionMemberAppName } from '@shared-core/constants/siteSessionMemberApps'
-import { googleAccountSlotOptions } from '@shared-core/constants/siteSessionSlots'
 
+import { WithTooltip } from '@shared/ui/components/primitives'
 import { getAiIcon } from '@ui/components/Icons'
 
 import i18next from 'i18next'
@@ -29,7 +29,7 @@ function idHash(value: string): string {
  * One site: its name, its host, what the session looks like right now and the
  * switch that pulls the login from Chrome.
  */
-function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSessionCardProps) {
+function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) {
   const idBase = `site-session-${idHash(view.siteId)}`
   const switchId = `${idBase}-switch`
   const icon = getAiIcon(view.kind === 'google' ? 'gemini' : view.memberAppIds[0] || view.siteId)
@@ -65,18 +65,22 @@ function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSess
             </span>
           )}
           <div className="min-w-0">
-            <p
-              className="text-ql-13 text-foreground font-semibold [overflow-wrap:anywhere] break-words"
-              title={t(view.labelKey)}
+            <WithTooltip
+              label={t(view.labelKey)}
+              contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
             >
-              {t(view.labelKey)}
-            </p>
-            <p
-              className="text-ql-11 text-muted-foreground mt-0.5 [overflow-wrap:anywhere] break-words"
-              title={subtitle}
+              <p className="text-ql-13 text-foreground font-semibold [overflow-wrap:anywhere] break-words">
+                {t(view.labelKey)}
+              </p>
+            </WithTooltip>
+            <WithTooltip
+              label={subtitle}
+              contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
             >
-              {subtitle}
-            </p>
+              <p className="text-ql-11 text-muted-foreground mt-0.5 [overflow-wrap:anywhere] break-words">
+                {subtitle}
+              </p>
+            </WithTooltip>
           </div>
         </div>
 
@@ -105,30 +109,6 @@ function SiteSessionCard({ view, disabled, onToggle, onSelectSlot, t }: SiteSess
         <p className="text-ql-11 text-muted-foreground">
           {t('ws_last_pull', { time: importedAt })}
         </p>
-      )}
-
-      {view.kind === 'google' && (
-        <div className="border-border/40 mt-0.5 flex items-center gap-2 border-t pt-1">
-          <span className="text-ql-11 text-muted-foreground font-medium">
-            {t('ws_default_slot')}
-          </span>
-          <select
-            aria-label={`${t('ws_google_account_select')} — ${t(view.labelKey)}`}
-            value={view.activeSlot ?? 1}
-            disabled={disabled || !view.accountSlots?.length}
-            onChange={(event) => onSelectSlot?.(view.siteId, Number(event.target.value))}
-            className="text-ql-11 border-border/60 bg-background rounded-md border px-2 py-1"
-          >
-            {(view.accountSlots?.length
-              ? view.accountSlots
-              : googleAccountSlotOptions([view.activeSlot ?? 1])
-            ).map((slot) => (
-              <option key={slot} value={slot}>
-                {t('ws_account_slot', { slot: String(slot) })}
-              </option>
-            ))}
-          </select>
-        </div>
       )}
 
       {view.kind === 'google' && (

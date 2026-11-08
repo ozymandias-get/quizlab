@@ -149,7 +149,7 @@ vi.mock('@features/ai/hooks/useAiLifecycleSettings', () => ({
 
 const registerContent = vi.hoisted(() => vi.fn())
 vi.mock('@app/providers/ai-context', () => ({
-  useAiTabActions: () => ({ setTabSessionSlot: vi.fn() }),
+  useAiTabActions: () => ({}),
   useAiSites: () => ({
     chatgpt: { url: 'https://chatgpt.com/', displayName: 'ChatGPT' }
   }),

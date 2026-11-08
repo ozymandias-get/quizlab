@@ -2,8 +2,16 @@ import type { SiteSessionView } from '@shared-core/types/siteSession'
 
 import SiteSessionList from '@features/settings/ui/siteSessions/SiteSessionList'
 
-import { render, screen } from '@testing-library/react'
+import { TooltipProvider } from '@shared/ui/components/primitives'
+
+import { render as rtlRender, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
+
+/** The cards use tooltips, so the provider has to wrap every render. */
+function render(ui: ReactElement) {
+  return rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
+}
 
 const VIEWS: SiteSessionView[] = [
   {

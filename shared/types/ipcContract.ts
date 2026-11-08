@@ -306,11 +306,6 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<SiteSessionActionResult>
   }
 
-  [IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_SLOT]: {
-    args: [siteId: string, slot: number]
-    result: IpcResult<SiteSessionActionResult>
-  }
-
   // App settings sync (renderer localStorage <-> main ConfigManager)
   [IPC_CHANNELS.GET_APP_SETTINGS]: {
     args: []
@@ -328,14 +323,9 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<NativeMessagingExtensionInfo>
   }
 
-  [IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]: {
+  [IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE]: {
     args: []
-    result: IpcResult<{ success: boolean; error?: string; installedPath?: string }>
-  }
-
-  [IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION]: {
-    args: []
-    result: IpcResult<{ success: boolean; error?: string }>
+    result: IpcResult<{ code: string }>
   }
 }
 

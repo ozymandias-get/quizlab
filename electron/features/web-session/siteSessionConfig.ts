@@ -25,7 +25,6 @@ import path from 'node:path'
 import { app } from 'electron'
 
 import { GOOGLE_AI_WEB_SITE_ID } from '../../../shared/constants/googleAiWebApps.js'
-import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { ConfigManager } from '../../core/ConfigManager.js'
 
 /** The file this feature writes its state into. */
@@ -40,23 +39,11 @@ const CONFIG_VERSION = 1
 /** The keys a config file may not carry, mirroring `ConfigManager`'s guard. */
 const PROHIBITED_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 
-interface SiteSessionSlotState {
-  importedAt: string | null
-  lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
-  lastError: string | null
-  /** Google's stable id for the account this slot was last associated with. */
-  accountId: string | null
-}
-
 export interface SiteSessionTargetState {
   enabled: boolean
   importedAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
-  activeSlot?: number
-  /** The stable Google account id selected by the user, when known. */
-  activeAccountId?: string | null
-  slots?: Record<number, SiteSessionSlotState>
 }
 
 export interface SiteSessionConfigFile {
@@ -108,10 +95,7 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
     enabled,
     importedAt: null,
     lastResult: null,
-    lastError: null,
-    activeSlot: 1,
-    activeAccountId: null,
-    slots: {}
+    lastError: null
   }
 }
 
@@ -148,60 +132,14 @@ function normalizeFormatVersion(value: unknown): number {
  * describe. The fields this build does not know are kept, so a file written
  * by a newer build does not lose them on the next write.
  */
-function normalizeTargetState(raw: unknown, siteId: string): SiteSessionTargetState {
+function normalizeTargetState(raw: unknown): SiteSessionTargetState {
   const source = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
-  const activeSlot =
-    siteId === GOOGLE_AI_WEB_SITE_ID && isSiteSessionSlot(source.activeSlot) ? source.activeSlot : 1
-
-  let slots: Record<number, SiteSessionSlotState> | undefined
-  if (typeof source.slots === 'object' && source.slots !== null) {
-    slots = {}
-    for (const [k, v] of Object.entries(source.slots as Record<string, unknown>)) {
-      const slotNum = Number(k)
-      if (isSiteSessionSlot(slotNum) && typeof v === 'object' && v !== null) {
-        const slotObj = v as Record<string, unknown>
-        slots[slotNum] = {
-          importedAt: typeof slotObj.importedAt === 'string' ? slotObj.importedAt : null,
-          lastResult: isLastResult(slotObj.lastResult) ? slotObj.lastResult : null,
-          lastError: typeof slotObj.lastError === 'string' ? slotObj.lastError : null,
-          accountId: typeof slotObj.accountId === 'string' ? slotObj.accountId : null
-        }
-      }
-    }
-  }
-
   return {
     ...source,
     enabled: source.enabled === true,
-    importedAt: slots?.[activeSlot]
-      ? slots[activeSlot].importedAt
-      : activeSlot === (source.activeSlot ?? 1) && typeof source.importedAt === 'string'
-        ? source.importedAt
-        : null,
-    lastResult: slots?.[activeSlot]
-      ? slots[activeSlot].lastResult
-      : activeSlot === (source.activeSlot ?? 1) && isLastResult(source.lastResult)
-        ? source.lastResult
-        : null,
-    lastError: slots?.[activeSlot]
-      ? slots[activeSlot].lastError
-      : activeSlot === (source.activeSlot ?? 1) && typeof source.lastError === 'string'
-        ? source.lastError
-        : null,
-    activeSlot,
-    activeAccountId:
-      siteId === GOOGLE_AI_WEB_SITE_ID && typeof source.activeAccountId === 'string'
-        ? source.activeAccountId
-        : null,
-    slots: {
-      [activeSlot]: {
-        importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
-        lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
-        lastError: typeof source.lastError === 'string' ? source.lastError : null,
-        accountId: typeof source.activeAccountId === 'string' ? source.activeAccountId : null
-      },
-      ...slots
-    }
+    importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
+    lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
+    lastError: typeof source.lastError === 'string' ? source.lastError : null
   }
 }
 
@@ -214,7 +152,7 @@ function normalizeConfigFile(raw: unknown): SiteSessionConfigFile {
   if (typeof rawTargets === 'object' && rawTargets !== null) {
     for (const [siteId, state] of Object.entries(rawTargets)) {
       if (PROHIBITED_KEYS.has(siteId)) continue
-      targets[siteId] = normalizeTargetState(state, siteId)
+      targets[siteId] = normalizeTargetState(state)
     }
   }
 
@@ -419,9 +357,7 @@ export class SiteSessionConfig {
   async recordResult(
     siteId: string,
     result: SiteSessionTargetState['lastResult'],
-    error?: string,
-    slot: number = 1,
-    accountId?: string | null
+    error?: string
   ): Promise<void> {
     await this.loadState()
     if (PROHIBITED_KEYS.has(siteId)) return
@@ -429,21 +365,6 @@ export class SiteSessionConfig {
     const written = await this.store.update((current) => {
       const currentState = normalizeConfigFile(current)
       const existing = currentState.targets[siteId] ?? createTargetState(false)
-      const existingSlots = existing.slots ?? {}
-      const targetSlot = isSiteSessionSlot(slot) ? slot : 1
-      const updatedSlot: SiteSessionSlotState = {
-        importedAt:
-          result === 'imported'
-            ? new Date().toISOString()
-            : (existingSlots[targetSlot]?.importedAt ?? null),
-        lastResult: result,
-        lastError: error ?? null,
-        accountId:
-          accountId !== undefined ? accountId : (existingSlots[targetSlot]?.accountId ?? null)
-      }
-      const updatedSlots = { ...existingSlots, [targetSlot]: updatedSlot }
-
-      const isCurrent = (existing.activeSlot || 1) === targetSlot
       return {
         ...currentState,
         configVersion: currentState.configVersion,
@@ -451,10 +372,9 @@ export class SiteSessionConfig {
           ...currentState.targets,
           [siteId]: {
             ...existing,
-            importedAt: isCurrent ? updatedSlot.importedAt : existing.importedAt,
-            lastResult: isCurrent ? updatedSlot.lastResult : existing.lastResult,
-            lastError: isCurrent ? updatedSlot.lastError : existing.lastError,
-            slots: updatedSlots
+            importedAt: result === 'imported' ? new Date().toISOString() : existing.importedAt,
+            lastResult: result,
+            lastError: error ?? null
           }
         }
       }
@@ -481,198 +401,12 @@ export class SiteSessionConfig {
             ...existing,
             importedAt: null,
             lastResult: null,
-            lastError: null,
-            activeAccountId: null,
-            slots: Object.fromEntries(
-              [
-                ...new Set([
-                  1,
-                  existing.activeSlot ?? 1,
-                  ...Object.keys(existing.slots ?? {}).map(Number)
-                ])
-              ]
-                .filter(isSiteSessionSlot)
-                .map((slot) => [
-                  slot,
-                  { importedAt: null, lastResult: null, lastError: null, accountId: null }
-                ])
-            )
+            lastError: null
           }
         }
       }
     })
     if (!written) throw new Error('Session history could not be cleared.')
-  }
-
-  /**
-   * Clears the stable account association of one slot.
-   *
-   * Used when a rollback failed: the cookies on disk no longer describe a
-   * known account, so the next preparation must verify or reseed the slot.
-   */
-  async clearSlotAccountId(siteId: string, slot: number): Promise<void> {
-    if (!isSiteSessionSlot(slot)) return
-    await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) return
-
-    const written = await this.store.update((current) => {
-      const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId]
-      if (!existing) return currentState
-      const slotState = existing.slots?.[slot]
-      const activeSlot = existing.activeSlot ?? 1
-      return {
-        ...currentState,
-        targets: {
-          ...currentState.targets,
-          [siteId]: {
-            ...existing,
-            activeAccountId: activeSlot === slot ? null : existing.activeAccountId,
-            slots: {
-              ...(existing.slots ?? {}),
-              [slot]: {
-                importedAt: slotState?.importedAt ?? null,
-                lastResult: slotState?.lastResult ?? null,
-                lastError: slotState?.lastError ?? null,
-                accountId: null
-              }
-            }
-          }
-        }
-      }
-    })
-
-    if (!written) {
-      throw new Error(`[Web Session] The account of "${siteId}" could not be cleared.`)
-    }
-  }
-
-  /**
-   * Switches the active account slot for a site (e.g. 1 or 2).
-   *
-   * `accountId` binds the selection to Google's stable account identifier, so
-   * a later reorder of the account list can be detected instead of silently
-   * selecting whatever account now sits at the old position.
-   */
-  async setActiveSlot(siteId: string, slot: number, accountId?: string | null): Promise<void> {
-    if (!isSiteSessionSlot(slot) || (siteId !== GOOGLE_AI_WEB_SITE_ID && slot !== 1))
-      throw new Error('invalid_slot')
-    await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) return
-
-    const written = await this.store.update((current) => {
-      const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId] ?? createTargetState(false)
-      const targetSlot = isSiteSessionSlot(slot) ? slot : 1
-      const slotState = existing.slots?.[targetSlot]
-      const targetAccountId = accountId !== undefined ? accountId : (slotState?.accountId ?? null)
-      const updatedSlots = {
-        ...(existing.slots ?? {}),
-        [targetSlot]: {
-          importedAt: slotState?.importedAt ?? null,
-          lastResult: slotState?.lastResult ?? null,
-          lastError: slotState?.lastError ?? null,
-          accountId: targetAccountId
-        }
-      }
-
-      return {
-        ...currentState,
-        targets: {
-          ...currentState.targets,
-          [siteId]: {
-            ...existing,
-            activeSlot: targetSlot,
-            activeAccountId: targetAccountId,
-            importedAt: slotState?.importedAt ?? null,
-            lastResult: slotState?.lastResult ?? null,
-            lastError: slotState?.lastError ?? null,
-            slots: updatedSlots
-          }
-        }
-      }
-    })
-
-    if (!written) {
-      throw new Error(`[Web Session] The active slot of "${siteId}" could not be written.`)
-    }
-  }
-
-  /**
-   * Backfills the stable account id of a position-only selection.
-   *
-   * This is a compare-and-set used by the read path: it only writes while the
-   * target still has no account id, so a concurrent explicit selection is
-   * never overwritten by the migration.
-   */
-  async migrateActiveAccountId(siteId: string, accountId: string): Promise<void> {
-    if (siteId !== GOOGLE_AI_WEB_SITE_ID) return
-    await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) return
-
-    const written = await this.store.update((current) => {
-      const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId]
-      if (!existing || existing.activeAccountId) return currentState
-      return {
-        ...currentState,
-        targets: {
-          ...currentState.targets,
-          [siteId]: { ...existing, activeAccountId: accountId }
-        }
-      }
-    })
-
-    if (!written) {
-      throw new Error(`[Web Session] The active account of "${siteId}" could not be written.`)
-    }
-  }
-
-  /**
-   * Moves the stored active slot to where discovery reports the bound account.
-   *
-   * A compare-and-set for the read path: it writes only while the target still
-   * binds the same account id, so a concurrent explicit selection (which
-   * rebinds `activeAccountId` first) is never overwritten by a discovery
-   * refresh that merely noticed Google reordering its list.
-   *
-   * The version counters stay as they are: nothing here changes what the
-   * extension should push, only what this app considers the running selection.
-   *
-   * @throws when a matching update could not be written.
-   */
-  async syncActiveSlotToAccount(siteId: string, accountId: string, slot: number): Promise<void> {
-    if (siteId !== GOOGLE_AI_WEB_SITE_ID || !isSiteSessionSlot(slot)) return
-    await this.loadState()
-    if (PROHIBITED_KEYS.has(siteId)) return
-
-    const written = await this.store.update((current) => {
-      const currentState = normalizeConfigFile(current)
-      const existing = currentState.targets[siteId]
-      if (!existing || existing.activeAccountId !== accountId) return currentState
-      const storedSlot = existing.activeSlot ?? 1
-      if (!isSiteSessionSlot(storedSlot) || storedSlot === slot) return currentState
-      // The moved-to slot keeps its own import history; a selection that was
-      // never imported must not borrow this slot's timestamps.
-      const slotState = existing.slots?.[slot]
-      return {
-        ...currentState,
-        targets: {
-          ...currentState.targets,
-          [siteId]: {
-            ...existing,
-            activeSlot: slot,
-            importedAt: slotState?.importedAt ?? null,
-            lastResult: slotState?.lastResult ?? null,
-            lastError: slotState?.lastError ?? null
-          }
-        }
-      }
-    })
-
-    if (!written) {
-      throw new Error(`[Web Session] The active slot of "${siteId}" could not be written.`)
-    }
   }
 
   /**

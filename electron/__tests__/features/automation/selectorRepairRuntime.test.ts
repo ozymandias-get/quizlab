@@ -257,7 +257,9 @@ describe('selector self-healing evidence', () => {
     // Gerçek bir gönder butonu mesajı editörden AYRILIR. Tıklamanın
     // başarı sayılması bu gözleme dayandığı için sahte buton "tıklandı ama
     // hiçbir şey olmadı" taklidi yapmamalıdır.
-    send?.addEventListener('click', () => {
+    send?.addEventListener('click', (event) => {
+      // SPA gönderimi kendi yönetir; formun tarayıcıya gönderilmesini engelle.
+      event.preventDefault()
       input.value = ''
     })
 
@@ -358,6 +360,11 @@ describe('selector self-healing evidence', () => {
     const frameDocument = frame.contentDocument
     if (!frameDocument) throw new Error('frame document unavailable')
     frameDocument.body.innerHTML = `<form role="form"><textarea data-testid="ask" aria-label="Message"></textarea></form>`
+    // Enter'ı SPA'lar kendi işler; formu tarayıcıya göndertmezler. jsdom'da da
+    // varsayılan gönderimi iptal ederek yalnızca test edilen yazma yolunu tutarız.
+    frameDocument
+      .querySelector('textarea')
+      ?.addEventListener('keydown', (event) => event.preventDefault())
 
     const result = await window.eval(
       generateAutoSendScript(

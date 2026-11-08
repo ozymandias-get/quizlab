@@ -2,7 +2,9 @@ import type { SiteSessionView } from '@shared-core/types/siteSession'
 
 import SiteSessionCard from '@features/settings/ui/siteSessions/SiteSessionCard'
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { TooltipProvider } from '@shared/ui/components/primitives'
+import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 const VIEW: SiteSessionView = {
@@ -34,32 +36,22 @@ const t = (key: string, params?: Record<string, string>) =>
 const switchIdOf = (container: HTMLElement): string | null | undefined =>
   container.querySelector('button[role="switch"]')?.getAttribute('id')
 
+const renderCard = (ui: ReactElement) =>
+  rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
+
 describe('SiteSessionCard', () => {
-  it('keeps the selected account and disables selection when discovery is unavailable', () => {
-    render(
-      <SiteSessionCard
-        view={{ ...GOOGLE_VIEW, activeSlot: 3 }}
-        disabled={false}
-        onToggle={() => {}}
-        t={t}
-      />
-    )
-    expect(screen.getByRole('combobox')).toBeDisabled()
-    expect(screen.getByRole('combobox')).toHaveValue('3')
-    expect(screen.getByRole('switch')).toBeEnabled()
-  })
   it('shows the import switch', () => {
-    render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByRole('switch')).toBeInTheDocument()
   })
 
   it('shows the signed out state for a site without a session', () => {
-    render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('ws_status_signed_out')).toBeInTheDocument()
   })
 
   it('tells the user that the Google row also signs out the Drive panel', () => {
-    render(
+    renderCard(
       <SiteSessionCard
         view={{ ...VIEW, siteId: 'google', kind: 'google' }}
         disabled={false}
@@ -71,18 +63,18 @@ describe('SiteSessionCard', () => {
   })
 
   it('shows the site name and the host it belongs to', () => {
-    render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('ws_target_chatgpt')).toBeInTheDocument()
     expect(screen.getByText('chatgpt.com')).toBeInTheDocument()
   })
 
   it('names the switch that pulls the session from Chrome', () => {
-    render(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('ws_toggle_label')).toBeInTheDocument()
   })
 
   it('shows when the session was imported the last time', () => {
-    render(
+    renderCard(
       <SiteSessionCard
         view={{ ...VIEW, status: 'imported', importedAt: '2026-04-08T10:00:00.000Z' }}
         disabled={false}
@@ -94,7 +86,7 @@ describe('SiteSessionCard', () => {
   })
 
   it('names the apps the Google row covers', () => {
-    render(<SiteSessionCard view={GOOGLE_VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={GOOGLE_VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('Gemini')).toBeInTheDocument()
     expect(screen.getByText('AI Studio')).toBeInTheDocument()
     expect(screen.getByText('YouTube')).toBeInTheDocument()
@@ -105,7 +97,7 @@ describe('SiteSessionCard', () => {
   // them; a row of its own keeps the host, because a host is that site's
   // address.
   it('names the apps of the Google row instead of their hosts', () => {
-    render(<SiteSessionCard view={GOOGLE_VIEW} disabled={false} onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={GOOGLE_VIEW} disabled={false} onToggle={() => {}} t={t} />)
 
     expect(screen.getByText('Gemini, AI Studio, YouTube, Google Drive')).toBeInTheDocument()
     expect(
@@ -117,7 +109,7 @@ describe('SiteSessionCard', () => {
 
   it('reports the site id when the switch is flipped', () => {
     const onToggle = vi.fn()
-    render(<SiteSessionCard view={VIEW} disabled={false} onToggle={onToggle} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={onToggle} t={t} />)
 
     fireEvent.click(screen.getByRole('switch'))
 
@@ -125,12 +117,12 @@ describe('SiteSessionCard', () => {
   })
 
   it('locks the switch while an action is running', () => {
-    render(<SiteSessionCard view={VIEW} disabled onToggle={() => {}} t={t} />)
+    renderCard(<SiteSessionCard view={VIEW} disabled onToggle={() => {}} t={t} />)
     expect(screen.getByRole('switch')).toBeDisabled()
   })
 
   it('shows why the last import failed', () => {
-    render(
+    renderCard(
       <SiteSessionCard
         view={{ ...VIEW, status: 'import_failed', lastError: 'write_failed' }}
         disabled={false}
@@ -142,7 +134,7 @@ describe('SiteSessionCard', () => {
   })
 
   it('gives every switch an accessible name of its own', () => {
-    render(
+    renderCard(
       <>
         <SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />
         <SiteSessionCard
@@ -160,7 +152,7 @@ describe('SiteSessionCard', () => {
 
   // `custom:a.b` and `custom:a-b` differ, but a flattened id would not.
   it('gives two custom sites different element ids', () => {
-    const dotted = render(
+    const dotted = renderCard(
       <SiteSessionCard
         view={{ ...VIEW, siteId: 'custom:a.b', labelKey: 'ws_target_custom' }}
         disabled={false}
@@ -168,7 +160,7 @@ describe('SiteSessionCard', () => {
         t={t}
       />
     )
-    const dashed = render(
+    const dashed = renderCard(
       <SiteSessionCard
         view={{ ...VIEW, siteId: 'custom:a-b', labelKey: 'ws_target_custom' }}
         disabled={false}
@@ -186,7 +178,7 @@ describe('SiteSessionCard', () => {
   })
 
   it('points the label at the switch of its own row', () => {
-    const { container } = render(
+    const { container } = renderCard(
       <SiteSessionCard
         view={{ ...VIEW, siteId: 'custom:a.b', labelKey: 'ws_target_custom' }}
         disabled={false}

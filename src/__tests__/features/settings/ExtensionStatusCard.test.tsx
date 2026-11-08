@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
   useNativeMessagingStatusQuery: () => ({
-    data: { status: 'error', installed: true }
+    data: { status: 'error', paired: true }
   })
 }))
 
@@ -16,11 +16,7 @@ vi.mock('@shared/lib/electronApi', () => ({
 describe('ExtensionStatusCard', () => {
   it('uses the error colour for a connection error instead of the idle grey', () => {
     const { container, getByText } = render(
-      <ExtensionStatusCard
-        t={(key) => key}
-        onInstallExtension={vi.fn()}
-        onRemoveExtension={vi.fn()}
-      />
+      <ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />
     )
 
     expect(getByText('ws_extension_status_error')).toBeInTheDocument()
@@ -28,13 +24,7 @@ describe('ExtensionStatusCard', () => {
   })
 
   it('announces connection status changes through a polite live region', () => {
-    const { getByRole } = render(
-      <ExtensionStatusCard
-        t={(key) => key}
-        onInstallExtension={vi.fn()}
-        onRemoveExtension={vi.fn()}
-      />
-    )
+    const { getByRole } = render(<ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />)
 
     const status = getByRole('status')
     expect(status).toHaveTextContent('ws_extension_status_error')

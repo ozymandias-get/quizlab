@@ -272,6 +272,90 @@ async function renderSites() {
   else setStatus(TEXTS.someMissing)
 }
 
+/**
+ * Whether a value looks like the pairing code the app shows.
+ */
+function isPairingCode(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value.trim())
+}
+
+/**
+ * Reads the code the user paired this browser with, or null.
+ */
+async function readPairingCode() {
+  try {
+    const stored = await chrome.storage.local.get(['bridgeSecret'])
+    const code = stored ? stored.bridgeSecret : null
+    return isPairingCode(code) ? code.trim().toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Wires the pairing form.
+ *
+ * The popup writes the code to the local store and asks the service worker to
+ * pair immediately; the worker signs the site-list request with it, so a wrong
+ * code is reported here instead of silently leaving the session sync broken.
+ */
+async function initPairingControls() {
+  const input = document.getElementById('pairing-code-input')
+  const button = document.getElementById('pair-btn')
+  const state = document.getElementById('pair-state')
+  const feedback = document.getElementById('pair-feedback')
+  if (!input || !button || button.dataset.initialized) return
+  button.dataset.initialized = 'true'
+
+  const existing = await readPairingCode()
+  if (existing && state) {
+    state.textContent = 'Eşleştirildi'
+    state.dataset.paired = 'true'
+  }
+
+  const showFeedback = (text, isSuccess) => {
+    if (!feedback) return
+    feedback.textContent = text
+    feedback.dataset.state = isSuccess ? 'success' : 'error'
+  }
+
+  button.addEventListener('click', () => {
+    const code = typeof input.value === 'string' ? input.value.trim().toLowerCase() : ''
+    if (!isPairingCode(code)) {
+      showFeedback('Kod 64 karakterlik olmalı. Kodu uygulamadan kopyalayın.', false)
+      return
+    }
+    button.disabled = true
+    showFeedback('Eşleştiriliyor...', true)
+    new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'pair', secret: code }, (response) => {
+        resolve(chrome.runtime.lastError ? { success: false } : response)
+      })
+    })
+      .then((response) => {
+        button.disabled = false
+        if (response && response.success) {
+          if (state) {
+            state.textContent = 'Eşleştirildi'
+            state.dataset.paired = 'true'
+          }
+          showFeedback('Eşleştirildi. Oturumlar aktarılabilir.', true)
+          void renderSites()
+        } else {
+          showFeedback(
+            'Eşleştirilemedi. Quizlab açık mı ve kodu doğru yapıştırdınız mı kontrol edin.',
+            false
+          )
+        }
+      })
+      .catch((error) => {
+        button.disabled = false
+        console.warn('[Quizlab Popup] The pairing failed:', errorMessage(error))
+        showFeedback('Eşleştirilemedi.', false)
+      })
+  })
+}
+
 async function initImportControls() {
   const syncBtn = document.getElementById('sync-btn')
   const feedback = document.getElementById('sync-feedback')
@@ -310,11 +394,10 @@ async function initImportControls() {
     })
   })
   syncBtn?.addEventListener('click', () => {
-    const slot = 1
     syncBtn.disabled = true
     showFeedback('Site oturumları aktarılıyor...', true)
     chrome.runtime.sendMessage(
-      { type: 'sync_now', slot, targetId: siteSelect?.value || undefined },
+      { type: 'sync_now', targetId: siteSelect?.value || undefined },
       (response) => {
         const error = chrome.runtime.lastError
         syncBtn.disabled = false
@@ -322,10 +405,7 @@ async function initImportControls() {
           auto.checked = false
         }
         if (!error && response?.success) {
-          showFeedback(
-            'Oturumlar aktarıldı. Google hesapları arasında uygulamadaki hesap seçicisinden geçebilirsiniz.',
-            true
-          )
+          showFeedback('Oturumlar aktarıldı. Site oturumu uygulamaya aktarıldı.', true)
         } else {
           showFeedback(
             'Aktarım tamamlanamadı. Quizlab açık olmalı; site iznini ve Chrome oturumunu kontrol edin.',
@@ -339,6 +419,7 @@ async function initImportControls() {
 
 async function render() {
   try {
+    await initPairingControls()
     await initImportControls()
     await renderSites()
   } catch (error) {

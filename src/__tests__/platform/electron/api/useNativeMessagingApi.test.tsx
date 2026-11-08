@@ -1,23 +1,23 @@
 /**
  * Tests for src/platform/electron/api/useNativeMessagingApi.ts
  *
- * Covers native messaging extension install/remove mutations.
- * Uses raw useMutation (not useElectronMutation).
+ * Covers the pairing code query and the live status query.
  */
 import {
-  useNativeMessagingInstallExtension,
-  useNativeMessagingRemoveExtension
+  useNativeMessagingPairingCodeQuery,
+  useNativeMessagingStatusQuery
 } from '@platform/electron/api/useNativeMessagingApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@shared/lib/electronApi', () => ({
-  getElectronApi: vi.fn()
+  getElectronApi: vi.fn(),
+  hasElectronApi: () => true
 }))
 
 describe('useNativeMessagingApi', () => {
@@ -36,23 +36,33 @@ describe('useNativeMessagingApi', () => {
     )
 
     mockNativeMessaging = {
-      installExtension: vi.fn().mockResolvedValue(true),
-      removeExtension: vi.fn().mockResolvedValue(true)
+      getPairingCode: vi.fn().mockResolvedValue({ code: 'a'.repeat(64) }),
+      getStatus: vi.fn().mockResolvedValue({ status: 'disconnected', paired: false }),
+      onExtensionConnected: () => () => {},
+      onExtensionDisconnected: () => () => {}
     }
   })
 
-  it('useNativeMessagingRemoveExtension calls removeExtension and invalidates', async () => {
+  it('reads the pairing code when the query is enabled', async () => {
     vi.mocked(getElectronApi).mockReturnValue({ nativeMessaging: mockNativeMessaging } as any)
-    const { result } = renderHook(() => useNativeMessagingRemoveExtension(), { wrapper })
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-    await result.current.mutateAsync()
-    expect(mockNativeMessaging.removeExtension).toHaveBeenCalled()
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['native-messaging'] })
+    const { result } = renderHook(() => useNativeMessagingPairingCodeQuery(true), { wrapper })
+
+    await waitFor(() => expect(result.current.data).toBe('a'.repeat(64)))
+    expect(mockNativeMessaging.getPairingCode).toHaveBeenCalledTimes(1)
   })
 
-  it('throws when nativeMessaging API is not available', async () => {
+  it('does not read the pairing code while the dialog is closed', () => {
+    vi.mocked(getElectronApi).mockReturnValue({ nativeMessaging: mockNativeMessaging } as any)
+    renderHook(() => useNativeMessagingPairingCodeQuery(false), { wrapper })
+
+    expect(mockNativeMessaging.getPairingCode).not.toHaveBeenCalled()
+  })
+
+  it('reports no status when the native messaging API is not available', async () => {
     vi.mocked(getElectronApi).mockReturnValue({} as any)
-    const { result } = renderHook(() => useNativeMessagingInstallExtension(), { wrapper })
-    await expect(result.current.mutateAsync()).rejects.toThrow('Electron API not available')
+    const { result } = renderHook(() => useNativeMessagingStatusQuery(), { wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data).toBeNull()
   })
 })

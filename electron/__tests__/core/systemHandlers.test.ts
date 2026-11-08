@@ -230,12 +230,12 @@ describe('systemHandlers', () => {
         { sender: trustedSender },
         {
           id: 'chatgpt',
-          partition: 'persist:gemini_web_profile_slot_2',
+          partition: 'persist:ai_chatgpt',
           cacheOnly: true
         }
       )
     ).resolves.toEqual({ ok: true, data: true })
-    expect(fromPartition).toHaveBeenCalledWith('persist:gemini_web_profile_slot_2')
+    expect(fromPartition).toHaveBeenCalledWith('persist:ai_chatgpt')
     expect(partitionClearStorageData).toHaveBeenCalledWith({
       storages: ['serviceworkers', 'cachestorage']
     })

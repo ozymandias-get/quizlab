@@ -77,14 +77,10 @@ describe('systemHandlers/cache', () => {
     expect(resolveAiModelPartition({})).toBeNull()
   })
 
-  it('resolveAiModelPartition accepts Google primary and secondary slot partitions', async () => {
+  it('rejects an unregistered partition', async () => {
     const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
-    expect(resolveAiModelPartition({ partition: 'persist:gemini_web_profile' })).toBe(
-      'persist:gemini_web_profile'
-    )
-    expect(resolveAiModelPartition({ partition: 'persist:gemini_web_profile_slot_2' })).toBe(
-      'persist:gemini_web_profile_slot_2'
-    )
+    expect(resolveAiModelPartition({ id: 'chatgpt' })).toBe('persist:ai_chatgpt')
+    expect(resolveAiModelPartition({ partition: 'persist:unknown_partition' })).toBeNull()
   })
 
   it('does not clear root cache while clearing a single partition', async () => {
@@ -155,16 +151,16 @@ describe('systemHandlers/cache', () => {
     }
   })
 
-  it('finds persisted custom and secondary Google partitions for cache cleanup', async () => {
+  it('finds persisted custom partitions for cache cleanup and ignores unknown ones', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'quizlab-cache-partitions-'))
     try {
-      for (const name of ['ai_custom_example', 'gemini_web_profile_slot_3', 'pdf_viewer']) {
+      for (const name of ['ai_custom_example', 'other_partition', 'pdf_viewer']) {
         await fs.mkdir(path.join(root, 'Partitions', name), { recursive: true })
       }
       const { getStoredPartitions } = await import('../../../core/systemHandlers/cache.js')
       const partitions = await getStoredPartitions(root)
       expect(partitions.has('persist:ai_custom_example')).toBe(true)
-      expect(partitions.has('persist:gemini_web_profile_slot_3')).toBe(true)
+      expect(partitions.has('persist:other_partition')).toBe(false)
       expect(partitions.has('persist:pdf_viewer')).toBe(false)
       expect(partitions.has('persist:ai_chatgpt')).toBe(false)
     } finally {

@@ -102,10 +102,10 @@ describe('useSettingsSystemApi', () => {
 
   it('uses cache-only mode with the selected partition', async () => {
     const { result } = renderHook(() => useClearPartitionCache(), { wrapper })
-    await result.current.mutateAsync({ partition: 'persist:gemini_web_profile_slot_2' })
+    await result.current.mutateAsync({ partition: 'persist:ai_chatgpt' })
     expect(mockElectronApi.clearAiModelData).toHaveBeenCalledWith({
-      id: 'gemini_web_profile_slot_2',
-      partition: 'persist:gemini_web_profile_slot_2',
+      id: 'chatgpt',
+      partition: 'persist:ai_chatgpt',
       cacheOnly: true
     })
   })

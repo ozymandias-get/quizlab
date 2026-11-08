@@ -139,17 +139,12 @@ const electronApi: ElectronApi = {
     setEnabled: (siteId, enabled) =>
       unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ENABLED, siteId, enabled)),
     clear: (siteId) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_CLEAR, siteId)),
-    setActiveSlot: (siteId, slot) =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_SLOT, siteId, slot)),
     onChanged: (callback) => onEvent(IPC_CHANNELS.SITE_SESSION_CHANGED, callback)
   },
 
   nativeMessaging: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_STATUS)),
-    installExtension: () =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION)),
-    removeExtension: () =>
-      unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_EXTENSION)),
+    getPairingCode: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE)),
     onExtensionConnected: (callback) =>
       onEvent(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED, () => callback()),
     onExtensionDisconnected: (callback) =>

@@ -1,7 +1,7 @@
 import { formatSourcePages } from '@app/providers/ai/pdfSource'
 import type { AiDraftItem } from '@app/providers/ai/types'
 import { cn } from '@shared/lib/uiUtils'
-import { IconButton } from '@shared/ui/components/primitives'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Image as ImageIcon, Type, X } from 'lucide-react'
 import { memo } from 'react'
@@ -88,46 +88,54 @@ function DraftItemChip({
   const tooltipLabel = docName ? `${accessibleName} · ${docName}` : accessibleName
 
   return (
-    <li
-      className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-7 shrink-0 items-center gap-1.5 rounded-lg border pr-1 pl-1.5 transition-all"
-      data-testid="ai-draft-item"
-      title={tooltipLabel}
+    <WithTooltip
+      label={tooltipLabel}
+      contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
     >
-      <span
-        className="bg-background/80 text-muted-foreground text-ql-10 flex size-4 shrink-0 items-center justify-center rounded-md font-semibold tabular-nums"
-        aria-hidden
+      <li
+        className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-7 shrink-0 items-center gap-1.5 rounded-lg border pr-1 pl-1.5 transition-all"
+        data-testid="ai-draft-item"
       >
-        {order}
-      </span>
-      <span
-        style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
-        className="text-primary flex size-3.5 shrink-0 items-center justify-center"
-        aria-hidden
-      >
-        {item.type === 'text' ? <Type className="size-3.5" /> : <ImageIcon className="size-3.5" />}
-      </span>
-      <span className="text-ql-11 text-foreground shrink-0 font-medium">{kindLabel}</span>
-      {pageLabel && (
-        <span className="text-muted-foreground/85 text-ql-10 shrink-0 font-mono tabular-nums">
-          · {pageLabel}
-        </span>
-      )}
-      <span className="sr-only">{accessibleName}</span>
-      {onRemove && (
-        <IconButton
-          type="button"
-          variant="ghost"
-          size="compact"
-          onClick={() => onRemove(item.id)}
-          aria-label={`${t('ai_send_remove_item')} — ${accessibleName}`}
-          className={cn(
-            'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive size-5 shrink-0 rounded-md'
-          )}
+        <span
+          className="bg-background/80 text-muted-foreground text-ql-10 flex size-4 shrink-0 items-center justify-center rounded-md font-semibold tabular-nums"
+          aria-hidden
         >
-          <X className="size-3" aria-hidden />
-        </IconButton>
-      )}
-    </li>
+          {order}
+        </span>
+        <span
+          style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
+          className="text-primary flex size-3.5 shrink-0 items-center justify-center"
+          aria-hidden
+        >
+          {item.type === 'text' ? (
+            <Type className="size-3.5" />
+          ) : (
+            <ImageIcon className="size-3.5" />
+          )}
+        </span>
+        <span className="text-ql-11 text-foreground shrink-0 font-medium">{kindLabel}</span>
+        {pageLabel && (
+          <span className="text-muted-foreground/85 text-ql-10 shrink-0 font-mono tabular-nums">
+            · {pageLabel}
+          </span>
+        )}
+        <span className="sr-only">{accessibleName}</span>
+        {onRemove && (
+          <IconButton
+            type="button"
+            variant="ghost"
+            size="compact"
+            onClick={() => onRemove(item.id)}
+            aria-label={`${t('ai_send_remove_item')} — ${accessibleName}`}
+            className={cn(
+              'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive size-5 shrink-0 rounded-md'
+            )}
+          >
+            <X className="size-3" aria-hidden />
+          </IconButton>
+        )}
+      </li>
+    </WithTooltip>
   )
 }
 

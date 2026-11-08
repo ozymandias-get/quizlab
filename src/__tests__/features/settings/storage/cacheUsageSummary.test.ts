@@ -138,18 +138,18 @@ describe('resolvePartitionCacheRows', () => {
   })
 })
 
-it('groups Gemini profiles without inferring Google accounts or merging their clear targets', () => {
+it('groups historic custom profiles without merging their clear targets', () => {
   const rows = [
     {
-      key: 'gemini_web_profile',
-      label: 'Gemini Web',
+      key: 'ai_custom_example',
+      label: 'Custom Platform',
       size: 5000,
       category: 'active' as const,
       lastActive: 5
     },
     {
-      key: 'gemini_web_profile_slot_3',
-      label: 'Gemini Web · Profil 3',
+      key: 'ai_custom_example_12345678-1234-1234-1234-123456789abc',
+      label: 'Custom Platform · Other profile',
       size: 3000,
       category: 'cold' as const,
       lastActive: null
@@ -158,10 +158,10 @@ it('groups Gemini profiles without inferring Google accounts or merging their cl
   ]
   const groups = groupPartitionCacheRows(rows)
   expect(groups).toHaveLength(2)
-  expect(groups[0]).toMatchObject({ label: 'Gemini Web', size: 8000 })
+  expect(groups[0]).toMatchObject({ label: 'Custom Platform', size: 8000 })
   expect(groups[0].rows.map((row) => row.key)).toEqual([
-    'gemini_web_profile',
-    'gemini_web_profile_slot_3'
+    'ai_custom_example',
+    'ai_custom_example_12345678-1234-1234-1234-123456789abc'
   ])
 })
 

@@ -2,6 +2,8 @@ import type { SiteSessionView } from '@shared-core/types/siteSession'
 
 import SiteSessionsTab from '@features/settings/ui/siteSessions/SiteSessionsTab'
 
+import { TooltipProvider } from '@shared/ui/components/primitives'
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
@@ -27,14 +29,12 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
     isLoading: false
   }),
   useSetSiteSessionEnabledMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSetSiteSessionActiveSlotMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
+  useClearSiteSessionMutation: () => ({ mutateAsync: vi.fn(), isPending: false })
 }))
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
   useNativeMessagingStatusQuery: () => ({ data: null }),
-  useNativeMessagingInstallExtension: () => ({ mutateAsync: vi.fn() }),
-  useNativeMessagingRemoveExtension: () => ({ mutateAsync: vi.fn() })
+  useNativeMessagingPairingCodeQuery: () => ({ data: null, isLoading: false })
 }))
 
 vi.mock('react-i18next', () => ({
@@ -42,7 +42,9 @@ vi.mock('react-i18next', () => ({
 }))
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+  <QueryClientProvider client={new QueryClient()}>
+    <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
+  </QueryClientProvider>
 )
 
 describe('SiteSessionsTab', () => {

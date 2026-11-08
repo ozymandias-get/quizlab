@@ -266,6 +266,65 @@
         color: var(--foreground);
       }
 
+      .code-input {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 11px;
+        color: var(--foreground);
+        background-color: var(--background);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .code-input:hover {
+        border-color: var(--border-hover);
+      }
+
+      .code-input:focus-visible {
+        border-color: var(--ring);
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+
+      .pair-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .pair-state {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--missing-text);
+      }
+
+      .pair-state[data-paired='true'] {
+        color: var(--granted-text);
+      }
+
+      #pair-feedback {
+        display: none;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+
+      #pair-feedback[data-state] {
+        display: block;
+      }
+
+      #pair-feedback[data-state='success'] {
+        color: var(--granted-text);
+      }
+
+      #pair-feedback[data-state='error'] {
+        color: var(--destructive-text);
+      }
+
       /* Toggle Row */
       .toggle-box {
         display: flex;
@@ -677,11 +736,34 @@
       <p id="status" class="status-pill" role="status"></p>
     </header>
 
-    <div class="card slot-container">
+    <section class="card" aria-label="Quizlab eşleştirmesi">
+      <div class="pair-header">
+        <span class="field-label">Quizlab eşleştirmesi</span>
+        <span id="pair-state" class="pair-state" data-paired="false">Eşleştirilmedi</span>
+      </div>
+      <p class="card-intro">
+        Quizlab Ayarlar &rarr; Site Oturumları sayfasındaki eşleştirme kodunu buraya yapıştırın. Kod
+        yalnızca bu tarayıcıda saklanır ve uygulamaya imzalı istek göndermek için kullanılır.
+      </p>
+      <div class="field">
+        <label for="pairing-code-input" class="field-label">Eşleştirme kodu:</label>
+        <input
+          id="pairing-code-input"
+          class="code-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="64 karakterlik kod"
+        />
+      </div>
+      <button id="pair-btn" type="button">Eşleştir</button>
+      <div id="pair-feedback" role="status" aria-live="polite"></div>
+    </section>
+
+    <div class="card">
       <p class="card-intro">
         Chrome’daki site oturumunu uygulamaya aktarın. Aynı profildeki sekmeler ayrı çerez depoları
-        değildir. Google için tek aktarım yeterlidir: Quizlab Hesap 1 ilk Google hesabını, hesap
-        seçicisinden ikinci, üçüncü ve sonraki hesaplara geçebilirsiniz.
+        değildir. Her site, Google dahil, tek oturum kullanır.
       </p>
 
       <div class="field">

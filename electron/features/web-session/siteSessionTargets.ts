@@ -16,7 +16,6 @@ import {
   GOOGLE_WEB_SESSION_APPS
 } from '../../../shared/constants/googleAiWebApps.js'
 import { getSiteSessionCookieDomains } from '../../../shared/constants/siteSessionCookieDomains.js'
-import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import type { AiPlatform } from '../../../shared/types/ai.js'
 import type {
   SiteSessionKind,
@@ -206,10 +205,9 @@ export function toSiteSessionView(
   enabled: boolean,
   status: SiteSessionStatusCode,
   importedAt: string | null,
-  lastError: string | null,
-  activeSlot?: number
+  lastError: string | null
 ): SiteSessionView {
-  const view: SiteSessionView = {
+  return {
     siteId: target.siteId,
     labelKey: target.labelKey,
     hostname: target.hostname,
@@ -220,17 +218,4 @@ export function toSiteSessionView(
     importedAt,
     lastError
   }
-  if (activeSlot !== undefined) {
-    view.activeSlot = activeSlot
-  }
-  return view
-}
-
-/**
- * Resolves the partition for a target and slot.
- * Slot 1 is the primary/default partition, slot 2+ uses an isolated suffix.
- */
-export function partitionForTargetSlot(basePartition: string, slot?: number): string {
-  if (!isSiteSessionSlot(slot) || slot === 1) return basePartition
-  return `${basePartition}_slot_${slot}`
 }

@@ -15,7 +15,6 @@ export interface SiteSessionCardProps {
   disabled: boolean
   /** Called with the site id when the user flips the switch. */
   onToggle: (siteId: string) => void
-  onSelectSlot?: (siteId: string, slot: number) => void
   t: SiteSessionTranslate
 }
 
@@ -24,6 +23,5 @@ export interface SiteSessionListProps {
   views: SiteSessionView[]
   disabled: boolean
   onToggle: (siteId: string) => void
-  onSelectSlot?: (siteId: string, slot: number) => void
   t: SiteSessionTranslate
 }

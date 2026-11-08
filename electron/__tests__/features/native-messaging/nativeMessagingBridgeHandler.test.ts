@@ -41,7 +41,9 @@ function createManager() {
     _extensionLastSeenAt: 0,
     _extensionProtocolVersion: null,
     _expectedExtensionOrigin: EXTENSION_ORIGIN,
-    markExtensionSeen: vi.fn()
+    instanceId: 'test-bridge',
+    markExtensionSeen: vi.fn(),
+    markExtensionPaired: vi.fn()
   }
 }
 
@@ -160,7 +162,9 @@ describe('the bridge of the site session', () => {
     })
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({ secret: SECRET })
+    const body = (await response.json()) as Record<string, unknown>
+    expect(body).toMatchObject({ status: 'ok' })
+    expect(body.secret).toBeUndefined()
   })
 
   it('answers the signed site list request', async () => {

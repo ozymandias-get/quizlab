@@ -43,7 +43,6 @@ interface UseAiProviderContextsParams {
   addTab: (modelId: string) => void
   handleCloseTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
-  setTabSessionSlot: (tabId: string, slot: number) => void
   openAiWorkspace: (modelId: string) => void
   renameTab: (tabId: string, title?: string) => void
   togglePinTab: (tabId: string) => void
@@ -81,7 +80,6 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
     addTab,
     handleCloseTab,
     setActiveTab,
-    setTabSessionSlot,
     openAiWorkspace,
     renameTab,
     togglePinTab,
@@ -145,7 +143,6 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       closeTab: handleCloseTab,
       setActiveTab,
-      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab,
@@ -161,7 +158,6 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       handleCloseTab,
       setActiveTab,
-      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab,
@@ -180,20 +176,11 @@ export function useAiProviderContexts(params: UseAiProviderContextsParams) {
       addTab,
       closeTab: handleCloseTab,
       setActiveTab,
-      setTabSessionSlot,
       openAiWorkspace,
       renameTab,
       togglePinTab
     }),
-    [
-      addTab,
-      handleCloseTab,
-      setActiveTab,
-      setTabSessionSlot,
-      openAiWorkspace,
-      renameTab,
-      togglePinTab
-    ]
+    [addTab, handleCloseTab, setActiveTab, openAiWorkspace, renameTab, togglePinTab]
   )
 
   const modelActionsValue = useMemo<AiModelActions>(

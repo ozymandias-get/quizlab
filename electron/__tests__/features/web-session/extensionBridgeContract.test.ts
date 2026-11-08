@@ -14,7 +14,7 @@ const BACKGROUND_PATH = path.join(
 
 const source = readFileSync(BACKGROUND_PATH, 'utf-8')
 
-const BRIDGE_SECRET = 'bridge-secret-for-the-test'
+const BRIDGE_SECRET = 'ab'.repeat(32)
 const EXTENSION_ID = 'quizlab-test-extension'
 const EXTENSION_ORIGIN = `chrome-extension://${EXTENSION_ID}`
 const SCAN_ALARM = 'quizlabScan'
@@ -57,7 +57,6 @@ interface Packet {
   targetId: string
   status: string
   cookies: FakeCookie[]
-  profileSlot?: number
 }
 
 interface LogEntry {
@@ -119,6 +118,8 @@ interface HarnessOptions {
   bridgePort?: number
   /** The permissions API fails instead of answering. */
   permissionsThrow?: boolean
+  /** Whether the browser already holds the pairing code. Defaults to true. */
+  paired?: boolean
 }
 
 interface Harness {
@@ -168,7 +169,14 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const packets: Packet[] = []
   const permissionQueries: string[] = []
   const logs: LogEntry[] = []
-  const storage = new Map<string, unknown>(Object.entries(options.storage ?? {}))
+  // The user pairs the extension by hand; the worker finds the code in the
+  // local store. A harness without one cannot sign its requests.
+  const storage = new Map<string, unknown>(
+    Object.entries({
+      ...(options.paired === false ? {} : { bridgeSecret: BRIDGE_SECRET }),
+      ...(options.storage ?? {})
+    })
+  )
   const timers = new Map<number, () => void>()
   let messageListener: (
     message: Record<string, unknown>,
@@ -334,6 +342,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
     }
 
     if (target.endsWith(SITE_LIST_PATH)) {
+      // The app only answers a caller that holds the pairing code.
+      if (headers['x-hmac-signature'] !== sign(SITE_LIST_PATH)) {
+        return jsonResponse({ error: 'Invalid signature' }, 401)
+      }
       return jsonResponse(siteList)
     }
     if (target.endsWith(COOKIE_PATH)) {
@@ -360,7 +372,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
       return jsonResponse({
         status: 'ok',
         timestamp: '2026-01-01T00:00:00.000Z',
-        secret: BRIDGE_SECRET,
+        instanceId: 'bridge-instance-1',
         protocolVersion: 2
       })
     }
@@ -530,7 +542,7 @@ describe('extension bridge behaviour', () => {
     await harness.settle()
     expect(harness.cookieQueries).toEqual([])
     expect(harness.packets).toEqual([
-      { targetId: 'poe', status: 'permission_missing', cookies: [], profileSlot: 1 }
+      { targetId: 'poe', status: 'permission_missing', cookies: [] }
     ])
   })
 
@@ -707,6 +719,9 @@ describe('extension bridge behaviour', () => {
     const first = createHarness({ bridgePort: 52000 })
     await first.settle()
     expect(first.packets).toHaveLength(2)
+    // The running bridge is remembered: without this, the restarted worker
+    // would treat the same app as a new one and rewrite every session.
+    expect(first.storage.get('bridgeInstanceId')).toBe('bridge-instance-1')
 
     const second = createHarness({
       bridgePort: 52000,
@@ -1013,13 +1028,46 @@ describe('extension bridge behaviour', () => {
   })
 })
 
+describe('extension pairing', () => {
+  it('does not ask for sessions before the user pairs the extension', async () => {
+    const harness = createHarness({ paired: false })
+    await harness.settle()
+
+    expect(callsTo(harness, SITE_LIST_PATH)).toHaveLength(0)
+    expect(harness.packets).toHaveLength(0)
+  })
+
+  it('pairs with the app and starts the first import', async () => {
+    const harness = createHarness({ paired: false })
+    await harness.settle()
+
+    const response = await harness.message({ type: 'pair', secret: BRIDGE_SECRET })
+
+    expect(response.success).toBe(true)
+    expect(harness.storage.get('bridgeSecret')).toBe(BRIDGE_SECRET)
+    await harness.settle()
+    expect(harness.packets).toHaveLength(2)
+  })
+
+  it('refuses a code the app does not accept', async () => {
+    const harness = createHarness({ paired: false })
+    await harness.settle()
+
+    const response = await harness.message({ type: 'pair', secret: 'b'.repeat(64) })
+
+    expect(response.success).toBe(false)
+    await harness.settle()
+    expect(harness.packets).toHaveLength(0)
+  })
+})
+
 describe('extension account snapshots', () => {
   it('uses the single session for non-Google imports and pauses automatic writes across restarts', async () => {
     const harness = createHarness()
     await harness.settle()
-    const response = await harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' })
+    const response = await harness.message({ type: 'sync_now', targetId: 'claude' })
     expect(response.success).toBe(true)
-    expect(harness.packets.at(-1)).toMatchObject({ targetId: 'claude', profileSlot: 1 })
+    expect(harness.packets.at(-1)).toMatchObject({ targetId: 'claude' })
     const count = harness.packets.length
     harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
     await harness.runTimers()
@@ -1033,44 +1081,39 @@ describe('extension account snapshots', () => {
     expect(restarted.wakeUpHosts()).toContain('claude.ai')
   })
 
-  it('serializes captures into their requested slots without redirecting an earlier capture', async () => {
+  it('serializes captures for two requested sites', async () => {
     const harness = createHarness()
     await harness.settle()
     const offset = harness.packets.length
     await Promise.all([
-      harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' }),
-      harness.message({ type: 'sync_now', slot: 1, targetId: 'chatgpt' })
+      harness.message({ type: 'sync_now', targetId: 'claude' }),
+      harness.message({ type: 'sync_now', targetId: 'chatgpt' })
     ])
     expect(harness.packets.slice(offset)).toMatchObject([
-      { targetId: 'claude', profileSlot: 1 },
-      { targetId: 'chatgpt', profileSlot: 1 }
+      { targetId: 'claude' },
+      { targetId: 'chatgpt' }
     ])
   })
 
   it('reports a missing browser session and an unknown selected site as failures', async () => {
     const harness = createHarness({ cookies: {} })
     await harness.settle()
-    expect((await harness.message({ type: 'sync_now', slot: 2, targetId: 'claude' })).success).toBe(
-      false
-    )
-    expect(
-      (await harness.message({ type: 'sync_now', slot: 2, targetId: 'unknown' })).success
-    ).toBe(false)
+    expect((await harness.message({ type: 'sync_now', targetId: 'claude' })).success).toBe(false)
+    expect((await harness.message({ type: 'sync_now', targetId: 'unknown' })).success).toBe(false)
   })
 
-  it('resumes automatic writes only into slot 1', async () => {
-    const harness = createHarness({ storage: { profileSlot: 2, autoSync: false } })
+  it('resumes automatic writes', async () => {
+    const harness = createHarness({ storage: { autoSync: false } })
     await harness.settle()
     await harness.message({ type: 'set_auto_sync', enabled: true })
     expect(harness.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'claude'])
     harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
     await harness.runTimers()
     expect(harness.packets.length).toBeGreaterThan(0)
-    expect(harness.packets.every((packet) => packet.profileSlot === 1)).toBe(true)
   })
 
   it('reports failure when resuming automatic sync cannot reach the bridge', async () => {
-    const harness = createHarness({ storage: { profileSlot: 2, autoSync: false } })
+    const harness = createHarness({ storage: { autoSync: false } })
     await harness.settle()
     harness.failNextPackets(1)
     expect((await harness.message({ type: 'set_auto_sync', enabled: true })).success).toBe(false)
@@ -1079,7 +1122,7 @@ describe('extension account snapshots', () => {
   it('retries previously oversized sites when automatic sync is resumed', async () => {
     const harness = createHarness({ tooLargePackets: 1 })
     await harness.settle()
-    await harness.message({ type: 'sync_now', slot: 1, targetId: 'claude' })
+    await harness.message({ type: 'sync_now', targetId: 'claude' })
     await harness.message({ type: 'set_auto_sync', enabled: true })
     expect(harness.packets.at(-2)?.targetId).toBe('chatgpt')
     expect(harness.packets.at(-1)?.targetId).toBe('claude')

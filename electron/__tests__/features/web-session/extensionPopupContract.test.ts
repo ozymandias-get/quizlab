@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 
+import {
+  QUIZLAB_EXTENSION_ID,
+  QUIZLAB_EXTENSION_ORIGIN
+} from '../../../../shared/constants/extensionRelease.js'
+import { deriveExtensionIdFromKey } from '../../../features/native-messaging/nativeMessagingOrigin.js'
 import { describe, expect, it } from 'vitest'
 
 const EXT_DIR = path.join(process.cwd(), 'extensions/quizlab-session-extension')
@@ -394,9 +399,23 @@ describe('extension permission popup', () => {
     expect(popupHtml).not.toMatch(/href="https?:/)
   })
 
+  it('offers a pairing form for the separately installed extension', () => {
+    expect(popupHtml).toContain('id="pairing-code-input"')
+    expect(popupHtml).toContain('id="pair-btn"')
+    expect(popupHtml).toContain('id="pair-state"')
+    expect(popupJs).toContain("type: 'pair'")
+    expect(popupJs).toContain('chrome.storage.local')
+  })
+
+  it('keeps the pinned Origin allowlist in sync with the manifest key', () => {
+    const derived = deriveExtensionIdFromKey(manifest.key ?? '')
+    expect(derived).toBe(QUIZLAB_EXTENSION_ID)
+    expect(`chrome-extension://${derived}`).toBe(QUIZLAB_EXTENSION_ORIGIN)
+  })
+
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.2.0')
+    expect(manifest.version).toBe('1.3.0')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',

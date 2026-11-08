@@ -68,25 +68,30 @@ QuizLab-Setup-<version>-x64.exe   (NSIS, x64, per-user)
 
 ## Chrome session bridge
 
-The bridge is a loopback HTTP server (`127.0.0.1:51999–52009`) plus an
-unpacked Chrome extension. It does **not** use Chrome Native Messaging:
+The bridge is a loopback HTTP server (`127.0.0.1:51999–52009`) plus a Chrome
+extension that is distributed and installed separately. It does **not** use
+Chrome Native Messaging:
 
 - No `NativeMessagingHosts` registry key is written by the installer or by
   the app. Older installs that still carry the legacy
   `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader` key
   have it removed on uninstall.
-- Settings → session bridge → "install extension" copies the extension to
-  `%AppData%\Quizlab Reader\extensions\quizlab-session-extension` and writes
-  the shared secret into `bridge-secret.json` next to its manifest. The
-  service worker reads that file; the secret is never returned by the HTTP
-  health endpoint in a packaged build.
-- The extension is loaded unpacked from that folder in `chrome://extensions`.
+- The app does **not** bundle or copy the extension. Settings → Site Sessions
+  links to the extension release; the user unzips it and loads it unpacked in
+  `chrome://extensions`.
+- The user pairs the extension by copying the code from Settings → Site
+  Sessions and pasting it into the extension popup. The code is the HMAC
+  secret; it is stored in the extension's `chrome.storage.local` and is never
+  returned by the HTTP health endpoint or written into the extension package.
+- The app keeps its own copy of the secret in
+  `%AppData%\Quizlab Reader\bridge-secret.json`.
 
 The allowed HTTP origin
-(`chrome-extension://follalbajmbjmkejipfikekdiodbkggp`) is derived from the
-extension key pinned in `extensions/quizlab-session-extension/manifest.json`
-(see `electron/features/native-messaging/nativeMessagingOrigin.ts`). If the
-extension key rotates, the origin check follows the manifest automatically.
+(`chrome-extension://follalbajmbjmkejipfikekdiodbkggp`) is the id derived from
+the extension key pinned in
+`extensions/quizlab-session-extension/manifest.json`. The id is pinned in
+`shared/constants/extensionRelease.ts` and checked against the manifest by the
+extension contract test. If the extension key rotates, both must be updated.
 
 ## Explorer right-click menu ("QuizLab ile Aç")
 
@@ -167,8 +172,8 @@ DLL that is no longer shipped.
 
 - `files: ["dist/**/*"]` — only the built app goes into `app.asar`.
 - `extraResources`: `resources/icon.{ico,png}` (window/taskbar icon resolved
-  from `<resources>/resources/` at runtime) and the `extensions/` bridge
-  source. Tight filters keep stray dev files out of the installer.
+  from `<resources>/resources/` at runtime). The session extension is not
+  bundled; it is its own release artifact.
 
 ## Code signing readiness
 

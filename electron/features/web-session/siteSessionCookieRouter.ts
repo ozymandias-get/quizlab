@@ -17,13 +17,11 @@
  */
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
-import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { isCookieDomainAllowed } from './siteSessionCookies.js'
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /** Why a packet was refused. */
-export type CookiePacketRejection =
-  'unknown_target' | 'target_disabled' | 'domain_mismatch' | 'invalid_slot'
+export type CookiePacketRejection = 'unknown_target' | 'target_disabled' | 'domain_mismatch'
 
 /**
  * What the extension reports about a site.
@@ -43,12 +41,11 @@ export interface CookiePacket {
   targetId: string
   status: CookiePacketStatus
   cookies: CookiePacketCookie[]
-  profileSlot?: number
 }
 
 /** The outcome of routing a packet. */
 export type CookiePacketRoute =
-  | { ok: true; target: SiteSessionTargetRow; cookies: CookiePacketCookie[]; profileSlot: number }
+  | { ok: true; target: SiteSessionTargetRow; cookies: CookiePacketCookie[] }
   | { ok: false; reason: CookiePacketRejection }
 
 /**
@@ -63,9 +60,6 @@ export function routeCookiePacket(
   targets: readonly SiteSessionTargetRow[],
   isEnabled: (siteId: string) => boolean
 ): CookiePacketRoute {
-  if (packet.profileSlot !== undefined && !isSiteSessionSlot(packet.profileSlot)) {
-    return { ok: false, reason: 'invalid_slot' }
-  }
   const target = targets.find((candidate) => candidate.siteId === packet.targetId)
   if (!target) {
     return { ok: false, reason: 'unknown_target' }
@@ -82,7 +76,5 @@ export function routeCookiePacket(
     return { ok: false, reason: 'domain_mismatch' }
   }
 
-  const profileSlot =
-    target.kind === 'google' && isSiteSessionSlot(packet.profileSlot) ? packet.profileSlot : 1
-  return { ok: true, target, cookies: packet.cookies, profileSlot }
+  return { ok: true, target, cookies: packet.cookies }
 }

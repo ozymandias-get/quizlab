@@ -181,20 +181,6 @@ describe('parseBounds', () => {
 })
 
 describe('parseSource', () => {
-  it('preserves a bounded per-tab account selection', () => {
-    expect(parseSource({ kind: 'ai-platform', modelId: 'chatgpt', sessionSlot: 2 })).toEqual({
-      kind: 'ai-platform',
-      modelId: 'chatgpt',
-      sessionSlot: 2
-    })
-    expect(parseSource({ kind: 'google-web-app', appId: 'gdrive', sessionSlot: 2 })).toEqual({
-      kind: 'google-web-app',
-      appId: 'gdrive',
-      sessionSlot: 2
-    })
-    expect(parseSource({ kind: 'ai-platform', modelId: 'chatgpt', sessionSlot: 21 })).toBeNull()
-    expect(parseSource({ kind: 'ai-platform', modelId: 'chatgpt', sessionSlot: '2' })).toBeNull()
-  })
   it('accepts only the two closed-union targets', () => {
     expect(parseSource({ kind: 'ai-platform', modelId: 'chatgpt' })).toEqual({
       kind: 'ai-platform',

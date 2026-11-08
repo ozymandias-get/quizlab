@@ -1,4 +1,3 @@
-import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 /**
  * The IPC surface of the per-site session import.
  *
@@ -73,22 +72,6 @@ export function registerSiteSessionHandlers(): void {
       }
 
       const result = await siteSessionService.clear(siteId)
-      await broadcastSiteSessionsChanged()
-      return success(result)
-    },
-    requireTrustedIpcSender,
-    success({ success: false, error: 'Unauthorized' })
-  )
-
-  registerIpcHandler(
-    IPC_CHANNELS.SITE_SESSION_SET_ACTIVE_SLOT,
-    async (_event, siteId: unknown, slot: unknown) => {
-      if (typeof siteId !== 'string' || siteId.length === 0) {
-        return success({ success: false, error: 'invalid_site_id' })
-      }
-      if (!isSiteSessionSlot(slot)) return success({ success: false, error: 'invalid_slot' })
-      const slotNum = slot
-      const result = await siteSessionService.setActiveSlot(siteId, slotNum)
       await broadcastSiteSessionsChanged()
       return success(result)
     },

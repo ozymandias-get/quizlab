@@ -1,5 +1,3 @@
-export const EXTENSION_SOURCE_DIR = 'extensions/quizlab-session-extension'
-
 /**
  * The ports the bridge may listen on.
  *
@@ -27,5 +25,3 @@ export const BRIDGE_PORT = (() => {
 })()
 
 export const MAX_COOKIE_BODY_SIZE = 1024 * 512 // 512 KB
-
-// isAllowedOrigin was removed — HMAC signing provides auth regardless of origin.

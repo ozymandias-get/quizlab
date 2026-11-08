@@ -38,7 +38,6 @@
   "storage_category_active": "Aktif",
   "storage_services_count": "Yapay zeka önbellekleri ({count})",
   "storage_profiles_count": "{count} profil önbelleği",
-  "storage_google_profile": "Gemini Web · Profil",
   "storage_other_profile": "Diğer profil",
   "storage_category_cold": "Soğuk",
   "storage_category_passive": "Pasif",

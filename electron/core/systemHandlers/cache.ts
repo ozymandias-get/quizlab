@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { googleSlotForPartition } from '../../../shared/lib/googleSessionUrl.js'
+import { GOOGLE_AI_WEB_SESSION_PARTITION } from '../../../shared/constants/googleAiWebApps.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from '../../features/ai/aiManager.js'
 import type { getCacheInfo } from '../cacheCleanup/index.js'
@@ -136,8 +136,8 @@ function normalizeClearablePartition(input: unknown): string | null {
   if (!normalized || normalized.length > 128) return null
   if (
     normalized !== APP_CONFIG.PARTITIONS.AI &&
-    !/^persist:ai_[\w-]+$/i.test(normalized) &&
-    googleSlotForPartition(normalized) === null
+    normalized !== GOOGLE_AI_WEB_SESSION_PARTITION &&
+    !/^persist:ai_[\w-]+$/i.test(normalized)
   ) {
     return null
   }
@@ -177,7 +177,7 @@ export function getAllPartitions(): Set<string> {
   return partitions
 }
 
-/** Include persisted custom and Google account partitions that are not in the registry. */
+/** Include persisted custom partitions that are not in the registry. */
 export async function getStoredPartitions(userDataPath: string): Promise<Set<string>> {
   const partitions = new Set<string>()
   const registered = getAllPartitions()
@@ -186,11 +186,7 @@ export async function getStoredPartitions(userDataPath: string): Promise<Set<str
     for (const entry of entries) {
       if (!entry.isDirectory() || entry.isSymbolicLink()) continue
       const partition = `persist:${entry.name}`
-      if (
-        registered.has(partition) ||
-        /^persist:ai_[a-z0-9_-]+$/i.test(partition) ||
-        googleSlotForPartition(partition) !== null
-      ) {
+      if (registered.has(partition) || /^persist:ai_[a-z0-9_-]+$/i.test(partition)) {
         partitions.add(partition)
       }
     }

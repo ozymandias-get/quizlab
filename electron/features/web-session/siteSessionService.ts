@@ -24,30 +24,13 @@
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
-import {
-  GOOGLE_AI_WEB_SESSION_PARTITION,
-  GOOGLE_AI_WEB_SITE_ID
-} from '../../../shared/constants/googleAiWebApps.js'
-import {
-  googleAccountSlotOptions,
-  isSiteSessionSlot,
-  SITE_SESSION_SLOTS
-} from '../../../shared/constants/siteSessionSlots.js'
 import type {
   SiteSessionActionResult,
-  SiteSessionGoogleAccount,
   SiteSessionListResult
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import {
-  getGoogleAccountEntries,
-  type GoogleAccountEntry,
-  peekGoogleAccountEntries
-} from './googleAccounts.js'
-import { seedGoogleSessionSlotUnderLock } from './googleSessionSlot.js'
 import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
-import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import {
   invalidateSiteSessionListCache,
@@ -56,11 +39,9 @@ import {
   writeCachedSiteSessionList
 } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
-import { partitionExistsOnDisk } from './siteSessionPartitions.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
-  partitionForTargetSlot,
   type SiteSessionTargetRow,
   toSiteSessionView
 } from './siteSessionTargets.js'
@@ -75,16 +56,7 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  */
 export interface SiteSessionServiceDeps {
   config: Pick<SiteSessionConfig, 'read' | 'setEnabled' | 'resetResults'> &
-    Partial<
-      Pick<
-        SiteSessionConfig,
-        | 'setActiveSlot'
-        | 'isEnabled'
-        | 'recordResult'
-        | 'migrateActiveAccountId'
-        | 'syncActiveSlotToAccount'
-      >
-    >
+    Partial<Pick<SiteSessionConfig, 'isEnabled' | 'recordResult'>>
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -93,10 +65,6 @@ export interface SiteSessionServiceDeps {
 
 export class SiteSessionService {
   private readonly deps: SiteSessionServiceDeps
-  /** One in-flight migration write for the Google account id. */
-  private googleAccountIdMigration: Promise<void> | null = null
-  /** One in-flight sync write for an account discovery moved. */
-  private googleSlotSync: Promise<void> | null = null
 
   constructor(deps: SiteSessionServiceDeps) {
     this.deps = deps
@@ -140,189 +108,22 @@ export class SiteSessionService {
       targets.map(async (target) => {
         const targetState = state.targets[target.siteId]
         const enabled = targetState?.enabled === true
-        let activeSlot = target.kind === 'google' ? (targetState?.activeSlot ?? 1) : 1
-        let accountSlots: number[] | undefined
-        let accounts: SiteSessionGoogleAccount[] | undefined
-        let googleDiscoveryUnverified = false
-        let googleSelectionUnverified = false
-        if (target.kind === 'google') {
-          const importKey = targetState?.slots?.[1]?.importedAt ?? targetState?.importedAt ?? ''
-          const primary = this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION)
-          const applyEntries = (entries: GoogleAccountEntry[]) => {
-            accountSlots = googleAccountSlotOptions(entries.map((entry) => entry.slot))
-            accounts = entries.flatMap((entry) =>
-              entry.email === undefined ? [] : [{ slot: entry.slot, email: entry.email }]
-            )
-            const storedAccountId = targetState?.activeAccountId ?? null
-            if (storedAccountId) {
-              // Follow the account, not the position: Google may move it when
-              // another account is added, removed or reordered.
-              const match = entries.find((entry) => entry.accountId === storedAccountId)
-              if (match) {
-                if (match.slot !== activeSlot) {
-                  activeSlot = match.slot
-                  // The view follows the account now; persisting the move keeps
-                  // the next tabs and the next list read consistent with it.
-                  // A compare-and-set guards the write: an explicit selection
-                  // that lands in between is never overwritten.
-                  this.persistGoogleSlotSync(storedAccountId, match.slot)
-                }
-              } else {
-                googleSelectionUnverified = true
-              }
-            } else if (entries.length > 0) {
-              // Migration from a position-only selection: bind the account
-              // that currently sits at the stored position, without changing
-              // the slot or the import history.
-              const selected = entries.find((entry) => entry.slot === activeSlot) ?? entries[0]
-              if (selected.accountId) {
-                this.persistGoogleAccountId(selected.accountId)
-              }
-            }
-            if (!accountSlots.includes(activeSlot)) activeSlot = accountSlots[0] ?? 1
-          }
-          const peeked = peekGoogleAccountEntries(primary, importKey)
-          if (!peeked.known) {
-            // First look after start-up: the list may wait once so the first
-            // open still shows the account selector. Later opens read the
-            // snapshot and refresh it in the background.
-            const discovered = await getGoogleAccountEntries(primary, importKey)
-            if (discovered !== null) applyEntries(discovered)
-            else googleDiscoveryUnverified = true
-          } else {
-            if (peeked.entries !== null) applyEntries(peeked.entries)
-            else googleDiscoveryUnverified = true
-            this.refreshGoogleAccountEntries(primary, importKey, peeked.entries)
-          }
-        }
-        // A clamped slot must not borrow the old slot's top-level mirror. The
-        // top-level fields describe the stored active slot; when discovery
-        // moved us to another one and that slot has no history, the row says
-        // "never imported" rather than attributing the old account's result.
-        const slotWasClamped =
-          target.kind === 'google' && activeSlot !== (targetState?.activeSlot ?? 1)
-        const slotState = slotWasClamped ? targetState?.slots?.[activeSlot] : undefined
-        const lastResult = slotWasClamped
-          ? (slotState?.lastResult ?? null)
-          : (targetState?.lastResult ?? null)
-        const importedAt = slotWasClamped
-          ? (slotState?.importedAt ?? null)
-          : (targetState?.importedAt ?? null)
-        const lastError = slotWasClamped
-          ? (slotState?.lastError ?? null)
-          : (targetState?.lastError ?? null)
-        const hasLocalSession = await hasLocalSessionForTarget(
-          {
-            ...target,
-            partition: partitionForTargetSlot(target.partition, activeSlot)
-          },
-          this.deps.resolveSession
-        )
-        let status = deriveSiteSessionStatus({
+        const lastResult = targetState?.lastResult ?? null
+        const importedAt = targetState?.importedAt ?? null
+        const lastError = targetState?.lastError ?? null
+        const hasLocalSession = await hasLocalSessionForTarget(target, this.deps.resolveSession)
+        const status = deriveSiteSessionStatus({
           enabled,
           extensionConnected,
           extensionVersionOk,
           lastResult,
           hasLocalSession
         })
-        // A cookie on disk proves that an import wrote something, not that
-        // Google still accepts it. When discovery cannot confirm the account
-        // set, the honest status is "unverified" rather than "imported".
-        if (
-          target.kind === 'google' &&
-          status === 'imported' &&
-          (googleDiscoveryUnverified ||
-            googleSelectionUnverified ||
-            (accountSlots?.length ?? 0) === 0)
-        ) {
-          status = 'session_unverified'
-        }
-        const view = toSiteSessionView(target, enabled, status, importedAt, lastError, activeSlot)
-        if (accountSlots !== undefined) {
-          view.accountSlots = accountSlots
-        }
-        if (accounts !== undefined && accounts.length > 0) {
-          view.accounts = accounts
-        }
-        return view
+        return toSiteSessionView(target, enabled, status, importedAt, lastError)
       })
     )
 
     return { views, extensionConnected, extensionVersionOk }
-  }
-
-  /**
-   * Refreshes account discovery without making the list wait for Google.
-   *
-   * The list is served from the last snapshot immediately. The comparison is
-   * by stable account id, not only by position: swapping two accounts leaves
-   * the slot list `[1, 2]` unchanged but must still refresh the view.
-   */
-  private refreshGoogleAccountEntries(
-    primary: Session,
-    importKey: string,
-    previous: GoogleAccountEntry[] | null
-  ): void {
-    void getGoogleAccountEntries(primary, importKey).then((discovered) => {
-      if (discovered === null) return
-      if (
-        previous !== null &&
-        previous.length === discovered.length &&
-        previous.every(
-          (entry, index) =>
-            entry.slot === discovered[index].slot &&
-            entry.accountId === discovered[index].accountId &&
-            entry.email === discovered[index].email
-        )
-      ) {
-        return
-      }
-      invalidateSiteSessionListCache()
-      void broadcastSiteSessionsChanged()
-    })
-  }
-
-  /**
-   * Migrates a position-only selection to a stable account id once.
-   *
-   * The write happens in the background: the list must not wait for it, and a
-   * failed migration simply leaves the old positional behaviour in place.
-   */
-  private persistGoogleAccountId(accountId: string): void {
-    const write = this.deps.config.migrateActiveAccountId
-    if (!write || this.googleAccountIdMigration) return
-    this.googleAccountIdMigration = (async () => {
-      try {
-        await write.call(this.deps.config, GOOGLE_AI_WEB_SITE_ID, accountId)
-      } catch (error) {
-        Logger.warn('[SiteSession] The Google account id could not be recorded:', error)
-      } finally {
-        this.googleAccountIdMigration = null
-      }
-    })()
-  }
-
-  /**
-   * Re-points the stored active slot at the account discovery moved.
-   *
-   * Discovery reports Google's list, not the config's; a refresh that finds
-   * the bound account at another position updates the view at once and writes
-   * the move in the background, so the list never waits on a config write.
-   * A failed sync leaves the derived behaviour in place: the next read clamps
-   * again, so the view stays correct even when the write could not land.
-   */
-  private persistGoogleSlotSync(accountId: string, slot: number): void {
-    const write = this.deps.config.syncActiveSlotToAccount
-    if (!write || this.googleSlotSync) return
-    this.googleSlotSync = (async () => {
-      try {
-        await write.call(this.deps.config, GOOGLE_AI_WEB_SITE_ID, accountId, slot)
-      } catch (error) {
-        Logger.warn('[SiteSession] The moved Google account slot could not be recorded:', error)
-      } finally {
-        this.googleSlotSync = null
-      }
-    })()
   }
 
   /**
@@ -431,130 +232,28 @@ export class SiteSessionService {
     return { success: true }
   }
 
-  /** Switches the active profile slot (1 or 2) for a site. */
-  async setActiveSlot(siteId: string, slot: number): Promise<SiteSessionActionResult> {
-    if (!isSiteSessionSlot(slot)) return { success: false, error: 'invalid_slot' }
-    const targets = await this.deps.loadTargets()
-    const target = targets.find((candidate) => candidate.siteId === siteId)
-    if (!target) {
-      return { success: false, error: 'unknown_target' }
-    }
-
-    if (target.kind !== 'google' && slot !== 1) return { success: false, error: 'invalid_slot' }
-    try {
-      const config = this.deps.config
-      if (!config.setActiveSlot) return { success: false, error: 'write_failed' }
-
-      if (target.kind === 'google' && slot > 1) {
-        return await withSiteSessionLock(siteId, async () => {
-          // Discovery, preparation and the config write share one lock: an
-          // import cannot slip between the account check and the selection.
-          const state = await config.read()
-          const importKey =
-            state.targets[GOOGLE_AI_WEB_SITE_ID]?.slots?.[1]?.importedAt ??
-            state.targets[GOOGLE_AI_WEB_SITE_ID]?.importedAt ??
-            ''
-          const entries = await getGoogleAccountEntries(
-            this.deps.resolveSession(GOOGLE_AI_WEB_SESSION_PARTITION),
-            importKey
-          )
-          if (entries === null) {
-            return { success: false, error: 'account_discovery_unavailable' }
-          }
-          const selected = entries.find((entry) => entry.slot === slot)
-          if (!selected) {
-            return { success: false, error: 'invalid_slot' }
-          }
-
-          // Prepare the destination before the selection is written. A failed
-          // import must leave the old account selected, not a half-seeded slot.
-          const preparation = await seedGoogleSessionSlotUnderLock(
-            slot,
-            {
-              config: {
-                read: () => config.read(),
-                recordResult: (...args) => config.recordResult!(...args),
-                isEnabled: config.isEnabled
-                  ? (id) => config.isEnabled!(id)
-                  : async (id) => (await config.read()).targets[id]?.enabled === true
-              },
-              resolveSession: this.deps.resolveSession
-            },
-            { ignoreEnabled: true, expectedAccountId: selected.accountId }
-          )
-          if (!preparation.ok || !preparation.ready) {
-            let error = 'account_not_ready'
-            if (preparation.status === 'rollback_failed') error = 'session_restore_failed'
-            else if (preparation.status === 'metadata_failed') error = 'write_failed'
-            return {
-              success: false,
-              error,
-              detail:
-                'The selected Google account could not be prepared; the previous account is still active.'
-            }
-          }
-
-          await config.setActiveSlot!(siteId, slot, selected.accountId)
-          invalidateSiteSessionListCache()
-          await broadcastSiteSessionsChanged()
-          return { success: true }
-        })
-      }
-
-      await withSiteSessionLock(siteId, () => config.setActiveSlot!(siteId, slot))
-      invalidateSiteSessionListCache()
-      await broadcastSiteSessionsChanged()
-      return { success: true }
-    } catch {
-      return { success: false, error: 'write_failed' }
-    }
-  }
-
-  /** Removes the session the app holds for one site across all slots. */
+  /** Removes the session the app holds for one site. */
   private async wipe(target: SiteSessionTargetRow): Promise<void> {
-    const state = await this.deps.config.read()
-    // Include legacy secondary non-Google sessions when clearing, without selecting them.
-    const slots = new Set([
-      1,
-      2,
-      state.targets[target.siteId]?.activeSlot ?? 1,
-      ...Object.keys(state.targets[target.siteId]?.slots ?? {}).map(Number)
-    ])
-    if (target.kind === 'google') {
-      const existing = await Promise.all(
-        SITE_SESSION_SLOTS.map(async (slot) => ({
-          slot,
-          exists: await partitionExistsOnDisk(partitionForTargetSlot(target.partition, slot))
-        }))
-      )
-      for (const { slot, exists } of existing) if (exists) slots.add(slot)
+    try {
+      await wipeSiteSession(this.deps.resolveSession(target.partition), target)
+    } catch (error) {
+      Logger.warn(`[SiteSession] The session of "${target.siteId}" could not be cleared:`, error)
+      throw error
     }
-    let failed = false
-    for (const slot of slots) {
-      if (!isSiteSessionSlot(slot)) continue
-      try {
-        await wipeSiteSession(
-          this.deps.resolveSession(partitionForTargetSlot(target.partition, slot)),
-          target
-        )
-      } catch (error) {
-        failed = true
-        Logger.warn(`[SiteSession] Slot ${slot} of "${target.siteId}" could not be cleared:`, error)
-      }
-    }
-    if (failed) throw new Error('One or more session slots could not be cleared')
     await this.deps.config.resetResults(target.siteId)
   }
 }
 
 /**
- * Whether the Chrome extension is talking to the app.
+ * Whether the Chrome extension is talking to the app and paired.
  *
- * The extension connects over the bridge; while it does not, the app cannot
- * pull a session from it.
+ * An extension that reaches the bridge without the pairing code cannot read
+ * the enabled site list, so it cannot import anything. The row has to say
+ * "extension missing" until the user pairs it.
  */
 function isExtensionConnected(): boolean {
-  return nativeMessagingManager.getExtensionInfo().status === 'connected'
+  const info = nativeMessagingManager.getExtensionInfo()
+  return info.status === 'connected' && info.paired
 }
 
 /**

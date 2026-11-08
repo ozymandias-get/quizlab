@@ -149,8 +149,6 @@ vi.mock('../../../app/window/permissionPolicy.js', () => ({
     const roots: Record<string, string[]> = {
       'persist:ai_chatgpt': ['chatgpt.com'],
       'persist:gemini_web_profile': ['gemini.google.com'],
-      'persist:gemini_web_profile_slot_2': ['gemini.google.com'],
-      'persist:gemini_web_profile_slot_3': ['gemini.google.com'],
       'persist:ai_custom_custom_1': ['local.test']
     }
     return (
@@ -201,11 +199,6 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
       url: 'https://nopartition.test'
     }
   })
-}))
-
-vi.mock('../../../features/web-session/googleSessionSlot.js', () => ({
-  // A prepared slot is what most tests assume; the fallback test overrides it.
-  ensureGoogleSessionSlot: vi.fn(async () => ({ ok: true, ready: true, status: 'ready' }))
 }))
 
 const manager = await import('../../../features/ai-view/aiWebContentsViewManager.js')
@@ -273,34 +266,6 @@ describe('AiWebContentsViewManager - creation', () => {
     )
   })
 
-  it('forces non-Google tabs into one session even if a legacy tab requests slot 2', async () => {
-    await reset()
-    const first = await manager.attachAiView({
-      viewId: 'account-1',
-      source: { ...CHATGPT, sessionSlot: 1 }
-    })
-    await manager.attachAiView({ viewId: 'account-2', source: { ...CHATGPT, sessionSlot: 2 } })
-    expect(
-      createdViews.map((view) => (view.webPreferences as { partition: string }).partition)
-    ).toEqual(['persist:ai_chatgpt', 'persist:ai_chatgpt'])
-    const again = await manager.attachAiView({
-      viewId: 'account-1',
-      source: { ...CHATGPT, sessionSlot: 1 }
-    })
-    expect(again.generation).toBe(first.generation)
-    expect(createdViews).toHaveLength(2)
-    const switched = await manager.attachAiView({
-      viewId: 'account-2',
-      source: { ...CHATGPT, sessionSlot: 1 }
-    })
-    expect(switched.generation).not.toBe(first.generation)
-    const stillFirst = await manager.attachAiView({
-      viewId: 'account-1',
-      source: { ...CHATGPT, sessionSlot: 1 }
-    })
-    expect(stillFirst.generation).toBe(first.generation)
-  })
-
   it('resolves custom platform partitions from the store', async () => {
     await reset()
     await manager.attachAiView({
@@ -341,46 +306,6 @@ describe('AiWebContentsViewManager - creation', () => {
     await expect(
       manager.attachAiView({ viewId: 'tab-y', source: { kind: 'google-web-app', appId: 'nope' } })
     ).rejects.toThrow(/unknown_view_target/)
-  })
-
-  it('opens Google account 3 in its own partition while non-Google slots are ignored', async () => {
-    await reset()
-    const third = await manager.attachAiView({
-      viewId: 'google-3',
-      source: { kind: 'google-web-app', appId: 'gemini', sessionSlot: 3 },
-      restoredUrl: 'https://gemini.google.com/u/0/app?authuser=0'
-    })
-    expect(third.currentUrl).toBe('https://gemini.google.com/u/2/app?authuser=2')
-    expect((createdViews[0].webPreferences as { partition: string }).partition).toBe(
-      'persist:gemini_web_profile_slot_3'
-    )
-    await manager.attachAiView({
-      viewId: 'custom-single',
-      source: { kind: 'ai-platform', modelId: 'custom_1', sessionSlot: 3 }
-    })
-    expect((createdViews[1].webPreferences as { partition: string }).partition).toBe(
-      'persist:ai_custom_custom_1'
-    )
-  })
-
-  it('opens the second Google account even when the saved URL still selects account zero', async () => {
-    await reset()
-    const first = await manager.attachAiView({
-      viewId: 'google-account-1',
-      source: { kind: 'google-web-app', appId: 'gemini', sessionSlot: 1 }
-    })
-    const second = await manager.attachAiView({
-      viewId: 'google-account-2',
-      source: { kind: 'google-web-app', appId: 'gemini', sessionSlot: 2 },
-      restoredUrl: 'https://gemini.google.com/u/0/app?authuser=0'
-    })
-    expect(first.currentUrl).toBe('https://gemini.google.com/u/0/app?authuser=0')
-    expect(second.currentUrl).toBe('https://gemini.google.com/u/1/app?authuser=1')
-    const firstAgain = await manager.attachAiView({
-      viewId: 'google-account-1',
-      source: { kind: 'google-web-app', appId: 'gemini', sessionSlot: 1 }
-    })
-    expect(firstAgain.generation).toBe(first.generation)
   })
 
   it('maps a Google web app onto the shared Gemini session partition', async () => {
@@ -490,31 +415,6 @@ describe('AiWebContentsViewManager - navigation policy', () => {
 
     expect(manager.loadAiViewUrl('tab-1', 'https://auth.chatgpt.com/login')).toBe(true)
     expect(entry.webContents.loadURL).toHaveBeenCalledWith('https://auth.chatgpt.com/login')
-  })
-
-  it('rewrites a renderer-supplied Gemini url onto the view account slot', async () => {
-    // Regression guard. A renderer handover of a plain URL used to drop the
-    // `/u/N` choice, so a later load silently moved onto a different account.
-    await reset()
-    await manager.attachAiView({
-      viewId: 'tab-1',
-      source: { kind: 'google-web-app' as const, appId: 'gemini', sessionSlot: 2 }
-    })
-    const entry = manager.getManagedAiView('tab-1')!
-    vi.mocked(entry.webContents.loadURL).mockClear()
-
-    expect(manager.loadAiViewUrl('tab-1', 'https://gemini.google.com/app')).toBe(true)
-    expect(entry.webContents.loadURL).toHaveBeenCalledWith(
-      'https://gemini.google.com/u/1/app?authuser=1'
-    )
-    // An already-slotted URL is left exactly as it is.
-    vi.mocked(entry.webContents.loadURL).mockClear()
-    expect(manager.loadAiViewUrl('tab-1', 'https://gemini.google.com/u/1/app?authuser=1')).toBe(
-      true
-    )
-    expect(entry.webContents.loadURL).toHaveBeenCalledWith(
-      'https://gemini.google.com/u/1/app?authuser=1'
-    )
   })
 
   it('refuses to walk a managed view onto a foreign https origin', async () => {

@@ -1,32 +1,36 @@
 # Quizlab Site Session Bridge
 
-The app's 50 web chat services have local brand icons and Chrome session targets.
-Gemini, AI Studio, YouTube, Google Drive and NotebookLM share the **Google** target
-and partition. API Chat has no browser session to import.
+The app's web chat services have local brand icons and Chrome session targets.
+Gemini, AI Studio, YouTube, Google Drive and NotebookLM share the **Google**
+target and partition. API Chat has no browser session to import.
 
-## Use the updated extension
+## Install the extension separately
 
-1. Restart Quizlab Reader after rebuilding its Electron main process.
-2. In Quizlab, open **Settings → Session Import** and press the button that
-   installs the extension. The app copies this folder to its user-data
-   directory and writes `bridge-secret.json` next to the manifest; the
-   extension cannot authenticate without that file.
-3. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
-   and select the folder path the app copied to the clipboard (version
-   **1.2.0**). The extension key and identity are unchanged.
-4. Sign in to the desired service in Chrome.
-5. In Quizlab, enable that service's switch. This is separate from enabling
+The extension is no longer copied into the app. It is shipped as its own
+release artifact and installed by the user:
+
+1. Download the extension package from the release page linked in the app's
+   **Settings → Site Sessions** card and unzip it.
+2. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
+   and select the unzipped folder (version **1.3.0**). The extension key and
+   identity are unchanged.
+3. In Quizlab, open **Settings → Site Sessions** and press **Eşleştir**. Copy
+   the pairing code.
+4. Open the extension popup, paste the code and press **Eşleştir**.
+5. Sign in to the desired service in Chrome.
+6. In Quizlab, enable that service's switch. This is separate from enabling
    its launcher in **Models**.
-6. Open the Chrome extension popup. For a new service, press **İzin ver** and
-   grant the requested site domains. Then select the service and import its
-   session.
+7. In the extension popup, press **İzin ver** for a new service and grant the
+   requested site domains. Then import its session.
 
-Existing host grants are unchanged. New catalogue sites use the optional host
-permission flow, so adding the catalogue does not grant access to every site.
-Only targets enabled in Quizlab are sent to the extension. The worker checks
-permission before reading cookies, reports missing permission without reading
-the cookie jar, and signs each site's packet separately. The app validates the
-site, enabled switch and cookie domain before writing to that site's partition.
+The app never writes a secret into the extension package and never hands the
+pairing code out over HTTP. The extension stores the code in
+`chrome.storage.local`, and every site-list and cookie request is signed with
+it. Only targets enabled in Quizlab are sent to the extension. The worker
+checks permission before reading cookies, reports missing permission without
+reading the cookie jar, and signs each site's packet separately. The app
+validates the site, enabled switch and cookie domain before writing to that
+site's partition.
 
 ## Limits of cookie import
 

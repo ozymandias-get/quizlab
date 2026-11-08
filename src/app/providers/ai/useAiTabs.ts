@@ -1,5 +1,3 @@
-import { isSiteSessionSlot } from '@shared-core/constants/siteSessionSlots'
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { arePinnedTabsEqual, normalizeTitle, sanitizePinnedTabs } from './tabUtils'
@@ -138,17 +136,6 @@ export function useAiTabs({
     [setPinnedTabs, setLastSelectedAI]
   )
 
-  const setTabSessionSlot = useCallback(
-    (tabId: string, slot: number) => {
-      if (!isSiteSessionSlot(slot)) return
-      setTabs((prev) => prev.map((tab) => (tab.id === tabId ? { ...tab, sessionSlot: slot } : tab)))
-      setPinnedTabs((prev) =>
-        prev.map((tab) => (tab.id === tabId ? { ...tab, sessionSlot: slot } : tab))
-      )
-    },
-    [setPinnedTabs]
-  )
-
   const renameTab = useCallback(
     (tabId: string, title?: string) => {
       const normalizedTitle = normalizeTitle(title)
@@ -183,7 +170,6 @@ export function useAiTabs({
           {
             id: targetTab.id,
             modelId: targetTab.modelId,
-            sessionSlot: targetTab.sessionSlot,
             title: normalizedTitle
           }
         ]
@@ -253,7 +239,6 @@ export function useAiTabs({
     addTab,
     closeTab,
     setActiveTab,
-    setTabSessionSlot,
     renameTab,
     togglePinTab,
     setCurrentAI

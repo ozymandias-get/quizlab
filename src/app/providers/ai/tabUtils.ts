@@ -1,5 +1,3 @@
-import { isSiteSessionSlot } from '@shared-core/constants/siteSessionSlots'
-
 import type { PinnedTabStorage } from './types'
 
 export const normalizeTitle = (title?: string): string | undefined => {
@@ -30,8 +28,7 @@ export const sanitizePinnedTabs = (
     sanitized.push({
       id,
       modelId,
-      title,
-      ...(isSiteSessionSlot(maybeTab.sessionSlot) ? { sessionSlot: maybeTab.sessionSlot } : {})
+      title
     })
   }
 
@@ -45,7 +42,6 @@ export const arePinnedTabsEqual = (a: PinnedTabStorage[], b: PinnedTabStorage[])
     if (
       a[index].id !== b[index].id ||
       a[index].modelId !== b[index].modelId ||
-      a[index].sessionSlot !== b[index].sessionSlot ||
       normalizeTitle(a[index].title) !== normalizeTitle(b[index].title)
     ) {
       return false

@@ -49,14 +49,8 @@ export function formatTimeAgo(timestamp: number, language = 'en'): string {
 export function partitionDisplayName(partitionKey: string, t?: (key: string) => string): string {
   const key = partitionKey.replace(/^persist:/, '')
 
-  const googleProfile = /^gemini_web_profile_slot_(\d+)$/.exec(key)
-  if (googleProfile)
-    return `${t?.('storage_google_profile') ?? 'Gemini Web · Profile'} ${googleProfile[1]}`
-
   const historicProfile =
-    /^(ai_.+?)(?:_slot_\d+|_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(
-      key
-    )
+    /^(ai_.+?)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.exec(key)
   if (historicProfile)
     return `${partitionDisplayName(historicProfile[1], t)} · ${t?.('storage_other_profile') ?? 'Other profile'}`
 

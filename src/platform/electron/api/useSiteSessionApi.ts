@@ -26,8 +26,7 @@ const ATTENTION_STATUSES: ReadonlySet<SiteSessionStatusCode> = new Set([
   'extension_outdated',
   'permission_missing',
   'no_cookies_in_browser',
-  'import_failed',
-  'session_unverified'
+  'import_failed'
 ])
 
 /** Whether any site pulls its session from Chrome. */
@@ -41,10 +40,9 @@ export function hasSiteSessionNeedingAttention(views: SiteSessionView[]): boolea
 }
 
 export function siteSessionRefreshInterval(
-  data: SiteSessionListResult | undefined
+  _data: SiteSessionListResult | undefined
 ): number | false {
-  const google = data?.views.find((view) => view.kind === 'google')
-  return google ? (google.accountSlots === undefined ? 10_000 : 60_000) : false
+  return false
 }
 
 /**
@@ -73,8 +71,6 @@ export function useSiteSessionListQuery() {
     options: {
       staleTime: 0,
       retry: false,
-      // Account discovery can fail transiently or change after an in-app login.
-      // Retry unknown results promptly and refresh known results at their cache TTL.
       refetchInterval: (query) => siteSessionRefreshInterval(query.state.data)
     }
   })
@@ -100,20 +96,6 @@ export function useClearSiteSessionMutation() {
 
   return useElectronMutation<SiteSessionActionResult, { siteId: string }>(
     (api, { siteId }) => api.siteSession.clear(siteId),
-    {
-      onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })
-      }
-    }
-  )
-}
-
-/** Switches the active account slot for one site. */
-export function useSetSiteSessionActiveSlotMutation() {
-  const queryClient = useQueryClient()
-
-  return useElectronMutation<SiteSessionActionResult, { siteId: string; slot: number }>(
-    (api, { siteId, slot }) => api.siteSession.setActiveSlot(siteId, slot),
     {
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: SITE_SESSION_LIST_KEY })

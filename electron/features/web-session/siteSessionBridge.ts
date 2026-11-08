@@ -15,11 +15,8 @@ import type { ChromeExtensionCookie } from '@shared-core/types'
 
 import { type Session, session as electronSession } from 'electron'
 
-import { isSiteSessionSlot } from '../../../shared/constants/siteSessionSlots.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY } from '../ai/aiManager.js'
-import { getGoogleAccountEntries } from './googleAccounts.js'
-import { seedGoogleSessionSlotUnderLock } from './googleSessionSlot.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import type {
@@ -32,11 +29,7 @@ import { type ExternalBrowserCookie, importExternalCookies } from './siteSession
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import {
-  buildSiteSessionTargets,
-  partitionForTargetSlot,
-  type SiteSessionTargetRow
-} from './siteSessionTargets.js'
+import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /**
  * The protocol the extension and the app agree on.
@@ -64,7 +57,7 @@ interface SiteSessionBridgeTarget {
  */
 export interface SiteSessionImportEnvironment {
   /** The persisted state of the import switches. */
-  config: Pick<SiteSessionConfig, 'read' | 'recordResult' | 'clearSlotAccountId'>
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult'>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -169,8 +162,6 @@ export interface SiteSessionPacketOutcome {
   reason?: CookiePacketRejection
   imported?: number
   failed?: number
-  /** Secondary Google slots that could not be prepared after a primary import. */
-  secondaryFailures?: { slot: number; status: string }[]
 }
 
 const COOKIE_PACKET_STATUSES: ReadonlySet<string> = new Set([
@@ -216,13 +207,11 @@ export function parseSiteSessionPacket(body: string): CookiePacket | null {
     targetId?: unknown
     status?: unknown
     cookies?: unknown
-    profileSlot?: unknown
   }
   if (typeof candidate.targetId !== 'string' || candidate.targetId.length === 0) return null
   if (typeof candidate.status !== 'string' || !COOKIE_PACKET_STATUSES.has(candidate.status)) {
     return null
   }
-  if (candidate.profileSlot !== undefined && !isSiteSessionSlot(candidate.profileSlot)) return null
   if (!Array.isArray(candidate.cookies)) return null
 
   const cookies = candidate.cookies.filter(isBrowserCookie)
@@ -231,8 +220,7 @@ export function parseSiteSessionPacket(body: string): CookiePacket | null {
   return {
     targetId: candidate.targetId,
     status: candidate.status as CookiePacketStatus,
-    cookies,
-    ...(candidate.profileSlot === undefined ? {} : { profileSlot: candidate.profileSlot })
+    cookies
   }
 }
 
@@ -375,12 +363,11 @@ async function handleSiteSessionPacket(
     return { accepted: false, reason: routed.reason }
   }
 
-  const { target, profileSlot } = routed
-  const slot = profileSlot || 1
+  const { target } = routed
 
   if (packet.status !== 'ok') {
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
-    await recordResult(config, target.siteId, result, undefined, slot)
+    await recordResult(config, target.siteId, result)
     return { accepted: true }
   }
 
@@ -392,8 +379,7 @@ async function handleSiteSessionPacket(
     return { accepted: false, reason: 'target_disabled' }
   }
 
-  const targetPartition = partitionForTargetSlot(target.partition, slot)
-  const targetSession = resolveSession(targetPartition)
+  const targetSession = resolveSession(target.partition)
   const { imported, failed, rollbackFailed, flushFailed } = await importExternalCookies(
     targetSession,
     packet.cookies.map(toImporterCookie),
@@ -413,87 +399,13 @@ async function handleSiteSessionPacket(
     config,
     target.siteId,
     wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : error,
-    slot
+    wroteSomething ? undefined : error
   )
-
-  if (!wroteSomething && rollbackFailed && target.kind === 'google') {
-    try {
-      await config.clearSlotAccountId(target.siteId, slot)
-    } catch (clearError) {
-      Logger.warn(
-        `[SiteSessionBridge] The Google account association of "${target.siteId}" could not be cleared:`,
-        clearError
-      )
-    }
-  }
-
-  const secondaryFailures: { slot: number; status: string }[] = []
-  if (wroteSomething && target.kind === 'google' && slot === 1) {
-    const latestState = await config.read()
-    const googleState = latestState.targets[target.siteId]
-    const secondarySlots = new Set<number>()
-    if ((googleState?.activeSlot ?? 1) > 1) secondarySlots.add(googleState!.activeSlot!)
-    for (const [slotKey, slotEntry] of Object.entries(googleState?.slots ?? {})) {
-      const slotNum = Number(slotKey)
-      if (slotNum > 1 && slotEntry?.importedAt) secondarySlots.add(slotNum)
-    }
-
-    // Automatic seeding uses the same identity rule as a manual selection:
-    // a secondary slot must be prepared for the account that currently sits
-    // at that position. Without discovery there is nothing to verify, so the
-    // slots stay as they are and the next list/selection refreshes them.
-    const importKey = googleState?.slots?.[1]?.importedAt ?? googleState?.importedAt ?? ''
-    const entries = await getGoogleAccountEntries(resolveSession(target.partition), importKey)
-    if (entries === null) {
-      for (const secondarySlot of secondarySlots) {
-        secondaryFailures.push({ slot: secondarySlot, status: 'discovery_failed' })
-      }
-      Logger.warn(
-        '[SiteSessionBridge] Google accounts could not be discovered; secondary slots were not refreshed.'
-      )
-    } else {
-      for (const secondarySlot of secondarySlots) {
-        const expected = entries.find((entry) => entry.slot === secondarySlot)
-        if (!expected) {
-          // The slot has history but the account list no longer contains an
-          // account at that position: the old session cannot be verified.
-          secondaryFailures.push({ slot: secondarySlot, status: 'account_not_found' })
-          continue
-        }
-        const preparation = await seedGoogleSessionSlotUnderLock(
-          secondarySlot,
-          {
-            config: {
-              read: () => config.read(),
-              recordResult: (...args) => config.recordResult(...args),
-              isEnabled: (id) => isStillEnabled(config, id)
-            },
-            resolveSession
-          },
-          { expectedAccountId: expected.accountId }
-        )
-        // The primary packet can succeed while a secondary account is not
-        // ready. Report the two outcomes separately instead of hiding the
-        // secondary failure behind the primary success.
-        if (!preparation.ok || !preparation.ready) {
-          secondaryFailures.push({ slot: secondarySlot, status: preparation.status })
-        }
-      }
-    }
-    if (secondaryFailures.length > 0) {
-      Logger.warn(
-        `[SiteSessionBridge] ${secondaryFailures.length} secondary Google slot(s) could not be prepared: ` +
-          secondaryFailures.map((failure) => `${failure.slot}:${failure.status}`).join(', ')
-      )
-    }
-  }
 
   return {
     accepted: true,
     imported,
-    failed,
-    ...(secondaryFailures.length > 0 ? { secondaryFailures } : {})
+    failed
   }
 }
 
@@ -545,15 +457,10 @@ async function recordResult(
   config: Pick<SiteSessionConfig, 'recordResult'>,
   siteId: string,
   result: 'imported' | 'no_cookies' | 'permission_missing' | 'failed',
-  error?: string,
-  slot?: number
+  error?: string
 ): Promise<void> {
   try {
-    if (slot && slot > 1) {
-      await config.recordResult(siteId, result, error, slot)
-    } else {
-      await config.recordResult(siteId, result, error)
-    }
+    await config.recordResult(siteId, result, error)
   } catch (writeError) {
     Logger.warn(
       `[SiteSessionBridge] The result of "${siteId}" could not be recorded: ` +

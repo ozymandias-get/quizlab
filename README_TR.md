@@ -103,16 +103,13 @@ ve tanılama araçları:
   OpenAI, Anthropic, Google ve NVIDIA için hazır sağlayıcı şablonları gelir;
   `custom` ise uyumlu herhangi bir geçidi kapsar. İstekler SSRF doğrulaması ve
   DNS sabitleme ile ana süreçten yapılır.
-- **Site oturumları ve çoklu hesap desteği** — kullandığınız her sitenin
-  **Ayarlar → Oturum Aktarımı** bölümünde kendi "Chrome'dan çek" anahtarı ve
-  hesap listesi bulunur. Anahtar açıkken paketlenmiş Chrome eklentisi sitenin
-  çerezlerini kendi Chrome profilinizden yerel köprü üzerinden devreder; kapalıyken
-  site uygulama içinde doğrudan giriş ister. Bir site birden fazla hesap
-  barındırabilir ve her hesap kendi yalıtılmış kalıcı Chromium çerez kavanozu
-  (cookie jar) bölümünde çalışır. Hesapları isimlendirebilir, aktif hesabı doğrudan
-  AI sekme çubuğunun sağ tık menüsünden veya ayarlardan değiştirebilir ve
-  bekleyen oturumları yönetebilirsiniz. Google ailesi (Gemini, AI Studio,
-  YouTube, Google Drive) tek bir hesap grubunu paylaşır ve tek satırda birleştirilmiştir.
+- **Site oturumları** — kullandığınız her sitenin **Ayarlar → Oturum Aktarımı**
+  bölümünde kendi "Chrome'dan çek" anahtarı bulunur. Anahtar açıkken ayrı kurulan
+  Chrome eklentisi sitenin çerezlerini kendi Chrome profilinizden yerel köprü
+  üzerinden devreder; kapalıyken site uygulama içinde doğrudan giriş ister. Her
+  site kendi kalıcı Chromium çerez kavanozunda (cookie jar) tek oturum tutar.
+  Google ailesi (Gemini, AI Studio, YouTube, NotebookLM ve Google Drive) tek bir
+  hesap grubunu paylaşır ve tek satırda birleştirilmiştir.
 - **Görünüm** — animasyonlu veya düz arka planlar, cam ölçeği, seçim rengi, vurgu
   rengi ve gerçekten kullandığınız araçlar için yapılandırılabilir merkez (hub).
 - **Dil** — İngilizce ve Türkçe; ilk çalıştırmada seçilir, ayarlardan değiştirilir.
@@ -217,8 +214,8 @@ taşıdığı için profiller birbirine karışmaz:
 | geçersiz | `QUIZLAB_USER_DATA_DIR`                                            |
 
 Bu dizinin içinde: JSON yapılandırma dosyaları, `Partitions/<ad>/` Chromium
-oturum ve önbellek verisi, `logs/` ve yüklenmiş Chrome eklentisinin kopyası.
-Veritabanı yoktur.
+oturum ve önbellek verisi, `logs/` ve Chrome eklentisiyle paylaşılan köprü gizli
+anahtarı. Eklentinin kendisi ayrı bir indirmedir. Veritabanı yoktur.
 
 **API anahtarları** `api_chat_config.json` içinde (`0600` modunda) saklanır;
 işletim sistemi anahtar deposu varsa Electron `safeStorage` ile, yoksa makine
@@ -401,7 +398,8 @@ npm run build:linux   # ardından electron-builder --linux -> release/*.AppImage
 ```
 
 Paketleme çıktısı `release/` dizinine gider. `app.asar` içine yalnızca
-`dist/**` konur; ikonlar ve Chrome eklentisi ek kaynak olarak dağıtılır.
+`dist/**` konur; ikonlar ek kaynak olarak dağıtılır. Chrome eklentisi ayrı bir
+sürüm paketidir ve uygulamaya dahil edilmez.
 Windows derlemeleri varsayılan olarak imzasızdır — bunu değiştirmek için
 gereken imzalama değişkenleri için
 [docs/windows-installer.md](docs/windows-installer.md) dosyasına bakın.
@@ -456,10 +454,10 @@ Bu derlemenin doğrulanmış özellikleri:
   olmalı, özel ve ayrılmış adres uzayına karşı denetlenir, TLS SNI korunarak
   çözülen IP'ye sabitlenir ve yönlendirmeler boyunca `Authorization` başlığı
   düşürülür.
-- **Köprü kimlik doğrulaması** — çerez köprüsü tam bir eklenti kaynağı ister,
-  gövdeyi çalışma zamanında üretilen bir sırla HMAC-SHA256 ile imzalar ve sabit
-  zamanlı karşılaştırır, 512 KB gövde sınırı uygular ve çerez alan adı izin
-  listesi kullanır.
+- **Köprü kimlik doğrulaması** - çerez köprüsü tam bir eklenti kaynağı ister,
+  gövdeyi eklentiyle paylaşılan eşleştirme koduyla HMAC-SHA256 ile imzalar ve
+  sabit zamanlı karşılaştırır, 512 KB gövde sınırı uygular ve çerez alan adı
+  izin listesi kullanır.
 - **Electronegativity ve Semgrep** CI'da çalışır.
 
 Bunların size **sağlamadığı** şeyler: canlı yapay zeka oturum çerezleri

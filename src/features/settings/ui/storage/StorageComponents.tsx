@@ -1,5 +1,6 @@
 import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
+import { WithTooltip } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
 import i18next from 'i18next'
@@ -138,27 +139,28 @@ export const PartitionRow = memo(function PartitionRow({
           {formatBytes(size)}
         </span>
         {onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="group/clear text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground rounded-lg p-1.5 transition-colors"
-            title={t('partition_clear_title')}
-            aria-label={t('partition_clear_aria', { name: label })}
-          >
-            <svg
-              className={HOVER_AFFORDANCE}
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
+          <WithTooltip label={t('partition_clear_title')}>
+            <button
+              type="button"
+              onClick={onClear}
+              className="group/clear text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground rounded-lg p-1.5 transition-colors"
+              aria-label={t('partition_clear_aria', { name: label })}
             >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-          </button>
+              <svg
+                className={HOVER_AFFORDANCE}
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          </WithTooltip>
         )}
       </div>
     </div>

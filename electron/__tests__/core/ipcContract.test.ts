@@ -62,8 +62,7 @@ export type AllIpcChannelsCovered = AssertNever<UncoveredIpcChannels>
 //
 // A renderer type that is wider (the deliberate `| null` widening, documented on
 // ElectronApi) is fine and is excluded below. A missing payload field, a renamed
-// field or a changed payload type resolves to `never` and breaks the build — which
-// is exactly the NATIVE_MESSAGING_INSTALL_EXTENSION `installedPath` drift.
+// field or a changed payload type resolves to `never` and breaks the build.
 
 /** The success payload the main process resolves for an invoke channel. */
 type ChannelData<C extends IpcInvokeChannel> = Extract<
@@ -105,8 +104,8 @@ type RendererParityChecks = [
     ElectronApi['nativeMessaging']['getStatus']
   >,
   RendererCovers<
-    typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
-    ElectronApi['nativeMessaging']['installExtension']
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE,
+    ElectronApi['nativeMessaging']['getPairingCode']
   >,
   RendererCovers<typeof IPC_CHANNELS.AI_VIEW_ATTACH, ElectronApi['aiView']['attach']>,
   // Channels whose contract data is genuinely nullable must keep the `| null`
@@ -125,8 +124,8 @@ export type RendererCoversContract = AssertAllTrue<RendererParityChecks>
  *
  * Assignability on its own has a blind spot: `{ a: string }` IS assignable to
  * `{ a: string; b?: number }`, so deleting an optional field from either side is
- * invisible. That is precisely how NATIVE_MESSAGING_INSTALL_EXTENSION dropped
- * `installedPath` from the contract without any type failing.
+ * invisible. That is precisely how a payload field can drop out of the contract
+ * without any type failing.
  *
  * Only meaningful for plain object payloads: `keyof` a union yields the
  * *intersection* of its members' keys, and `keyof` a type with an index
@@ -164,8 +163,8 @@ type RendererKeyParityChecks = [
     ElectronApi['nativeMessaging']['getStatus']
   >,
   RendererKeysMatch<
-    typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION,
-    ElectronApi['nativeMessaging']['installExtension']
+    typeof IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE,
+    ElectronApi['nativeMessaging']['getPairingCode']
   >,
   RendererKeysMatch<typeof IPC_CHANNELS.AI_VIEW_ATTACH, ElectronApi['aiView']['attach']>,
   RendererKeysMatch<typeof IPC_CHANNELS.AI_VIEW_DETACH, ElectronApi['aiView']['detach']>,
@@ -179,13 +178,13 @@ type RendererKeyParityChecks = [
 export type RendererKeysMatchContract = AssertAllTrue<RendererKeyParityChecks>
 
 // The one field whose absence went unnoticed: asserted explicitly on both sides.
-type InstallChannelData = ChannelData<typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION>
-type InstallRendererPayload = Exclude<
-  Awaited<ElectronApi['nativeMessaging']['installExtension']>,
+type PairingChannelData = ChannelData<typeof IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE>
+type PairingRendererPayload = Exclude<
+  Awaited<ElectronApi['nativeMessaging']['getPairingCode']>,
   null
 >
-export type InstallPathDeclaredEverywhere = 'installedPath' extends keyof InstallChannelData
-  ? 'installedPath' extends keyof InstallRendererPayload
+export type PairingCodeDeclaredEverywhere = 'code' extends keyof PairingChannelData
+  ? 'code' extends keyof PairingRendererPayload
     ? true
     : false
   : false
@@ -278,19 +277,15 @@ const _everyChannelMapped: Record<ChannelValue, true> = {} as Record<
 type Overlap = IpcInvokeChannel & import('@shared-core/types/ipcContract').IpcEventChannel
 const _noChannelIsBoth: [Overlap] extends [never] ? true : false = true
 
-type InstallData = Extract<
-  IpcInvokeRequestMap[typeof IPC_CHANNELS.NATIVE_MESSAGING_INSTALL_EXTENSION]['result'],
+type PairingData = Extract<
+  IpcInvokeRequestMap[typeof IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE]['result'],
   { ok: true }
 >['data']
-function assertResultKey<_K extends keyof InstallData>(_key: _K) {
-  // no-op – purely for type checking
+function assertResultKey<_K extends keyof PairingData>(_key: _K) {
+  // no-op - purely for type checking
 }
-// nativeMessagingManager.installExtension() resolves `installedPath` and the
-// extension wizard reads it. The contract omitted the field while electronApi.ts
-// declared it, so nothing failed to compile; this pins the contract to the
-// real payload.
-assertResultKey('success')
-assertResultKey('installedPath')
+// The settings dialog reads the pairing code from this payload.
+assertResultKey('code')
 
 // onTriggerScreenshot and onPdfViewerZoom used to hand-roll ipcRenderer.on,
 // which cost them Parameters<Parameters<...>> casts. Routed through onEvent()
