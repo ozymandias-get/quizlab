@@ -22,6 +22,7 @@ import {
   useRenameSessionMutation,
   useSessionsQuery
 } from '../../queries/useSessionsQuery'
+import type { ChatSession } from '../../store/apiChatSessionUtils'
 import { useChatUiStore } from '../../store/chatUiStore'
 import {
   buildRowLayout,
@@ -34,9 +35,17 @@ import {
 } from './historyListVirtualization'
 import HistorySessionItem from './HistorySessionItem'
 import { useHistoryListKeyboard } from './useHistoryListKeyboard'
+import { useHistorySearchIndex } from './useHistorySearchIndex'
 
 // Debounced so keystrokes don't trigger a full O(sessions × messages) scan.
 const SEARCH_DEBOUNCE_MS = 180
+
+/**
+ * Stable empty list: `sessions = []` as a default would be a new reference on
+ * every render, which would re-run the index effect for no reason (and could
+ * loop while the query is still loading).
+ */
+const EMPTY_SESSIONS: ChatSession[] = []
 
 interface HistoryModalProps {
   isOpen: boolean
@@ -46,7 +55,7 @@ interface HistoryModalProps {
 
 const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: HistoryModalProps) {
   const { t } = useTranslation()
-  const { data: sessions = [] } = useSessionsQuery()
+  const { data: sessions = EMPTY_SESSIONS } = useSessionsQuery()
   const activeSessionId = useChatUiStore((s) => s.activeSessionIdByTab[tabId])
   const { mutateAsync: deleteSession } = useDeleteSessionMutation()
   const { mutateAsync: renameSession } = useRenameSessionMutation()
@@ -151,20 +160,15 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const isSearchActive = debouncedSearch.trim().length > 0
 
   /**
-   * Lowercased haystacks are only built while a search is active. Opening the
-   * history to browse therefore costs no extra string memory, and clearing the
-   * query releases the index instead of keeping a second copy of every message
-   * alive for the lifetime of the modal. While searching, the index is built
-   * once per session-list change, not once per keystroke.
+   * Lowercased haystacks are only built while a search is active, in slices and
+   * once per session-list change. `isIndexBuilding` drives the same pending state
+   * as the debounce, so a partially built index never shows a truncated result.
    */
-  const searchIndex = useMemo(() => {
-    if (!isOpen || !isSearchActive) return null
-    return sessions.map((session) => ({
-      session,
-      title: session.title.toLowerCase(),
-      contents: session.messages.map((message) => message.content.toLowerCase())
-    }))
-  }, [isOpen, isSearchActive, sessions])
+  const { index: searchIndex, isBuilding: isIndexBuilding } = useHistorySearchIndex({
+    isOpen,
+    isSearchActive,
+    sessions
+  })
 
   const filteredSessions = useMemo(() => {
     if (!isOpen) return []
@@ -420,7 +424,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     )
   }
 
-  const isSearchPending = modalSearch !== debouncedSearch
+  const isSearchPending = modalSearch !== debouncedSearch || isIndexBuilding
   const editingSession =
     rowLayout.editingIndex >= 0 ? filteredSessions[rowLayout.editingIndex] : undefined
 

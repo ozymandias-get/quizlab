@@ -154,6 +154,33 @@ describe('HistoryModal', () => {
     expect(SESSIONS).toHaveLength(2)
   })
 
+  it('builds a large search index in slices instead of freezing the first search', async () => {
+    mockSessions = [
+      {
+        id: 'big',
+        title: 'Big session',
+        messages: Array.from({ length: 700 }, (_, index) => ({
+          id: `m${index}`,
+          content: `old message ${index}`
+        })),
+        createdAt: 1
+      },
+      SESSIONS[1]
+    ]
+
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+    fireEvent.change(screen.getByPlaceholderText('api_chat_modal_search_placeholder'), {
+      target: { value: 'beta blockers' }
+    })
+
+    // The first slice exceeded the per-task budget and yielded: the modal shows
+    // its pending state rather than a truncated result set.
+    expect(screen.getByText('api_chat_searching')).toBeInTheDocument()
+
+    await waitFor(() => expect(screen.getByText('Pharmacology')).toBeInTheDocument())
+    expect(screen.queryByText('Big session')).not.toBeInTheDocument()
+  })
+
   it('clears the filter with one click and keeps focus in the search field', () => {
     render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
 
