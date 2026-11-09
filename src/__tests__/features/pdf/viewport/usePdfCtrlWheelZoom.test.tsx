@@ -292,6 +292,36 @@ describe('usePdfCtrlWheelZoom', () => {
       }
     })
 
+    it('does not lose an accumulated tail when the next event arrives late', () => {
+      vi.useFakeTimers()
+      try {
+        mount(harness.ref, zoomTo, { scaleFactor: 1 })
+
+        act(() => {
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+          vi.advanceTimersByTime(10)
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+        })
+        expect(zoomTo).toHaveBeenCalledTimes(1)
+
+        act(() => {
+          // Jump past the throttle without letting the trailing timer run.
+          vi.setSystemTime(Date.now() + 45)
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+        })
+
+        // The stored tail and the new event become one step, not zero.
+        expect(zoomTo).toHaveBeenCalledTimes(2)
+
+        act(() => {
+          vi.advanceTimersByTime(THROTTLE_MS)
+        })
+        expect(zoomTo).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('measures the throttle window with the current scale each time', () => {
       vi.useFakeTimers()
       try {

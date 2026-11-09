@@ -77,9 +77,17 @@ export function usePdfCtrlWheelZoom(
         }
         return
       }
-      lastZoomTimeRef.current = now
+      // An event outside the window must not discard the tail that was
+      // accumulated inside it. Fold both into one step and cancel the timer
+      // that would have applied the tail later.
+      const accumulated = pendingWheelDeltaRef.current
       pendingWheelDeltaRef.current = 0
-      applyWheelDelta(e.deltaY)
+      if (trailingTimerRef.current !== null) {
+        clearTimeout(trailingTimerRef.current)
+        trailingTimerRef.current = null
+      }
+      lastZoomTimeRef.current = now
+      applyWheelDelta(accumulated === 0 ? e.deltaY : accumulated + e.deltaY)
     }
 
     const listenerOptions = { passive: false, capture: true } as const

@@ -32,6 +32,8 @@ export function useApiChatSessionInit({
   const sessionInitInFlightRef = useRef(false)
   const sessionInitRetryCountRef = useRef(0)
   const mountedRef = useRef(true)
+  const currentTabIdRef = useRef(tabId)
+  currentTabIdRef.current = tabId
   const [retryEpoch, setRetryEpoch] = useState(0)
 
   useEffect(() => {
@@ -41,9 +43,11 @@ export function useApiChatSessionInit({
     }
   }, [])
 
-  // A different tab is a different session target: retries start over.
+  // A different tab is a different session target: retries start over and the
+  // new tab may start its own request even while the old one is still pending.
   useEffect(() => {
     sessionInitRetryCountRef.current = 0
+    sessionInitInFlightRef.current = false
   }, [tabId])
 
   useEffect(() => {
@@ -63,8 +67,10 @@ export function useApiChatSessionInit({
       sessionInitInFlightRef.current = true
       createSessionMutation()
         .then((session) => {
-          // The tab may have been closed while the create was in flight.
-          if (!mountedRef.current) return
+          // The tab may have been closed or switched while the create was in
+          // flight; a result for the previous tab must not activate a session
+          // in the current one.
+          if (!mountedRef.current || currentTabIdRef.current !== tabId) return
           sessionInitRetryCountRef.current = 0
           setActiveSessionId(tabId, session.session.id)
         })
