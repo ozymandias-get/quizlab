@@ -59,6 +59,33 @@ function logSuppressedError(scope: string, error: unknown): void {
   Logger.warn('[PDFProtocol] Suppressed:', scope, error)
 }
 
+/**
+ * Open a raw descriptor instead of a `FileHandle`.
+ *
+ * `fs.promises.FileHandle` has a GC finalizer that closes its fd. Once the fd
+ * is handed to `createReadStream`, the stream closes it first; when the
+ * FileHandle is later collected it tries to close the same fd again and
+ * Electron reports `EBADF: Closing file descriptor ... on garbage collection`.
+ * A plain number has no finalizer, so ownership is unambiguous.
+ */
+function openFileDescriptor(filePath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    fs.open(filePath, 'r', (error, fd) => (error ? reject(error) : resolve(fd)))
+  })
+}
+
+function statFileDescriptor(fd: number): Promise<fs.Stats> {
+  return new Promise((resolve, reject) => {
+    fs.fstat(fd, (error, stats) => (error ? reject(error) : resolve(stats)))
+  })
+}
+
+function closeFileDescriptor(fd: number): Promise<void> {
+  return new Promise((resolve) => {
+    fs.close(fd, () => resolve())
+  })
+}
+
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000
 
@@ -163,7 +190,13 @@ function isTrustedLocalReferer(referer: string | null): boolean {
     }
     // The Vite dev server can issue an opaque-origin request with a localhost
     // referer. It is still the local app, never a remote page.
-    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+    if (parsed.protocol === 'local-pdf:') return pdfRegistry.has(parsed.hostname)
+    return (
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1' ||
+      parsed.hostname === '[::1]'
+    )
   } catch {
     return false
   }
@@ -190,8 +223,14 @@ function isAllowedPdfOrigin(origin: string, referer: string | null = null): bool
     return true
   }
   if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-    // Dev server (any port) and nothing else.
-    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+    // Dev server (any port) and nothing else. `::1` is how Windows can report
+    // an IPv6 localhost origin.
+    return (
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === '::1' ||
+      parsed.hostname === '[::1]'
+    )
   }
   return false
 }
@@ -261,18 +300,18 @@ export function registerPdfProtocol() {
       // Open the file first and read its metadata from the descriptor: the
       // bytes that are streamed belong to the same file that produced the
       // size, ETag and Content-Range, even when the path is replaced.
-      let fileHandle: fs.promises.FileHandle
+      let fileDescriptor: number
       try {
-        fileHandle = await fs.promises.open(filePath, 'r')
+        fileDescriptor = await openFileDescriptor(filePath)
       } catch {
         return new Response('Not Found', { status: 404 })
       }
 
       let stats: fs.Stats
       try {
-        stats = await fileHandle.stat()
+        stats = await statFileDescriptor(fileDescriptor)
       } catch {
-        await fileHandle.close().catch(() => undefined)
+        await closeFileDescriptor(fileDescriptor)
         return new Response('Not Found', { status: 404 })
       }
 
@@ -291,7 +330,7 @@ export function registerPdfProtocol() {
             site: request.headers.get('sec-fetch-site'),
             mode: request.headers.get('sec-fetch-mode')
           })
-          await fileHandle.close()
+          await closeFileDescriptor(fileDescriptor)
           return new Response('Forbidden', { status: 403 })
         }
 
@@ -302,7 +341,7 @@ export function registerPdfProtocol() {
 
         const ifNoneMatch = request.headers.get('if-none-match')
         if (ifNoneMatch === headers.ETag) {
-          await fileHandle.close()
+          await closeFileDescriptor(fileDescriptor)
           return new Response(null, {
             status: 304,
             headers
@@ -316,10 +355,10 @@ export function registerPdfProtocol() {
           stats,
           request.headers.get('range'),
           headers,
-          fileHandle
+          fileDescriptor
         )
       } catch (error) {
-        await fileHandle.close().catch(() => undefined)
+        await closeFileDescriptor(fileDescriptor)
         throw error
       }
     } catch (error) {

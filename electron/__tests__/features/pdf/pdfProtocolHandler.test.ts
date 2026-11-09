@@ -18,6 +18,9 @@ const existsSyncMock = vi.fn()
 const statMock = vi.fn()
 const openMock = vi.fn()
 const closeMock = vi.fn()
+const openFdMock = vi.fn()
+const fstatFdMock = vi.fn()
+const closeFdMock = vi.fn()
 const readHeadMock = vi.fn()
 const createReadStreamMock = vi.fn()
 const requireTrustedIpcSenderMock = vi.fn()
@@ -54,6 +57,9 @@ vi.mock('fs', () => ({
   default: {
     existsSync: existsSyncMock,
     promises: { stat: statMock, open: openMock },
+    open: openFdMock,
+    fstat: fstatFdMock,
+    close: closeFdMock,
     createReadStream: createReadStreamMock
   }
 }))
@@ -134,6 +140,14 @@ describe('local-pdf:// protocol handler', () => {
       close: closeMock
     }))
     closeMock.mockReset().mockResolvedValue(undefined)
+    openFdMock.mockReset().mockImplementation((_path, _flags, callback) => callback(null, 42))
+    fstatFdMock.mockReset().mockImplementation((_fd, callback) =>
+      Promise.resolve(statMock()).then(
+        (stats) => callback(null, stats),
+        (error) => callback(error)
+      )
+    )
+    closeFdMock.mockReset().mockImplementation((_fd, callback) => callback(null))
     readHeadMock.mockReset().mockImplementation(async (buffer: Buffer) => {
       Buffer.from('%PDF-1.7').copy(buffer)
       return { bytesRead: 8 }
@@ -208,7 +222,7 @@ describe('local-pdf:// protocol handler', () => {
         mtimeMs: 1700000000000
       })
       const etag = 'W/"1000-1700000000000"'
-      closeMock.mockClear()
+      closeFdMock.mockClear()
 
       const response = await getProtocolHandler()(makeRequest(streamUrl, { 'if-none-match': etag }))
 
@@ -216,7 +230,7 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.headers.get('etag')).toBe(etag)
       expect(createReadStreamMock).not.toHaveBeenCalled()
       // The 304 path does not create a stream; it closes the descriptor.
-      expect(closeMock).toHaveBeenCalledTimes(1)
+      expect(closeFdMock).toHaveBeenCalledTimes(1)
     })
 
     it('returns 200 (not 304) when If-None-Match does not match', async () => {
@@ -513,7 +527,7 @@ describe('local-pdf:// protocol handler', () => {
     it('closes the file descriptor when the range is invalid', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
-      closeMock.mockClear()
+      closeFdMock.mockClear()
 
       const response = await getProtocolHandler()(
         makeRequest(streamUrl, { range: 'bytes=2000-3000' })
@@ -523,19 +537,19 @@ describe('local-pdf:// protocol handler', () => {
       expect(createReadStreamMock).not.toHaveBeenCalled()
       // No stream was created, so the handler must close the descriptor it
       // opened; repeated invalid ranges must not leak descriptors.
-      expect(closeMock).toHaveBeenCalledTimes(1)
+      expect(closeFdMock).toHaveBeenCalledTimes(1)
     })
 
     it('leaves the descriptor to the stream on a valid range', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
-      closeMock.mockClear()
+      closeFdMock.mockClear()
 
       const response = await getProtocolHandler()(makeRequest(streamUrl, { range: 'bytes=0-9' }))
 
       expect(response.status).toBe(206)
       expect(createReadStreamMock).toHaveBeenCalledTimes(1)
-      expect(closeMock).not.toHaveBeenCalled()
+      expect(closeFdMock).not.toHaveBeenCalled()
     })
 
     it('returns 416 for reversed range (start > end)', async () => {

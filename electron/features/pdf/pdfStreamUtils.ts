@@ -84,27 +84,34 @@ function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8A
   })
 }
 
+function closeDescriptor(fd: number | undefined): Promise<void> {
+  if (fd === undefined) return Promise.resolve()
+  return new Promise((resolve) => {
+    fs.close(fd, () => resolve())
+  })
+}
+
 export async function createPdfStreamResponse(
   filePath: string,
   stats: fs.Stats,
   rangeHeader: string | null,
   baseHeaders?: Record<string, string>,
   /**
-   * The already-open file whose metadata produced `stats`.
+   * The already-open descriptor whose metadata produced `stats`.
    *
-   * Streaming from it removes the stat/open race. Ownership passes to the
-   * stream on success; every non-streaming return closes it here, so a 416 or
-   * a throwing stream setup cannot leak the descriptor.
+   * Streaming from a raw fd (not a FileHandle) removes the stat/open race
+   * without leaving a FileHandle whose GC finalizer closes the same fd again
+   * after the stream already closed it (`EBADF`).
    */
-  fileHandle?: fs.promises.FileHandle
+  fileDescriptor?: number
 ): Promise<Response> {
   const headers = baseHeaders ? { ...baseHeaders } : createPdfResponseHeaders(stats)
-  const fd = fileHandle?.fd
+  const fd = fileDescriptor
 
   if (rangeHeader) {
     const range = parseByteRange(rangeHeader, stats.size)
     if (!range) {
-      await fileHandle?.close().catch(() => undefined)
+      await closeDescriptor(fd)
       headers['Content-Range'] = `bytes */${stats.size}`
       return new Response(null, {
         status: 416,
@@ -123,7 +130,7 @@ export async function createPdfStreamResponse(
         ...(fd === undefined ? {} : { fd })
       })
     } catch (error) {
-      await fileHandle?.close().catch(() => undefined)
+      await closeDescriptor(fd)
       throw error
     }
 
@@ -143,7 +150,7 @@ export async function createPdfStreamResponse(
       ...(fd === undefined ? {} : { fd })
     })
   } catch (error) {
-    await fileHandle?.close().catch(() => undefined)
+    await closeDescriptor(fd)
     throw error
   }
   headers['Content-Length'] = String(stats.size)
