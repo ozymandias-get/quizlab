@@ -114,7 +114,7 @@ function OverflowMenu({
             ref={surfaceRef}
             role="dialog"
             aria-label={tr('tab_more', 'More tabs')}
-            className="max-h-56 w-[min(240px,calc(100vw-16px))] overflow-y-auto"
+            className="max-h-[min(14rem,calc(100dvh-6rem))] w-[min(260px,calc(100vw-16px))] overflow-y-auto"
             onKeyDown={(event) => {
               // The dialog sits inside the tablist row, whose roving handler
               // owns ArrowLeft/ArrowRight/Home/End — keep those keys local.

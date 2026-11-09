@@ -304,7 +304,14 @@ function PdfToolbar({
           zoom and search stay reachable. Container queries follow the viewer
           width, not the app window, so the compact layout also applies when
           the reader sits in a narrow split pane. */}
-      <div className="relative flex shrink-0 items-center gap-2">
+      <div
+        className={cn(
+          'relative flex shrink-0 items-center gap-2',
+          // While searching in a narrow panel, give the query the row instead
+          // of competing with the secondary tool buttons.
+          isSearchOpen && isNarrowToolbar && 'hidden'
+        )}
+      >
         <ToolbarGroup className="@max-[560px]:hidden">
           <WithTooltip label={t('pdf_pan_mode')}>
             <IconButton
@@ -439,15 +446,35 @@ function PdfToolbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        <PdfPageNav
-          currentPage={currentPage}
-          totalPages={totalPages}
-          documentId={documentId}
-          onPreviousPage={onPreviousPage}
-          onNextPage={onNextPage}
-          onJumpToPage={onJumpToPage}
-        />
-        {!isNarrowToolbar && (
+        {!(isSearchOpen && isNarrowToolbar) && (
+          <PdfPageNav
+            currentPage={currentPage}
+            totalPages={totalPages}
+            documentId={documentId}
+            onPreviousPage={onPreviousPage}
+            onNextPage={onNextPage}
+            onJumpToPage={onJumpToPage}
+          />
+        )}
+        {isNarrowToolbar ? (
+          // Keep the current scale visible while the zoom buttons move into
+          // the compact menu; losing the readout forced a menu visit just to
+          // check the scale.
+          <CurrentScale>
+            {(props: { scale: number }) => {
+              const pct = Math.round(props.scale * 100)
+              const label = t('zoom_level', { value: pct }) || `${pct}%`
+              return (
+                <span
+                  className="text-ql-10 text-foreground min-w-[32px] rounded-md px-1 py-0.5 text-center font-medium tabular-nums select-none"
+                  aria-label={label}
+                >
+                  {pct}%
+                </span>
+              )
+            }}
+          </CurrentScale>
+        ) : (
           <PdfZoomControls ZoomIn={ZoomIn} ZoomOut={ZoomOut} CurrentScale={CurrentScale} />
         )}
       </div>

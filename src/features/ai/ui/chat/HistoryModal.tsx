@@ -13,7 +13,7 @@ import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives
 
 import { CircleOff, Clock, Loader2, Search, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -62,6 +62,9 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
   const [editingRowHeight, setEditingRowHeight] = useState(LIST_ROW_HEIGHT)
+  // Normal rows grow with the text scale/localisation. A single measured base
+  // keeps virtualization offsets uniform while still avoiding clipped content.
+  const [baseRowHeight, setBaseRowHeight] = useState(LIST_ROW_HEIGHT)
 
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -86,6 +89,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     setEditingId(null)
     setEditTitle('')
     setEditingRowHeight(LIST_ROW_HEIGHT)
+    setBaseRowHeight(LIST_ROW_HEIGHT)
   }, [isOpen])
 
   // The editor is the only row whose height can change (the inline validation
@@ -185,8 +189,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   // measured height. Prefix offsets let the virtual window and the spacers stay
   // correct when that row grows or shrinks.
   const rowLayout = useMemo(
-    () => buildRowLayout(filteredSessions, editingId, editingRowHeight),
-    [filteredSessions, editingId, editingRowHeight]
+    () => buildRowLayout(filteredSessions, editingId, editingRowHeight, baseRowHeight),
+    [filteredSessions, editingId, editingRowHeight, baseRowHeight]
   )
 
   const virtualRows = useMemo(() => {
@@ -212,6 +216,24 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     }
   }, [filteredSessions.length, rowLayout, scrollTop, viewportHeight])
 
+  // Measure the rendered rows once fonts/layout settle. If a localization or a
+  // large text scale makes a normal row taller, every virtual offset adopts the
+  // tallest measured height so rows no longer overlap or clip.
+  useLayoutEffect(() => {
+    if (!isOpen) return
+    const list = listRef.current
+    if (!list) return
+
+    let tallest = 0
+    for (const row of list.querySelectorAll<HTMLElement>(
+      '[data-history-row]:not([data-history-editing])'
+    )) {
+      tallest = Math.max(tallest, row.getBoundingClientRect().height)
+    }
+
+    if (tallest > baseRowHeight + 0.5) setBaseRowHeight(Math.ceil(tallest))
+  }, [baseRowHeight, filteredSessions, isOpen, virtualRows.start, virtualRows.end])
+
   // Keep the scroll state in sync after the list shrinks (e.g. deleting rows
   // near the bottom). Without this the browser clamps scrollTop but our state
   // still points past the new maximum until the next scroll event.
@@ -225,7 +247,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
       element.scrollTop = maxScrollTop
       setScrollTop(maxScrollTop)
     }
-  }, [filteredSessions.length, editingRowHeight, isOpen, viewportHeight])
+  }, [filteredSessions.length, editingRowHeight, baseRowHeight, isOpen, viewportHeight])
 
   // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)
@@ -238,17 +260,20 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const tabIdRef = useRef(tabId)
   tabIdRef.current = tabId
 
-  const handleStartEdit = useCallback((sessionId: string, currentTitle: string) => {
-    // A rename that is still in flight owns the draft. Opening a second editor
-    // now would let the first request's completion clear the new draft.
-    if (renamingRef.current) return
+  const handleStartEdit = useCallback(
+    (sessionId: string, currentTitle: string) => {
+      // A rename that is still in flight owns the draft. Opening a second editor
+      // now would let the first request's completion clear the new draft.
+      if (renamingRef.current) return
 
-    // Start from the uniform height; the row's real height is measured during
-    // commit and replaces this estimate before the observer takes over.
-    setEditingRowHeight(LIST_ROW_HEIGHT)
-    setEditingId(sessionId)
-    setEditTitle(currentTitle)
-  }, [])
+      // Start from the current uniform height; the row's real height is measured
+      // during commit and replaces this estimate before the observer takes over.
+      setEditingRowHeight(baseRowHeight)
+      setEditingId(sessionId)
+      setEditTitle(currentTitle)
+    },
+    [baseRowHeight]
+  )
 
   const handleConfirmEdit = useCallback(
     async (sessionId: string): Promise<boolean> => {
@@ -363,14 +388,16 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
       <div
         key={session.id}
         ref={isEditing ? measureEditingRow : undefined}
+        data-history-row=""
+        data-history-editing={isEditing ? '' : undefined}
         data-history-row-index={index}
         data-history-session-id={session.id}
         className={absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'}
         style={
           absoluteTop === undefined
             ? isEditing
-              ? { minHeight: Math.max(LIST_ROW_HEIGHT, editingRowHeight) }
-              : { height: LIST_ROW_HEIGHT }
+              ? { minHeight: Math.max(baseRowHeight, editingRowHeight) }
+              : { minHeight: baseRowHeight }
             : { top: absoluteTop }
         }
       >
@@ -542,7 +569,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                           key={`editing-slot-${session.id}`}
                           aria-hidden="true"
                           style={{
-                            height: Math.max(LIST_ROW_HEIGHT, editingRowHeight) + LIST_ROW_GAP
+                            height: Math.max(baseRowHeight, editingRowHeight) + LIST_ROW_GAP
                           }}
                         />
                       )

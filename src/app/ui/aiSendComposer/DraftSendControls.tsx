@@ -3,7 +3,7 @@ import { cn } from '@shared/lib/uiUtils'
 import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
 import { AlertCircle, Loader2, RotateCcw, Send, TriangleAlert } from 'lucide-react'
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -54,6 +54,7 @@ function DraftSendControls({
   isResendSafe
 }: DraftSendControlsProps) {
   const { t } = useTranslation()
+  const [isStatusExpanded, setIsStatusExpanded] = useState(false)
 
   const isIncomplete = feedback === 'incomplete'
   const canRetry = feedback === 'error' && isResendSafe
@@ -149,14 +150,25 @@ function DraftSendControls({
             )}
             aria-hidden
           />
-          <span
-            className={cn('text-ql-11 truncate font-medium', statusTone)}
-            // The row is intentionally single-line; the native tooltip keeps
-            // the full error text reachable when it has to truncate.
-            title={statusLabel}
-          >
-            {statusLabel}
-          </span>
+          {isIncomplete || feedback === 'error' ? (
+            <button
+              type="button"
+              // Long localised errors get two lines first; clicking reveals the
+              // whole message without changing the compact success state.
+              className={cn(
+                'text-ql-11 cursor-pointer text-left font-medium hover:underline',
+                isStatusExpanded ? 'break-words whitespace-normal' : 'line-clamp-2',
+                statusTone
+              )}
+              aria-expanded={isStatusExpanded}
+              title={isStatusExpanded ? undefined : statusLabel}
+              onClick={() => setIsStatusExpanded((expanded) => !expanded)}
+            >
+              {statusLabel}
+            </button>
+          ) : (
+            <span className={cn('text-ql-11 truncate font-medium', statusTone)}>{statusLabel}</span>
+          )}
         </div>
       )}
     </div>

@@ -16,7 +16,7 @@ import {
 import {
   getAiTabStripChromeWidth,
   getDesiredAiTabWidth,
-  getMaxVisibleAiTabs,
+  getInitialVisibleAiTabs,
   getVisibleTabIds,
   resolveVisibleAiTabCount
 } from './aiTabStripUtils'
@@ -43,6 +43,8 @@ export function useAiTabStripState({
   const rowRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const skipBlurSaveRef = useRef(false)
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
 
   const [editingTabId, setEditingTabId] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
@@ -70,16 +72,23 @@ export function useAiTabStripState({
       ].join(':')
     })
     .join('|')
+  const getInitialCapacity = useCallback((width: number) => {
+    // Home + refresh + divider are always rendered before the pills. The
+    // overflow button is only reserved when a tab really has to be hidden.
+    return getInitialVisibleAiTabs(width, tabsRef.current.length, {
+      hasHome: true,
+      hasRefresh: true
+    })
+  }, [])
+
   const lastTabContentSignatureRef = useRef(tabContentSignature)
   useLayoutEffect(() => {
     if (lastTabContentSignatureRef.current === tabContentSignature) return
     lastTabContentSignatureRef.current = tabContentSignature
 
     const width = rowRef.current?.clientWidth ?? 0
-    if (width > 0) {
-      setMaxVisibleTabs(getMaxVisibleAiTabs(width, { hasHome: true, hasRefresh: true }))
-    }
-  }, [tabContentSignature])
+    if (width > 0) setMaxVisibleTabs(getInitialCapacity(width))
+  }, [getInitialCapacity, tabContentSignature])
 
   useEffect(() => {
     const el = rowRef.current
@@ -88,20 +97,15 @@ export function useAiTabStripState({
     const observer = new ResizeObserver((entries) => {
       const width =
         entries[0]?.contentBoxSize?.[0]?.inlineSize ?? entries[0]?.contentRect?.width ?? 0
-      if (width > 0) {
-        // Home + refresh + divider are always rendered before the pills.
-        setMaxVisibleTabs(getMaxVisibleAiTabs(width, { hasHome: true, hasRefresh: true }))
-      }
+      if (width > 0) setMaxVisibleTabs(getInitialCapacity(width))
     })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [getInitialCapacity])
 
   // Refs to keep callback deps stable — prevents the returned `helpers`/
   // `actions` objects from being re-created on every `tabs`/`aiSites`/`t`
   // change, which would break memo on every AiVisibleTabButton child.
-  const tabsRef = useRef(tabs)
-  tabsRef.current = tabs
   const aiSitesRef = useRef(aiSites)
   aiSitesRef.current = aiSites
   const tRef = useRef(t)
@@ -120,8 +124,20 @@ export function useAiTabStripState({
     // zero is expected and is how the capacity can climb back from zero.
     if (renderedTabs.length === 0 && maxVisibleTabs > 0) return
 
+    // `clientWidth` includes the row's horizontal padding; the ResizeObserver
+    // path measures the content box, so remove the padding here too.
+    const style = window.getComputedStyle(row)
+    const contentWidth =
+      row.clientWidth -
+      (Number.parseFloat(style.paddingLeft) || 0) -
+      (Number.parseFloat(style.paddingRight) || 0)
     const available =
-      row.clientWidth - getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })
+      contentWidth -
+      getAiTabStripChromeWidth({
+        hasHome: true,
+        hasRefresh: true,
+        hasOverflow: tabs.length > renderedTabs.length
+      })
     const tabWidths = renderedTabs.map((tab) => {
       const label = tab.querySelector<HTMLElement>('[data-ai-tab-label]')
       const clippedText = label ? Math.max(0, label.scrollWidth - label.clientWidth) : 0

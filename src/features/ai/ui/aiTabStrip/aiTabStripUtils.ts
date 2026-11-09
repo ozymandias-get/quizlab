@@ -16,18 +16,21 @@ const ROW_GAP = 6
 export interface AiTabStripCapacity {
   hasHome?: boolean
   hasRefresh?: boolean
+  /** The overflow button only exists while at least one tab is hidden. */
+  hasOverflow?: boolean
 }
 
 /** Width the strip spends on controls and gaps before any tab pill. */
 export function getAiTabStripChromeWidth({
   hasHome = false,
-  hasRefresh = false
+  hasRefresh = false,
+  hasOverflow = true
 }: AiTabStripCapacity = {}): number {
   return (
     (hasHome ? HOME_BUTTON_WIDTH : 0) +
     (hasRefresh ? REFRESH_BUTTON_WIDTH : 0) +
     DIVIDER_WIDTH +
-    OVERFLOW_BUTTON_WIDTH +
+    (hasOverflow ? OVERFLOW_BUTTON_WIDTH : 0) +
     // Home/refresh/divider before the pills, overflow after them.
     4 * ROW_GAP
   )
@@ -50,6 +53,21 @@ export function getMaxVisibleAiTabs(
 
   const available = containerWidth - getAiTabStripChromeWidth(capacity)
   return Math.max(0, Math.floor(available / MIN_TAB_WIDTH))
+}
+
+/**
+ * Width-based estimate that reserves the overflow button only when the tab
+ * list actually exceeds the roomier no-overflow estimate.
+ */
+export function getInitialVisibleAiTabs(
+  containerWidth: number,
+  tabCount: number,
+  capacity: Omit<AiTabStripCapacity, 'hasOverflow'> = {}
+): number {
+  const withoutOverflow = getMaxVisibleAiTabs(containerWidth, { ...capacity, hasOverflow: false })
+  return tabCount > withoutOverflow
+    ? getMaxVisibleAiTabs(containerWidth, { ...capacity, hasOverflow: true })
+    : withoutOverflow
 }
 
 /**

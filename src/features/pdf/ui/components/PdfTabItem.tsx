@@ -73,14 +73,16 @@ function PdfTabItem({
   const tabLabel = (
     <>
       <TabPillIcon>{getTabIcon(tab)}</TabPillIcon>
-      <TabPillLabel isActive={isActive}>{label}</TabPillLabel>
+      <TabPillLabel isActive={isActive} data-pdf-tab-label="">
+        {label}
+      </TabPillLabel>
     </>
   )
 
   // Long file names shrink within the measured capacity instead of pushing the
   // add/overflow controls out of the row.
   return (
-    <div className="group relative min-w-0">
+    <div className="group relative min-w-0" data-pdf-tab="">
       {isEditing ? (
         <TabPillContainer
           isActive={isActive}
@@ -140,8 +142,8 @@ function PdfTabItem({
               onClick={handleClose}
               className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive motion-normal absolute inset-y-0 right-1 z-10 my-auto size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
                 isActive
-                  ? 'opacity-80 hover:opacity-100'
-                  : 'opacity-60 group-hover:opacity-80 hover:opacity-100'
+                  ? 'opacity-70 hover:opacity-100'
+                  : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100'
               }`}
             >
               <X className="h-3.5 w-3.5" />

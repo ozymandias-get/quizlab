@@ -9,6 +9,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -17,7 +18,13 @@ import {
 import OverflowMenu from './OverflowMenu'
 import PdfTabItem from './PdfTabItem'
 import type { ContextMenuState } from './pdfTabStripUtils'
-import { computeTabVisibility, getMaxVisibleTabs } from './pdfTabStripUtils'
+import {
+  computeTabVisibility,
+  getDesiredPdfTabWidth,
+  getMaxVisibleTabs,
+  getPdfTabStripChromeWidth,
+  resolveVisiblePdfTabCount
+} from './pdfTabStripUtils'
 import TabContextMenu from './TabContextMenu'
 import { usePdfTabStripDerived } from './usePdfTabStripDerived'
 import { usePdfTabStripRoving } from './usePdfTabStripRoving'
@@ -49,9 +56,23 @@ function PdfTabStrip({
   const renameInputRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
+  const tabsRef = useRef(tabs)
+  tabsRef.current = tabs
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
+
+  const getInitialCapacity = useCallback(
+    (width: number) => {
+      // Reserve the overflow button only when there really will be an
+      // overflow: before it is rendered it consumes no row space.
+      const withoutOverflow = getMaxVisibleTabs(width, !!onHome, { hasOverflow: false })
+      return tabsRef.current.length > withoutOverflow
+        ? getMaxVisibleTabs(width, !!onHome, { hasOverflow: true })
+        : withoutOverflow
+    },
+    [onHome]
+  )
 
   useEffect(() => {
     const el = rowRef.current
@@ -60,12 +81,57 @@ function PdfTabStrip({
       const width =
         entries[0]?.contentBoxSize?.[0]?.inlineSize ?? entries[0]?.contentRect?.width ?? 0
       if (width > 0) {
-        setMaxVisibleTabs(getMaxVisibleTabs(width, !!onHome))
+        setMaxVisibleTabs(getInitialCapacity(width))
       }
     })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [onHome])
+  }, [getInitialCapacity])
+
+  // Opening, closing or renaming a tab changes how much room the pills need.
+  // Reset to the width-based estimate; the measurement pass below trims it.
+  const tabContentSignature = tabs
+    .map((tab) => `${tab.id}:${tab.title ?? ''}:${tab.file?.name ?? ''}`)
+    .join('|')
+  const lastTabContentSignatureRef = useRef(tabContentSignature)
+  useLayoutEffect(() => {
+    if (lastTabContentSignatureRef.current === tabContentSignature) return
+    lastTabContentSignatureRef.current = tabContentSignature
+
+    const width = rowRef.current?.clientWidth ?? 0
+    if (width > 0) setMaxVisibleTabs(getInitialCapacity(width))
+  }, [getInitialCapacity, tabContentSignature])
+
+  useLayoutEffect(() => {
+    const row = rowRef.current
+    if (!row || row.clientWidth <= 0) return
+
+    const renderedTabs = [...row.querySelectorAll<HTMLElement>('[data-pdf-tab]')]
+    if (renderedTabs.length === 0 && maxVisibleTabs > 0) return
+
+    // `clientWidth` includes the row's horizontal padding; the ResizeObserver
+    // path measures the content box, so remove the padding here too.
+    const style = window.getComputedStyle(row)
+    const contentWidth =
+      row.clientWidth -
+      (Number.parseFloat(style.paddingLeft) || 0) -
+      (Number.parseFloat(style.paddingRight) || 0)
+    const hasOverflow = tabs.length > renderedTabs.length
+    const available = contentWidth - getPdfTabStripChromeWidth(!!onHome, hasOverflow)
+    const tabWidths = renderedTabs.map((tab) => {
+      const label = tab.querySelector<HTMLElement>('[data-pdf-tab-label]')
+      const clippedText = label ? Math.max(0, label.scrollWidth - label.clientWidth) : 0
+      return getDesiredPdfTabWidth(tab.offsetWidth, clippedText)
+    })
+
+    const next = resolveVisiblePdfTabCount({
+      current: maxVisibleTabs,
+      tabWidths,
+      availableWidth: available,
+      hasOverflow
+    })
+    if (next !== maxVisibleTabs) setMaxVisibleTabs(next)
+  }, [maxVisibleTabs, tabs, activeTabId, onHome])
 
   const { visibleTabs, overflowTabs } = useMemo(
     () => computeTabVisibility(tabs, activeTabId, maxVisibleTabs),

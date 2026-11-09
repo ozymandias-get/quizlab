@@ -257,15 +257,22 @@ describe('PdfToolbar', () => {
 
       fireEvent.click(getByTestId('pdf-toolbar-more'))
 
+      // The scale stays visible in both layouts.
+      expect(screen.getByText('125%')).toBeInTheDocument()
+
       if (isNarrow) {
         expect(screen.getByRole('menuitem', { name: 'zoom_out' })).toBeInTheDocument()
         expect(screen.getByRole('menuitem', { name: 'zoom_in' })).toBeInTheDocument()
         expect(screen.queryByLabelText('zoom_out')).not.toBeInTheDocument()
+        // The search is open in these tests; in a narrow toolbar it gets the
+        // row instead of sharing it with page navigation.
+        expect(screen.queryByLabelText('prev_page')).not.toBeInTheDocument()
       } else {
         expect(screen.queryByRole('menuitem', { name: 'zoom_out' })).not.toBeInTheDocument()
         expect(screen.queryByRole('menuitem', { name: 'zoom_in' })).not.toBeInTheDocument()
         expect(screen.getByLabelText('zoom_out')).toBeInTheDocument()
         expect(screen.getByLabelText('zoom_in')).toBeInTheDocument()
+        expect(screen.getByLabelText('prev_page')).toBeInTheDocument()
       }
     })
   })

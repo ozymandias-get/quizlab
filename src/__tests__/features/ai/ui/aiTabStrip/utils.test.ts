@@ -3,6 +3,7 @@ import {
   clamp,
   getAiTabStripChromeWidth,
   getDesiredAiTabWidth,
+  getInitialVisibleAiTabs,
   getMaxVisibleAiTabs,
   getVisibleTabIds,
   resolveVisibleAiTabCount
@@ -71,6 +72,17 @@ describe('getMaxVisibleAiTabs', () => {
   it('reserves the same chrome width that the measurement pass subtracts', () => {
     expect(getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })).toBe(133)
     expect(getAiTabStripChromeWidth()).toBe(69)
+  })
+
+  it('does not reserve the overflow button when no tab is hidden', () => {
+    expect(getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true, hasOverflow: false })).toBe(
+      89
+    )
+  })
+
+  it('only reserves overflow when the tab list actually exceeds the roomier estimate', () => {
+    expect(getInitialVisibleAiTabs(360, 2, { hasHome: true, hasRefresh: true })).toBe(2)
+    expect(getInitialVisibleAiTabs(360, 3, { hasHome: true, hasRefresh: true })).toBe(1)
   })
 })
 

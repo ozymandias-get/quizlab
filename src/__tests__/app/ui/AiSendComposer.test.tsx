@@ -450,6 +450,12 @@ describe('AiSendComposer (compact draft)', () => {
       // Çözülemeyen hata anahtarı ham koda düşer; boş bir mesaj gösterilmez.
       expect(screen.getByRole('status')).toHaveTextContent('paste_failed')
 
+      // The error text itself is expandable without changing the success state.
+      const errorToggle = screen.getByRole('button', { name: 'paste_failed' })
+      expect(errorToggle).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(errorToggle)
+      expect(errorToggle).toHaveAttribute('aria-expanded', 'true')
+
       const retry = screen.getByRole('button', { name: 'ai_send_retry' })
       await act(async () => {
         fireEvent.click(retry)

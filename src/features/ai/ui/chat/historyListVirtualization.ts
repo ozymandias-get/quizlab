@@ -28,18 +28,18 @@ export interface HistoryRowLayout {
 export function buildRowLayout(
   sessions: readonly { id: string }[],
   editingId: string | null,
-  editingRowHeight: number
+  editingRowHeight: number,
+  baseRowHeight = LIST_ROW_HEIGHT
 ): HistoryRowLayout {
   const total = sessions.length
   const offsets = new Array<number>(total + 1)
   offsets[0] = 0
+  const rowHeight = Math.max(LIST_ROW_HEIGHT, baseRowHeight)
 
   let editingIndex = -1
   for (let index = 0; index < total; index += 1) {
     const height =
-      sessions[index].id === editingId
-        ? Math.max(LIST_ROW_HEIGHT, editingRowHeight)
-        : LIST_ROW_HEIGHT
+      sessions[index].id === editingId ? Math.max(rowHeight, editingRowHeight) : rowHeight
     offsets[index + 1] = offsets[index] + height + LIST_ROW_GAP
     if (sessions[index].id === editingId) editingIndex = index
   }
