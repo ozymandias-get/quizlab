@@ -92,17 +92,21 @@ function normalizeArgs(args: unknown[]): string {
     .join(' ')
 }
 
-function pushToBuffer(level: LogLevel, args: unknown[]) {
+function appendToBuffer(level: LogLevel, message: string) {
   logBuffer.push({
     timestamp: new Date().toISOString(),
     level,
-    message: normalizeArgs(args)
+    message
   })
   totalEntriesLogged++
 
   if (logBuffer.length > LOG_BUFFER_LIMIT) {
     logBuffer.splice(0, logBuffer.length - LOG_BUFFER_LIMIT)
   }
+}
+
+function pushToBuffer(level: LogLevel, args: unknown[]) {
+  appendToBuffer(level, normalizeArgs(args))
 }
 
 function getRecentLogs(limit: number = 120): LogEntry[] {
@@ -206,7 +210,14 @@ export function pushToLoggerBuffer(level: LogLevel, message: string, timestamp?:
   }
 }
 
-function forwardToMain(level: LogLevel, args: unknown[]) {
+/**
+ * Forward an already normalized message to the main process.
+ *
+ * Normalization (JSON serialization plus redaction) happens once in the logger
+ * and the same string feeds both the buffer and this path; re-normalizing here
+ * would repeat that work for every warn/error.
+ */
+function forwardToMain(level: LogLevel, message: string) {
   // SECURITY/PERFORMANCE: In production, only forward warn and error logs
   // to the main process. Trace/debug/info logs generate unnecessary IPC
   // traffic that can impact performance on high-frequency operations.
@@ -215,7 +226,6 @@ function forwardToMain(level: LogLevel, args: unknown[]) {
   // Silently check for Electron API — avoids the console.warn side-effect in getElectronApi()
   const api = typeof window !== 'undefined' && (window as any).electronAPI
   if (!api || typeof api.log !== 'function') return
-  const message = normalizeArgs(args)
   api.log(level, message, new Date().toISOString())
 }
 
@@ -240,30 +250,36 @@ function devConsole(level: LogLevel, args: unknown[]) {
   }
 }
 
+/**
+ * Normalize once per record: the buffer and the Electron forwarder share the
+ * same string, so JSON serialization and redaction are not repeated.
+ */
+function record(level: LogLevel, args: unknown[]): string {
+  const message = normalizeArgs(args)
+  appendToBuffer(level, message)
+  forwardToMain(level, message)
+  return message
+}
+
 export const Logger = {
   trace: (...args: unknown[]) => {
-    pushToBuffer('trace', args)
-    forwardToMain('trace', args)
+    record('trace', args)
     devConsole('trace', args)
   },
   debug: (...args: unknown[]) => {
-    pushToBuffer('debug', args)
-    forwardToMain('debug', args)
+    record('debug', args)
     devConsole('debug', args)
   },
   info: (...args: unknown[]) => {
-    pushToBuffer('info', args)
-    forwardToMain('info', args)
+    record('info', args)
     devConsole('info', args)
   },
   warn: (...args: unknown[]) => {
-    pushToBuffer('warn', args)
-    forwardToMain('warn', args)
+    record('warn', args)
     devConsole('warn', args)
   },
   error: (...args: unknown[]) => {
-    pushToBuffer('error', args)
-    forwardToMain('error', args)
+    record('error', args)
     // error always logs to console in both dev and prod (but respects level gate)
     if (shouldLog('error')) console.error(...args)
   }

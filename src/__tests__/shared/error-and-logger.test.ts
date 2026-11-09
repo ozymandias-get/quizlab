@@ -144,6 +144,30 @@ describe('Logger - reportSuppressedError', () => {
   })
 })
 
+describe('Logger - Electron forwarding', () => {
+  it('normalizes a record once and reuses it for the buffer and the forwarder', () => {
+    const log = vi.fn()
+    const host = window as unknown as { electronAPI?: unknown }
+    host.electronAPI = { log }
+    const stringify = vi.spyOn(JSON, 'stringify')
+
+    try {
+      Logger.warn({ big: 'payload' })
+
+      // One serialization and one redaction pass, not two.
+      expect(stringify).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith(
+        'warn',
+        expect.stringContaining('payload'),
+        expect.any(String)
+      )
+    } finally {
+      stringify.mockRestore()
+      delete host.electronAPI
+    }
+  })
+})
+
 describe('Logger - createIssueLogReport', () => {
   it('returns a markdown-formatted report', () => {
     const report = createIssueLogReport({
