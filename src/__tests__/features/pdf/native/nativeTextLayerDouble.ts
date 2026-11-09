@@ -82,6 +82,8 @@ export class FakeTextLayer {
   private cancelled = false
   private readonly deferred = createDeferred<void>()
   private readonly call: FakeTextLayerCall
+  /** Every `update({ viewport })`, so zoom handling is observable. */
+  readonly updates: { scale: number; width: number; height: number; rotation: number }[] = []
 
   constructor(params: {
     textContentSource: FakeTextContent
@@ -123,8 +125,26 @@ export class FakeTextLayer {
     this.deferred.reject(new CancelledTextLayerError())
   }
 
-  /** Present so the shape matches TextLayer; the viewer never calls update(). */
-  update(): void {}
+  /** Present so the shape matches TextLayer; records the viewport it was given. */
+  update(params: {
+    viewport: { scale: number; width: number; height: number; rotation: number }
+  }): void {
+    this.updates.push({
+      scale: params.viewport.scale,
+      width: params.viewport.width,
+      height: params.viewport.height,
+      rotation: params.viewport.rotation
+    })
+  }
+
+  /**
+   * The viewport the layer is currently laid out for: the construction viewport
+   * until a zoom updates it, the latest update afterwards. This is the value a
+   * reader actually sees, which is what the scale/alignment assertions care about.
+   */
+  get viewport(): Pick<FakeTextLayerCall, 'scale' | 'width' | 'height' | 'rotation'> {
+    return this.updates.at(-1) ?? this.call
+  }
 
   isCancelled(): boolean {
     return this.cancelled

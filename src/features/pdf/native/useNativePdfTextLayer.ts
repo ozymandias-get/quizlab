@@ -40,21 +40,24 @@
  * `data-main-rotation` contract.
  *
  * `update()` exists for a cheaper zoom — relayout the existing runs instead of
- * rebuilding them — and is deliberately not used yet. It is a second code path
- * whose correctness across the same three races would need its own proof, and
- * parity matters more here than throughput. A full rebuild per scale change
- * satisfies the supersede contract exactly like the canvas does.
+ * rebuilding them — and that is what this hook does now. The text layer's
+ * geometry is scale-independent on purpose: PDF.js writes positions as
+ * percentages of the page and the font size as `--font-height` multiplied by the
+ * page box's `--total-scale-factor`, so a zoom is a CSS variable change. Only
+ * PDF.js's internal scale (used to measure runs) has to be told, and `update()`
+ * does exactly that. The page, document and unmount paths still rebuild.
  *
  * ## Supersede, don't race
  *
  * The effect depends on `(enabled, engine, status, container, documentKey,
- * currentPage, scale)`. Any change, or unmount, cancels the live layer and
- * empties the container. `TextLayer#cancel()` rejects the in-flight `render()`
- * with an `AbortException` — recognised and dropped, never surfaced. Because every
+ * currentPage)`. Any change, or unmount, cancels the live layer and empties the
+ * container. `TextLayer#cancel()` rejects the in-flight `render()` with an
+ * `AbortException` — recognised and dropped, never surfaced. Because every
  * await is followed by a `cancelled` check, a text-content lookup that settles
  * late cannot construct a layer over the new page's container, and cannot publish
- * state either. That is the whole of the document-switch, page-switch and zoom
+ * state either. That is the whole of the document-switch and page-switch
  * protection; it is the mechanism `useNativePdfRender` already uses for the canvas.
+ * Zoom is handled separately and deliberately does *not* tear the layer down.
  *
  * ## A generation signal for anything that reads the runs
  *
@@ -149,6 +152,17 @@ export function useNativePdfTextLayer({
   const [textLayerError, setTextLayerError] = useState<string | null>(null)
   const [textLayerReady, setTextLayerReady] = useState(false)
   const textContentRef = useRef<CachedTextContent | null>(null)
+  // Read inside async work so a zoom that lands mid-render is not lost to the
+  // closure that started the effect.
+  const scaleRef = useRef(scale)
+  scaleRef.current = scale
+  /**
+   * The layer currently in the DOM, so the zoom effect can update it instead of
+   * rebuilding. Cleared by the setup effect's own cleanup.
+   */
+  const liveLayerRef = useRef<{ documentKey: string; pageNumber: number; layer: TextLayer } | null>(
+    null
+  )
 
   // The text content belongs to the document, so it goes when the identity does.
   useEffect(() => {
@@ -184,9 +198,6 @@ export function useNativePdfTextLayer({
         const page = await engineInstance.manager.getPage(currentPage)
         if (cancelled) return
 
-        // One viewport, one scale: exactly what the canvas renderer used.
-        const viewport = page.getViewport({ scale })
-
         const cached = textContentRef.current
         const textContentPromise =
           cached?.pageNumber === currentPage
@@ -207,10 +218,22 @@ export function useNativePdfTextLayer({
         const textContent = await textContentPromise
         if (cancelled) return
 
+        // One viewport, one scale: exactly what the canvas renderer used. Read the
+        // scale after the awaits so a zoom during the lookup builds at the new one.
+        const scaleAtBuild = scaleRef.current
+        const viewport = page.getViewport({ scale: scaleAtBuild })
+
         layer = new TextLayer({ textContentSource: textContent, container, viewport })
+        liveLayerRef.current = { documentKey, pageNumber: currentPage, layer }
         await layer.render()
         // The runs are in the DOM now, so a dependent capability may measure them.
         if (cancelled) return
+
+        // A zoom between the viewport lookup and the end of the stream: keep
+        // PDF.js's internal scale in step with the one the page box now uses.
+        if (scaleRef.current !== scaleAtBuild) {
+          layer.update({ viewport: page.getViewport({ scale: scaleRef.current }) })
+        }
         setTextLayerReady(true)
       } catch (error) {
         // Teardown rejects the in-flight render; that is the expected way a
@@ -222,6 +245,9 @@ export function useNativePdfTextLayer({
 
     return () => {
       cancelled = true
+      if (liveLayerRef.current?.layer === layer) {
+        liveLayerRef.current = null
+      }
       // The instance, not just the flag: `cancel()` is what stops PDF.js from
       // appending the rest of the stream into a container that is about to be
       // reused for another page.
@@ -231,7 +257,40 @@ export function useNativePdfTextLayer({
       container.replaceChildren()
       setTextLayerReady(false)
     }
-  }, [enabled, engine, status, textLayerRef, documentKey, currentPage, scale])
+  }, [enabled, engine, status, textLayerRef, documentKey, currentPage])
+
+  /**
+   * Zoom: update the live layer instead of rebuilding it.
+   *
+   * The layer's runs are positioned in percentages of the page and sized by
+   * `--total-scale-factor` on the page box, so the DOM itself needs no rebuild.
+   * `TextLayer#update()` refreshes PDF.js's internal scale (used when measuring
+   * runs for `--scale-x`) and its layer dimensions. No `await` can publish into
+   * a replaced layer: the identity check below is the guard.
+   */
+  useEffect(() => {
+    const live = liveLayerRef.current
+    if (!live) return
+
+    const engineInstance = engine()
+    if (!engineInstance) return
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const page = await engineInstance.manager.getPage(live.pageNumber)
+        if (cancelled || liveLayerRef.current !== live) return
+        live.layer.update({ viewport: page.getViewport({ scale }) })
+      } catch {
+        // A layer torn down between the lookup and the update is a normal
+        // supersession outcome; the rebuild path owns what comes next.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [scale, engine])
 
   return { textLayerError, textLayerReady }
 }

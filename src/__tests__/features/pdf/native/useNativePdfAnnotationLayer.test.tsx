@@ -185,13 +185,15 @@ describe('native annotation layer — mount and shape', () => {
 
     const liveCall = FakeAnnotationLayer.calls.at(-1)
     const liveRender = container.querySelector('canvas') as HTMLCanvasElement
-    const textCall = FakeTextLayer.calls.at(-1)
+    // The text layer keeps its DOM across a zoom and updates its viewport, so the
+    // effective scale is the latest update, not the construction scale.
+    const textScale = FakeTextLayer.instances.at(-1)?.viewport.scale
     // One scale for canvas, text layer and annotation layer. A link whose hitbox is
     // computed from a different number would be off by the difference.
     expect(liveCall?.scale).toBeCloseTo(1.67, 5)
     expect(liveCall?.width).toBeCloseTo(liveRender.width, 5)
     expect(liveCall?.height).toBeCloseTo(liveRender.height, 5)
-    expect(liveCall?.scale).toBeCloseTo(textCall?.scale as number, 5)
+    expect(liveCall?.scale).toBeCloseTo(textScale as number, 5)
   })
 
   it('passes a rotated viewport through instead of assuming a 0° page', async () => {

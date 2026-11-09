@@ -192,7 +192,7 @@ describe('native text layer — mount and shape', () => {
 
     await waitForFrames(() => expect(FakeTextLayer.calls.length).toBeGreaterThan(0))
 
-    const liveCall = FakeTextLayer.calls.at(-1)
+    const liveCall = FakeTextLayer.instances.at(-1)?.viewport
     const liveRender = container.querySelector('canvas') as HTMLCanvasElement
     // 400 × 1.67 and 600 × 1.67 — the identical viewport the canvas used.
     expect(liveCall?.scale).toBeCloseTo(1.67, 5)
@@ -206,7 +206,7 @@ describe('native text layer — mount and shape', () => {
     const { container } = render(<NativeViewerHarness />)
 
     await waitForFrames(() => expect(FakeTextLayer.calls.length).toBeGreaterThan(0))
-    const call = FakeTextLayer.calls.at(-1)
+    const call = FakeTextLayer.instances.at(-1)?.viewport
 
     // A 90° page swaps the axes: the layer must be laid out against the rotated
     // box, or every selection highlight would sit off the glyphs.
@@ -230,16 +230,19 @@ describe('native text layer — mount and shape', () => {
     )
     await waitForFrames(() => expect(FakeTextLayer.calls.length).toBeGreaterThan(0))
     const lookupsAfterFirstRender = document.page(1).getTextContentCalls.length
+    const layer = FakeTextLayer.instances.at(-1)
 
     act(() => control.current?.zoomTo(2))
     flushFrames()
-    await waitForFrames(() => expect(FakeTextLayer.calls.at(-1)?.scale).toBe(2))
+    await waitForFrames(() => expect(layer?.viewport.scale).toBe(2))
     act(() => control.current?.zoomTo(3))
     flushFrames()
-    await waitForFrames(() => expect(FakeTextLayer.calls.at(-1)?.scale).toBe(3))
+    await waitForFrames(() => expect(layer?.viewport.scale).toBe(3))
 
-    // Three layers, one lookup: a zoom changes the scale, not the text.
-    expect(FakeTextLayer.calls.length).toBeGreaterThanOrEqual(3)
+    // One layer, zero rebuilds, one lookup: a zoom changes the scale, not the
+    // text and not the DOM.
+    expect(FakeTextLayer.calls).toHaveLength(1)
+    expect(layer?.isCancelled()).toBe(false)
     expect(document.page(1).getTextContentCalls).toHaveLength(lookupsAfterFirstRender)
   })
 
@@ -280,7 +283,7 @@ describe('native text layer — supersede and cleanup', () => {
     expect(textLayerOf(container)).toHaveAttribute('data-native-pdf-text-page', '2')
   })
 
-  it('rebuilds at the latest scale when a zoom burst supersedes itself', async () => {
+  it('keeps one layer through a zoom burst and updates it to the latest scale', async () => {
     serveDocument(createFakeDocument({ numPages: 12, textItems: { 1: ['one'] } }))
     const control: Control = { current: null }
 
@@ -292,7 +295,7 @@ describe('native text layer — supersede and cleanup', () => {
       />
     )
     await waitForFrames(() => expect(FakeTextLayer.calls.length).toBeGreaterThan(0))
-    const stale = FakeTextLayer.instances.at(-1)
+    const layer = FakeTextLayer.instances.at(-1)
 
     act(() => {
       control.current?.zoomTo(2)
@@ -301,11 +304,10 @@ describe('native text layer — supersede and cleanup', () => {
     })
     flushFrames()
 
-    await waitForFrames(() => expect(FakeTextLayer.calls.at(-1)?.scale).toBe(4))
-    // The abandoned layers were cancelled through PDF.js, not left resolving.
-    expect(stale?.isCancelled()).toBe(true)
-    expect(FakeTextLayer.calls.every((call) => call.scale <= 4)).toBe(true)
-    expect(FakeTextLayer.calls.at(-1)?.scale).toBe(4)
+    await waitForFrames(() => expect(layer?.viewport.scale).toBe(4))
+    // A zoom is a viewport update, not a teardown: the same layer, never cancelled.
+    expect(FakeTextLayer.calls).toHaveLength(1)
+    expect(layer?.isCancelled()).toBe(false)
   })
 
   it('cancels the in-flight layer and empties the DOM on unmount', async () => {
@@ -339,8 +341,8 @@ describe('native text layer — supersede and cleanup', () => {
 
   it('reports a cancelled layer as normal rather than as an error', async () => {
     serveDocument(createFakeDocument({ numPages: 12, textItems: { 1: ['one'], 2: ['two'] } }))
-    // Hold the render open so the zoom below supersedes an in-flight layer and
-    // PDF.js's own `cancel()` → `render()` rejection is what the hook has to drop.
+    // Hold the render open so the page change below supersedes an in-flight layer
+    // and PDF.js's own `cancel()` → `render()` rejection is what the hook has to drop.
     FakeTextLayer.autoResolve = false
     const control: Control = { current: null }
 
@@ -355,8 +357,7 @@ describe('native text layer — supersede and cleanup', () => {
     const held = FakeTextLayer.instances.at(-1)
     expect(held?.isCancelled()).toBe(false)
 
-    act(() => control.current?.zoomTo(2))
-    flushFrames()
+    act(() => control.current?.goToNextPage())
     await settle()
 
     expect(held?.isCancelled()).toBe(true)
