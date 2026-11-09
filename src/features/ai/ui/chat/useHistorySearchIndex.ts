@@ -14,8 +14,15 @@ import { useEffect, useState } from 'react'
 
 import type { ChatSession } from '../../store/apiChatSessionUtils'
 
-/** Messages lowercased per task. A single huge session still makes progress. */
-const SEARCH_INDEX_CHUNK_MESSAGES = 500
+/**
+ * Messages lowercased per task.
+ *
+ * The budget is spent per **message**, not per session: one huge conversation
+ * must not be copied into a single task just because its session fits in the
+ * loop. A session that runs out of budget resumes where it stopped on the next
+ * task, and its entry is published only once all of its messages are indexed.
+ */
+export const SEARCH_INDEX_CHUNK_MESSAGES = 500
 
 interface SearchIndexEntry {
   session: ChatSession
@@ -54,7 +61,11 @@ export function useHistorySearchIndex({
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     const entries: SearchIndexEntry[] = []
-    let cursor = 0
+    // Cursor pair: the session being indexed and how far into its messages the
+    // previous task got. Both survive across tasks.
+    let sessionCursor = 0
+    let messageCursor = 0
+    let contents: string[] = []
 
     setIndex(null)
     setIsBuilding(true)
@@ -64,18 +75,32 @@ export function useHistorySearchIndex({
       if (cancelled) return
 
       let budget = SEARCH_INDEX_CHUNK_MESSAGES
-      while (cursor < sessions.length && budget > 0) {
-        const session = sessions[cursor]
-        cursor += 1
-        budget -= session.messages.length + 1
-        entries.push({
-          session,
-          title: session.title.toLowerCase(),
-          contents: session.messages.map((message) => message.content.toLowerCase())
-        })
+
+      while (sessionCursor < sessions.length && budget > 0) {
+        const session = sessions[sessionCursor]
+        const messages = session.messages
+
+        const take = Math.min(messages.length - messageCursor, budget)
+        for (let i = messageCursor; i < messageCursor + take; i++) {
+          contents.push(messages[i].content.toLowerCase())
+        }
+        messageCursor += take
+        // The session's own title costs one unit too, so empty sessions and
+        // title-only work still make the loop terminate.
+        budget -= take + 1
+
+        if (messageCursor < messages.length) {
+          // Out of budget mid-session: resume here on the next task.
+          break
+        }
+
+        entries.push({ session, title: session.title.toLowerCase(), contents })
+        sessionCursor += 1
+        messageCursor = 0
+        contents = []
       }
 
-      if (cursor < sessions.length) {
+      if (sessionCursor < sessions.length) {
         timer = setTimeout(pump, 0)
         return
       }
