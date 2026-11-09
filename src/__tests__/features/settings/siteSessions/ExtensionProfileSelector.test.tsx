@@ -2,7 +2,7 @@ import type { NativeMessagingExtensionProfile } from '@shared-core/types'
 
 import ExtensionProfileSelector from '@features/settings/ui/siteSessions/components/ExtensionProfileSelector'
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const profiles: NativeMessagingExtensionProfile[] = [
@@ -21,10 +21,18 @@ const profiles: NativeMessagingExtensionProfile[] = [
     paired: true,
     protocolVersion: 3,
     selected: false
+  },
+  {
+    id: 'profile-c-1234',
+    name: 'Eşleşmemiş Chrome',
+    connected: true,
+    paired: false,
+    protocolVersion: 3,
+    selected: false
   }
 ]
 
-const selectProfile = vi.fn(async () => ({ success: true }))
+const selectProfile = vi.fn(async (): Promise<Record<string, unknown>> => ({ success: true }))
 const showError = vi.fn()
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
@@ -65,8 +73,38 @@ describe('ExtensionProfileSelector', () => {
   it('selects another profile when its button is pressed', () => {
     render(<ExtensionProfileSelector t={(key) => key} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'ws_profile_select_btn' }))
+    const row = screen.getByText('İş Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_select_btn' }))
 
     expect(selectProfile).toHaveBeenCalledWith({ profileId: 'profile-b-1234' })
+  })
+
+  it('shows an origin-only profile as waiting for pairing, not as ready', () => {
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('Eşleşmemiş Chrome').closest('[role="listitem"]')
+    expect(row).not.toBeNull()
+    expect(within(row as HTMLElement).getByText('ws_profile_pairing')).toBeInTheDocument()
+    expect(within(row as HTMLElement).queryByText('ws_profile_connected')).not.toBeInTheDocument()
+  })
+
+  it('does not present a partial clear as a restored session', async () => {
+    selectProfile.mockResolvedValueOnce({
+      success: false,
+      error: 'wipe_failed',
+      clearedSiteIds: ['chatgpt'],
+      failedSiteIds: ['claude'],
+      partial: true,
+      // The old profile was asked to push again; that is not proof that the
+      // sessions are back.
+      reimportRequested: true
+    })
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('İş Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_select_btn' }))
+
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('ws_error_wipe_failed'))
+    expect(screen.queryByText(/restored|reimported|geri yüklendi/i)).not.toBeInTheDocument()
   })
 })

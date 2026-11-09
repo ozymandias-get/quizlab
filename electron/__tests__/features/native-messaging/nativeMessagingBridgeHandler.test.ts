@@ -71,11 +71,13 @@ function profileHeaders(): Record<string, string> {
 describe('the bridge of the site session', () => {
   let server: http.Server
   let port: number
+  let manager: ReturnType<typeof createManager>
 
   beforeEach(async () => {
     recordOversizedSiteSessionPacket.mockClear()
     acceptPacket.mockClear()
-    server = http.createServer(createBridgeRequestHandler(createManager()))
+    manager = createManager()
+    server = http.createServer(createBridgeRequestHandler(manager))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     port = (server.address() as AddressInfo).port
   })
@@ -178,6 +180,23 @@ describe('the bridge of the site session', () => {
 
     expect(response.status).toBe(401)
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+  })
+
+  it('marks an unsigned request as seen but never as paired', async () => {
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body, 'a'.repeat(64))
+
+    expect(response.status).toBe(401)
+    // The request proves the extension is present; only the signature may
+    // prove that it is the paired extension and ready to import.
+    expect(manager.markExtensionSeen).toHaveBeenCalled()
+    expect(manager.markExtensionPaired).not.toHaveBeenCalled()
+    expect(acceptPacket).not.toHaveBeenCalled()
   })
 
   it('refuses a valid packet from a Chrome profile the user did not select', async () => {
