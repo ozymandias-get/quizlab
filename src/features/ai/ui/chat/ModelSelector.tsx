@@ -38,10 +38,18 @@ const ModelSelector = memo(function ModelSelector({
 
   const allModels = useMemo(() => activeProvider?.models ?? [], [activeProvider])
 
-  const filteredModels = useMemo(
-    () => allModels.filter((model) => model.toLowerCase().includes(modelSearch.toLowerCase())),
-    [allModels, modelSearch]
+  // Lowercase each model name once per catalogue, not on every keystroke.
+  const searchableModels = useMemo(
+    () => allModels.map((model) => ({ model, haystack: model.toLowerCase() })),
+    [allModels]
   )
+
+  const filteredModels = useMemo(() => {
+    const query = modelSearch.toLowerCase()
+    return searchableModels
+      .filter((entry) => entry.haystack.includes(query))
+      .map((entry) => entry.model)
+  }, [searchableModels, modelSearch])
 
   const handleClose = useCallback(() => {
     setIsOpen(false)
