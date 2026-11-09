@@ -497,4 +497,90 @@ describe('renderPageToImageFallback', () => {
       expect(mocks.findPageCanvas).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('cancellation', () => {
+    it('cancels the live render task instead of letting it finish', async () => {
+      const page = makePage(595, 842)
+      let rejectRender: ((error: unknown) => void) | undefined
+      page.renderTask.promise = new Promise<void>((_resolve, reject) => {
+        rejectRender = reject
+      })
+      page.renderTask.cancel.mockImplementation(() => {
+        rejectRender?.(new Error('RenderingCancelledException'))
+      })
+      const temporary = serveTemporaryDocument({ 1: page })
+      mocks.findPageCanvas.mockReturnValue(null)
+
+      const controller = new AbortController()
+      const capture = renderPageToImageFallback('local-pdf://pdf_a', 1, {
+        scale: 2,
+        signal: controller.signal
+      })
+
+      await vi.waitFor(() => expect(page.render).toHaveBeenCalledTimes(1))
+      controller.abort()
+
+      await expect(capture).resolves.toBeNull()
+      expect(page.renderTask.cancel).toHaveBeenCalledTimes(1)
+      // The self-loaded document is still released on the cancellation path.
+      expect(temporary.release).toHaveBeenCalledTimes(1)
+      // A cancelled render is not a failure worth warning about.
+      expect(mocks.loggerWarn).not.toHaveBeenCalled()
+    })
+
+    it('does not start a render for an already-aborted signal', async () => {
+      const page = makePage(595, 842)
+      serveTemporaryDocument({ 1: page })
+
+      const controller = new AbortController()
+      controller.abort()
+
+      await expect(
+        renderPageToImageFallback('local-pdf://pdf_a', 1, {
+          scale: 2,
+          signal: controller.signal
+        })
+      ).resolves.toBeNull()
+
+      expect(mocks.loadTemporaryCaptureDocument).not.toHaveBeenCalled()
+      expect(page.render).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('high-zoom reuse of the mounted canvas', () => {
+    it('skips the second PDF.js render when the screen already has the resolution', async () => {
+      const page = makePage(595, 842)
+      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      // 595x842pt at scale 4 is 2380x3368: the mounted canvas is exactly the target.
+      mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(2380, 3368))
+
+      const result = await renderPageToImageFallback('local-pdf://pdf_a', 3, {
+        scale: 4,
+        maxPixels: 20_000_000
+      })
+
+      expect(page.render).not.toHaveBeenCalled()
+      expect(result).toMatchObject({ width: 2380, height: 3368 })
+    })
+
+    it('still renders when the mounted canvas is below the target resolution', async () => {
+      const page = makePage(595, 842)
+      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(800, 1132))
+
+      await renderPageToImageFallback('local-pdf://pdf_a', 3, { scale: 4 })
+
+      expect(page.render).toHaveBeenCalledTimes(1)
+    })
+
+    it('never reuses a canvas belonging to a document it did not borrow', async () => {
+      const page = makePage(595, 842)
+      serveTemporaryDocument({ 3: page })
+      mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(2380, 3368))
+
+      await renderPageToImageFallback('local-pdf://pdf_a', 3, { scale: 4 })
+
+      expect(page.render).toHaveBeenCalledTimes(1)
+    })
+  })
 })

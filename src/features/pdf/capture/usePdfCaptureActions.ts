@@ -5,7 +5,7 @@
  * | Rung | What it does                                                              |
  * | ---- | ------------------------------------------------------------------------- |
  * | 1    | direct high-DPI render from PDF.js (scale 4.0, 20 MP)                      |
- * | 2    | the mounted page canvas as a synchronous data URL                         |
+ * | 2    | the mounted page canvas as a data URL, encoded off the main thread    |
  * | 3    | the same canvas after a progressive retry ladder (~900 ms)                 |
  * | 4    | a low-resolution direct render (scale 2)                                  |
  * | 5    | the capture-failed toast                                                  |
@@ -29,6 +29,8 @@
  * its object URL revoked**, at each `await`. The stamp covers a document switch
  * (the URL must still match), a newer capture request, and unmount — so a render
  * that lands after the reader moved on cannot overwrite the current action state.
+ * Those same three events also **abort** the live render: a superseded request
+ * stops rasterizing instead of finishing work nobody will use.
  *
  * ## The capture does not decide its destination
  *
@@ -51,6 +53,59 @@ import { findPageCanvas } from './findPageCanvas'
 
 type CaptureMeta = Pick<AiDraftImageItem, 'page' | 'captureKind'> & {
   source?: AiDraftImageItem['source']
+}
+
+/** Read a Blob back as a data URL without blocking the renderer thread. */
+function readBlobAsDataUrl(blob: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * Encode a canvas to a data URL off the main thread.
+ *
+ * `HTMLCanvasElement#toDataURL` runs the whole encoder synchronously, so a
+ * 12 MP+ page freezes scrolling and clicks for the duration. `toBlob` hands the
+ * same encoding to the browser's off-thread path; the FileReader pass that
+ * follows is asynchronous too. `null` means "not encodable" and lets the caller
+ * fall back to the blob-URL path.
+ */
+async function encodeCanvasToDataUrl(
+  canvas: HTMLCanvasElement,
+  mime: string,
+  quality: number | undefined
+): Promise<string | null> {
+  if (typeof canvas.toBlob === 'function') {
+    const blob = await new Promise<Blob | null>((resolve) => {
+      try {
+        canvas.toBlob((result) => resolve(result), mime, quality)
+      } catch {
+        resolve(null)
+      }
+    })
+    if (!blob) return null
+
+    const dataUrl = await readBlobAsDataUrl(blob)
+    return dataUrl && dataUrl.startsWith('data:image/') ? dataUrl : null
+  }
+
+  // Environments without `toBlob` (old test stubs): the synchronous path is the
+  // only option, and it is still validated before it reaches the queue.
+  if (typeof canvas.toDataURL !== 'function') return null
+  try {
+    const dataUrl = canvas.toDataURL(mime, quality)
+    return dataUrl.startsWith('data:image/') && dataUrl !== 'data:,' ? dataUrl : null
+  } catch {
+    return null
+  }
 }
 
 interface UsePdfCaptureActionsOptions {
@@ -109,6 +164,9 @@ export function usePdfCaptureActions({
   pdfUrlRef.current = pdfUrl
   const mountedRef = useRef(true)
   const captureRequestIdRef = useRef(0)
+  // Owns the live render task, so supersession can stop the work and not just
+  // ignore its result.
+  const captureAbortRef = useRef<AbortController | null>(null)
 
   const buildFullPageMeta = useCallback((pageAtCaptureTime: number): CaptureMeta => {
     const total = totalPagesRef.current >= 1 ? totalPagesRef.current : undefined
@@ -131,14 +189,33 @@ export function usePdfCaptureActions({
     return () => {
       mountedRef.current = false
       captureRequestIdRef.current += 1
+      // Closing the viewer must stop a render that is still running; dropping
+      // the result alone would keep a 20 MP raster alive until it finished.
+      captureAbortRef.current?.abort()
+      captureAbortRef.current = null
     }
   }, [])
+
+  // A capture belongs to the document it started on. When the document changes,
+  // cancel the in-flight render rather than letting it burn CPU/GPU for a result
+  // that can no longer be delivered.
+  useEffect(() => {
+    captureAbortRef.current?.abort()
+    captureAbortRef.current = null
+  }, [pdfUrl])
 
   const handleFullPageScreenshot = useCallback(
     async (point?: PdfActionPoint) => {
       const pageAtCaptureTime = currentPageRef.current
       const pdfUrlAtCaptureTime = pdfUrlRef.current
       const requestId = ++captureRequestIdRef.current
+      // A newer request (or a document switch / unmount) cancels the previous
+      // render through this controller. `isCurrentCapture()` still decides
+      // whether a finished result may be delivered.
+      captureAbortRef.current?.abort()
+      const abortController = new AbortController()
+      captureAbortRef.current = abortController
+      const signal = abortController.signal
       // Nokta, merdivenin her basamağına aynı değerle taşınır. Render ~900 ms
       // sürebildiği için "şu an nerede tıklandı" sorusu burada bir kez yanıtlanır.
       const actionPoint = point ?? null
@@ -170,7 +247,8 @@ export function usePdfCaptureActions({
               pageAtCaptureTime,
               {
                 scale: 4.0,
-                maxPixels: 20_000_000
+                maxPixels: 20_000_000,
+                signal
               }
             )
             if (!isCurrentCapture()) {
@@ -265,7 +343,8 @@ export function usePdfCaptureActions({
                 pdfUrlAtCaptureTime,
                 pageAtCaptureTime,
                 {
-                  scale: 2
+                  scale: 2,
+                  signal
                 }
               )
               if (!isCurrentCapture()) {
@@ -317,8 +396,11 @@ export function usePdfCaptureActions({
           const isLarge = area > 12_000_000
           const mime = isLarge ? 'image/jpeg' : 'image/png'
           const quality = isLarge ? 0.95 : undefined
-          const dataUrl = targetCanvas.toDataURL(mime, quality as unknown as number)
-          if (dataUrl && dataUrl.startsWith('data:image/') && dataUrl !== 'data:,') {
+          // `toBlob` keeps the encoder off the main thread; `toDataURL` here
+          // would block scrolling and clicks for the whole encode.
+          const dataUrl = await encodeCanvasToDataUrl(targetCanvas, mime, quality)
+          if (!isCurrentCapture()) return
+          if (dataUrl) {
             onFullPageCapture(dataUrl, buildFullPageMeta(pageAtCaptureTime), actionPoint)
             queued = true
           }

@@ -198,7 +198,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
     expect(onFullPageCapture.mock.calls[0][2]).toBeNull()
   })
 
-  let dataUrlCalls: { mime: string | undefined; quality: unknown }[]
+  let toBlobCalls: { mime: string | undefined; quality: unknown }[]
   let createObjectURL: ReturnType<typeof vi.fn>
 
   /**
@@ -217,7 +217,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    dataUrlCalls = []
+    toBlobCalls = []
     mocks.renderPageToImageFallback.mockReset()
     mocks.findPageCanvas.mockReset()
     mocks.findPageCanvas.mockReturnValue(null)
@@ -232,16 +232,17 @@ describe('usePdfCaptureActions fallback ladder', () => {
     Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
       configurable: true,
       writable: true,
-      value: (mime?: string, quality?: unknown) => {
-        dataUrlCalls.push({ mime, quality })
-        return 'data:image/png;base64,ENCODED'
+      value: () => {
+        throw new Error('toDataURL must not run on the capture path')
       }
     })
     Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
       configurable: true,
       writable: true,
-      value: (callback: BlobCallback, type?: string) =>
+      value: (callback: BlobCallback, type?: string, quality?: unknown) => {
+        toBlobCalls.push({ mime: type, quality })
         callback(new Blob(['canvas'], { type: type ?? 'image/png' }))
+      }
     })
   })
 
@@ -261,7 +262,8 @@ describe('usePdfCaptureActions fallback ladder', () => {
       expect(mocks.renderPageToImageFallback).toHaveBeenCalledTimes(1)
       expect(mocks.renderPageToImageFallback).toHaveBeenCalledWith(PDF_URL, 4, {
         scale: 4.0,
-        maxPixels: 20_000_000
+        maxPixels: 20_000_000,
+        signal: expect.any(AbortSignal)
       })
       expect(onFullPageCapture).toHaveBeenCalledTimes(1)
       expect(onFullPageCapture.mock.calls[0][0]).toMatch(/^data:image\//)
@@ -324,7 +326,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
       })
 
       expect(onFullPageCapture).toHaveBeenCalledWith(
-        'data:image/png;base64,ENCODED',
+        expect.stringMatching(/^data:image\//),
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
@@ -348,7 +350,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
   })
 
   describe('rung 2 — live viewer canvas', () => {
-    it('prefers a synchronous data url over a blob url', async () => {
+    it('offers a data url rather than a blob url', async () => {
       mocks.renderPageToImageFallback.mockResolvedValue(null)
       mocks.findPageCanvas.mockReturnValue(makeCanvas())
       const { result } = mountHook()
@@ -359,7 +361,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
 
       expect(createObjectURL).not.toHaveBeenCalled()
       expect(onFullPageCapture).toHaveBeenCalledWith(
-        'data:image/png;base64,ENCODED',
+        expect.stringMatching(/^data:image\//),
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
@@ -379,7 +381,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
         await result.current.handleFullPageScreenshot()
       })
 
-      expect(dataUrlCalls).toEqual([{ mime: 'image/jpeg', quality: 0.95 }])
+      expect(toBlobCalls).toEqual([{ mime: 'image/jpeg', quality: 0.95 }])
     })
 
     it('keeps PNG for a canvas just below the 12 MP guard', async () => {
@@ -391,14 +393,16 @@ describe('usePdfCaptureActions fallback ladder', () => {
         await result.current.handleFullPageScreenshot()
       })
 
-      expect(dataUrlCalls).toEqual([{ mime: 'image/png', quality: undefined }])
+      expect(toBlobCalls).toEqual([{ mime: 'image/png', quality: undefined }])
     })
 
-    it('falls back to a blob url when the data url is unusable', async () => {
-      Object.defineProperty(HTMLCanvasElement.prototype, 'toDataURL', {
-        configurable: true,
-        writable: true,
-        value: () => 'data:,'
+    it('falls back to a blob url when the encoded blob cannot be read back', async () => {
+      // The canvas encodes, but the data-URL pass fails (blocked FileReader):
+      // the queue must still get the image, through the blob URL.
+      vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (
+        this: FileReader
+      ) {
+        this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>)
       })
       mocks.renderPageToImageFallback.mockResolvedValue(null)
       mocks.findPageCanvas.mockReturnValue(makeCanvas())
@@ -444,7 +448,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
         // One initial lookup plus two retry misses before the canvas appeared.
         expect(mocks.findPageCanvas).toHaveBeenCalledTimes(3)
         expect(onFullPageCapture).toHaveBeenCalledWith(
-          'data:image/png;base64,ENCODED',
+          expect.stringMatching(/^data:image\//),
           expect.objectContaining({
             page: 4,
             captureKind: 'full-page'
@@ -507,10 +511,12 @@ describe('usePdfCaptureActions fallback ladder', () => {
 
         expect(mocks.renderPageToImageFallback).toHaveBeenNthCalledWith(1, PDF_URL, 4, {
           scale: 4.0,
-          maxPixels: 20_000_000
+          maxPixels: 20_000_000,
+          signal: expect.any(AbortSignal)
         })
         expect(mocks.renderPageToImageFallback).toHaveBeenNthCalledWith(2, PDF_URL, 4, {
-          scale: 2
+          scale: 2,
+          signal: expect.any(AbortSignal)
         })
         expect(onFullPageCapture).toHaveBeenCalledWith(
           'blob:last-resort',
@@ -664,7 +670,7 @@ describe('usePdfCaptureActions fallback ladder', () => {
 
       expect(mocks.findPageCanvas).toHaveBeenCalledTimes(2)
       expect(onFullPageCapture).toHaveBeenCalledWith(
-        'data:image/png;base64,ENCODED',
+        expect.stringMatching(/^data:image\//),
         expect.objectContaining({
           page: 4,
           captureKind: 'full-page'
@@ -712,6 +718,86 @@ describe('usePdfCaptureActions fallback ladder', () => {
         expect.objectContaining({ page: 7, captureKind: 'selection' })
       )
       expect(onFullPageCapture).not.toHaveBeenCalled()
+    })
+  })
+
+  // Supersession used to discard the result only. The render itself has to stop:
+  // a 20 MP raster that nobody will receive still burns CPU, GPU and memory.
+  describe('render cancellation', () => {
+    function holdRender() {
+      const signals: AbortSignal[] = []
+      mocks.renderPageToImageFallback.mockImplementation(
+        (_url: string, _page: number, options: { signal?: AbortSignal }) => {
+          if (options.signal) signals.push(options.signal)
+          return new Promise(() => {})
+        }
+      )
+      return signals
+    }
+
+    async function flush(): Promise<void> {
+      await act(async () => {
+        for (let i = 0; i < 5; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 0))
+        }
+      })
+    }
+
+    it('aborts the live render when a newer capture takes over', async () => {
+      const signals = holdRender()
+      const { result } = mountHook()
+
+      act(() => {
+        void result.current.handleFullPageScreenshot()
+      })
+      await flush()
+      act(() => {
+        void result.current.handleFullPageScreenshot()
+      })
+      await flush()
+
+      expect(signals).toHaveLength(2)
+      expect(signals[0].aborted).toBe(true)
+      expect(signals[1].aborted).toBe(false)
+    })
+
+    it('aborts the live render when the document changes', async () => {
+      const signals = holdRender()
+      const { result, rerender } = renderHook(
+        ({ pdfUrl }) =>
+          usePdfCaptureActions({
+            currentPage: 4,
+            onFullPageCapture,
+            startScreenshot,
+            pdfUrl
+          }),
+        { initialProps: { pdfUrl: 'blob:old-pdf' } }
+      )
+
+      act(() => {
+        void result.current.handleFullPageScreenshot()
+      })
+      await flush()
+      rerender({ pdfUrl: 'blob:new-pdf' })
+      await flush()
+
+      expect(signals).toHaveLength(1)
+      expect(signals[0].aborted).toBe(true)
+    })
+
+    it('aborts the live render on unmount', async () => {
+      const signals = holdRender()
+      const { result, unmount } = mountHook()
+
+      act(() => {
+        void result.current.handleFullPageScreenshot()
+      })
+      await flush()
+      unmount()
+      await flush()
+
+      expect(signals).toHaveLength(1)
+      expect(signals[0].aborted).toBe(true)
     })
   })
 })

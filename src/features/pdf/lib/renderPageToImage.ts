@@ -27,6 +27,13 @@ export interface RenderedPageImage {
 export interface RenderOptions {
   scale?: number
   maxPixels?: number
+  /**
+   * Cancels the in-flight render. Aborting calls `RenderTask#cancel()`, which
+   * stops the rasterization itself rather than discarding a finished result.
+   * The ladder resolves with `null` once aborted, so a superseded capture does
+   * not fall through to a second, equally unneeded render.
+   */
+  signal?: AbortSignal
 }
 
 /**
@@ -60,10 +67,13 @@ export interface RenderOptions {
  * runtime directly — the borrowed case loads nothing at all, and the temporary
  * case goes through the engine that already owns the security and asset policy.
  *
- * There is deliberately no cancellation argument: capture supersession is decided
- * by the caller (`usePdfCaptureActions` stamps every request and drops results
- * from stale ones), and the previous `AbortSignal` parameter was never passed by
- * any caller, so its abort listener and render-task cancel were dead.
+ * There is deliberately no cancellation *policy* here: capture supersession is
+ * decided by the caller (`usePdfCaptureActions` stamps every request and drops
+ * results from stale ones). What this module does own is the mechanism: when the
+ * caller passes a `signal`, aborting it cancels the live `RenderTask`, so a
+ * superseded high-DPI raster stops consuming CPU, GPU and memory instead of
+ * finishing into a result nobody will use. That is `RenderTask#cancel()`, which
+ * belongs to one render — it does not touch the borrowed document.
  *
  * ## 1-based pages
  *
@@ -77,14 +87,21 @@ export async function renderPageToImageFallback(
 ): Promise<RenderedPageImage | null> {
   const scale = options.scale ?? PDF_RENDER_DEFAULT_SCALE
   const maxPixels = options.maxPixels ?? PDF_RENDER_MAX_PIXELS
+  const { signal } = options
+
+  if (signal?.aborted) return null
 
   // Direct PDF.js render gives true high-DPI detail — try it first.
   try {
-    const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels })
+    const offscreen = await renderWithPdfJs(pdfUrl, pageNumber, { scale, maxPixels, signal })
     if (offscreen) return offscreen
   } catch (e) {
+    // An aborted render is a cancellation, not a failure to fall back from.
+    if (signal?.aborted) return null
     Logger.warn('[RenderPage] pdfjs direct render failed, trying canvas clone fallback', e)
   }
+
+  if (signal?.aborted) return null
 
   // Fast path: clone the exact page canvas (no arbitrary fallback)
   try {
@@ -94,6 +111,7 @@ export async function renderPageToImageFallback(
       if (result) return result
     }
   } catch (e) {
+    if (signal?.aborted) return null
     Logger.warn('[RenderPage] canvas clone failed', e)
   }
 
@@ -150,7 +168,7 @@ async function cloneCanvasAtScale(
 async function renderWithPdfJs(
   pdfUrl: string,
   pageNumber: number,
-  options: { scale: number; maxPixels: number }
+  options: { scale: number; maxPixels: number; signal?: AbortSignal }
 ): Promise<RenderedPageImage | null> {
   const borrowed = getActivePdfDocument(pdfUrl)
   let temporary: TemporaryCaptureDocument | null = null
@@ -177,6 +195,27 @@ async function renderWithPdfJs(
       h = Math.round(renderViewport.height)
     }
 
+    // High-zoom fast path. When the viewer already rasterized this page at a
+    // resolution at least as high as the target, that canvas *is* the 4x render:
+    // copying it is one draw instead of a second full PDF.js raster plus a PNG
+    // encode of up to 20 MP. Never upscales, so no detail is invented.
+    if (borrowed) {
+      const mounted = findPageCanvas(pageNumber)
+      if (mounted && mounted.width > 0 && mounted.height > 0) {
+        if (mounted.width * mounted.height >= w * h) {
+          const reused = await cloneCanvasAtScale(mounted, w / mounted.width, maxPixels)
+          if (reused) {
+            Logger.info(
+              `[RenderPage] Reused the ${mounted.width}x${mounted.height} mounted canvas for page ${pageNumber}`
+            )
+            return reused
+          }
+        }
+      }
+    }
+
+    if (options.signal?.aborted) return null
+
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, w)
     canvas.height = Math.max(1, h)
@@ -189,7 +228,11 @@ async function renderWithPdfJs(
     Logger.info(
       `[RenderPage] Rendering PDF page ${pageNumber} via PDF.js: ${w}x${h} at scale ${scale}`
     )
-    await page.render({ canvasContext: ctx, viewport: renderViewport }).promise
+    await awaitRenderTask(
+      page.render({ canvasContext: ctx, viewport: renderViewport }),
+      options.signal
+    )
+    if (options.signal?.aborted) return null
     const blob = await canvasToBlob(canvas)
     if (!blob) return null
     Logger.info(
@@ -208,5 +251,39 @@ async function renderWithPdfJs(
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => {
     canvas.toBlob((b) => resolve(b), 'image/png')
+  })
+}
+
+/**
+ * Wait for a PDF.js render, cancelling the task itself when `signal` aborts.
+ *
+ * `RenderTask#cancel()` rejects the promise with `RenderingCancelledException`;
+ * the caller recognises the abort and returns `null` instead of logging it as a
+ * render failure.
+ */
+function awaitRenderTask(
+  task: { promise: Promise<unknown>; cancel?: () => void },
+  signal?: AbortSignal
+): Promise<void> {
+  if (!signal) return task.promise.then(() => undefined)
+
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      task.cancel?.()
+    }
+
+    const onAbort = () => task.cancel?.()
+    signal.addEventListener('abort', onAbort, { once: true })
+
+    task.promise.then(
+      () => {
+        signal.removeEventListener('abort', onAbort)
+        resolve()
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      }
+    )
   })
 }
