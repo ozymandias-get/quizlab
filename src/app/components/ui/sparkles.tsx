@@ -45,8 +45,12 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
   )
 
   const effectivelyPaused = paused || isPageHidden
-  const effectivelyPausedRef = useRef(effectivelyPaused)
-  effectivelyPausedRef.current = effectivelyPaused
+
+  // The draw step and the animation loop are separate: a paused sparkle renderer
+  // must not keep scheduling frames. The setup effect owns `renderFrameRef`, the
+  // pause effect below owns `animIdRef`.
+  const renderFrameRef = useRef<(() => void) | null>(null)
+  const animIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     const handleVisibility = () => setIsPageHidden(document.hidden)
@@ -61,7 +65,6 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animId: number | null = null
     let particles: Particle[] = []
     let width = 0
     let height = 0
@@ -95,39 +98,37 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
 
     initParticles()
 
-    const render = () => {
-      if (!effectivelyPausedRef.current && width > 0 && height > 0) {
-        ctx.clearRect(0, 0, width, height)
-        ctx.fillStyle = particleColor
+    const renderFrame = () => {
+      if (width <= 0 || height <= 0) return
 
-        for (const p of particles) {
-          p.x += p.vx
-          p.y += p.vy
+      ctx.clearRect(0, 0, width, height)
+      ctx.fillStyle = particleColor
 
-          if (p.x < 0) p.x = width
-          else if (p.x > width) p.x = 0
+      for (const p of particles) {
+        p.x += p.vx
+        p.y += p.vy
 
-          if (p.y < 0) p.y = height
-          else if (p.y > height) p.y = 0
+        if (p.x < 0) p.x = width
+        else if (p.x > width) p.x = 0
 
-          // Smooth twinkle
-          if (Math.abs(p.alpha - p.alphaTarget) < 0.02) {
-            p.alphaTarget = 0.1 + Math.random() * 0.8
-          } else {
-            p.alpha += (p.alphaTarget - p.alpha) * 0.03
-          }
+        if (p.y < 0) p.y = height
+        else if (p.y > height) p.y = 0
 
-          ctx.globalAlpha = p.alpha
-          ctx.beginPath()
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          ctx.fill()
+        // Smooth twinkle
+        if (Math.abs(p.alpha - p.alphaTarget) < 0.02) {
+          p.alphaTarget = 0.1 + Math.random() * 0.8
+        } else {
+          p.alpha += (p.alphaTarget - p.alpha) * 0.03
         }
-      }
 
-      animId = requestAnimationFrame(render)
+        ctx.globalAlpha = p.alpha
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+        ctx.fill()
+      }
     }
 
-    animId = requestAnimationFrame(render)
+    renderFrameRef.current = renderFrame
 
     const resizeObserver = new ResizeObserver(() => {
       initParticles()
@@ -135,12 +136,43 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
     resizeObserver.observe(canvas)
 
     return () => {
-      if (animId !== null) cancelAnimationFrame(animId)
+      // Leave `animIdRef` to the pause effect: it owns the loop, so a parameter
+      // change must not strand a cancelled frame with no successor.
+      renderFrameRef.current = null
       resizeObserver.disconnect()
       canvas.width = 0
       canvas.height = 0
     }
   }, [minSize, maxSize, speed, particleColor, particleDensity])
+
+  useEffect(() => {
+    const step = () => {
+      animIdRef.current = null
+      // No setup yet (canvas not mounted) or torn down: stop rather than spin.
+      if (!renderFrameRef.current) return
+      renderFrameRef.current()
+      animIdRef.current = requestAnimationFrame(step)
+    }
+
+    if (effectivelyPaused) {
+      if (animIdRef.current !== null) {
+        cancelAnimationFrame(animIdRef.current)
+        animIdRef.current = null
+      }
+      return
+    }
+
+    if (animIdRef.current === null) {
+      animIdRef.current = requestAnimationFrame(step)
+    }
+
+    return () => {
+      if (animIdRef.current !== null) {
+        cancelAnimationFrame(animIdRef.current)
+        animIdRef.current = null
+      }
+    }
+  }, [effectivelyPaused])
 
   return (
     <canvas
