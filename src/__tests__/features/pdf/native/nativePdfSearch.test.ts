@@ -275,6 +275,24 @@ describe('geometry', () => {
     expect(highlights[0].rect.left).toBeLessThan(highlights[1].rect.left)
   })
 
+  it('draws every match when several sit in one run and more sit in later runs', () => {
+    // The run cursor may only move forward, so a second match inside the same
+    // run (and matches in later runs) must not be skipped by the optimization.
+    const { pageBox, textLayer } = buildPage(['lupus lupus', ' lupus lupus', ' lupus'])
+    geometry.attachPageBox(pageBox)
+
+    const { matches, highlights } = findNativePdfSearchHighlights({
+      keyword: 'lupus',
+      pageNumber: 1,
+      pageBox,
+      textLayer
+    })
+
+    expect(matches).toHaveLength(5)
+    expect(highlights).toHaveLength(5)
+    expect(highlights.map((highlight) => highlight.matchIndex).sort()).toEqual([0, 1, 2, 3, 4])
+  })
+
   it('draws one rectangle per line when a match spans a line break', () => {
     // Two runs on separate rows: run 0 on row 0, run 1 on row 1 (runsPerRow is 1 here).
     geometry.restore()

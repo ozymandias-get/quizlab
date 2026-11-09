@@ -225,16 +225,33 @@ export function findNativePdfSearchMatches(
   return matches
 }
 
-/** The runs a match touches, as slices in each run's own text-node coordinates. */
+/**
+ * The runs a match touches, as slices in each run's own text-node coordinates.
+ *
+ * `fromRunIndex` starts the walk at the first run that could still touch the
+ * match. Matches arrive in ascending, non-overlapping order, so the caller can
+ * carry the returned cursor forward instead of rescanning the page's runs for
+ * every match — the difference between O(matches × runs) and O(runs + matches ×
+ * touched runs) on a page with many hits.
+ */
 function groupMatchByRun(
   pageText: NativePdfSearchPageText,
-  match: NativePdfSearchMatch
-): NativePdfSearchRunGroup[] {
+  match: NativePdfSearchMatch,
+  fromRunIndex: number
+): { groups: NativePdfSearchRunGroup[]; nextRunIndex: number } {
   const groups: NativePdfSearchRunGroup[] = []
-  for (const run of pageText.runs) {
+  const runs = pageText.runs
+  let index = fromRunIndex
+  // First run that can still touch this match. Everything before it ends at or
+  // before the match start, so no later match (which starts no earlier) can use
+  // it either — that makes this a safe resume point.
+  let firstInteresting = -1
+  for (; index < runs.length; index += 1) {
+    const run = runs[index]
     const runEnd = run.offset + run.length
     if (runEnd <= match.start) continue
     if (run.offset >= match.end) break
+    if (firstInteresting === -1) firstInteresting = index
     const start = Math.max(match.start, run.offset)
     const end = Math.min(match.end, runEnd)
     if (end <= start) continue
@@ -243,7 +260,8 @@ function groupMatchByRun(
     if (end - start === 1 && pageText.text.charAt(start).trim() === '') continue
     groups.push({ run, start: start - run.offset, end: end - run.offset })
   }
-  return groups
+  // A match that ran past the last run leaves `index` at the end of the list.
+  return { groups, nextRunIndex: firstInteresting === -1 ? index : firstInteresting }
 }
 
 /**
@@ -303,9 +321,22 @@ export function resolveNativePdfSearchHighlights(
   // Reuse a single Range instance across match groups to eliminate heavy
   // DOM allocation and garbage collector (GC) pressure during search navigation.
   const range = document.createRange()
+  // Matches are ascending and non-overlapping, so the walk resumes at the first
+  // run that can still touch the next match instead of rescanning from the top.
+  let runCursor = 0
+  let previousMatchStart = -1
 
   for (const [matchIndex, match] of matches.entries()) {
-    for (const group of groupMatchByRun(pageText, match)) {
+    if (match.start < previousMatchStart) {
+      // Defensive: an unsorted caller cannot use the monotonic cursor.
+      runCursor = 0
+    }
+    previousMatchStart = match.start
+
+    const grouped = groupMatchByRun(pageText, match, runCursor)
+    runCursor = grouped.nextRunIndex
+
+    for (const group of grouped.groups) {
       try {
         range.setStart(group.run.textNode, group.start)
         range.setEnd(group.run.textNode, group.end)
