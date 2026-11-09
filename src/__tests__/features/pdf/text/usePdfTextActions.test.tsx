@@ -53,16 +53,26 @@ function makeRect(partial: Partial<DOMRect>): DOMRect {
 function makeSelection(init: FakeSelectionInit) {
   const anchor = init.anchorNode ?? null
   const focus = init.focusNode ?? anchor
-  const commonAncestor = init.commonAncestor ?? anchor
   const rect = init.rect ?? makeRect({})
   const clientRects = init.clientRects ?? []
-  const range = {
-    commonAncestorContainer: commonAncestor,
-    startContainer: anchor,
-    endContainer: focus,
-    getBoundingClientRect: () => rect,
-    getClientRects: () => clientRects
-  } as unknown as Range
+  // A real Range: extraction compares boundary points. It is deliberately
+  // collapsed at the anchor, so ordered extraction finds no covered runs and the
+  // hook falls back to `selection.toString()` — exactly the text these fixtures
+  // describe, without inventing glyph geometry. `commonAncestor` is implied by
+  // the endpoints; every fixture sets it to the anchor anyway.
+  const range = document.createRange()
+  if (anchor) {
+    range.setStart(anchor, 0)
+    range.setEnd(focus ?? anchor, 0)
+  }
+  Object.defineProperty(range, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => rect
+  })
+  Object.defineProperty(range, 'getClientRects', {
+    configurable: true,
+    value: () => clientRects
+  })
 
   const text = init.text ?? ''
   return {

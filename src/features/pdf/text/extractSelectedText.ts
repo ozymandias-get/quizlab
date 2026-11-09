@@ -128,15 +128,17 @@ function selectedContentsOf(range: Range, node: Node): Range | null {
  *
  * The layer's whole box is walked every time — PDF.js owns this DOM and its runs
  * come and go on every zoom, so there is nothing stable to cache — but the cost
- * is one `Range` comparison per run and **no layout read at all**: `getBoundingClientRect`
- * is here because `orderTextItems` needs it to order columns, not to decide what is
- * selected. That is also cheaper than the rectangle-overlap test this replaced,
- * which called `getClientRects()` once and then intersected every run with every
- * selection rect.
+ * is one `Range` comparison per run. The run's box is read only after the range
+ * says the run is part of the selection, because `getBoundingClientRect` can
+ * force layout and a range comparison cannot. That is also cheaper than the
+ * rectangle-overlap test this replaced, which measured a rect once and then
+ * intersected every run with every selection rect.
  *
- * The box is measured *before* the run is handed to the range, which keeps a
- * text layer that has not been laid out (no boxes at all) on the `selection.toString()`
- * fallback path without asking the range about anything.
+ * The box is still needed, for two things: `orderTextItems` uses it to order
+ * columns, and it is the fallback geometry when the selected part of a run has
+ * no measurable box (jsdom, or a layer that has not been laid out). A run whose
+ * box is still zero after the membership test is skipped, which is what keeps
+ * the caller on the `selection.toString()` fallback for an unlaid-out layer.
  */
 function collectSelectedTextItems(
   range: Range,
@@ -146,14 +148,18 @@ function collectSelectedTextItems(
 ): PdfTextItem[] {
   const items: PdfTextItem[] = []
   for (const span of layer.querySelectorAll<HTMLElement>(spanSelector)) {
-    const spanRect = span.getBoundingClientRect()
-    if (spanRect.width <= 0 || spanRect.height <= 0) continue
-
+    // Membership first: a `Range` comparison costs no layout, while
+    // `getBoundingClientRect` can force one. Deciding "not selected" without
+    // measuring keeps a drag over two words from laying out every run on a
+    // text-dense page.
     const covered = selectedContentsOf(range, span)
     if (!covered) continue
 
     const text = covered.toString()
     if (!text.trim()) continue
+
+    const spanRect = span.getBoundingClientRect()
+    if (spanRect.width <= 0 || spanRect.height <= 0) continue
 
     // Use the selected characters' own box, not the whole run's. PDF.js emits
     // one run per text item, often a whole line; a drag over the last word of a

@@ -248,29 +248,38 @@ async function selectPageRun(): Promise<void> {
   )?.firstChild
   if (!run) throw new Error('text layer produced no run')
 
+  // A real Range, collapsed at the run: extraction compares boundary points, and
+  // the collapsed range keeps it on the `selection.toString()` path these
+  // fixtures describe (no synthetic glyph geometry).
+  const range = document.createRange()
+  range.setStart(run, 0)
+  range.setEnd(run, 0)
+  Object.defineProperty(range, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      left: 10,
+      top: 10,
+      right: 110,
+      bottom: 30,
+      width: 100,
+      height: 20,
+      x: 10,
+      y: 10,
+      toJSON: () => ({})
+    })
+  })
+  Object.defineProperty(range, 'getClientRects', {
+    configurable: true,
+    value: () => []
+  })
+
   vi.spyOn(window, 'getSelection').mockReturnValue({
     toString: () => PAGE_TEXT,
     isCollapsed: false,
     rangeCount: 1,
     anchorNode: run,
     focusNode: run,
-    getRangeAt: () => ({
-      commonAncestorContainer: run,
-      startContainer: run,
-      endContainer: run,
-      getBoundingClientRect: () => ({
-        left: 10,
-        top: 10,
-        right: 110,
-        bottom: 30,
-        width: 100,
-        height: 20,
-        x: 10,
-        y: 10,
-        toJSON: () => ({})
-      }),
-      getClientRects: () => []
-    })
+    getRangeAt: () => range
   } as unknown as Selection)
 
   const container = document.querySelector('.pdf-viewer-container') as HTMLElement

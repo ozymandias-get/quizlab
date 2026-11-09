@@ -46,13 +46,39 @@ function createSelection(initial: { text: string; range: Range }) {
 }
 
 function createMockRange(opts: { startContainer: Node; endContainer: Node; rect: DOMRect }) {
-  const range = {
-    startContainer: opts.startContainer,
-    endContainer: opts.endContainer,
-    commonAncestorContainer: opts.startContainer,
-    getBoundingClientRect: () => opts.rect
-  } as unknown as Range
+  // A real Range: the extractor compares boundary points to decide what is
+  // selected, so a plain object with only a rect would exercise nothing.
+  const range = document.createRange()
+  const endLength =
+    typeof (opts.endContainer as Text).length === 'number' ? (opts.endContainer as Text).length : 0
+  range.setStart(opts.startContainer, 0)
+  range.setEnd(opts.endContainer, endLength)
+  Object.defineProperty(range, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => opts.rect
+  })
   return range
+}
+
+/** jsdom has no layout: give an element (or a range) the box a laid-out layer has. */
+function asLaidOut(
+  target: object,
+  rect: { left: number; top: number; width: number; height: number }
+): void {
+  Object.defineProperty(target, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      left: rect.left,
+      top: rect.top,
+      right: rect.left + rect.width,
+      bottom: rect.top + rect.height,
+      width: rect.width,
+      height: rect.height,
+      x: rect.left,
+      y: rect.top,
+      toJSON: () => ({})
+    })
+  })
 }
 
 describe('extractSelectedText', () => {
@@ -236,13 +262,11 @@ describe('extractSelectedText', () => {
       bottom: 340
     } as DOMRect
     const endRect = { top: 320, bottom: 340, left: 100, right: 250 }
-    const range = {
-      startContainer: text,
-      endContainer: text,
-      commonAncestorContainer: text,
-      getBoundingClientRect: () => rect,
-      getClientRects: () => [endRect]
-    } as unknown as Range
+    const range = createMockRange({ startContainer: text, endContainer: text, rect })
+    Object.defineProperty(range, 'getClientRects', {
+      configurable: true,
+      value: () => [endRect]
+    })
     const selection = createSelection({ text: 'two lines', range })
     const result = extractSelectedText(selection, container)
 
@@ -265,6 +289,8 @@ describe('extractSelectedText', () => {
     secondPage.appendChild(secondLayer)
     const secondRun = textRunIn(secondLayer, 'page five')
     container.appendChild(secondPage)
+    asLaidOut(layer, { left: 0, top: 0, width: 800, height: 600 })
+    asLaidOut(secondLayer, { left: 0, top: 0, width: 800, height: 600 })
 
     // Both pages use the same local coordinates: a page boundary must come from
     // the page marker, not from the measured `top`.
@@ -328,6 +354,7 @@ describe('extractSelectedText', () => {
     const rightNode = document.createTextNode('right column')
     rightSpan.appendChild(rightNode)
     layer.appendChild(rightSpan)
+    asLaidOut(layer, { left: 0, top: 0, width: 800, height: 600 })
 
     const rectFor = (left: number, top: number, width: number): DOMRect =>
       ({
@@ -385,5 +412,41 @@ describe('extractSelectedText', () => {
     } as unknown as Selection
 
     expect(extractSelectedText(selection, container)?.text).toBe('selectedtail\n\nright column')
+  })
+
+  /**
+   * The selection path used to measure every run on the page before asking
+   * whether the range touched it. On a text-dense page that is thousands of
+   * layout reads for a two-word drag; the range comparison alone can say "no".
+   */
+  it('does not measure text runs the selection does not touch', () => {
+    const selectedNode = textRunIn(layer, 'selected words')
+    const untouchedNode = textRunIn(layer, 'untouched line')
+    asLaidOut(layer, { left: 0, top: 0, width: 800, height: 600 })
+
+    const selectedSpan = selectedNode.parentElement as HTMLElement
+    const untouchedSpan = untouchedNode.parentElement as HTMLElement
+    asLaidOut(selectedSpan, { left: 20, top: 100, width: 200, height: 12 })
+    const untouchedRect = vi.fn()
+    Object.defineProperty(untouchedSpan, 'getBoundingClientRect', {
+      configurable: true,
+      value: untouchedRect
+    })
+
+    const range = document.createRange()
+    range.setStart(selectedNode, 0)
+    range.setEnd(selectedNode, selectedNode.length)
+    asLaidOut(range, { left: 20, top: 100, width: 200, height: 12 })
+    Object.defineProperty(range, 'getClientRects', {
+      configurable: true,
+      value: () => [{ left: 20, top: 100, right: 220, bottom: 112 }]
+    })
+
+    const selection = createSelection({ text: 'selected words', range })
+    const result = extractSelectedText(selection, container)
+
+    expect(result?.text).toContain('selected')
+    expect(result?.text).not.toContain('untouched')
+    expect(untouchedRect).not.toHaveBeenCalled()
   })
 })
