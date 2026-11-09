@@ -40,17 +40,22 @@ const ChatWelcome = memo(function ChatWelcome({
   )
 
   return (
-    <div className="bg-card/20 relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-8 select-none">
-      <div className="relative flex w-full max-w-2xl flex-col items-center text-center">
+    <div className="bg-card/20 relative flex flex-1 flex-col overflow-y-auto px-6 py-8 select-none">
+      <div className="relative m-auto flex w-full max-w-2xl flex-col items-center text-center">
         {/* Status Badge */}
         {hasProvider && (
           <div className="mb-4">
-            <Badge variant="outline" className="gap-1.5 px-3 py-1 font-mono shadow-2xs">
+            <Badge
+              variant="outline"
+              className="max-w-full min-w-0 gap-1.5 px-3 py-1 font-mono shadow-2xs"
+            >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-              <span className="text-foreground font-semibold">{activeProviderName}</span>
-              {activeModelName && (
-                <span className="font-normal opacity-60"> · {activeModelName}</span>
-              )}
+              <span className="text-foreground min-w-0 truncate font-semibold">
+                {activeProviderName}
+                {activeModelName && (
+                  <span className="font-normal opacity-60"> · {activeModelName}</span>
+                )}
+              </span>
             </Badge>
           </div>
         )}

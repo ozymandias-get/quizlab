@@ -145,7 +145,7 @@ const PromptsTab = memo(() => {
             {/* Ekle — tek satır, projeye uygun minimal */}
             <form
               onSubmit={handleAddPrompt}
-              className="border-border/60 bg-background/40 flex gap-2 rounded-xl border p-4"
+              className="border-border/60 bg-background/40 @container flex flex-col gap-2 rounded-xl border p-4 @min-[520px]:flex-row"
             >
               <div className="text-ql-13 min-w-0 flex-1">
                 <Label htmlFor="prompt-textarea" className="sr-only">
@@ -163,7 +163,7 @@ const PromptsTab = memo(() => {
               <Button
                 type="submit"
                 size="sm"
-                className="h-[56px] shrink-0 gap-1.5 self-start px-4"
+                className="h-[56px] w-full shrink-0 gap-1.5 self-start px-4 @min-[520px]:w-auto"
                 disabled={!newPromptText.trim()}
               >
                 <Plus className="h-3.5 w-3.5" />

@@ -76,7 +76,7 @@ function ApiProviderCard({
             variant="ghost"
             onClick={() => onRemove(provider.id)}
             aria-label={t('delete')}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mr-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive -mr-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100 pointer-coarse:opacity-100"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </IconButton>

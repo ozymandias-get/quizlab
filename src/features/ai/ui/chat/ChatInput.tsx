@@ -80,7 +80,7 @@ const ChatInput = memo(function ChatInput({
     <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Main Semantic Input Card */}
-        <div className="border-border/55 bg-card/85 shadow-ambient-sm focus-within:border-border focus-within:ring-foreground/10 motion-normal relative w-full overflow-hidden rounded-2xl border transition-all focus-within:ring-1">
+        <div className="border-border/55 bg-card/85 shadow-ambient-sm focus-within:border-border focus-within:ring-foreground/10 motion-normal @container relative w-full overflow-hidden rounded-2xl border transition-all focus-within:ring-1">
           {attachments.length > 0 && (
             <div className="border-border/50 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
               {attachments.map((data, i) => (
@@ -94,7 +94,7 @@ const ChatInput = memo(function ChatInput({
                     type="button"
                     size="compact"
                     onClick={() => onRemoveAttachment(i)}
-                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute -top-1.5 -right-1.5 rounded-full border shadow-2xs"
+                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 rounded-full border shadow-2xs"
                     aria-label={t('api_chat_remove_attachment')}
                   >
                     <X className="h-3 w-3" />
@@ -120,7 +120,7 @@ const ChatInput = memo(function ChatInput({
           {/* Clean Sub-divider */}
           <div className="bg-border/45 mx-3 h-px" />
 
-          <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <div className="flex flex-wrap items-center gap-1.5">
               <ProviderSelector
                 config={config}
@@ -165,9 +165,9 @@ const ChatInput = memo(function ChatInput({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
               {inputValue.trim() && (
-                <Badge variant="muted" size="sm" className="font-mono">
+                <Badge variant="muted" size="sm" className="font-mono @max-[380px]:hidden">
                   <span>{t('api_chat_word_count', { count: wordCount })}</span>
                   <span className="opacity-40">·</span>
                   <span>{t('api_chat_char_count', { count: charCount })}</span>

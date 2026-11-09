@@ -119,42 +119,44 @@ const AddAiModelForm = memo(function AddAiModelForm({
             title={isSite ? t('add_site') : t('add_custom_ai')}
           >
             <form onSubmit={handleAddAi} className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-ql-12 space-y-1.5">
-                  <Label className="text-ql-12 text-foreground pl-1 font-semibold">
-                    {t('name')}
-                  </Label>
-                  <Input
-                    value={newAiName}
-                    onChange={(e) => {
-                      setNewAiName(e.target.value)
-                      if (nameError) setNameError(validateName(e.target.value))
-                    }}
-                    onBlur={() => setNameError(validateName(newAiName))}
-                    placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
-                    aria-invalid={!!nameError}
-                  />
-                  {nameError && (
-                    <span className="text-destructive text-ql-11 block px-1">{nameError}</span>
-                  )}
-                </div>
-                <div className="text-ql-12 space-y-1.5">
-                  <Label className="text-ql-12 text-foreground pl-1 font-semibold">
-                    {t('url')}
-                  </Label>
-                  <Input
-                    value={newAiUrl}
-                    onChange={(e) => {
-                      setNewAiUrl(e.target.value)
-                      if (urlError) setUrlError(validateUrl(e.target.value))
-                    }}
-                    onBlur={() => setUrlError(validateUrl(newAiUrl))}
-                    placeholder="https://..."
-                    aria-invalid={!!urlError}
-                  />
-                  {urlError && (
-                    <span className="text-destructive text-ql-11 block px-1">{urlError}</span>
-                  )}
+              <div className="@container">
+                <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
+                  <div className="text-ql-12 space-y-1.5">
+                    <Label className="text-ql-12 text-foreground pl-1 font-semibold">
+                      {t('name')}
+                    </Label>
+                    <Input
+                      value={newAiName}
+                      onChange={(e) => {
+                        setNewAiName(e.target.value)
+                        if (nameError) setNameError(validateName(e.target.value))
+                      }}
+                      onBlur={() => setNameError(validateName(newAiName))}
+                      placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
+                      aria-invalid={!!nameError}
+                    />
+                    {nameError && (
+                      <span className="text-destructive text-ql-11 block px-1">{nameError}</span>
+                    )}
+                  </div>
+                  <div className="text-ql-12 space-y-1.5">
+                    <Label className="text-ql-12 text-foreground pl-1 font-semibold">
+                      {t('url')}
+                    </Label>
+                    <Input
+                      value={newAiUrl}
+                      onChange={(e) => {
+                        setNewAiUrl(e.target.value)
+                        if (urlError) setUrlError(validateUrl(e.target.value))
+                      }}
+                      onBlur={() => setUrlError(validateUrl(newAiUrl))}
+                      placeholder="https://..."
+                      aria-invalid={!!urlError}
+                    />
+                    {urlError && (
+                      <span className="text-destructive text-ql-11 block px-1">{urlError}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="text-ql-12 flex justify-end">

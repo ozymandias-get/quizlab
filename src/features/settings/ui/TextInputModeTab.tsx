@@ -131,24 +131,30 @@ const TextInputModeTab = memo(() => {
             </span>
           }
         >
-          <div className="grid grid-cols-4 gap-2" role="tablist" aria-label={t('typing_speed')}>
-            {TYPING_SPEED_OPTIONS.map((option) => {
-              const isActive = typingSpeed === option.value
+          <div className="@container">
+            <div
+              className="grid grid-cols-2 gap-2 @min-[560px]:grid-cols-4"
+              role="tablist"
+              aria-label={t('typing_speed')}
+            >
+              {TYPING_SPEED_OPTIONS.map((option) => {
+                const isActive = typingSpeed === option.value
 
-              return (
-                <TabPill
-                  key={option.value}
-                  isActive={isActive}
-                  onClick={() => handleSpeedChange(option.value)}
-                  aria-label={t(option.labelKey)}
-                  className="justify-center rounded-lg py-2.5"
-                >
-                  <TabPillLabel isActive={isActive} className="text-center">
-                    {t(option.labelKey)}
-                  </TabPillLabel>
-                </TabPill>
-              )
-            })}
+                return (
+                  <TabPill
+                    key={option.value}
+                    isActive={isActive}
+                    onClick={() => handleSpeedChange(option.value)}
+                    aria-label={t(option.labelKey)}
+                    className="justify-center rounded-lg py-2.5"
+                  >
+                    <TabPillLabel isActive={isActive} className="text-center">
+                      {t(option.labelKey)}
+                    </TabPillLabel>
+                  </TabPill>
+                )
+              })}
+            </div>
           </div>
         </SettingsSection>
       </div>
