@@ -581,7 +581,6 @@ on this runtime, and "fit" is a computed number, not a name.
 - State: `native/useNativePdfScaleState.ts` (numeric, clamped, fit applied once
   per document identity to avoid a fit→render→resize→fit loop).
 - Inputs, all landing on one coalesced `zoomTo` channel:
-  `viewport/usePdfZoomShortcuts.ts` (`Ctrl/Cmd -` / `=` / `0`),
   `viewport/usePdfCtrlWheelZoom.ts` (capture phase, 40 ms throttle),
   `viewport/usePdfResizeRefit.ts` (debounced refit),
   `viewport/usePdfViewerZoomIpc.ts` (context-menu zoom items arriving over

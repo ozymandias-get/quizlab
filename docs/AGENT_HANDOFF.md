@@ -166,15 +166,10 @@ that existed only inside it:
    are mounted and correct, but they are consumers of an event nobody emits. See
    _Deferred-Debt Decisions_ §2 — this is a product decision, not cleanup, and it
    means "context-menu zoom" on the interactive smoke list cannot currently pass.
-2. _Keyboard zoom._ `zoomPlugin({ enableShortcuts: true })` bound Ctrl/Cmd +
-   `-` / `=` / `0`. `usePdfZoomShortcuts` restores the key set, modifier rule,
-   `document`-level listener and conditional `preventDefault`. It deliberately does
-   **not** copy RPV's `container.contains(document.activeElement)` scope check: QuizLab
-   never moves DOM focus into the PDF surface, so that check would have made the
-   shortcuts unreachable while the toolbar advertises `+ / −` unconditionally. Whether
-   the legacy shortcut was in fact reachable is a human-smoke question.
-
-`aria-keyshortcuts` moved with the bindings it describes.
+2. _Keyboard zoom._ The legacy `zoomPlugin({ enableShortcuts: true })` bindings
+   (Ctrl/Cmd + `-` / `=` / `0`) and the app's own PDF/zoom shortcuts were removed
+   because they are not used. Zoom is owned by the toolbar buttons and Ctrl+wheel;
+   there is no `document`-level zoom key listener and no `aria-keyshortcuts` hint.
 
 **Mechanical findings closed in the same phase:** RPV type leakage out of the shared
 state module; the render error guard moved off the deleted worker host to app boot; the
@@ -385,7 +380,7 @@ Invariants worth knowing before changing it:
 
 Reused unchanged: `useFitScale`, `useContainerSize`, `useLastNavigationTime`,
 `usePdfWheelNavigation`, `usePdfCtrlWheelZoom`, `usePdfResizeRefit`,
-`usePdfZoomShortcuts`, `usePdfViewerZoomIpc`, **`usePdfTextActions`**,
+`usePdfViewerZoomIpc`, **`usePdfTextActions`**,
 **`usePdfCaptureActions`**, `usePdfContextMenu`, `useCanvasGpuCleanup`, `PdfToolbar`,
 `PdfZoomControls`, `PdfPageNav`, `ContextMenu`, `InlineSpinner`,
 `onReadingProgressChange`.
@@ -456,8 +451,8 @@ only while a PDF panel existed.
 11. **One zoom channel.** Every programmatic zoom source is numeric, clamped by
     `clampPdfScale`, and funnels through `useNativeCoalescedScale`.
 12. `usePdfViewerZoomIpc` is numeric. `reset` means the fit scale — never a keyword.
-13. `usePdfZoomShortcuts` calls `preventDefault()` only for a key it actually handles, and
-    never while the event target is an editable field.
+13. The PDF surface has no application keyboard shortcut listener; toolbar buttons and
+    Ctrl+wheel are the zoom inputs.
 14. `usePdfTextActions` stays renderer-agnostic and is mounted once, against the shared
     container. A selection is PDF text only if it lands inside the text layer.
 15. Capture **borrows**; it never destroys. A borrowed handle exposes no teardown, the

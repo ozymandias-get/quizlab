@@ -7,6 +7,8 @@
 > "open blockers" framing are the **Phase-1 baseline, not the shipped tree**.
 > `docs/AGENT_HANDOFF.md` holds the current state; this document is the reasoning behind it
 > and is kept for that reason. Sections that were superseded carry a banner saying so.
+> Later product decision: all application keyboard shortcuts (Ctrl/Cmd+F, Ctrl/Cmd+O and
+> PDF zoom keys) were removed, so any remaining shortcut references here are historical.
 
 Planning document. No upgrade has been performed; this records what a move would
 require and what currently blocks it, so the decision can be made deliberately
