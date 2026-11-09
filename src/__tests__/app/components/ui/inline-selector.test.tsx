@@ -105,6 +105,26 @@ describe('InlineSelector placement', () => {
     expect(menu()).toHaveStyle({ left: '776px' })
   })
 
+  it('uses the viewport and scrolls when neither side has room', () => {
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(100)
+
+    const { rerender } = render(renderSelector(false))
+    const anchor = screen.getByRole('button', { name: 'Trigger' }).parentElement!
+    vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      bottom: 100,
+      left: 0,
+      right: 80,
+      width: 80,
+      height: 100
+    } as DOMRect)
+
+    rerender(renderSelector(true))
+
+    expect(menu()).toHaveStyle({ top: '8px', maxHeight: '84px' })
+    expect(menu()).toHaveClass('overflow-y-auto')
+  })
+
   it('portals outside an overflow-hidden ancestor', () => {
     render(<div style={{ overflow: 'hidden' }}>{renderSelector(true)}</div>)
 

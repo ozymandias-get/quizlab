@@ -57,16 +57,22 @@ function InlineSelector({
     const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
     const spaceAbove = rect.top - VIEWPORT_MARGIN
     const openDown = spaceBelow >= desiredHeight || spaceBelow >= spaceAbove
-    // No artificial minimum: in a very short window a 96px floor would push the
-    // panel past the edge again. Zero available space simply stays on-screen.
-    const available = Math.max(0, openDown ? spaceBelow : spaceAbove)
+    // Use the viewport itself when the trigger leaves no room on either side
+    // (a very short window). A zero height would make the menu invisible; the
+    // content scrolls inside the capped surface instead.
+    const sideAvailable = Math.max(0, openDown ? spaceBelow : spaceAbove)
+    const viewportAvailable = Math.max(0, window.innerHeight - 2 * VIEWPORT_MARGIN)
+    const available = sideAvailable > 0 ? sideAvailable : viewportAvailable
     const menuHeight = Math.min(desiredHeight, available)
 
     const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - menuWidth - VIEWPORT_MARGIN)
     const left = Math.min(Math.max(rect.left, VIEWPORT_MARGIN), maxLeft)
-    const top = openDown
-      ? rect.bottom + VIEWPORT_MARGIN
-      : Math.max(VIEWPORT_MARGIN, rect.top - menuHeight - VIEWPORT_MARGIN)
+    const top =
+      sideAvailable > 0
+        ? openDown
+          ? rect.bottom + VIEWPORT_MARGIN
+          : Math.max(VIEWPORT_MARGIN, rect.top - menuHeight - VIEWPORT_MARGIN)
+        : VIEWPORT_MARGIN
 
     setPosition({
       left,
@@ -131,7 +137,7 @@ function InlineSelector({
               ref={menuRef}
               role={null}
               className={cn(
-                'animate-in fade-in zoom-in-98 motion-normal fixed flex flex-col p-1.5',
+                'animate-in fade-in zoom-in-98 motion-normal fixed flex flex-col overflow-y-auto p-1.5',
                 popupClassName
               )}
               style={{
