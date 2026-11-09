@@ -414,6 +414,18 @@ describe('site session config', () => {
     expect(await config.getConfigVersion()).toBe(2)
   })
 
+  it('requests a resync without changing any switch', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    expect(await config.getConfigVersion()).toBe(1)
+
+    await config.requestResync()
+
+    const state = await config.read()
+    expect(state.configVersion).toBe(2)
+    expect(state.targets.chatgpt.enabled).toBe(true)
+  })
+
   it('records the import result without changing the version or the switch', async () => {
     const config = new SiteSessionConfig(configPath())
     await config.setEnabled('chatgpt', true)

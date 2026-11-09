@@ -56,6 +56,14 @@ export interface NativeMessagingProfileSelectionResult {
    * not atomic and the caller must not present it as one.
    */
   partial?: boolean
+  /**
+   * Whether the old profile was asked to push the cleared sites again.
+   *
+   * The app cannot read Chrome itself; the recovery is the extension's next
+   * poll. A failure to request it is not fatal, but the cleared sites then
+   * stay signed out until the user syncs manually.
+   */
+  reimportRequested?: boolean
 }
 
 export interface ChromeExtensionCookie {

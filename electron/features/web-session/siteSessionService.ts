@@ -44,6 +44,7 @@ import {
   writeCachedSiteSessionList
 } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
+import { clearQuarantineMarker } from './siteSessionQuarantine.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
@@ -61,7 +62,7 @@ import { wipeSiteSession } from './siteSessionWipe.js'
  */
 export interface SiteSessionServiceDeps {
   config: Pick<SiteSessionConfig, 'read' | 'setEnabled' | 'resetResults'> &
-    Partial<Pick<SiteSessionConfig, 'isEnabled' | 'recordResult'>>
+    Partial<Pick<SiteSessionConfig, 'isEnabled' | 'recordResult' | 'requestResync'>>
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   resolveSession: (partition: string) => Session
   isExtensionConnected: () => boolean
@@ -164,6 +165,7 @@ export class SiteSessionService {
           // Switching the site on is the user's explicit recovery from a
           // quarantine; the in-process guard has to follow the durable flag.
           clearSiteSessionQuarantine(siteId)
+          void clearQuarantineMarker(siteId)
           return { success: true }
         } catch (error) {
           Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
@@ -227,9 +229,10 @@ export class SiteSessionService {
     // The bridge refuses packets until this whole block finishes.
     nativeMessagingManager.beginSelectionChange()
     let result: NativeMessagingProfileSelectionResult
+    let clearedSiteIds: string[] = []
     try {
       const clear = await this.clearImportedSessionsAfterSourceChange()
-      const clearedSiteIds = clear.clearedSiteIds
+      clearedSiteIds = clear.clearedSiteIds
       if (clear.failedSiteIds.length > 0 || clear.readFailed) {
         // The old profile stays selected, so it can import the sites that were
         // cleared again. The result says exactly which ones those are instead
@@ -253,11 +256,33 @@ export class SiteSessionService {
                 : {})
             }
       }
+
+      // The clear cannot be undone, but it can be repaired: the old profile is
+      // still the source, so asking it for a full push restores the sessions
+      // that were already wiped. This is a request, not a guarantee — the
+      // extension has to be connected and auto-sync has to be on.
+      if (!result.success && clearedSiteIds.length > 0) {
+        if (await this.requestReimport()) {
+          result = { ...result, reimportRequested: true }
+        }
+      }
     } finally {
       nativeMessagingManager.endSelectionChange()
       invalidateSiteSessionListCache()
     }
     return result
+  }
+
+  /** Asks the selected profile to push every enabled site again. */
+  private async requestReimport(): Promise<boolean> {
+    if (typeof this.deps.config.requestResync !== 'function') return false
+    try {
+      await this.deps.config.requestResync()
+      return true
+    } catch (error) {
+      Logger.warn('[SiteSession] The old profile could not be asked to re-import:', error)
+      return false
+    }
   }
 
   /**
@@ -351,6 +376,7 @@ export class SiteSessionService {
     }
     await this.deps.config.resetResults(target.siteId)
     clearSiteSessionQuarantine(target.siteId)
+    void clearQuarantineMarker(target.siteId)
   }
 }
 

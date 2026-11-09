@@ -36,11 +36,13 @@ import { type ExternalBrowserCookie, importExternalCookies } from './siteSession
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
+import { hasQuarantineMarker, writeQuarantineMarker } from './siteSessionQuarantine.js'
 import {
   buildSiteSessionTargets,
   type SiteSessionTargetRow,
   siteSessionTargetsFingerprint
 } from './siteSessionTargets.js'
+import { wipeSiteSession } from './siteSessionWipe.js'
 
 export { SITE_SESSION_PROTOCOL_VERSION }
 
@@ -474,7 +476,11 @@ async function handleSiteSessionPacket(
   // A site whose rollback failed holds a session the app cannot vouch for. No
   // packet may touch it until the user clears it or switches the site on
   // again; switching the site on is the explicit recovery path.
-  if (quarantinedSites.has(target.siteId) || state.targets[target.siteId]?.quarantined === true) {
+  const quarantined =
+    quarantinedSites.has(target.siteId) ||
+    state.targets[target.siteId]?.quarantined === true ||
+    (await hasQuarantineMarker(target.siteId))
+  if (quarantined) {
     Logger.warn(
       `[SiteSessionBridge] Refused a packet: the session of "${target.siteId}" is quarantined.`
     )
@@ -523,34 +529,63 @@ async function handleSiteSessionPacket(
     // The session may mix cookies from both sides and the app could not prove
     // otherwise. Stop automatic writes for this site instead of letting the
     // next packet build on an unknown state. The in-process set protects the
-    // current run even when the durable write fails.
+    // current run; each durable fallback below is independent of the previous
+    // one so a single broken file does not remove every guard.
     quarantinedSites.add(target.siteId)
+    let durable = false
+
     if (typeof config.quarantine === 'function') {
       try {
         await config.quarantine(target.siteId, error)
+        durable = true
       } catch (writeError) {
         Logger.warn(
           `[SiteSessionBridge] The quarantine of "${target.siteId}" could not be recorded: ` +
             `${writeError instanceof Error ? writeError.message : String(writeError)}`
         )
-        // Fall back to switching the site off: that is a second durable way to
-        // stop the import, and the user can turn it on again deliberately.
-        if (typeof config.setEnabled === 'function') {
-          try {
-            await config.setEnabled(target.siteId, false)
-          } catch (disableError) {
-            Logger.warn(
-              `[SiteSessionBridge] The site "${target.siteId}" could not be switched off after ` +
-                `a failed quarantine:`,
-              disableError
-            )
-          }
-        }
-        await recordResult(config, target.siteId, 'failed', error)
       }
-    } else {
-      await recordResult(config, target.siteId, 'failed', error)
     }
+
+    if (!durable) {
+      // A separate marker file survives a config file that is locked or
+      // corrupt, which is the case most likely to break the write above.
+      durable = await writeQuarantineMarker(target.siteId, error)
+    }
+
+    if (!durable && typeof config.setEnabled === 'function') {
+      // Switching the site off is a second durable way to stop the import.
+      try {
+        await config.setEnabled(target.siteId, false)
+        durable = true
+      } catch (disableError) {
+        Logger.warn(
+          `[SiteSessionBridge] The site "${target.siteId}" could not be switched off after ` +
+            `a failed quarantine:`,
+          disableError
+        )
+      }
+    }
+
+    if (!durable) {
+      // Nothing could be recorded. The only state left that a restart reads is
+      // the session itself, so remove the unverified cookies rather than let
+      // them be used.
+      try {
+        await wipeSiteSession(targetSession, target)
+        Logger.warn(
+          `[SiteSessionBridge] The session of "${target.siteId}" was wiped after every ` +
+            `quarantine write failed.`
+        )
+      } catch (wipeError) {
+        Logger.error(
+          `[SiteSessionBridge] The session of "${target.siteId}" could not be quarantined or ` +
+            `wiped; automatic import may resume after a restart:`,
+          wipeError
+        )
+      }
+    }
+
+    await recordResult(config, target.siteId, 'failed', error)
   } else {
     await recordResult(
       config,

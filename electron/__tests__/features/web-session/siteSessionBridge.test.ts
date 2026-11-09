@@ -28,8 +28,10 @@ const recordResult = vi.fn()
 const quarantine = vi.fn().mockResolvedValue(undefined)
 const setEnabled = vi.fn().mockResolvedValue(undefined)
 
-const { partitionExistsOnDisk } = vi.hoisted(() => ({
-  partitionExistsOnDisk: vi.fn(async () => true)
+const { partitionExistsOnDisk, hasQuarantineMarker, writeQuarantineMarker } = vi.hoisted(() => ({
+  partitionExistsOnDisk: vi.fn(async () => true),
+  hasQuarantineMarker: vi.fn(async () => false),
+  writeQuarantineMarker: vi.fn(async () => true)
 }))
 
 vi.mock('electron', () => ({
@@ -66,6 +68,11 @@ vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
 
 vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
   partitionExistsOnDisk
+}))
+
+vi.mock('../../../features/web-session/siteSessionQuarantine.js', () => ({
+  hasQuarantineMarker,
+  writeQuarantineMarker
 }))
 
 import { APP_CONFIG } from '../../../app/constants.js'
@@ -158,6 +165,10 @@ describe('site session bridge', () => {
     quarantine.mockResolvedValue(undefined)
     setEnabled.mockReset()
     setEnabled.mockResolvedValue(undefined)
+    hasQuarantineMarker.mockReset()
+    hasQuarantineMarker.mockResolvedValue(false)
+    writeQuarantineMarker.mockReset()
+    writeQuarantineMarker.mockResolvedValue(true)
     clearSiteSessionQuarantine('chatgpt')
     read.mockResolvedValue(stateWith(false))
   })
@@ -341,10 +352,27 @@ describe('site session bridge', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('refuses a site when only the durable marker survived a restart', async () => {
+    // The config says nothing (its write failed), but the marker file is what
+    // a restarted process reads before it accepts the first packet.
+    read.mockResolvedValue(stateWith(true))
+    hasQuarantineMarker.mockResolvedValue(true)
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({ accepted: false, reason: 'session_unverified' })
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it('blocks a site for the rest of the run when the quarantine cannot be persisted', async () => {
     read.mockResolvedValue(stateWith(true))
     get.mockRejectedValueOnce(new Error('unavailable'))
     quarantine.mockRejectedValue(new Error('disk full'))
+    writeQuarantineMarker.mockResolvedValueOnce(false)
     setEnabled.mockRejectedValue(new Error('disk full'))
 
     const outcome = await acceptSiteSessionPacket({
@@ -355,8 +383,11 @@ describe('site session bridge', () => {
 
     expect(outcome).toMatchObject({ accepted: true, rollbackFailed: true })
     expect(quarantine).toHaveBeenCalledWith('chatgpt', 'session_restore_failed')
-    // The durable fallback was attempted as well.
+    // Both durable fallbacks were attempted as well.
+    expect(writeQuarantineMarker).toHaveBeenCalledWith('chatgpt', 'session_restore_failed')
     expect(setEnabled).toHaveBeenCalledWith('chatgpt', false)
+    // Nothing could be recorded, so the unverified session itself is removed.
+    expect(clearStorageData).toHaveBeenCalled()
 
     // The config still says "not quarantined" because both writes failed, but
     // the current process must not accept another packet for the site.

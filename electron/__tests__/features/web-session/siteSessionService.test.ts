@@ -546,7 +546,8 @@ describe('the Chrome profile selection', () => {
       }),
       setEnabled: vi.fn().mockResolvedValue(undefined),
       resetResults: vi.fn().mockResolvedValue(undefined),
-      recordResult: vi.fn().mockResolvedValue(undefined)
+      recordResult: vi.fn().mockResolvedValue(undefined),
+      requestResync: vi.fn().mockResolvedValue(undefined)
     }
     const service = new SiteSessionService({
       config,
@@ -565,9 +566,13 @@ describe('the Chrome profile selection', () => {
       error: 'wipe_failed',
       clearedSiteIds: ['chatgpt', 'gemini'],
       failedSiteIds: ['claude'],
-      partial: true
+      partial: true,
+      reimportRequested: true
     })
     expect(profileSelection.selectProfile).not.toHaveBeenCalled()
+    // The old profile is still selected and is asked to restore what the
+    // partial clear removed.
+    expect(config.requestResync).toHaveBeenCalledTimes(1)
     // The old profile stays selected, so it can import the cleared sites again.
     expect(chatgptSession.clearStorageData).toHaveBeenCalled()
     expect(geminiSession.clearStorageData).toHaveBeenCalled()

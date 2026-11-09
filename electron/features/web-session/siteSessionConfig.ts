@@ -360,6 +360,29 @@ export class SiteSessionConfig {
   }
 
   /**
+   * Asks the selected Chrome profile to push every site again.
+   *
+   * The extension compares the version and pushes the whole target list when
+   * it changes. This is the recovery path after a profile switch cleared some
+   * sessions but could not complete: the old profile is still selected, so the
+   * next poll repopulates what was cleared.
+   *
+   * @throws when the state could not be written.
+   */
+  async requestResync(): Promise<void> {
+    await this.loadState()
+
+    const written = await this.store.update((current) => {
+      const state = normalizeConfigFile(current)
+      return { ...state, configVersion: state.configVersion + 1 }
+    })
+
+    if (!written) {
+      throw new Error('[Web Session] A resync could not be requested.')
+    }
+  }
+
+  /**
    * Records what the last import of a site reported.
    *
    * The switch itself does not change, so the version stays: the extension
