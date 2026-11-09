@@ -238,7 +238,10 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   void (async () => {
     // Give the renderer a bounded chance to finish pending storage writes.
-    await waitForQuitFlush(getMainWindow())
+    const saved = await waitForQuitFlush(getMainWindow())
+    if (!saved) {
+      Logger.warn('[App] The renderer could not confirm that all chat state was saved before quit.')
+    }
     await runCleanup()
   })().finally(() => {
     quitAfterCleanup = true

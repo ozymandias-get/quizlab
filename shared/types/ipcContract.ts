@@ -125,7 +125,7 @@ export interface IpcInvokeRequestMap {
   }
 
   [IPC_CHANNELS.APP_FLUSH_COMPLETE]: {
-    args: []
+    args: [saved: boolean]
     result: IpcResult<boolean>
   }
 

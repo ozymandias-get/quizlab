@@ -12,11 +12,16 @@ import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 
 const FLUSH_TIMEOUT_MS = 1500
 
-const pendingWaiters = new Set<() => void>()
+const pendingWaiters = new Set<(saved: boolean) => void>()
 
-/** The renderer answered that its pending writes are done. */
-export function markQuitFlushComplete(): void {
-  for (const resolve of pendingWaiters) resolve()
+/**
+ * The renderer answered with the result of its pending writes.
+ *
+ * `false` means at least one save failed; the caller decides whether to quit
+ * anyway or offer a retry.
+ */
+export function markQuitFlushComplete(saved = true): void {
+  for (const resolve of pendingWaiters) resolve(saved)
   pendingWaiters.clear()
 }
 
@@ -24,19 +29,19 @@ export function markQuitFlushComplete(): void {
 export function waitForQuitFlush(
   window: BrowserWindow | null,
   timeoutMs = FLUSH_TIMEOUT_MS
-): Promise<void> {
-  if (!window || window.isDestroyed()) return Promise.resolve()
+): Promise<boolean> {
+  if (!window || window.isDestroyed()) return Promise.resolve(false)
 
-  return new Promise<void>((resolve) => {
+  return new Promise<boolean>((resolve) => {
     let settled = false
     let timer: ReturnType<typeof setTimeout> | null = null
 
-    const finish = (): void => {
+    const finish = (saved = false): void => {
       if (settled) return
       settled = true
       if (timer) clearTimeout(timer)
       pendingWaiters.delete(finish)
-      resolve()
+      resolve(saved)
     }
 
     // Concurrent close and quit paths may wait at the same time; each keeps

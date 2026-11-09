@@ -87,6 +87,8 @@
   "api_chat_storage_write_error": "Failed to save chat history: {error}",
   "api_chat_placeholder_provider": "e.g. My Provider",
   "api_chat_remove_attachment": "Remove attachment",
+  "api_chat_image_read_failed": "{{count}} image(s) could not be read and were not attached.",
+  "api_chat_unsupported_files": "{{count}} file(s) were skipped because they are not images.",
   "api_chat_vision_required_for_attachments": "The selected model ({{model}}) does not support images. Choose a vision-capable model before sending the attachments.",
   "api_chat_show_api_key": "Show API key",
   "api_chat_hide_api_key": "Hide API key",

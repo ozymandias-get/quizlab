@@ -119,7 +119,9 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
       rafId = requestAnimationFrame(() => {
         rafId = null
         const { scrollTop, scrollHeight, clientHeight } = container
-        setIsScrolledUp(scrollHeight - scrollTop - clientHeight > 1)
+        // Sub-pixel layout, zoom and fractional heights can leave a few pixels
+        // at the bottom while the reader is still following the stream.
+        setIsScrolledUp(scrollHeight - scrollTop - clientHeight > 8)
       })
     }
     container.addEventListener('scroll', handleScroll, { passive: true })
@@ -194,6 +196,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     attachmentsRef,
     activeProviderIdRef,
     selectedModelRef,
+    activeProvider,
     messagesRef,
     textareaRef,
     messagesEndRef,

@@ -45,8 +45,8 @@ export function registerSystemHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.APP_FLUSH_COMPLETE,
-    async () => {
-      markQuitFlushComplete()
+    async (_event, saved: boolean) => {
+      markQuitFlushComplete(saved === true)
       return success(true)
     },
     requireTrustedIpcSender,

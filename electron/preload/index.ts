@@ -91,7 +91,8 @@ const electronApi: ElectronApi = {
   },
   quitApp: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.APP_QUIT)),
   onAppFlushPending: (callback) => onEvent(IPC_CHANNELS.APP_FLUSH_PENDING_STATE, () => callback()),
-  notifyAppFlushComplete: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.APP_FLUSH_COMPLETE)),
+  notifyAppFlushComplete: (saved: boolean) =>
+    unwrapIpcResult(typedInvoke(IPC_CHANNELS.APP_FLUSH_COMPLETE, saved)),
 
   checkForUpdates: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.CHECK_FOR_UPDATES)),
   getAppVersion: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_APP_VERSION)),

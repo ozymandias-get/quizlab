@@ -9,10 +9,14 @@ import { useTranslation } from 'react-i18next'
 // trigger. Exported so tests can import it if needed.
 const TURKISH_CHAR_REGEX = /[ÇÖÜçöüĞğİıŞş]/
 
-// TTS sample window — checking the first 100 characters is enough to detect
-// Turkish vs English for a typical chat message without scanning the whole
-// response.
-const TTS_SAMPLE_LENGTH = 100
+/**
+ * The stop callback of the utterance that is speaking right now.
+ *
+ * `speechSynthesis.cancel()` affects the whole app, so the button that owns
+ * the queue has to reset the state of the button it interrupted. A single
+ * module-level owner does that; per-button state alone cannot.
+ */
+let activeTtsStop: (() => void) | null = null
 
 export const CopyButton = memo(function CopyButton({ content }: { content: string }) {
   const { t } = useTranslation()
@@ -41,53 +45,63 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
 })
 
 export const TtsButton = memo(function TtsButton({ content }: { content: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const isSpeakingRef = useRef(false)
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const stopRef = useRef<() => void>(() => undefined)
+
+  const stop = useCallback(() => {
+    const utterance = utteranceRef.current
+    if (utterance) {
+      utterance.onend = null
+      utterance.onerror = null
+    }
+    window.speechSynthesis.cancel()
+    isSpeakingRef.current = false
+    setIsSpeaking(false)
+    if (activeTtsStop === stopRef.current) activeTtsStop = null
+  }, [])
+  stopRef.current = stop
 
   useEffect(() => {
     return () => {
-      if (utteranceRef.current) {
-        utteranceRef.current.onend = null
-        utteranceRef.current.onerror = null
-      }
-      if (isSpeakingRef.current) {
-        window.speechSynthesis.cancel()
-      }
+      if (isSpeakingRef.current) stopRef.current()
     }
   }, [])
 
   const handleSpeak = useCallback(() => {
     if (isSpeaking) {
-      if (utteranceRef.current) {
-        utteranceRef.current.onend = null
-        utteranceRef.current.onerror = null
-      }
-      window.speechSynthesis.cancel()
+      stop()
+      return
+    }
+
+    // A different message may be speaking: cancel it through its own stop so
+    // its state is reset now, not whenever the browser reports the error.
+    activeTtsStop?.()
+
+    const utterance = new SpeechSynthesisUtterance(content)
+    // The app language is the default. Turkish-specific characters can still
+    // identify Turkish text in a non-Turkish UI, but character detection is
+    // not the only signal (a Turkish sentence may contain none).
+    const appLanguage = i18n.language || ''
+    const isTurkish = TURKISH_CHAR_REGEX.test(content) || appLanguage.startsWith('tr')
+    utterance.lang = isTurkish ? 'tr-TR' : 'en-US'
+
+    const finish = () => {
       isSpeakingRef.current = false
       setIsSpeaking(false)
-    } else {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(content)
-      const sample = content.slice(0, TTS_SAMPLE_LENGTH)
-      const isTurkish = TURKISH_CHAR_REGEX.test(sample)
-      utterance.lang = isTurkish ? 'tr-TR' : 'en-US'
-
-      utterance.onend = () => {
-        isSpeakingRef.current = false
-        setIsSpeaking(false)
-      }
-      utterance.onerror = () => {
-        isSpeakingRef.current = false
-        setIsSpeaking(false)
-      }
-      utteranceRef.current = utterance
-      window.speechSynthesis.speak(utterance)
-      isSpeakingRef.current = true
-      setIsSpeaking(true)
+      if (activeTtsStop === stopRef.current) activeTtsStop = null
     }
-  }, [content, isSpeaking])
+    utterance.onend = finish
+    utterance.onerror = finish
+
+    utteranceRef.current = utterance
+    activeTtsStop = stopRef.current
+    window.speechSynthesis.speak(utterance)
+    isSpeakingRef.current = true
+    setIsSpeaking(true)
+  }, [content, i18n.language, isSpeaking, stop])
 
   return (
     <WithTooltip

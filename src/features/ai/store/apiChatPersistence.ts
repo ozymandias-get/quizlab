@@ -381,7 +381,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
  * still be inside IndexedDB when the app closes. The shutdown flush has to
  * wait for those promises too, not only for the not-yet-started batch.
  */
-const inFlightSaves = new Set<Promise<void>>()
+const inFlightSaves = new Set<Promise<boolean>>()
 
 /**
  * Deletions accumulate for the whole debounce window: a delete followed by an
@@ -420,7 +420,7 @@ function takeSessionDeletionMarks(): SessionDeletionMarks {
   return marks
 }
 
-function startSave(sessions: ChatSession[], deletions: SessionDeletionMarks): Promise<void> {
+function startSave(sessions: ChatSession[], deletions: SessionDeletionMarks): Promise<boolean> {
   const tracked = saveSessionsToStorage(sessions, deletions)
     .then((saved) => {
       if (!saved) {
@@ -428,6 +428,7 @@ function startSave(sessions: ChatSession[], deletions: SessionDeletionMarks): Pr
         // the old transcript win once storage has room again.
         addSessionDeletionMarks(deletions)
       }
+      return saved
     })
     .finally(() => {
       inFlightSaves.delete(tracked)
@@ -460,7 +461,7 @@ export function scheduleSaveSessions(sessions: ChatSession[], deletions?: Sessio
  * Called on `beforeunload` so a message sent right before the app quits is
  * not lost to the save debounce window.
  */
-export async function flushPendingSessions(): Promise<void> {
+export async function flushPendingSessions(): Promise<boolean> {
   if (saveTimer !== null) {
     clearTimeout(saveTimer)
     saveTimer = null
@@ -473,10 +474,15 @@ export async function flushPendingSessions(): Promise<void> {
 
   // A save started by an earlier timer tick may still be writing IndexedDB.
   // Wait until the set drains, including writes that were queued while we
-  // were waiting.
+  // were waiting, and report whether every write reached storage.
+  let saved = true
   while (inFlightSaves.size > 0) {
-    await Promise.allSettled(inFlightSaves)
+    const results = await Promise.allSettled(inFlightSaves)
+    for (const result of results) {
+      if (result.status === 'rejected' || result.value === false) saved = false
+    }
   }
+  return saved
 }
 
 if (typeof window !== 'undefined') {
@@ -489,9 +495,9 @@ if (typeof window !== 'undefined') {
     // beforeunload cannot await the IndexedDB write.
     const api = getElectronApi()
     api?.onAppFlushPending?.(() => {
-      void flushPendingSessions().finally(() => {
-        void api.notifyAppFlushComplete?.()
-      })
+      void flushPendingSessions()
+        .then((saved) => api.notifyAppFlushComplete(saved))
+        .catch(() => api.notifyAppFlushComplete(false))
     })
   } catch {}
 }

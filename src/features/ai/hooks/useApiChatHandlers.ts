@@ -1,4 +1,6 @@
-import type { ApiChatMessage } from '@shared-core/types'
+import type { ApiChatMessage, ApiConfig } from '@shared-core/types'
+
+import { useToastActions } from '@shared/stores/toastStore'
 
 import { useCallback, useRef } from 'react'
 
@@ -17,6 +19,8 @@ interface UseApiChatHandlersDeps {
   attachmentsRef: React.RefObject<string[]>
   activeProviderIdRef: React.RefObject<string | undefined>
   selectedModelRef: React.RefObject<string | undefined>
+  /** The provider the composer currently points at, for a synchronous model check. */
+  activeProvider: ApiConfig['providers'][number] | null
   messagesRef: React.RefObject<ApiChatMessage[]>
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
   messagesEndRef: React.RefObject<HTMLDivElement | null>
@@ -45,6 +49,7 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     attachmentsRef,
     activeProviderIdRef,
     selectedModelRef,
+    activeProvider,
     addAttachment,
     setIsDragging,
     setIsHistoryModalOpen,
@@ -52,6 +57,17 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     sendMsgMutation
   } = deps
   const dragCounterRef = useRef(0)
+  const { showError, showWarning } = useToastActions()
+
+  /** The model the current provider can actually serve. */
+  const resolveRequestModel = useCallback((): string | undefined => {
+    const requested = selectedModelRef.current
+    if (!activeProvider) return requested
+    if (!requested || !activeProvider.models?.includes(requested)) {
+      return activeProvider.defaultModel || requested
+    }
+    return requested
+  }, [activeProvider, selectedModelRef])
 
   const handleSend = useCallback(async () => {
     const text = inputValueRef.current
@@ -66,7 +82,9 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
         tabId,
         text,
         images,
-        model: selectedModelRef.current,
+        // Resolve synchronously: the provider-switch effect may not have run
+        // yet, and the previous provider's model must not be sent.
+        model: resolveRequestModel(),
         providerId: activeProviderIdRef.current,
         generalPrompt: useChatUiStore.getState().generalPrompt,
         memoryPrompt: useChatUiStore.getState().memoryPrompt,
@@ -82,8 +100,8 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     scrollToBottom,
     inputValueRef,
     attachmentsRef,
-    selectedModelRef,
-    activeProviderIdRef
+    activeProviderIdRef,
+    resolveRequestModel
   ])
 
   const handleSuggestionClick = useCallback(
@@ -94,7 +112,7 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
           tabId,
           text,
           images: [],
-          model: selectedModelRef.current,
+          model: resolveRequestModel(),
           providerId: activeProviderIdRef.current,
           generalPrompt,
           memoryPrompt,
@@ -104,11 +122,15 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
         /* handled by mutation */
       }
     },
-    [sendMsgMutation, tabId, selectedModelRef, activeProviderIdRef]
+    [sendMsgMutation, tabId, activeProviderIdRef, resolveRequestModel]
   )
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // Enter during an IME composition confirms the candidate; sending here
+      // would cut Japanese, Chinese or Korean input short. keyCode 229 is the
+      // legacy signal some IMEs still emit.
+      if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
         handleSend()
@@ -117,29 +139,48 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
     [handleSend]
   )
 
-  const addPreparedAttachment = useCallback(
-    (file: File) => {
+  /** Reads and downscales one image; null means the file could not be read. */
+  const prepareAttachment = useCallback(async (file: File): Promise<string | null> => {
+    const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader()
-      reader.onload = () => {
-        void prepareImageForUpload(reader.result as string).then(
-          (dataUrl) => addAttachment(tabId, dataUrl),
-          () => addAttachment(tabId, reader.result as string)
-        )
-      }
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+      reader.onerror = () => resolve(null)
+      reader.onabort = () => resolve(null)
       reader.readAsDataURL(file)
+    })
+    if (!dataUrl) return null
+    try {
+      return await prepareImageForUpload(dataUrl)
+    } catch {
+      // Downscaling is an optimisation; the original readable image is fine.
+      return dataUrl
+    }
+  }, [])
+
+  const addPreparedAttachments = useCallback(
+    async (files: File[]) => {
+      // Prepare in parallel but append in the user's selection order: a fast
+      // third image must not overtake the first.
+      const prepared = await Promise.all(files.map((file) => prepareAttachment(file)))
+      let failed = 0
+      for (const dataUrl of prepared) {
+        if (dataUrl) addAttachment(tabId, dataUrl)
+        else failed += 1
+      }
+      if (failed > 0) {
+        showError('api_chat_image_read_failed', undefined, { count: String(failed) })
+      }
     },
-    [addAttachment, tabId]
+    [addAttachment, prepareAttachment, showError, tabId]
   )
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
-      for (const file of files) {
-        addPreparedAttachment(file)
-      }
+      if (files.length > 0) void addPreparedAttachments(files)
       e.target.value = ''
     },
-    [addPreparedAttachment]
+    [addPreparedAttachments]
   )
 
   const handleDragEnter = useCallback(
@@ -181,11 +222,16 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
       dragCounterRef.current = 0
       setIsDragging(false)
       const files = [...(e.dataTransfer?.files || [])]
-      for (const file of files.filter((f) => f.type.startsWith('image/'))) {
-        addPreparedAttachment(file)
+      const images = files.filter((file) => file.type.startsWith('image/'))
+      const rejected = files.length - images.length
+      if (rejected > 0) {
+        // A dropped PDF (or anything else) is a user action, not noise: say
+        // why it was skipped, and still add the valid images.
+        showWarning('api_chat_unsupported_files', undefined, { count: String(rejected) })
       }
+      if (images.length > 0) void addPreparedAttachments(images)
     },
-    [addPreparedAttachment, setIsDragging]
+    [addPreparedAttachments, setIsDragging, showWarning]
   )
 
   const simple = useApiChatSimpleHandlers(deps)

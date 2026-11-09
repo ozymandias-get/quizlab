@@ -21,9 +21,18 @@ describe('the quit flush gate', () => {
     const pending = waitForQuitFlush(window as never)
 
     expect(window.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.APP_FLUSH_PENDING_STATE)
-    markQuitFlushComplete()
+    markQuitFlushComplete(true)
 
-    await expect(pending).resolves.toBeUndefined()
+    await expect(pending).resolves.toBe(true)
+  })
+
+  it('reports a failed renderer save', async () => {
+    const window = fakeWindow()
+    const pending = waitForQuitFlush(window as never)
+
+    markQuitFlushComplete(false)
+
+    await expect(pending).resolves.toBe(false)
   })
 
   it('releases every concurrent waiter with one renderer answer', async () => {
@@ -31,9 +40,9 @@ describe('the quit flush gate', () => {
     const second = fakeWindow()
     const waiting = [waitForQuitFlush(first as never), waitForQuitFlush(second as never)]
 
-    markQuitFlushComplete()
+    markQuitFlushComplete(true)
 
-    await expect(Promise.all(waiting)).resolves.toEqual([undefined, undefined])
+    await expect(Promise.all(waiting)).resolves.toEqual([true, true])
     expect(first.webContents.send).toHaveBeenCalledTimes(1)
     expect(second.webContents.send).toHaveBeenCalledTimes(1)
   })
@@ -44,13 +53,13 @@ describe('the quit flush gate', () => {
     const pending = waitForQuitFlush(window as never, 100)
 
     await vi.advanceTimersByTimeAsync(100)
-    await expect(pending).resolves.toBeUndefined()
+    await expect(pending).resolves.toBe(false)
   })
 
   it('resolves immediately for a destroyed window', async () => {
     const window = { isDestroyed: () => true, webContents: { send: vi.fn() } }
 
-    await expect(waitForQuitFlush(window as never)).resolves.toBeUndefined()
+    await expect(waitForQuitFlush(window as never)).resolves.toBe(false)
     expect(window.webContents.send).not.toHaveBeenCalled()
   })
 })
