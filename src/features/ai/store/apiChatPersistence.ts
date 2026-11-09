@@ -375,6 +375,15 @@ let pendingSaveSessions: ChatSession[] | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 /**
+ * Saves that have started and not finished yet.
+ *
+ * The debounce timer is not the only writer: a previous debounce tick may
+ * still be inside IndexedDB when the app closes. The shutdown flush has to
+ * wait for those promises too, not only for the not-yet-started batch.
+ */
+const inFlightSaves = new Set<Promise<void>>()
+
+/**
  * Deletions accumulate for the whole debounce window: a delete followed by an
  * append must still keep the deleted id out of the final write, and the append
  * snapshot already contains the new message.
@@ -411,6 +420,22 @@ function takeSessionDeletionMarks(): SessionDeletionMarks {
   return marks
 }
 
+function startSave(sessions: ChatSession[], deletions: SessionDeletionMarks): Promise<void> {
+  const tracked = saveSessionsToStorage(sessions, deletions)
+    .then((saved) => {
+      if (!saved) {
+        // Keep the tombstones for the next write: a failed save must not let
+        // the old transcript win once storage has room again.
+        addSessionDeletionMarks(deletions)
+      }
+    })
+    .finally(() => {
+      inFlightSaves.delete(tracked)
+    })
+  inFlightSaves.add(tracked)
+  return tracked
+}
+
 export function scheduleSaveSessions(sessions: ChatSession[], deletions?: SessionDeletionMarks) {
   addSessionDeletionMarks(deletions)
   pendingSaveSessions = sessions
@@ -423,14 +448,9 @@ export function scheduleSaveSessions(sessions: ChatSession[], deletions?: Sessio
       const deletions = takeSessionDeletionMarks()
       // The non-IndexedDB path writes localStorage before its first await, so
       // a test or a shutdown sees the value synchronously; the IndexedDB
-      // fallback simply finishes a moment later.
-      void saveSessionsToStorage(pending, deletions).then((saved) => {
-        if (!saved) {
-          // Keep the tombstones for the next write: a failed save must not
-          // let the old transcript win once storage has room again.
-          addSessionDeletionMarks(deletions)
-        }
-      })
+      // fallback simply finishes a moment later. Tracked so a shutdown can
+      // wait for it.
+      void startSave(pending, deletions)
     }
   }, SESSION_SAVE_DEBOUNCE_MS)
 }
@@ -440,7 +460,7 @@ export function scheduleSaveSessions(sessions: ChatSession[], deletions?: Sessio
  * Called on `beforeunload` so a message sent right before the app quits is
  * not lost to the save debounce window.
  */
-async function flushPendingSessions(): Promise<void> {
+export async function flushPendingSessions(): Promise<void> {
   if (saveTimer !== null) {
     clearTimeout(saveTimer)
     saveTimer = null
@@ -448,9 +468,14 @@ async function flushPendingSessions(): Promise<void> {
   if (pendingSaveSessions !== null) {
     const sessions = pendingSaveSessions
     pendingSaveSessions = null
-    const deletions = takeSessionDeletionMarks()
-    const saved = await saveSessionsToStorage(sessions, deletions)
-    if (!saved) addSessionDeletionMarks(deletions)
+    void startSave(sessions, takeSessionDeletionMarks())
+  }
+
+  // A save started by an earlier timer tick may still be writing IndexedDB.
+  // Wait until the set drains, including writes that were queued while we
+  // were waiting.
+  while (inFlightSaves.size > 0) {
+    await Promise.allSettled(inFlightSaves)
   }
 }
 

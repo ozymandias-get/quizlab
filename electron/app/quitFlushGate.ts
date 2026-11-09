@@ -12,12 +12,12 @@ import { IPC_CHANNELS } from '../../shared/constants/ipcChannels.js'
 
 const FLUSH_TIMEOUT_MS = 1500
 
-let resolvePending: (() => void) | null = null
+const pendingWaiters = new Set<() => void>()
 
 /** The renderer answered that its pending writes are done. */
 export function markQuitFlushComplete(): void {
-  resolvePending?.()
-  resolvePending = null
+  for (const resolve of pendingWaiters) resolve()
+  pendingWaiters.clear()
 }
 
 /** Asks the renderer to flush and waits for its answer, bounded by a timeout. */
@@ -35,11 +35,13 @@ export function waitForQuitFlush(
       if (settled) return
       settled = true
       if (timer) clearTimeout(timer)
-      if (resolvePending === finish) resolvePending = null
+      pendingWaiters.delete(finish)
       resolve()
     }
 
-    resolvePending = finish
+    // Concurrent close and quit paths may wait at the same time; each keeps
+    // its own resolver and a single renderer answer releases all of them.
+    pendingWaiters.add(finish)
     timer = setTimeout(finish, timeoutMs)
 
     try {

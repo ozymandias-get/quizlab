@@ -26,6 +26,18 @@ describe('the quit flush gate', () => {
     await expect(pending).resolves.toBeUndefined()
   })
 
+  it('releases every concurrent waiter with one renderer answer', async () => {
+    const first = fakeWindow()
+    const second = fakeWindow()
+    const waiting = [waitForQuitFlush(first as never), waitForQuitFlush(second as never)]
+
+    markQuitFlushComplete()
+
+    await expect(Promise.all(waiting)).resolves.toEqual([undefined, undefined])
+    expect(first.webContents.send).toHaveBeenCalledTimes(1)
+    expect(second.webContents.send).toHaveBeenCalledTimes(1)
+  })
+
   it('does not block quitting when the renderer never answers', async () => {
     vi.useFakeTimers()
     const window = fakeWindow()
