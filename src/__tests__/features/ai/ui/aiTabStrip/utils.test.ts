@@ -1,5 +1,6 @@
 import {
   clamp,
+  getAiTabStripChromeWidth,
   getMaxVisibleAiTabs,
   getVisibleTabIds
 } from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
@@ -62,6 +63,11 @@ describe('getMaxVisibleAiTabs', () => {
 
   it('falls back to three before the row has been measured', () => {
     expect(getMaxVisibleAiTabs(0)).toBe(3)
+  })
+
+  it('reserves the same chrome width that the measurement pass subtracts', () => {
+    expect(getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })).toBe(133)
+    expect(getAiTabStripChromeWidth()).toBe(69)
   })
 })
 

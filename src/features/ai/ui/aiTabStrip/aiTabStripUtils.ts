@@ -15,8 +15,25 @@ export interface AiTabStripCapacity {
   hasRefresh?: boolean
 }
 
+/** Width the strip spends on controls and gaps before any tab pill. */
+export function getAiTabStripChromeWidth({
+  hasHome = false,
+  hasRefresh = false
+}: AiTabStripCapacity = {}): number {
+  return (
+    (hasHome ? HOME_BUTTON_WIDTH : 0) +
+    (hasRefresh ? REFRESH_BUTTON_WIDTH : 0) +
+    DIVIDER_WIDTH +
+    OVERFLOW_BUTTON_WIDTH +
+    // Home/refresh/divider before the pills, overflow after them.
+    4 * ROW_GAP
+  )
+}
+
 /**
- * Number of tab pills that can sit in the available row width.
+ * Initial number of tab pills that fit, based on the smallest comfortable
+ * pill. The hook refines this downwards with the real rendered widths, so a
+ * long label never relies on this estimate alone.
  *
  * The strip used to always show three tabs, which left dead space on wide
  * windows and clipped pills in a narrow split pane. The count now follows the
@@ -24,19 +41,11 @@ export interface AiTabStripCapacity {
  */
 export function getMaxVisibleAiTabs(
   containerWidth: number,
-  { hasHome = false, hasRefresh = false }: AiTabStripCapacity = {}
+  capacity: AiTabStripCapacity = {}
 ): number {
   if (containerWidth <= 0) return 3
 
-  const reservedButtons =
-    (hasHome ? HOME_BUTTON_WIDTH : 0) +
-    (hasRefresh ? REFRESH_BUTTON_WIDTH : 0) +
-    DIVIDER_WIDTH +
-    OVERFLOW_BUTTON_WIDTH
-  // Home/refresh/divider before the pills, overflow after them.
-  const gapsWidth = 4 * ROW_GAP
-  const available = containerWidth - reservedButtons - gapsWidth
-
+  const available = containerWidth - getAiTabStripChromeWidth(capacity)
   return Math.max(0, Math.floor(available / MIN_TAB_WIDTH))
 }
 

@@ -7,12 +7,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
 } from 'react'
 
-import { getMaxVisibleAiTabs, getVisibleTabIds } from './aiTabStripUtils'
+import { getAiTabStripChromeWidth, getMaxVisibleAiTabs, getVisibleTabIds } from './aiTabStripUtils'
 import type { ContextMenuState } from './types'
 
 interface UseAiTabStripStateParams {
@@ -68,6 +69,32 @@ export function useAiTabStripState({
   aiSitesRef.current = aiSites
   const tRef = useRef(t)
   tRef.current = t
+
+  // `getMaxVisibleAiTabs` assumes the smallest pill. Long labels are wider, so
+  // after layout we measure how much the rendered pills actually need and lower
+  // the capacity until they fit. `scrollWidth` on the truncated label recovers
+  // the text that would otherwise be clipped.
+  useLayoutEffect(() => {
+    const row = rowRef.current
+    if (!row || row.clientWidth <= 0 || maxVisibleTabs <= 0) return
+
+    const renderedTabs = [...row.querySelectorAll<HTMLElement>('[data-ai-tab]')]
+    if (renderedTabs.length === 0) return
+
+    const available =
+      row.clientWidth - getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })
+    let required = Math.max(0, renderedTabs.length - 1) * 6
+
+    for (const tab of renderedTabs) {
+      const label = tab.querySelector<HTMLElement>('[data-ai-tab-label]')
+      const clippedText = label ? Math.max(0, label.scrollWidth - label.clientWidth) : 0
+      required += tab.offsetWidth + clippedText
+    }
+
+    if (required > available) {
+      setMaxVisibleTabs((previous) => Math.max(0, previous - 1))
+    }
+  }, [maxVisibleTabs, tabs, activeTabId])
 
   const visibleTabIds = useMemo(
     () => getVisibleTabIds(tabs, activeTabId, maxVisibleTabs),

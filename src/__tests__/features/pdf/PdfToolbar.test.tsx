@@ -4,7 +4,7 @@ import { resetPdfSearchStore, usePdfSearchStore } from '@features/pdf/ui/hooks/u
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 beforeEach(() => {
   resetPdfSearchStore()
@@ -209,6 +209,65 @@ describe('PdfToolbar', () => {
     } finally {
       rectSpy.mockRestore()
     }
+  })
+
+  describe('narrow toolbar zoom hand-off', () => {
+    class MockResizeObserver {
+      static instances: MockResizeObserver[] = []
+      callback: ResizeObserverCallback
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback
+        MockResizeObserver.instances.push(this)
+      }
+
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      MockResizeObserver.instances = []
+    })
+
+    function emitWidth(width: number) {
+      act(() => {
+        for (const observer of MockResizeObserver.instances) {
+          observer.callback(
+            [{ contentRect: { width } } as ResizeObserverEntry],
+            observer as unknown as ResizeObserver
+          )
+        }
+      })
+    }
+
+    function installResizeObserver() {
+      vi.stubGlobal('ResizeObserver', MockResizeObserver)
+    }
+
+    it.each([
+      [419, true],
+      [420, false],
+      [421, false]
+    ])('at %ipx moves zoom into the compact menu: %s', (width, isNarrow) => {
+      installResizeObserver()
+      const { getByTestId } = renderToolbar()
+      emitWidth(width)
+
+      fireEvent.click(getByTestId('pdf-toolbar-more'))
+
+      if (isNarrow) {
+        expect(screen.getByRole('menuitem', { name: 'zoom_out' })).toBeInTheDocument()
+        expect(screen.getByRole('menuitem', { name: 'zoom_in' })).toBeInTheDocument()
+        expect(screen.queryByLabelText('zoom_out')).not.toBeInTheDocument()
+      } else {
+        expect(screen.queryByRole('menuitem', { name: 'zoom_out' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('menuitem', { name: 'zoom_in' })).not.toBeInTheDocument()
+        expect(screen.getByLabelText('zoom_out')).toBeInTheDocument()
+        expect(screen.getByLabelText('zoom_in')).toBeInTheDocument()
+      }
+    })
   })
 
   describe('viewer with no legacy renderer branch', () => {

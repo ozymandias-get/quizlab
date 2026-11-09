@@ -143,6 +143,7 @@ function AiVisibleTabButton({
       <TooltipTrigger asChild>
         <TabPillContainer
           isActive={isActive}
+          data-ai-tab=""
           className={`group cursor-pointer ${isEditing ? 'pr-10' : 'pr-[4.5rem]'}`}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
@@ -184,7 +185,7 @@ function AiVisibleTabButton({
               }}
             />
           ) : (
-            <TabPillLabel ref={labelRef} isActive={isActive}>
+            <TabPillLabel ref={labelRef} isActive={isActive} data-ai-tab-label="">
               {label}
             </TabPillLabel>
           )}
