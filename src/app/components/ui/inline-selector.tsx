@@ -45,8 +45,7 @@ function InlineSelector({
   // Portalled + fixed so a parent with `overflow-hidden` (the chat input card)
   // cannot clip the list, and so the list can flip above/below the trigger
   // based on the real available viewport space.
-  React.useLayoutEffect(() => {
-    if (!open) return
+  const updatePosition = React.useCallback(() => {
     const anchor = anchorRef.current
     const menu = menuRef.current
     if (!anchor || !menu || window.innerHeight <= 0) return
@@ -58,7 +57,9 @@ function InlineSelector({
     const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN
     const spaceAbove = rect.top - VIEWPORT_MARGIN
     const openDown = spaceBelow >= desiredHeight || spaceBelow >= spaceAbove
-    const available = Math.max(96, openDown ? spaceBelow : spaceAbove)
+    // No artificial minimum: in a very short window a 96px floor would push the
+    // panel past the edge again. Zero available space simply stays on-screen.
+    const available = Math.max(0, openDown ? spaceBelow : spaceAbove)
     const menuHeight = Math.min(desiredHeight, available)
 
     const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - menuWidth - VIEWPORT_MARGIN)
@@ -73,11 +74,43 @@ function InlineSelector({
       maxHeight: Math.min(MAX_POPUP_HEIGHT, available),
       ready: true
     })
-  }, [open])
+  }, [])
 
+  React.useLayoutEffect(() => {
+    if (!open) return
+    updatePosition()
+  }, [open, updatePosition])
+
+  // The menu is fixed to the viewport, so it must follow the window while open.
+  // Scrolling any ancestor and the trigger resizing can move the anchor too.
   React.useEffect(() => {
-    if (!open) setPosition((previous) => ({ ...previous, ready: false }))
-  }, [open])
+    if (!open) {
+      setPosition((previous) => ({ ...previous, ready: false }))
+      return
+    }
+
+    const handleReposition = () => updatePosition()
+    const visualViewport = window.visualViewport
+
+    window.addEventListener('resize', handleReposition)
+    window.addEventListener('scroll', handleReposition, true)
+    visualViewport?.addEventListener('resize', handleReposition)
+    visualViewport?.addEventListener('scroll', handleReposition)
+
+    let observer: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined' && anchorRef.current) {
+      observer = new ResizeObserver(handleReposition)
+      observer.observe(anchorRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleReposition)
+      window.removeEventListener('scroll', handleReposition, true)
+      visualViewport?.removeEventListener('resize', handleReposition)
+      visualViewport?.removeEventListener('scroll', handleReposition)
+      observer?.disconnect()
+    }
+  }, [open, updatePosition])
 
   return (
     <>
