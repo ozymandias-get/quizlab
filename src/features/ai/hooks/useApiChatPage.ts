@@ -100,8 +100,30 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     }
   }, [config, tabId, setConfigPrompts, setActiveProvider, setSelectedModel])
 
+  // Scrolling is coalesced into one frame: a streaming reply replaces the
+  // messages array many times per second, and each replacement used to call
+  // `scrollIntoView` synchronously, forcing a layout every time.
+  const scrollFrameRef = useRef<number | null>(null)
+  const pendingSmoothRef = useRef(true)
+
   const scrollToBottom = useCallback((smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' })
+    pendingSmoothRef.current = smooth
+    if (scrollFrameRef.current !== null) return
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null
+      messagesEndRef.current?.scrollIntoView({
+        behavior: pendingSmoothRef.current ? 'smooth' : 'auto'
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current)
+        scrollFrameRef.current = null
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -144,12 +166,14 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     if (!el) return
     const observer = new ResizeObserver(() => {
       if (messagesEndRef.current && !isScrolledUp) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'auto' })
+        // Same coalesced path as the message effect, so a composer resize and a
+        // streaming update in the same frame scroll once.
+        scrollToBottom(false)
       }
     })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [isScrolledUp])
+  }, [isScrolledUp, scrollToBottom])
 
   const activeProvider = useMemo(() => {
     if (!config) return null
