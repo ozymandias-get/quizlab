@@ -7,6 +7,9 @@ import { useEffect, useRef } from 'react'
 import { pdfDocumentId } from './pdfDocumentIdentity'
 import { usePdfSearchStore } from './usePdfSearchStore'
 
+/** A focused field owns its own keys, including Ctrl+F/Ctrl+O. */
+const EDITABLE_TARGET_SELECTOR = 'input, textarea, [contenteditable="true"]'
+
 interface UsePdfShortcutsOptions {
   /** Invoked on Ctrl/Cmd+O — must be the app's existing handleSelectPdf flow. */
   onSelectPdf?: () => void
@@ -58,6 +61,17 @@ export function usePdfShortcuts({ onSelectPdf, isMac = isMacPlatform() }: UsePdf
         ? event.metaKey && !event.ctrlKey
         : event.ctrlKey && !event.metaKey
       if (!isCommandPressed) return
+
+      const target = event.target
+      if (
+        target instanceof Element &&
+        typeof target.closest === 'function' &&
+        target.closest(EDITABLE_TARGET_SELECTOR)
+      ) {
+        // The AI composer, the PDF search input and any other field keep
+        // Ctrl+F/Ctrl+O for themselves.
+        return
+      }
 
       switch (event.key.toLowerCase()) {
         case 'o':

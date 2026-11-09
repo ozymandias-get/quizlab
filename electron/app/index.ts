@@ -244,9 +244,15 @@ app.on('before-quit', (event) => {
       Logger.info('[App] Quit cancelled because chat changes could not be saved.')
       return
     }
-    await runCleanup()
-    quitAfterCleanup = true
-    app.quit()
+    try {
+      await runCleanup()
+    } catch (error) {
+      // A cleanup failure must not leave the app half-quit with no way out.
+      Logger.error('[App] Cleanup before quit failed:', error)
+    } finally {
+      quitAfterCleanup = true
+      app.quit()
+    }
   })()
 })
 

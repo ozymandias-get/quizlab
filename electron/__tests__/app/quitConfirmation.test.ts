@@ -58,4 +58,31 @@ describe('confirmQuitWithPendingWrites', () => {
     await expect(confirmQuitWithPendingWrites(null)).resolves.toBe(true)
     expect(waitForQuitFlush).not.toHaveBeenCalled()
   })
+
+  it('shares one decision between a close and a quit request', async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+    showMessageBox.mockResolvedValue({ response: 2 })
+
+    const close = confirmQuitWithPendingWrites(window() as never)
+    const quit = confirmQuitWithPendingWrites(window() as never)
+    await Promise.resolve()
+    expect(waitForQuitFlush).toHaveBeenCalledTimes(1)
+
+    release(false)
+    await expect(Promise.all([close, quit])).resolves.toEqual([false, false])
+    expect(showMessageBox).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not quit with unsaved changes when the warning cannot be shown', async () => {
+    waitForQuitFlush.mockResolvedValue(false)
+    showMessageBox.mockRejectedValue(new Error('no display'))
+
+    await expect(confirmQuitWithPendingWrites(window() as never)).resolves.toBe(false)
+  })
 })

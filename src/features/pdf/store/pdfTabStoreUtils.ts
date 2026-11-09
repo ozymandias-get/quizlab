@@ -1,6 +1,7 @@
 import type { PdfFile } from '@shared-core/types'
 
 import type { PdfTab } from '../hooks/types'
+import { isSamePdfPath } from '../lib/pdfPathIdentity'
 
 export const createViewerSessionKey = (): string =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -24,6 +25,17 @@ export const isSamePdfStream = (prev: PdfFile | null | undefined, next: PdfFile)
   return (
     (prev.path ?? '') === (next.path ?? '') && (prev.streamUrl ?? '') === (next.streamUrl ?? '')
   )
+}
+
+/**
+ * Whether two registrations describe the same document.
+ *
+ * A re-registration of the same file gets a new stream URL; that is not a new
+ * document and must not reset its viewer session (page, scroll, search).
+ */
+export const isSamePdfDocument = (prev: PdfFile | null | undefined, next: PdfFile): boolean => {
+  if (!prev) return false
+  return isSamePdfPath(prev.path, next.path) && (prev.size ?? null) === (next.size ?? null)
 }
 
 export const isSamePdfFull = (a: PdfFile | null | undefined, b: PdfFile): boolean => {

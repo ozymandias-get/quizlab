@@ -269,6 +269,29 @@ describe('usePdfCtrlWheelZoom', () => {
       }
     })
 
+    it('applies the accumulated tail of a fast gesture', () => {
+      vi.useFakeTimers()
+      try {
+        mount(harness.ref, zoomTo, { scaleFactor: 1 })
+
+        act(() => {
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+          harness.el.dispatchEvent(wheel({ modifiers: 1, deltaY: -1 }))
+        })
+        expect(zoomTo).toHaveBeenCalledTimes(1)
+
+        act(() => {
+          vi.advanceTimersByTime(THROTTLE_MS)
+        })
+
+        // The suppressed events were not lost: one trailing step lands.
+        expect(zoomTo).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('measures the throttle window with the current scale each time', () => {
       vi.useFakeTimers()
       try {

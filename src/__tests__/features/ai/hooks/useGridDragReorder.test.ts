@@ -31,6 +31,24 @@ describe('useGridDragReorder', () => {
       })
       expect(result.current.dragItemRef.current).toBe('a')
     })
+
+    it('drops the previous drop target when a new drag starts', () => {
+      const onReorder = vi.fn()
+      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
+
+      act(() => {
+        result.current.handleDragStart('a')
+        result.current.handleDragOver(makeDragEvent(), 'c')
+        result.current.handleDragStart('b')
+      })
+      act(() => {
+        result.current.handleDrop(makeDragEvent())
+      })
+
+      // The stale target 'c' must not turn the new drag into a reorder.
+      expect(onReorder).not.toHaveBeenCalled()
+      expect(result.current.dragItemRef.current).toBeNull()
+    })
   })
 
   describe('handleDragOver', () => {

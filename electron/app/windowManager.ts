@@ -60,7 +60,9 @@ export async function createWindow() {
     if (closeFlushDone) return
     event.preventDefault()
     void confirmQuitWithPendingWrites(mainWindow).then((mayClose) => {
-      if (!mayClose) return
+      // A second close click joins the same decision; only the first callback
+      // may actually close the window.
+      if (!mayClose || closeFlushDone) return
       closeFlushDone = true
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
     })

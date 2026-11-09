@@ -76,6 +76,38 @@ describe('usePdfTabStore - opening PDFs', () => {
     expect(result.current.activePdfTabId).toBe(firstTabId)
   })
 
+  it('deduplicates a Windows path that differs only in case or separators', () => {
+    const { result } = renderHook(() => usePdfTabStore())
+
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', 'C:\\Docs\\A.pdf'))
+    })
+    const first = result.current.pdfTabs[0]
+
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', 'c:/docs/a.pdf', 'blob:second'))
+    })
+
+    expect(result.current.pdfTabs).toHaveLength(1)
+    expect(result.current.pdfTabs[0]?.id).toBe(first?.id)
+  })
+
+  it('keeps the viewer session when the same document is re-registered', () => {
+    const { result } = renderHook(() => usePdfTabStore())
+
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:first'))
+    })
+    const viewerSessionKey = result.current.pdfTabs[0]?.viewerSessionKey
+
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:second'))
+    })
+
+    expect(result.current.pdfTabs).toHaveLength(1)
+    expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe(viewerSessionKey)
+  })
+
   it('opens multiple files in separate tabs', () => {
     const { result } = renderHook(() => usePdfTabStore())
 
@@ -174,7 +206,7 @@ describe('usePdfTabStore - opening PDFs', () => {
       expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
     })
 
-    it('is reissued when the same path is reopened with a different stream url', () => {
+    it('is preserved when the same document is re-registered with a new stream url', () => {
       const { result } = renderHook(() => usePdfTabStore())
       act(() => {
         result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:one'))
@@ -183,6 +215,26 @@ describe('usePdfTabStore - opening PDFs', () => {
 
       act(() => {
         result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:two'))
+      })
+
+      // Re-registering the same file must not reset page/zoom/search state.
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
+    })
+
+    it('is reissued when the same path now describes a different document', () => {
+      const { result } = renderHook(() => usePdfTabStore())
+      act(() => {
+        result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf', 'blob:one'))
+      })
+      expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-a')
+
+      act(() => {
+        result.current.openPdfInTab({
+          name: 'a.pdf',
+          path: '/docs/a.pdf',
+          streamUrl: 'blob:two',
+          size: 200
+        })
       })
 
       expect(result.current.pdfTabs[0]?.viewerSessionKey).toBe('session-b')

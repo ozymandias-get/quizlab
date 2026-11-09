@@ -5,11 +5,12 @@ import { revokeObjectUrl } from '@platform/electron/browserApiUtils'
 import { create } from 'zustand'
 
 import type { PdfTab } from '../hooks/types'
+import { isSamePdfPath } from '../lib/pdfPathIdentity'
 import type { PdfTabStore } from './pdfTabStoreUtils'
 import {
   createViewerSessionKey,
+  isSamePdfDocument,
   isSamePdfFull,
-  isSamePdfStream,
   normalizeTitle,
   toPdfFile
 } from './pdfTabStoreUtils'
@@ -42,7 +43,7 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     const { pdfTabs: currentTabs, activePdfTabId: currentActiveId } = get()
 
     const existingTab = normalizedPath
-      ? currentTabs.find((tab) => tab.file?.path === normalizedPath)
+      ? currentTabs.find((tab) => isSamePdfPath(tab.file?.path, normalizedPath))
       : undefined
 
     if (existingTab) {
@@ -68,7 +69,7 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
         }
       }
 
-      const isIdentityUnchanged = isSamePdfStream(existingTab.file, normalizedFile)
+      const isIdentityUnchanged = isSamePdfDocument(existingTab.file, normalizedFile)
       const nextViewerSessionKey = isIdentityUnchanged
         ? (existingTab.viewerSessionKey ?? createViewerSessionKey())
         : createViewerSessionKey()

@@ -48,8 +48,13 @@ function PdfSearchBar({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && keyword.trim()) {
+      // Do not let an enclosing form submit (or any global shortcut run).
+      e.preventDefault()
+      e.stopPropagation()
       onSearch()
     } else if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
       onClear()
     }
   }

@@ -14,14 +14,31 @@ const BUTTON_QUIT_WITHOUT_SAVING = 1
 const BUTTON_CANCEL = 2
 
 /**
+ * The decision currently in progress.
+ *
+ * A second close click or a simultaneous app quit joins the same decision
+ * instead of opening another dialog. A Cancel therefore stops every caller
+ * waiting behind it.
+ */
+let pendingDecision: Promise<boolean> | null = null
+
+/**
  * Resolves true when the app may close, false when the user cancelled.
  *
  * A missing or destroyed window has no renderer left to flush; closing is the
  * only meaningful answer there.
  */
-export async function confirmQuitWithPendingWrites(window: BrowserWindow | null): Promise<boolean> {
-  if (!window || window.isDestroyed()) return true
+export function confirmQuitWithPendingWrites(window: BrowserWindow | null): Promise<boolean> {
+  if (!window || window.isDestroyed()) return Promise.resolve(true)
+  if (pendingDecision) return pendingDecision
 
+  pendingDecision = decide(window).finally(() => {
+    pendingDecision = null
+  })
+  return pendingDecision
+}
+
+async function decide(window: BrowserWindow): Promise<boolean> {
   for (;;) {
     const saved = await waitForQuitFlush(window)
     if (saved) return true
@@ -38,8 +55,9 @@ export async function confirmQuitWithPendingWrites(window: BrowserWindow | null)
       }))
     } catch (error) {
       Logger.warn('[QuitFlow] The save-failure dialog could not be shown:', error)
-      // No dialog available: do not trap the user in an unclosable app.
-      return true
+      // Never quit with unsaved changes just because the warning failed; the
+      // caller stays open and can try again later.
+      return false
     }
 
     if (response === BUTTON_RETRY) continue

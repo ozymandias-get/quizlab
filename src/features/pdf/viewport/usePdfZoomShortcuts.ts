@@ -64,7 +64,9 @@ export function usePdfZoomShortcuts({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || event.altKey || event.shiftKey) return
+      // '+' needs Shift on many layouts, so Shift is only rejected for the
+      // other keys. Alt is a different shortcut namespace and stays rejected.
+      if (event.repeat || event.altKey || (event.shiftKey && event.key !== '+')) return
       const isCommandPressed = isMac
         ? event.metaKey && !event.ctrlKey
         : event.ctrlKey && !event.metaKey
@@ -88,6 +90,7 @@ export function usePdfZoomShortcuts({
           action = zoomOutRef.current
           break
         case '=':
+        case '+':
           action = zoomInRef.current
           break
         case '0':

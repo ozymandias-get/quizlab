@@ -26,6 +26,8 @@ export function useGridDragReorder(
 
   const handleDragStart = useCallback((id: string) => {
     dragItemRef.current = id
+    // A new drag must not inherit the drop target of the previous one.
+    dragOverItemRef.current = null
   }, [])
 
   const handleDragOver = useCallback((event: DragEvent, id: string) => {
@@ -39,6 +41,9 @@ export function useGridDragReorder(
       event.preventDefault()
       const from = dragItemRef.current
       const to = dragOverItemRef.current
+      // Every path clears the drag state, including the early returns.
+      dragItemRef.current = null
+      dragOverItemRef.current = null
 
       if (!from || !to || from === to) {
         return
@@ -56,9 +61,6 @@ export function useGridDragReorder(
       nextOrder.splice(fromIndex, 1)
       nextOrder.splice(toIndex, 0, from)
       onReorderRef.current(nextOrder)
-
-      dragItemRef.current = null
-      dragOverItemRef.current = null
     },
     [] // stable — reads latest `order` and `onReorder` from refs
   )

@@ -63,6 +63,37 @@ describe('sanitizeReadingInfo', () => {
     expect(result!.page).toBe(5)
     expect(result!.totalPages).toBe(100)
   })
+
+  it('replaces an invalid page with the first page', () => {
+    const result = sanitizeReadingInfo({
+      path: '/test.pdf',
+      name: 'Test',
+      page: -4,
+      totalPages: 2.5
+    })
+
+    expect(result!.page).toBe(1)
+    expect(result!.totalPages).toBe(0)
+  })
+
+  it('treats Windows path case and separators as the same history entry', () => {
+    const history = upsertRecentHistory([], {
+      path: 'C:\\Docs\\A.pdf',
+      name: 'A.pdf',
+      page: 1,
+      totalPages: 10
+    })
+
+    const next = upsertRecentHistory(history, {
+      path: 'c:/docs/a.pdf',
+      name: 'A.pdf',
+      page: 4,
+      totalPages: 10
+    })
+
+    expect(next).toHaveLength(1)
+    expect(next[0].page).toBe(4)
+  })
 })
 
 describe('parseReadingHistory', () => {

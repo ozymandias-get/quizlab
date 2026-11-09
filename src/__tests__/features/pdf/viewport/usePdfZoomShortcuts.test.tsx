@@ -127,6 +127,15 @@ describe('usePdfZoomShortcuts', () => {
       expect(fit).not.toHaveBeenCalled()
     })
 
+    it('zooms in when Shift produces the + key', () => {
+      setup()
+
+      const event = key('+', { ...ctrl, shiftKey: true })
+
+      expect(event.defaultPrevented).toBe(true)
+      expect(zoomIn).toHaveBeenCalledTimes(1)
+    })
+
     it('ignores everything while the viewer has no ready document', () => {
       setup({ enabled: false })
       key('=', ctrl)
