@@ -1,8 +1,12 @@
 import { Readable } from 'stream'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { APP_CONFIG } from '../../../app/constants.js'
+
+const TEST_APP_PATH = process.platform === 'win32' ? 'C:\\app' : '/app'
+const TEST_APP_REFERER = pathToFileURL(path.join(TEST_APP_PATH, 'dist', 'index.html')).href
 
 const protocolHandleMock = vi.fn()
 const ipcHandleMock = vi.fn()
@@ -31,7 +35,7 @@ vi.mock('electron', () => ({
   },
   app: {
     getPath: getPathMock,
-    getAppPath: () => '/app'
+    getAppPath: () => TEST_APP_PATH
   }
 }))
 
@@ -173,12 +177,12 @@ describe('local-pdf:// protocol handler', () => {
   })
 
   describe('authorization', () => {
-    it('returns 403 for unknown pdfId', async () => {
+    it('returns 404 for unknown pdfId', async () => {
       await loadAndRegister()
 
       const response = await getProtocolHandler()(makeRequest('local-pdf://unknown_id_xyz'))
 
-      expect(response.status).toBe(403)
+      expect(response.status).toBe(404)
       expect(createReadStreamMock).not.toHaveBeenCalled()
     })
 
@@ -357,7 +361,9 @@ describe('local-pdf:// protocol handler', () => {
       expect(createReadStreamMock).not.toHaveBeenCalled()
     })
 
-    it('rejects a cross-site Sec-Fetch-Site navigation that carries neither Origin nor Referer', async () => {
+    // The registered id is a capability: Chromium labels these custom-scheme
+    // fetches cross-site and sometimes strips origin/referer entirely.
+    it('accepts a valid-id navigation that Chromium labels cross-site', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
@@ -369,11 +375,10 @@ describe('local-pdf:// protocol handler', () => {
         )
       )
 
-      expect(response.status).toBe(403)
-      expect(createReadStreamMock).not.toHaveBeenCalled()
+      expect(response.status).toBe(200)
     })
 
-    it('rejects a headerless request that is not a navigation', async () => {
+    it('accepts a valid-id range request with no Origin or Referer', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
@@ -381,8 +386,7 @@ describe('local-pdf:// protocol handler', () => {
         makeRequest(streamUrl, { 'sec-fetch-mode': 'cors' }, { withOrigin: false })
       )
 
-      expect(response.status).toBe(403)
-      expect(createReadStreamMock).not.toHaveBeenCalled()
+      expect(response.status).toBe(200)
     })
 
     it('accepts a top-level navigation with no Origin or Referer', async () => {
@@ -407,23 +411,69 @@ describe('local-pdf:// protocol handler', () => {
       const response = await getProtocolHandler()(
         makeRequest(streamUrl, {
           origin: 'null',
-          referer: 'file:///app/dist/index.html'
+          referer: TEST_APP_REFERER
         })
       )
 
       expect(response.status).toBe(200)
     })
 
-    it('rejects an opaque origin without a trusted local referer', async () => {
+    it('accepts an opaque origin from the local dev server referer', async () => {
       await loadAndRegister()
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
       const response = await getProtocolHandler()(
-        makeRequest(streamUrl, { origin: 'null' }, { withOrigin: false })
+        makeRequest(streamUrl, {
+          origin: 'null',
+          referer: 'http://localhost:5173/#/pdf'
+        })
+      )
+
+      expect(response.status).toBe(200)
+    })
+
+    it('still rejects an opaque origin with a remote referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, {
+          origin: 'null',
+          referer: 'https://evil.com/app'
+        })
       )
 
       expect(response.status).toBe(403)
-      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts an opaque-origin app request that Chromium labels cross-site', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(
+          streamUrl,
+          { origin: 'null', 'sec-fetch-site': 'cross-site' },
+          { withOrigin: false }
+        )
+      )
+
+      expect(response.status).toBe(200)
+    })
+
+    it('accepts an opaque-origin app request when Chromium omits the referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(
+          streamUrl,
+          { origin: 'null', 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'cors' },
+          { withOrigin: false }
+        )
+      )
+
+      expect(response.status).toBe(200)
     })
 
     it('does not answer a conditional request before checking the origin', async () => {

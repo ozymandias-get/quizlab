@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { app, dialog, protocol } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -140,7 +141,7 @@ export function registerPdfScheme() {
 
 /** Whether a path is inside a directory (both must be absolute). */
 function isPathInside(directory: string, target: string): boolean {
-  const relative = path.relative(path.normalize(directory), path.normalize(target))
+  const relative = path.relative(path.resolve(directory), path.resolve(target))
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
 
@@ -155,8 +156,14 @@ function isTrustedLocalReferer(referer: string | null): boolean {
   if (!referer) return false
   try {
     const parsed = new URL(referer)
-    if (parsed.protocol !== 'file:') return false
-    return isPathInside(app.getAppPath(), decodeURIComponent(parsed.pathname))
+    if (parsed.protocol === 'file:') {
+      // `pathname` is `/C:/...` on Windows and breaks path comparisons against
+      // `app.getAppPath()`. `fileURLToPath` returns the real platform path.
+      return isPathInside(app.getAppPath(), fileURLToPath(parsed))
+    }
+    // The Vite dev server can issue an opaque-origin request with a localhost
+    // referer. It is still the local app, never a remote page.
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
   } catch {
     return false
   }
@@ -196,11 +203,27 @@ function isAllowedPdfOrigin(origin: string, referer: string | null = null): bool
  * by default: only a top-level navigation is accepted, and a declared
  * cross-site request is always refused.
  */
-function isAllowedPdfRequest(headers: Headers): boolean {
+function isAllowedPdfRequest(headers: Headers, requestReferrer?: string): boolean {
   const origin = headers.get('origin')
-  const referer = headers.get('referer')
+  const headerReferer = headers.get('referer')
+  // Electron can omit the Referer header for custom schemes while still
+  // exposing the originating document on the Request object.
+  const fallbackReferer =
+    requestReferrer && requestReferrer !== 'about:client' ? requestReferrer : null
+  const referer = headerReferer ?? fallbackReferer
 
-  if (origin) return isAllowedPdfOrigin(origin, referer)
+  if (origin) {
+    if (origin === 'null') {
+      // Opaque origins are what Chromium reports for our own file:// document
+      // and for custom-scheme fetch/media requests. The registry id has already
+      // been verified by the caller and is an unguessable capability, so a
+      // present local referer is enough; cross-site hints are not reliable
+      // here. A remote referer is still refused.
+      if (referer) return isTrustedLocalReferer(referer)
+      return true
+    }
+    return isAllowedPdfOrigin(origin, referer)
+  }
 
   if (referer) {
     try {
@@ -213,12 +236,10 @@ function isAllowedPdfRequest(headers: Headers): boolean {
     }
   }
 
-  const site = headers.get('sec-fetch-site')
-  const mode = headers.get('sec-fetch-mode')
-  if (site === 'cross-site') return false
-  // No origin claim at all: only a top-level navigation, never an
-  // unlabelled fetch/range request.
-  return mode === 'navigate' && (site === null || site === 'none' || site === 'same-origin')
+  // No origin/referer at all. Chromium sometimes strips both for custom-scheme
+  // range requests; the registered id is the capability that authorizes it.
+  // Foreign origins and referers were rejected above.
+  return true
 }
 
 export function registerPdfProtocol() {
@@ -228,7 +249,12 @@ export function registerPdfProtocol() {
       const pdfId = url.host
       const pdfData = pdfRegistry.get(pdfId)
 
-      if (!pdfData) return new Response('Forbidden', { status: 403 })
+      if (!pdfData) {
+        Logger.warn('[PDFProtocol] Refused unknown id:', pdfId)
+        // 404 (not 403) distinguishes a stale/unknown id from an origin refusal
+        // and matches the missing-file response below.
+        return new Response('Unknown PDF id', { status: 404 })
+      }
       pdfData.lastAccessAt = Date.now()
 
       const filePath = pdfData.path
@@ -256,7 +282,15 @@ export function registerPdfProtocol() {
 
         // Authorization runs before ETag: a client that may not read the PDF
         // must not learn its ETag or whether the cache entry is current.
-        if (!isAllowedPdfRequest(request.headers)) {
+        if (!isAllowedPdfRequest(request.headers, request.referrer)) {
+          Logger.warn('[PDFProtocol] Refused request origin:', {
+            id: pdfId,
+            origin: request.headers.get('origin'),
+            referer: request.headers.get('referer'),
+            fallbackReferer: request.referrer,
+            site: request.headers.get('sec-fetch-site'),
+            mode: request.headers.get('sec-fetch-mode')
+          })
           await fileHandle.close()
           return new Response('Forbidden', { status: 403 })
         }
