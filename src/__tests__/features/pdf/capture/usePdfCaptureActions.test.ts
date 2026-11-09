@@ -13,7 +13,7 @@ const onFullPageCapture = vi.fn()
 const revokeObjectURL = vi.fn()
 
 vi.mock('@app/providers', () => ({
-  useToastActions: () => ({ showError: mocks.showError })
+  useToastActions: () => ({ showError: mocks.showError, showInfo: vi.fn() })
 }))
 
 vi.mock('@features/pdf/capture/findPageCanvas', () => ({
@@ -72,6 +72,47 @@ describe('usePdfCaptureActions', () => {
 
     expect(onFullPageCapture).not.toHaveBeenCalled()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:stale-render')
+  })
+
+  it('drops and revokes a capture when its tab unmounts', async () => {
+    // Closing a PDF tab unmounts its viewer; a render that lands afterwards
+    // must not attach to whatever document is active now.
+    let resolveRender:
+      ((value: { blob: Blob; blobUrl: string; width: number; height: number }) => void) | undefined
+    renderPageToImageFallback.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRender = resolve
+      })
+    )
+
+    const { result, unmount } = renderHook(() =>
+      usePdfCaptureActions({
+        currentPage: 1,
+        onFullPageCapture,
+        startScreenshot: vi.fn(),
+        pdfUrl: 'blob:closing-pdf'
+      })
+    )
+
+    let capturePromise: Promise<void> | undefined
+    act(() => {
+      capturePromise = result.current.handleFullPageScreenshot()
+    })
+
+    unmount()
+
+    await act(async () => {
+      resolveRender?.({
+        blob: new Blob(['stale']),
+        blobUrl: 'blob:closed-tab-render',
+        width: 1,
+        height: 1
+      })
+      await capturePromise
+    })
+
+    expect(onFullPageCapture).not.toHaveBeenCalled()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:closed-tab-render')
   })
 })
 

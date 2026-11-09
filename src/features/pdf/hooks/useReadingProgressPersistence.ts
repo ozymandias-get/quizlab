@@ -1,3 +1,5 @@
+import { useToastStore } from '@shared/stores/toastStore'
+
 import { create } from 'zustand'
 
 import {
@@ -74,10 +76,24 @@ const syncRef = (items: LastReadingInfo[]): void => {
   recentReadingInfoRef.current = items
 }
 
+/** Report a history write failure once, not on every debounce tick. */
+let historyWriteFailureNotified = false
+
 const persistRecentReadingInfo = (items: LastReadingInfo[]): void => {
-  writeReadingHistory(items)
+  const saved = writeReadingHistory(items)
   syncRef(items)
   useReadingProgressStore.setState({ recentReadingInfo: items })
+
+  if (saved) {
+    historyWriteFailureNotified = false
+    return
+  }
+  if (!historyWriteFailureNotified) {
+    historyWriteFailureNotified = true
+    // The in-memory list is still updated; only persistence failed. Say so
+    // instead of letting the next launch silently lose the reading position.
+    useToastStore.getState().showWarning('toast_pdf_history_save_failed')
+  }
 }
 
 const updateReadingProgress = (update: ReadingProgressUpdate): void => {

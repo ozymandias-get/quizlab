@@ -20,6 +20,7 @@
   "toast_clipboard_failed": "Failed to copy text to clipboard",
   "toast_capture_failed": "Failed to capture screen",
   "toast_capture_cancelled": "The page changed, so the capture was cancelled. Try again.",
+  "toast_pdf_history_save_failed": "The PDF reading history could not be saved; the last position may be lost when the app closes.",
   "toast_screenshot_captured": "Screenshot captured",
   "toast_logs_copied": "Diagnostic logs copied to clipboard",
   "toast_ai_config_saved": "AI configuration saved successfully",

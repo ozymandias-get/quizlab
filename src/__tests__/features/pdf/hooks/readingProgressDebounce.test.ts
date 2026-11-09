@@ -2,6 +2,7 @@ import {
   resetReadingProgressStore,
   useReadingProgressPersistence
 } from '@features/pdf/hooks/useReadingProgressPersistence'
+import { useToastStore } from '@shared/stores/toastStore'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -49,5 +50,20 @@ describe('reading progress debounce', () => {
     const info = result.current.getRecentReadingInfo()
     expect(info.find((entry) => entry.path === '/a.pdf')?.page).toBe(4)
     expect(info.find((entry) => entry.path === '/b.pdf')?.page).toBe(11)
+  })
+
+  it('tells the user when the reading history could not be written', () => {
+    const showWarning = vi.spyOn(useToastStore.getState(), 'showWarning')
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('quota exceeded')
+    })
+
+    const { result } = renderHook(() => useReadingProgressPersistence())
+    act(() => {
+      result.current.updateReadingProgress({ path: '/a.pdf', page: 3 })
+      vi.advanceTimersByTime(400)
+    })
+
+    expect(showWarning).toHaveBeenCalledWith('toast_pdf_history_save_failed')
   })
 })
