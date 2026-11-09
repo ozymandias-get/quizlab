@@ -62,12 +62,9 @@ function enforceCanvasPixelBudget(container: HTMLElement): void {
 
 export function releaseCanvasGpuMemory(canvas: HTMLCanvasElement): void {
   if (canvas.width === 0 && canvas.height === 0) return
-  try {
-    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
-  } catch {
-    // jsdom and exotic environments may not implement getContext; the
-    // dimension reset below is what actually releases the GPU backing store.
-  }
+  // Zeroing the dimensions is what drops the backing store and frees the GPU
+  // memory. A full-surface `clearRect` first would only write to memory that is
+  // about to be reallocated at zero size.
   canvas.width = 0
   canvas.height = 0
 }
