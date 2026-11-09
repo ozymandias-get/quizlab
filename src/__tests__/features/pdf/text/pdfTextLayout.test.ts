@@ -84,15 +84,15 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('İlk cümle burada biter. İkinci cümle aynı paragrafta sürer.')
   })
 
-  it('preserves a visible line-break hyphen instead of deleting a character', () => {
+  it('repairs a word hyphenated across a line break when the rest is a suffix', () => {
     const text = page([
       run('Kronik böbrek hasta-', 50, 100, 300),
       run('lığı tedavi edilir.', 50, 114, 250)
     ])
 
-    // No dictionary can prove this hyphen was inserted by the typesetter. The
-    // lossless default keeps the visible character and joins without a space.
-    expect(text).toBe('Kronik böbrek hasta-lığı tedavi edilir.')
+    // "lığı" is a Turkish inflection, not a word of its own: this is the
+    // typesetter's hyphenation and the split word is repaired.
+    expect(text).toBe('Kronik böbrek hastalığı tedavi edilir.')
   })
 
   it('removes only an invisible soft hyphen', () => {
@@ -122,15 +122,32 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('Hastalık sosyo-ekonomik bir sorundur.')
   })
 
-  it('preserves a visible hyphen and still merges a lowercase continuation', () => {
+  it('keeps a hyphen before a proper name', () => {
+    // "Alman" is a word, not a suffix: deleting the hyphen would merge two
+    // names into a different one.
+    const text = page([run('Türk-', 50, 100, 300), run('Alman ilişkileri sürüyor.', 50, 114, 250)])
+
+    expect(text).toBe('Türk-Alman ilişkileri sürüyor.')
+  })
+
+  it('keeps a hyphen whose continuation it cannot classify', () => {
+    const text = page([run('Bu iyi-', 50, 100, 300), run('niyetli bir yaklaşımdır.', 50, 114, 250)])
+
+    // "niyetli" is a word; there is no reliable way to tell this from a
+    // hyphenated compound, so the visible hyphen is preserved.
+    expect(text).toBe('Bu iyi-niyetli bir yaklaşımdır.')
+  })
+
+  it('repairs a hyphenated word even when the previous line is short', () => {
     const text = page([
       run('Kronik böbrek hasta-', 50, 100, 160),
       run('lığı tedavi edilir.', 50, 114, 250)
     ])
 
     // The previous line is short, but the next line starts lowercase and the
-    // sentence is not finished, so it is a continuation. The hyphen stays.
-    expect(text).toBe('Kronik böbrek hasta-lığı tedavi edilir.')
+    // sentence is not finished, so it is a continuation. The suffix makes the
+    // hyphen a typesetter break rather than a compound.
+    expect(text).toBe('Kronik böbrek hastalığı tedavi edilir.')
   })
 })
 

@@ -315,12 +315,15 @@ describe('importExternalCookies', () => {
     get.mockResolvedValue([
       { name: 'session', domain: '.chatgpt.com', path: '/', secure: true, hostOnly: false }
     ])
-    await importExternalCookies(
+    const result = await importExternalCookies(
       fakeSession(),
       [{ name: 'session', value: 'v', domain: 'chatgpt.com' }],
       ALLOWED
     )
     expect(remove).not.toHaveBeenCalled()
+    // The safety rule keeps the stale cookie, but the import says so instead
+    // of pretending the session is an exact mirror of the browser.
+    expect(result).toMatchObject({ imported: 1, failed: 0, staleCookiesKept: 1 })
   })
 
   it('does not remove a newly imported domain cookie while cleaning a namesake', async () => {

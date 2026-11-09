@@ -13,7 +13,9 @@ const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
 
 const recordOversizedSiteSessionPacket = vi.hoisted(() => vi.fn(async () => {}))
-const acceptPacket = vi.hoisted(() => vi.fn(async () => ({ accepted: true, imported: 1 })))
+const acceptPacket = vi.hoisted(() =>
+  vi.fn(async (): Promise<Record<string, unknown>> => ({ accepted: true, imported: 1 }))
+)
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getPath: vi.fn(() => '/tmp/quizlab-userdata') },
@@ -204,6 +206,66 @@ describe('the bridge of the site session', () => {
     expect(response.status).toBe(200)
     expect(acceptPacket).toHaveBeenCalledTimes(1)
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+  })
+
+  it('does not report a failed import as a successful transfer', async () => {
+    acceptPacket.mockResolvedValueOnce({
+      accepted: true,
+      imported: 0,
+      failed: 1,
+      importSucceeded: false,
+      rolledBack: true,
+      rollbackFailed: false,
+      retryable: true
+    })
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body)
+
+    expect(response.status).toBe(200)
+    // The envelope was accepted, the import was not: the two answers are
+    // separate fields instead of one optimistic `success`.
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      accepted: true,
+      importSucceeded: false,
+      rolledBack: true,
+      rollbackFailed: false,
+      retryable: true,
+      imported: 0,
+      failed: 1
+    })
+  })
+
+  it('reports a failed rollback as not retryable', async () => {
+    acceptPacket.mockResolvedValueOnce({
+      accepted: true,
+      imported: 0,
+      failed: 1,
+      importSucceeded: false,
+      rolledBack: true,
+      rollbackFailed: true,
+      retryable: false
+    })
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body)
+
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      accepted: true,
+      importSucceeded: false,
+      rollbackFailed: true,
+      retryable: false
+    })
   })
 
   it('answers the health check of the extension', async () => {

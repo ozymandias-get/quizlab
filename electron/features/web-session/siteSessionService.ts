@@ -221,12 +221,30 @@ export class SiteSessionService {
     nativeMessagingManager.beginSelectionChange()
     let result: NativeMessagingProfileSelectionResult
     try {
-      const cleared = await this.clearImportedSessionsAfterSourceChange()
-      if (!cleared) {
-        result = { success: false, error: 'wipe_failed' }
+      const clear = await this.clearImportedSessionsAfterSourceChange()
+      const clearedSiteIds = clear.clearedSiteIds
+      if (clear.failedSiteIds.length > 0 || clear.readFailed) {
+        // The old profile stays selected, so it can import the sites that were
+        // cleared again. The result says exactly which ones those are instead
+        // of pretending the whole change failed or succeeded.
+        result = {
+          success: false,
+          error: 'wipe_failed',
+          clearedSiteIds,
+          failedSiteIds: clear.failedSiteIds,
+          partial: clearedSiteIds.length > 0
+        }
       } else {
         const selected = await nativeMessagingManager.selectProfile(profileId)
-        result = selected ? { success: true } : { success: false, error: 'write_failed' }
+        result = selected
+          ? { success: true }
+          : {
+              success: false,
+              error: 'write_failed',
+              ...(clearedSiteIds.length > 0
+                ? { clearedSiteIds, failedSiteIds: [], partial: true }
+                : {})
+            }
       }
     } finally {
       nativeMessagingManager.endSelectionChange()
@@ -238,20 +256,28 @@ export class SiteSessionService {
   /**
    * Forgets every enabled site's session after the cookie source changed.
    *
-   * A site that cannot be cleared is reported to the caller: the switch has
-   * already moved, and silently keeping one site's old account would defeat
-   * the point of choosing a source.
+   * The wipe is not atomic: it touches one site at a time, and a site that
+   * fails cannot undo the sites that were already cleared. The two lists are
+   * returned separately so the caller can tell the user which sessions were
+   * really forgotten and which still belong to the old profile.
    */
-  private async clearImportedSessionsAfterSourceChange(): Promise<boolean> {
+  private async clearImportedSessionsAfterSourceChange(): Promise<{
+    clearedSiteIds: string[]
+    failedSiteIds: string[]
+    readFailed: boolean
+  }> {
+    const clearedSiteIds: string[] = []
+    const failedSiteIds: string[] = []
+    let readFailed = false
     try {
       const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
-      let cleared = true
       for (const target of targets) {
         if (state.targets[target.siteId]?.enabled !== true) continue
         try {
           await withSiteSessionLock(target.siteId, () => this.wipe(target))
+          clearedSiteIds.push(target.siteId)
         } catch (error) {
-          cleared = false
+          failedSiteIds.push(target.siteId)
           Logger.warn(
             `[SiteSession] The session of "${target.siteId}" could not be cleared after ` +
               `the Chrome profile changed:`,
@@ -259,11 +285,13 @@ export class SiteSessionService {
           )
         }
       }
-      return cleared
     } catch (error) {
       Logger.warn('[SiteSession] The imported sessions could not be cleared:', error)
-      return false
+      // The target list itself could not be read: nothing is known to be
+      // cleared, so the caller must not claim any site is safe.
+      readFailed = true
     }
+    return { clearedSiteIds, failedSiteIds, readFailed }
   }
 
   /** The site with this id, or null when the app does not know it. */

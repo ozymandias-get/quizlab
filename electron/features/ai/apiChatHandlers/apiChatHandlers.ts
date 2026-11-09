@@ -31,7 +31,14 @@ const MAX_SYSTEM_PROMPT_LENGTH = 20_000
  */
 let activeRequestControllers = new Map<string, AbortController>()
 let autoRequestIdCounter = 0
-let activeModelFetchController: AbortController | null = null
+/**
+ * In-flight model fetches keyed by provider id.
+ *
+ * A newer request for the same provider supersedes the older one, but a
+ * request for another provider must not abort it: the settings panels of two
+ * providers can be open at the same time.
+ */
+const activeModelFetchControllers = new Map<string, AbortController>()
 let handlersRegistered = false
 
 export function registerApiChatHandlers() {
@@ -121,12 +128,20 @@ export function registerApiChatHandlers() {
       const baseUrl = provider.baseUrl.replace(/\/+$/, '')
 
       const resolvedRequestId = requestId ?? `auto-${Date.now()}-${++autoRequestIdCounter}`
-      const controller = new AbortController()
       if (activeRequestControllers.has(resolvedRequestId)) {
-        // Same requestId re-sent (renderer retry/double-submit): drop the
-        // orphaned controller so cancel/timeout accounting stays exact.
-        activeRequestControllers.get(resolvedRequestId)?.abort()
+        // The same requestId is already running. This is a duplicate submit or
+        // a delayed retry, not a new request: starting a second one would
+        // abort the first and could consume the provider twice. A deliberate
+        // retry has to use a new id.
+        Logger.warn('[apiChatHandlers] Refused a duplicate API request id', {
+          requestId: resolvedRequestId
+        })
+        return failure('already_exists', 'A request with this id is already running', {
+          reason: 'duplicate_request',
+          requestId: resolvedRequestId
+        })
       }
+      const controller = new AbortController()
       activeRequestControllers.set(resolvedRequestId, controller)
 
       const requestTimeout = provider.requestTimeout ?? 60000
@@ -276,10 +291,13 @@ export function registerApiChatHandlers() {
       }
 
       const controller = new AbortController()
-      if (activeModelFetchController) {
-        activeModelFetchController.abort()
+      const providerKey = provider.id || provider.baseUrl
+      const previous = activeModelFetchControllers.get(providerKey)
+      if (previous) {
+        // Only a newer request for the same provider supersedes the older one.
+        previous.abort()
       }
-      activeModelFetchController = controller
+      activeModelFetchControllers.set(providerKey, controller)
       const fetchTimeout =
         provider.requestTimeout != null ? Math.min(provider.requestTimeout, 30000) : 15000
       let fetchAbortedByTimeout = false
@@ -318,8 +336,8 @@ export function registerApiChatHandlers() {
         return failure('internal_error', err instanceof Error ? err.message : String(err))
       } finally {
         clearTimeout(timeoutId)
-        if (activeModelFetchController === controller) {
-          activeModelFetchController = null
+        if (activeModelFetchControllers.get(providerKey) === controller) {
+          activeModelFetchControllers.delete(providerKey)
         }
       }
     },

@@ -57,7 +57,8 @@ interface SiteSessionBridgeTarget {
  */
 export interface SiteSessionImportEnvironment {
   /** The persisted state of the import switches. */
-  config: Pick<SiteSessionConfig, 'read' | 'recordResult'>
+  config: Pick<SiteSessionConfig, 'read' | 'recordResult'> &
+    Partial<Pick<SiteSessionConfig, 'quarantine'>>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -70,7 +71,30 @@ export interface SiteSessionImportEnvironment {
    * the round instead of once for every packet.
    */
   targets?: SiteSessionTargetRow[]
+  /**
+   * The versioned round the packet belongs to.
+   *
+   * A round is only valid for the configuration it was opened for. Reading the
+   * version again before a write catches a packet that was prepared against a
+   * target catalogue the user has already changed.
+   */
+  round?: SiteSessionRoundMetadata
 }
+
+/** The version and lifetime of a round of packets. */
+export interface SiteSessionRoundMetadata {
+  configVersion: number
+  openedAt: number
+}
+
+/**
+ * How long a round may stay open.
+ *
+ * The extension pushes the packets of a round right after asking for the site
+ * list. A round that is much older than that is a leftover — a worker that was
+ * killed, a request that was stuck — and must not write against its old list.
+ */
+const SITE_SESSION_ROUND_MAX_AGE_MS = 2 * 60 * 1000
 
 /** The session of a partition, as the app itself resolves it. */
 function defaultResolveSession(partition: string): Session {
@@ -95,7 +119,7 @@ export interface SiteSessionBridgeList {
  * The round has no lifetime of its own: the site list request opens the next
  * one, and the packets of a round arrive right after it.
  */
-export interface SiteSessionRound {
+export interface SiteSessionRound extends SiteSessionRoundMetadata {
   /** The sites of the round: one partition and one cookie set per site. */
   readonly targets: SiteSessionTargetRow[]
   /** Handles one packet of the round. */
@@ -116,12 +140,21 @@ export async function openSiteSessionRound(
   const loadTargets = environment?.loadTargets ?? buildSiteSessionTargets
   const resolveSession = environment?.resolveSession ?? defaultResolveSession
 
-  const targets = await loadTargets()
+  const [targets, state] = await Promise.all([loadTargets(), config.read()])
+  const openedAt = Date.now()
 
   return {
     targets,
+    configVersion: state.configVersion,
+    openedAt,
     accept: (packet) =>
-      acceptSiteSessionPacket(packet, { config, loadTargets, resolveSession, targets })
+      acceptSiteSessionPacket(packet, {
+        config,
+        loadTargets,
+        resolveSession,
+        targets,
+        round: { configVersion: state.configVersion, openedAt }
+      })
   }
 }
 
@@ -158,10 +191,27 @@ function toImporterCookie(cookie: ChromeExtensionCookie): ExternalBrowserCookie 
 
 /** The outcome of a packet the extension sent. */
 export interface SiteSessionPacketOutcome {
+  /** Whether the app took the packet. A taken packet can still fail to import. */
   accepted: boolean
   reason?: CookiePacketRejection
   imported?: number
   failed?: number
+  /**
+   * Whether the import actually wrote a verified session.
+   *
+   * `accepted` says the packet passed the routing checks; this says the
+   * session was written and flushed. The HTTP layer reports them separately so
+   * a failed import is not mistaken for a successful transfer.
+   */
+  importSucceeded?: boolean
+  /** Whether a partial import was rolled back. */
+  rolledBack?: boolean
+  /** Whether the rollback itself failed and the session is now quarantined. */
+  rollbackFailed?: boolean
+  /** Whether sending the same packet again could reasonably succeed. */
+  retryable?: boolean
+  /** Stale cookies kept because the removal API could not target them safely. */
+  staleCookiesKept?: number
 }
 
 const COOKIE_PACKET_STATUSES: ReadonlySet<string> = new Set([
@@ -351,6 +401,21 @@ async function handleSiteSessionPacket(
   const targets = environment?.targets ?? (await loadTargets())
   const state = await config.read()
 
+  // A round carries the configuration version it was opened for. A packet that
+  // arrives after the user changed the switches or the target list belongs to
+  // an obsolete catalogue, even when its target still exists.
+  const round = environment?.round
+  if (round) {
+    const age = Date.now() - round.openedAt
+    if (age > SITE_SESSION_ROUND_MAX_AGE_MS || state.configVersion !== round.configVersion) {
+      Logger.warn(
+        `[SiteSessionBridge] Refused a packet from an obsolete round ` +
+          `(age ${age}ms, version ${round.configVersion} -> ${state.configVersion}).`
+      )
+      return { accepted: false, reason: 'stale_round' }
+    }
+  }
+
   const enabledSiteIds = new Set(
     Object.entries(state.targets)
       .filter(([, targetState]) => targetState.enabled)
@@ -365,10 +430,26 @@ async function handleSiteSessionPacket(
 
   const { target } = routed
 
+  // A site whose rollback failed holds a session the app cannot vouch for. No
+  // packet may touch it until the user clears it or switches the site on
+  // again; switching the site on is the explicit recovery path.
+  if (state.targets[target.siteId]?.quarantined === true) {
+    Logger.warn(
+      `[SiteSessionBridge] Refused a packet: the session of "${target.siteId}" is quarantined.`
+    )
+    return { accepted: false, reason: 'session_unverified' }
+  }
+
   if (packet.status !== 'ok') {
+    // Product decision: the import is a one-way transfer, not a live mirror.
+    // A browser with no cookies for the site is not proof that the user wants
+    // to be signed out of QuizLab: the app cannot tell an imported cookie from
+    // one the user typed in. The existing session is therefore kept, and the
+    // row reports the state of the browser without touching the partition.
+    // Sign-out synchronisation would need an opt-in and per-cookie provenance.
     const result = packet.status === 'permission_missing' ? 'permission_missing' : 'no_cookies'
     await recordResult(config, target.siteId, result)
-    return { accepted: true }
+    return { accepted: true, importSucceeded: false, retryable: false }
   }
 
   // The switch is read once more right before the import: the user may have
@@ -380,12 +461,13 @@ async function handleSiteSessionPacket(
   }
 
   const targetSession = resolveSession(target.partition)
-  const { imported, failed, rollbackFailed, flushFailed } = await importExternalCookies(
-    targetSession,
-    packet.cookies.map(toImporterCookie),
-    target.cookieDomains,
-    { rollbackOnPartialFailure: true }
-  )
+  const { imported, failed, rolledBack, rollbackFailed, flushFailed, staleCookiesKept } =
+    await importExternalCookies(
+      targetSession,
+      packet.cookies.map(toImporterCookie),
+      target.cookieDomains,
+      { rollbackOnPartialFailure: true }
+    )
 
   // An import that wrote nothing is a failure the user has to see: without a
   // reason code the row would show the outcome without saying what went wrong,
@@ -395,17 +477,42 @@ async function handleSiteSessionPacket(
   let error = 'import_failed'
   if (rollbackFailed) error = 'session_restore_failed'
   else if (flushFailed) error = 'flush_failed'
-  await recordResult(
-    config,
-    target.siteId,
-    wroteSomething ? 'imported' : 'failed',
-    wroteSomething ? undefined : error
-  )
+
+  if (rollbackFailed) {
+    // The session may mix cookies from both sides and the app could not prove
+    // otherwise. Stop automatic writes for this site instead of letting the
+    // next packet build on an unknown state.
+    if (typeof config.quarantine === 'function') {
+      try {
+        await config.quarantine(target.siteId, error)
+      } catch (writeError) {
+        Logger.warn(
+          `[SiteSessionBridge] The quarantine of "${target.siteId}" could not be recorded: ` +
+            `${writeError instanceof Error ? writeError.message : String(writeError)}`
+        )
+        await recordResult(config, target.siteId, 'failed', error)
+      }
+    } else {
+      await recordResult(config, target.siteId, 'failed', error)
+    }
+  } else {
+    await recordResult(
+      config,
+      target.siteId,
+      wroteSomething ? 'imported' : 'failed',
+      wroteSomething ? undefined : error
+    )
+  }
 
   return {
     accepted: true,
     imported,
-    failed
+    failed,
+    importSucceeded: wroteSomething,
+    rolledBack: rolledBack === true,
+    rollbackFailed: rollbackFailed === true,
+    retryable: !rollbackFailed && !wroteSomething,
+    ...(staleCookiesKept !== undefined ? { staleCookiesKept } : {})
   }
 }
 

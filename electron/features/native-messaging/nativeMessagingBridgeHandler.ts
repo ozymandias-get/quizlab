@@ -154,9 +154,11 @@ function markExtensionSeen(manager: unknown, profile: RequestProfile): void {
 }
 
 /** Remembers that the extension knows the pairing code. */
-function markExtensionPaired(manager: unknown, profile: RequestProfile): void {
-  const mgr = manager as unknown as { markExtensionPaired(profileId?: string): void }
-  mgr.markExtensionPaired(profile.id)
+async function markExtensionPaired(manager: unknown, profile: RequestProfile): Promise<void> {
+  const mgr = manager as unknown as {
+    markExtensionPaired(profileId?: string): void | Promise<void>
+  }
+  await mgr.markExtensionPaired(profile.id)
 }
 
 export function createBridgeRequestHandler(manager: unknown) {
@@ -249,10 +251,10 @@ export function createBridgeRequestHandler(manager: unknown) {
         // endpoint. Refusing it with 400 would make the app show "not paired"
         // forever instead of "update the extension", and would make the
         // pairing dialog fail even though the code is correct.
-        handleLegacySiteListRequest(req, res, manager)
+        void handleLegacySiteListRequest(req, res, manager)
         return
       }
-      handleSiteListRequest(req, res, manager, profile.id, async () => {
+      void handleSiteListRequest(req, res, manager, profile.id, async () => {
         // The site list request opens the round: the packets that follow it
         // belong to it and share its target list.
         const round = await openSiteSessionRound()
@@ -293,13 +295,13 @@ export function createBridgeRequestHandler(manager: unknown) {
  * The real bound is the router: a packet is written only into a site that is
  * switched on, and every cookie in it has to belong to that site.
  */
-function handleSiteListRequest(
+async function handleSiteListRequest(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown,
   profileId: string,
   openRound: () => Promise<SiteSessionRound>
-): void {
+): Promise<void> {
   const mgr = manager as unknown as {
     _sharedSecret: string
     getSelectedProfileId?: () => string | null
@@ -317,7 +319,7 @@ function handleSiteListRequest(
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
-  markExtensionPaired(manager, { id: profileId, name: '' })
+  await markExtensionPaired(manager, { id: profileId, name: '' })
 
   void openRound()
     .then((round) => listEnabledSiteSessionTargets(round))
@@ -345,11 +347,11 @@ function handleSiteListRequest(
  * carry a profile id. The app has already recorded the version the extension
  * reported, so the settings row says "update the extension".
  */
-function handleLegacySiteListRequest(
+async function handleLegacySiteListRequest(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown
-): void {
+): Promise<void> {
   const mgr = manager as unknown as { _sharedSecret: string }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
   if (!isValidSignature(SITE_LIST_SIGNING_PAYLOAD, signature, mgr._sharedSecret)) {
@@ -357,7 +359,7 @@ function handleLegacySiteListRequest(
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
-  markExtensionPaired(manager, { id: undefined, name: '' })
+  await markExtensionPaired(manager, { id: undefined, name: '' })
 
   void openSiteSessionRound()
     .then((round) => listEnabledSiteSessionTargets(round))
@@ -499,10 +501,23 @@ function handleCookiePost(
         return
       }
 
+      // `accepted` and `success` answer different questions: the packet passed
+      // the routing checks versus the session was really written. The old
+      // field is kept for the extension, but it now tells the truth about the
+      // import instead of about the envelope.
+      const importSucceeded = outcome.importSucceeded ?? true
       sendJson(res, 200, {
-        success: true,
+        success: importSucceeded,
+        accepted: true,
+        importSucceeded,
+        rolledBack: outcome.rolledBack === true,
+        rollbackFailed: outcome.rollbackFailed === true,
+        retryable: outcome.retryable === true,
         imported: outcome.imported ?? 0,
-        failed: outcome.failed ?? 0
+        failed: outcome.failed ?? 0,
+        ...(outcome.staleCookiesKept !== undefined
+          ? { staleCookiesKept: outcome.staleCookiesKept }
+          : {})
       })
     } catch (error) {
       Logger.error('[NativeMessaging] Failed to handle the cookie packet:', error)

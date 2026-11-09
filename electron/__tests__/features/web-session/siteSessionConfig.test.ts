@@ -155,7 +155,8 @@ describe('legacy google merge', () => {
         enabled: true,
         importedAt: null,
         lastResult: null,
-        lastError: null
+        lastError: null,
+        quarantined: false
       }
     }
   }
@@ -177,7 +178,8 @@ describe('legacy google merge', () => {
           enabled: false,
           importedAt: null,
           lastResult: null,
-          lastError: null
+          lastError: null,
+          quarantined: false
         }
       }
     }

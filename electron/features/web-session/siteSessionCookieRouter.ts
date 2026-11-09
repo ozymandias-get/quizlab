@@ -21,7 +21,14 @@ import { isCookieDomainAllowed } from './siteSessionCookies.js'
 import type { SiteSessionTargetRow } from './siteSessionTargets.js'
 
 /** Why a packet was refused. */
-export type CookiePacketRejection = 'unknown_target' | 'target_disabled' | 'domain_mismatch'
+export type CookiePacketRejection =
+  | 'unknown_target'
+  | 'target_disabled'
+  | 'domain_mismatch'
+  /** The packet belongs to a round opened before the site list changed. */
+  | 'stale_round'
+  /** The site's session is quarantined after a failed rollback. */
+  | 'session_unverified'
 
 /**
  * What the extension reports about a site.

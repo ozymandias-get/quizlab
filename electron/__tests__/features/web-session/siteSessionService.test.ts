@@ -502,6 +502,77 @@ describe('the Chrome profile selection', () => {
       error: 'write_failed'
     })
   })
+
+  it('reports the sites whose sessions were cleared when another site fails', async () => {
+    const second = {
+      ...CHATGPT,
+      siteId: 'claude',
+      hostname: 'claude.ai',
+      origins: ['https://claude.ai'],
+      partition: 'persist:ai_claude',
+      cookieDomains: ['.claude.ai']
+    }
+    const third = {
+      ...CHATGPT,
+      siteId: 'gemini',
+      hostname: 'gemini.google.com',
+      origins: ['https://gemini.google.com'],
+      partition: 'persist:ai_gemini',
+      cookieDomains: ['.google.com']
+    }
+    const sessionFor = (clearStorageData = vi.fn().mockResolvedValue(undefined)) => ({
+      cookies: { get: vi.fn().mockResolvedValue([]), set: vi.fn(), remove: vi.fn() },
+      clearStorageData,
+      clearAuthCache: vi.fn().mockResolvedValue(undefined),
+      flushStorageData: vi.fn()
+    })
+    const chatgptSession = sessionFor()
+    const claudeSession = sessionFor(vi.fn().mockRejectedValue(new Error('the session is locked')))
+    const geminiSession = sessionFor()
+    const sessions: Record<string, ReturnType<typeof sessionFor>> = {
+      [CHATGPT.partition]: chatgptSession,
+      [second.partition]: claudeSession,
+      [third.partition]: geminiSession
+    }
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        version: 1 as const,
+        configVersion: 3,
+        targets: {
+          chatgpt: { enabled: true, importedAt: null, lastResult: null, lastError: null },
+          claude: { enabled: true, importedAt: null, lastResult: null, lastError: null },
+          gemini: { enabled: true, importedAt: null, lastResult: null, lastError: null }
+        }
+      }),
+      setEnabled: vi.fn().mockResolvedValue(undefined),
+      resetResults: vi.fn().mockResolvedValue(undefined),
+      recordResult: vi.fn().mockResolvedValue(undefined)
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [CHATGPT, second, third],
+      resolveSession: (partition) => sessions[partition] as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    const result = await service.selectExtensionProfile('known-profile-1234')
+
+    // The wipe is not atomic: the sites that were already cleared are
+    // reported instead of being rolled back or hidden.
+    expect(result).toEqual({
+      success: false,
+      error: 'wipe_failed',
+      clearedSiteIds: ['chatgpt', 'gemini'],
+      failedSiteIds: ['claude'],
+      partial: true
+    })
+    expect(profileSelection.selectProfile).not.toHaveBeenCalled()
+    // The old profile stays selected, so it can import the cleared sites again.
+    expect(chatgptSession.clearStorageData).toHaveBeenCalled()
+    expect(geminiSession.clearStorageData).toHaveBeenCalled()
+    expect(claudeSession.clearStorageData).toHaveBeenCalled()
+  })
 })
 
 describe('the extension version', () => {

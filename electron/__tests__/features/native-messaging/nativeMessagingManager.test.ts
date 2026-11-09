@@ -207,8 +207,8 @@ describe('NativeMessagingManager', () => {
   })
 
   describe('markExtensionPaired', () => {
-    it('reports a paired extension after a signed request', () => {
-      manager.markExtensionPaired()
+    it('reports a paired extension after a signed request', async () => {
+      await manager.markExtensionPaired()
       expect(manager.getExtensionInfo().paired).toBe(true)
     })
   })
@@ -225,7 +225,7 @@ describe('NativeMessagingManager', () => {
       ])
       expect(info.selectedProfileId).toBeNull()
 
-      manager.markExtensionPaired('profile-a-1234')
+      await manager.markExtensionPaired('profile-a-1234')
       info = manager.getExtensionInfo()
       expect(info.selectedProfileId).toBe('profile-a-1234')
 
@@ -245,23 +245,40 @@ describe('NativeMessagingManager', () => {
       expect(manager.getSelectedProfileId()).toBeNull()
     })
 
-    it('pins the first paired profile instead of re-deriving the source', () => {
+    it('pins the first paired profile instead of re-deriving the source', async () => {
       manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
       manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
       expect(manager.getSelectedProfileId()).toBeNull()
 
-      manager.markExtensionPaired('profile-b-1234')
+      await manager.markExtensionPaired('profile-b-1234')
       expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
 
       // A later pairing must not move the source to the other profile.
-      manager.markExtensionPaired('profile-a-1234')
+      await manager.markExtensionPaired('profile-a-1234')
       expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
     })
 
-    it('reports a legacy extension as outdated even when a profile is stored', () => {
+    it('does not report a first selection that could not be written', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      // Let the write that the new profile triggered finish before the
+      // selection write is failed on purpose.
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalled())
+
+      mockFsWriteFile.mockRejectedValueOnce(new Error('the disk is full'))
+      await manager.markExtensionPaired('profile-a-1234')
+
+      // The user must not see a source that a restart would forget.
+      expect(manager.getSelectedProfileId()).toBeNull()
+
+      // The next signed request is the retry path.
+      await manager.markExtensionPaired('profile-a-1234')
+      expect(manager.getSelectedProfileId()).toBe('profile-a-1234')
+    })
+
+    it('reports a legacy extension as outdated even when a profile is stored', async () => {
       manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
       manager.markExtensionSeen()
-      manager.markExtensionPaired()
+      await manager.markExtensionPaired()
       manager.recordExtensionProtocolVersion(undefined, 2)
 
       const info = manager.getExtensionInfo()
@@ -289,10 +306,10 @@ describe('NativeMessagingManager', () => {
       manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
       manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
       await manager.selectProfile('profile-a-1234')
-      manager.markExtensionPaired('profile-b-1234')
+      await manager.markExtensionPaired('profile-b-1234')
 
       expect(manager.getExtensionInfo().paired).toBe(false)
-      manager.markExtensionPaired('profile-a-1234')
+      await manager.markExtensionPaired('profile-a-1234')
       expect(manager.getExtensionInfo().paired).toBe(true)
     })
   })

@@ -25,6 +25,7 @@ const fakeSession = {
 
 const read = vi.fn()
 const recordResult = vi.fn()
+const quarantine = vi.fn().mockResolvedValue(undefined)
 
 const { partitionExistsOnDisk } = vi.hoisted(() => ({
   partitionExistsOnDisk: vi.fn(async () => true)
@@ -47,7 +48,8 @@ vi.mock('electron', () => ({
 vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
   getSiteSessionConfig: () => ({
     read,
-    recordResult
+    recordResult,
+    quarantine
   })
 }))
 
@@ -144,6 +146,8 @@ describe('site session bridge', () => {
     clearStorageData.mockClear()
     read.mockReset()
     recordResult.mockReset()
+    quarantine.mockReset()
+    quarantine.mockResolvedValue(undefined)
     read.mockResolvedValue(stateWith(false))
   })
 
@@ -291,6 +295,41 @@ describe('site session bridge', () => {
     expect(recordResult).toHaveBeenCalledWith('chatgpt', 'permission_missing', undefined)
   })
 
+  it('quarantines a site whose rollback fails and refuses the next packet', async () => {
+    read.mockResolvedValue(stateWith(true))
+    // The snapshot cannot be read, so the rollback fails before any write.
+    get.mockRejectedValueOnce(new Error('unavailable'))
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({
+      accepted: true,
+      importSucceeded: false,
+      rollbackFailed: true,
+      retryable: false
+    })
+    expect(quarantine).toHaveBeenCalledWith('chatgpt', 'session_restore_failed')
+
+    const quarantined = stateWith(true) as ReturnType<typeof stateWith> & {
+      targets: { chatgpt: { quarantined: boolean } }
+    }
+    quarantined.targets.chatgpt.quarantined = true
+    read.mockResolvedValue(quarantined)
+
+    const next = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(next).toMatchObject({ accepted: false, reason: 'session_unverified' })
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it('records a packet that did not fit into the bridge as a failed import', async () => {
     // The packet was too large to be read, so nothing was imported: the row of
     // the site has to say so instead of showing the outcome of an earlier one.
@@ -390,6 +429,8 @@ describe('a round of packets', () => {
     read.mockReset()
     recordResult.mockReset()
     get.mockReset()
+    set.mockClear()
+    remove.mockClear()
     get.mockResolvedValue([])
     read.mockResolvedValue(stateWith(true))
   })
@@ -416,6 +457,27 @@ describe('a round of packets', () => {
     })
 
     expect(loadTargets).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a packet from a round opened before the configuration changed', async () => {
+    read.mockResolvedValue(stateWith(true, 3))
+    const round = await openSiteSessionRound({
+      config: { read, recordResult } as never,
+      loadTargets: async () => [TARGET],
+      resolveSession: () => fakeSession as never
+    })
+
+    // The user changed a switch while the round was in flight.
+    read.mockResolvedValue(stateWith(true, 4))
+
+    const outcome = await round.accept({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({ accepted: false, reason: 'stale_round' })
+    expect(set).not.toHaveBeenCalled()
   })
 
   it('reads the target list again for every packet when there is no round', async () => {

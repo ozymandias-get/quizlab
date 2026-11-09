@@ -292,20 +292,28 @@ function removalConflictsWithIncoming(
  * its full identity (host, name, path and scope); a same-named cookie under a
  * different domain or path is no reason to keep it.
  */
+interface StaleCleanupResult {
+  /** Removals that were attempted and failed. */
+  failed: number
+  /** Stale cookies that were deliberately kept because a removal was unsafe. */
+  kept: number
+}
+
 async function removeStaleCookies(
   targetSession: Session,
   incoming: readonly IncomingCookieIdentity[],
   allowedDomains: readonly string[]
-): Promise<number> {
+): Promise<StaleCleanupResult> {
   let existingCookies: Electron.Cookie[]
   try {
     existingCookies = await targetSession.cookies.get({})
   } catch {
     Logger.warn('[SiteSessionImporter] Existing cookies could not be read for cleanup.')
-    return 1
+    return { failed: 1, kept: 0 }
   }
   const incomingKeys = new Set(incoming.map((cookie) => cookie.key))
   const removals: Promise<boolean>[] = []
+  let kept = 0
 
   for (const existing of existingCookies) {
     if (!isCookieDomainAllowed(existing.domain, allowedDomains)) continue
@@ -317,6 +325,7 @@ async function removeStaleCookies(
     // Electron removes by URL and name, not by exact domain, path and scope.
     // A removal can therefore also delete a freshly imported namesake.
     if (removalConflictsWithIncoming(existing, host, incoming)) {
+      kept += 1
       Logger.warn(
         `[SiteSessionImporter] A stale cookie of "${host}" was kept because the removal API ` +
           `cannot target its identity without touching an imported namesake.`
@@ -330,7 +339,10 @@ async function removeStaleCookies(
     }
   }
 
-  return (await Promise.all(removals)).filter((removed) => !removed).length
+  return {
+    failed: (await Promise.all(removals)).filter((removed) => !removed).length,
+    kept
+  }
 }
 
 /** Removes only the cookies whose full identity is in `keys`. */
@@ -428,6 +440,14 @@ export interface ImportExternalCookiesResult {
   rollbackFailed?: boolean
   /** Cookies reached the store but the explicit disk flush failed. */
   flushFailed?: boolean
+  /**
+   * Stale cookies that were deliberately kept because Electron's removal API
+   * cannot target their identity without touching an imported namesake.
+   *
+   * The import still succeeds; this is reported so the caller can show that the
+   * session is not an exact mirror of the browser.
+   */
+  staleCookiesKept?: number
 }
 
 /**
@@ -518,8 +538,11 @@ export async function importExternalCookies(
   // Only a complete write is a reliable basis for deleting old cookies. A
   // cleanup failure is part of the same import transaction: it must roll back
   // together with a partial write instead of reporting a half-changed session.
+  let staleCookiesKept = 0
   if (imported > 0 && failed === 0) {
-    failed += await removeStaleCookies(targetSession, incoming, allowedDomains)
+    const cleanup = await removeStaleCookies(targetSession, incoming, allowedDomains)
+    failed += cleanup.failed
+    staleCookiesKept = cleanup.kept
   }
 
   const flush = async (context: string): Promise<boolean> => {
@@ -556,14 +579,26 @@ export async function importExternalCookies(
       failed,
       rolledBack: true,
       rollbackFailed,
-      ...(flushFailed ? { flushFailed: true } : {})
+      ...(flushFailed ? { flushFailed: true } : {}),
+      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
     }
   }
 
   if (failed > 0) {
     Logger.warn(`[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up.`)
   }
+  if (staleCookiesKept > 0) {
+    Logger.warn(
+      `[SiteSessionImporter] ${staleCookiesKept} stale cookie(s) were kept because the removal ` +
+        `API cannot target their identity safely.`
+    )
+  }
 
   const flushFailed = await flush('')
-  return { imported, failed, ...(flushFailed ? { flushFailed: true } : {}) }
+  return {
+    imported,
+    failed,
+    ...(flushFailed ? { flushFailed: true } : {}),
+    ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+  }
 }

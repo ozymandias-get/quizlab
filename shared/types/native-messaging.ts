@@ -42,6 +42,20 @@ export interface NativeMessagingExtensionInfo {
 export interface NativeMessagingProfileSelectionResult {
   success: boolean
   error?: 'unknown_profile' | 'write_failed' | 'wipe_failed' | 'Unauthorized'
+  /**
+   * Sites whose sessions were cleared before the switch could not be
+   * completed. The selection may still point at the old profile; these sites
+   * have to be imported again by that profile.
+   */
+  clearedSiteIds?: string[]
+  /** Enabled sites whose sessions could not be cleared. */
+  failedSiteIds?: string[]
+  /**
+   * Whether part of the work happened: some sessions were cleared, or all
+   * were cleared but the new selection could not be written. The operation is
+   * not atomic and the caller must not present it as one.
+   */
+  partial?: boolean
 }
 
 export interface ChromeExtensionCookie {

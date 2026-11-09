@@ -44,6 +44,15 @@ export interface SiteSessionTargetState {
   importedAt: string | null
   lastResult: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
   lastError: string | null
+  /**
+   * Whether the site's session is quarantined after a failed rollback.
+   *
+   * The session may hold a mix of the old and the new cookies, so no automatic
+   * import may write into it until the user clears it or switches the site on
+   * again. The flag is persisted: a restart must not silently resume writes
+   * into a session the app could not verify.
+   */
+  quarantined: boolean
 }
 
 export interface SiteSessionConfigFile {
@@ -95,7 +104,8 @@ function createTargetState(enabled: boolean): SiteSessionTargetState {
     enabled,
     importedAt: null,
     lastResult: null,
-    lastError: null
+    lastError: null,
+    quarantined: false
   }
 }
 
@@ -139,7 +149,8 @@ function normalizeTargetState(raw: unknown): SiteSessionTargetState {
     enabled: source.enabled === true,
     importedAt: typeof source.importedAt === 'string' ? source.importedAt : null,
     lastResult: isLastResult(source.lastResult) ? source.lastResult : null,
-    lastError: typeof source.lastError === 'string' ? source.lastError : null
+    lastError: typeof source.lastError === 'string' ? source.lastError : null,
+    quarantined: source.quarantined === true
   }
 }
 
@@ -334,7 +345,9 @@ export class SiteSessionConfig {
             : currentState.configVersion + 1,
         targets: {
           ...currentState.targets,
-          [siteId]: { ...existing, enabled }
+          // Switching the site on is the user's explicit answer to a
+          // quarantine: the import may run again.
+          [siteId]: { ...existing, enabled, ...(enabled ? { quarantined: false } : {}) }
         }
       }
     })
@@ -385,6 +398,43 @@ export class SiteSessionConfig {
     }
   }
 
+  /**
+   * Marks a site whose last import could not be rolled back.
+   *
+   * The switch stays on, but the bridge refuses further packets for the site
+   * until the user clears the session or switches the site on again. The
+   * failure is persisted together with the flag so that a restart does not
+   * resume automatic writes into a mixed session.
+   *
+   * @throws when the state could not be written.
+   */
+  async quarantine(siteId: string, error: string): Promise<void> {
+    await this.loadState()
+    if (PROHIBITED_KEYS.has(siteId)) return
+
+    const written = await this.store.update((current) => {
+      const currentState = normalizeConfigFile(current)
+      const existing = currentState.targets[siteId] ?? createTargetState(false)
+      return {
+        ...currentState,
+        configVersion: currentState.configVersion,
+        targets: {
+          ...currentState.targets,
+          [siteId]: {
+            ...existing,
+            lastResult: 'failed',
+            lastError: error,
+            quarantined: true
+          }
+        }
+      }
+    })
+
+    if (!written) {
+      throw new Error(`[Web Session] The quarantine of "${siteId}" could not be written.`)
+    }
+  }
+
   /** Clears import history only after both application sessions were wiped. */
   async resetResults(siteId: string): Promise<void> {
     await this.loadState()
@@ -401,7 +451,9 @@ export class SiteSessionConfig {
             ...existing,
             importedAt: null,
             lastResult: null,
-            lastError: null
+            lastError: null,
+            // The wipe is the user's recovery path from a quarantine.
+            quarantined: false
           }
         }
       }

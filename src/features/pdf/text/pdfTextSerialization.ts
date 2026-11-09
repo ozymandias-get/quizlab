@@ -188,16 +188,100 @@ function isCjkCharacter(character: string): boolean {
 }
 
 /**
+ * Turkish suffixes that cannot begin an independent word.
+ *
+ * A line break after a hyphen whose continuation starts with one of these is
+ * overwhelmingly a typesetter's hyphenation of one word, not a real compound:
+ * `hasta-` + `lığı` is `hastalığı`, while `sosyo-` + `ekonomik` stays a
+ * compound because `ekonomik` is a word of its own.
+ *
+ * This is deliberately not a full morphological analyser. A suffix that also
+ * happens to be a word (`-da`, `-de`) is in the list because it is far more
+ * often an inflection than the second half of a hyphenated compound.
+ */
+const TURKISH_SUFFIX_PREFIXES = [
+  'ları',
+  'leri',
+  'lar',
+  'ler',
+  'lığ',
+  'liğ',
+  'luğ',
+  'lüğ',
+  'lık',
+  'lik',
+  'luk',
+  'lük',
+  'sız',
+  'siz',
+  'suz',
+  'süz',
+  'nın',
+  'nin',
+  'nun',
+  'nün',
+  'dan',
+  'den',
+  'tan',
+  'ten',
+  'dır',
+  'dir',
+  'dur',
+  'dür',
+  'tır',
+  'tir',
+  'tur',
+  'tür',
+  'mı',
+  'mi',
+  'mu',
+  'mü',
+  'sı',
+  'si',
+  'su',
+  'sü',
+  'yı',
+  'yi',
+  'yu',
+  'yü',
+  'na',
+  'ne',
+  'da',
+  'de',
+  'ta',
+  'te',
+  'ın',
+  'in',
+  'un',
+  'ün',
+  'ca',
+  'ce',
+  'ça',
+  'çe',
+  'lı',
+  'li',
+  'lu',
+  'lü'
+] as const
+
+/** Whether the continuation after a line-break hyphen is a Turkish suffix. */
+function startsWithTurkishSuffix(text: string): boolean {
+  const lower = text.toLocaleLowerCase('tr')
+  return TURKISH_SUFFIX_PREFIXES.some((suffix) => lower.startsWith(suffix))
+}
+
+/**
  * Joins two visual lines of the same paragraph.
  *
- * The default is deliberately lossless: an ASCII or Unicode hyphen a reader can
- * see is never deleted, even when it sits at a line break. Geometry cannot prove
- * that `well-known`, `sosyo-ekonomik` or a medical compound was hyphenated by the
- * typesetter rather than printed with its hyphen intact, and a wrong deletion is
- * a content change. The hyphen is kept and the next line is joined directly
- * (`hasta-` + `lığı` becomes `hasta-lığı`), so no character disappears.
+ * A visible hyphen is only removed when the continuation is recognisably an
+ * inflection: `hasta-` + `lığı` becomes `hastalığı`. That is a dictionary
+ * decision, not a geometric one — geometry cannot prove that `well-known` or
+ * `sosyo-ekonomik` was hyphenated by the typesetter rather than printed with
+ * its hyphen intact, and a wrong deletion is a content change. When the
+ * continuation is not a suffix the hyphen is kept and the lines are joined
+ * directly, so no visible character disappears.
  *
- * The only exception is U+00AD SOFT HYPHEN: it is invisible and exists solely to
+ * U+00AD SOFT HYPHEN is always removed: it is invisible and exists solely to
  * mark a possible break, so removing it loses nothing the reader could see.
  */
 function joinParagraphLines(previous: string, next: string): string {
@@ -211,7 +295,10 @@ function joinParagraphLines(previous: string, next: string): string {
 
   if (last === '\u00AD') return `${left.slice(0, -1)}${right}`
 
-  if (last === '-' || last === '‐') return `${left}${right}`
+  if (last === '-' || last === '‐') {
+    if (startsWithTurkishSuffix(right)) return `${left.slice(0, -1)}${right}`
+    return `${left}${right}`
+  }
 
   if (isCjkCharacter(last) || isCjkCharacter(first)) return `${left}${right}`
 

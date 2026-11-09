@@ -59,6 +59,7 @@ class NativeMessagingManager {
   private readonly _profiles = new Map<string, ExtensionProfileState>()
   private _selectedProfileId: string | null = null
   private _selectionVersion: number = 0
+  private _selectionPending: boolean = false
   private _selectionChangeDepth: number = 0
   private _profilesWrite: Promise<void> = Promise.resolve()
 
@@ -331,7 +332,7 @@ class NativeMessagingManager {
    * The settings page uses this to tell an extension that is installed but
    * not paired from one that is ready to import.
    */
-  markExtensionPaired(profileId?: string): void {
+  async markExtensionPaired(profileId?: string): Promise<void> {
     if (isProfileId(profileId)) {
       const profile = this._profiles.get(profileId.trim())
       if (profile) {
@@ -339,15 +340,32 @@ class NativeMessagingManager {
         // The first profile that proves it holds the pairing code becomes the
         // source. Pinning it here is what keeps a later disconnect from
         // silently moving the source to the other Chrome profile.
-        if (!this._selectedProfileId) {
-          this._selectedProfileId = profile.id
-          this._selectionVersion += 1
-          void this.persistProfiles().catch((error) => {
+        if (!this._selectedProfileId && !this._selectionPending) {
+          // The selection is not reported until it reached the disk: a restart
+          // that reads no selection would otherwise silently pick another
+          // profile, and the user would have seen a source that never existed.
+          this._selectionPending = true
+          const nextVersion = this._selectionVersion + 1
+          try {
+            await this.persistProfiles({
+              selectedProfileId: profile.id,
+              selectionVersion: nextVersion
+            })
+            if (!this._selectedProfileId) {
+              this._selectedProfileId = profile.id
+              this._selectionVersion = nextVersion
+              this.broadcastExtensionConnected()
+            }
+          } catch (error) {
+            // Leave the selection unset. The next signed request retries; the
+            // settings page keeps showing "no source selected" in the meantime.
             Logger.warn(
               '[NativeMessaging] The initial profile selection could not be saved:',
               error
             )
-          })
+          } finally {
+            this._selectionPending = false
+          }
         }
         return
       }
@@ -412,16 +430,25 @@ class NativeMessagingManager {
     }
   }
 
-  /** Writes the names and the selection, one write at a time. */
-  private persistProfiles(): Promise<void> {
+  /**
+   * Writes the names and the selection, one write at a time.
+   *
+   * The optional selection lets a first pairing write the selection it is
+   * about to commit without putting it into memory before the disk accepted
+   * it. A failed write therefore leaves the manager unselected.
+   */
+  private persistProfiles(selection?: {
+    selectedProfileId: string | null
+    selectionVersion: number
+  }): Promise<void> {
     const profiles: PersistedExtensionProfile[] = [...this._profiles.values()].map((profile) => ({
       id: profile.id,
       name: profile.name
     }))
     const snapshot = {
       version: 1 as const,
-      selectedProfileId: this._selectedProfileId,
-      selectionVersion: this._selectionVersion,
+      selectedProfileId: selection ? selection.selectedProfileId : this._selectedProfileId,
+      selectionVersion: selection ? selection.selectionVersion : this._selectionVersion,
       profiles
     }
     this._profilesWrite = this._profilesWrite
