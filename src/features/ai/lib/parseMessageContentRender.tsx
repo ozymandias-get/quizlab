@@ -62,7 +62,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     return (
       <div key={`l-${lineIndex}`} className="my-1 ml-1 flex gap-2">
         <span
-          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-xs border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
         >
           {checked && <Check className="h-2.5 w-2.5" />}
         </span>

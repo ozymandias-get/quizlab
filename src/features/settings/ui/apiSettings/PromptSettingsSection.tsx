@@ -16,10 +16,8 @@ interface PromptSettingsSectionProps {
   }) => void
 }
 
-// `button, input, select, textarea { font: inherit }` in _base.css is
-// unlayered, so it beats Tailwind's `text-*` utilities on those elements.
-// The three textareas therefore inherit their size from the group wrapper
-// below instead of carrying a dead `text-ql-12` on the control itself.
+// The prompt editors are compact controls: each one opts into the 12px scale
+// explicitly instead of relying on the wrapper's inherited font size.
 const PromptSettingsSection = memo(function PromptSettingsSection({
   memoryPrompt,
   characterPrompt,
@@ -47,6 +45,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
           onChange={(e) => onChange({ memoryPrompt: e.target.value })}
           rows={3}
           placeholder={t('api_chat_memory_placeholder')}
+          size="sm"
         />
       </div>
 
@@ -69,6 +68,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
           onChange={(e) => onChange({ characterPrompt: e.target.value })}
           rows={2}
           placeholder={t('api_chat_character_placeholder')}
+          size="sm"
         />
       </div>
 
@@ -91,6 +91,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
           onChange={(e) => onChange({ generalPrompt: e.target.value })}
           rows={2}
           placeholder={t('api_chat_system_prompt_placeholder')}
+          size="sm"
         />
       </div>
     </section>

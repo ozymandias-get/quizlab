@@ -84,7 +84,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             onChange={handleLabelChange}
             onBlur={() => setLabelError(preset.label.trim() ? '' : 'error_name_required')}
             placeholder={preset.defaultLabel}
-            className="h-7"
+            className="text-ql-12 h-7"
             aria-invalid={!!labelError}
           />
           {labelError && (
@@ -100,6 +100,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             onChange={handleValueChange}
             placeholder={preset.defaultValue}
             rows={1}
+            size="sm"
             className="min-h-[30px] py-1.5 leading-snug"
           />
         </div>

@@ -177,7 +177,7 @@ function PdfSelectionMenu({
                   backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
                   color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
                 }}
-                className="focus-visible:ring-ring/40 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring/70 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
               >
                 <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
                   {feedback === 'working' ? (
@@ -195,7 +195,7 @@ function PdfSelectionMenu({
                 data-testid="pdf-selection-draft"
                 disabled={isBusy}
                 onClick={onAddToDraft}
-                className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/40 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/70 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
               >
                 <span
                   style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}

@@ -43,8 +43,7 @@ function ApiProviderList({
 
   return (
     <SettingsSection icon={<Server className="h-4 w-4" />} title={t('api_chat_providers_title')}>
-      {/* `font: inherit` in _base.css kills `text-*` on <button>, so the label
-          size is set on the span inside each control. */}
+      {/* Provider labels stay at 11px; the button itself is the compact `xs` size. */}
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         {Object.keys(DEFAULT_PROVIDER_TEMPLATES).map((key) => (
           <Button

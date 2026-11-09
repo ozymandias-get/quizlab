@@ -1,7 +1,4 @@
-/* PDF placeholder — primary CTA typographic emphasis.
-   `button { font: inherit }` in _base.css wins over Tailwind's
-   :where()-wrapped font-weight utilities on buttons, so the CTA
-   weight is set here with an unlayered, scoped class. */
+/* PDF placeholder — primary CTA typographic emphasis. */
 
 .pdf-placeholder-cta {
   font-weight: 600;

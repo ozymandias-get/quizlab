@@ -185,7 +185,12 @@ describe('AiModelList', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Clear cookies and data' })[0])
 
     await waitFor(() => {
-      expect(handleClearModelData).toHaveBeenCalledWith(expect.any(Object), 'chatgpt', 'ChatGPT')
+      expect(handleClearModelData).toHaveBeenCalledWith(
+        expect.any(Object),
+        'chatgpt',
+        'ChatGPT',
+        expect.any(Function)
+      )
     })
     expect(props.toggleModel).not.toHaveBeenCalled()
   })

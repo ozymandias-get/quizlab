@@ -309,7 +309,7 @@ function AiSendComposer({
                   <Sparkles className="size-3.5" />
                 )}
               </span>
-              <p className="text-ql-12 text-foreground shrink-0 font-semibold tracking-tight">
+              <p className="text-ql-12 text-foreground tracking-ql-tight shrink-0 font-semibold">
                 {t('ai_draft_badge')}
               </p>
               <span

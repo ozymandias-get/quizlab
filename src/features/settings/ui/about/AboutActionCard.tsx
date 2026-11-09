@@ -54,7 +54,7 @@ function AboutActionCard({
     interactive
       ? 'border-border/60 bg-card transition-colors hover:bg-muted/50'
       : 'border-border/60 bg-card/30',
-    'focus-visible:ring-ring/40 focus-visible:ring-2 focus-visible:outline-none',
+    'focus-visible:ring-ring/70 focus-visible:ring-2 focus-visible:outline-none',
     className
   )
 

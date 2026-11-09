@@ -24,13 +24,6 @@ body {
   color: oklch(var(--foreground));
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
 @media (max-width: 1280px) {
   html {
     font-size: 14px;

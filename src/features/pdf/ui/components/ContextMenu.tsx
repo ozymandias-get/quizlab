@@ -130,7 +130,7 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
                   item.onClick()
                   onClose()
                 }}
-                className="group text-ql-13"
+                className="group"
               >
                 {item.label}
               </MenuItem>

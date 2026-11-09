@@ -89,7 +89,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
                 onClick={() =>
                   selectorEntry && onSubmitModeChange(selectorEntry.hostname, option.value)
                 }
-                className={`focus-visible:ring-ring/40 rounded-lg border px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`focus-visible:ring-ring/70 rounded-lg border px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                   isActive
                     ? 'border-ring/50 bg-accent/30'
                     : 'border-border/60 text-muted-foreground hover:bg-muted/50 hover:text-foreground'

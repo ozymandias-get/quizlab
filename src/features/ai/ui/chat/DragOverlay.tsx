@@ -29,7 +29,7 @@ const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverl
         <div className="border-primary/20 bg-primary/10 text-primary mb-4 flex h-14 w-14 items-center justify-center rounded-xl border shadow-xs">
           <ImagePlus className="h-7 w-7" />
         </div>
-        <h3 className="text-foreground mb-1 text-base font-semibold">
+        <h3 className="text-foreground text-ql-16 mb-1 font-semibold">
           {t('api_chat_upload_image')}
         </h3>
         <p className="text-ql-12 text-muted-foreground max-w-xs">{t('api_chat_drop_image_hint')}</p>

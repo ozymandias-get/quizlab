@@ -83,7 +83,7 @@ const ChatWelcome = memo(function ChatWelcome({
                 key={i}
                 type="button"
                 onClick={() => onSuggestionClick(s.prompt)}
-                className="group border-border/50 bg-card/65 hover:border-border/80 hover:bg-muted/55 focus-visible:ring-ring/40 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="group border-border/50 bg-card/65 hover:border-border/80 hover:bg-muted/55 focus-visible:ring-ring/70 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
               >
                 <div className="mb-1.5 flex items-center gap-2">
                   <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">

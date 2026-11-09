@@ -87,10 +87,8 @@ const AddAiModelForm = memo(function AddAiModelForm({
     }
   }
 
-  // `button, input, select, textarea { font: inherit }` in _base.css is
-  // unlayered, so it beats Tailwind's `text-*` utilities on those elements.
-  // Font size is therefore declared on the wrapper (which the control
-  // inherits) and on spans inside the control — never on the control itself.
+  // The add form is deliberately compact: each control opts into the 12px
+  // scale explicitly, so it no longer depends on an inherited wrapper size.
   return (
     <AnimatePresence>
       {showAddForm && (
@@ -122,7 +120,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
               <div className="@container">
                 <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
                   <div className="text-ql-12 space-y-1.5">
-                    <Label className="text-ql-12 text-foreground pl-1 font-semibold">
+                    <Label className="text-ql-11 text-muted-foreground font-medium">
                       {t('name')}
                     </Label>
                     <Input
@@ -134,13 +132,14 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setNameError(validateName(newAiName))}
                       placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
                       aria-invalid={!!nameError}
+                      className="text-ql-12"
                     />
                     {nameError && (
                       <span className="text-destructive text-ql-11 block px-1">{nameError}</span>
                     )}
                   </div>
                   <div className="text-ql-12 space-y-1.5">
-                    <Label className="text-ql-12 text-foreground pl-1 font-semibold">
+                    <Label className="text-ql-11 text-muted-foreground font-medium">
                       {t('url')}
                     </Label>
                     <Input
@@ -152,6 +151,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setUrlError(validateUrl(newAiUrl))}
                       placeholder="https://..."
                       aria-invalid={!!urlError}
+                      className="text-ql-12"
                     />
                     {urlError && (
                       <span className="text-destructive text-ql-11 block px-1">{urlError}</span>

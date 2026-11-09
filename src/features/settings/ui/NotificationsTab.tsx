@@ -149,22 +149,14 @@ const NotificationsTab = memo(() => {
                 </SettingsRowHeader>
 
                 <div className="flex shrink-0 items-center gap-2.5">
-                  {/*
-                    `button { font: inherit }` in _base.css is unlayered and beats
-                    Tailwind's `:where()`-wrapped font utilities, so the Button's own
-                    `text-xs`/`font-medium` are dead. Size and weight are set on this
-                    non-button wrapper and inherited by the control instead.
-                  */}
-                  <span className="text-ql-12 inline-flex font-medium">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => sendTestToast(config.type)}
-                    >
-                      {t(config.testKey)}
-                    </Button>
-                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => sendTestToast(config.type)}
+                  >
+                    {t(config.testKey)}
+                  </Button>
 
                   <SettingsToggleSwitch
                     checked={enabled}

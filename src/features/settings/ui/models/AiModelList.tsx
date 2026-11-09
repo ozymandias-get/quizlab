@@ -28,7 +28,12 @@ interface AiModelListProps {
   aiSites: Record<string, AiPlatform>
   toggleModel: (key: string) => void
   handleDeleteAi: (e: MouseEvent, id: string, name: string) => Promise<void>
-  handleClearModelData?: (e: MouseEvent, id: string, name: string) => Promise<void>
+  handleClearModelData?: (
+    e: MouseEvent,
+    id: string,
+    name: string,
+    onConfirmed?: () => void
+  ) => Promise<void>
   isDeleting: boolean
   isClearingModelData?: boolean
   minEnabledModels: number
@@ -98,9 +103,11 @@ const AiModelList = memo(function AiModelList({
 
   const handleClearDataClick = async (e: MouseEvent, id: string, name: string) => {
     if (!handleClearModelData) return
-    setLocalClearingId(id)
+    // The row must stay enabled while the confirmation is open: disabling it
+    // first moves focus to <body>, so the shared dialog cannot restore focus
+    // to the trigger when the user cancels.
     try {
-      await handleClearModelData(e, id, name)
+      await handleClearModelData(e, id, name, () => setLocalClearingId(id))
     } catch (err) {
       Logger.error('[AiModelList] Clear model data failed:', err)
       showError(ensureErrorMessage(err, t('error_invalid_input')))

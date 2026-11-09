@@ -189,14 +189,14 @@ const HistorySessionItem = memo(function HistorySessionItem({
           onClick={() => onSelect(session.id)}
           aria-label={session.title}
           aria-current={isActive || undefined}
-          className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-md pr-20 text-left focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring/70 flex min-w-0 flex-1 items-center gap-3 rounded-md pr-20 text-left focus-visible:ring-2 focus-visible:outline-none"
         >
           {icon}
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
               <span
-                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground font-bold' : 'text-foreground/90'}`}
+                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground' : 'text-foreground/90'}`}
               >
                 {session.title}
               </span>

@@ -117,7 +117,7 @@ function DraftSendControls({
         <button
           type="button"
           onClick={onRetry}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/70 text-ql-11 flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           <RotateCcw className="size-3 shrink-0" aria-hidden />
           {t('ai_send_retry')}
@@ -130,7 +130,7 @@ function DraftSendControls({
         <button
           type="button"
           onClick={onDismiss}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/40 text-ql-11 shrink-0 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/70 text-ql-11 shrink-0 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-1 focus-visible:outline-none"
         >
           {t('ai_send_dismiss')}
         </button>

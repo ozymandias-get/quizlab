@@ -245,15 +245,13 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
             type="button"
             onClick={() => onAction(recommendation.action)}
             className={cn(
-              'shrink-0 rounded-lg border px-3 py-1.5 transition-colors',
+              'text-ql-12 shrink-0 rounded-lg border px-3 py-1.5 font-medium transition-colors',
               isCold
                 ? 'border-sky-600 bg-sky-600 text-white hover:bg-sky-700'
                 : 'border-amber-600 bg-amber-600 text-white hover:bg-amber-700'
             )}
           >
-            {/* `font: inherit` on <button> beats Tailwind text utilities, so the
-                label size lives on an inner span instead of the control. */}
-            <span className="text-ql-12 font-medium">{t('storage_clean_action')}</span>
+            {t('storage_clean_action')}
           </button>
         )}
       </div>

@@ -3,10 +3,12 @@ import type { ApiChatMessage } from '@shared-core/types'
 import MessageContent from '@features/ai/lib/parseMessageContent'
 
 import { Textarea } from '@app/components/ui/textarea'
+import { useDialogBehavior } from '@shared/hooks'
 import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Pencil, RefreshCw } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { Pencil, RefreshCw, X } from 'lucide-react'
+import { memo, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import { Timestamp } from './Avatars'
@@ -44,6 +46,16 @@ const MessageBubble = memo(function MessageBubble({
   const [editVal, setEditVal] = useState(message.content)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
   const editAreaRef = useRef<HTMLTextAreaElement>(null)
+  const previewDialogRef = useRef<HTMLDivElement>(null)
+  const previewCloseRef = useRef<HTMLButtonElement>(null)
+  const previewTitleId = useId()
+
+  useDialogBehavior({
+    isOpen: previewImage !== null,
+    onClose: () => setPreviewImage(null),
+    dialogRef: previewDialogRef,
+    initialFocusRef: previewCloseRef
+  })
 
   useEffect(() => {
     if (isEditing && editAreaRef.current) {
@@ -89,7 +101,7 @@ const MessageBubble = memo(function MessageBubble({
                 key={i}
                 type="button"
                 onClick={() => setPreviewImage(img)}
-                className="border-border focus-visible:ring-ring/40 cursor-zoom-in overflow-hidden rounded-lg border focus-visible:ring-2 focus-visible:outline-none"
+                className="border-border focus-visible:ring-ring/70 cursor-zoom-in overflow-hidden rounded-lg border focus-visible:ring-2 focus-visible:outline-none"
                 aria-label={t('api_chat_open_image')}
               >
                 <img src={img} alt="" className="max-h-[200px] max-w-[200px] object-cover" />
@@ -98,20 +110,47 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        {previewImage && (
-          <button
-            type="button"
-            className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/70 p-6"
-            onClick={() => setPreviewImage(null)}
-            aria-label={t('api_chat_close_image')}
-          >
-            <img
-              src={previewImage}
-              alt=""
-              className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-            />
-          </button>
-        )}
+        {previewImage &&
+          createPortal(
+            <div
+              ref={previewDialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={previewTitleId}
+              className="z-modal fixed inset-0 flex cursor-zoom-out items-center justify-center overflow-hidden bg-black/70 p-6"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) setPreviewImage(null)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setPreviewImage(null)
+                }
+              }}
+            >
+              <h2 id={previewTitleId} className="sr-only">
+                {t('api_chat_open_image')}
+              </h2>
+              <IconButton
+                ref={previewCloseRef}
+                type="button"
+                size="compact"
+                variant="ghost"
+                onClick={() => setPreviewImage(null)}
+                aria-label={t('api_chat_close_image')}
+                className="absolute top-4 right-4 text-white/80 hover:bg-white/10 hover:text-white"
+              >
+                <X />
+              </IconButton>
+              <img
+                src={previewImage}
+                alt=""
+                className="max-h-full max-w-full cursor-default rounded-lg object-contain shadow-2xl"
+              />
+            </div>,
+            document.body
+          )}
 
         {isEditing ? (
           <div className="relative z-10 -mx-1 flex flex-col gap-2 py-1">
@@ -120,7 +159,7 @@ const MessageBubble = memo(function MessageBubble({
               value={editVal}
               onChange={(e) => setEditVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="border-ring bg-background text-foreground min-h-[60px] border"
+              className="text-ql-13 border-ring bg-background text-foreground min-h-[60px] border"
               aria-label={t('api_chat_edit')}
             />
             <div className="flex items-center justify-end gap-2">

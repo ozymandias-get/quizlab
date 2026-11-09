@@ -70,19 +70,17 @@ export const CacheActionsSection = memo(function CacheActionsSection({
           {isClearing ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {/* `font: inherit` on <button> beats Tailwind text utilities, so the
-                  label size lives on an inner span instead of the control. */}
-              <span className="text-ql-12">{t('clearing')}</span>
+              {t('clearing')}
             </>
           ) : isClearSuccess ? (
             <>
               <Check className="h-3.5 w-3.5" />
-              <span className="text-ql-12">{t('cleared')}</span>
+              {t('cleared')}
             </>
           ) : (
             <>
               <Trash2 className="h-3.5 w-3.5" />
-              <span className="text-ql-12">{t('clear_cache')}</span>
+              {t('clear_cache')}
             </>
           )}
         </Button>

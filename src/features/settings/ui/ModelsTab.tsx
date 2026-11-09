@@ -112,7 +112,7 @@ const ModelsTab = memo(() => {
   )
 
   const handleClearModelData = useCallback(
-    async (e: MouseEvent, id: string, name: string) => {
+    async (e: MouseEvent, id: string, name: string, onConfirmed?: () => void) => {
       e.stopPropagation()
       if (
         !(await confirm({
@@ -122,6 +122,7 @@ const ModelsTab = memo(() => {
       )
         return
 
+      onConfirmed?.()
       try {
         const platform = aiSites[id]
         await clearAiModelData({

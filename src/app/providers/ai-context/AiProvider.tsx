@@ -232,7 +232,7 @@ function AiProvider({ children }: { children: ReactNode }) {
                                       </p>
                                       <button
                                         type="button"
-                                        className="border-border bg-card text-foreground hover:bg-muted focus-visible:ring-ring/40 rounded-lg border px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+                                        className="border-border bg-card text-foreground hover:bg-muted focus-visible:ring-ring/70 text-ql-14 rounded-lg border px-4 py-2 font-medium focus-visible:ring-2 focus-visible:outline-none"
                                         onClick={() => void refetch()}
                                       >
                                         {t('try_again')}

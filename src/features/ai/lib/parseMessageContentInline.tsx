@@ -17,7 +17,7 @@ export function formatInline(text: string): ReactNode[] {
       parts.push(
         <code
           key={`c-${match.index}`}
-          className="text-ql-12 border-border bg-muted/60 text-primary rounded border px-1 py-0.5 font-mono"
+          className="text-ql-12 border-border bg-muted/60 text-primary rounded-xs border px-1 py-0.5 font-mono"
         >
           {match[1].slice(1, -1)}
         </code>

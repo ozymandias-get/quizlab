@@ -2,6 +2,7 @@ import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '@app/compo
 import type { ConfirmDialogProps } from '@shared/hooks/useConfirmDialog'
 import { Button } from '@shared/ui/components/primitives'
 
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export function ConfirmDialog({
@@ -15,6 +16,8 @@ export function ConfirmDialog({
   variant = 'default'
 }: ConfirmDialogProps) {
   const { t } = useTranslation()
+  const titleId = useId()
+  const descriptionId = useId()
   const resolvedConfirmLabel = confirmLabel ?? t('confirm')
   const resolvedCancelLabel = cancelLabel ?? t('cancel')
   return (
@@ -23,10 +26,12 @@ export function ConfirmDialog({
       onClose={onCancel}
       size="sm"
       role="alertdialog"
+      ariaLabelledBy={titleId}
+      ariaDescribedBy={description ? descriptionId : undefined}
       panelClassName="px-6 py-5"
     >
-      <DialogTitle>{title}</DialogTitle>
-      {description && <DialogDescription>{description}</DialogDescription>}
+      <DialogTitle id={titleId}>{title}</DialogTitle>
+      {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onCancel}>
           {resolvedCancelLabel}

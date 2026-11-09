@@ -54,6 +54,7 @@ export interface DialogProps {
   size?: DialogPanelSize
   role?: 'dialog' | 'alertdialog'
   ariaLabelledBy?: string
+  ariaDescribedBy?: string
   initialFocusRef?: React.RefObject<HTMLElement | null>
   children: React.ReactNode
   backdropClassName?: string
@@ -66,6 +67,7 @@ export function Dialog({
   size = 'sm',
   role = 'dialog',
   ariaLabelledBy,
+  ariaDescribedBy,
   initialFocusRef,
   children,
   backdropClassName,
@@ -83,6 +85,7 @@ export function Dialog({
             role={role}
             aria-modal="true"
             aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}

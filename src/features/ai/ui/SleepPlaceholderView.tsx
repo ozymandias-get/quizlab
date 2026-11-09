@@ -18,7 +18,7 @@ function SleepPlaceholderViewImpl({ onWakeUp, t }: SleepPlaceholderViewProps) {
           onWakeUp()
         }
       }}
-      className="group bg-background/60 focus-visible:ring-ring/40 flex flex-1 cursor-pointer flex-col items-center justify-center backdrop-blur-sm select-none focus-visible:ring-2 focus-visible:outline-none"
+      className="group bg-background/60 focus-visible:ring-ring/70 flex flex-1 cursor-pointer flex-col items-center justify-center backdrop-blur-sm select-none focus-visible:ring-2 focus-visible:outline-none"
     >
       <div className="border-border bg-card group-hover:border-primary/40 group-hover:bg-muted mb-4 rounded-xl border p-4 shadow-xs transition-colors">
         <Moon className="text-primary/80 h-8 w-8" />

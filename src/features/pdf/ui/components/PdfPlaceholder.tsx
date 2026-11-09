@@ -88,7 +88,7 @@ function PdfPlaceholder({
             variant="default"
             size="lg"
             onClick={onSelectPdf}
-            className="pdf-placeholder-cta focus-visible:ring-ring/40 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
+            className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
             aria-label={t('select_pdf')}
           >
             <FileText className="h-3.5 w-3.5" />

@@ -85,7 +85,7 @@ function DraftDockBar({
         aria-controls="ai-draft-dock-body"
         aria-label={isOpen ? t('ai_draft_close') : t('ai_draft_open')}
         data-testid="ai-draft-badge"
-        className="group hover:bg-muted/55 focus-visible:ring-ring/40 flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pr-2.5 pl-1 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none"
+        className="group hover:bg-muted/55 focus-visible:ring-ring/70 flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pr-2.5 pl-1 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none"
       >
         <span
           style={
@@ -110,7 +110,7 @@ function DraftDockBar({
           )}
         </span>
 
-        <span className="text-ql-12 text-foreground shrink-0 font-semibold tracking-tight">
+        <span className="text-ql-12 text-foreground tracking-ql-tight shrink-0 font-semibold">
           {t('ai_draft_badge')}
         </span>
 

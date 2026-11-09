@@ -33,7 +33,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
           <>
             <PopoverButton
               className={cn(
-                'focus-visible:ring-ring/40 flex w-full items-center gap-3 rounded-lg border p-1.5 transition-colors outline-none focus-visible:ring-2',
+                'focus-visible:ring-ring/70 flex w-full items-center gap-3 rounded-lg border p-1.5 transition-colors outline-none focus-visible:ring-2',
                 open ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
               )}
             >

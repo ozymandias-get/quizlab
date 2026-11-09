@@ -41,7 +41,7 @@ const LanguageTab = memo(() => {
               transition={{ delay: index * 0.04 }}
               className={({ checked }) =>
                 cn(
-                  'focus-visible:ring-ring/40 group motion-normal relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                  'focus-visible:ring-ring/70 group motion-normal relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                   checked
                     ? 'border-ring/50 bg-accent/30'
                     : 'border-border/60 bg-card hover:bg-muted/50'

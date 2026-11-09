@@ -40,7 +40,7 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
         type="button"
         onClick={() => onToggleExpanded(cardId)}
         aria-expanded={isExpanded}
-        className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        className="focus-visible:ring-ring/70 flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <div className="relative shrink-0">
           <div

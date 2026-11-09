@@ -24,7 +24,7 @@ const SurfaceCard = forwardRef<HTMLDivElement, SurfaceCardProps>(
     }
 
     const interactiveClasses = interactive
-      ? 'cursor-pointer transition-colors motion-normal hover:bg-muted/70 hover:border-border active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
+      ? 'cursor-pointer transition-colors motion-normal hover:bg-muted/70 hover:border-border active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70'
       : ''
 
     return (

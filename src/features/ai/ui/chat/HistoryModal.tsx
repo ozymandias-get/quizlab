@@ -8,6 +8,7 @@ import {
   PanelHeaderTitle
 } from '@app/components/ui/panel-header'
 import { useConfirmDialog, useDebouncedValue, useDialogBehavior } from '@shared/hooks'
+import { DURATION } from '@shared/lib/motion'
 import { useToastActions } from '@shared/stores/toastStore'
 import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives'
 
@@ -452,7 +453,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
-          transition={{ duration: 0.14 }}
+          transition={{ duration: DURATION.normal }}
           className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border"
           onClick={(e) => e.stopPropagation()}
         >

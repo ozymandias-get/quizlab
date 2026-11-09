@@ -98,6 +98,7 @@ function ApiProviderCard({
             onBlur={() => setNameError(validateName(provider.name))}
             placeholder={t('api_chat_placeholder_provider')}
             aria-invalid={!!nameError}
+            className="text-ql-12"
           />
           {nameError && (
             <span role="alert" className="text-destructive text-ql-11 px-1">
@@ -120,6 +121,7 @@ function ApiProviderCard({
               onBlur={() => setBaseUrlError(validateBaseUrl(provider.baseUrl))}
               placeholder="https://api.openai.com/v1"
               aria-invalid={!!baseUrlError}
+              className="text-ql-12"
             />
           </div>
           {baseUrlError && (
@@ -170,7 +172,7 @@ function ApiProviderCard({
               id={defaultModelId}
               value={provider.defaultModel}
               onChange={(e) => onUpdate(provider.id, { defaultModel: e.target.value })}
-              className="pl-8"
+              className="text-ql-12 pl-8"
               placeholder={placeholders.model}
             />
           </InputGroup>

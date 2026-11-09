@@ -206,15 +206,13 @@ export default memo(function ApiSettingsTab() {
             size="sm"
             className="gap-1.5"
           >
-            {/* `font: inherit` in _base.css is unlayered and beats Tailwind's
-                `text-*` on <button>, so the label size lives on the span. */}
             {saving ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span className="text-ql-12">{t('saving')}</span>
+                {t('saving')}
               </>
             ) : (
-              <span className="text-ql-12">{t('api_chat_save')}</span>
+              t('api_chat_save')
             )}
           </Button>
         }

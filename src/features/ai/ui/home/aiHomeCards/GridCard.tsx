@@ -59,7 +59,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
         <button
           type="button"
           onClick={() => onClick(itemId)}
-          className={`group motion-normal relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+          className={`group motion-normal focus-visible:ring-ring/70 relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
             isActive
               ? 'border-ring/50 bg-accent/35'
               : 'border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45'

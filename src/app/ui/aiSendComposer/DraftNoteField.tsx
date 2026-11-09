@@ -35,6 +35,7 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
         rows={1}
         value={value}
         disabled={disabled}
+        size="sm"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           // IME bileşimi sürerken Enter gönderimi tetiklememeli. `isComposing`
@@ -47,7 +48,7 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
           }
         }}
         placeholder={t('ai_draft_note_placeholder')}
-        className="text-ql-12 field-sizing-content max-h-[4.75rem] min-h-[1.75rem] w-full resize-none rounded-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
+        className="field-sizing-content max-h-[4.75rem] min-h-[1.75rem] w-full resize-none rounded-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
       />
     </>
   )

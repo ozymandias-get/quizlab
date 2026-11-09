@@ -17,13 +17,7 @@ function SettingsAddToggleButton({
   onToggle
 }: SettingsAddToggleButtonProps) {
   return (
-    <Button
-      type="button"
-      onClick={onToggle}
-      variant={expanded ? 'destructive' : 'outline'}
-      size="sm"
-      className="gap-1.5"
-    >
+    <Button type="button" onClick={onToggle} variant="outline" size="sm" className="gap-1.5">
       {expanded ? (
         <>
           <X className="h-3.5 w-3.5" />

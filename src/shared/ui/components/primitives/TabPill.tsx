@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import * as React from 'react'
 
 const TAB_PILL_BASE =
-  'focus-visible:ring-ring/40 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-lg border px-3 transition-colors outline-none select-none focus-visible:ring-2'
+  'focus-visible:ring-ring/70 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-lg border px-3 transition-colors outline-none select-none focus-visible:ring-2'
 
 const TAB_PILL_ACTIVE = 'border-border/70 bg-card text-foreground shadow-2xs'
 const TAB_PILL_INACTIVE =

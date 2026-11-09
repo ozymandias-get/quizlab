@@ -167,7 +167,7 @@ function OverflowMenu({
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="text-popover-foreground focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                        className="text-popover-foreground focus-visible:ring-ring/70 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
                         onClick={() => {
                           onSetActiveTab(tab.id)
                           setIsOpen(false)

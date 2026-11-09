@@ -29,7 +29,7 @@ const AiHomeSection = memo(function AiHomeSection({
       <button
         type="button"
         aria-expanded={isOpen}
-        className="hover:bg-muted/35 focus-visible:ring-ring flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
+        className="hover:bg-muted/35 focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
         <div className="bg-muted/80 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">

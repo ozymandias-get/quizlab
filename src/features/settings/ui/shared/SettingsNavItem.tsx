@@ -27,7 +27,7 @@ const SettingsNavItem = memo(function SettingsNavItem({
         type="button"
         aria-current={isActive ? 'page' : undefined}
         onClick={onClick}
-        className={`group focus-visible:ring-ring/40 motion-normal relative flex min-h-9 w-full items-center rounded-lg py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
+        className={`group focus-visible:ring-ring/70 motion-normal relative flex min-h-9 w-full items-center rounded-lg py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
           compact ? 'justify-center px-0' : 'gap-2.5 px-3'
         } ${
           isActive

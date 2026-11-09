@@ -95,7 +95,7 @@ const TextInputModeTab = memo(() => {
                   aria-checked={isActive}
                   onClick={() => handleSelect(option.value)}
                   className={cn(
-                    'focus-visible:ring-ring/40 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                    'focus-visible:ring-ring/70 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                     isActive
                       ? 'border-ring/50 bg-accent/30'
                       : 'border-border/60 bg-card hover:bg-muted/50'

@@ -75,7 +75,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           onClick={onClick}
           onKeyDown={handleKeyDown}
           style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
-          className="group hover:bg-muted focus-visible:ring-ring/40 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="group hover:bg-muted focus-visible:ring-ring/70 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
           <div
             className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"

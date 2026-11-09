@@ -157,7 +157,7 @@ const PromptsTab = memo(() => {
                   onChange={(e) => setNewPromptText(e.target.value)}
                   placeholder={t('prompt_placeholder')}
                   rows={2}
-                  className="min-h-[56px] resize-none"
+                  className="text-ql-13 min-h-[56px] resize-none"
                 />
               </div>
               <Button
