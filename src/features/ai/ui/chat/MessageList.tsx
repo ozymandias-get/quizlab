@@ -6,11 +6,7 @@ import { AiAvatar, UserAvatar } from './Avatars'
 import { groupMessagesIncremental, type MessageGroupsCache } from './chatUtils'
 import DateSeparator from './DateSeparator'
 import MessageBubble from './MessageBubble'
-import {
-  buildMessageRowMetas,
-  type MessageRowMeta,
-  useMessageListWindow
-} from './messageListWindow'
+import { buildMessageRows, type MessageRowModel, useMessageListWindow } from './messageListWindow'
 import ScrollToBottom from './ScrollToBottom'
 import StreamingIndicator from './StreamingIndicator'
 
@@ -51,72 +47,67 @@ const MessageList = memo(function MessageList({
     return result
   }, [messages])
 
-  const rowMetas = useMemo(() => buildMessageRowMetas(messageGroups), [messageGroups])
+  const rows = useMemo(() => buildMessageRows(messageGroups), [messageGroups])
   const { start, end, topPad, bottomPad } = useMessageListWindow({
-    rows: rowMetas,
+    rows,
     containerRef,
     pinnedToBottom: !isScrolledUp
   })
 
-  const renderGroup = (group: (typeof messageGroups)[number], meta: MessageRowMeta) => {
-    if (group.kind === 'date') {
+  const renderRow = (row: MessageRowModel) => {
+    if (row.kind === 'date') {
       return (
-        <div key={meta.key} data-message-row={meta.key} className="flow-root">
-          <DateSeparator ts={group.timestamp} />
+        <div key={row.key} data-message-row={row.key} className="flow-root">
+          <DateSeparator ts={row.timestamp} />
         </div>
       )
     }
 
-    const isUser = group.messages[0].role === 'user'
-    return (
-      <div key={meta.key} data-message-row={meta.key} className="flow-root">
-        <div className="mb-3">
-          {group.messages.map((msg, mi) => {
-            const isLastAssistant = !isUser && msg.id === lastAssistantId
+    const { message, isFirstOfGroup, isLastOfGroup } = row
+    const isUser = message.role === 'user'
+    const isLastAssistant = !isUser && message.id === lastAssistantId
+    const groupSpacing = `${isFirstOfGroup ? '' : 'mt-1.5'} ${isLastOfGroup ? 'mb-3' : ''}`
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex ${mi > 0 ? 'mt-1.5' : ''} ${isUser ? 'justify-end' : ''}`}
-              >
-                {!isUser && (
-                  <div className={`flex items-start gap-2.5 ${mi > 0 ? 'ml-10' : ''}`}>
-                    {mi === 0 && (
-                      <div className="shrink-0 pt-1">
-                        <AiAvatar />
-                      </div>
-                    )}
-                    <div className="max-w-[85%] min-w-0 sm:max-w-[75%]">
-                      <MessageBubble
-                        message={msg}
-                        isUser={false}
-                        onDelete={onDeleteMessage}
-                        isLastAssistant={isLastAssistant}
-                        onRegenerate={onRegenerateMessage}
-                      />
-                    </div>
-                  </div>
-                )}
-                {isUser && (
-                  <div className={`flex items-start justify-end gap-2.5 ${mi > 0 ? 'mr-10' : ''}`}>
-                    <div className="max-w-[85%] min-w-0 sm:max-w-[75%]">
-                      <MessageBubble
-                        message={msg}
-                        isUser
-                        onDelete={onDeleteMessage}
-                        onEdit={onEditMessage}
-                      />
-                    </div>
-                    {mi === 0 && (
-                      <div className="shrink-0 pt-1">
-                        <UserAvatar />
-                      </div>
-                    )}
-                  </div>
-                )}
+    return (
+      <div key={row.key} data-message-row={row.key} className="flow-root">
+        <div className={`flex ${groupSpacing} ${isUser ? 'justify-end' : ''}`}>
+          {!isUser && (
+            <div className={`flex items-start gap-2.5 ${isFirstOfGroup ? '' : 'ml-10'}`}>
+              {isFirstOfGroup && (
+                <div className="shrink-0 pt-1">
+                  <AiAvatar />
+                </div>
+              )}
+              <div className="max-w-[85%] min-w-0 sm:max-w-[75%]">
+                <MessageBubble
+                  message={message}
+                  isUser={false}
+                  onDelete={onDeleteMessage}
+                  isLastAssistant={isLastAssistant}
+                  onRegenerate={onRegenerateMessage}
+                />
               </div>
-            )
-          })}
+            </div>
+          )}
+          {isUser && (
+            <div
+              className={`flex items-start justify-end gap-2.5 ${isFirstOfGroup ? '' : 'mr-10'}`}
+            >
+              <div className="max-w-[85%] min-w-0 sm:max-w-[75%]">
+                <MessageBubble
+                  message={message}
+                  isUser
+                  onDelete={onDeleteMessage}
+                  onEdit={onEditMessage}
+                />
+              </div>
+              {isFirstOfGroup && (
+                <div className="shrink-0 pt-1">
+                  <UserAvatar />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -129,10 +120,7 @@ const MessageList = memo(function MessageList({
     >
       <div className="relative min-h-full px-4 py-4 sm:px-6 lg:px-8">
         {topPad > 0 && <div aria-hidden="true" style={{ height: topPad }} />}
-        {messageGroups.slice(start, end).map((group, sliceIndex) => {
-          const index = start + sliceIndex
-          return renderGroup(group, rowMetas[index])
-        })}
+        {rows.slice(start, end).map(renderRow)}
         {bottomPad > 0 && <div aria-hidden="true" style={{ height: bottomPad }} />}
         {isStreaming && (
           <div className="flex justify-start gap-2.5">

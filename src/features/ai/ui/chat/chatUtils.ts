@@ -130,6 +130,11 @@ export interface MessageGroupsCache {
  * Reusing them avoids re-running `toDateString()` and the role walk over the
  * whole history on every chunk; anything else (append, delete, edit that changes
  * role or time) falls back to the full pass.
+ *
+ * The prefix scan below is deliberate. An edit or delete can change any earlier
+ * element, so trusting "only the tail moves" would surface stale groups and
+ * stale message objects. The scan is pointer comparison only — no allocation,
+ * no date formatting — which is the expensive part of the full walk.
  */
 export function groupMessagesIncremental(
   previous: MessageGroupsCache | null,

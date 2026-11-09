@@ -26,7 +26,6 @@ import type { MessageGroupEntry } from './chatUtils'
 export const MESSAGE_WINDOW_THRESHOLD = 40
 
 const DATE_ROW_ESTIMATE_PX = 48
-const GROUP_BASE_ESTIMATE_PX = 56
 const GROUP_MESSAGE_ESTIMATE_PX = 56
 const MESSAGE_LINE_ESTIMATE_PX = 20
 const MESSAGE_CHARS_PER_LINE = 88
@@ -34,10 +33,27 @@ const MAX_MESSAGE_ESTIMATE_PX = 480
 const OVERSCAN_PX = 700
 const FALLBACK_VIEWPORT_PX = 600
 
-export interface MessageRowMeta {
+export interface MessageRowHeight {
   key: string
   estimatedHeight: number
 }
+
+/**
+ * One rendered row: a date separator or a single message.
+ *
+ * Rows are per message, not per group. Grouping still decides the avatar and
+ * spacing boundaries, but a run of consecutive same-role messages must not
+ * become one unvirtualizable row — a 300-message run would otherwise put all
+ * 300 in the DOM the moment the group entered the window.
+ */
+export type MessageRowModel =
+  | ({ kind: 'date'; timestamp: number } & MessageRowHeight)
+  | ({
+      kind: 'message'
+      message: ApiChatMessage
+      isFirstOfGroup: boolean
+      isLastOfGroup: boolean
+    } & MessageRowHeight)
 
 function estimateMessageHeight(message: ApiChatMessage): number {
   const lines = Math.max(1, Math.ceil(message.content.length / MESSAGE_CHARS_PER_LINE))
@@ -47,29 +63,37 @@ function estimateMessageHeight(message: ApiChatMessage): number {
   )
 }
 
-export function buildMessageRowMetas(
-  groups: readonly MessageGroupEntry[],
-  rowOffset = 0
-): MessageRowMeta[] {
-  return groups.map((group, index) => {
+export function buildMessageRows(groups: readonly MessageGroupEntry[]): MessageRowModel[] {
+  const rows: MessageRowModel[] = []
+  for (const group of groups) {
     if (group.kind === 'date') {
-      return {
-        key: `d-${group.timestamp}-${rowOffset + index}`,
+      rows.push({
+        kind: 'date',
+        key: `d-${group.timestamp}-${rows.length}`,
+        timestamp: group.timestamp,
         estimatedHeight: DATE_ROW_ESTIMATE_PX
-      }
+      })
+      continue
     }
-    const height = group.messages.reduce(
-      (total, message) => total + estimateMessageHeight(message),
-      GROUP_BASE_ESTIMATE_PX
-    )
-    // The first message id identifies the group across appends.
-    return { key: `g-${group.messages[0].id}`, estimatedHeight: height }
-  })
+    const lastIndex = group.messages.length - 1
+    for (let index = 0; index <= lastIndex; index += 1) {
+      const message = group.messages[index]
+      rows.push({
+        kind: 'message',
+        key: `m-${message.id}`,
+        message,
+        isFirstOfGroup: index === 0,
+        isLastOfGroup: index === lastIndex,
+        estimatedHeight: estimateMessageHeight(message)
+      })
+    }
+  }
+  return rows
 }
 
 /** Prefix sums of row heights: `offsets[i]` is the top of row `i`. */
 export function buildRowOffsets(
-  rows: readonly MessageRowMeta[],
+  rows: readonly MessageRowHeight[],
   heights: ReadonlyMap<string, number>
 ): number[] {
   const offsets = new Array<number>(rows.length + 1)
@@ -117,7 +141,7 @@ export function findMessageWindow(
 }
 
 interface UseMessageListWindowOptions {
-  rows: readonly MessageRowMeta[]
+  rows: readonly MessageRowHeight[]
   containerRef: RefObject<HTMLElement | null>
   pinnedToBottom: boolean
 }

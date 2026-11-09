@@ -6,7 +6,7 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageList from '@features/ai/ui/chat/MessageList'
 import {
-  buildMessageRowMetas,
+  buildMessageRows,
   buildRowOffsets,
   findMessageWindow
 } from '@features/ai/ui/chat/messageListWindow'
@@ -42,12 +42,20 @@ function messages(count: number): ApiChatMessage[] {
   return Array.from({ length: count }, (_, index) => message(index))
 }
 
-function renderList(options: { count: number; isScrolledUp: boolean }) {
+/** One run of same-role messages: the grouping puts them in a single group. */
+function sameRoleMessages(count: number): ApiChatMessage[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...message(index),
+    role: 'assistant'
+  }))
+}
+
+function renderList(options: { count: number; isScrolledUp: boolean; sameRole?: boolean }) {
   const containerRef = { current: null as HTMLDivElement | null }
   const endRef = { current: null as HTMLDivElement | null }
   const view = render(
     <MessageList
-      messages={messages(options.count)}
+      messages={options.sameRole ? sameRoleMessages(options.count) : messages(options.count)}
       isStreaming={false}
       isScrolledUp={options.isScrolledUp}
       onScrollToBottom={vi.fn()}
@@ -61,7 +69,7 @@ function renderList(options: { count: number; isScrolledUp: boolean }) {
 
 describe('message list window math', () => {
   it('uses measured heights and falls back to the estimate', () => {
-    const rows = buildMessageRowMetas([
+    const rows = buildMessageRows([
       { kind: 'date', timestamp: T0 },
       { kind: 'messages', messages: [message(1)] },
       { kind: 'messages', messages: [message(2)] }
@@ -75,7 +83,7 @@ describe('message list window math', () => {
   })
 
   it('renders a bounded window around the scroll position', () => {
-    const rows = buildMessageRowMetas(
+    const rows = buildMessageRows(
       Array.from({ length: 200 }, (_, index) => ({
         kind: 'messages' as const,
         messages: [message(index)]
@@ -91,7 +99,7 @@ describe('message list window math', () => {
   })
 
   it('windows from the tail while the reader is pinned to the bottom', () => {
-    const rows = buildMessageRowMetas(
+    const rows = buildMessageRows(
       Array.from({ length: 200 }, (_, index) => ({
         kind: 'messages' as const,
         messages: [message(index)]
@@ -103,6 +111,17 @@ describe('message list window math', () => {
 
     expect(end).toBe(rows.length)
     expect(start).toBeGreaterThan(0)
+  })
+
+  it('splits one long same-role group into per-message rows', () => {
+    const rows = buildMessageRows([{ kind: 'messages', messages: sameRoleMessages(300) }])
+    expect(rows).toHaveLength(300)
+
+    const offsets = buildRowOffsets(rows, new Map())
+    const { start, end } = findMessageWindow(offsets, rows.length, 0, 600, false)
+
+    expect(start).toBe(0)
+    expect(end - start).toBeLessThan(40)
   })
 })
 
@@ -122,6 +141,16 @@ describe('MessageList windowing', () => {
     const { container } = renderList({ count: 200, isScrolledUp: false })
 
     const rows = container.querySelectorAll('[data-message-row]')
+    expect(rows.length).toBeLessThan(40)
+    expect(screen.getByText('msg-199')).toBeInTheDocument()
+    expect(screen.queryByText('msg-0')).not.toBeInTheDocument()
+  })
+
+  it('windows a long run of same-role messages, not just alternating ones', () => {
+    const { container } = renderList({ count: 200, isScrolledUp: false, sameRole: true })
+
+    const rows = container.querySelectorAll('[data-message-row]')
+    expect(rows.length).toBeGreaterThan(0)
     expect(rows.length).toBeLessThan(40)
     expect(screen.getByText('msg-199')).toBeInTheDocument()
     expect(screen.queryByText('msg-0')).not.toBeInTheDocument()
