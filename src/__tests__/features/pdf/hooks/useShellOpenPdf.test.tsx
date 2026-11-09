@@ -120,12 +120,20 @@ describe('useShellOpenPdf', () => {
 
     expect(mockRegisterPdfPath).toHaveBeenCalledTimes(1)
 
+    // The reader moves to another tab while the first registration is still
+    // running; the second Explorer request must bring the PDF back.
+    await act(async () => {
+      usePdfTabStore.getState().openPdfInTab({ path: 'C:\\Docs\\other.pdf', name: 'other.pdf' })
+    })
+
     await act(async () => {
       resolveRegister({ path: 'C:\\Docs\\dup.pdf', name: 'dup.pdf', streamUrl: 'local-pdf://y' })
     })
 
     await waitFor(() => {
-      expect(usePdfTabStore.getState().pdfTabs).toHaveLength(1)
+      const state = usePdfTabStore.getState()
+      const active = state.pdfTabs.find((tab) => tab.id === state.activePdfTabId)
+      expect(active?.file?.path).toBe('C:\\Docs\\dup.pdf')
     })
   })
 })

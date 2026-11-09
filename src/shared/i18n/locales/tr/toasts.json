@@ -19,6 +19,7 @@
   "toast_submit_unverified": "Gönderim tetiklendi ancak teslimat doğrulanamadı; mükerrer mesaj oluşmaması için otomatik tekrar denenmedi.",
   "toast_clipboard_failed": "Metin panoya kopyalanamadı",
   "toast_capture_failed": "Ekran görüntüsü alınamadı",
+  "toast_capture_cancelled": "Sayfa değiştiği için yakalama iptal edildi; yeniden deneyin.",
   "toast_screenshot_captured": "Ekran görüntüsü alındı",
   "toast_logs_copied": "Tanılama logları panoya kopyalandı",
   "toast_ai_config_saved": "AI yapılandırması başarıyla kaydedildi",

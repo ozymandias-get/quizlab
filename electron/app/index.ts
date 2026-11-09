@@ -21,6 +21,7 @@ import { extractShellPdfPaths } from '../features/shell-open/parseShellPdfPaths.
 import { APP_CONFIG } from './constants.js'
 import { registerGeneralHandlers } from './ipcHandlers.js'
 import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers.js'
+import { waitForQuitFlush } from './quitFlushGate.js'
 import { getProfileName, resolveUserDataProfile } from './userDataProfile.js'
 import { createWindow, getMainWindow } from './windowManager.js'
 
@@ -235,7 +236,11 @@ app.on('window-all-closed', () => {
 app.on('before-quit', (event) => {
   if (quitAfterCleanup) return
   event.preventDefault()
-  void runCleanup().finally(() => {
+  void (async () => {
+    // Give the renderer a bounded chance to finish pending storage writes.
+    await waitForQuitFlush(getMainWindow())
+    await runCleanup()
+  })().finally(() => {
     quitAfterCleanup = true
     app.quit()
   })

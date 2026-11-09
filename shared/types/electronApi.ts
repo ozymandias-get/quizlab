@@ -146,6 +146,9 @@ export interface ElectronApi {
   onPdfViewerZoom: (callback: (action: PdfViewerZoomAction) => void) => () => void
   platform: string
   quitApp: () => Promise<boolean>
+  /** Main asks the renderer to finish pending storage writes before quitting. */
+  onAppFlushPending: (callback: () => void) => () => void
+  notifyAppFlushComplete: () => Promise<boolean>
   checkForUpdates: () => Promise<UpdateCheckResult>
   getAppVersion: () => Promise<string>
   clearCache: () => Promise<boolean>

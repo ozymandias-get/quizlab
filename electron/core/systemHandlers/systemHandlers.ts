@@ -10,6 +10,7 @@ import { app, ipcMain, shell } from 'electron'
 
 import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
+import { markQuitFlushComplete } from '../../app/quitFlushGate.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { runCleanup } from '../appCleanup.js'
 import { requireTrustedIpcSender } from '../ipcSecurity.js'
@@ -36,6 +37,16 @@ export function registerSystemHandlers() {
         app.quit()
       })
 
+      return success(true)
+    },
+    requireTrustedIpcSender,
+    success(false)
+  )
+
+  registerIpcHandler(
+    IPC_CHANNELS.APP_FLUSH_COMPLETE,
+    async () => {
+      markQuitFlushComplete()
       return success(true)
     },
     requireTrustedIpcSender,

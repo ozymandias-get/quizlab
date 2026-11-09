@@ -64,9 +64,12 @@ export function usePdfOpenActions({
     } catch (error) {
       if (currentRequestId === lastLoadRequestId.current) {
         Logger.error('[usePdfOpenActions] PDF Selection Error:', error)
+        // A cancelled picker returns null, not a rejection; reaching here means
+        // the file could not be read or the IPC call failed.
+        showError('error_pdf_load')
       }
     }
-  }, [selectPdf, t, handleOpenPdfWithInfo])
+  }, [selectPdf, t, handleOpenPdfWithInfo, showError])
 
   const handlePdfDrop = useCallback(
     async (file: File) => {
@@ -76,7 +79,13 @@ export function usePdfOpenActions({
       }
 
       const filePath = getDroppedFilePath(file)
-      if (!filePath) return
+      if (!filePath) {
+        // The drop passed the extension check but Electron could not resolve
+        // a path. Silently doing nothing looks like a broken drop handler.
+        Logger.warn('[usePdfOpenActions] A dropped PDF has no resolvable path')
+        showError('error_pdf_load')
+        return
+      }
 
       const currentRequestId = ++lastLoadRequestId.current
       try {
@@ -129,11 +138,18 @@ export function usePdfOpenActions({
         }
       } catch (error) {
         Logger.error('[usePdfOpenActions] Resume Error:', error)
-        if (path) {
+        const code = (error as { code?: string }).code
+        if (code === 'not_found') {
           showError('error_pdf_moved', undefined, { fileName: target.name })
           return 'not_found'
         }
-        showError('error_pdf_load')
+        if (code === 'invalid_input') {
+          showError('error_invalid_pdf', undefined, { fileName: target.name })
+          return 'error'
+        }
+        // Unauthorized, unreadable and transport failures are not proof that
+        // the file moved: tell the user the load failed instead.
+        showError('error_pdf_load', undefined, { fileName: target.name })
         return 'error'
       }
     },

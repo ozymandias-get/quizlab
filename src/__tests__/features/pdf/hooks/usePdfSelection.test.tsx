@@ -108,6 +108,43 @@ describe('usePdfSelection', () => {
     })
 
     expect(result.current.pdfFile).toBeNull()
+    // A rejected select is a load failure, not a silent no-op.
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('error_pdf_load'))
+    errorSpy.mockRestore()
+  })
+
+  it('tells the user when a dropped PDF has no resolvable path', async () => {
+    const mockFile = { name: 'dropped.pdf', type: 'application/pdf' }
+    const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await result.current.handlePdfDrop(mockFile as unknown as File)
+    })
+
+    expect(mockRegisterPdfPathMutate).not.toHaveBeenCalled()
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith('error_pdf_load'))
+  })
+
+  it('reports a moved file only for a not_found resume error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const storedData = JSON.stringify([
+      { name: 'moved.pdf', path: '/moved/path.pdf', page: 1, totalPages: 0 }
+    ])
+    localStorageMock.setItem(STORAGE_KEYS.LAST_PDF_READING, storedData)
+    resetReadingProgressStore()
+    const error = Object.assign(new Error('gone'), { code: 'not_found' })
+    mockRegisterPdfPathMutate.mockRejectedValue(error)
+
+    const { result } = renderHook(() => usePdfSelection(), { wrapper: createWrapper() })
+    await act(async () => {
+      await result.current.resumeLastPdf()
+    })
+
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith('error_pdf_moved', undefined, {
+        fileName: 'moved.pdf'
+      })
+    )
     errorSpy.mockRestore()
   })
 
@@ -207,7 +244,9 @@ describe('usePdfSelection', () => {
     })
 
     await waitFor(() => {
-      expect(mockShowError).toHaveBeenCalledWith('error_pdf_load')
+      expect(mockShowError).toHaveBeenCalledWith('error_pdf_load', undefined, {
+        fileName: 'fail.pdf'
+      })
     })
 
     expect(localStorageMock.removeItem).not.toHaveBeenCalledWith(STORAGE_KEYS.LAST_PDF_READING)

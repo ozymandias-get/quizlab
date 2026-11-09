@@ -118,6 +118,7 @@ describe('systemHandlers', () => {
     // migration-era channel name could not fail if a different webview-id
     // addressed paste channel were added; asserting the whole list can.
     expect(ipcHandle.mock.calls.map(([channel]) => channel).sort()).toEqual([
+      APP_CONFIG.IPC_CHANNELS.APP_FLUSH_COMPLETE,
       APP_CONFIG.IPC_CHANNELS.APP_QUIT,
       APP_CONFIG.IPC_CHANNELS.CACHE_INFO,
       APP_CONFIG.IPC_CHANNELS.CLEAR_AI_MODEL_DATA,

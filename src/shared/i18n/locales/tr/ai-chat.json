@@ -87,6 +87,7 @@
   "api_chat_storage_write_error": "Sohbet geçmişi kaydedilemedi: {error}",
   "api_chat_placeholder_provider": "örn. Benim Sağlayıcı",
   "api_chat_remove_attachment": "Eki Kaldır",
+  "api_chat_vision_required_for_attachments": "Seçilen model ({{model}}) görsel desteklemiyor. Ekleri göndermeden önce görsel destekleyen bir model seçin.",
   "api_chat_show_api_key": "API anahtarını göster",
   "api_chat_hide_api_key": "API anahtarını gizle",
   "api_chat_sugg_1_title": "Çalışmanı planla",

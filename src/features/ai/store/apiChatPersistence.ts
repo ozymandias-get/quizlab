@@ -6,6 +6,7 @@ import {
   type LocalStorageChangeDetail,
   writeStorageItem
 } from '@shared/hooks/localStorageUtils'
+import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
 import { useToastStore } from '@shared/stores/toastStore'
@@ -352,14 +353,20 @@ if (typeof window !== 'undefined') {
   try {
     subscribeToIndexedDbSessionChanges((source) => {
       if (source === persistenceTabId) return
-      if (indexedDbAuthoritative) {
-        void readSessionsFromIndexedDb().then((stored) => {
+      if (!indexedDbAuthoritative) {
+        handleExternalSessionsChange()
+        return
+      }
+      // Invalidate only after the new snapshot is in memory: querying first
+      // lets the UI reread `lastParsedSessions` while it is still the old one.
+      void readSessionsFromIndexedDb()
+        .then((stored) => {
           if (stored === null) return
           lastParsedSessions = stored.filter(isChatSession)
           lastRawData = null
+          handleExternalSessionsChange()
         })
-      }
-      handleExternalSessionsChange()
+        .catch(() => handleExternalSessionsChange())
     })
   } catch {}
 }
@@ -433,7 +440,7 @@ export function scheduleSaveSessions(sessions: ChatSession[], deletions?: Sessio
  * Called on `beforeunload` so a message sent right before the app quits is
  * not lost to the save debounce window.
  */
-function flushPendingSessions(): void {
+async function flushPendingSessions(): Promise<void> {
   if (saveTimer !== null) {
     clearTimeout(saveTimer)
     saveTimer = null
@@ -442,14 +449,24 @@ function flushPendingSessions(): void {
     const sessions = pendingSaveSessions
     pendingSaveSessions = null
     const deletions = takeSessionDeletionMarks()
-    void saveSessionsToStorage(sessions, deletions).then((saved) => {
-      if (!saved) addSessionDeletionMarks(deletions)
-    })
+    const saved = await saveSessionsToStorage(sessions, deletions)
+    if (!saved) addSessionDeletionMarks(deletions)
   }
 }
 
 if (typeof window !== 'undefined') {
   try {
-    window.addEventListener('beforeunload', flushPendingSessions)
+    window.addEventListener('beforeunload', () => {
+      void flushPendingSessions()
+    })
+
+    // The main process waits for this answer on window close and app quit:
+    // beforeunload cannot await the IndexedDB write.
+    const api = getElectronApi()
+    api?.onAppFlushPending?.(() => {
+      void flushPendingSessions().finally(() => {
+        void api.notifyAppFlushComplete?.()
+      })
+    })
   } catch {}
 }

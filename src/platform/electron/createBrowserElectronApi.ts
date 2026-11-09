@@ -140,6 +140,8 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
 
     platform: getPlatform(),
     quitApp: async () => true,
+    onAppFlushPending: () => () => undefined,
+    notifyAppFlushComplete: async () => true,
 
     checkForUpdates: stubReturn({ available: false, cached: true } as UpdateCheckResult),
     getAppVersion: stubReturn('dev-web'),

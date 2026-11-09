@@ -11,27 +11,53 @@ import type { LastReadingInfo, ReadingProgressUpdate } from './types'
 
 const READING_PROGRESS_DEBOUNCE_MS = 400
 
-let readingProgressDebounceTimer: ReturnType<typeof setTimeout> | null = null
-let pendingReadingProgressApply: (() => void) | null = null
+interface PendingReadingProgress {
+  apply: () => void
+  timer: ReturnType<typeof setTimeout>
+}
+
+/**
+ * Pending page writes, one per PDF path.
+ *
+ * A single global slot let a page change in PDF-B replace the unsaved page
+ * change of PDF-A inside the 400 ms window. The key is the document path (the
+ * empty string for the rare pathless update), so each document keeps its own
+ * timer.
+ */
+const pendingReadingProgress = new Map<string, PendingReadingProgress>()
 
 const recentReadingInfoRef: { current: LastReadingInfo[] } = { current: [] }
 
 const clearDebounce = (): void => {
-  if (readingProgressDebounceTimer) {
-    clearTimeout(readingProgressDebounceTimer)
-    readingProgressDebounceTimer = null
+  for (const pending of pendingReadingProgress.values()) {
+    clearTimeout(pending.timer)
   }
-  pendingReadingProgressApply = null
+  pendingReadingProgress.clear()
 }
 
-const flushPendingDebounce = (): void => {
-  if (readingProgressDebounceTimer) {
-    clearTimeout(readingProgressDebounceTimer)
-    readingProgressDebounceTimer = null
+const cancelPendingForPath = (path: string): void => {
+  const pending = pendingReadingProgress.get(path)
+  if (!pending) return
+  clearTimeout(pending.timer)
+  pendingReadingProgress.delete(path)
+}
+
+const flushPendingDebounce = (path?: string): void => {
+  if (path !== undefined) {
+    const pending = pendingReadingProgress.get(path)
+    if (!pending) return
+    pendingReadingProgress.delete(path)
+    clearTimeout(pending.timer)
+    pending.apply()
+    return
   }
-  const apply = pendingReadingProgressApply
-  pendingReadingProgressApply = null
-  apply?.()
+
+  const pending = [...pendingReadingProgress.values()]
+  pendingReadingProgress.clear()
+  for (const entry of pending) {
+    clearTimeout(entry.timer)
+    entry.apply()
+  }
 }
 
 interface ReadingProgressState {
@@ -83,17 +109,17 @@ const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   const shouldDebounce = typeof page === 'number' && typeof totalPages !== 'number'
 
   if (shouldDebounce) {
-    pendingReadingProgressApply = () =>
-      doPersist(useReadingProgressStore.getState().recentReadingInfo)
-    if (readingProgressDebounceTimer) {
-      clearTimeout(readingProgressDebounceTimer)
-    }
-    readingProgressDebounceTimer = setTimeout(() => {
-      readingProgressDebounceTimer = null
-      const apply = pendingReadingProgressApply
-      pendingReadingProgressApply = null
-      apply?.()
+    const key = path || ''
+    const previous = pendingReadingProgress.get(key)
+    if (previous) clearTimeout(previous.timer)
+    const apply = () => doPersist(useReadingProgressStore.getState().recentReadingInfo)
+    const timer = setTimeout(() => {
+      const current = pendingReadingProgress.get(key)
+      if (current?.timer !== timer) return
+      pendingReadingProgress.delete(key)
+      current.apply()
     }, READING_PROGRESS_DEBOUNCE_MS)
+    pendingReadingProgress.set(key, { apply, timer })
     return
   }
 
@@ -110,7 +136,11 @@ const upsertLastReadingInfo = (info: LastReadingInfo): void => {
 }
 
 const clearLastReading = (path?: string): void => {
-  clearDebounce()
+  if (path) {
+    cancelPendingForPath(path)
+  } else {
+    clearDebounce()
+  }
   const current = useReadingProgressStore.getState().recentReadingInfo
   if (!path) {
     persistRecentReadingInfo([])

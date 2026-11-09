@@ -20,13 +20,21 @@ export function useShellOpenPdf(): void {
   const { showError, showSuccess } = useToastActions()
   const { upsertLastReadingInfo } = useReadingProgressPersistence()
   const openingRef = useRef<Set<string>>(new Set())
+  // A second Explorer request for the same path arrives while the first is
+  // still registering. It is not opened twice, but it must bring the finished
+  // tab forward instead of being dropped.
+  const pendingFocusRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const api = getElectronApi()
     if (!api?.onShellOpenPdf) return
 
     const unsubscribe = api.onShellOpenPdf((filePath: string) => {
-      if (!filePath || openingRef.current.has(filePath)) return
+      if (!filePath) return
+      if (openingRef.current.has(filePath)) {
+        pendingFocusRef.current.add(filePath)
+        return
+      }
       openingRef.current.add(filePath)
 
       void (async () => {
@@ -56,6 +64,16 @@ export function useShellOpenPdf(): void {
           showError(t('error_pdf_load'))
         } finally {
           openingRef.current.delete(filePath)
+          if (pendingFocusRef.current.delete(filePath)) {
+            const tab = usePdfTabStore
+              .getState()
+              .pdfTabs.find(
+                (candidate) =>
+                  candidate.file?.path === filePath ||
+                  candidate.file?.path?.toLowerCase() === filePath.toLowerCase()
+              )
+            if (tab) usePdfTabStore.getState().setActivePdfTab(tab.id)
+          }
         }
       })()
     })

@@ -98,7 +98,7 @@ export function usePdfCaptureActions({
   startScreenshot,
   pdfUrl
 }: UsePdfCaptureActionsOptions) {
-  const { showError } = useToastActions()
+  const { showError, showInfo } = useToastActions()
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = capturePageRef?.current ?? currentPage
   const totalPagesRef = useRef(totalPages ?? 0)
@@ -146,6 +146,14 @@ export function usePdfCaptureActions({
         mountedRef.current &&
         requestId === captureRequestIdRef.current &&
         pdfUrlRef.current === pdfUrlAtCaptureTime
+      // A superseded request is a normal outcome of fast page/document
+      // switching, not an error. Say it once so the button does not look dead.
+      let cancelNotified = false
+      const notifyCancelled = () => {
+        if (cancelNotified || !mountedRef.current) return
+        cancelNotified = true
+        showInfo('toast_capture_cancelled')
+      }
       Logger.info(
         `[PdfCapture] handleFullPageScreenshot triggered for page ${pageAtCaptureTime}, hasPdfUrl=${!!pdfUrlAtCaptureTime}`
       )
@@ -167,6 +175,7 @@ export function usePdfCaptureActions({
             )
             if (!isCurrentCapture()) {
               if (rendered?.blobUrl) URL.revokeObjectURL(rendered.blobUrl)
+              notifyCancelled()
               return
             }
             if (rendered?.blob && rendered?.blobUrl) {
@@ -182,6 +191,7 @@ export function usePdfCaptureActions({
                 })
                 if (!isCurrentCapture()) {
                   URL.revokeObjectURL(rendered.blobUrl)
+                  notifyCancelled()
                   return
                 }
                 if (dataUrl.startsWith('data:image/')) {
@@ -194,9 +204,22 @@ export function usePdfCaptureActions({
               }
               if (!isCurrentCapture()) {
                 URL.revokeObjectURL(rendered.blobUrl)
+                notifyCancelled()
                 return
               }
-              onFullPageCapture(rendered.blobUrl, buildFullPageMeta(pageAtCaptureTime), actionPoint)
+              // Ownership of the blob URL passes to `onFullPageCapture`; the
+              // draft queue revokes it when the item is removed or replaced.
+              // If the hand-off itself throws, the URL stays ours to revoke.
+              try {
+                onFullPageCapture(
+                  rendered.blobUrl,
+                  buildFullPageMeta(pageAtCaptureTime),
+                  actionPoint
+                )
+              } catch (handoffError) {
+                URL.revokeObjectURL(rendered.blobUrl)
+                throw handoffError
+              }
               return
             } else {
               Logger.warn('[PdfCapture] renderPageToImageFallback returned null')
@@ -221,7 +244,10 @@ export function usePdfCaptureActions({
           for (let i = 0; i < MAX_RETRIES; i++) {
             const delayMs = 30 + i * 20 // 30, 50, 70, ... 210 ms
             await new Promise((r) => setTimeout(r, delayMs))
-            if (!isCurrentCapture()) return
+            if (!isCurrentCapture()) {
+              notifyCancelled()
+              return
+            }
             targetCanvas = findPageCanvas(pageAtCaptureTime)
             if (targetCanvas) break
           }
@@ -244,6 +270,7 @@ export function usePdfCaptureActions({
               )
               if (!isCurrentCapture()) {
                 if (rendered?.blobUrl) URL.revokeObjectURL(rendered.blobUrl)
+                notifyCancelled()
                 return
               }
               if (rendered?.blobUrl) {
@@ -260,7 +287,10 @@ export function usePdfCaptureActions({
           return
         }
 
-        if (!isCurrentCapture()) return
+        if (!isCurrentCapture()) {
+          notifyCancelled()
+          return
+        }
 
         // Defensive: canvas may have been zeroed by GPU cleanup between
         // discovery and blob conversion (e.g. rapid navigation). Re-validate.
@@ -314,7 +344,7 @@ export function usePdfCaptureActions({
         if (isCurrentCapture()) showError('toast_capture_failed')
       }
     },
-    [onFullPageCapture, showError, buildFullPageMeta]
+    [onFullPageCapture, showError, showInfo, buildFullPageMeta]
   )
 
   const handleAreaScreenshot = useCallback(() => {

@@ -2,9 +2,11 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
 import { getElectronApi } from '@shared/lib/electronApi'
+import { useToastActions } from '@shared/stores/toastStore'
 
 import { useCallback } from 'react'
 
+import { isVisionCapable } from '../lib/apiChatUtils'
 import { getActiveChatRequestId } from '../queries/activeChatRequests'
 import { useChatUiStore } from '../store/chatUiStore'
 
@@ -43,6 +45,7 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
     tabId,
     activeSessionId,
     messages,
+    attachmentsRef,
     activeProviderIdRef,
     selectedModelRef,
     messagesRef,
@@ -59,6 +62,8 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
     createSessionMutation,
     clearSessionMutation
   } = deps
+
+  const { showWarning } = useToastActions()
 
   const handleClearChat = useCallback(async () => {
     if (!activeSessionId) return
@@ -167,8 +172,17 @@ export function useApiChatSimpleHandlers(deps: UseApiChatSimpleHandlersDeps) {
   )
 
   const handleSelectModel = useCallback(
-    (model: string) => setSelectedModel(tabId, model),
-    [setSelectedModel, tabId]
+    (model: string) => {
+      setSelectedModel(tabId, model)
+      // The preview stays visible, but a model without vision cannot send it.
+      // Warn instead of silently deleting the user's attachments.
+      if ((attachmentsRef.current?.length ?? 0) > 0 && !isVisionCapable(model)) {
+        showWarning('api_chat_vision_required_for_attachments', undefined, {
+          model
+        })
+      }
+    },
+    [attachmentsRef, setSelectedModel, showWarning, tabId]
   )
 
   return {

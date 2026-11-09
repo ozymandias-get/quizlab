@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 
 import { APP_CONFIG } from './constants.js'
+import { waitForQuitFlush } from './quitFlushGate.js'
 import {
   DEV_SERVER_URL,
   isDev,
@@ -51,7 +52,18 @@ export async function createWindow() {
     mainWindow.maximize()
   }
 
-  mainWindow.on('close', () => saveWindowState(mainWindow))
+  // A close must give the renderer one bounded chance to finish its pending
+  // IndexedDB writes; beforeunload alone cannot await them.
+  let closeFlushDone = false
+  mainWindow.on('close', (event) => {
+    saveWindowState(mainWindow)
+    if (closeFlushDone) return
+    event.preventDefault()
+    void waitForQuitFlush(mainWindow).finally(() => {
+      closeFlushDone = true
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
+    })
+  })
   mainWindow.on('closed', () => {
     clearRevealTimer()
     mainWindow = null

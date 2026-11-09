@@ -124,6 +124,11 @@ export interface IpcInvokeRequestMap {
     result: IpcResult<boolean>
   }
 
+  [IPC_CHANNELS.APP_FLUSH_COMPLETE]: {
+    args: []
+    result: IpcResult<boolean>
+  }
+
   [IPC_CHANNELS.GET_API_CHAT_CONFIG]: {
     args: []
     result: IpcResult<ApiConfig>
@@ -356,6 +361,9 @@ export interface IpcEventMap {
   // Event-style channels (main → renderer) not using invoke
   [IPC_CHANNELS.OPEN_PDF_FROM_SHELL]: {
     args: [filePath: string]
+  }
+  [IPC_CHANNELS.APP_FLUSH_PENDING_STATE]: {
+    args: []
   }
   [IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU]: {
     args: [labels: Partial<Record<string, string>>]

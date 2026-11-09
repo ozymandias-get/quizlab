@@ -59,6 +59,10 @@ export const IPC_CHANNELS = {
   /** Main → renderer: hedef listesi ve durumları değişti. */
   SITE_SESSION_CHANGED: 'site-session-changed',
   APP_QUIT: 'app-quit',
+  /** Main → renderer: finish pending storage writes before the window closes. */
+  APP_FLUSH_PENDING_STATE: 'app-flush-pending-state',
+  /** Renderer → main: the pending writes finished (or timed out). */
+  APP_FLUSH_COMPLETE: 'app-flush-complete',
   GET_API_CHAT_CONFIG: 'get-api-chat-config',
   SAVE_API_CHAT_CONFIG: 'save-api-chat-config',
   SEND_API_CHAT_REQUEST: 'send-api-chat-request',
