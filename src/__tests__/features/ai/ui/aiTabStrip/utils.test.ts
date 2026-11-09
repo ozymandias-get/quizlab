@@ -1,8 +1,11 @@
 import {
+  AI_TAB_MAX_WIDTH,
   clamp,
   getAiTabStripChromeWidth,
+  getDesiredAiTabWidth,
   getMaxVisibleAiTabs,
-  getVisibleTabIds
+  getVisibleTabIds,
+  resolveVisibleAiTabCount
 } from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
 
 import type { Tab } from '@app/providers/ai-context'
@@ -68,6 +71,73 @@ describe('getMaxVisibleAiTabs', () => {
   it('reserves the same chrome width that the measurement pass subtracts', () => {
     expect(getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })).toBe(133)
     expect(getAiTabStripChromeWidth()).toBe(69)
+  })
+})
+
+describe('getDesiredAiTabWidth', () => {
+  it('caps a long truncated label at the pill max width', () => {
+    expect(getDesiredAiTabWidth(200, 800)).toBe(AI_TAB_MAX_WIDTH)
+  })
+
+  it('keeps a short label at its rendered width', () => {
+    expect(getDesiredAiTabWidth(150, 0)).toBe(150)
+  })
+})
+
+describe('resolveVisibleAiTabCount', () => {
+  it('drops a slot when the measured pills no longer fit', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 3,
+        tabWidths: [200, 200, 200],
+        availableWidth: 300,
+        hasOverflow: true
+      })
+    ).toBe(2)
+  })
+
+  it('never drops below zero', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 0,
+        tabWidths: [],
+        availableWidth: 0,
+        hasOverflow: true
+      })
+    ).toBe(0)
+  })
+
+  it('recovers a slot from overflow when there is room for a full pill', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 3,
+        tabWidths: [100, 100, 100],
+        availableWidth: 600,
+        hasOverflow: true
+      })
+    ).toBe(4)
+  })
+
+  it('recovers from zero once the row has room', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 0,
+        tabWidths: [],
+        availableWidth: 400,
+        hasOverflow: true
+      })
+    ).toBe(1)
+  })
+
+  it('does not add a slot when the spare space cannot fit a full pill', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 1,
+        tabWidths: [AI_TAB_MAX_WIDTH],
+        availableWidth: AI_TAB_MAX_WIDTH + 40,
+        hasOverflow: true
+      })
+    ).toBe(1)
   })
 })
 

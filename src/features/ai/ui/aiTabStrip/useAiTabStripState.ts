@@ -13,7 +13,13 @@ import {
   useState
 } from 'react'
 
-import { getAiTabStripChromeWidth, getMaxVisibleAiTabs, getVisibleTabIds } from './aiTabStripUtils'
+import {
+  getAiTabStripChromeWidth,
+  getDesiredAiTabWidth,
+  getMaxVisibleAiTabs,
+  getVisibleTabIds,
+  resolveVisibleAiTabCount
+} from './aiTabStripUtils'
 import type { ContextMenuState } from './types'
 
 interface UseAiTabStripStateParams {
@@ -43,6 +49,22 @@ export function useAiTabStripState({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [isOverflowOpen, setIsOverflowOpen] = useState(false)
   const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
+
+  // A tab close, open or rename changes how much room the pills need. Reset to
+  // the width-based estimate first; the measurement pass below trims it again
+  // if the new labels are still too wide. Without this reset the capacity could
+  // only ever shrink within one row width.
+  const tabContentSignature = tabs.map((tab) => `${tab.id}:${tab.title ?? ''}`).join('|')
+  const lastTabContentSignatureRef = useRef(tabContentSignature)
+  useLayoutEffect(() => {
+    if (lastTabContentSignatureRef.current === tabContentSignature) return
+    lastTabContentSignatureRef.current = tabContentSignature
+
+    const width = rowRef.current?.clientWidth ?? 0
+    if (width > 0) {
+      setMaxVisibleTabs(getMaxVisibleAiTabs(width, { hasHome: true, hasRefresh: true }))
+    }
+  }, [tabContentSignature])
 
   useEffect(() => {
     const el = rowRef.current
@@ -76,24 +98,29 @@ export function useAiTabStripState({
   // the text that would otherwise be clipped.
   useLayoutEffect(() => {
     const row = rowRef.current
-    if (!row || row.clientWidth <= 0 || maxVisibleTabs <= 0) return
+    if (!row || row.clientWidth <= 0) return
 
     const renderedTabs = [...row.querySelectorAll<HTMLElement>('[data-ai-tab]')]
-    if (renderedTabs.length === 0) return
+    // A positive capacity should always have rendered pills; an empty list at
+    // zero is expected and is how the capacity can climb back from zero.
+    if (renderedTabs.length === 0 && maxVisibleTabs > 0) return
 
     const available =
       row.clientWidth - getAiTabStripChromeWidth({ hasHome: true, hasRefresh: true })
-    let required = Math.max(0, renderedTabs.length - 1) * 6
-
-    for (const tab of renderedTabs) {
+    const tabWidths = renderedTabs.map((tab) => {
       const label = tab.querySelector<HTMLElement>('[data-ai-tab-label]')
       const clippedText = label ? Math.max(0, label.scrollWidth - label.clientWidth) : 0
-      required += tab.offsetWidth + clippedText
-    }
+      return getDesiredAiTabWidth(tab.offsetWidth, clippedText)
+    })
 
-    if (required > available) {
-      setMaxVisibleTabs((previous) => Math.max(0, previous - 1))
-    }
+    const next = resolveVisibleAiTabCount({
+      current: maxVisibleTabs,
+      tabWidths,
+      availableWidth: available,
+      hasOverflow: tabs.length > renderedTabs.length
+    })
+
+    if (next !== maxVisibleTabs) setMaxVisibleTabs(next)
   }, [maxVisibleTabs, tabs, activeTabId])
 
   const visibleTabIds = useMemo(

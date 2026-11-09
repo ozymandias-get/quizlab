@@ -4,6 +4,9 @@ export const clamp = (n: number, min: number, max: number) => Math.max(min, Math
 
 /** Smallest comfortable AI tab pill; used to derive how many fit. */
 const MIN_TAB_WIDTH = 132
+/** The pill's own max width; a long label is ellipsized, never widened past this. */
+export const AI_TAB_MAX_WIDTH = 240
+export const AI_TAB_GAP = 6
 const HOME_BUTTON_WIDTH = 32
 const REFRESH_BUTTON_WIDTH = 32
 const DIVIDER_WIDTH = 1
@@ -47,6 +50,49 @@ export function getMaxVisibleAiTabs(
 
   const available = containerWidth - getAiTabStripChromeWidth(capacity)
   return Math.max(0, Math.floor(available / MIN_TAB_WIDTH))
+}
+
+/**
+ * Width one pill wants after layout, capped at the pill's own max width.
+ * A truncated label reports its full text width, but the pill never grows past
+ * `AI_TAB_MAX_WIDTH`; without this cap a single long title could be treated as
+ * wider than the whole strip and hide itself.
+ */
+export function getDesiredAiTabWidth(renderedWidth: number, clippedText: number): number {
+  return Math.min(AI_TAB_MAX_WIDTH, Math.max(0, renderedWidth + clippedText))
+}
+
+export interface AiTabCapacityInput {
+  current: number
+  tabWidths: readonly number[]
+  availableWidth: number
+  hasOverflow: boolean
+}
+
+/**
+ * Decides whether the measured pills need one fewer slot, or whether there is
+ * room to bring one back from the overflow menu.
+ *
+ * Increases use the pill's maximum width, not the measured average, so a wider
+ * incoming tab cannot immediately force another decrease and oscillate.
+ */
+export function resolveVisibleAiTabCount({
+  current,
+  tabWidths,
+  availableWidth,
+  hasOverflow
+}: AiTabCapacityInput): number {
+  const required =
+    tabWidths.reduce((sum, width) => sum + width, 0) +
+    Math.max(0, tabWidths.length - 1) * AI_TAB_GAP
+
+  if (required > availableWidth) return Math.max(0, current - 1)
+
+  if (hasOverflow && availableWidth - required >= AI_TAB_MAX_WIDTH + AI_TAB_GAP) {
+    return current + 1
+  }
+
+  return current
 }
 
 /**
