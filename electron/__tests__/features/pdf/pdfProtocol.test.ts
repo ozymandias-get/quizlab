@@ -10,6 +10,9 @@ const setItem = vi.fn()
 const read = vi.fn()
 const existsSync = vi.fn()
 const stat = vi.fn()
+const open = vi.fn()
+const close = vi.fn()
+const readPdfHead = vi.fn()
 const requireTrustedIpcSender = vi.fn()
 
 vi.mock('electron', () => ({
@@ -24,7 +27,8 @@ vi.mock('electron', () => ({
     showOpenDialog
   },
   app: {
-    getPath
+    getPath,
+    getAppPath: () => '/app'
   }
 }))
 
@@ -47,7 +51,8 @@ vi.mock('fs', () => ({
     existsSync,
     promises: {
       stat,
-      access: vi.fn()
+      access: vi.fn(),
+      open
     },
     createReadStream: vi.fn()
   }
@@ -70,7 +75,18 @@ describe('pdfProtocol handlers', () => {
     setItem.mockReset().mockResolvedValue(undefined)
     read.mockReset().mockResolvedValue({})
     existsSync.mockReset().mockReturnValue(true)
-    stat.mockReset().mockResolvedValue({ size: 512 })
+    stat.mockReset().mockResolvedValue({ size: 512, mtimeMs: 1700000000000 })
+    open.mockReset().mockImplementation(async () => ({
+      fd: 7,
+      stat,
+      read: readPdfHead,
+      close
+    }))
+    close.mockReset().mockResolvedValue(undefined)
+    readPdfHead.mockReset().mockImplementation(async (buffer: Buffer) => {
+      Buffer.from('%PDF-1.7').copy(buffer)
+      return { bytesRead: 8 }
+    })
     requireTrustedIpcSender.mockReset().mockReturnValue(true)
   })
 
@@ -111,9 +127,68 @@ describe('pdfProtocol handlers', () => {
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.SELECT_PDF)
     const result = await handler?.({ sender: {} }, {})
 
-    expect(setItem).toHaveBeenCalledWith(path.normalize('/outside/document.pdf'), true)
+    expect(setItem).toHaveBeenCalledWith(path.normalize('/outside/document.pdf'), {
+      allowed: true,
+      size: 512,
+      mtimeMs: 1700000000000
+    })
     expect(result?.data.path).toBe('/outside/document.pdf')
     expect(result?.data.streamUrl).toContain('local-pdf://')
+  })
+
+  it('refuses a .pdf file that does not start with a PDF header', async () => {
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/outside/document.pdf']
+    })
+    readPdfHead.mockImplementationOnce(async (buffer: Buffer) => {
+      Buffer.from('not a pdf').copy(buffer)
+      return { bytesRead: 9 }
+    })
+    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
+    registerPdfProtocolHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.SELECT_PDF)
+    const result = await handler?.({ sender: {} }, {})
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'invalid_input', message: 'Not a PDF file' }
+    })
+    expect(setItem).not.toHaveBeenCalled()
+  })
+
+  it('invalidates a persistent permission when the file identity changed', async () => {
+    const normalized = path.normalize('/outside/document.pdf')
+    read.mockResolvedValue({
+      [normalized]: { allowed: true, size: 512, mtimeMs: 100 }
+    })
+    stat.mockResolvedValue({ size: 512, mtimeMs: 200 })
+    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
+    registerPdfProtocolHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_PDF_STREAM_URL)
+    const result = await handler?.({ sender: {} }, normalized)
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Pdf not in allowlist' }
+    })
+  })
+
+  it('does not trust legacy boolean allowlist entries', async () => {
+    const normalized = path.normalize('/outside/legacy.pdf')
+    read.mockResolvedValue({ [normalized]: true })
+    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
+    registerPdfProtocolHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_PDF_STREAM_URL)
+    const result = await handler?.({ sender: {} }, normalized)
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Pdf not in allowlist' }
+    })
   })
 
   // NOTE: the "picker opens in Documents, then reopens where it last was"
@@ -144,16 +219,16 @@ describe('pdfProtocol handlers', () => {
     })
   })
 
-  it('register path grants session-only access and persists allowlist', async () => {
+  it('register path grants session-only access without a permanent allowlist entry', async () => {
     const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
     registerPdfProtocolHandlers()
 
     const registerHandler = getHandler(APP_CONFIG.IPC_CHANNELS.PDF_REGISTER_PATH)
     const result = await registerHandler?.({ sender: {} }, '/outside/dropped.pdf')
 
-    // SECURITY: Register now persists to allowlist (same as SELECT_PDF) to prevent
-    // unregistered files from being served via GET_PDF_STREAM_URL.
-    expect(setItem).toHaveBeenCalledWith(path.normalize('/outside/dropped.pdf'), true)
+    // SECURITY: A renderer-supplied path (drag/drop, shell open, resume) is
+    // enough for this session but must not survive a restart as a permission.
+    expect(setItem).not.toHaveBeenCalled()
     expect(result?.data.path).toBe(path.normalize('/outside/dropped.pdf'))
     expect(result?.data.streamUrl).toContain('local-pdf://')
 

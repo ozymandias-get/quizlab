@@ -113,6 +113,50 @@ describe('the API chat handlers', () => {
     await expect(first).resolves.toMatchObject({ ok: true })
   })
 
+  it('accepts an answer split into content parts', async () => {
+    fetchWithSsrProtection.mockResolvedValueOnce(
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              content: [
+                { type: 'text', text: 'hel' },
+                { type: 'text', text: 'lo' }
+              ]
+            }
+          }
+        ]
+      })
+    )
+
+    await expect(send('parts')).resolves.toMatchObject({
+      ok: true,
+      data: { content: 'hello' }
+    })
+  })
+
+  it('accepts the legacy choice text shape', async () => {
+    fetchWithSsrProtection.mockResolvedValueOnce(jsonResponse({ choices: [{ text: 'legacy' }] }))
+
+    await expect(send('legacy')).resolves.toMatchObject({
+      ok: true,
+      data: { content: 'legacy' }
+    })
+  })
+
+  it('gives each answer a unique id instead of a clock value', async () => {
+    fetchWithSsrProtection.mockImplementation(async () =>
+      jsonResponse({ choices: [{ message: { content: 'answer' } }] })
+    )
+
+    const first = (await send('id-one')) as { data: { id: string } }
+    const second = (await send('id-two')) as { data: { id: string } }
+
+    expect(first.data.id).toMatch(/^msg-[\da-f-]{36}$/)
+    expect(second.data.id).toMatch(/^msg-[\da-f-]{36}$/)
+    expect(first.data.id).not.toBe(second.data.id)
+  })
+
   it('lets two providers fetch their models at the same time', async () => {
     const signals: AbortSignal[] = []
     fetchWithSsrProtection.mockImplementation(async (_url: string, options: never) => {

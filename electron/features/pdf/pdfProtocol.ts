@@ -23,7 +23,20 @@ const pdfRegistry = new Map<string, PDFData>()
 /** Paths opened this session via PDF_REGISTER_PATH (drop/resume); not persisted. */
 const sessionAllowedPdfPaths = new Set<string>()
 
-type AllowListMap = Record<string, boolean>
+/**
+ * A path the user selected in the file picker.
+ *
+ * The size and modification time are the identity of the file that was
+ * approved. A different file placed at the same path no longer inherits the
+ * permission; the user has to select it again. Old boolean entries are not
+ * trusted, because they carry no identity to verify.
+ */
+interface PdfAllowEntry {
+  allowed: true
+  size: number
+  mtimeMs: number
+}
+type AllowListMap = Record<string, PdfAllowEntry>
 
 // SECURITY: Singleton ConfigManager instance for the PDF allowlist.
 // Creating a new ConfigManager per call would cause multiple instances
@@ -56,6 +69,29 @@ function generateId() {
 
 function isPdfFilePath(filePath: string): boolean {
   return path.extname(filePath).toLowerCase() === '.pdf'
+}
+
+/**
+ * A light content check.
+ *
+ * The extension is not proof of the format. Only the header is read: PDF.js
+ * still owns parsing and error handling, so this is not a second parser. A
+ * BOM or a few leading whitespace bytes are tolerated because some writers
+ * emit them before `%PDF-`.
+ */
+async function hasPdfSignature(filePath: string): Promise<boolean> {
+  let handle: fs.promises.FileHandle | null = null
+  try {
+    handle = await fs.promises.open(filePath, 'r')
+    const buffer = Buffer.alloc(1024)
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    const head = buffer.subarray(0, bytesRead).toString('latin1')
+    return /^\uFEFF?\s{0,32}%PDF-/u.test(head)
+  } catch {
+    return false
+  } finally {
+    await handle?.close().catch(() => undefined)
+  }
 }
 
 function registerPdfPath(filePath: string): string {
@@ -102,10 +138,36 @@ export function registerPdfScheme() {
   ])
 }
 
+/** Whether a path is inside a directory (both must be absolute). */
+function isPathInside(directory: string, target: string): boolean {
+  const relative = path.relative(path.normalize(directory), path.normalize(target))
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
+/**
+ * Whether a `null` origin comes from a local app document.
+ *
+ * An opaque origin is not proof of trust on its own: sandboxed and data:
+ * documents can produce it too. A `file:` referer under the app directory is
+ * the additional boundary.
+ */
+function isTrustedLocalReferer(referer: string | null): boolean {
+  if (!referer) return false
+  try {
+    const parsed = new URL(referer)
+    if (parsed.protocol !== 'file:') return false
+    return isPathInside(app.getAppPath(), decodeURIComponent(parsed.pathname))
+  } catch {
+    return false
+  }
+}
+
 // Exact origin validation (no prefix matching): a crafted origin like
 // "http://localhost.evil.com" or "local-pdf://<unregistered>" must not pass.
-function isAllowedPdfOrigin(origin: string): boolean {
-  if (origin === 'null') return true // opaque file:// origin
+function isAllowedPdfOrigin(origin: string, referer: string | null = null): boolean {
+  // `null` is an opaque origin, not a trust signal: require the local app
+  // document as its referer.
+  if (origin === 'null') return isTrustedLocalReferer(referer)
   let parsed: URL
   try {
     parsed = new URL(origin)
@@ -127,6 +189,38 @@ function isAllowedPdfOrigin(origin: string): boolean {
   return false
 }
 
+/**
+ * Whether the request may read a registered PDF.
+ *
+ * Origin/Referer are the primary proof. A request with neither is not trusted
+ * by default: only a top-level navigation is accepted, and a declared
+ * cross-site request is always refused.
+ */
+function isAllowedPdfRequest(headers: Headers): boolean {
+  const origin = headers.get('origin')
+  const referer = headers.get('referer')
+
+  if (origin) return isAllowedPdfOrigin(origin, referer)
+
+  if (referer) {
+    try {
+      const refOrigin = new URL(referer).origin
+      if (refOrigin !== 'null' && !isAllowedPdfOrigin(refOrigin, referer)) return false
+      if (refOrigin === 'null' && !isTrustedLocalReferer(referer)) return false
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const site = headers.get('sec-fetch-site')
+  const mode = headers.get('sec-fetch-mode')
+  if (site === 'cross-site') return false
+  // No origin claim at all: only a top-level navigation, never an
+  // unlabelled fetch/range request.
+  return mode === 'navigate' && (site === null || site === 'none' || site === 'same-origin')
+}
+
 export function registerPdfProtocol() {
   protocol.handle('local-pdf', async (request) => {
     try {
@@ -138,57 +232,61 @@ export function registerPdfProtocol() {
       pdfData.lastAccessAt = Date.now()
 
       const filePath = pdfData.path
-      // Senkron existsSync kullanmayın: her byte-range isteğinde event
-      // loop'u bloke eder. existsSync + promises.stat ikilisi zaten
-      // gereksiz çift stat çağrısı demektir — sadece stat yeterlidir.
-      let stats
+      // Open the file first and read its metadata from the descriptor: the
+      // bytes that are streamed belong to the same file that produced the
+      // size, ETag and Content-Range, even when the path is replaced.
+      let fileHandle: fs.promises.FileHandle
       try {
-        stats = await fs.promises.stat(filePath)
+        fileHandle = await fs.promises.open(filePath, 'r')
       } catch {
         return new Response('Not Found', { status: 404 })
       }
-      const headers = createPdfResponseHeaders(stats)
 
-      const ifNoneMatch = request.headers.get('if-none-match')
-      if (ifNoneMatch === headers.ETag) {
-        return new Response(null, {
-          status: 304,
-          headers
-        })
+      let stats: fs.Stats
+      try {
+        stats = await fileHandle.stat()
+      } catch {
+        await fileHandle.close().catch(() => undefined)
+        return new Response('Not Found', { status: 404 })
       }
 
-      const requestOrigin = request.headers.get('origin')
-      if (requestOrigin) {
-        if (!isAllowedPdfOrigin(requestOrigin)) {
+      try {
+        const headers = createPdfResponseHeaders(stats)
+        const requestOrigin = request.headers.get('origin')
+
+        // Authorization runs before ETag: a client that may not read the PDF
+        // must not learn its ETag or whether the cache entry is current.
+        if (!isAllowedPdfRequest(request.headers)) {
+          await fileHandle.close()
           return new Response('Forbidden', { status: 403 })
         }
-      } else {
-        // No Origin header: typically file:// opaque origin or navigation request.
-        // Fall back to Referer / Sec-Fetch-Site checks to avoid blind allow.
-        const referer = request.headers.get('referer')
-        if (referer) {
-          try {
-            const refOrigin = new URL(referer).origin
-            if (refOrigin !== 'null' && !isAllowedPdfOrigin(refOrigin)) {
-              return new Response('Forbidden', { status: 403 })
-            }
-          } catch {
-            return new Response('Forbidden', { status: 403 })
-          }
-        } else {
-          const secFetchSite = request.headers.get('sec-fetch-site')
-          if (secFetchSite === 'cross-site') {
-            return new Response('Forbidden', { status: 403 })
-          }
+
+        if (requestOrigin && requestOrigin !== 'null') {
+          headers['Access-Control-Allow-Origin'] = requestOrigin
+          headers['Vary'] = 'Origin'
         }
-      }
 
-      if (requestOrigin) {
-        headers['Access-Control-Allow-Origin'] = requestOrigin
-        headers['Vary'] = 'Origin'
-      }
+        const ifNoneMatch = request.headers.get('if-none-match')
+        if (ifNoneMatch === headers.ETag) {
+          await fileHandle.close()
+          return new Response(null, {
+            status: 304,
+            headers
+          })
+        }
 
-      return createPdfStreamResponse(filePath, stats, request.headers.get('range'), headers)
+        // The stream owns the descriptor from here on and closes it.
+        return createPdfStreamResponse(
+          filePath,
+          stats,
+          request.headers.get('range'),
+          headers,
+          fileHandle.fd
+        )
+      } catch (error) {
+        await fileHandle.close().catch(() => undefined)
+        throw error
+      }
     } catch (error) {
       Logger.error('[PDFProtocol] Stream Error:', error)
       return new Response('Internal Server Error', { status: 500 })
@@ -201,8 +299,13 @@ export function registerPdfProtocolHandlers() {
 
   const addToAllowlist = async (filePath: string) => {
     const normalized = path.normalize(filePath)
+    const stats = await fs.promises.stat(normalized)
     const manager = getAllowListManager()
-    await manager.setItem(normalized, true)
+    await manager.setItem(normalized, {
+      allowed: true,
+      size: stats.size,
+      mtimeMs: stats.mtimeMs
+    } satisfies PdfAllowEntry)
   }
 
   const isAllowed = async (filePath: string) => {
@@ -212,7 +315,17 @@ export function registerPdfProtocolHandlers() {
 
     const manager = getAllowListManager()
     const allowed = await manager.read()
-    if (allowed[normalized]) return true
+    const entry = allowed[normalized]
+    if (entry && typeof entry === 'object' && entry.allowed === true) {
+      try {
+        const stats = await fs.promises.stat(normalized)
+        if (stats.size === entry.size && stats.mtimeMs === entry.mtimeMs) return true
+        Logger.warn('[PDFProtocol] The allowlisted file changed on disk; asking for it again.')
+        return false
+      } catch {
+        return false
+      }
+    }
 
     try {
       const userDataPath = app.getPath('userData')
@@ -246,6 +359,9 @@ export function registerPdfProtocolHandlers() {
       rememberDialogDirectory(filePaths[0])
       try {
         const stats = await fs.promises.stat(filePath)
+        if (!(await hasPdfSignature(filePath))) {
+          return failure('invalid_input', 'Not a PDF file')
+        }
 
         // SECURITY: Persist allowlist only for explicit file-picker selection
         await addToAllowlist(filePath)
@@ -313,13 +429,16 @@ export function registerPdfProtocolHandlers() {
       try {
         const stats = await fs.promises.stat(filePath)
         if (!isPdfFilePath(filePath)) return failure('invalid_input', 'Not a PDF file')
+        if (!(await hasPdfSignature(filePath))) {
+          return failure('invalid_input', 'Not a PDF file')
+        }
 
         const normalized = path.normalize(filePath)
 
-        // SECURITY: Add to persistent allowlist (same as SELECT_PDF) to prevent
-        // unregistered files from being served via GET_PDF_STREAM_URL later.
-        // This also allows session-only registration for drag-and-drop and resume flows.
-        await addToAllowlist(normalized)
+        // SECURITY: This path came from the renderer (drag/drop, shell open,
+        // resume), not from the user's file picker. It is enough for the
+        // current session, but it must not become a permanent permission: the
+        // restore flow registers the path again after a restart.
         sessionAllowedPdfPaths.add(normalized)
 
         return success({

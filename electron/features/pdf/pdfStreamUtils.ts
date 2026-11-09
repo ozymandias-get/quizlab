@@ -23,7 +23,7 @@ export function parseByteRange(
   // file; only "bytes=-0" is unsatisfiable.
   if (match[1] === '' && match[2] !== '') {
     const suffixLength = Number.parseInt(match[2], 10)
-    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) {
       return null
     }
     // An empty representation has no bytes, so no range can be satisfied
@@ -44,7 +44,7 @@ export function parseByteRange(
   const start = Number.parseInt(match[1], 10)
   const end = match[2] ? Number.parseInt(match[2], 10) : totalSize - 1
 
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start) {
     return null
   }
 
@@ -88,7 +88,14 @@ export function createPdfStreamResponse(
   filePath: string,
   stats: fs.Stats,
   rangeHeader: string | null,
-  baseHeaders?: Record<string, string>
+  baseHeaders?: Record<string, string>,
+  /**
+   * An already-open descriptor whose metadata produced `stats`.
+   *
+   * Streaming from it removes the stat/open race: the bytes come from the
+   * same file that determined Content-Length and Content-Range.
+   */
+  fd?: number
 ): Response {
   const headers = baseHeaders ? { ...baseHeaders } : createPdfResponseHeaders(stats)
 
@@ -107,7 +114,8 @@ export function createPdfStreamResponse(
     const fileStream = fs.createReadStream(filePath, {
       start,
       end,
-      highWaterMark: READ_BUFFER_BYTES
+      highWaterMark: READ_BUFFER_BYTES,
+      ...(fd === undefined ? {} : { fd })
     })
 
     headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
@@ -119,7 +127,10 @@ export function createPdfStreamResponse(
     })
   }
 
-  const fileStream = fs.createReadStream(filePath, { highWaterMark: READ_BUFFER_BYTES })
+  const fileStream = fs.createReadStream(filePath, {
+    highWaterMark: READ_BUFFER_BYTES,
+    ...(fd === undefined ? {} : { fd })
+  })
   headers['Content-Length'] = String(stats.size)
 
   return new Response(fileStreamToWebStream(fileStream), {

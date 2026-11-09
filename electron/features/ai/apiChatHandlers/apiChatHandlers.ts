@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { IPC_CHANNELS } from '../../../../shared/constants/ipcChannels.js'
 import { failure, success } from '../../../../shared/lib/typedIpc.js'
 import type { ApiChatMessage, ApiConfig } from '../../../../shared/types/index.js'
@@ -23,6 +25,43 @@ import {
 
 /** Hard cap for the renderer-composed system prompt forwarded per request. */
 const MAX_SYSTEM_PROMPT_LENGTH = 20_000
+
+/**
+ * The assistant text of an OpenAI-compatible response.
+ *
+ * Most providers send `choices[0].message.content` as a string; newer
+ * compatible APIs split it into typed parts, and a few legacy endpoints use
+ * `choices[0].text`. The shapes are normalised here, at the boundary, instead
+ * of leaking provider differences into the renderer.
+ */
+function contentToText(content: unknown): string | null {
+  if (typeof content === 'string') return content.length > 0 ? content : null
+  if (!Array.isArray(content)) return null
+  const text = content
+    .map((part) => {
+      if (typeof part === 'string') return part
+      if (
+        part &&
+        typeof part === 'object' &&
+        typeof (part as { text?: unknown }).text === 'string'
+      ) {
+        return (part as { text: string }).text
+      }
+      return ''
+    })
+    .join('')
+  return text.length > 0 ? text : null
+}
+
+function extractReplyText(data: unknown): string | null {
+  const choices = (data as { choices?: unknown } | null)?.choices
+  if (!Array.isArray(choices) || choices.length === 0) return null
+  const first = choices[0] as { message?: { content?: unknown }; text?: unknown } | null
+  return (
+    contentToText(first?.message?.content) ??
+    (typeof first?.text === 'string' && first.text.length > 0 ? first.text : null)
+  )
+}
 
 /**
  * In-flight chat requests keyed by requestId. Each tab sends with its own
@@ -230,14 +269,16 @@ export function registerApiChatHandlers() {
         }
 
         const data = await response.json()
-        const replyContent = data.choices?.[0]?.message?.content
-        if (typeof replyContent !== 'string' || replyContent.length === 0) {
+        const reply = extractReplyText(data)
+        if (reply === null) {
           return failure('internal_error', 'Invalid API response: missing message content')
         }
-        const reply = replyContent
 
         return success({
-          id: `msg-${Date.now()}`,
+          // Two requests can finish in the same millisecond: a clock value is
+          // not an identity. The id is used as a React key and stored with the
+          // session, so it has to be unique.
+          id: `msg-${randomUUID()}`,
           role: 'assistant',
           content: reply,
           timestamp: Date.now(),

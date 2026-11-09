@@ -12,6 +12,9 @@ const setItemMock = vi.fn()
 const readMock = vi.fn()
 const existsSyncMock = vi.fn()
 const statMock = vi.fn()
+const openMock = vi.fn()
+const closeMock = vi.fn()
+const readHeadMock = vi.fn()
 const createReadStreamMock = vi.fn()
 const requireTrustedIpcSenderMock = vi.fn()
 
@@ -27,7 +30,8 @@ vi.mock('electron', () => ({
     showOpenDialog: showOpenDialogMock
   },
   app: {
-    getPath: getPathMock
+    getPath: getPathMock,
+    getAppPath: () => '/app'
   }
 }))
 
@@ -45,7 +49,7 @@ vi.mock('../../../core/ipcSecurity', () => ({
 vi.mock('fs', () => ({
   default: {
     existsSync: existsSyncMock,
-    promises: { stat: statMock },
+    promises: { stat: statMock, open: openMock },
     createReadStream: createReadStreamMock
   }
 }))
@@ -68,11 +72,17 @@ function makeFakeFileStream() {
   return new Readable({ read() {} })
 }
 
-function makeRequest(url: string, headers: Record<string, string> = {}) {
+function makeRequest(
+  url: string,
+  headers: Record<string, string> = {},
+  options: { withOrigin?: boolean } = {}
+) {
+  const allHeaders =
+    options.withOrigin === false ? headers : { origin: 'http://localhost:5173', ...headers }
   return {
     url,
     headers: {
-      get: (name: string) => headers[name.toLowerCase()] ?? null
+      get: (name: string) => allHeaders[name.toLowerCase()] ?? null
     }
   } as unknown as { url: string; headers: Headers }
 }
@@ -113,6 +123,17 @@ describe('local-pdf:// protocol handler', () => {
     readMock.mockReset().mockResolvedValue({})
     existsSyncMock.mockReset().mockReturnValue(true)
     statMock.mockReset().mockResolvedValue({ size: 1000, mtimeMs: 1700000000000 })
+    openMock.mockReset().mockImplementation(async () => ({
+      fd: 42,
+      stat: statMock,
+      read: readHeadMock,
+      close: closeMock
+    }))
+    closeMock.mockReset().mockResolvedValue(undefined)
+    readHeadMock.mockReset().mockImplementation(async (buffer: Buffer) => {
+      Buffer.from('%PDF-1.7').copy(buffer)
+      return { bytesRead: 8 }
+    })
     createReadStreamMock.mockReset().mockImplementation(() => makeFakeFileStream())
     requireTrustedIpcSenderMock.mockReset().mockReturnValue(true)
   })
@@ -326,7 +347,7 @@ describe('local-pdf:// protocol handler', () => {
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
       const response = await getProtocolHandler()(
-        makeRequest(streamUrl, { referer: 'https://evil.com/page' })
+        makeRequest(streamUrl, { referer: 'https://evil.com/page' }, { withOrigin: false })
       )
 
       expect(response.status).toBe(403)
@@ -338,11 +359,87 @@ describe('local-pdf:// protocol handler', () => {
       const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
 
       const response = await getProtocolHandler()(
-        makeRequest(streamUrl, { 'sec-fetch-site': 'cross-site' })
+        makeRequest(
+          streamUrl,
+          { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate' },
+          { withOrigin: false }
+        )
       )
 
       expect(response.status).toBe(403)
       expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects a headerless request that is not a navigation', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { 'sec-fetch-mode': 'cors' }, { withOrigin: false })
+      )
+
+      expect(response.status).toBe(403)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts a top-level navigation with no Origin or Referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(
+          streamUrl,
+          { 'sec-fetch-site': 'none', 'sec-fetch-mode': 'navigate' },
+          { withOrigin: false }
+        )
+      )
+
+      expect(response.status).toBe(200)
+    })
+
+    it('accepts an opaque origin only with a local app referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, {
+          origin: 'null',
+          referer: 'file:///app/dist/index.html'
+        })
+      )
+
+      expect(response.status).toBe(200)
+    })
+
+    it('rejects an opaque origin without a trusted local referer', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { origin: 'null' }, { withOrigin: false })
+      )
+
+      expect(response.status).toBe(403)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('does not answer a conditional request before checking the origin', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', {
+        size: 1000,
+        mtimeMs: 1700000000000
+      })
+
+      const response = await getProtocolHandler()(
+        makeRequest(
+          streamUrl,
+          { 'if-none-match': 'W/"1000-1700000000000"', origin: 'https://evil.com' },
+          { withOrigin: false }
+        )
+      )
+
+      // 304 would leak the cache state and ETag to a refused client.
+      expect(response.status).toBe(403)
     })
   })
 
@@ -391,7 +488,7 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.headers.get('content-range')).toBe('bytes 900-999/1000')
       expect(createReadStreamMock).toHaveBeenCalledWith(
         expect.stringMatching(/[\\/]test[\\/]file\.pdf$/),
-        { start: 900, end: 999, highWaterMark: 1048576 }
+        { start: 900, end: 999, highWaterMark: 1048576, fd: 42 }
       )
     })
 
