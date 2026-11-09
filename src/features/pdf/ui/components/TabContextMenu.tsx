@@ -2,10 +2,11 @@ import type { PdfTab } from '@features/pdf/hooks/types'
 
 import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
+import { fitMenuToViewport } from '@shared/lib/menuPosition'
 import { DURATION } from '@shared/lib/motion'
 
 import { motion } from 'motion/react'
-import { memo, type RefObject, useRef } from 'react'
+import { memo, type RefObject, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 interface TabContextMenuProps {
@@ -29,6 +30,15 @@ function TabContextMenu({
 }: TabContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const setMenuRef = useMenuKeyboardNavigation(menuRef, { onClose: onDismiss, triggerRef })
+
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!contextMenu || !el) return
+    const rect = el.getBoundingClientRect()
+    const { left, top } = fitMenuToViewport(contextMenu.x, contextMenu.y, rect.width, rect.height)
+    el.style.left = `${left}px`
+    el.style.top = `${top}px`
+  }, [contextMenu])
 
   if (!contextMenu || !tab) return null
 

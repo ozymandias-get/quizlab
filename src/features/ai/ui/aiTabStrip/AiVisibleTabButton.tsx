@@ -103,11 +103,16 @@ function AiVisibleTabButton({
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
+        // The input lives inside a tab container that also listens for Enter to
+        // select the tab. Commit the rename and stop there: letting the event
+        // bubble re-selected the tab and could undo the edit.
         event.preventDefault()
+        event.stopPropagation()
         onCommitRename(tabId, editingValue)
       }
       if (event.key === 'Escape') {
         event.preventDefault()
+        event.stopPropagation()
         onCancelRename()
       }
     },
@@ -138,11 +143,13 @@ function AiVisibleTabButton({
       <TooltipTrigger asChild>
         <TabPillContainer
           isActive={isActive}
-          className="group cursor-pointer pr-20"
+          className={`group cursor-pointer ${isEditing ? 'pr-10' : 'pr-[4.5rem]'}`}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onContextMenu={handleContextMenu}
           onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
+            // Keys fired inside the rename input belong to the input only.
+            if (event.target !== event.currentTarget) return
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault()
               onSelect(tabId)
@@ -168,9 +175,13 @@ function AiVisibleTabButton({
               onKeyDown={handleKeyDown}
               placeholder={tr('tab_rename_placeholder', 'Tab name...')}
               className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
-              style={
-                labelWidthRef.current ? { width: labelWidthRef.current, maxWidth: 240 } : undefined
-              }
+              style={{
+                // Short labels used to produce a cramped input. Keep a usable
+                // minimum so the new name is readable while typing; very long
+                // names still scroll inside the pill's 240px cap.
+                width: Math.max(labelWidthRef.current ?? 0, 120),
+                maxWidth: 240
+              }}
             />
           ) : (
             <TabPillLabel ref={labelRef} isActive={isActive}>
@@ -178,37 +189,39 @@ function AiVisibleTabButton({
             </TabPillLabel>
           )}
 
-          <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-1">
-            <IconButton
-              type="button"
-              size="compact"
-              variant="ghost"
-              aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
-              onClick={handleTogglePin}
-              className={`size-7 rounded-md border p-0 ${
-                tab.pinned
-                  ? 'border-ring/50 bg-accent text-foreground opacity-100'
-                  : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-60 group-hover:opacity-80 hover:opacity-100'
-              }`}
-            >
-              <Pin className="h-3.5 w-3.5" fill={tab.pinned ? 'currentColor' : 'none'} />
-            </IconButton>
+          {!isEditing && (
+            <div className="absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-1">
+              <IconButton
+                type="button"
+                size="compact"
+                variant="ghost"
+                aria-label={tab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
+                onClick={handleTogglePin}
+                className={`size-7 rounded-md border p-0 transition-opacity ${
+                  tab.pinned
+                    ? 'border-ring/50 bg-accent text-foreground opacity-100'
+                    : 'border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:text-primary opacity-0 group-focus-within:opacity-100 group-hover:opacity-80 hover:opacity-100 focus-visible:opacity-100'
+                }`}
+              >
+                <Pin className="h-3.5 w-3.5" fill={tab.pinned ? 'currentColor' : 'none'} />
+              </IconButton>
 
-            <IconButton
-              type="button"
-              size="compact"
-              variant="ghost"
-              aria-label={tr('tab_close', 'Close')}
-              onClick={handleClose}
-              className={`text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
-                isActive
-                  ? 'opacity-80 hover:opacity-100'
-                  : 'opacity-60 group-hover:opacity-80 hover:opacity-100'
-              } border-border/50 bg-card/60`}
-            >
-              <X className="h-3.5 w-3.5" />
-            </IconButton>
-          </div>
+              <IconButton
+                type="button"
+                size="compact"
+                variant="ghost"
+                aria-label={tr('tab_close', 'Close')}
+                onClick={handleClose}
+                className={`text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
+                  isActive
+                    ? 'opacity-70 hover:opacity-100'
+                    : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100'
+                } border-border/50 bg-card/60`}
+              >
+                <X className="h-3.5 w-3.5" />
+              </IconButton>
+            </div>
+          )}
         </TabPillContainer>
       </TooltipTrigger>
       <TooltipContent side="top" avoidCollisions={false}>

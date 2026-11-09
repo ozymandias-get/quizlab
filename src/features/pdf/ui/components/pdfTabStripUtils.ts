@@ -19,7 +19,10 @@ export function getMaxVisibleTabs(containerWidth: number, hasHome: boolean): num
   const gapCount = 2
   const gapsWidth = gapCount * 8
   const available = containerWidth - reservedButtons - gapsWidth
-  return Math.max(1, Math.floor(available / MIN_TAB_WIDTH))
+  // Below one pill's minimum width, showing a pill would push the add/overflow
+  // controls out of the row. Return 0 so every tab moves into the overflow
+  // menu instead.
+  return Math.max(0, Math.floor(available / MIN_TAB_WIDTH))
 }
 
 export interface TabVisibilityResult {
@@ -38,17 +41,14 @@ export function computeTabVisibility(
     if (tabs.length <= max) {
       return new Set(tabs.map((tab) => tab.id))
     }
-    const activeIndex = tabs.findIndex((tab) => tab.id === activeTabId)
-    if (activeIndex <= 0) {
-      return new Set(tabs.slice(0, max).map((tab) => tab.id))
-    }
-    if (activeIndex >= tabs.length - 1) {
-      return new Set(tabs.slice(-max).map((tab) => tab.id))
-    }
+    const activeIndex = Math.max(
+      0,
+      tabs.findIndex((tab) => tab.id === activeTabId)
+    )
     const half = Math.floor((max - 1) / 2)
-    const start = Math.max(0, activeIndex - half)
-    const end = Math.min(tabs.length, start + max)
-    return new Set(tabs.slice(start, end).map((tab) => tab.id))
+    // Shift the window at either end so it always fills the measured capacity.
+    const start = Math.min(Math.max(0, tabs.length - max), Math.max(0, activeIndex - half))
+    return new Set(tabs.slice(start, start + max).map((tab) => tab.id))
   })()
 
   const nextVisibleTabs: PdfTab[] = []

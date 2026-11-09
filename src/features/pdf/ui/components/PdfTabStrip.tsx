@@ -17,7 +17,7 @@ import {
 import OverflowMenu from './OverflowMenu'
 import PdfTabItem from './PdfTabItem'
 import type { ContextMenuState } from './pdfTabStripUtils'
-import { clamp, computeTabVisibility, getMaxVisibleTabs } from './pdfTabStripUtils'
+import { computeTabVisibility, getMaxVisibleTabs } from './pdfTabStripUtils'
 import TabContextMenu from './TabContextMenu'
 import { usePdfTabStripDerived } from './usePdfTabStripDerived'
 import { usePdfTabStripRoving } from './usePdfTabStripRoving'
@@ -115,10 +115,12 @@ function PdfTabStrip({
     contextMenuTriggerRef.current =
       event.currentTarget instanceof HTMLElement ? event.currentTarget : null
 
+    // The menu measures itself and clamps to the viewport, so translated or
+    // scaled menus cannot overflow.
     setContextMenu({
       tabId,
-      x: clamp(event.clientX, 12, Math.max(12, window.innerWidth - 188)),
-      y: clamp(event.clientY, 12, Math.max(12, window.innerHeight - 98))
+      x: event.clientX,
+      y: event.clientY
     })
   }, [])
 

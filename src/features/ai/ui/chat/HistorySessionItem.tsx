@@ -140,7 +140,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
       }`}
     >
       {isEditing ? (
-        <div className="flex min-w-0 flex-1 items-center gap-3 pr-8">
+        <div className="flex min-w-0 flex-1 items-center gap-3 pr-12">
           {icon}
 
           <div className="min-w-0 flex-1">
@@ -189,7 +189,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
           onClick={() => onSelect(session.id)}
           aria-label={session.title}
           aria-current={isActive || undefined}
-          className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring/40 flex min-w-0 flex-1 items-center gap-3 rounded-md pr-20 text-left focus-visible:ring-2 focus-visible:outline-none"
         >
           {icon}
 

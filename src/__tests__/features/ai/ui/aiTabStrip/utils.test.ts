@@ -1,4 +1,8 @@
-import { clamp, getVisibleTabIds } from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
+import {
+  clamp,
+  getMaxVisibleAiTabs,
+  getVisibleTabIds
+} from '@features/ai/ui/aiTabStrip/aiTabStripUtils'
 
 import type { Tab } from '@app/providers/ai-context'
 
@@ -32,6 +36,32 @@ describe('getVisibleTabIds', () => {
     ['an unknown active id', makeTabs(10), 'unknown', ['tab-0', 'tab-1', 'tab-2']]
   ])('%s shows exactly the windowed ids', (_case, tabs, activeTabId, expected) => {
     expect([...getVisibleTabIds(tabs as Tab[] | undefined, activeTabId)].sort()).toEqual(expected)
+  })
+
+  it('uses the measured capacity instead of the old fixed three', () => {
+    expect([...getVisibleTabIds(makeTabs(10), 'tab-5', 5)].sort()).toEqual([
+      'tab-3',
+      'tab-4',
+      'tab-5',
+      'tab-6',
+      'tab-7'
+    ])
+  })
+
+  it('shows nothing when no pill fits; overflow owns every tab', () => {
+    expect([...getVisibleTabIds(makeTabs(4), 'tab-2', 0)]).toEqual([])
+  })
+})
+
+describe('getMaxVisibleAiTabs', () => {
+  it('grows with the row width', () => {
+    expect(getMaxVisibleAiTabs(220, { hasHome: true, hasRefresh: true })).toBe(0)
+    expect(getMaxVisibleAiTabs(600, { hasHome: true, hasRefresh: true })).toBe(3)
+    expect(getMaxVisibleAiTabs(1000, { hasHome: true, hasRefresh: true })).toBe(6)
+  })
+
+  it('falls back to three before the row has been measured', () => {
+    expect(getMaxVisibleAiTabs(0)).toBe(3)
   })
 })
 

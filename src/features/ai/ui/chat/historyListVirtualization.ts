@@ -7,7 +7,9 @@
  * budget.
  */
 
-export const LIST_ROW_HEIGHT = 72
+// 80px leaves room for the title plus metadata at large text scales; virtual
+// offsets still use one uniform row height, and the edited row is measured.
+export const LIST_ROW_HEIGHT = 80
 export const LIST_ROW_GAP = 8
 export const LIST_OVERSCAN = 4
 export const LIST_FALLBACK_HEIGHT = 480

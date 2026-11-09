@@ -12,7 +12,7 @@ import {
   useState
 } from 'react'
 
-import { clamp, getVisibleTabIds } from './aiTabStripUtils'
+import { getMaxVisibleAiTabs, getVisibleTabIds } from './aiTabStripUtils'
 import type { ContextMenuState } from './types'
 
 interface UseAiTabStripStateParams {
@@ -33,6 +33,7 @@ export function useAiTabStripState({
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
+  const rowRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
   const skipBlurSaveRef = useRef(false)
 
@@ -40,6 +41,23 @@ export function useAiTabStripState({
   const [editingValue, setEditingValue] = useState('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [isOverflowOpen, setIsOverflowOpen] = useState(false)
+  const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver((entries) => {
+      const width =
+        entries[0]?.contentBoxSize?.[0]?.inlineSize ?? entries[0]?.contentRect?.width ?? 0
+      if (width > 0) {
+        // Home + refresh + divider are always rendered before the pills.
+        setMaxVisibleTabs(getMaxVisibleAiTabs(width, { hasHome: true, hasRefresh: true }))
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // Refs to keep callback deps stable — prevents the returned `helpers`/
   // `actions` objects from being re-created on every `tabs`/`aiSites`/`t`
@@ -51,7 +69,10 @@ export function useAiTabStripState({
   const tRef = useRef(t)
   tRef.current = t
 
-  const visibleTabIds = useMemo(() => getVisibleTabIds(tabs, activeTabId), [tabs, activeTabId])
+  const visibleTabIds = useMemo(
+    () => getVisibleTabIds(tabs, activeTabId, maxVisibleTabs),
+    [tabs, activeTabId, maxVisibleTabs]
+  )
   const { visibleTabs, overflowTabs } = useMemo(() => {
     const nextVisibleTabs: Tab[] = []
     const nextOverflowTabs: Tab[] = []
@@ -109,13 +130,12 @@ export function useAiTabStripState({
     contextMenuTriggerRef.current =
       event.currentTarget instanceof HTMLElement ? event.currentTarget : null
 
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-
+    // Store the raw pointer position; the menu measures itself and clamps to
+    // the viewport, so translated or scaled menus cannot overflow.
     setContextMenu({
       tabId,
-      x: clamp(event.clientX, 12, Math.max(12, viewportWidth - 188)),
-      y: clamp(event.clientY, 12, Math.max(12, viewportHeight - 126))
+      x: event.clientX,
+      y: event.clientY
     })
   }, [])
 
@@ -231,6 +251,7 @@ export function useAiTabStripState({
       contextMenuRef,
       contextMenuTriggerRef,
       overflowRef,
+      rowRef,
       renameInputRef,
       skipBlurSaveRef
     },

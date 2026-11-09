@@ -149,7 +149,14 @@ function DraftSendControls({
             )}
             aria-hidden
           />
-          <span className={cn('text-ql-11 truncate font-medium', statusTone)}>{statusLabel}</span>
+          <span
+            className={cn('text-ql-11 truncate font-medium', statusTone)}
+            // The row is intentionally single-line; the native tooltip keeps
+            // the full error text reachable when it has to truncate.
+            title={statusLabel}
+          >
+            {statusLabel}
+          </span>
         </div>
       )}
     </div>

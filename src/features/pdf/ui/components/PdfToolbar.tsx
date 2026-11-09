@@ -4,7 +4,13 @@ import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Hand, MoreHorizontal, RefreshCw } from 'lucide-react'
+import {
+  Hand,
+  MoreHorizontal,
+  RefreshCw,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -102,8 +108,22 @@ function PdfToolbar({
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false)
   const [compactMenuVertical, setCompactMenuVertical] = useState<MenuVertical>('top')
   const [compactMenuHorizontal, setCompactMenuHorizontal] = useState<MenuHorizontal>('left')
+  const [isNarrowToolbar, setIsNarrowToolbar] = useState(false)
   const compactMenuRef = useRef<HTMLDivElement>(null)
   const compactMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const toolbarRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = toolbarRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver((entries) => {
+      const width =
+        entries[0]?.contentBoxSize?.[0]?.inlineSize ?? entries[0]?.contentRect?.width ?? 0
+      if (width > 0) setIsNarrowToolbar(width < 420)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const closeCompactMenu = useCallback((returnFocus = false) => {
     setIsCompactMenuOpen(false)
@@ -270,6 +290,7 @@ function PdfToolbar({
 
   return (
     <motion.div
+      ref={toolbarRef}
       initial={{ y: 10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       // AI dock artık görüntüleme alanının üzerine binen yüzen bir kart; bu
@@ -368,6 +389,38 @@ function PdfToolbar({
                   {t('ctx_reload')}
                 </MenuItem>
               )}
+              {/* Below 420px the inline zoom group is hidden so search keeps
+                  usable width; the same actions stay reachable here. */}
+              {isNarrowToolbar && (
+                <ZoomOut>
+                  {(zoomProps) => (
+                    <MenuItem
+                      icon={<ZoomOutIcon />}
+                      onClick={() => {
+                        zoomProps.onClick()
+                        closeCompactMenu(true)
+                      }}
+                    >
+                      {t('zoom_out')}
+                    </MenuItem>
+                  )}
+                </ZoomOut>
+              )}
+              {isNarrowToolbar && (
+                <ZoomIn>
+                  {(zoomProps) => (
+                    <MenuItem
+                      icon={<ZoomInIcon />}
+                      onClick={() => {
+                        zoomProps.onClick()
+                        closeCompactMenu(true)
+                      }}
+                    >
+                      {t('zoom_in')}
+                    </MenuItem>
+                  )}
+                </ZoomIn>
+              )}
             </MenuSurface>
           )}
         </div>
@@ -394,7 +447,9 @@ function PdfToolbar({
           onNextPage={onNextPage}
           onJumpToPage={onJumpToPage}
         />
-        <PdfZoomControls ZoomIn={ZoomIn} ZoomOut={ZoomOut} CurrentScale={CurrentScale} />
+        {!isNarrowToolbar && (
+          <PdfZoomControls ZoomIn={ZoomIn} ZoomOut={ZoomOut} CurrentScale={CurrentScale} />
+        )}
       </div>
     </motion.div>
   )

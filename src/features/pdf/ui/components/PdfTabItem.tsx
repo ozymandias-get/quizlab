@@ -77,8 +77,10 @@ function PdfTabItem({
     </>
   )
 
+  // Long file names shrink within the measured capacity instead of pushing the
+  // add/overflow controls out of the row.
   return (
-    <div className="group relative shrink-0">
+    <div className="group relative min-w-0">
       {isEditing ? (
         <TabPillContainer
           isActive={isActive}
@@ -94,7 +96,7 @@ function PdfTabItem({
             onKeyDown={(event) => onEditingKeyDown(event, tab.id, editingValue)}
             placeholder={tr('tab_rename_placeholder', 'Tab name...')}
             aria-label={label}
-            className="text-ql-12 text-foreground h-auto min-w-0 border-none bg-transparent px-0 shadow-none"
+            className="text-ql-12 text-foreground h-auto w-full max-w-[200px] min-w-[6rem] border-none bg-transparent px-0 shadow-none"
           />
         </TabPillContainer>
       ) : (
@@ -124,27 +126,32 @@ function PdfTabItem({
         </Tooltip>
       )}
 
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <IconButton
-            type="button"
-            size="compact"
-            variant="ghost"
-            aria-label={tr('tab_close', 'Close')}
-            onClick={handleClose}
-            className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive motion-normal absolute inset-y-0 right-1 z-10 my-auto size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
-              isActive
-                ? 'opacity-80 hover:opacity-100'
-                : 'opacity-60 group-hover:opacity-80 hover:opacity-100'
-            }`}
-          >
-            <X className="h-3.5 w-3.5" />
-          </IconButton>
-        </TooltipTrigger>
-        <TooltipContent side="top" avoidCollisions={false}>
-          {tr('tab_close', 'Close')}
-        </TooltipContent>
-      </Tooltip>
+      {/* While renaming, the input owns the right side of the pill. The close
+          button used to sit on top of it and swallowed clicks meant for the
+          text field. */}
+      {!isEditing && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <IconButton
+              type="button"
+              size="compact"
+              variant="ghost"
+              aria-label={tr('tab_close', 'Close')}
+              onClick={handleClose}
+              className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive motion-normal absolute inset-y-0 right-1 z-10 my-auto size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
+                isActive
+                  ? 'opacity-80 hover:opacity-100'
+                  : 'opacity-60 group-hover:opacity-80 hover:opacity-100'
+              }`}
+            >
+              <X className="h-3.5 w-3.5" />
+            </IconButton>
+          </TooltipTrigger>
+          <TooltipContent side="top" avoidCollisions={false}>
+            {tr('tab_close', 'Close')}
+          </TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }
