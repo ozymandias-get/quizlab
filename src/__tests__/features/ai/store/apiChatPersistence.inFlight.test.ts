@@ -65,17 +65,26 @@ describe('flushing sessions on shutdown', () => {
     await vi.advanceTimersByTimeAsync(300)
     expect(indexedDb.write).toHaveBeenCalledTimes(1)
 
-    let flushed = false
-    const flush = flushPendingSessions().then(() => {
-      flushed = true
+    let settled = false
+    const flush = flushPendingSessions().then((saved) => {
+      settled = true
+      return saved
     })
 
     await Promise.resolve()
     // The debounce slot is empty, but the IndexedDB write is still running.
-    expect(flushed).toBe(false)
+    expect(settled).toBe(false)
 
     release(true)
-    await flush
-    expect(flushed).toBe(true)
+    await expect(flush).resolves.toBe(true)
+  })
+
+  it('reports a failed write instead of a clean shutdown', async () => {
+    indexedDb.write.mockResolvedValue(false)
+
+    scheduleSaveSessions([SESSION])
+    vi.advanceTimersByTime(300)
+    // The save has started (it awaits IndexedDB) but has not finished yet.
+    await expect(flushPendingSessions()).resolves.toBe(false)
   })
 })

@@ -1,7 +1,7 @@
-import { type BrowserWindow, dialog } from 'electron'
+import { type BrowserWindow } from 'electron'
 
 import { APP_CONFIG } from './constants.js'
-import { waitForQuitFlush } from './quitFlushGate.js'
+import { confirmQuitWithPendingWrites } from './quitConfirmation.js'
 import {
   DEV_SERVER_URL,
   isDev,
@@ -59,27 +59,11 @@ export async function createWindow() {
     saveWindowState(mainWindow)
     if (closeFlushDone) return
     event.preventDefault()
-    void waitForQuitFlush(mainWindow)
-      .then(async (saved) => {
-        if (saved) return
-        // A failed write must not look like a clean shutdown. Offer one retry;
-        // quitting anyway is still the user's explicit choice.
-        const choice = await dialog.showMessageBox(mainWindow!, {
-          type: 'warning',
-          buttons: ['Retry', 'Quit anyway'],
-          defaultId: 0,
-          cancelId: 1,
-          message: 'Some chat changes could not be saved.',
-          detail: 'Retry saving before closing the app?'
-        })
-        if (choice.response === 0) {
-          await waitForQuitFlush(mainWindow)
-        }
-      })
-      .finally(() => {
-        closeFlushDone = true
-        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
-      })
+    void confirmQuitWithPendingWrites(mainWindow).then((mayClose) => {
+      if (!mayClose) return
+      closeFlushDone = true
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
+    })
   })
   mainWindow.on('closed', () => {
     clearRevealTimer()

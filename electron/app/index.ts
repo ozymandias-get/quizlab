@@ -21,7 +21,7 @@ import { extractShellPdfPaths } from '../features/shell-open/parseShellPdfPaths.
 import { APP_CONFIG } from './constants.js'
 import { registerGeneralHandlers } from './ipcHandlers.js'
 import { initializeNativeMessaging, shutdownNativeMessaging } from './ipcHandlers.js'
-import { waitForQuitFlush } from './quitFlushGate.js'
+import { confirmQuitWithPendingWrites } from './quitConfirmation.js'
 import { getProfileName, resolveUserDataProfile } from './userDataProfile.js'
 import { createWindow, getMainWindow } from './windowManager.js'
 
@@ -237,16 +237,17 @@ app.on('before-quit', (event) => {
   if (quitAfterCleanup) return
   event.preventDefault()
   void (async () => {
-    // Give the renderer a bounded chance to finish pending storage writes.
-    const saved = await waitForQuitFlush(getMainWindow())
-    if (!saved) {
-      Logger.warn('[App] The renderer could not confirm that all chat state was saved before quit.')
+    // Same decision as the window close path: flush, retry on failure, or let
+    // the user cancel the quit. A cancelled quit leaves the app running.
+    const mayQuit = await confirmQuitWithPendingWrites(getMainWindow())
+    if (!mayQuit) {
+      Logger.info('[App] Quit cancelled because chat changes could not be saved.')
+      return
     }
     await runCleanup()
-  })().finally(() => {
     quitAfterCleanup = true
     app.quit()
-  })
+  })()
 })
 
 function handleSeriousError(type: string, error: unknown) {
