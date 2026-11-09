@@ -24,9 +24,30 @@ interface LogEntry {
   message: string
 }
 
-const logBuffer: LogEntry[] = []
+/**
+ * Fixed-capacity ring buffer.
+ *
+ * Appending past the limit overwrites the oldest slot in place instead of
+ * shifting every remaining entry. Readers still get a chronological view, and
+ * the public accessors below translate between absolute (ever-logged) indices
+ * and ring positions.
+ */
+const logBuffer: Array<LogEntry | undefined> = new Array(LOG_BUFFER_LIMIT)
+let bufferStart = 0
+let bufferSize = 0
 // Monotonic counter of every entry ever pushed (see getTotalLogCount).
 let totalEntriesLogged = 0
+
+function appendLogEntry(entry: LogEntry): void {
+  if (bufferSize < LOG_BUFFER_LIMIT) {
+    logBuffer[(bufferStart + bufferSize) % LOG_BUFFER_LIMIT] = entry
+    bufferSize += 1
+  } else {
+    logBuffer[bufferStart] = entry
+    bufferStart = (bufferStart + 1) % LOG_BUFFER_LIMIT
+  }
+  totalEntriesLogged++
+}
 
 // SECURITY: Patterns to redact from log output to prevent leaking sensitive
 // user data (home directories, API keys, internal IPs, etc.) into plaintext
@@ -93,16 +114,11 @@ function normalizeArgs(args: unknown[]): string {
 }
 
 function appendToBuffer(level: LogLevel, message: string) {
-  logBuffer.push({
+  appendLogEntry({
     timestamp: new Date().toISOString(),
     level,
     message
   })
-  totalEntriesLogged++
-
-  if (logBuffer.length > LOG_BUFFER_LIMIT) {
-    logBuffer.splice(0, logBuffer.length - LOG_BUFFER_LIMIT)
-  }
 }
 
 function pushToBuffer(level: LogLevel, args: unknown[]) {
@@ -110,8 +126,14 @@ function pushToBuffer(level: LogLevel, args: unknown[]) {
 }
 
 function getRecentLogs(limit: number = 120): LogEntry[] {
-  if (limit <= 0) return []
-  return logBuffer.slice(-limit)
+  if (limit <= 0 || bufferSize === 0) return []
+  const count = Math.min(limit, bufferSize)
+  const start = bufferSize - count
+  const entries: LogEntry[] = []
+  for (let i = start; i < bufferSize; i += 1) {
+    entries.push(logBuffer[(bufferStart + i) % LOG_BUFFER_LIMIT] as LogEntry)
+  }
+  return entries
 }
 
 /**
@@ -173,20 +195,28 @@ export function getRecentElectronLogs(limit?: number): ReadonlyArray<LogEntry> {
 // ── Buffer access for electron disk logger ─────────────────────
 
 export function getPendingLogEntries(fromIndex: number): LogEntry[] {
-  return logBuffer.slice(fromIndex)
+  if (fromIndex >= totalEntriesLogged) return []
+  // Absolute index of the oldest entry still buffered.
+  const firstBuffered = totalEntriesLogged - bufferSize
+  const start = Math.max(fromIndex - firstBuffered, 0)
+  const entries: LogEntry[] = []
+  for (let i = start; i < bufferSize; i += 1) {
+    entries.push(logBuffer[(bufferStart + i) % LOG_BUFFER_LIMIT] as LogEntry)
+  }
+  return entries
 }
 
 export function getLogBufferLength(): number {
-  return logBuffer.length
+  return bufferSize
 }
 
 /**
  * Total number of entries ever pushed to the buffer (monotonic counter).
  *
- * The buffer trims itself to LOG_BUFFER_LIMIT, so array indices shift as old
- * entries are dropped. Consumers that track "how far have I flushed" must use
- * this absolute count instead of raw buffer indices, otherwise a saturated
- * buffer makes `slice(lastFlushedIndex)` return nothing forever.
+ * The ring overwrites the oldest entry once full, so a buffer position is not an
+ * absolute index. Consumers that track "how far have I flushed" must use this
+ * counter with `getPendingLogEntries`, otherwise entries are missed or repeated
+ * after the buffer wraps.
  */
 export function getTotalLogCount(): number {
   return totalEntriesLogged
@@ -198,16 +228,11 @@ export function getTotalLogCount(): number {
  * process buffer without re-normalizing.
  */
 export function pushToLoggerBuffer(level: LogLevel, message: string, timestamp?: string): void {
-  logBuffer.push({
+  appendLogEntry({
     timestamp: timestamp || new Date().toISOString(),
     level,
     message
   })
-  totalEntriesLogged++
-
-  if (logBuffer.length > LOG_BUFFER_LIMIT) {
-    logBuffer.splice(0, logBuffer.length - LOG_BUFFER_LIMIT)
-  }
 }
 
 /**

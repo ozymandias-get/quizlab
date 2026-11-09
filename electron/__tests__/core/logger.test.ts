@@ -259,6 +259,26 @@ describe('electron/core/logger', () => {
       expect(logs[0].message).toBe('entry-100')
       expect(logs[logs.length - 1].message).toBe('entry-499')
     })
+
+    it('keeps chronological order across the wrap and maps absolute indices', async () => {
+      process.env.NODE_ENV = 'production'
+      const { Logger, getLogBufferLength, getPendingLogEntries, getTotalLogCount } =
+        await loadLogger()
+
+      for (let i = 0; i < 500; i++) {
+        Logger.info(`entry-${i}`)
+      }
+
+      expect(getLogBufferLength()).toBe(400)
+      expect(getTotalLogCount()).toBe(500)
+      // Absolute 450 is still retained (the ring holds 100..499).
+      expect(getPendingLogEntries(450).map((entry) => entry.message)).toEqual(
+        Array.from({ length: 50 }, (_, index) => `entry-${450 + index}`)
+      )
+      // An index older than the retained window clamps to the oldest entry.
+      expect(getPendingLogEntries(0)[0].message).toBe('entry-100')
+      expect(getPendingLogEntries(500)).toEqual([])
+    })
   })
 
   describe('forwardToMain', () => {

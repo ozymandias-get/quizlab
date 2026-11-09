@@ -10,7 +10,10 @@
 
 export {
   createIssueLogReport,
+  getLogBufferLength,
+  getPendingLogEntries,
   getRecentElectronLogs,
+  getTotalLogCount,
   Logger,
   pushToLoggerBuffer,
   redactSensitive,
