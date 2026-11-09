@@ -43,6 +43,39 @@ function stubBitmap(width: number, height: number) {
   return close
 }
 
+/**
+ * The bug this guards against: `new Blob([dataUrl])` stores the URL text, not the
+ * image bytes, so `createImageBitmap` rejects and the downscale silently degrades
+ * to the original (oversized) attachment. Assert on the bytes, not just the call.
+ */
+function recordBitmapSources() {
+  const sources: Blob[] = []
+  vi.stubGlobal(
+    'createImageBitmap',
+    vi.fn(async (source: Blob) => {
+      sources.push(source)
+      return { width: 8000, height: 4000, close: vi.fn() }
+    })
+  )
+  return sources
+}
+
+/** A minimal `<img>` that reports fixed natural dimensions on `src` assignment. */
+function stubImage(width: number, height: number) {
+  vi.stubGlobal(
+    'Image',
+    class {
+      onload: (() => void) | null = null
+      onerror: (() => void) | null = null
+      naturalWidth = width
+      naturalHeight = height
+      set src(_value: string) {
+        this.onload?.()
+      }
+    }
+  )
+}
+
 describe('estimateDataUrlBytes', () => {
   it.each([
     ['4 base64 chars decode to 3 bytes', 'data:image/png;base64,AAAA', 3],
@@ -119,6 +152,39 @@ describe('prepareImageForUpload', () => {
     expect(result).toBe('data:image/jpeg;base64,SMALL')
     // 8000x4000 halved onto the 2048 longest-edge limit.
     expect(canvases[0]).toMatchObject({ width: MAX_UPLOAD_DIMENSION, height: 1024 })
+    expect(drawImage).toHaveBeenCalledTimes(1)
+  })
+
+  it('decodes the data url into image bytes before asking for a bitmap', async () => {
+    const sources = recordBitmapSources()
+    stubCanvas(() => 'data:image/jpeg;base64,SMALL')
+
+    await prepareImageForUpload(PNG)
+
+    // One probe for the size, one for the canvas.
+    expect(sources).toHaveLength(2)
+    for (const source of sources) {
+      expect(source.type).toBe('image/png')
+      const bytes = new Uint8Array(await source.arrayBuffer())
+      // The PNG signature, i.e. the actual image rather than the URL text.
+      expect([...bytes.slice(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    }
+  })
+
+  it('falls back to an <img> when bitmap decoding fails', async () => {
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => {
+        throw new Error('decode failed')
+      })
+    )
+    stubImage(8000, 4000)
+    const { drawImage } = stubCanvas(() => 'data:image/jpeg;base64,SMALL')
+
+    const result = await prepareImageForUpload(PNG)
+
+    // Without the fallback this returned the original oversized data URL.
+    expect(result).toBe('data:image/jpeg;base64,SMALL')
     expect(drawImage).toHaveBeenCalledTimes(1)
   })
 

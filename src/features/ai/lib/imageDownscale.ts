@@ -91,10 +91,43 @@ interface DecodedSize {
   height: number
 }
 
-async function decodeSize(dataUrl: string): Promise<DecodedSize | null> {
-  if (typeof createImageBitmap === 'function') {
+/**
+ * Turn a data URL into the bytes it names.
+ *
+ * `new Blob([dataUrl])` would store the `data:image/png;base64,...` *text*, not
+ * the image, and `createImageBitmap` rejects it. Base64 payloads are decoded
+ * through `atob`, which yields a binary string whose char codes are the bytes.
+ */
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const commaIndex = dataUrl.indexOf(',')
+  if (commaIndex === -1) return null
+
+  const header = dataUrl.slice(0, commaIndex)
+  const payload = dataUrl.slice(commaIndex + 1)
+  const type = /^data:([^;,]+)/.exec(header)?.[1] ?? ''
+
+  if (!/;base64/i.test(header)) {
+    return new Blob([payload], { type })
+  }
+
+  if (typeof atob !== 'function') return null
+  try {
+    const binary = atob(payload)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return new Blob([bytes], { type })
+  } catch {
+    // Malformed base64: let the caller fall back to the <img> path.
+    return null
+  }
+}
+
+async function decodeSize(dataUrl: string, blob: Blob | null): Promise<DecodedSize | null> {
+  if (blob && typeof createImageBitmap === 'function') {
     try {
-      const bitmap = await createImageBitmap(new Blob([dataUrl]))
+      const bitmap = await createImageBitmap(blob)
       const size = { width: bitmap.width, height: bitmap.height }
       bitmap.close?.()
       return size
@@ -117,6 +150,7 @@ async function decodeSize(dataUrl: string): Promise<DecodedSize | null> {
 
 async function decodeToCanvas(
   dataUrl: string,
+  blob: Blob | null,
   targetWidth: number,
   targetHeight: number
 ): Promise<HTMLCanvasElement | null> {
@@ -127,15 +161,19 @@ async function decodeToCanvas(
   const context = canvas.getContext('2d')
   if (!context) return null
 
-  try {
-    if (typeof createImageBitmap === 'function') {
-      const bitmap = await createImageBitmap(new Blob([dataUrl]))
-      context.drawImage(bitmap, 0, 0, targetWidth, targetHeight)
-      bitmap.close?.()
+  if (blob && typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(blob)
+      try {
+        context.drawImage(bitmap, 0, 0, targetWidth, targetHeight)
+      } finally {
+        bitmap.close?.()
+      }
       return canvas
+    } catch {
+      // Fall through to the <img> path instead of giving up: a browser without
+      // a working `createImageBitmap` still has a decodable image.
     }
-  } catch {
-    return null
   }
 
   return withTimeout(
@@ -159,7 +197,11 @@ async function decodeToCanvas(
 export async function prepareImageForUpload(dataUrl: string): Promise<string> {
   if (!dataUrl.startsWith('data:image/')) return dataUrl
 
-  const size = await decodeSize(dataUrl)
+  // Decoded once and shared by the size probe and the canvas: base64-decoding a
+  // 20 MP capture is not free, and doing it twice was pure waste.
+  const blob = dataUrlToBlob(dataUrl)
+
+  const size = await decodeSize(dataUrl, blob)
   if (!size) return dataUrl
   if (!needsDownscale(estimateDataUrlBytes(dataUrl), size.width, size.height)) {
     return dataUrl
@@ -169,7 +211,7 @@ export async function prepareImageForUpload(dataUrl: string): Promise<string> {
   const targetWidth = Math.max(1, Math.round(size.width * scale))
   const targetHeight = Math.max(1, Math.round(size.height * scale))
 
-  const canvas = await decodeToCanvas(dataUrl, targetWidth, targetHeight)
+  const canvas = await decodeToCanvas(dataUrl, blob, targetWidth, targetHeight)
   if (!canvas) return dataUrl
 
   let encoded: string
