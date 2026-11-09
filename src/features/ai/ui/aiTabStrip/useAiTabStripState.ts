@@ -54,7 +54,22 @@ export function useAiTabStripState({
   // the width-based estimate first; the measurement pass below trims it again
   // if the new labels are still too wide. Without this reset the capacity could
   // only ever shrink within one row width.
-  const tabContentSignature = tabs.map((tab) => `${tab.id}:${tab.title ?? ''}`).join('|')
+  // Include every input that can change a pill's rendered label width: the
+  // title, the model/site label used when there is no title, and its
+  // translation. Colour and pin state do not affect width.
+  const tabContentSignature = tabs
+    .map((tab) => {
+      const site = aiSites[tab.modelId]
+      return [
+        tab.id,
+        tab.title ?? '',
+        tab.modelId,
+        site?.displayName ?? '',
+        site?.name ?? '',
+        t(tab.modelId)
+      ].join(':')
+    })
+    .join('|')
   const lastTabContentSignatureRef = useRef(tabContentSignature)
   useLayoutEffect(() => {
     if (lastTabContentSignatureRef.current === tabContentSignature) return
