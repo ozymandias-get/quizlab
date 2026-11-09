@@ -29,7 +29,9 @@ export function useApiChatSessionInit({
   setActiveSessionId,
   enabled = true
 }: UseApiChatSessionInitOptions): void {
-  const sessionInitInFlightRef = useRef(false)
+  /** The id of the one in-flight create request, or null. */
+  const sessionInitInFlightRef = useRef<number | null>(null)
+  const sessionInitRequestIdRef = useRef(0)
   const sessionInitRetryCountRef = useRef(0)
   const mountedRef = useRef(true)
   const currentTabIdRef = useRef(tabId)
@@ -47,7 +49,7 @@ export function useApiChatSessionInit({
   // new tab may start its own request even while the old one is still pending.
   useEffect(() => {
     sessionInitRetryCountRef.current = 0
-    sessionInitInFlightRef.current = false
+    sessionInitInFlightRef.current = null
   }, [tabId])
 
   useEffect(() => {
@@ -64,9 +66,13 @@ export function useApiChatSessionInit({
         }, 30_000)
         return () => clearTimeout(timer)
       }
-      sessionInitInFlightRef.current = true
+      const requestId = ++sessionInitRequestIdRef.current
+      sessionInitInFlightRef.current = requestId
       createSessionMutation()
         .then((session) => {
+          // Ignore an older request's result even if it finishes after a newer
+          // request for the same tab started.
+          if (sessionInitInFlightRef.current !== requestId) return
           // The tab may have been closed or switched while the create was in
           // flight; a result for the previous tab must not activate a session
           // in the current one.
@@ -81,7 +87,11 @@ export function useApiChatSessionInit({
           reportSuppressedError('apiChat.sessionInit', { cause: err })
         })
         .finally(() => {
-          sessionInitInFlightRef.current = false
+          // Never clear a newer tab's request: only the owner of this id may
+          // release the slot.
+          if (sessionInitInFlightRef.current === requestId) {
+            sessionInitInFlightRef.current = null
+          }
         })
       return
     }

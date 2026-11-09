@@ -42,4 +42,59 @@ describe('useApiChatSessionInit', () => {
 
     expect(setActiveSessionId).not.toHaveBeenCalledWith('tab-a', 'session-a')
   })
+
+  it('does not let the previous tab request release the new tab request slot', async () => {
+    const setActiveSessionId = vi.fn()
+    let resolveA!: (value: { session: { id: string } }) => void
+    let resolveB!: (value: { session: { id: string } }) => void
+    const createSessionMutation = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ session: { id: string } }>((resolve) => {
+            resolveA = resolve
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ session: { id: string } }>((resolve) => {
+            resolveB = resolve
+          })
+      )
+
+    const { rerender } = renderHook(
+      ({ tabId, enabled }) =>
+        useApiChatSessionInit({
+          tabId,
+          sessions: [],
+          createSessionMutation,
+          setActiveSessionId,
+          enabled
+        }),
+      { initialProps: { tabId: 'tab-a', enabled: true } }
+    )
+
+    await waitFor(() => expect(createSessionMutation).toHaveBeenCalledTimes(1))
+
+    rerender({ tabId: 'tab-b', enabled: true })
+    await waitFor(() => expect(createSessionMutation).toHaveBeenCalledTimes(2))
+
+    // A finishes while B is still in flight. Its finally must not release B.
+    await act(async () => {
+      resolveA({ session: { id: 'session-a' } })
+      await Promise.resolve()
+    })
+
+    rerender({ tabId: 'tab-b', enabled: false })
+    rerender({ tabId: 'tab-b', enabled: true })
+
+    expect(createSessionMutation).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      resolveB({ session: { id: 'session-b' } })
+    })
+
+    expect(setActiveSessionId).toHaveBeenCalledWith('tab-b', 'session-b')
+    expect(setActiveSessionId).not.toHaveBeenCalledWith('tab-a', 'session-a')
+  })
 })
