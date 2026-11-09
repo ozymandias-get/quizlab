@@ -12,7 +12,15 @@ import { getAiIcon } from '@ui/components/Icons'
 
 import { MoreHorizontal, X } from 'lucide-react'
 import { motion } from 'motion/react'
-import { memo, type MouseEvent as ReactMouseEvent, type RefObject, useEffect, useRef } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  type RefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 
 interface AiOverflowMenuProps {
   overflowTabs: Tab[]
@@ -42,10 +50,31 @@ function AiOverflowMenu({
   const surfaceRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const wasOpenRef = useRef(false)
+  const [menuPlacement, setMenuPlacement] = useState<'top' | 'bottom'>('bottom')
+  const [menuMaxHeight, setMenuMaxHeight] = useState(224)
 
   useEffect(() => {
     if (!isOverflowOpen) return
     surfaceRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
+  }, [isOverflowOpen])
+
+  // Keep the panel inside the visible band: prefer below, flip above when the
+  // trigger sits near the bottom, and cap the height to the chosen side.
+  useLayoutEffect(() => {
+    if (!isOverflowOpen) return
+    const trigger = triggerRef.current
+    const menu = surfaceRef.current
+    if (!trigger || !menu || window.innerHeight <= 0) return
+
+    const rect = trigger.getBoundingClientRect()
+    const margin = 8
+    const desired = Math.min(menu.scrollHeight || 224, 224)
+    const spaceBelow = window.innerHeight - rect.bottom - margin
+    const spaceAbove = rect.top - margin
+    const openUp = spaceBelow < desired && spaceAbove > spaceBelow
+
+    setMenuPlacement(openUp ? 'top' : 'bottom')
+    setMenuMaxHeight(Math.max(96, Math.min(224, openUp ? spaceAbove : spaceBelow)))
   }, [isOverflowOpen])
 
   useEffect(() => {
@@ -84,13 +113,16 @@ function AiOverflowMenu({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 4, scale: 0.98 }}
           transition={{ duration: DURATION.normal }}
-          className="z-dropdown absolute top-10 right-0"
+          className={`z-dropdown absolute right-0 ${
+            menuPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
         >
           <MenuSurface
             ref={surfaceRef}
             role="dialog"
             aria-label={tr('tab_more', 'More tabs')}
-            className="max-h-[min(14rem,calc(100dvh-6rem))] w-[min(260px,calc(100vw-16px))] overflow-y-auto"
+            className="w-[min(260px,calc(100vw-16px))] overflow-y-auto"
+            style={{ maxHeight: menuMaxHeight }}
           >
             {overflowTabs.map((tab) => {
               const label = getTabLabel(tab)

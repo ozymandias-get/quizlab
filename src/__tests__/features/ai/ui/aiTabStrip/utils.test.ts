@@ -151,6 +151,28 @@ describe('resolveVisibleAiTabCount', () => {
       })
     ).toBe(1)
   })
+
+  it('uses the measured pill width instead of the 240px worst case when available', () => {
+    expect(
+      resolveVisibleAiTabCount({
+        current: 1,
+        tabWidths: [140],
+        availableWidth: 327,
+        hasOverflow: true,
+        incrementReserveWidth: 140
+      })
+    ).toBe(2)
+
+    // The same space stays below the old worst-case reserve.
+    expect(
+      resolveVisibleAiTabCount({
+        current: 1,
+        tabWidths: [140],
+        availableWidth: 327,
+        hasOverflow: true
+      })
+    ).toBe(1)
+  })
 })
 
 describe('clamp', () => {

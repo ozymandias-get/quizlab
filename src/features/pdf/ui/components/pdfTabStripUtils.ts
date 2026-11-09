@@ -11,7 +11,8 @@ export const clamp = (n: number, min: number, max: number) => Math.max(min, Math
 const MIN_TAB_WIDTH = 140
 /** The PDF pill's own max width; long file names are ellipsized at this size. */
 export const PDF_TAB_MAX_WIDTH = 240
-export const PDF_TAB_GAP = 8
+/** Must match `gap-1.5` on TAB_STRIP_ROW_CLASS (6px). */
+export const PDF_TAB_GAP = 6
 const HOME_BUTTON_WIDTH = 32
 const ADD_BUTTON_WIDTH = 32
 const OVERFLOW_BUTTON_WIDTH = 44
@@ -27,7 +28,8 @@ export function getPdfTabStripChromeWidth(hasHome: boolean, hasOverflow = true):
     (hasHome ? HOME_BUTTON_WIDTH : 0) +
     ADD_BUTTON_WIDTH +
     (hasOverflow ? OVERFLOW_BUTTON_WIDTH : 0) +
-    16
+    // Home/tabs/overflow/add sit in one row; keep the same 6px gap as CSS.
+    3 * PDF_TAB_GAP
   )
 }
 

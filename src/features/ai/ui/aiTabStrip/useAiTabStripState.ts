@@ -14,6 +14,7 @@ import {
 } from 'react'
 
 import {
+  AI_TAB_MIN_WIDTH,
   getAiTabStripChromeWidth,
   getDesiredAiTabWidth,
   getInitialVisibleAiTabs,
@@ -72,7 +73,12 @@ export function useAiTabStripState({
       ].join(':')
     })
     .join('|')
+  // Prevent an add/remove loop when a returning tab turns out wider than the
+  // measured pills used to predict it.
+  const blockedCapacityRef = useRef<number | null>(null)
+
   const getInitialCapacity = useCallback((width: number) => {
+    blockedCapacityRef.current = null
     // Home + refresh + divider are always rendered before the pills. The
     // overflow button is only reserved when a tab really has to be hidden.
     return getInitialVisibleAiTabs(width, tabsRef.current.length, {
@@ -144,12 +150,20 @@ export function useAiTabStripState({
       return getDesiredAiTabWidth(tab.offsetWidth, clippedText)
     })
 
-    const next = resolveVisibleAiTabCount({
+    let next = resolveVisibleAiTabCount({
       current: maxVisibleTabs,
       tabWidths,
       availableWidth: available,
-      hasOverflow: tabs.length > renderedTabs.length
+      hasOverflow: tabs.length > renderedTabs.length,
+      incrementReserveWidth: tabWidths.length > 0 ? Math.max(...tabWidths) : AI_TAB_MIN_WIDTH
     })
+
+    if (next > maxVisibleTabs && blockedCapacityRef.current === next) {
+      next = maxVisibleTabs
+    }
+
+    if (next < maxVisibleTabs) blockedCapacityRef.current = maxVisibleTabs
+    else if (next > maxVisibleTabs) blockedCapacityRef.current = null
 
     if (next !== maxVisibleTabs) setMaxVisibleTabs(next)
   }, [maxVisibleTabs, tabs, activeTabId])

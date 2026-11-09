@@ -3,7 +3,7 @@ import type { Tab } from '@app/providers/ai-context'
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
 /** Smallest comfortable AI tab pill; used to derive how many fit. */
-const MIN_TAB_WIDTH = 132
+export const AI_TAB_MIN_WIDTH = 132
 /** The pill's own max width; a long label is ellipsized, never widened past this. */
 export const AI_TAB_MAX_WIDTH = 240
 export const AI_TAB_GAP = 6
@@ -52,7 +52,7 @@ export function getMaxVisibleAiTabs(
   if (containerWidth <= 0) return 3
 
   const available = containerWidth - getAiTabStripChromeWidth(capacity)
-  return Math.max(0, Math.floor(available / MIN_TAB_WIDTH))
+  return Math.max(0, Math.floor(available / AI_TAB_MIN_WIDTH))
 }
 
 /**
@@ -85,20 +85,28 @@ export interface AiTabCapacityInput {
   tabWidths: readonly number[]
   availableWidth: number
   hasOverflow: boolean
+  /**
+   * Expected width of the tab that would return from overflow. Defaults to the
+   * pill maximum; the hook passes the widest measured pill so short tabs are
+   * not kept hidden by the 240px worst case.
+   */
+  incrementReserveWidth?: number
 }
 
 /**
  * Decides whether the measured pills need one fewer slot, or whether there is
  * room to bring one back from the overflow menu.
  *
- * Increases use the pill's maximum width, not the measured average, so a wider
- * incoming tab cannot immediately force another decrease and oscillate.
+ * Increases use the widest currently measured pill as a reserve, so short tabs
+ * are not kept hidden by the 240px worst case. The hook blocks an immediate
+ * re-increase after a failed attempt to prevent oscillation.
  */
 export function resolveVisibleAiTabCount({
   current,
   tabWidths,
   availableWidth,
-  hasOverflow
+  hasOverflow,
+  incrementReserveWidth = AI_TAB_MAX_WIDTH
 }: AiTabCapacityInput): number {
   const required =
     tabWidths.reduce((sum, width) => sum + width, 0) +
@@ -106,7 +114,8 @@ export function resolveVisibleAiTabCount({
 
   if (required > availableWidth) return Math.max(0, current - 1)
 
-  if (hasOverflow && availableWidth - required >= AI_TAB_MAX_WIDTH + AI_TAB_GAP) {
+  const reserve = Math.max(AI_TAB_MIN_WIDTH, Math.min(AI_TAB_MAX_WIDTH, incrementReserveWidth))
+  if (hasOverflow && availableWidth - required >= reserve + AI_TAB_GAP) {
     return current + 1
   }
 

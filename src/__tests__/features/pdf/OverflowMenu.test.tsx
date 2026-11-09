@@ -4,7 +4,7 @@ import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { FileText } from 'lucide-react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const tabs: PdfTab[] = [
   { id: 't1', file: null, title: 'First Tab' },
@@ -40,6 +40,45 @@ function openMenu() {
 }
 
 describe('OverflowMenu', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('opens below the trigger when there is room', () => {
+    renderMenu()
+    const trigger = screen.getByRole('button', { name: 'More tabs' })
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 120,
+      left: 0,
+      right: 20,
+      width: 20,
+      height: 20
+    } as DOMRect)
+
+    openMenu()
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.parentElement).toHaveClass('top-full')
+    expect(dialog).toHaveStyle({ maxHeight: '224px' })
+  })
+
+  it('flips above the trigger when the trigger is near the bottom', () => {
+    renderMenu()
+    const trigger = screen.getByRole('button', { name: 'More tabs' })
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      top: 700,
+      bottom: 720,
+      left: 0,
+      right: 20,
+      width: 20,
+      height: 20
+    } as DOMRect)
+
+    openMenu()
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.parentElement).toHaveClass('bottom-full')
+  })
+
   it('renders closed without a popover', () => {
     renderMenu()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

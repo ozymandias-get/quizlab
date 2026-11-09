@@ -1,5 +1,6 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 import {
+  PDF_TAB_GAP,
   PDF_TAB_MAX_WIDTH,
   computeTabVisibility,
   getDesiredPdfTabWidth,
@@ -14,6 +15,10 @@ const makeTabs = (count: number): PdfTab[] =>
   Array.from({ length: count }, (_, i) => ({ id: `tab-${i}` }) as PdfTab)
 
 describe('getMaxVisibleTabs', () => {
+  it('matches the tab strip CSS gap', () => {
+    expect(PDF_TAB_GAP).toBe(6)
+  })
+
   it('returns 0 when not even one pill fits, so controls are not pushed out', () => {
     expect(getMaxVisibleTabs(120, false)).toBe(0)
   })
