@@ -214,7 +214,7 @@ function PdfRecentListItem({
                 onClick={handleRemove}
                 onPointerDown={handleRemovePointerDown}
                 onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
-                className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 opacity-60 transition-all hover:opacity-100 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-60 md:group-hover:hover:opacity-100"
+                className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 opacity-60 transition-all hover:opacity-100 focus-visible:opacity-100 md:opacity-60 md:group-hover:hover:opacity-100"
                 aria-label={t('remove_from_history')}
               >
                 <Trash2 className="h-3.5 w-3.5" />

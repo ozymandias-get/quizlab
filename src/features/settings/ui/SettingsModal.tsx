@@ -99,7 +99,11 @@ const SettingsModal = memo(function SettingsModal({
 
           {!isCompact && (
             <div className="max-[768px]:hidden">
-              <ResizableHandle onResize={handleSidebarResize} />
+              <ResizableHandle
+                onResize={handleSidebarResize}
+                value={sidebarWidth}
+                label="Resize settings sidebar"
+              />
             </div>
           )}
 

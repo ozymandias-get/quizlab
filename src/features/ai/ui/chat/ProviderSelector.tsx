@@ -47,17 +47,16 @@ const ProviderSelector = memo(function ProviderSelector({
             size="sm"
             data-state={showProviderSelector ? 'open' : 'closed'}
             onClick={() => setShowProviderSelector(!showProviderSelector)}
-            className="bg-card/80 text-ql-12 h-7 gap-1.5 rounded-lg px-2.5 font-medium shadow-2xs"
+            className="bg-card/80 text-ql-12 h-7 max-w-[220px] min-w-0 gap-1.5 rounded-lg px-2.5 font-medium shadow-2xs"
             aria-haspopup="listbox"
             aria-expanded={showProviderSelector}
           >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
+            <Database className="text-muted-foreground/80 h-3.5 w-3.5 shrink-0" />
 
-            <Database className="text-muted-foreground/80 h-3.5 w-3.5" />
-
-            <span className="text-foreground">
+            <span
+              className="text-foreground min-w-0 truncate"
+              title={activeProvider?.name || t('api_chat_select_provider')}
+            >
               {activeProvider?.name || t('api_chat_select_provider')}
             </span>
             <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 opacity-60 transition-transform group-data-[state=open]/button:rotate-180" />

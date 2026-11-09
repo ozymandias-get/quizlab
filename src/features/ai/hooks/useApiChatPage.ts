@@ -135,7 +135,7 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = 'auto'
-    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`
+    ta.style.height = `${Math.min(ta.scrollHeight, 240)}px`
   }, [inputValue])
 
   const inputAreaRef = useRef<HTMLDivElement>(null)

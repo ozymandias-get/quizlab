@@ -111,7 +111,7 @@ const ChatInput = memo(function ChatInput({
               onChange={handleInputChange}
               onKeyDown={onKeyDown}
               rows={1}
-              className="text-ql-13 text-foreground placeholder:text-muted-foreground max-h-[160px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
+              className="text-ql-13 text-foreground placeholder:text-muted-foreground max-h-[240px] min-h-0 resize-none border-none bg-transparent px-3 py-2 leading-relaxed shadow-none focus-visible:ring-0"
               placeholder={t('api_chat_input_placeholder')}
               aria-label={t('api_chat_input_placeholder')}
             />
@@ -135,37 +135,42 @@ const ChatInput = memo(function ChatInput({
                 onSelectModel={onSelectModel}
               />
 
-              {canAttachImage && (
-                <div className="relative">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={onFileSelect}
-                    className="hidden"
-                  />
-                  <WithTooltip label={t('api_chat_upload_image')}>
-                    <IconButton
-                      type="button"
-                      variant="outline"
-                      size="compact"
-                      onClick={handleFileUploadClick}
-                      aria-label={t('api_chat_upload_image')}
-                    >
-                      <ImageIcon />
-                    </IconButton>
-                  </WithTooltip>
-                </div>
-              )}
+              <div className="relative">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={onFileSelect}
+                  className="hidden"
+                />
+                <WithTooltip
+                  label={
+                    canAttachImage ? t('api_chat_upload_image') : t('api_chat_vision_required')
+                  }
+                >
+                  <IconButton
+                    type="button"
+                    variant="outline"
+                    size="compact"
+                    onClick={handleFileUploadClick}
+                    disabled={!canAttachImage}
+                    aria-label={
+                      canAttachImage ? t('api_chat_upload_image') : t('api_chat_vision_required')
+                    }
+                  >
+                    <ImageIcon />
+                  </IconButton>
+                </WithTooltip>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5">
               {inputValue.trim() && (
                 <Badge variant="muted" size="sm" className="font-mono">
-                  <span>{wordCount}w</span>
+                  <span>{t('api_chat_word_count', { count: wordCount })}</span>
                   <span className="opacity-40">·</span>
-                  <span>{charCount}c</span>
+                  <span>{t('api_chat_char_count', { count: charCount })}</span>
                 </Badge>
               )}
 

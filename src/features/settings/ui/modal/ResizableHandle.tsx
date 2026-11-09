@@ -2,9 +2,20 @@ import { memo, useEffect, useRef } from 'react'
 
 interface ResizableHandleProps {
   onResize: (delta: number) => void
+  /** Current sidebar width in pixels, for screen readers. */
+  value?: number
+  min?: number
+  max?: number
+  label?: string
 }
 
-const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHandleProps) {
+const ResizableHandle = memo(function ResizableHandle({
+  onResize,
+  value = 0,
+  min = 190,
+  max = 380,
+  label = 'Resize sidebar'
+}: ResizableHandleProps) {
   const isDragging = useRef(false)
   const startXRef = useRef(0)
   const onResizeRef = useRef(onResize)
@@ -31,6 +42,11 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
+      // Unmounting mid-drag must not leave the whole document stuck with the
+      // resize cursor and selection disabled.
+      isDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
   }, [])
 
@@ -38,6 +54,10 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
     <div
       role="separator"
       aria-orientation="vertical"
+      aria-valuenow={Math.round(value)}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-label={label}
       tabIndex={0}
       className="group relative w-3 shrink-0 cursor-col-resize outline-none select-none"
       onMouseDown={(e) => {
@@ -49,8 +69,10 @@ const ResizableHandle = memo(function ResizableHandle({ onResize }: ResizableHan
       }}
       onKeyDown={(e) => {
         if (e.key === 'ArrowLeft') {
+          e.preventDefault()
           onResizeRef.current(-10)
         } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
           onResizeRef.current(10)
         }
       }}

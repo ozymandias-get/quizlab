@@ -85,9 +85,17 @@ const ModelSelector = memo(function ModelSelector({
       e.preventDefault()
       setActiveIndex((prev) => (prev <= 0 ? filteredModels.length - 1 : prev - 1))
     } else if (e.key === 'Enter') {
-      if (activeIndex >= 0 && activeIndex < filteredModels.length) {
+      // The active index can still be -1 right after typing. With a single
+      // match, Enter should accept it instead of doing nothing.
+      const target =
+        activeIndex >= 0 && activeIndex < filteredModels.length
+          ? filteredModels[activeIndex]
+          : filteredModels.length === 1
+            ? filteredModels[0]
+            : undefined
+      if (target !== undefined) {
         e.preventDefault()
-        handleSelect(filteredModels[activeIndex])
+        handleSelect(target)
       }
     } else if (e.key === 'Escape') {
       e.preventDefault()
@@ -133,7 +141,10 @@ const ModelSelector = memo(function ModelSelector({
           >
             <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
 
-            <span className="text-foreground max-w-[120px] truncate font-medium">
+            <span
+              className="text-foreground max-w-[120px] truncate font-medium"
+              title={currentDisplayName}
+            >
               {currentDisplayName}
             </span>
             <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 shrink-0 opacity-60 transition-transform group-data-[state=open]:rotate-180" />
@@ -184,9 +195,10 @@ const ModelSelector = memo(function ModelSelector({
                   id={`${listboxId}-option-${index}`}
                   role="option"
                   aria-selected={isSelected}
-                  tabIndex={-1}
+                  tabIndex={isActive ? 0 : -1}
                   data-model-index={index}
-                  onMouseDown={() => handleSelect(model)}
+                  onPointerDown={() => handleSelect(model)}
+                  title={model}
                   className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
                     isSelected
                       ? 'bg-primary/10 text-primary font-semibold'

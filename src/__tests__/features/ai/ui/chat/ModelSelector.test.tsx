@@ -59,7 +59,7 @@ describe('ModelSelector', () => {
     expect(screen.getByText('gpt-4o-mini')).toBeInTheDocument()
     expect(screen.queryByText('o1-preview')).not.toBeInTheDocument()
 
-    fireEvent.mouseDown(screen.getByText('gpt-4o-mini'))
+    fireEvent.pointerDown(screen.getByText('gpt-4o-mini'))
     expect(onSelectModel).toHaveBeenCalledWith('gpt-4o-mini')
   })
 
@@ -85,7 +85,7 @@ describe('ModelSelector', () => {
     expect(options).toHaveLength(3)
     options.forEach((option, index) => {
       expect(option.id).toBe(`${listboxId}-option-${index}`)
-      expect(option.tabIndex).toBe(-1)
+      expect(option.tabIndex).toBe(index === 0 ? 0 : -1)
       expect(option).toHaveAttribute('aria-selected', index === 0 ? 'true' : 'false')
     })
   })

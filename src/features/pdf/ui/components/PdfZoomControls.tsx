@@ -63,7 +63,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
 
       <ToolbarSeparator className="@max-[430px]:hidden" />
 
-      <div className="@max-[430px]:hidden">
+      <div>
         <CurrentScale>
           {(props: { scale: number }) => {
             const pct = Math.round(props.scale * 100)
@@ -74,7 +74,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                   {/* Read-only readout: the viewer owns zoom, so this must not
                       look like a button that would open a level picker. */}
                   <span
-                    className="text-ql-12 text-foreground inline-block min-w-[50px] rounded-md px-1.5 py-0.5 text-center font-medium tabular-nums select-none"
+                    className="text-ql-12 text-foreground @max-[430px]:text-ql-10 inline-block min-w-[38px] rounded-md px-1 py-0.5 text-center font-medium tabular-nums select-none"
                     aria-label={label}
                   >
                     {pct}%
