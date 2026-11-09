@@ -92,7 +92,7 @@ function PdfToolbar({
   const resetSearch = usePdfSearchStore((s) => s.reset)
   const resetSearchForOwner = usePdfSearchStore((s) => s.resetOwner)
   // A viewer only mirrors the shared query while it belongs to its document.
-  // `null` means the shortcut opened the bar without a document yet.
+  // `null` means the bar was opened without a document yet.
   const ownsSearch = searchOwnerId === null || searchOwnerId === documentId
   const isSearchOpen = storeSearchOpen && ownsSearch
   const searchKeyword = ownsSearch ? storeSearchKeyword : ''

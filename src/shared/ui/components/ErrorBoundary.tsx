@@ -33,7 +33,7 @@ const translate = (key: string, params?: Record<string, string>) => i18next.t(ke
  * The recovery action for the default "Tekrar Dene" button.
  *
  * We treat the retry as a hard page reload — equivalent to the user
- * pressing `Ctrl+R` — because the most common cause of an error boundary
+ * a hard reload - because the most common cause of an error boundary
  * tripping during development is a stale module bundle after HMR or a
  * one-off state inconsistency that survives a soft reset. A clean reload
  * resolves both cases deterministically.
@@ -72,7 +72,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
    *   1. Notify host via `onReset` (so callers can clear state/log/etc).
    *   2. Reset internal state (so a *non-reload* parent that catches
    *      this signal — e.g. tests — can still recover without a reload).
-   *   3. Trigger a hard reload to mirror `Ctrl+R`.
+   *   3. Trigger a hard reload.
    *
    * The reload is intentionally the last step: it tears down the React
    * tree, so anything that needs to run "before" must run first.

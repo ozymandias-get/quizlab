@@ -7,8 +7,7 @@ interface PdfSearchUiState {
   keyword: string
   /**
    * Document that owns the current search. `null` means the bar was opened
-   * without a document (e.g. the Ctrl+F shortcut before the first keystroke);
-   * any toolbar may claim it by typing.
+   * without a document yet; any toolbar may claim it by typing.
    */
   ownerId: string | null
   open: (ownerId?: string | null) => void
@@ -23,11 +22,10 @@ interface PdfSearchUiState {
 /**
  * Singleton zustand store for the PDF toolbar search bar state.
  *
- * The search bar is rendered per viewer instance (LeftPanel, FocusOverlay), but
- * the Ctrl/Cmd+F shortcut is a single app-level listener. Sharing both the open
- * state and the query through a store lets any viewer instance react to the
- * shortcut and keeps two toolbars showing the *same document* from diverging
- * while they overlap during the focus transition.
+ * The search bar is rendered per viewer instance (LeftPanel, FocusOverlay).
+ * Sharing both the open state and the query through a store keeps two toolbars
+ * showing the *same document* from diverging while they overlap during the
+ * focus transition.
  *
  * Two viewers can also show *different* documents. `ownerId` keeps their
  * searches apart: typing in one claims the query, so the other viewer's bar

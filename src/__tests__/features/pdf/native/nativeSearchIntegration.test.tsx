@@ -3,8 +3,8 @@
  *
  * There is one `PdfSearchBar`, one `usePdfSearchStore`, one toolbar and one set
  * of search functions, so this file drives the actual toolbar and the actual bar
- * — typing, `Enter`, `Escape`, the `Ctrl+F` pathway — against the real
- * controller rather than against the search module in isolation.
+ * — typing, `Enter` and `Escape` — against the real controller rather than
+ * against the search module in isolation.
  *
  * Only PDF.js and layout are faked; `PdfToolbar`, `PdfSearchBar`, `usePdfSearchStore`,
  * `useNativePdfController` and `useNativePdfSearch` are all the real thing.
@@ -238,11 +238,11 @@ describe('search UI on the native viewer', () => {
     geometry.restore()
   })
 
-  it('opens the same bar from the app-level shortcut store', async () => {
+  it('opens the same bar from the shared search store', async () => {
     await mountReady({ textItems: { 1: ['lupus'] } })
 
-    // `usePdfShortcuts` calls this on Ctrl/Cmd+F. No new global keydown listener was added
-    // for the native path, so this is still the one route into the bar.
+    // The toolbar store is the one route into the bar; there is no global
+    // keydown listener for the native path.
     act(() => usePdfSearchStore.setState({ isOpen: false }))
     await waitForFrames(() =>
       expect(screen.queryByPlaceholderText('search_placeholder')).toBeNull()

@@ -13,7 +13,7 @@
  * Nothing else exists. There is no match count, no next/previous match, no
  * current-match marker and no auto page jump — those are not part of the product,
  * and `PdfSearchBar` does not render them. This hook implements exactly that
- * surface, so the search bar itself, `usePdfSearchStore`, `Ctrl+F` and `Escape`
+ * surface, so the search bar itself, `usePdfSearchStore`, `Enter` and `Escape`
  * need no renderer branch.
  *
  * ## Scope: the rendered page

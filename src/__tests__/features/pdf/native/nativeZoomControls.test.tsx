@@ -17,7 +17,6 @@ import { describe, expect, it, vi } from 'vitest'
 interface CapturedChildProps {
   onClick?: () => void
   scale?: number
-  ariaKeyShortcuts?: string
 }
 
 /** Render one control component and capture the props it passes to its render prop. */
@@ -70,18 +69,6 @@ describe('useNativeZoomControls (control contract)', () => {
 
     expect(child.onClick).toBe(zoomIn)
     expect(child.scale).toBe(1.2)
-  })
-
-  it('does not advertise a keyboard shortcut now that the app has none', () => {
-    const controls = renderControls({
-      scale: 1.2,
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn()
-    })
-
-    expect('ariaKeyShortcuts' in capture(controls.ZoomIn)).toBe(false)
-    expect('ariaKeyShortcuts' in capture(controls.ZoomOut)).toBe(false)
-    expect('ariaKeyShortcuts' in capture(controls.CurrentScale)).toBe(false)
   })
 })
 

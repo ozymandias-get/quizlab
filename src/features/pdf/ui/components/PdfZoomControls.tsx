@@ -73,9 +73,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                     {pct}%
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {label} — {t('zoom_hint', { defaultValue: 'Use + / − to adjust' })}
-                </TooltipContent>
+                <TooltipContent>{label}</TooltipContent>
               </Tooltip>
             )
           }}

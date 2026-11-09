@@ -7,7 +7,7 @@
  * "fit to page width" is the number `useFitScale` computed, not a keyword. Routing
  * every programmatic zoom source through one coalesced channel is what keeps the
  * single-channel invariant reviewable — the toolbar buttons, Ctrl+wheel, the
- * resize refit, the initial fit, the keyboard shortcuts and the Electron context
+ * resize refit, the initial fit and the Electron context
  * menu all land on the same `zoomTo`.
  *
  * ## One effective zoom change per animation frame

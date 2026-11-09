@@ -52,9 +52,9 @@ vi.mock('@features/pdf/engine/pdfWorker', async () => {
 // The link service's default external pathway. Replaced with a spy so a test can see
 // that a URL reached it — and, more importantly, that an unsafe one did not.
 vi.mock('@shared/lib/electronApi', () => ({
-  // `hasElectronApi` is read by `isMacPlatform()`, which the native controller's
-  // zoom-shortcut hook and its `aria-keyshortcuts` values both call. Returning
-  // `true` with a non-Darwin `platform` keeps them on the Ctrl branch.
+  // `hasElectronApi` is read by platform helpers used by the native controller.
+  // Returning `true` with a non-Darwin `platform` keeps those paths on the
+  // Windows branch.
   hasElectronApi: () => true,
   getElectronApi: () => ({ platform: 'win32', openExternal: mocks.openExternal })
 }))
