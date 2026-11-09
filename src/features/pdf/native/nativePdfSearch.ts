@@ -397,14 +397,19 @@ export interface NativePdfSearchHighlightOptions {
 }
 
 /**
- * Draw the highlights into `layer`, replacing whatever was there.
+ * Draw the highlights into `layer`, reusing the nodes already there.
  *
- * `replaceChildren` rather than a diff, for the same reason the other two layers clear
- * their containers: a superseded overlay has to be gone before the next one is measured,
- * not after. The element contract is
- * `data-native-pdf-search-highlight` + `data-native-pdf-search-index` (this rectangle)
- * + `data-native-pdf-search-match` (the logical match it belongs to) — all QuizLab's
- * own attributes, so the overlay depends on no viewer package's class names.
+ * Highlights are re-resolved on every query/geometry change, so a large page
+ * could otherwise allocate and discard one `div` per rectangle each time. The
+ * existing node at each index is updated in place; only the surplus is removed
+ * and only the missing tail is created. Every attribute and position is written
+ * on every pass, so a reused node can never carry a stale rectangle, title or
+ * match index from the previous result.
+ *
+ * The element contract is `data-native-pdf-search-highlight` +
+ * `data-native-pdf-search-index` (this rectangle) + `data-native-pdf-search-match`
+ * (the logical match it belongs to) — all QuizLab's own attributes, so the
+ * overlay depends on no viewer package's class names.
  */
 export function renderNativePdfSearchHighlights(
   layer: HTMLElement,
@@ -412,10 +417,18 @@ export function renderNativePdfSearchHighlights(
   options: NativePdfSearchHighlightOptions
 ): void {
   const title = options.keyword.trim()
-  const fragment = document.createDocumentFragment()
-  for (const [index, highlight] of highlights.entries()) {
-    const element = document.createElement('div')
-    element.setAttribute('data-native-pdf-search-highlight', '')
+  const existing = [...layer.querySelectorAll<HTMLElement>('[data-native-pdf-search-highlight]')]
+  const count = highlights.length
+  const added = document.createDocumentFragment()
+
+  for (let index = 0; index < count; index += 1) {
+    const highlight = highlights[index]
+    const isNew = index >= existing.length
+    const element = isNew ? document.createElement('div') : existing[index]
+    if (isNew) {
+      element.setAttribute('data-native-pdf-search-highlight', '')
+      added.append(element)
+    }
     element.setAttribute('data-native-pdf-search-index', String(index))
     element.setAttribute('data-native-pdf-search-match', String(highlight.matchIndex))
     const style = element.style
@@ -425,12 +438,18 @@ export function renderNativePdfSearchHighlights(
     style.height = `${highlight.rect.height}px`
     if (options.reducedMotion) {
       style.opacity = HIGHLIGHT_REDUCED_MOTION_OPACITY
-    } else {
+      style.animation = ''
+    } else if (isNew || style.animation === '') {
+      // Only a node that has not already faded in starts at zero; reusing a
+      // finished animation leaves it visible without forcing a restart.
       style.opacity = '0'
       style.animation = HIGHLIGHT_FADE_ANIMATION
     }
     element.title = title
-    fragment.append(element)
   }
-  layer.replaceChildren(fragment)
+
+  if (added.childNodes.length > 0) layer.append(added)
+  for (let index = count; index < existing.length; index += 1) {
+    existing[index].remove()
+  }
 }

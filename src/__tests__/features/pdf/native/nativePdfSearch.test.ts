@@ -530,6 +530,25 @@ describe('drawing the highlights', () => {
     }
   })
 
+  it('reuses an existing node when the rectangle moves', () => {
+    const layer = draw(['lupus'], 'lupus')
+    const [first] = highlightsIn(layer)
+
+    renderNativePdfSearchHighlights(
+      layer,
+      [{ matchIndex: 3, rect: { top: 5, left: 6, width: 7, height: 8 } }],
+      { keyword: 'renamed', reducedMotion: false }
+    )
+
+    const [second] = highlightsIn(layer)
+    // Same DOM node, rewritten in place: no allocation and no stale geometry.
+    expect(second).toBe(first)
+    expect(second.style.left).toBe('6px')
+    expect(second.style.height).toBe('8px')
+    expect(second.dataset.nativePdfSearchMatch).toBe('3')
+    expect(second.title).toBe('renamed')
+  })
+
   it('replaces whatever was in the layer, so a stale rectangle cannot survive', () => {
     const layer = draw(['lupus'], 'lupus')
     expect(highlightsIn(layer)).toHaveLength(1)
