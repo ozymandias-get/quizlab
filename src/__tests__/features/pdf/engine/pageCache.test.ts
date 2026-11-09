@@ -5,7 +5,7 @@
  * are about what it retains and when it drops it — not about avoiding work,
  * which PDF.js already does internally via `PDFDocumentProxy.getPage`.
  */
-import { createPageCache } from '@features/pdf/engine/pageCache'
+import { createPageCache, DEFAULT_MAX_CACHED_PAGES } from '@features/pdf/engine/pageCache'
 
 import type { PDFPageProxy } from 'pdfjs-dist'
 
@@ -79,5 +79,42 @@ describe('createPageCache', () => {
     expect(cache.size).toBe(0)
     await cache.getPage(1)
     expect(getPage).toHaveBeenCalledTimes(3)
+  })
+
+  it('bounds the map and evicts the least recently used page', async () => {
+    const bounded = createPageCache({ getPage } as never, { maxPages: 2 })
+
+    await bounded.getPage(1)
+    await bounded.getPage(2)
+    // Re-reading 1 makes 2 the least recently used entry.
+    await bounded.getPage(1)
+    await bounded.getPage(3)
+
+    expect(bounded.size).toBe(2)
+
+    // 1 survived and is served from the map.
+    await bounded.getPage(1)
+    expect(getPage).toHaveBeenCalledTimes(3)
+
+    // 2 was evicted, so it goes back to the document.
+    await bounded.getPage(2)
+    expect(getPage).toHaveBeenCalledTimes(4)
+  })
+
+  it('never grows past the default cap during a long session', async () => {
+    for (let page = 1; page <= DEFAULT_MAX_CACHED_PAGES + 5; page++) {
+      await cache.getPage(page)
+      expect(cache.size).toBeLessThanOrEqual(DEFAULT_MAX_CACHED_PAGES)
+    }
+  })
+
+  it('clamps a nonsensical cap instead of dropping every entry', async () => {
+    const bounded = createPageCache({ getPage } as never, { maxPages: 0 })
+
+    await bounded.getPage(1)
+
+    expect(bounded.size).toBe(1)
+    await bounded.getPage(1)
+    expect(getPage).toHaveBeenCalledTimes(1)
   })
 })
