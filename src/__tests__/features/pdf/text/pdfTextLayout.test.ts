@@ -122,6 +122,28 @@ describe('layout — paragraph reconstruction', () => {
     expect(text).toBe('Hastalık sosyo-ekonomik bir sorundur.')
   })
 
+  it('keeps a hyphen before a word that starts with a short suffix-like syllable', () => {
+    const text = page([run('Bu well-', 50, 100, 300), run('defined bir terimdir.', 50, 114, 250)])
+
+    // "de" is a Turkish suffix but also the start of an independent word.
+    // Short matches are ambiguous and must not delete the hyphen.
+    expect(text).toBe('Bu well-defined bir terimdir.')
+  })
+
+  it('keeps a hyphen before a word that starts with "in"', () => {
+    const text = page([run('Bu well-', 50, 100, 300), run('informed bir terimdir.', 50, 114, 250)])
+
+    expect(text).toBe('Bu well-informed bir terimdir.')
+  })
+
+  it('keeps a hyphen before a word that starts with a case suffix', () => {
+    const text = page([run('Mavi-', 50, 100, 300), run('deniz manzarası güzel.', 50, 114, 250)])
+
+    // "den" is a case suffix, but "deniz" is also a word. Ambiguous
+    // continuations keep the visible hyphen.
+    expect(text).toBe('Mavi-deniz manzarası güzel.')
+  })
+
   it('keeps a hyphen before a proper name', () => {
     // "Alman" is a word, not a suffix: deleting the hyphen would merge two
     // names into a different one.

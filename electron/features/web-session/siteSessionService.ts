@@ -31,7 +31,11 @@ import type {
 } from '../../../shared/types/siteSession.js'
 import { Logger } from '../../core/logger.js'
 import { nativeMessagingManager } from '../native-messaging/nativeMessagingManager.js'
-import { hasLocalSessionForTarget, SITE_SESSION_PROTOCOL_VERSION } from './siteSessionBridge.js'
+import {
+  clearSiteSessionQuarantine,
+  hasLocalSessionForTarget,
+  SITE_SESSION_PROTOCOL_VERSION
+} from './siteSessionBridge.js'
 import { getSiteSessionConfig, type SiteSessionConfig } from './siteSessionConfig.js'
 import {
   invalidateSiteSessionListCache,
@@ -157,6 +161,9 @@ export class SiteSessionService {
         if (!enabled) return this.switchOff(target)
         try {
           await this.deps.config.setEnabled(siteId, true)
+          // Switching the site on is the user's explicit recovery from a
+          // quarantine; the in-process guard has to follow the durable flag.
+          clearSiteSessionQuarantine(siteId)
           return { success: true }
         } catch (error) {
           Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
@@ -343,6 +350,7 @@ export class SiteSessionService {
       throw error
     }
     await this.deps.config.resetResults(target.siteId)
+    clearSiteSessionQuarantine(target.siteId)
   }
 }
 

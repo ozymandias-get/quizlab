@@ -62,6 +62,34 @@ export interface SiteSessionTargetRow extends SiteSessionTarget {
 }
 
 /**
+ * A stable description of a target catalogue.
+ *
+ * A round is opened with one catalogue. The fingerprint is compared with a
+ * fresh build before a packet is written, so a catalogue change that does not
+ * advance the config version — a custom site added, renamed or removed — is
+ * still detected.
+ */
+export function siteSessionTargetsFingerprint(targets: readonly SiteSessionTargetRow[]): string {
+  return targets
+    .map((target) =>
+      [
+        target.siteId,
+        target.partition,
+        [...target.cookieDomains]
+          .map((domain) => domain.toLowerCase())
+          .sort()
+          .join(','),
+        [...target.origins]
+          .map((origin) => origin.toLowerCase())
+          .sort()
+          .join(',')
+      ].join('|')
+    )
+    .sort()
+    .join('\n')
+}
+
+/**
  * The origin of a platform URL, or null when the URL is unusable.
  *
  * A platform without a parsable URL has no site to route cookies to, so it

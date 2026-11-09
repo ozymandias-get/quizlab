@@ -195,9 +195,13 @@ function isCjkCharacter(character: string): boolean {
  * `hasta-` + `lığı` is `hastalığı`, while `sosyo-` + `ekonomik` stays a
  * compound because `ekonomik` is a word of its own.
  *
- * This is deliberately not a full morphological analyser. A suffix that also
- * happens to be a word (`-da`, `-de`) is in the list because it is far more
- * often an inflection than the second half of a hyphenated compound.
+ * This is deliberately not a full morphological analyser, and only suffixes of
+ * at least three letters are listed. Short endings such as `-da`, `-de` and
+ * `-in` also begin independent words (`deniz`, `ders`, `inşaat`); deleting a
+ * hyphen before one of those would merge two words, which is worse than
+ * leaving a typeset hyphen in place. Case endings such as `-dan`/`-den` are
+ * excluded for the same reason (`deniz`, `dans`). Only continuations that are
+ * unambiguously bound morphemes in practice are repaired.
  */
 const TURKISH_SUFFIX_PREFIXES = [
   'ları',
@@ -219,49 +223,7 @@ const TURKISH_SUFFIX_PREFIXES = [
   'nın',
   'nin',
   'nun',
-  'nün',
-  'dan',
-  'den',
-  'tan',
-  'ten',
-  'dır',
-  'dir',
-  'dur',
-  'dür',
-  'tır',
-  'tir',
-  'tur',
-  'tür',
-  'mı',
-  'mi',
-  'mu',
-  'mü',
-  'sı',
-  'si',
-  'su',
-  'sü',
-  'yı',
-  'yi',
-  'yu',
-  'yü',
-  'na',
-  'ne',
-  'da',
-  'de',
-  'ta',
-  'te',
-  'ın',
-  'in',
-  'un',
-  'ün',
-  'ca',
-  'ce',
-  'ça',
-  'çe',
-  'lı',
-  'li',
-  'lu',
-  'lü'
+  'nün'
 ] as const
 
 /** Whether the continuation after a line-break hyphen is a Turkish suffix. */

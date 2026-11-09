@@ -439,6 +439,43 @@ describe('site session config', () => {
     expect(state.targets.chatgpt.lastError).toBe('the bridge is gone')
   })
 
+  it('keeps a quarantine across a restart', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    await config.quarantine('chatgpt', 'session_restore_failed')
+
+    // A new instance is what a restart builds: the flag has to come from the
+    // file, not from the process that wrote it.
+    const afterRestart = new SiteSessionConfig(configPath())
+    const state = await afterRestart.read()
+
+    expect(state.targets.chatgpt.enabled).toBe(true)
+    expect(state.targets.chatgpt.quarantined).toBe(true)
+    expect(state.targets.chatgpt.lastError).toBe('session_restore_failed')
+  })
+
+  it('clears the quarantine when the site is switched on again', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    await config.quarantine('chatgpt', 'session_restore_failed')
+
+    await config.setEnabled('chatgpt', true)
+
+    const afterRestart = new SiteSessionConfig(configPath())
+    expect((await afterRestart.read()).targets.chatgpt.quarantined).toBe(false)
+  })
+
+  it('clears the quarantine when the session results are reset', async () => {
+    const config = new SiteSessionConfig(configPath())
+    await config.setEnabled('chatgpt', true)
+    await config.quarantine('chatgpt', 'session_restore_failed')
+
+    await config.resetResults('chatgpt')
+
+    const afterRestart = new SiteSessionConfig(configPath())
+    expect((await afterRestart.read()).targets.chatgpt.quarantined).toBe(false)
+  })
+
   it('never writes a site id the file may not carry', async () => {
     const config = new SiteSessionConfig(configPath())
 

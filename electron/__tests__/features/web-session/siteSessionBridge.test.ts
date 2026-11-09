@@ -26,6 +26,7 @@ const fakeSession = {
 const read = vi.fn()
 const recordResult = vi.fn()
 const quarantine = vi.fn().mockResolvedValue(undefined)
+const setEnabled = vi.fn().mockResolvedValue(undefined)
 
 const { partitionExistsOnDisk } = vi.hoisted(() => ({
   partitionExistsOnDisk: vi.fn(async () => true)
@@ -49,12 +50,18 @@ vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
   getSiteSessionConfig: () => ({
     read,
     recordResult,
-    quarantine
+    quarantine,
+    setEnabled
   })
 }))
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
-  buildSiteSessionTargets: async () => [TARGET]
+  buildSiteSessionTargets: async () => [TARGET],
+  siteSessionTargetsFingerprint: (targets: { siteId: string; cookieDomains: string[] }[]) =>
+    targets
+      .map((target) => `${target.siteId}:${[...target.cookieDomains].sort().join(',')}`)
+      .sort()
+      .join('|')
 }))
 
 vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
@@ -66,6 +73,7 @@ import { Logger } from '../../../core/logger.js'
 import {
   SITE_SESSION_PROTOCOL_VERSION,
   acceptSiteSessionPacket,
+  clearSiteSessionQuarantine,
   hasLocalSessionForTarget,
   listEnabledSiteSessionTargets,
   openSiteSessionRound,
@@ -148,6 +156,9 @@ describe('site session bridge', () => {
     recordResult.mockReset()
     quarantine.mockReset()
     quarantine.mockResolvedValue(undefined)
+    setEnabled.mockReset()
+    setEnabled.mockResolvedValue(undefined)
+    clearSiteSessionQuarantine('chatgpt')
     read.mockResolvedValue(stateWith(false))
   })
 
@@ -330,6 +341,35 @@ describe('site session bridge', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('blocks a site for the rest of the run when the quarantine cannot be persisted', async () => {
+    read.mockResolvedValue(stateWith(true))
+    get.mockRejectedValueOnce(new Error('unavailable'))
+    quarantine.mockRejectedValue(new Error('disk full'))
+    setEnabled.mockRejectedValue(new Error('disk full'))
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({ accepted: true, rollbackFailed: true })
+    expect(quarantine).toHaveBeenCalledWith('chatgpt', 'session_restore_failed')
+    // The durable fallback was attempted as well.
+    expect(setEnabled).toHaveBeenCalledWith('chatgpt', false)
+
+    // The config still says "not quarantined" because both writes failed, but
+    // the current process must not accept another packet for the site.
+    const next = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v2', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(next).toMatchObject({ accepted: false, reason: 'session_unverified' })
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it('records a packet that did not fit into the bridge as a failed import', async () => {
     // The packet was too large to be read, so nothing was imported: the row of
     // the site has to say so instead of showing the outcome of an earlier one.
@@ -435,9 +475,11 @@ describe('a round of packets', () => {
     read.mockResolvedValue(stateWith(true))
   })
 
-  it('builds the target list once for the packets of the round', async () => {
-    // The extension pushes one packet per site: the sites of the round do
-    // not change while it pushes them, so the list is read once.
+  it('revalidates the target catalogue for every packet of the round', async () => {
+    // The round keeps one catalogue for its routing decisions, but the
+    // catalogue can change at runtime (a custom site is added or removed)
+    // without advancing the config version. Each packet therefore checks the
+    // current catalogue before it writes.
     const loadTargets = vi.fn(async () => [TARGET])
     const round = await openSiteSessionRound({
       config: { read, recordResult } as never,
@@ -456,7 +498,31 @@ describe('a round of packets', () => {
       cookies: []
     })
 
-    expect(loadTargets).toHaveBeenCalledTimes(1)
+    // Once for the round plus once for each of its two packets.
+    expect(loadTargets).toHaveBeenCalledTimes(3)
+  })
+
+  it('refuses an old round when the catalogue changes without a version bump', async () => {
+    let targets = [TARGET]
+    read.mockResolvedValue(stateWith(true, 3))
+    const round = await openSiteSessionRound({
+      config: { read, recordResult } as never,
+      loadTargets: async () => targets,
+      resolveSession: () => fakeSession as never
+    })
+
+    // A custom site was edited: its cookie domains changed, but the config
+    // version stayed the same. The round must not route against the old list.
+    targets = [{ ...TARGET, cookieDomains: ['.chatgpt.com', '.openai.com', '.example.com'] }]
+
+    const outcome = await round.accept({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({ accepted: false, reason: 'stale_round' })
+    expect(set).not.toHaveBeenCalled()
   })
 
   it('refuses a packet from a round opened before the configuration changed', async () => {

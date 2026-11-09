@@ -36,7 +36,11 @@ import { type ExternalBrowserCookie, importExternalCookies } from './siteSession
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { buildSiteSessionTargets, type SiteSessionTargetRow } from './siteSessionTargets.js'
+import {
+  buildSiteSessionTargets,
+  type SiteSessionTargetRow,
+  siteSessionTargetsFingerprint
+} from './siteSessionTargets.js'
 
 export { SITE_SESSION_PROTOCOL_VERSION }
 
@@ -58,7 +62,7 @@ interface SiteSessionBridgeTarget {
 export interface SiteSessionImportEnvironment {
   /** The persisted state of the import switches. */
   config: Pick<SiteSessionConfig, 'read' | 'recordResult'> &
-    Partial<Pick<SiteSessionConfig, 'quarantine'>>
+    Partial<Pick<SiteSessionConfig, 'quarantine' | 'setEnabled'>>
   /** The sites the app knows about. */
   loadTargets: () => Promise<SiteSessionTargetRow[]>
   /** The session of a partition. */
@@ -85,6 +89,14 @@ export interface SiteSessionImportEnvironment {
 export interface SiteSessionRoundMetadata {
   configVersion: number
   openedAt: number
+  /**
+   * The catalogue the round was opened with.
+   *
+   * The config version does not advance for every catalogue change — a custom
+   * site added, renamed or removed keeps it — so the fingerprint is the second
+   * half of the staleness check.
+   */
+  targetsFingerprint: string
 }
 
 /**
@@ -95,6 +107,24 @@ export interface SiteSessionRoundMetadata {
  * killed, a request that was stuck — and must not write against its old list.
  */
 const SITE_SESSION_ROUND_MAX_AGE_MS = 2 * 60 * 1000
+
+/**
+ * Sites quarantined in this process because their rollback failed.
+ *
+ * The config file is the durable record. This set is the belt to that braces:
+ * if the write fails, the current run must still refuse packets for the site.
+ */
+const quarantinedSites = new Set<string>()
+
+/**
+ * Ends the quarantine of a site after the user cleared or re-enabled it.
+ *
+ * The durable flag is reset by the config; this clears the in-process guard so
+ * the next packet is allowed without waiting for a restart.
+ */
+export function clearSiteSessionQuarantine(siteId: string): void {
+  quarantinedSites.delete(siteId)
+}
 
 /** The session of a partition, as the app itself resolves it. */
 function defaultResolveSession(partition: string): Session {
@@ -142,18 +172,20 @@ export async function openSiteSessionRound(
 
   const [targets, state] = await Promise.all([loadTargets(), config.read()])
   const openedAt = Date.now()
+  const targetsFingerprint = siteSessionTargetsFingerprint(targets)
 
   return {
     targets,
     configVersion: state.configVersion,
     openedAt,
+    targetsFingerprint,
     accept: (packet) =>
       acceptSiteSessionPacket(packet, {
         config,
         loadTargets,
         resolveSession,
         targets,
-        round: { configVersion: state.configVersion, openedAt }
+        round: { configVersion: state.configVersion, openedAt, targetsFingerprint }
       })
   }
 }
@@ -407,10 +439,19 @@ async function handleSiteSessionPacket(
   const round = environment?.round
   if (round) {
     const age = Date.now() - round.openedAt
-    if (age > SITE_SESSION_ROUND_MAX_AGE_MS || state.configVersion !== round.configVersion) {
+    const versionChanged = state.configVersion !== round.configVersion
+    // The catalogue can change without advancing the config version (a custom
+    // site added, renamed or removed), so the targets are rebuilt and compared
+    // as well. A list that no longer matches the round is stale even when it
+    // is younger than the time limit.
+    const currentTargets = await loadTargets()
+    const catalogueChanged =
+      siteSessionTargetsFingerprint(currentTargets) !== round.targetsFingerprint
+    if (age > SITE_SESSION_ROUND_MAX_AGE_MS || versionChanged || catalogueChanged) {
       Logger.warn(
         `[SiteSessionBridge] Refused a packet from an obsolete round ` +
-          `(age ${age}ms, version ${round.configVersion} -> ${state.configVersion}).`
+          `(age ${age}ms, version ${round.configVersion} -> ${state.configVersion}, ` +
+          `catalogue ${catalogueChanged ? 'changed' : 'unchanged'}).`
       )
       return { accepted: false, reason: 'stale_round' }
     }
@@ -433,7 +474,7 @@ async function handleSiteSessionPacket(
   // A site whose rollback failed holds a session the app cannot vouch for. No
   // packet may touch it until the user clears it or switches the site on
   // again; switching the site on is the explicit recovery path.
-  if (state.targets[target.siteId]?.quarantined === true) {
+  if (quarantinedSites.has(target.siteId) || state.targets[target.siteId]?.quarantined === true) {
     Logger.warn(
       `[SiteSessionBridge] Refused a packet: the session of "${target.siteId}" is quarantined.`
     )
@@ -481,7 +522,9 @@ async function handleSiteSessionPacket(
   if (rollbackFailed) {
     // The session may mix cookies from both sides and the app could not prove
     // otherwise. Stop automatic writes for this site instead of letting the
-    // next packet build on an unknown state.
+    // next packet build on an unknown state. The in-process set protects the
+    // current run even when the durable write fails.
+    quarantinedSites.add(target.siteId)
     if (typeof config.quarantine === 'function') {
       try {
         await config.quarantine(target.siteId, error)
@@ -490,6 +533,19 @@ async function handleSiteSessionPacket(
           `[SiteSessionBridge] The quarantine of "${target.siteId}" could not be recorded: ` +
             `${writeError instanceof Error ? writeError.message : String(writeError)}`
         )
+        // Fall back to switching the site off: that is a second durable way to
+        // stop the import, and the user can turn it on again deliberately.
+        if (typeof config.setEnabled === 'function') {
+          try {
+            await config.setEnabled(target.siteId, false)
+          } catch (disableError) {
+            Logger.warn(
+              `[SiteSessionBridge] The site "${target.siteId}" could not be switched off after ` +
+                `a failed quarantine:`,
+              disableError
+            )
+          }
+        }
         await recordResult(config, target.siteId, 'failed', error)
       }
     } else {
