@@ -46,7 +46,11 @@ function pushEntry(level: string, message: string): void {
 }
 
 vi.mock('../../../src/shared/lib/logger.js', () => ({
-  getPendingLogEntries: (fromIndex: number) => logBuffer.slice(fromIndex),
+  // Absolute-index contract, like the real ring buffer in logger.ts.
+  getPendingLogEntries: (fromIndex: number) => {
+    const firstBuffered = totalLogged - logBuffer.length
+    return logBuffer.slice(Math.max(fromIndex - firstBuffered, 0))
+  },
   getLogBufferLength: () => logBuffer.length,
   getTotalLogCount: () => totalLogged
 }))
@@ -92,6 +96,26 @@ describe('diskLogger flushToDisk bookkeeping', () => {
     const secondWrite = appendFileMock.mock.calls[1][1] as string
     expect(secondWrite).toContain('after-saturation-1')
     expect(secondWrite).toContain('after-saturation-2')
+  })
+
+  it('writes only the unflushed tail after the buffer has wrapped (regression)', async () => {
+    const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
+    initLogger({ userDataPath: '/ud' })
+
+    // 450 entries: the ring keeps the newest 400 (50..449) when the first
+    // flush runs, which records an absolute flushed count of 450.
+    for (let i = 0; i < 450; i++) pushEntry('info', `m${i}`)
+    await flushToDisk()
+
+    for (let i = 450; i < 500; i++) pushEntry('info', `m${i}`)
+    await flushToDisk()
+
+    const secondWrite = appendFileMock.mock.calls[1][1] as string
+    // Only 450..499 are pending. Treating the flushed count as a buffer index
+    // would rewrite 350..449 as well.
+    expect(secondWrite).toContain('m450')
+    expect(secondWrite).not.toContain('m449')
+    expect(secondWrite.trim().split('\n')).toHaveLength(50)
   })
 
   it('does not skip entries that wrap around during trimming', async () => {

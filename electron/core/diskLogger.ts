@@ -1,11 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-import {
-  getLogBufferLength,
-  getPendingLogEntries,
-  getTotalLogCount
-} from '../../src/shared/lib/logger.js'
+import { getPendingLogEntries, getTotalLogCount } from '../../src/shared/lib/logger.js'
 
 let diskLogPath: string | null = null
 // Absolute count of entries already flushed (see getTotalLogCount). Raw
@@ -74,13 +70,12 @@ let pendingFlush = false
 let inFlightFlush: Promise<void> | null = null
 
 async function flushOnce(): Promise<void> {
-  // Map the absolute "already flushed" count onto current buffer indices:
-  // the buffer keeps only the newest `length` entries of `total` ever
-  // logged, so entry N lives at index max(0, length - (total - N)).
+  // `lastFlushedCount` is an absolute count (see getTotalLogCount), and
+  // `getPendingLogEntries` takes the same absolute index. No await sits between
+  // the two reads below, so `total` is exactly the point the returned entries
+  // end at: anything logged during the write stays pending for the next flush.
   const total = getTotalLogCount()
-  const bufferSize = getLogBufferLength()
-  const fromIndex = Math.max(0, bufferSize - (total - lastFlushedCount))
-  const entries = getPendingLogEntries(fromIndex)
+  const entries = getPendingLogEntries(lastFlushedCount)
   if (entries.length === 0) return
 
   try {
