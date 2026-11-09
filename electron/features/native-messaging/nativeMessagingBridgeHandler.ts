@@ -452,7 +452,7 @@ function handleCookiePost(
         sendJson(res, 401, { error: 'Invalid signature' })
         return
       }
-      markExtensionPaired(manager, { id: profileId, name: '' })
+      await markExtensionPaired(manager, { id: profileId, name: '' })
 
       // Another profile may still have packets in flight when the user
       // switches the source. They carry a valid signature, but they are no

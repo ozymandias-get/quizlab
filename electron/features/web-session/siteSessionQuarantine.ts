@@ -53,13 +53,27 @@ export async function writeQuarantineMarker(siteId: string, reason: string): Pro
   }
 }
 
-/** Whether a durable quarantine marker exists for the site. */
-export async function hasQuarantineMarker(siteId: string): Promise<boolean> {
+/**
+ * The durable quarantine state of a site.
+ *
+ * `unknown` is deliberately separate from `absent`: a file that cannot be
+ * read because of a permission or I/O error is not proof that no quarantine
+ * exists. The caller treats it as quarantined (fail closed).
+ */
+export type QuarantineMarkerState = 'present' | 'absent' | 'unknown'
+
+/** Reads whether a durable quarantine marker exists for the site. */
+export async function readQuarantineMarker(siteId: string): Promise<QuarantineMarkerState> {
   try {
     await fs.access(markerFile(siteId))
-    return true
-  } catch {
-    return false
+    return 'present'
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent'
+    Logger.warn(
+      `[SiteSessionQuarantine] The marker of "${siteId}" could not be read: ` +
+        `${error instanceof Error ? error.message : String(error)}`
+    )
+    return 'unknown'
   }
 }
 

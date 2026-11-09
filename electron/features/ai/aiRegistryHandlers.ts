@@ -17,7 +17,7 @@ import { Logger } from '../../core/logger.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
 import { getSiteSessionConfig } from '../web-session/siteSessionConfig.js'
 import { withSiteSessionLock } from '../web-session/siteSessionLock.js'
-import { buildSiteSessionTargets } from '../web-session/siteSessionTargets.js'
+import { buildSiteSessionTargets, isPartitionShared } from '../web-session/siteSessionTargets.js'
 import { wipeSiteSession } from '../web-session/siteSessionWipe.js'
 import { AI_REGISTRY, CHROME_USER_AGENT, DEFAULT_AI_ID, INACTIVE_PLATFORMS } from './aiManager.js'
 import { getCustomPlatformStore } from './customPlatformStore.js'
@@ -85,9 +85,14 @@ async function clearDeletedSiteSession(siteId: string): Promise<void> {
     const targets = await buildSiteSessionTargets()
     const target = targets.find((candidate) => candidate.siteId === siteId)
     if (target) {
-      await withSiteSessionLock(siteId, () =>
-        wipeSiteSession(electronSession.fromPartition(target.partition), target)
+      const result = await withSiteSessionLock(siteId, () =>
+        wipeSiteSession(electronSession.fromPartition(target.partition), target, {
+          clearAuthCache: !isPartitionShared(target.partition, targets, target.siteId)
+        })
       )
+      if (!result.ok) {
+        Logger.warn('[AI] The session of the deleted site was only partly cleared:', result)
+      }
     }
   } catch (error) {
     Logger.warn('[AI] The session of the deleted site could not be cleared:', error)

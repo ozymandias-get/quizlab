@@ -211,6 +211,19 @@ describe('NativeMessagingManager', () => {
       await manager.markExtensionPaired()
       expect(manager.getExtensionInfo().paired).toBe(true)
     })
+
+    it('keeps an origin-only request connected but not paired', () => {
+      // Passing the origin check is not proof that the extension holds the
+      // pairing code; only a signed request may set `paired`.
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+
+      const info = manager.getExtensionInfo()
+      // No source is selected yet, so the aggregate status is not "connected";
+      // the profile itself is seen, and `paired` stays false.
+      expect(info.status).toBe('connecting')
+      expect(info.paired).toBe(false)
+      expect(info.profiles[0]).toMatchObject({ connected: true, paired: false })
+    })
   })
 
   describe('Chrome profiles', () => {
@@ -264,15 +277,56 @@ describe('NativeMessagingManager', () => {
       // selection write is failed on purpose.
       await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalled())
 
-      mockFsWriteFile.mockRejectedValueOnce(new Error('the disk is full'))
+      // Both attempts of the save fail.
+      mockFsWriteFile.mockRejectedValue(new Error('the disk is full'))
       await manager.markExtensionPaired('profile-a-1234')
 
       // The user must not see a source that a restart would forget.
       expect(manager.getSelectedProfileId()).toBeNull()
 
       // The next signed request is the retry path.
+      mockFsWriteFile.mockResolvedValue(undefined)
       await manager.markExtensionPaired('profile-a-1234')
       expect(manager.getSelectedProfileId()).toBe('profile-a-1234')
+    })
+
+    it('commits only one selection when two profiles pair at the same time', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+
+      await Promise.all([
+        manager.markExtensionPaired('profile-a-1234'),
+        manager.markExtensionPaired('profile-b-1234')
+      ])
+
+      // The first pairing reserves the selection; the second waits for it and
+      // must not overwrite the disk with a different source.
+      expect(manager.getSelectedProfileId()).toBe('profile-a-1234')
+      expect(manager.getSelectionVersion()).toBe(1)
+    })
+
+    it('retries a failed profile write before giving up', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(1))
+
+      mockFsWriteFile.mockRejectedValueOnce(new Error('transient lock'))
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(3))
+      expect(manager.getExtensionInfo().profilePersistenceError).toBeUndefined()
+    })
+
+    it('reports a profile write that failed both attempts', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(1))
+
+      mockFsWriteFile.mockRejectedValue(new Error('the disk is read-only'))
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+
+      await vi.waitFor(() =>
+        expect(manager.getExtensionInfo().profilePersistenceError).toContain('read-only')
+      )
+      expect(mockFsWriteFile).toHaveBeenCalledTimes(3)
     })
 
     it('reports a legacy extension as outdated even when a profile is stored', async () => {

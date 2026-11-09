@@ -62,6 +62,20 @@ export interface SiteSessionTargetRow extends SiteSessionTarget {
 }
 
 /**
+ * Whether another site lives in the same Electron partition.
+ *
+ * A partition-wide operation (Electron's auth cache is the one the wipe needs)
+ * must only run when the partition belongs to this one site.
+ */
+export function isPartitionShared(
+  partition: string,
+  targets: readonly SiteSessionTargetRow[],
+  siteId: string
+): boolean {
+  return targets.some((target) => target.siteId !== siteId && target.partition === partition)
+}
+
+/**
  * A stable description of a target catalogue.
  *
  * A round is opened with one catalogue. The fingerprint is compared with a
@@ -70,23 +84,19 @@ export interface SiteSessionTargetRow extends SiteSessionTarget {
  * still detected.
  */
 export function siteSessionTargetsFingerprint(targets: readonly SiteSessionTargetRow[]): string {
-  return targets
-    .map((target) =>
-      [
-        target.siteId,
-        target.partition,
-        [...target.cookieDomains]
-          .map((domain) => domain.toLowerCase())
-          .sort()
-          .join(','),
-        [...target.origins]
-          .map((origin) => origin.toLowerCase())
-          .sort()
-          .join(',')
-      ].join('|')
-    )
-    .sort()
-    .join('\n')
+  // JSON keeps the fields separated without a delimiter that free-form custom
+  // platform values could contain. The arrays are sorted so the fingerprint
+  // does not depend on catalogue order.
+  return JSON.stringify(
+    targets
+      .map((target) => ({
+        siteId: target.siteId,
+        partition: target.partition,
+        cookieDomains: [...target.cookieDomains].map((domain) => domain.toLowerCase()).sort(),
+        origins: [...target.origins].map((origin) => origin.toLowerCase()).sort()
+      }))
+      .sort((a, b) => a.siteId.localeCompare(b.siteId))
+  )
 }
 
 /**

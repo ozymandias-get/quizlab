@@ -110,6 +110,11 @@ const { sharedLock } = await vi.hoisted(async () => ({
 vi.mock('../../../features/web-session/siteSessionLock.js', () => sharedLock)
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
+  isPartitionShared: (
+    partition: string,
+    targets: { siteId: string; partition: string }[],
+    siteId: string
+  ) => targets.some((target) => target.siteId !== siteId && target.partition === partition),
   buildSiteSessionTargets: async () => [
     {
       siteId: `custom:${DELETED_ID}`,

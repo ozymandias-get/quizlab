@@ -268,6 +268,48 @@ describe('the bridge of the site session', () => {
     })
   })
 
+  it('waits for the pairing write before it processes the first packet', async () => {
+    let release!: () => void
+    const pairing = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const manager = createManager()
+    manager.markExtensionPaired = vi.fn(() => pairing)
+    const ownServer = http.createServer(createBridgeRequestHandler(manager))
+    await new Promise<void>((resolve) => ownServer.listen(0, '127.0.0.1', resolve))
+    const ownPort = (ownServer.address() as AddressInfo).port
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    try {
+      const responsePromise = fetch(`http://127.0.0.1:${ownPort}${COOKIE_PATH}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...profileHeaders(),
+          'x-hmac-signature': sign(body)
+        },
+        body,
+        signal: AbortSignal.timeout(2000)
+      })
+
+      await vi.waitFor(() => expect(manager.markExtensionPaired).toHaveBeenCalled())
+      // The first profile selection may still be writing to disk: the packet
+      // must not run against a selection that is not committed yet.
+      expect(acceptPacket).not.toHaveBeenCalled()
+
+      release()
+      const response = await responsePromise
+      expect(response.status).toBe(200)
+      expect(acceptPacket).toHaveBeenCalledTimes(1)
+    } finally {
+      await new Promise<void>((resolve) => ownServer.close(() => resolve()))
+    }
+  })
+
   it('answers the health check of the extension', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
       headers: { Origin: EXTENSION_ORIGIN }

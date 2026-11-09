@@ -61,6 +61,7 @@ class NativeMessagingManager {
   private _selectionVersion: number = 0
   private _selectionPending: boolean = false
   private _selectionChangeDepth: number = 0
+  private _profilesPersistenceError: string | null = null
   private _profilesWrite: Promise<void> = Promise.resolve()
 
   get connectionStatus(): NativeMessagingConnectionStatus {
@@ -107,7 +108,10 @@ class NativeMessagingManager {
       waitingSince: this._waitingSince,
       userHint: this.computeUserHint(status),
       profiles,
-      selectedProfileId
+      selectedProfileId,
+      ...(this._profilesPersistenceError
+        ? { profilePersistenceError: this._profilesPersistenceError }
+        : {})
     }
   }
 
@@ -453,8 +457,37 @@ class NativeMessagingManager {
     }
     this._profilesWrite = this._profilesWrite
       .catch(() => undefined)
-      .then(() => this._profileStore.save(snapshot))
+      .then(() => this.saveProfileSnapshot(snapshot))
     return this._profilesWrite
+  }
+
+  /**
+   * Saves the profile list with one retry.
+   *
+   * A failed write used to be logged and forgotten; the renderer then showed a
+   * name that the next start would not have. The retry covers a transient
+   * lock, and a permanent failure is exposed through `getExtensionInfo()`
+   * instead of being invisible.
+   */
+  private async saveProfileSnapshot(snapshot: {
+    version: 1
+    selectedProfileId: string | null
+    selectionVersion: number
+    profiles: PersistedExtensionProfile[]
+  }): Promise<void> {
+    let lastError: unknown
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await this._profileStore.save(snapshot)
+        this._profilesPersistenceError = null
+        return
+      } catch (error) {
+        lastError = error
+      }
+    }
+    this._profilesPersistenceError =
+      lastError instanceof Error ? lastError.message : String(lastError)
+    throw lastError
   }
 
   private startServer(): Promise<void> {

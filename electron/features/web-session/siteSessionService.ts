@@ -48,10 +48,11 @@ import { clearQuarantineMarker } from './siteSessionQuarantine.js'
 import { deriveSiteSessionStatus } from './siteSessionStatus.js'
 import {
   buildSiteSessionTargets,
+  isPartitionShared,
   type SiteSessionTargetRow,
   toSiteSessionView
 } from './siteSessionTargets.js'
-import { wipeSiteSession } from './siteSessionWipe.js'
+import { SiteSessionWipeError, wipeSiteSession } from './siteSessionWipe.js'
 
 /**
  * The parts of the app the service works with.
@@ -198,7 +199,11 @@ export class SiteSessionService {
           await this.wipe(target)
         } catch (error) {
           Logger.warn(`[SiteSession] The session of "${siteId}" could not be cleared:`, error)
-          return { success: false, error: 'wipe_failed' }
+          return {
+            success: false,
+            error: 'wipe_failed',
+            ...(error instanceof SiteSessionWipeError ? { partial: error.result } : {})
+          }
         }
 
         return { success: true }
@@ -242,6 +247,7 @@ export class SiteSessionService {
           error: 'wipe_failed',
           clearedSiteIds,
           failedSiteIds: clear.failedSiteIds,
+          ...(Object.keys(clear.failedWipes).length > 0 ? { failedWipes: clear.failedWipes } : {}),
           partial: clearedSiteIds.length > 0
         }
       } else {
@@ -296,10 +302,12 @@ export class SiteSessionService {
   private async clearImportedSessionsAfterSourceChange(): Promise<{
     clearedSiteIds: string[]
     failedSiteIds: string[]
+    failedWipes: Record<string, NonNullable<SiteSessionActionResult['partial']>>
     readFailed: boolean
   }> {
     const clearedSiteIds: string[] = []
     const failedSiteIds: string[] = []
+    const failedWipes: Record<string, NonNullable<SiteSessionActionResult['partial']>> = {}
     let readFailed = false
     try {
       const [targets, state] = await Promise.all([this.deps.loadTargets(), this.deps.config.read()])
@@ -310,6 +318,9 @@ export class SiteSessionService {
           clearedSiteIds.push(target.siteId)
         } catch (error) {
           failedSiteIds.push(target.siteId)
+          if (error instanceof SiteSessionWipeError) {
+            failedWipes[target.siteId] = error.result
+          }
           Logger.warn(
             `[SiteSession] The session of "${target.siteId}" could not be cleared after ` +
               `the Chrome profile changed:`,
@@ -323,7 +334,7 @@ export class SiteSessionService {
       // cleared, so the caller must not claim any site is safe.
       readFailed = true
     }
-    return { clearedSiteIds, failedSiteIds, readFailed }
+    return { clearedSiteIds, failedSiteIds, failedWipes, readFailed }
   }
 
   /** The site with this id, or null when the app does not know it. */
@@ -359,7 +370,8 @@ export class SiteSessionService {
       return {
         success: false,
         error: 'switch_off_wipe_failed',
-        detail: 'The switch was turned off, but the session could not be cleared.'
+        detail: 'The switch was turned off, but the session could not be cleared.',
+        ...(error instanceof SiteSessionWipeError ? { partial: error.result } : {})
       }
     }
 
@@ -368,11 +380,19 @@ export class SiteSessionService {
 
   /** Removes the session the app holds for one site. */
   private async wipe(target: SiteSessionTargetRow): Promise<void> {
-    try {
-      await wipeSiteSession(this.deps.resolveSession(target.partition), target)
-    } catch (error) {
-      Logger.warn(`[SiteSession] The session of "${target.siteId}" could not be cleared:`, error)
-      throw error
+    const targets = await this.deps.loadTargets()
+    const session = this.deps.resolveSession(target.partition)
+    const result = await wipeSiteSession(session, target, {
+      // The auth cache has no origin scope: a partition shared with another
+      // site must not lose credentials that do not belong to this wipe.
+      clearAuthCache: !isPartitionShared(target.partition, targets, target.siteId)
+    })
+    if (!result.ok) {
+      Logger.warn(
+        `[SiteSession] The session of "${target.siteId}" was only partly cleared:`,
+        result
+      )
+      throw new SiteSessionWipeError(result)
     }
     await this.deps.config.resetResults(target.siteId)
     clearSiteSessionQuarantine(target.siteId)

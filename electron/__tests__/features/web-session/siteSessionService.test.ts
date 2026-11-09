@@ -44,6 +44,12 @@ vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
   partitionExistsOnDisk: vi.fn(async () => true)
 }))
 
+vi.mock('../../../features/web-session/siteSessionQuarantine.js', () => ({
+  readQuarantineMarker: vi.fn(async () => 'absent'),
+  writeQuarantineMarker: vi.fn(async () => true),
+  clearQuarantineMarker: vi.fn(async () => undefined)
+}))
+
 import {
   isExtensionVersionOk,
   SiteSessionService
@@ -99,7 +105,8 @@ function makeService(
     }),
     setEnabled: vi.fn().mockResolvedValue(undefined),
     resetResults: vi.fn().mockResolvedValue(undefined),
-    recordResult: vi.fn().mockResolvedValue(undefined)
+    recordResult: vi.fn().mockResolvedValue(undefined),
+    requestResync: vi.fn().mockResolvedValue(undefined)
   }
   const service = new SiteSessionService({
     config,
@@ -388,6 +395,46 @@ describe('SiteSessionService', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBe('unknown_target')
   })
+
+  it('does not clear the auth cache of a partition shared with another site', async () => {
+    const shared = {
+      ...CHATGPT,
+      siteId: 'gemini',
+      hostname: 'gemini.google.com',
+      origins: ['https://gemini.google.com'],
+      partition: CHATGPT.partition
+    }
+    const session = {
+      cookies: { get: vi.fn().mockResolvedValue([]), set: vi.fn(), remove: vi.fn() },
+      clearStorageData: vi.fn().mockResolvedValue(undefined),
+      clearAuthCache: vi.fn().mockResolvedValue(undefined),
+      flushStorageData: vi.fn().mockResolvedValue(undefined)
+    }
+    const config = {
+      read: vi.fn().mockResolvedValue({
+        version: 1 as const,
+        configVersion: 1,
+        targets: {}
+      }),
+      setEnabled: vi.fn().mockResolvedValue(undefined),
+      resetResults: vi.fn().mockResolvedValue(undefined),
+      recordResult: vi.fn().mockResolvedValue(undefined)
+    }
+    const service = new SiteSessionService({
+      config,
+      loadTargets: async () => [CHATGPT, shared],
+      resolveSession: () => session as never,
+      isExtensionConnected: () => true,
+      isExtensionVersionOk: () => true
+    })
+
+    await expect(service.clear('chatgpt')).resolves.toEqual({ success: true })
+
+    expect(session.clearStorageData).toHaveBeenCalled()
+    // Electron's auth cache is partition-wide; the other site keeps its
+    // credentials.
+    expect(session.clearAuthCache).not.toHaveBeenCalled()
+  })
 })
 
 describe('the list of the sites', () => {
@@ -503,6 +550,24 @@ describe('the Chrome profile selection', () => {
     })
   })
 
+  it('does not claim a re-import happened when the request could not be written', async () => {
+    profileSelection.selectProfile.mockResolvedValue(false)
+    const { service, config } = makeService({ enabled: true, localCookies: [LOCAL_COOKIE] })
+    config.requestResync.mockRejectedValue(new Error('the disk is full'))
+
+    const result = await service.selectExtensionProfile('known-profile-1234')
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'write_failed',
+      clearedSiteIds: ['chatgpt'],
+      partial: true
+    })
+    // The field means "the request was written", never "the sessions came
+    // back". A failure leaves it absent.
+    expect(result.reimportRequested).toBeUndefined()
+  })
+
   it('reports the sites whose sessions were cleared when another site fails', async () => {
     const second = {
       ...CHATGPT,
@@ -566,6 +631,15 @@ describe('the Chrome profile selection', () => {
       error: 'wipe_failed',
       clearedSiteIds: ['chatgpt', 'gemini'],
       failedSiteIds: ['claude'],
+      failedWipes: {
+        claude: {
+          ok: false,
+          cookiesCleared: true,
+          storageCleared: false,
+          authCacheCleared: true,
+          flushFailed: false
+        }
+      },
       partial: true,
       reimportRequested: true
     })

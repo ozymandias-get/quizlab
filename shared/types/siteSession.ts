@@ -88,9 +88,23 @@ export interface SiteSessionListResult {
  *   - `invalid_enabled`: the switch was not a boolean
  *   - `Unauthorized`: the request did not come from the trusted window
  */
+/**
+ * What a wipe actually achieved, for the caller that has to show a partial
+ * outcome instead of a plain "failed".
+ */
+export interface SiteSessionWipeStatus {
+  cookiesCleared: boolean
+  storageCleared: boolean
+  /** Null when the auth cache was not touched because the partition is shared. */
+  authCacheCleared: boolean | null
+  flushFailed: boolean
+}
+
 export interface SiteSessionActionResult {
   success: boolean
   error?: string
   /** A human readable note about a failure that happened partly. */
   detail?: string
+  /** The per-store outcome when a wipe failed part-way. */
+  partial?: SiteSessionWipeStatus
 }

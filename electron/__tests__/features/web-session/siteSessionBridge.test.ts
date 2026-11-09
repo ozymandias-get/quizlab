@@ -28,9 +28,9 @@ const recordResult = vi.fn()
 const quarantine = vi.fn().mockResolvedValue(undefined)
 const setEnabled = vi.fn().mockResolvedValue(undefined)
 
-const { partitionExistsOnDisk, hasQuarantineMarker, writeQuarantineMarker } = vi.hoisted(() => ({
+const { partitionExistsOnDisk, readQuarantineMarker, writeQuarantineMarker } = vi.hoisted(() => ({
   partitionExistsOnDisk: vi.fn(async () => true),
-  hasQuarantineMarker: vi.fn(async () => false),
+  readQuarantineMarker: vi.fn(async (): Promise<'present' | 'absent' | 'unknown'> => 'absent'),
   writeQuarantineMarker: vi.fn(async () => true)
 }))
 
@@ -59,6 +59,11 @@ vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
   buildSiteSessionTargets: async () => [TARGET],
+  isPartitionShared: (
+    partition: string,
+    targets: { siteId: string; partition: string }[],
+    id: string
+  ) => targets.some((target) => target.siteId !== id && target.partition === partition),
   siteSessionTargetsFingerprint: (targets: { siteId: string; cookieDomains: string[] }[]) =>
     targets
       .map((target) => `${target.siteId}:${[...target.cookieDomains].sort().join(',')}`)
@@ -71,7 +76,7 @@ vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionQuarantine.js', () => ({
-  hasQuarantineMarker,
+  readQuarantineMarker,
   writeQuarantineMarker
 }))
 
@@ -165,8 +170,8 @@ describe('site session bridge', () => {
     quarantine.mockResolvedValue(undefined)
     setEnabled.mockReset()
     setEnabled.mockResolvedValue(undefined)
-    hasQuarantineMarker.mockReset()
-    hasQuarantineMarker.mockResolvedValue(false)
+    readQuarantineMarker.mockReset()
+    readQuarantineMarker.mockResolvedValue('absent')
     writeQuarantineMarker.mockReset()
     writeQuarantineMarker.mockResolvedValue(true)
     clearSiteSessionQuarantine('chatgpt')
@@ -356,7 +361,21 @@ describe('site session bridge', () => {
     // The config says nothing (its write failed), but the marker file is what
     // a restarted process reads before it accepts the first packet.
     read.mockResolvedValue(stateWith(true))
-    hasQuarantineMarker.mockResolvedValue(true)
+    readQuarantineMarker.mockResolvedValue('present')
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(outcome).toMatchObject({ accepted: false, reason: 'session_unverified' })
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the marker cannot be read', async () => {
+    read.mockResolvedValue(stateWith(true))
+    readQuarantineMarker.mockResolvedValue('unknown')
 
     const outcome = await acceptSiteSessionPacket({
       targetId: 'chatgpt',
@@ -506,11 +525,11 @@ describe('a round of packets', () => {
     read.mockResolvedValue(stateWith(true))
   })
 
-  it('revalidates the target catalogue for every packet of the round', async () => {
+  it('revalidates the target catalogue for a burst of packets from one round', async () => {
     // The round keeps one catalogue for its routing decisions, but the
     // catalogue can change at runtime (a custom site is added or removed)
-    // without advancing the config version. Each packet therefore checks the
-    // current catalogue before it writes.
+    // without advancing the config version. The burst is compared against a
+    // fresh build once per short window rather than once per packet.
     const loadTargets = vi.fn(async () => [TARGET])
     const round = await openSiteSessionRound({
       config: { read, recordResult } as never,
@@ -529,8 +548,8 @@ describe('a round of packets', () => {
       cookies: []
     })
 
-    // Once for the round plus once for each of its two packets.
-    expect(loadTargets).toHaveBeenCalledTimes(3)
+    // Once for the round plus once for the first packet of the burst.
+    expect(loadTargets).toHaveBeenCalledTimes(2)
   })
 
   it('refuses an old round when the catalogue changes without a version bump', async () => {

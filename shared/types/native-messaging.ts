@@ -1,3 +1,5 @@
+import type { SiteSessionWipeStatus } from './siteSession.js'
+
 export type NativeMessagingConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 /**
@@ -37,6 +39,13 @@ export interface NativeMessagingExtensionInfo {
   profiles: NativeMessagingExtensionProfile[]
   /** The profile whose cookies are imported, or null before the first one. */
   selectedProfileId: string | null
+  /**
+   * The last profile-list write that failed after its retry.
+   *
+   * The list is display data; a failure does not stop the bridge, but the
+   * settings page can tell the user that names may not survive a restart.
+   */
+  profilePersistenceError?: string
 }
 
 export interface NativeMessagingProfileSelectionResult {
@@ -50,6 +59,8 @@ export interface NativeMessagingProfileSelectionResult {
   clearedSiteIds?: string[]
   /** Enabled sites whose sessions could not be cleared. */
   failedSiteIds?: string[]
+  /** The per-store outcome of each failed wipe. */
+  failedWipes?: Record<string, SiteSessionWipeStatus>
   /**
    * Whether part of the work happened: some sessions were cleared, or all
    * were cleared but the new selection could not be written. The operation is

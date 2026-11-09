@@ -36,9 +36,10 @@ import { type ExternalBrowserCookie, importExternalCookies } from './siteSession
 import { invalidateSiteSessionListCache } from './siteSessionListCache.js'
 import { withSiteSessionLock } from './siteSessionLock.js'
 import { partitionExistsOnDisk } from './siteSessionPartitions.js'
-import { hasQuarantineMarker, writeQuarantineMarker } from './siteSessionQuarantine.js'
+import { readQuarantineMarker, writeQuarantineMarker } from './siteSessionQuarantine.js'
 import {
   buildSiteSessionTargets,
+  isPartitionShared,
   type SiteSessionTargetRow,
   siteSessionTargetsFingerprint
 } from './siteSessionTargets.js'
@@ -99,7 +100,18 @@ export interface SiteSessionRoundMetadata {
    * half of the staleness check.
    */
   targetsFingerprint: string
+  /**
+   * When the catalogue was last compared with the current one.
+   *
+   * The packets of one round arrive in a burst; re-reading the catalogue for
+   * every packet is measurable with many custom platforms. A short window is
+   * enough to collapse the burst without accepting an old catalogue for long.
+   */
+  catalogueCheckedAt?: number
 }
+
+/** How long a catalogue comparison stays valid inside one round. */
+const SITE_SESSION_CATALOGUE_CACHE_MS = 1000
 
 /**
  * How long a round may stay open.
@@ -173,21 +185,24 @@ export async function openSiteSessionRound(
   const resolveSession = environment?.resolveSession ?? defaultResolveSession
 
   const [targets, state] = await Promise.all([loadTargets(), config.read()])
-  const openedAt = Date.now()
-  const targetsFingerprint = siteSessionTargetsFingerprint(targets)
+  const round: SiteSessionRoundMetadata = {
+    configVersion: state.configVersion,
+    openedAt: Date.now(),
+    targetsFingerprint: siteSessionTargetsFingerprint(targets)
+  }
 
   return {
+    ...round,
     targets,
-    configVersion: state.configVersion,
-    openedAt,
-    targetsFingerprint,
     accept: (packet) =>
       acceptSiteSessionPacket(packet, {
         config,
         loadTargets,
         resolveSession,
         targets,
-        round: { configVersion: state.configVersion, openedAt, targetsFingerprint }
+        // The same object is shared by every packet of the round, so its
+        // short-lived catalogue cache works across the burst.
+        round
       })
   }
 }
@@ -440,15 +455,21 @@ async function handleSiteSessionPacket(
   // an obsolete catalogue, even when its target still exists.
   const round = environment?.round
   if (round) {
-    const age = Date.now() - round.openedAt
+    const now = Date.now()
+    const age = now - round.openedAt
     const versionChanged = state.configVersion !== round.configVersion
     // The catalogue can change without advancing the config version (a custom
-    // site added, renamed or removed), so the targets are rebuilt and compared
-    // as well. A list that no longer matches the round is stale even when it
-    // is younger than the time limit.
-    const currentTargets = await loadTargets()
-    const catalogueChanged =
-      siteSessionTargetsFingerprint(currentTargets) !== round.targetsFingerprint
+    // site added, renamed or removed), so the targets are compared as well. A
+    // list that no longer matches the round is stale even when it is younger
+    // than the time limit. The comparison is cached for a short window so a
+    // burst of packets does not rebuild the whole catalogue for each one.
+    let catalogueChanged = false
+    const lastCheckedAt = round.catalogueCheckedAt
+    if (lastCheckedAt === undefined || now - lastCheckedAt >= SITE_SESSION_CATALOGUE_CACHE_MS) {
+      const currentTargets = await loadTargets()
+      round.catalogueCheckedAt = now
+      catalogueChanged = siteSessionTargetsFingerprint(currentTargets) !== round.targetsFingerprint
+    }
     if (age > SITE_SESSION_ROUND_MAX_AGE_MS || versionChanged || catalogueChanged) {
       Logger.warn(
         `[SiteSessionBridge] Refused a packet from an obsolete round ` +
@@ -476,10 +497,13 @@ async function handleSiteSessionPacket(
   // A site whose rollback failed holds a session the app cannot vouch for. No
   // packet may touch it until the user clears it or switches the site on
   // again; switching the site on is the explicit recovery path.
-  const quarantined =
-    quarantinedSites.has(target.siteId) ||
-    state.targets[target.siteId]?.quarantined === true ||
-    (await hasQuarantineMarker(target.siteId))
+  // An unreadable marker is treated as quarantine: failing open would let an
+  // unverified session be overwritten exactly when the durable guard broke.
+  let quarantined =
+    quarantinedSites.has(target.siteId) || state.targets[target.siteId]?.quarantined === true
+  if (!quarantined) {
+    quarantined = (await readQuarantineMarker(target.siteId)) !== 'absent'
+  }
   if (quarantined) {
     Logger.warn(
       `[SiteSessionBridge] Refused a packet: the session of "${target.siteId}" is quarantined.`
@@ -571,11 +595,21 @@ async function handleSiteSessionPacket(
       // the session itself, so remove the unverified cookies rather than let
       // them be used.
       try {
-        await wipeSiteSession(targetSession, target)
-        Logger.warn(
-          `[SiteSessionBridge] The session of "${target.siteId}" was wiped after every ` +
-            `quarantine write failed.`
-        )
+        const wipe = await wipeSiteSession(targetSession, target, {
+          clearAuthCache: !isPartitionShared(target.partition, targets, target.siteId)
+        })
+        if (wipe.ok) {
+          Logger.warn(
+            `[SiteSessionBridge] The session of "${target.siteId}" was wiped after every ` +
+              `quarantine write failed.`
+          )
+        } else {
+          Logger.error(
+            `[SiteSessionBridge] The session of "${target.siteId}" could only be partly ` +
+              `wiped after every quarantine write failed:`,
+            wipe
+          )
+        }
       } catch (wipeError) {
         Logger.error(
           `[SiteSessionBridge] The session of "${target.siteId}" could not be quarantined or ` +

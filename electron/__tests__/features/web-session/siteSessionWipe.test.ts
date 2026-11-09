@@ -109,37 +109,66 @@ describe('wipeSiteSession', () => {
     expect(clearAuthCache).toHaveBeenCalled()
   })
 
-  it('clears the storage even when the cookie store cannot be read', async () => {
+  it('reports a cookie read failure but still clears the storage', async () => {
     get.mockRejectedValue(new Error('cookie store unavailable'))
 
-    await expect(wipeSiteSession(fakeSession(), TARGET)).rejects.toThrow(
-      'Site cookies could not be cleared'
-    )
+    const result = await wipeSiteSession(fakeSession(), TARGET)
 
+    expect(result).toMatchObject({
+      ok: false,
+      cookiesCleared: false,
+      storageCleared: true
+    })
     expect(clearStorageData).toHaveBeenCalledWith(
       expect.objectContaining({ origin: 'https://chatgpt.com' })
     )
   })
 
-  it('reports failed cookie removals after clearing storage', async () => {
+  it('reports failed cookie removals separately from cleared storage', async () => {
     remove.mockRejectedValueOnce(new Error('cookie removal failed'))
-    await expect(wipeSiteSession(fakeSession(), TARGET)).rejects.toThrow(
-      'Site cookies could not be cleared'
-    )
+
+    const result = await wipeSiteSession(fakeSession(), TARGET)
+
+    expect(result).toMatchObject({
+      ok: false,
+      cookiesCleared: false,
+      storageCleared: true,
+      authCacheCleared: true
+    })
     expect(clearStorageData).toHaveBeenCalled()
     expect(clearAuthCache).toHaveBeenCalled()
   })
 
   it('continues clearing other origins and auth cache after one origin fails', async () => {
     clearStorageData.mockRejectedValueOnce(new Error('unavailable'))
-    await expect(
-      wipeSiteSession(fakeSession(), {
-        ...TARGET,
-        origins: ['https://first.example', 'https://second.example']
-      })
-    ).rejects.toThrow('Site storage could not be cleared')
+
+    const result = await wipeSiteSession(fakeSession(), {
+      ...TARGET,
+      origins: ['https://first.example', 'https://second.example']
+    })
+
+    expect(result).toMatchObject({
+      ok: false,
+      cookiesCleared: true,
+      storageCleared: false
+    })
     expect(clearStorageData).toHaveBeenCalledTimes(2)
     expect(clearAuthCache).toHaveBeenCalled()
+  })
+
+  it('treats a failed flush as a failed wipe', async () => {
+    flushStorageData.mockRejectedValue(new Error('disk full'))
+
+    const result = await wipeSiteSession(fakeSession(), TARGET)
+
+    expect(result).toMatchObject({ ok: false, flushFailed: true })
+  })
+
+  it('does not clear the partition auth cache when the partition is shared', async () => {
+    const result = await wipeSiteSession(fakeSession(), TARGET, { clearAuthCache: false })
+
+    expect(result).toMatchObject({ ok: true, authCacheCleared: null })
+    expect(clearAuthCache).not.toHaveBeenCalled()
   })
 
   it('flushes the storage data when the session is done', async () => {
