@@ -84,24 +84,27 @@ function fileStreamToWebStream(fileStream: fs.ReadStream): ReadableStream<Uint8A
   })
 }
 
-export function createPdfStreamResponse(
+export async function createPdfStreamResponse(
   filePath: string,
   stats: fs.Stats,
   rangeHeader: string | null,
   baseHeaders?: Record<string, string>,
   /**
-   * An already-open descriptor whose metadata produced `stats`.
+   * The already-open file whose metadata produced `stats`.
    *
-   * Streaming from it removes the stat/open race: the bytes come from the
-   * same file that determined Content-Length and Content-Range.
+   * Streaming from it removes the stat/open race. Ownership passes to the
+   * stream on success; every non-streaming return closes it here, so a 416 or
+   * a throwing stream setup cannot leak the descriptor.
    */
-  fd?: number
-): Response {
+  fileHandle?: fs.promises.FileHandle
+): Promise<Response> {
   const headers = baseHeaders ? { ...baseHeaders } : createPdfResponseHeaders(stats)
+  const fd = fileHandle?.fd
 
   if (rangeHeader) {
     const range = parseByteRange(rangeHeader, stats.size)
     if (!range) {
+      await fileHandle?.close().catch(() => undefined)
       headers['Content-Range'] = `bytes */${stats.size}`
       return new Response(null, {
         status: 416,
@@ -111,12 +114,18 @@ export function createPdfStreamResponse(
 
     const { start, end } = range
     const chunkSize = end - start + 1
-    const fileStream = fs.createReadStream(filePath, {
-      start,
-      end,
-      highWaterMark: READ_BUFFER_BYTES,
-      ...(fd === undefined ? {} : { fd })
-    })
+    let fileStream: fs.ReadStream
+    try {
+      fileStream = fs.createReadStream(filePath, {
+        start,
+        end,
+        highWaterMark: READ_BUFFER_BYTES,
+        ...(fd === undefined ? {} : { fd })
+      })
+    } catch (error) {
+      await fileHandle?.close().catch(() => undefined)
+      throw error
+    }
 
     headers['Content-Range'] = `bytes ${start}-${end}/${stats.size}`
     headers['Content-Length'] = String(chunkSize)
@@ -127,10 +136,16 @@ export function createPdfStreamResponse(
     })
   }
 
-  const fileStream = fs.createReadStream(filePath, {
-    highWaterMark: READ_BUFFER_BYTES,
-    ...(fd === undefined ? {} : { fd })
-  })
+  let fileStream: fs.ReadStream
+  try {
+    fileStream = fs.createReadStream(filePath, {
+      highWaterMark: READ_BUFFER_BYTES,
+      ...(fd === undefined ? {} : { fd })
+    })
+  } catch (error) {
+    await fileHandle?.close().catch(() => undefined)
+    throw error
+  }
   headers['Content-Length'] = String(stats.size)
 
   return new Response(fileStreamToWebStream(fileStream), {

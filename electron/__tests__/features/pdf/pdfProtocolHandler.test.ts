@@ -204,12 +204,15 @@ describe('local-pdf:// protocol handler', () => {
         mtimeMs: 1700000000000
       })
       const etag = 'W/"1000-1700000000000"'
+      closeMock.mockClear()
 
       const response = await getProtocolHandler()(makeRequest(streamUrl, { 'if-none-match': etag }))
 
       expect(response.status).toBe(304)
       expect(response.headers.get('etag')).toBe(etag)
       expect(createReadStreamMock).not.toHaveBeenCalled()
+      // The 304 path does not create a stream; it closes the descriptor.
+      expect(closeMock).toHaveBeenCalledTimes(1)
     })
 
     it('returns 200 (not 304) when If-None-Match does not match', async () => {
@@ -455,6 +458,34 @@ describe('local-pdf:// protocol handler', () => {
       expect(response.status).toBe(416)
       expect(response.headers.get('content-range')).toBe('bytes */1000')
       expect(createReadStreamMock).not.toHaveBeenCalled()
+    })
+
+    it('closes the file descriptor when the range is invalid', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+      closeMock.mockClear()
+
+      const response = await getProtocolHandler()(
+        makeRequest(streamUrl, { range: 'bytes=2000-3000' })
+      )
+
+      expect(response.status).toBe(416)
+      expect(createReadStreamMock).not.toHaveBeenCalled()
+      // No stream was created, so the handler must close the descriptor it
+      // opened; repeated invalid ranges must not leak descriptors.
+      expect(closeMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves the descriptor to the stream on a valid range', async () => {
+      await loadAndRegister()
+      const streamUrl = await registerTestPdf('/test/file.pdf', { size: 1000 })
+      closeMock.mockClear()
+
+      const response = await getProtocolHandler()(makeRequest(streamUrl, { range: 'bytes=0-9' }))
+
+      expect(response.status).toBe(206)
+      expect(createReadStreamMock).toHaveBeenCalledTimes(1)
+      expect(closeMock).not.toHaveBeenCalled()
     })
 
     it('returns 416 for reversed range (start > end)', async () => {

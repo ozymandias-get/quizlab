@@ -275,13 +275,14 @@ export function registerPdfProtocol() {
           })
         }
 
-        // The stream owns the descriptor from here on and closes it.
-        return createPdfStreamResponse(
+        // On success the stream owns the descriptor; a 416 or a failed stream
+        // setup closes it inside createPdfStreamResponse.
+        return await createPdfStreamResponse(
           filePath,
           stats,
           request.headers.get('range'),
           headers,
-          fileHandle.fd
+          fileHandle
         )
       } catch (error) {
         await fileHandle.close().catch(() => undefined)
