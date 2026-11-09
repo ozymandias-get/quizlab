@@ -57,6 +57,8 @@ export function formatDate(
 type MessageGroupEntry =
   { kind: 'date'; timestamp: number } | { kind: 'messages'; messages: ApiChatMessage[] }
 
+export type { MessageGroupEntry }
+
 export type MessageGroupsResult = {
   groups: MessageGroupEntry[]
   lastAssistantId: string | null
@@ -110,6 +112,65 @@ export function groupMessages(messages: ApiChatMessage[]): MessageGroupsResult {
       break
     }
   }
+
+  return { groups, lastAssistantId }
+}
+
+export interface MessageGroupsCache {
+  messages: ApiChatMessage[]
+  result: MessageGroupsResult
+}
+
+/**
+ * Grouping for the streaming hot path.
+ *
+ * A token update replaces the *last* message object (same id, role and
+ * timestamp, new content). Group boundaries depend only on date and role, so
+ * the previous groups are still correct except for that one object reference.
+ * Reusing them avoids re-running `toDateString()` and the role walk over the
+ * whole history on every chunk; anything else (append, delete, edit that changes
+ * role or time) falls back to the full pass.
+ */
+export function groupMessagesIncremental(
+  previous: MessageGroupsCache | null,
+  messages: ApiChatMessage[]
+): MessageGroupsResult {
+  if (previous && previous.messages === messages) return previous.result
+  if (!previous || messages.length === 0) return groupMessages(messages)
+
+  const previousMessages = previous.messages
+  if (previousMessages.length !== messages.length) return groupMessages(messages)
+
+  const last = messages[messages.length - 1]
+  const previousLast = previousMessages[previousMessages.length - 1]
+  if (
+    last.id !== previousLast.id ||
+    last.role !== previousLast.role ||
+    last.timestamp !== previousLast.timestamp
+  ) {
+    return groupMessages(messages)
+  }
+  for (let i = 0; i < messages.length - 1; i += 1) {
+    if (messages[i] !== previousMessages[i]) return groupMessages(messages)
+  }
+
+  // Shallow copy: only the group holding the changed message is rebuilt.
+  const groups = [...previous.result.groups]
+  let replaced = false
+  for (let i = groups.length - 1; i >= 0; i -= 1) {
+    const group = groups[i]
+    if (group.kind !== 'messages') continue
+    if (group.messages[group.messages.length - 1] !== previousLast) continue
+    const groupMessagesCopy = [...group.messages]
+    groupMessagesCopy[groupMessagesCopy.length - 1] = last
+    groups[i] = { kind: 'messages', messages: groupMessagesCopy }
+    replaced = true
+    break
+  }
+  // The previous result did not actually contain the old tail: recompute.
+  if (!replaced) return groupMessages(messages)
+
+  const lastAssistantId = last.role === 'assistant' ? last.id : previous.result.lastAssistantId
 
   return { groups, lastAssistantId }
 }
