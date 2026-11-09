@@ -127,7 +127,7 @@ export interface ElectronApi {
     y: number
     width: number
     height: number
-  }) => Promise<string | null>
+  }) => Promise<Uint8Array | null>
   copyImageToClipboard: (dataUrl: string, scope?: string) => Promise<boolean>
   /**
    * Releases the clipboard snapshot taken by `copyImageToClipboard`.

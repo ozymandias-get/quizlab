@@ -47,6 +47,29 @@ export function useCopyImageToClipboard() {
   )
 }
 
+/**
+ * Turn captured PNG bytes into the data URL the UI consumes.
+ *
+ * `FileReader` performs the base64 conversion without a synchronous
+ * main-thread encode, which is the point of transporting bytes rather than a
+ * data URL over IPC. A failed read resolves to `null`, matching "nothing was
+ * captured" instead of handing the caller a broken image.
+ */
+function pngBytesToDataUrl(bytes: Uint8Array): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+      reader.onerror = () => resolve(null)
+      // Copy into a fresh ArrayBuffer-backed view: `BlobPart` does not accept a
+      // view that might be backed by a SharedArrayBuffer.
+      reader.readAsDataURL(new Blob([new Uint8Array(bytes)], { type: 'image/png' }))
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
 export function useCaptureScreen() {
   const { showSuccess } = useToastActions()
   const { t } = useTranslation()
@@ -54,12 +77,19 @@ export function useCaptureScreen() {
   return useElectronMutation<
     string | null,
     { x: number; y: number; width: number; height: number } | undefined
-  >((api, rect) => api.captureScreen(rect), {
-    errorMessage: t('toast_capture_failed'),
-    onSuccess: (data) => {
-      if (data) {
-        showSuccess(t('toast_screenshot_captured'), t('toast_system_title'))
+  >(
+    async (api, rect) => {
+      const png = await api.captureScreen(rect)
+      if (!png) return null
+      return pngBytesToDataUrl(png)
+    },
+    {
+      errorMessage: t('toast_capture_failed'),
+      onSuccess: (data) => {
+        if (data) {
+          showSuccess(t('toast_screenshot_captured'), t('toast_system_title'))
+        }
       }
     }
-  })
+  )
 }

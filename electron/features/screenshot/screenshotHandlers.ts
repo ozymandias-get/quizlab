@@ -232,7 +232,10 @@ export function registerScreenshotHandlers() {
         activeCaptures++
         try {
           const image = await win.webContents.capturePage(rect)
-          return success(image.toDataURL())
+          // `toPNG()` still compresses synchronously (NativeImage has no async
+          // encoder), but it avoids the additional base64 pass `toDataURL()`
+          // runs in the main process, and keeps that 33% inflation off IPC.
+          return success(image.toPNG())
         } finally {
           activeCaptures--
         }

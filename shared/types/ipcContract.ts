@@ -88,7 +88,10 @@ export interface IpcInvokeRequestMap {
   // Screenshot & clipboard
   [IPC_CHANNELS.CAPTURE_SCREEN]: {
     args: [rect?: { x: number; y: number; width: number; height: number }]
-    result: IpcResult<string> // data URL
+    // PNG bytes. The renderer turns them into the data URL the UI expects, so
+    // the main process never base64-encodes and the IPC payload stays 25%
+    // smaller than an equivalent data URL.
+    result: IpcResult<Uint8Array>
   }
 
   [IPC_CHANNELS.COPY_IMAGE]: {

@@ -62,7 +62,7 @@ describe('useSystemApi', () => {
       clearCache: vi.fn().mockResolvedValue(true),
       openExternal: vi.fn().mockResolvedValue(true),
       copyImageToClipboard: vi.fn().mockResolvedValue(true),
-      captureScreen: vi.fn().mockResolvedValue('img-path')
+      captureScreen: vi.fn().mockResolvedValue(new Uint8Array([137, 80, 78, 71]))
     }
     vi.mocked(getElectronApi).mockReturnValue(mockElectronApi)
   })
@@ -109,7 +109,7 @@ describe('useSystemApi', () => {
   it('useCaptureScreen should take screenshot and show success toast', async () => {
     const { result } = renderHook(() => useCaptureScreen(), { wrapper })
 
-    await result.current.mutateAsync({ x: 0, y: 0, width: 100, height: 100 })
+    const dataUrl = await result.current.mutateAsync({ x: 0, y: 0, width: 100, height: 100 })
 
     expect(mockElectronApi.captureScreen).toHaveBeenCalledWith({
       x: 0,
@@ -117,6 +117,8 @@ describe('useSystemApi', () => {
       width: 100,
       height: 100
     })
+    // The IPC result is PNG bytes; the hook owns the data-URL conversion.
+    expect(dataUrl).toMatch(/^data:image\/png;base64,/)
     expect(showSuccessMock).toHaveBeenCalledWith(
       'translated_toast_screenshot_captured',
       'translated_toast_system_title'
