@@ -72,30 +72,15 @@ describe('useNativeZoomControls (control contract)', () => {
     expect(child.scale).toBe(1.2)
   })
 
-  // RPV stamped `aria-keyshortcuts` on its zoom buttons so assistive technology
-  // could advertise the binding `zoomPlugin({ enableShortcuts: true })` installed.
-  // The native viewer owns those bindings now, so the affordance has to move with
-  // them.
-  it('advertises the zoom keyboard shortcut on both buttons', () => {
+  it('does not advertise a keyboard shortcut now that the app has none', () => {
     const controls = renderControls({
       scale: 1.2,
       zoomIn: vi.fn(),
       zoomOut: vi.fn()
     })
 
-    expect(capture(controls.ZoomIn).ariaKeyShortcuts).toBe('Control+=')
-    expect(capture(controls.ZoomOut).ariaKeyShortcuts).toBe('Control+-')
-  })
-
-  it('does not advertise a shortcut on the current-scale readout', () => {
-    const controls = renderControls({
-      scale: 1.2,
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn()
-    })
-
-    // The readout surfaces the level; it does not own a shortcut. An empty
-    // `aria-keyshortcuts` would be a lie, so the key must be absent entirely.
+    expect('ariaKeyShortcuts' in capture(controls.ZoomIn)).toBe(false)
+    expect('ariaKeyShortcuts' in capture(controls.ZoomOut)).toBe(false)
     expect('ariaKeyShortcuts' in capture(controls.CurrentScale)).toBe(false)
   })
 })

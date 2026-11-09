@@ -84,7 +84,6 @@ describe('usePdfViewerMenuItems', () => {
     expect(items[2].label).toBe('ctx_crop_screenshot_ai')
     expect(items[3].separator).toBe(true)
     expect(items[4].label).toBe('ctx_reload')
-    expect(items[4].shortcut).toBe('Ctrl+R')
     expect(items[4].danger).toBe(true)
 
     items[0].onClick()

@@ -90,7 +90,6 @@ export function usePdfViewerMenuItems(input: MenuItemsInput): MenuItemsOutput {
         label: t('ctx_reload'),
         icon: RefreshCw,
         onClick: handleReload,
-        shortcut: 'Ctrl+R',
         danger: true
       }
     ],

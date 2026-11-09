@@ -102,7 +102,6 @@ import {
   usePdfViewerZoomIpc,
   usePdfWheelNavigation
 } from '@features/pdf/ui/hooks'
-import { usePdfZoomShortcuts } from '@features/pdf/viewport/usePdfZoomShortcuts'
 
 import { type RefObject, useCallback, useMemo } from 'react'
 
@@ -289,7 +288,6 @@ export function useNativePdfController({
 
   // Ctrl/Cmd + `-` / `=` / `0` are owned here, not by a viewer plugin. All three
   // actions go through the same coalesced channel as every other zoom source.
-  usePdfZoomShortcuts({ zoomIn, zoomOut, fit, enabled: isReady })
 
   // `usePdfResizeRefit` is shared with the rest of the feature and is typed
   // numeric, so its debounce / cooldown / navigation-lock rules are what this

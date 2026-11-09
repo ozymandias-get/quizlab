@@ -13,8 +13,3 @@ export function isMacPlatform(): boolean {
   if (typeof navigator === 'undefined') return false
   return /Mac|iPhone|iPad/i.test(navigator.userAgent)
 }
-
-/** Renders the modifier prefix used in shortcut badges (⌘ on macOS, Ctrl elsewhere). */
-export function getShortcutModifierLabel(): '⌘' | 'Ctrl' {
-  return isMacPlatform() ? '⌘' : 'Ctrl'
-}

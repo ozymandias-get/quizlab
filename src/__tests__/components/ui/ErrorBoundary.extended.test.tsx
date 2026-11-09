@@ -131,15 +131,4 @@ describe('ErrorBoundary - Recovery Tests', () => {
       expect.any(Object)
     )
   })
-
-  it('exposes a Ctrl+R keyboard shortcut hint via aria-keyshortcuts', () => {
-    render(
-      <ErrorBoundary>
-        <Thrower shouldThrow />
-      </ErrorBoundary>
-    )
-
-    const retryBtn = screen.getByRole('button', { name: /try again/i })
-    expect(retryBtn).toHaveAttribute('aria-keyshortcuts', 'Control+R')
-  })
 })

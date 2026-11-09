@@ -1,7 +1,5 @@
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types'
 
-import { Kbd } from '@app/components/ui/kbd'
-import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 import { Button } from '@shared/ui/components/primitives'
 
 import { FileText, Upload } from 'lucide-react'
@@ -96,13 +94,6 @@ function PdfPlaceholder({
             <FileText className="h-3.5 w-3.5" />
             <span>{t('select_pdf')}</span>
           </Button>
-
-          <div className="text-muted-foreground/80 flex items-center gap-1.5">
-            <Kbd size="xs" variant="default">
-              {getShortcutModifierLabel()}+O
-            </Kbd>
-            <span className="text-ql-11">{t('select_pdf_hint')}</span>
-          </div>
         </div>
 
         {/* Recent Reading Section */}

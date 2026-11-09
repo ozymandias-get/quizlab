@@ -235,41 +235,18 @@ describe('native viewer — electron context-menu zoom parity', () => {
 
 /* ---------------------------------------------------------- keyboard shortcuts */
 
-describe('native viewer — keyboard zoom parity', () => {
-  it('zooms in on Ctrl + =', async () => {
+describe('native viewer — keyboard zoom removed', () => {
+  it('ignores Ctrl + =, - and 0', async () => {
     const { current } = await mountReady()
     const before = current().scale
 
     await actAndCommit(() => {
       keydown('=')
-    })
-
-    expect(current().scale).toBeCloseTo(before + PDF_ZOOM_STEP, 5)
-  })
-
-  it('zooms out on Ctrl + -', async () => {
-    const { current } = await mountReady()
-
-    await actAndCommit(() => {
       keydown('-')
-    })
-
-    expect(current().scale).toBeCloseTo(FIT_SCALE - PDF_ZOOM_STEP, 2)
-  })
-
-  it('resets to fit on Ctrl + 0', async () => {
-    const { current } = await mountReady()
-
-    await actAndCommit(() => {
-      keydown('=')
-    })
-    expect(current().scale).toBeCloseTo(FIT_SCALE + PDF_ZOOM_STEP, 5)
-
-    await actAndCommit(() => {
       keydown('0')
     })
 
-    expect(current().scale).toBeCloseTo(FIT_SCALE, 2)
+    expect(current().scale).toBeCloseTo(before, 5)
   })
 
   it('stays inside the product zoom range', async () => {

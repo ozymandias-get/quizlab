@@ -1,9 +1,7 @@
 import { Input } from '@app/components/ui/input'
 import { InputGroup, InputGroupAddon } from '@app/components/ui/input-group'
-import { Kbd } from '@app/components/ui/kbd'
 import { SEARCH_INPUT_FOCUS_MS } from '@shared/constants/timingConstants'
 import { DURATION } from '@shared/lib/motion'
-import { getShortcutModifierLabel } from '@shared/lib/shortcutUtils'
 import {
   Button,
   IconButton,
@@ -103,9 +101,6 @@ function PdfSearchBar({
                     <TooltipContent>{t('clear')}</TooltipContent>
                   </Tooltip>
                 ) : null}
-                <Kbd size="xs" variant="outline" className="opacity-70">
-                  Esc
-                </Kbd>
               </div>
             </InputGroup>
 
@@ -180,9 +175,6 @@ function PdfSearchBar({
                   <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">
                     <Search className="h-3.5 w-3.5" />
                   </div>
-                  <Kbd size="xs" variant="default" className="hidden opacity-80 sm:inline-flex">
-                    {getShortcutModifierLabel()}+F
-                  </Kbd>
                 </div>
               </motion.button>
             </Button>

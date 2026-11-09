@@ -183,7 +183,6 @@ function ErrorPanel({ error, componentStack, title, onRetry, onCopy }: ErrorPane
             type="button"
             onClick={onRetry}
             className="err-btn-primary"
-            aria-keyshortcuts="Control+R"
             data-testid="error-boundary-retry"
           >
             <RefreshCw className="size-4" />

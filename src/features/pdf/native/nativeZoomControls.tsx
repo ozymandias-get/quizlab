@@ -28,8 +28,6 @@ import type {
   ZoomComponent
 } from '@features/pdf/ui/components/PdfZoomControls'
 
-import { isMacPlatform } from '@shared/lib/shortcutUtils'
-
 import { useMemo, useRef } from 'react'
 
 interface NativeZoomControlsSource {
@@ -50,12 +48,10 @@ export function useNativeZoomControls(source: NativeZoomControlsSource): NativeZ
   scaleRef.current = scale
 
   const { ZoomIn, ZoomOut } = useMemo(() => {
-    const isMac = isMacPlatform()
-    const modifier = isMac ? 'Meta' : 'Control'
     const ZoomInControl: ZoomComponent = ({ children }) =>
-      children({ onClick: zoomIn, scale: scaleRef.current, ariaKeyShortcuts: `${modifier}+=` })
+      children({ onClick: zoomIn, scale: scaleRef.current })
     const ZoomOutControl: ZoomComponent = ({ children }) =>
-      children({ onClick: zoomOut, scale: scaleRef.current, ariaKeyShortcuts: `${modifier}+-` })
+      children({ onClick: zoomOut, scale: scaleRef.current })
     return { ZoomIn: ZoomInControl, ZoomOut: ZoomOutControl }
   }, [zoomIn, zoomOut])
 

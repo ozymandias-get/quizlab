@@ -22,7 +22,6 @@ describe('PdfSearchBar', () => {
     )
 
     expect(screen.getByText('SampleDocument.pdf')).toBeInTheDocument()
-    expect(screen.getByText('Ctrl+F')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('SampleDocument.pdf'))
     expect(onToggle).toHaveBeenCalled()
@@ -46,7 +45,6 @@ describe('PdfSearchBar', () => {
 
     const input = screen.getByDisplayValue('cardiology')
     expect(input).toBeInTheDocument()
-    expect(screen.getByText('Esc')).toBeInTheDocument()
 
     fireEvent.change(input, { target: { value: 'neurology' } })
     expect(onKeywordChange).toHaveBeenCalledWith('neurology')

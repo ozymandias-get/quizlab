@@ -303,7 +303,7 @@ function PdfToolbar({
             </IconButton>
           </WithTooltip>
           {onReload && (
-            <WithTooltip label={`${t('ctx_reload')} (Ctrl+R)`}>
+            <WithTooltip label={t('ctx_reload')}>
               <IconButton
                 type="button"
                 variant="ghost"
