@@ -1,10 +1,11 @@
 import type { Toast } from '@app/providers'
 import { TOAST_DURATION } from '@shared/constants/appConstants'
+import { getElectronApi } from '@shared/lib/electronApi'
 import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 import { Button, IconButton } from '@shared/ui/components/primitives'
 
-import { AlertTriangle, Check, Info, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Check, ExternalLink, Info, X, XCircle } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
   type FocusEvent,
@@ -54,6 +55,57 @@ const PROGRESS_COLORS: Record<ToastType, string> = {
   error: 'bg-destructive/70',
   warning: 'bg-amber-500/70',
   info: 'bg-primary/70'
+}
+
+/**
+ * URLs and file paths are the two "actionable" fragments a diagnostic toast
+ * carries. URLs open through the Electron bridge; paths stay selectable code
+ * rather than becoming a link that could launch an unintended handler.
+ */
+const TOAST_LINK_PATTERN =
+  /(https?:\/\/[^\s<>"']+|[A-Za-z]:\\[^\s<>"']+|\/(?:Users|home|var|etc|tmp|opt|mnt|private)\/[^\s<>"']+)/g
+
+function renderToastMessage(text: string): ReactNode {
+  const nodes: ReactNode[] = []
+  let cursor = 0
+  for (const match of text.matchAll(TOAST_LINK_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > cursor) nodes.push(text.slice(cursor, index))
+    const raw = match[0]
+    // Sentence punctuation belongs to the prose, not to the target.
+    const value = raw.replace(/[.,;:!?)\]]+$/, '')
+    if (/^https?:\/\//.test(value)) {
+      nodes.push(
+        <button
+          key={`${index}-link`}
+          type="button"
+          role="link"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            void getElectronApi()?.openExternal(value)
+          }}
+          className="text-primary focus-visible:ring-ring/70 inline-flex items-center gap-0.5 break-all underline underline-offset-2 hover:opacity-80 focus-visible:rounded focus-visible:ring-2 focus-visible:outline-none"
+        >
+          {value}
+          <ExternalLink className="size-3 shrink-0" aria-hidden />
+        </button>
+      )
+    } else {
+      nodes.push(
+        <code
+          key={`${index}-path`}
+          title={value}
+          className="bg-muted/60 text-ql-11 rounded px-1 py-0.5 font-mono break-all select-all"
+        >
+          {value}
+        </code>
+      )
+    }
+    cursor = index + raw.length
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor))
+  return nodes.length > 0 ? nodes : text
 }
 
 interface ToastItemProps {
@@ -226,7 +278,7 @@ const ToastItem = memo(
                 toast.type !== 'error' && 'line-clamp-2'
               )}
             >
-              {t(toast.message, toast.params)}
+              {renderToastMessage(t(toast.message, toast.params))}
             </p>
             {toast.actionLabel && (
               <Button
@@ -261,9 +313,11 @@ const ToastItem = memo(
               style={{
                 width: '100%',
                 transformOrigin: 'left',
-                animation: isPaused
-                  ? 'none'
-                  : `toast-progress-shrink ${remainingTimeRef.current}ms linear forwards`
+                // Pausing keeps the bar where it is. Setting `animation: none`
+                // reset it to full width, so a hovered toast looked like it had
+                // just been shown again while its timer was actually frozen.
+                animation: `toast-progress-shrink ${remainingTimeRef.current}ms linear forwards`,
+                animationPlayState: isPaused ? 'paused' : 'running'
               }}
             />
           </div>

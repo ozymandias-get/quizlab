@@ -42,6 +42,7 @@
   "ws_last_pull": "Last pull: {time}",
   "ws_google_drive_note": "This row gathers Gemini, AI Studio, YouTube, NotebookLM and Google Drive into one session set, so turning this switch off also signs the Google Drive panel out.",
   "ws_clear_all_btn": "Clear Imported Sessions",
+  "ws_clear_all_progress": "Clearing {done}/{total} sessions...",
   "ws_clear_all_hint": "Only the sites whose import switch is on are cleared; a session you signed into inside the app is kept. The switches stay on, so the sessions are pulled again at the next round.",
   "ws_clear_all_result_success": "{count} site sessions were cleared.",
   "ws_clear_all_result_partial": "{success} cleared, {failed} failed: {sites}",

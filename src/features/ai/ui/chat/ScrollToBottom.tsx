@@ -6,10 +6,13 @@ import { useTranslation } from 'react-i18next'
 
 const ScrollToBottom = memo(function ScrollToBottom({
   onClick,
-  visible
+  visible,
+  count = 0
 }: {
   onClick: () => void
   visible: boolean
+  /** Messages added while the reader was away from the bottom. */
+  count?: number
 }) {
   const { t } = useTranslation()
   if (!visible) return null
@@ -19,10 +22,18 @@ const ScrollToBottom = memo(function ScrollToBottom({
       variant="secondary"
       size="sm"
       onClick={onClick}
-      className="text-ql-11 border-border bg-card/95 text-muted-foreground shadow-ambient-md absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border"
+      className="text-ql-11 border-border bg-card/95 text-muted-foreground shadow-ambient-md absolute right-4 bottom-4 z-10 rounded-full border"
     >
       <ChevronDown className="h-3.5 w-3.5" />
       {t('api_chat_scroll_to_bottom')}
+      {count > 0 && (
+        <span
+          aria-label={t('api_chat_unread_count', { count: String(count) })}
+          className="bg-primary text-primary-foreground ml-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 py-0 text-[10px] font-semibold tabular-nums"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
     </Button>
   )
 })

@@ -43,10 +43,19 @@ export const SettingsToolButton = memo(function SettingsToolButton({
 export const SwapToolButton = memo(function SwapToolButton() {
   const { t } = useTranslation()
   const toggleLayoutSwap = useAppearance((s) => s.toggleLayoutSwap)
+  const isLayoutSwapped = useAppearance((s) => s.isLayoutSwapped)
 
   return (
-    <FloatingDockIcon title={t('swap_window')} onClick={toggleLayoutSwap}>
-      <SwapIcon className="h-5 w-5" />
+    <FloatingDockIcon
+      title={t('swap_window')}
+      onClick={toggleLayoutSwap}
+      isActive={isLayoutSwapped}
+    >
+      <SwapIcon
+        className={`motion-normal h-5 w-5 transition-transform duration-300 ${
+          isLayoutSwapped ? 'rotate-180' : 'rotate-0'
+        }`}
+      />
     </FloatingDockIcon>
   )
 })

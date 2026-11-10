@@ -297,7 +297,12 @@ describe('PdfToolbar', () => {
 
       const input = screen.getByPlaceholderText('search_placeholder')
       fireEvent.change(input, { target: { value: 'thermodynamics' } })
-      await waitFor(() => expect(highlight).toHaveBeenCalledWith('thermodynamics'))
+      await waitFor(() =>
+        expect(highlight).toHaveBeenCalledWith('thermodynamics', {
+          caseSensitive: false,
+          wholeWord: false
+        })
+      )
       expect(clearHighlights).not.toHaveBeenCalled()
 
       fireEvent.click(screen.getByLabelText('clear'))

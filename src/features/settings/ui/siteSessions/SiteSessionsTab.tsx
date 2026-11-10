@@ -1,5 +1,10 @@
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
-import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
+import {
+  Button,
+  InlineSpinner,
+  SettingsTabIcon,
+  SettingsTabIntro
+} from '@shared/ui/components/primitives'
 import { GlobeIcon, XIcon } from '@ui/components/Icons'
 
 import { memo } from 'react'
@@ -32,6 +37,8 @@ const SiteSessionsTab = memo(() => {
     onClearAll,
     onRetryFailedClear,
     failedClearSites,
+    clearProgress,
+    clearingSiteIds,
     confirmProps,
     riskItems,
     mitigationItems,
@@ -52,7 +59,13 @@ const SiteSessionsTab = memo(() => {
 
       <p className="text-ql-12 text-muted-foreground leading-relaxed">{t('ws_toggle_hint')}</p>
 
-      <SiteSessionList views={views} disabled={isBusy} onToggle={onToggle} t={t} />
+      <SiteSessionList
+        views={views}
+        disabled={isBusy}
+        clearingSiteIds={clearingSiteIds}
+        onToggle={onToggle}
+        t={t}
+      />
 
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-start">
@@ -64,8 +77,15 @@ const SiteSessionsTab = memo(() => {
             disabled={isBusy || !canClearAll}
             className="gap-2"
           >
-            <XIcon className="h-4 w-4" />
-            <span className="text-ql-12 font-semibold">{t('ws_clear_all_btn')}</span>
+            {clearProgress ? <InlineSpinner className="size-3.5" /> : <XIcon className="h-4 w-4" />}
+            <span className="text-ql-12 font-semibold">
+              {clearProgress
+                ? t('ws_clear_all_progress', {
+                    done: String(clearProgress.done),
+                    total: String(clearProgress.total)
+                  })
+                : t('ws_clear_all_btn')}
+            </span>
           </Button>
         </div>
 

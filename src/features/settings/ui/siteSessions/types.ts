@@ -15,6 +15,8 @@ export interface SiteSessionCardProps {
   disabled: boolean
   /** Called with the site id when the user flips the switch. */
   onToggle: (siteId: string) => void
+  /** True while this site's session is being cleared in a bulk run. */
+  isClearing?: boolean
   t: SiteSessionTranslate
 }
 
@@ -23,5 +25,7 @@ export interface SiteSessionListProps {
   views: SiteSessionView[]
   disabled: boolean
   onToggle: (siteId: string) => void
+  /** Sites currently waiting for a bulk clear. */
+  clearingSiteIds?: string[]
   t: SiteSessionTranslate
 }

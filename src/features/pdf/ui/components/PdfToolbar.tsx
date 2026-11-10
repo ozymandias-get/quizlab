@@ -1,5 +1,7 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { PDF_ZOOM_MAX_SCALE, PDF_ZOOM_MIN_SCALE } from '@features/pdf/constants/pdfZoom'
+
 import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/primitives'
@@ -7,7 +9,10 @@ import { IconButton, ToolbarGroup, WithTooltip } from '@shared/ui/components/pri
 import {
   Hand,
   MoreHorizontal,
+  PanelLeft,
   RefreshCw,
+  Rows3,
+  Square,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon
 } from 'lucide-react'
@@ -55,7 +60,7 @@ interface PdfToolbarProps {
   onPreviousPage: () => void
   onNextPage: () => void
   onJumpToPage: (page: number) => void
-  highlight: (keyword: string) => void
+  highlight: (keyword: string, options?: { caseSensitive?: boolean; wholeWord?: boolean }) => void
   clearHighlights: () => void
   /** Matches painted by the renderer for the current query; `0` when unknown. */
   matchCount?: number
@@ -63,6 +68,12 @@ interface PdfToolbarProps {
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
   onReload?: () => void
+  /** Page thumbnail rail visibility (sidebar toggle in the left group). */
+  thumbnailRailOpen?: boolean
+  onToggleThumbnailRail?: () => void
+  /** True = wheel turns pages; false = wheel scrolls the current page. */
+  wheelPageTurnEnabled?: boolean
+  onToggleWheelPageTurn?: () => void
 }
 
 /**
@@ -89,12 +100,20 @@ function PdfToolbar({
   ZoomIn,
   ZoomOut,
   CurrentScale,
-  onReload
+  onReload,
+  thumbnailRailOpen = false,
+  onToggleThumbnailRail,
+  wheelPageTurnEnabled = true,
+  onToggleWheelPageTurn
 }: PdfToolbarProps) {
   const { t } = useTranslation()
   const documentId = pdfDocumentId(pdfFile)
   const storeSearchOpen = usePdfSearchStore((s) => s.isOpen)
   const storeSearchKeyword = usePdfSearchStore((s) => s.keyword)
+  const caseSensitive = usePdfSearchStore((s) => s.caseSensitive)
+  const wholeWord = usePdfSearchStore((s) => s.wholeWord)
+  const toggleCaseSensitive = usePdfSearchStore((s) => s.toggleCaseSensitive)
+  const toggleWholeWord = usePdfSearchStore((s) => s.toggleWholeWord)
   const searchOwnerId = usePdfSearchStore((s) => s.ownerId)
   const openSearch = usePdfSearchStore((s) => s.open)
   const setSearchKeyword = usePdfSearchStore((s) => s.setKeyword)
@@ -107,6 +126,7 @@ function PdfToolbar({
   const searchKeyword = ownsSearch ? storeSearchKeyword : ''
   const searchKeywordRef = useRef(searchKeyword)
   searchKeywordRef.current = searchKeyword
+  const searchOptionsRef = useRef({ caseSensitive, wholeWord })
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isCompactMenuOpen, setIsCompactMenuOpen] = useState(false)
   const [compactMenuVertical, setCompactMenuVertical] = useState<MenuVertical>('top')
@@ -242,13 +262,13 @@ function PdfToolbar({
       }
       searchDebounceRef.current = setTimeout(() => {
         if (keyword.trim()) {
-          highlight(keyword)
+          highlight(keyword, { caseSensitive, wholeWord })
         } else {
           clearHighlights()
         }
       }, 300)
     },
-    [clearHighlights, highlight]
+    [caseSensitive, clearHighlights, highlight, wholeWord]
   )
 
   const handleSearch = useCallback(() => {
@@ -258,9 +278,24 @@ function PdfToolbar({
       searchDebounceRef.current = null
     }
     if (keyword.trim()) {
-      highlight(keyword)
+      highlight(keyword, { caseSensitive, wholeWord })
     }
-  }, [highlight])
+  }, [caseSensitive, highlight, wholeWord])
+
+  // Toggling Aa / whole-word has to re-measure immediately; waiting for the
+  // next keystroke made the button look broken.
+  useEffect(() => {
+    const previous = searchOptionsRef.current
+    if (previous.caseSensitive === caseSensitive && previous.wholeWord === wholeWord) return
+    searchOptionsRef.current = { caseSensitive, wholeWord }
+    const currentKeyword = searchKeywordRef.current
+    if (!currentKeyword.trim()) return
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current)
+      searchDebounceRef.current = null
+    }
+    highlight(currentKeyword, { caseSensitive, wholeWord })
+  }, [caseSensitive, wholeWord, highlight])
 
   const handleClearSearch = useCallback(() => {
     if (searchDebounceRef.current) {
@@ -316,6 +351,45 @@ function PdfToolbar({
         )}
       >
         <ToolbarGroup className="@max-[560px]:hidden">
+          {onToggleThumbnailRail && (
+            <WithTooltip label={t('pdf_thumbnails')}>
+              <IconButton
+                type="button"
+                variant={thumbnailRailOpen ? 'secondary' : 'ghost'}
+                size="compact"
+                onClick={onToggleThumbnailRail}
+                aria-label={t('pdf_thumbnails')}
+                aria-pressed={thumbnailRailOpen}
+                className={cn(
+                  'motion-normal transition-colors',
+                  thumbnailRailOpen ? TOGGLE_ACTIVE : TOGGLE_IDLE
+                )}
+                data-testid="pdf-thumbnails-toggle"
+              >
+                <PanelLeft className="size-3.5" aria-hidden="true" />
+              </IconButton>
+            </WithTooltip>
+          )}
+          {onToggleWheelPageTurn && (
+            <WithTooltip label={wheelPageTurnEnabled ? t('pdf_page_mode') : t('pdf_flow_mode')}>
+              <IconButton
+                type="button"
+                variant="ghost"
+                size="compact"
+                onClick={onToggleWheelPageTurn}
+                aria-label={wheelPageTurnEnabled ? t('pdf_page_mode') : t('pdf_flow_mode')}
+                aria-pressed={wheelPageTurnEnabled}
+                className={cn(TOGGLE_IDLE, 'motion-normal transition-colors')}
+                data-testid="pdf-wheel-mode-toggle"
+              >
+                {wheelPageTurnEnabled ? (
+                  <Square className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <Rows3 className="size-3.5" aria-hidden="true" />
+                )}
+              </IconButton>
+            </WithTooltip>
+          )}
           <WithTooltip label={t('pdf_pan_mode')}>
             <IconButton
               type="button"
@@ -378,6 +452,30 @@ function PdfToolbar({
               )}
               onKeyDown={handleCompactMenuKeyDown}
             >
+              {onToggleThumbnailRail && (
+                <MenuItem
+                  icon={<PanelLeft />}
+                  aria-pressed={thumbnailRailOpen}
+                  onClick={() => {
+                    onToggleThumbnailRail()
+                    closeCompactMenu(true)
+                  }}
+                >
+                  {t('pdf_thumbnails')}
+                </MenuItem>
+              )}
+              {onToggleWheelPageTurn && (
+                <MenuItem
+                  icon={wheelPageTurnEnabled ? <Square /> : <Rows3 />}
+                  aria-pressed={wheelPageTurnEnabled}
+                  onClick={() => {
+                    onToggleWheelPageTurn()
+                    closeCompactMenu(true)
+                  }}
+                >
+                  {wheelPageTurnEnabled ? t('pdf_page_mode') : t('pdf_flow_mode')}
+                </MenuItem>
+              )}
               <MenuItem
                 icon={<Hand />}
                 aria-pressed={panMode}
@@ -403,32 +501,46 @@ function PdfToolbar({
                   usable width; the same actions stay reachable here. */}
               {isNarrowToolbar && (
                 <ZoomOut>
-                  {(zoomProps) => (
-                    <MenuItem
-                      icon={<ZoomOutIcon />}
-                      onClick={() => {
-                        zoomProps.onClick()
-                        closeCompactMenu(true)
-                      }}
-                    >
-                      {t('zoom_out')}
-                    </MenuItem>
-                  )}
+                  {(zoomProps) => {
+                    const atMin =
+                      typeof zoomProps.scale === 'number' &&
+                      zoomProps.scale <= PDF_ZOOM_MIN_SCALE + 1e-6
+                    return (
+                      <MenuItem
+                        icon={<ZoomOutIcon />}
+                        disabled={atMin}
+                        onClick={() => {
+                          if (atMin) return
+                          zoomProps.onClick()
+                          closeCompactMenu(true)
+                        }}
+                      >
+                        {atMin ? t('zoom_min_reached') : t('zoom_out')}
+                      </MenuItem>
+                    )
+                  }}
                 </ZoomOut>
               )}
               {isNarrowToolbar && (
                 <ZoomIn>
-                  {(zoomProps) => (
-                    <MenuItem
-                      icon={<ZoomInIcon />}
-                      onClick={() => {
-                        zoomProps.onClick()
-                        closeCompactMenu(true)
-                      }}
-                    >
-                      {t('zoom_in')}
-                    </MenuItem>
-                  )}
+                  {(zoomProps) => {
+                    const atMax =
+                      typeof zoomProps.scale === 'number' &&
+                      zoomProps.scale >= PDF_ZOOM_MAX_SCALE - 1e-6
+                    return (
+                      <MenuItem
+                        icon={<ZoomInIcon />}
+                        disabled={atMax}
+                        onClick={() => {
+                          if (atMax) return
+                          zoomProps.onClick()
+                          closeCompactMenu(true)
+                        }}
+                      >
+                        {atMax ? t('zoom_max_reached') : t('zoom_in')}
+                      </MenuItem>
+                    )
+                  }}
                 </ZoomIn>
               )}
             </MenuSurface>
@@ -446,6 +558,10 @@ function PdfToolbar({
           onClear={handleClearSearch}
           matchCount={matchCount}
           fileName={pdfFile?.name}
+          caseSensitive={caseSensitive}
+          wholeWord={wholeWord}
+          onToggleCaseSensitive={toggleCaseSensitive}
+          onToggleWholeWord={toggleWholeWord}
         />
       </div>
 

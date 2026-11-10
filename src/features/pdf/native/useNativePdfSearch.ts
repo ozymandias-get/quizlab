@@ -75,13 +75,14 @@ import {
   findNativePdfSearchHighlights,
   findNativeSearchPageBox,
   findNativeSearchTextLayer,
+  type NativePdfSearchOptions,
   renderNativePdfSearchHighlights
 } from './nativePdfSearch'
 
 /** The whole search surface the toolbar drives. */
 export interface NativePdfSearchHandle {
   /** Highlight every match of `keyword` on the rendered page. */
-  highlight: (keyword: string) => void
+  highlight: (keyword: string, options?: NativePdfSearchOptions) => void
   /** Drop the query and empty the overlay. */
   clearHighlights: () => void
   /**
@@ -144,12 +145,19 @@ export function useNativePdfSearch({
   textLayerReady
 }: UseNativePdfSearchOptions): NativePdfSearchHandle {
   const [keyword, setKeyword] = useState('')
+  const [caseSensitive, setCaseSensitive] = useState(false)
+  const [wholeWord, setWholeWord] = useState(false)
   const [matchCount, setMatchCount] = useState(0)
   const [searchError, setSearchError] = useState<string | null>(null)
 
   // Identity-only setters, so the toolbar's `useCallback`s over them stay stable and
   // `PdfToolbar` does not re-render on every zoom frame.
-  const highlight = useCallback((nextKeyword: string) => setKeyword(nextKeyword), [])
+  const highlight = useCallback((nextKeyword: string, options?: NativePdfSearchOptions) => {
+    setKeyword(nextKeyword)
+    if (!options) return
+    setCaseSensitive(options.caseSensitive === true)
+    setWholeWord(options.wholeWord === true)
+  }, [])
   const clearHighlights = useCallback(() => setKeyword(''), [])
 
   useEffect(() => {
@@ -190,7 +198,9 @@ export function useNativePdfSearch({
         keyword,
         pageNumber: currentPage,
         pageBox,
-        textLayer
+        textLayer,
+        caseSensitive,
+        wholeWord
       })
       renderNativePdfSearchHighlights(layer, highlights, {
         keyword,
@@ -209,7 +219,17 @@ export function useNativePdfSearch({
     // `documentKey` and `scale` are not read here on purpose: they are the two inputs
     // that invalidate geometry without changing the layer's DOM identity, and a zoom has
     // to empty the overlay immediately rather than wait for the next keyword.
-  }, [enabled, searchLayerRef, documentKey, currentPage, scale, textLayerReady, keyword])
+  }, [
+    enabled,
+    searchLayerRef,
+    documentKey,
+    currentPage,
+    scale,
+    textLayerReady,
+    keyword,
+    caseSensitive,
+    wholeWord
+  ])
 
   return { highlight, clearHighlights, matchCount, searchError }
 }

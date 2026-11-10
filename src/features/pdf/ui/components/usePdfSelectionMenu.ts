@@ -69,6 +69,9 @@ export function usePdfSelectionMenu({
   const { queueTextForAi, sendTextDirectToAi } = useAppToolActions()
   const [menu, setMenu] = useState<TextSelectionSnapshot | null>(null)
   const [feedback, setFeedback] = useState<SelectionMenuFeedback>('idle')
+  /** True while the page is scrolling: the bubble fades out instead of hanging. */
+  const [isScrolling, setIsScrolling] = useState(false)
+  const scrollIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const requestIdRef = useRef(0)
   const menuRef = useRef<TextSelectionSnapshot | null>(null)
   menuRef.current = menu
@@ -218,13 +221,16 @@ export function usePdfSelectionMenu({
   // Seçim DOM'dan kalktıysa menü kapanır — yanlış yerde yalnız kalmaz.
   useEffect(() => {
     if (!menu || feedback !== 'idle') return
-    let frame = 0
     const schedule = () => {
-      if (frame) return
-      frame = requestAnimationFrame(() => {
-        frame = 0
+      // While the page is moving the bubble cannot track it reliably, so it
+      // fades out; once scrolling stops it is re-anchored in one measurement.
+      setIsScrolling(true)
+      if (scrollIdleTimerRef.current) clearTimeout(scrollIdleTimerRef.current)
+      scrollIdleTimerRef.current = setTimeout(() => {
+        scrollIdleTimerRef.current = null
         const endRect = readLiveEndRect()
         if (!endRect) {
+          setIsScrolling(false)
           closeMenu()
           return
         }
@@ -234,7 +240,8 @@ export function usePdfSelectionMenu({
           if (prev.position.top === next.top && prev.position.left === next.left) return prev
           return { ...prev, position: next }
         })
-      })
+        setIsScrolling(false)
+      }, 120)
     }
     const container = containerRef.current
     // The scrollport is the descendant `[data-native-pdf-scroll]`, not the
@@ -243,7 +250,11 @@ export function usePdfSelectionMenu({
     container?.addEventListener('scroll', schedule, { passive: true, capture: true })
     window.addEventListener('resize', schedule)
     return () => {
-      if (frame) cancelAnimationFrame(frame)
+      if (scrollIdleTimerRef.current) {
+        clearTimeout(scrollIdleTimerRef.current)
+        scrollIdleTimerRef.current = null
+      }
+      setIsScrolling(false)
       container?.removeEventListener('scroll', schedule, { capture: true })
       window.removeEventListener('resize', schedule)
     }
@@ -348,11 +359,12 @@ export function usePdfSelectionMenu({
     () => ({
       menu,
       feedback,
+      isScrolling,
       handleSelection,
       handleAddToDraft,
       handleSendDirect,
       closeMenu
     }),
-    [menu, feedback, handleSelection, handleAddToDraft, handleSendDirect, closeMenu]
+    [menu, feedback, isScrolling, handleSelection, handleAddToDraft, handleSendDirect, closeMenu]
   )
 }

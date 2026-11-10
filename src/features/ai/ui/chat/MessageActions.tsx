@@ -18,9 +18,12 @@ const TURKISH_CHAR_REGEX = /[ÇÖÜçöüĞğİıŞş]/
  */
 let activeTtsStop: (() => void) | null = null
 
+/** Long enough to read the confirmation, short enough not to linger. */
+const COPY_CONFIRMATION_MS = 2000
+
 export const CopyButton = memo(function CopyButton({ content }: { content: string }) {
   const { t } = useTranslation()
-  const { copy, isCopied } = useClipboard()
+  const { copy, isCopied } = useClipboard(COPY_CONFIRMATION_MS)
 
   const handleCopy = useCallback(() => void copy(content), [content, copy])
 
@@ -31,9 +34,10 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
         size="compact"
         variant="ghost"
         onClick={handleCopy}
-        className={`text-ql-10 ${
+        data-copied={isCopied || undefined}
+        className={`text-ql-10 transition-colors ${
           isCopied
-            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            ? 'bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30 dark:text-emerald-400'
             : 'text-muted-foreground'
         }`}
         aria-label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}

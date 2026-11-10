@@ -1,28 +1,41 @@
 import { useClipboard } from '@shared/hooks/useClipboard'
 import { Button } from '@shared/ui/components/primitives'
 
+import { Check, Copy } from 'lucide-react'
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+
+const CODE_COPY_CONFIRMATION_MS = 2000
 
 export function CodeBlock({ code, lang }: { code: string; lang: string }) {
-  const { copy } = useClipboard()
+  const { t } = useTranslation()
+  const { copy, isCopied } = useClipboard(CODE_COPY_CONFIRMATION_MS)
 
   const handleCopy = useCallback(() => void copy(code), [code, copy])
 
   return (
-    <div className="border-border bg-muted/40 my-3 overflow-hidden rounded-lg border">
-      <div className="border-border flex items-center justify-between border-b px-3 py-1.5">
-        <span className="text-ql-11 text-muted-foreground font-mono">{lang || 'code'}</span>
+    // Container queries let the header collapse the label on a very narrow
+    // message bubble without hiding the copy action itself.
+    <div className="border-border bg-muted/40 @container my-3 overflow-hidden rounded-lg border">
+      <div className="border-border bg-muted/80 flex items-center justify-between gap-2 border-b px-3 py-1.5">
+        <span className="text-ql-11 text-muted-foreground min-w-0 truncate font-mono uppercase">
+          {lang || 'code'}
+        </span>
         <Button
           type="button"
           variant="ghost"
           size="xs"
           onClick={handleCopy}
-          className="text-ql-11 text-muted-foreground"
+          aria-label={t('copy_code')}
+          className={`text-ql-11 shrink-0 gap-1 ${
+            isCopied ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+          }`}
         >
-          Copy
+          {isCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          <span className="@max-[360px]:hidden">{isCopied ? t('copied') : t('copy_code')}</span>
         </Button>
       </div>
-      <pre className="text-ql-13 text-foreground overflow-x-auto p-3 leading-relaxed">
+      <pre className="custom-scrollbar text-ql-13 text-foreground overflow-x-auto p-3 leading-relaxed">
         <code>{code}</code>
       </pre>
     </div>

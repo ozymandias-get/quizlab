@@ -25,6 +25,21 @@ function profileStateKey(profile: NativeMessagingExtensionProfile): string {
 }
 
 /**
+ * One readiness signal instead of a protocol log: green means the profile can
+ * be used right now, amber means connected but still pairing (or an outdated
+ * extension), grey means no bridge at all.
+ */
+function profileLampTone(profile: NativeMessagingExtensionProfile): string {
+  if (profile.connected && profile.paired) {
+    return 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16),0_0_10px_rgba(16,185,129,0.65)]'
+  }
+  if (profile.connected) {
+    return 'bg-amber-500 shadow-[0_0_0_3px_rgba(245,158,11,0.16),0_0_10px_rgba(245,158,11,0.55)]'
+  }
+  return 'bg-muted-foreground/70'
+}
+
+/**
  * The Chrome profiles the extension runs in.
  *
  * Chrome gives every profile a separate extension storage, so a user with two
@@ -77,13 +92,7 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">
                   <span
                     aria-hidden="true"
-                    className={`size-2 shrink-0 rounded-full ${
-                      profile.connected && profile.paired
-                        ? 'bg-emerald-500'
-                        : profile.connected
-                          ? 'bg-amber-500'
-                          : 'bg-muted-foreground'
-                    }`}
+                    className={`size-2.5 shrink-0 rounded-full transition-shadow ${profileLampTone(profile)}`}
                   />
                   <Laptop className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
                   <div className="min-w-0">

@@ -20,8 +20,11 @@ function SettingsTabIntro({
   const hasBody = !!title || (!!description && !hideDescription)
 
   return (
-    <div className="flex items-start justify-between gap-4 pb-1">
-      <div className="flex min-w-0 items-center gap-3">
+    // Compact horizontal strip: one line of heading plus at most two lines of
+    // description, and the description drops entirely in short windows so the
+    // form controls stay above the fold.
+    <div className="flex items-center justify-between gap-3 pb-0.5">
+      <div className="flex min-w-0 items-center gap-2.5">
         {icon}
         {hasBody && (
           <div className="max-w-2xl min-w-0">
@@ -32,7 +35,7 @@ function SettingsTabIntro({
             )}
             {description && !hideDescription && (
               <p
-                className={`text-ql-13 text-muted-foreground leading-relaxed ${title ? 'mt-1' : ''}`}
+                className={`text-ql-12 text-muted-foreground leading-relaxed [@media(max-height:700px)]:hidden ${title ? 'mt-0.5' : ''}`}
               >
                 {description}
               </p>

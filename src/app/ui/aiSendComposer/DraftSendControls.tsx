@@ -236,7 +236,7 @@ export function DraftSendButton({
             : undefined
         }
         className={cn(
-          'text-ql-11 h-7 shrink-0 gap-1.5 rounded-full px-3 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98] @max-[330px]:px-2.5',
+          'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98] @max-[330px]:min-w-0 @max-[330px]:px-2.5',
           // Devre dışıyken yarı saydam birincil blok kalmaz: dolu bir `muted`
           // yüzey + okunur metin. Tüm düğmeyi `opacity` ile soldurmak koyu temada
           // ıslak gri bir leke gibi okunuyordu.

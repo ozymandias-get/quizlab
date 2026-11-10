@@ -1,6 +1,6 @@
 import { ScrollArea } from '@app/components/ui/scroll-area'
 import { DURATION } from '@shared/lib/motion'
-import { InlineSpinner, SettingsTabIcon } from '@shared/ui/components/primitives'
+import { SettingsTabIcon } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -19,6 +19,35 @@ interface SettingsModalContentProps {
   activeTabMeta: TabDef | null
   onClose: () => void
   setActiveTab: (id: string) => void
+}
+
+/**
+ * Loading placeholder shaped like a settings tab: a compact intro strip and
+ * three section cards. Matching the real rhythm means switching to a lazy tab
+ * settles into place instead of collapsing to a single spinner.
+ */
+function SettingsTabSkeleton() {
+  return (
+    <div aria-busy="true" className="space-y-6 pb-4 motion-safe:animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="bg-muted h-10 w-10 shrink-0 rounded-xl" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="bg-muted h-3.5 w-40 max-w-full rounded-full" />
+          <div className="bg-muted/70 h-2.5 w-72 max-w-full rounded-full" />
+        </div>
+      </div>
+      {[0, 1, 2].map((row) => (
+        <div key={row} className="border-border/60 bg-card/40 space-y-4 rounded-2xl border p-4">
+          <div className="bg-muted h-3 w-32 max-w-full rounded-full" />
+          <div className="bg-muted/70 h-8 w-full rounded-lg" />
+          <div className="flex gap-3">
+            <div className="bg-muted/70 h-8 flex-1 rounded-lg" />
+            <div className="bg-muted/70 h-8 w-24 shrink-0 rounded-lg" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 const TabPanel = memo(function TabPanel({
@@ -42,13 +71,7 @@ const TabPanel = memo(function TabPanel({
     >
       {/* Once a tab has been visited it stays mounted (hidden, inert) so
           drafts and local form state survive switching away and back. */}
-      <Suspense
-        fallback={
-          <div className="flex h-full items-center justify-center p-12">
-            <InlineSpinner size="lg" className="border-border border-t-foreground/50" />
-          </div>
-        }
-      >
+      <Suspense fallback={<SettingsTabSkeleton />}>
         <TabComponent onClose={onClose} setActiveTab={setActiveTab} />
       </Suspense>
     </div>

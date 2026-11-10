@@ -3,7 +3,7 @@ import { useCaptureScreen } from '@platform/electron/api/useSystemApi'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
 
-import { type MouseEvent, useEffect, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const MIN_SELECTION_SIZE = 20
@@ -42,6 +42,9 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
   const [startPos, setStartPos] = useState<Point>({ x: 0, y: 0 })
   const [endPos, setEndPos] = useState<Point>({ x: 0, y: 0 })
   const overlayRef = useRef<HTMLDivElement>(null)
+  // useId can contain characters that are awkward inside `url(#…)`; keep the
+  // fragment identifier to a safe alphabet.
+  const maskId = `shot-mask-${useId().replaceAll(/[^a-zA-Z0-9_-]/g, '')}`
   const { mutateAsync: captureScreenMutation } = useCaptureScreen()
 
   const handleMouseDown = (e: MouseEvent) => {
@@ -137,37 +140,37 @@ function ScreenshotTool({ isActive, onCapture, onClose }: ScreenshotToolProps) {
     >
       {hasSelection && (
         <>
-          <div
+          {/* One masked layer instead of four dim rectangles: adjacent boxes
+              used to leave 1px seams at fractional device-pixel positions. */}
+          <svg
             className="screenshot-dim"
-            style={{ top: 0, left: 0, width: '100%', height: selectionRect.top }}
-          />
-          <div
-            className="screenshot-dim"
-            style={{
-              top: selectionRect.top,
-              left: 0,
-              width: selectionRect.left,
-              height: selectionRect.height
-            }}
-          />
-          <div
-            className="screenshot-dim"
-            style={{
-              top: selectionRect.top,
-              left: selectionRect.left + selectionRect.width,
-              right: 0,
-              height: selectionRect.height
-            }}
-          />
-          <div
-            className="screenshot-dim"
-            style={{
-              top: selectionRect.top + selectionRect.height,
-              left: 0,
-              width: '100%',
-              bottom: 0
-            }}
-          />
+            aria-hidden="true"
+            focusable="false"
+            width="100%"
+            height="100%"
+          >
+            <defs>
+              <mask id={maskId} maskUnits="userSpaceOnUse">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <rect
+                  x={selectionRect.left}
+                  y={selectionRect.top}
+                  width={selectionRect.width}
+                  height={selectionRect.height}
+                  fill="black"
+                />
+              </mask>
+            </defs>
+            <rect
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              fill="black"
+              fillOpacity={0.6}
+              mask={`url(#${maskId})`}
+            />
+          </svg>
 
           <div
             className="screenshot-selection"

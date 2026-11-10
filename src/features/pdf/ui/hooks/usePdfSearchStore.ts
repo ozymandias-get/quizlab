@@ -5,6 +5,10 @@ interface PdfSearchUiState {
   isOpen: boolean
   /** The current query, scoped to `ownerId`. */
   keyword: string
+  /** `Aa`: match without folding case. */
+  caseSensitive: boolean
+  /** Match only whole words. */
+  wholeWord: boolean
   /**
    * Document that owns the current search. `null` means the bar was opened
    * without a document yet; any toolbar may claim it by typing.
@@ -13,6 +17,8 @@ interface PdfSearchUiState {
   open: (ownerId?: string | null) => void
   close: () => void
   setKeyword: (keyword: string, ownerId?: string | null) => void
+  toggleCaseSensitive: () => void
+  toggleWholeWord: () => void
   /** Closes the bar and forgets the query for every document. */
   reset: () => void
   /** Resets only when the given document owns (or nobody owns) the search. */
@@ -35,6 +41,8 @@ interface PdfSearchUiState {
 export const usePdfSearchStore = create<PdfSearchUiState>((set) => ({
   isOpen: false,
   keyword: '',
+  caseSensitive: false,
+  wholeWord: false,
   ownerId: null,
   open: (ownerId) =>
     set((state) => {
@@ -50,15 +58,24 @@ export const usePdfSearchStore = create<PdfSearchUiState>((set) => ({
       }
       return { keyword, isOpen: true, ownerId }
     }),
-  reset: () => set({ isOpen: false, keyword: '', ownerId: null }),
+  toggleCaseSensitive: () => set((state) => ({ caseSensitive: !state.caseSensitive })),
+  toggleWholeWord: () => set((state) => ({ wholeWord: !state.wholeWord })),
+  reset: () =>
+    set({ isOpen: false, keyword: '', caseSensitive: false, wholeWord: false, ownerId: null }),
   resetOwner: (ownerId) =>
     set((state) => {
       if (state.ownerId !== null && state.ownerId !== ownerId) return state
-      return { isOpen: false, keyword: '', ownerId: null }
+      return { isOpen: false, keyword: '', caseSensitive: false, wholeWord: false, ownerId: null }
     })
 }))
 
 /** Resets the PDF search UI store to its initial state. Test-only helper. */
 export function resetPdfSearchStore(): void {
-  usePdfSearchStore.setState({ isOpen: false, keyword: '', ownerId: null })
+  usePdfSearchStore.setState({
+    isOpen: false,
+    keyword: '',
+    caseSensitive: false,
+    wholeWord: false,
+    ownerId: null
+  })
 }

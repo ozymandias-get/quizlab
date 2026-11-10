@@ -4,8 +4,8 @@ import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
 import { Button } from '@shared/ui/components/primitives'
 
-import { Copy, Loader2 } from 'lucide-react'
-import { memo, useCallback, useState } from 'react'
+import { ChevronDown, Copy, Loader2 } from 'lucide-react'
+import { memo, useCallback, useMemo, useState } from 'react'
 
 import AboutActionCard from './AboutActionCard'
 
@@ -81,15 +81,22 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
   const [isCopying, setIsCopying] = useState(false)
   const { showSuccess, showError } = useToastActions()
 
+  // The exact text that will be written to the clipboard, so the disclosure
+  // below can show it before the user commits.
+  const report = useMemo(
+    () =>
+      createIssueLogReport({
+        appVersion: appVersion ?? 'unknown',
+        language: typeof navigator !== 'undefined' ? navigator.language : 'unknown'
+      }),
+    [appVersion]
+  )
+
   const handleCopy = useCallback(async () => {
     if (isCopying) return
     setIsCopying(true)
 
     try {
-      const report = createIssueLogReport({
-        appVersion: appVersion ?? 'unknown',
-        language: typeof navigator !== 'undefined' ? navigator.language : 'unknown'
-      })
       await copyToClipboard(report)
       showSuccess(t('toast_logs_copied'), t('toast_system_title'))
     } catch (error) {
@@ -98,32 +105,44 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
     } finally {
       setIsCopying(false)
     }
-  }, [appVersion, isCopying, showError, showSuccess, t])
+  }, [isCopying, report, showError, showSuccess, t])
 
   return (
-    <AboutActionCard
-      title={t('report_issue_title')}
-      description={t('report_issue_desc')}
-      trailing={
-        <Button
-          type="button"
-          onClick={handleCopy}
-          disabled={isCopying}
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-        >
-          {isCopying ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-          <span className="text-ql-12 font-medium">
-            {isCopying ? t('loading') : t('copy_logs')}
-          </span>
-        </Button>
-      }
-    />
+    <>
+      <AboutActionCard
+        title={t('report_issue_title')}
+        description={t('report_issue_desc')}
+        trailing={
+          <Button
+            type="button"
+            onClick={handleCopy}
+            disabled={isCopying}
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+          >
+            {isCopying ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+            <span className="text-ql-12 font-medium">
+              {isCopying ? t('loading') : t('copy_logs')}
+            </span>
+          </Button>
+        }
+      />
+
+      <details className="border-border/60 bg-background/40 group mt-2 rounded-xl border">
+        <summary className="text-ql-11 text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 font-medium select-none">
+          {t('preview_report_data')}
+          <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
+        <pre className="custom-scrollbar text-ql-11 text-muted-foreground border-border/50 max-h-56 overflow-auto border-t p-3 font-mono break-words whitespace-pre-wrap">
+          {report}
+        </pre>
+      </details>
+    </>
   )
 })
 

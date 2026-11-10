@@ -6,6 +6,7 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 
+import AppearancePreviewCard from './appearance/AppearancePreviewCard'
 import BarAppearanceSettings from './appearance/BarAppearanceSettings'
 import SelectionColorSettings from './appearance/SelectionColorSettings'
 
@@ -42,6 +43,13 @@ const AppearanceTab = memo(() => {
       <SettingsTabIntro icon={APPEARANCE_ICON} description={t('appearance_description')} />
 
       <div className="space-y-4">
+        <AppearancePreviewCard
+          selectionColor={selectionColor}
+          bottomBarOpacity={bottomBarOpacity}
+          bottomBarScale={bottomBarScale}
+          label={t('appearance_preview')}
+        />
+
         <BarAppearanceSettings
           bottomBarOpacity={bottomBarOpacity}
           setBottomBarOpacity={setBottomBarOpacity}

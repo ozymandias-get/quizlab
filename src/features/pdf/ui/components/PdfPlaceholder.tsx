@@ -127,6 +127,7 @@ function PdfPlaceholder({
                 onResume={handleResume}
                 onRelink={handleRelink}
                 onRemove={handleRemove}
+                onClearSearch={() => setSearchQuery('')}
               />
             </div>
           </div>

@@ -71,6 +71,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
+  const [keyboardIndex, setKeyboardIndex] = useState(-1)
   const [editingRowHeight, setEditingRowHeight] = useState(LIST_ROW_HEIGHT)
   // Normal rows grow with the text scale/localisation. A single measured base
   // keeps virtualization offsets uniform while still avoiding clipped content.
@@ -184,6 +185,11 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
       .map((entry) => entry.session)
   }, [isOpen, sessions, searchIndex, debouncedSearch])
 
+  // A new query starts a new result set; the keyboard cursor has to reset.
+  useEffect(() => {
+    setKeyboardIndex(-1)
+  }, [debouncedSearch, isOpen])
+
   // A search must not destroy an unsaved title. The draft stays in state even
   // when the edited row is filtered out; the editor simply reappears with the
   // same text once the filter is cleared again.
@@ -220,6 +226,15 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
       bottom: totalHeight - offsets[end]
     }
   }, [filteredSessions.length, rowLayout, scrollTop, viewportHeight])
+
+  // Once the virtual window includes the keyboard target, hand it focus.
+  useEffect(() => {
+    if (keyboardIndex < 0) return
+    const row = listRef.current?.querySelector<HTMLElement>(
+      `[data-history-row-index="${keyboardIndex}"]`
+    )
+    row?.querySelector<HTMLElement>('button')?.focus()
+  }, [keyboardIndex, virtualRows.start, virtualRows.end])
 
   // Measure the rendered rows once fonts/layout settle. If a localization or a
   // large text scale makes a normal row taller, every virtual offset adopts the
@@ -397,7 +412,13 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
         data-history-editing={isEditing ? '' : undefined}
         data-history-row-index={index}
         data-history-session-id={session.id}
-        className={absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'}
+        className={`rounded-lg transition-colors ${
+          absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'
+        } ${
+          keyboardIndex === index
+            ? 'border-primary bg-accent/40 border-l-2'
+            : 'border-l-2 border-transparent'
+        }`}
         style={
           absoluteTop === undefined
             ? isEditing
@@ -506,10 +527,21 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 value={modalSearch}
                 onChange={(e) => setModalSearch(e.target.value)}
                 placeholder={t('api_chat_modal_search_placeholder')}
-                className="text-ql-14 pr-9 pl-9"
+                className="text-ql-14 pr-24 pl-9"
                 data-testid="history-search-input"
               />
               <Search className="text-muted-foreground group-focus-within/modal-search:text-primary absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />
+              {isSearchActive && (
+                <span
+                  data-testid="history-search-count"
+                  aria-live="polite"
+                  className="bg-muted text-muted-foreground text-ql-10 absolute top-1/2 right-9 -translate-y-1/2 rounded-full px-1.5 py-0.5 font-medium tabular-nums"
+                >
+                  {isSearchPending
+                    ? '…'
+                    : t('api_chat_search_results', { count: filteredSessions.length })}
+                </span>
+              )}
               {modalSearch && (
                 <IconButton
                   type="button"
@@ -553,7 +585,28 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           {/* Sessions List */}
           <div
             ref={listRef}
+            role="presentation"
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+            onKeyDown={(event) => {
+              const target = event.target as HTMLElement | null
+              // The rename input owns its own arrow keys (caret movement).
+              if (target?.closest('input, textarea, [contenteditable="true"]')) return
+              if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+              if (filteredSessions.length === 0) return
+              event.preventDefault()
+              const next =
+                event.key === 'ArrowDown'
+                  ? Math.min(filteredSessions.length - 1, keyboardIndex + 1)
+                  : Math.max(0, keyboardIndex <= 0 ? 0 : keyboardIndex - 1)
+              setKeyboardIndex(next)
+              // Scroll from the virtual offsets first: the target row may not
+              // be mounted yet, so `scrollIntoView` cannot be the primary move.
+              const container = listRef.current
+              if (container) {
+                container.scrollTop = Math.max(0, rowLayout.offsets[next] - LIST_ROW_GAP)
+                setScrollTop(container.scrollTop)
+              }
+            }}
             aria-busy={isSearchPending || undefined}
             className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4"
           >

@@ -9,7 +9,7 @@ import {
   TooltipTrigger
 } from '@shared/ui/components/primitives'
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react'
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -118,6 +118,22 @@ function PdfPageNav({
     return isNaN(page) || page < 1 || page > totalPages ? null : page
   }, [pageInputValue, totalPages])
 
+  /**
+   * ArrowUp/ArrowDown and the tiny stepper buttons move one page without
+   * leaving the editor; the typed value stays in the box so a user can keep
+   * stepping from where they are.
+   */
+  const stepPage = useCallback(
+    (delta: number) => {
+      const base = readPageInput() ?? currentPage
+      const next = Math.min(totalPages, Math.max(1, base + delta))
+      setIsPageInvalid(false)
+      setPageInputValue(String(next))
+      onJumpToPage(next)
+    },
+    [currentPage, onJumpToPage, readPageInput, totalPages]
+  )
+
   /** Enter: invalid input stays open with a visible, announced error. */
   const submitPageInput = useCallback(() => {
     if (!isPageEditActiveRef.current) return
@@ -193,6 +209,12 @@ function PdfPageNav({
               if (e.key === 'Enter') {
                 e.preventDefault()
                 submitPageInput()
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                stepPage(1)
+              } else if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                stepPage(-1)
               } else if (e.key === 'Escape') {
                 restoreFocusRef.current = true
                 cancelPageInput()
@@ -201,12 +223,36 @@ function PdfPageNav({
             onBlur={handleBlur}
             aria-invalid={isPageInvalid || undefined}
             aria-describedby={isPageInvalid ? pageErrorId : undefined}
-            className="text-ql-12 px-1.5 py-0.5 text-center font-medium tabular-nums"
+            className="text-ql-12 py-0.5 pr-4 pl-1.5 text-center font-medium tabular-nums"
             style={{
-              width: `${totalPages.toString().length + 1.5}ch`,
-              minWidth: '54px'
+              width: `${totalPages.toString().length + 2}ch`,
+              minWidth: '58px'
             }}
           />
+          <span className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col">
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => stepPage(1)}
+              disabled={(readPageInput() ?? currentPage) >= totalPages}
+              aria-label={t('page_step_up')}
+              className="text-muted-foreground hover:text-foreground flex h-2.5 w-3.5 items-center justify-center disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ChevronUp className="size-2.5" />
+            </button>
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => stepPage(-1)}
+              disabled={(readPageInput() ?? currentPage) <= 1}
+              aria-label={t('page_step_down')}
+              className="text-muted-foreground hover:text-foreground flex h-2.5 w-3.5 items-center justify-center disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ChevronDown className="size-2.5" />
+            </button>
+          </span>
           {isPageInvalid && (
             <span
               id={pageErrorId}

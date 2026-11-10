@@ -49,6 +49,8 @@ interface SelectionMenuState {
     requestId: number
   } | null
   feedback: 'idle' | 'working' | 'error'
+  /** True while the page is scrolling; the menu fades while it moves. */
+  isScrolling: boolean
   handleAddToDraft: () => void
   handleSendDirect: () => void
   closeMenu: () => void
@@ -72,6 +74,9 @@ export interface UsePdfViewerStateReturn {
   contextMenu: { x: number; y: number } | null
   handleCloseContextMenu: () => void
   handleTogglePanMode: () => void
+  /** Wheel turns the page when true, scrolls freely when false. */
+  isWheelPageTurnEnabled: boolean
+  handleToggleWheelPageTurn: () => void
   menuItems: MenuItem[]
   handleAddCurrentPageTextToAi: () => void
   handleReload: () => void

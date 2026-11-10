@@ -1,7 +1,7 @@
 import { cn } from '@shared/lib/uiUtils'
 
 import { Hand } from 'lucide-react'
-import { memo, useEffect, useRef } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { PdfViewerDocumentProps } from '../../hooks/pdfViewerStateTypes'
@@ -10,6 +10,7 @@ import ContextMenu from './ContextMenu'
 import NativePdfViewer from './NativePdfViewer'
 import PdfDraftSlot from './PdfDraftSlot'
 import PdfSelectionMenu from './PdfSelectionMenu'
+import PdfThumbnailRail from './PdfThumbnailRail'
 import PdfToolbar from './PdfToolbar'
 
 /**
@@ -40,12 +41,15 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     menuItems,
     handleCloseContextMenu,
     handleTogglePanMode,
+    isWheelPageTurnEnabled,
+    handleToggleWheelPageTurn,
     handleReload,
     selectionMenu
   } = usePdfViewerState(props)
 
   const { pdfFile } = props
   const selectionMenuRef = useRef<HTMLDivElement | null>(null)
+  const [isThumbnailRailOpen, setIsThumbnailRailOpen] = useState(false)
 
   const { menu: activeSelectionMenu, closeMenu: closeSelectionMenu } = selectionMenu
 
@@ -109,6 +113,10 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         ZoomOut={nativeViewer.zoomControls.ZoomOut}
         CurrentScale={nativeViewer.zoomControls.CurrentScale}
         onReload={handleReload}
+        thumbnailRailOpen={isThumbnailRailOpen}
+        onToggleThumbnailRail={() => setIsThumbnailRailOpen((open) => !open)}
+        wheelPageTurnEnabled={isWheelPageTurnEnabled}
+        onToggleWheelPageTurn={handleToggleWheelPageTurn}
       />
 
       {/* Sahne: PDF yüzeyi + yüzen AI draft dock'u aynı `relative` kutuyu paylaşır.
@@ -116,26 +124,30 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           alanının yüksekliği hiç değişmez — dock açılıp kapandığında sayfa
           yeniden akmaz, zoom ve kaydırma konumu korunur. */}
       <div className="relative flex min-h-0 flex-1 flex-col">
-        <div
-          ref={containerRef}
-          className={cn(
-            'pdf-viewer-container relative flex h-full min-h-0 flex-1 scrollbar-gutter-stable flex-col overflow-hidden',
-            isPanMode && 'pdf-pan-mode-active',
-            isSpacePanActive && 'pdf-space-pan-active',
-            isPanDragging && 'pdf-pan-mode-dragging'
-          )}
-        >
-          <NativePdfViewer
-            controller={nativeViewer}
-            canvasRef={canvasRef}
-            textLayerRef={textLayerRef}
-            annotationLayerRef={annotationLayerRef}
-            searchLayerRef={searchLayerRef}
-            t={props.t}
-            tt={tt}
-          />
+        <div className="relative min-h-0 flex-1">
+          {isThumbnailRailOpen &&
+            nativeViewer.status === 'ready' &&
+            nativeViewer.totalPages > 0 && <PdfThumbnailRail controller={nativeViewer} t={tt} />}
+          <div
+            ref={containerRef}
+            className={cn(
+              'pdf-viewer-container relative flex h-full min-h-0 flex-1 scrollbar-gutter-stable flex-col overflow-hidden',
+              isPanMode && 'pdf-pan-mode-active',
+              isSpacePanActive && 'pdf-space-pan-active',
+              isPanDragging && 'pdf-pan-mode-dragging'
+            )}
+          >
+            <NativePdfViewer
+              controller={nativeViewer}
+              canvasRef={canvasRef}
+              textLayerRef={textLayerRef}
+              annotationLayerRef={annotationLayerRef}
+              searchLayerRef={searchLayerRef}
+              t={props.t}
+              tt={tt}
+            />
 
-          {/* The hand tool is invisible in the page itself: the pointer is the
+            {/* The hand tool is invisible in the page itself: the pointer is the
               only thing that changes, and it changes too late (after the drag
               starts). This badge names the active mode in place, next to the
               page, and says how to leave it. Space gets its own wording because
@@ -145,30 +157,31 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
               direct child of `.pdf-viewer-container` `position: relative` to
               make the native page layers stack, and that unlayered rule beats
               a Tailwind `absolute` utility on specificity. */}
-          {(isPanMode || isSpacePanActive) && (
-            <div
-              role="status"
-              data-testid="pdf-pan-mode-badge"
-              data-pan-mode={isPanMode ? 'persistent' : 'temporary'}
-              style={{ position: 'absolute', right: '0.75rem', bottom: '0.75rem', zIndex: 6 }}
-              className="border-border/60 bg-background/85 text-foreground text-ql-11 shadow-ambient-sm pointer-events-none flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium backdrop-blur-md"
-            >
-              <Hand className="size-3.5 shrink-0" aria-hidden="true" />
-              <span>{tt(isPanMode ? 'pdf_pan_mode_active' : 'pdf_space_pan_active')}</span>
-              <span className="text-muted-foreground">
-                ({tt(isPanMode ? 'pdf_pan_mode_exit_hint' : 'pdf_space_pan_hint')})
-              </span>
-            </div>
-          )}
+            {(isPanMode || isSpacePanActive) && (
+              <div
+                role="status"
+                data-testid="pdf-pan-mode-badge"
+                data-pan-mode={isPanMode ? 'persistent' : 'temporary'}
+                style={{ position: 'absolute', right: '0.75rem', bottom: '0.75rem', zIndex: 6 }}
+                className="border-border/60 bg-background/85 text-foreground text-ql-11 shadow-ambient-sm pointer-events-none flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium backdrop-blur-md"
+              >
+                <Hand className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>{tt(isPanMode ? 'pdf_pan_mode_active' : 'pdf_space_pan_active')}</span>
+                <span className="text-muted-foreground">
+                  ({tt(isPanMode ? 'pdf_pan_mode_exit_hint' : 'pdf_space_pan_hint')})
+                </span>
+              </div>
+            )}
 
-          {contextMenu && (
-            <ContextMenu
-              x={contextMenu.x}
-              y={contextMenu.y}
-              items={menuItems}
-              onClose={handleCloseContextMenu}
-            />
-          )}
+            {contextMenu && (
+              <ContextMenu
+                x={contextMenu.x}
+                y={contextMenu.y}
+                items={menuItems}
+                onClose={handleCloseContextMenu}
+              />
+            )}
+          </div>
         </div>
 
         {/* AI Draft Dock yuvası: sahnenin üzerine binen, akış dışı bir katman.
@@ -184,6 +197,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
               top={selectionMenu.menu.position.top}
               left={selectionMenu.menu.position.left}
               feedback={selectionMenu.feedback}
+              isScrolling={selectionMenu.isScrolling}
               onSendToAi={selectionMenu.handleSendDirect}
               onAddToDraft={selectionMenu.handleAddToDraft}
             />

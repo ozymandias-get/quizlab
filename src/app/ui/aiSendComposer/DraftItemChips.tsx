@@ -49,7 +49,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
 
   return (
     <div className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5">
-      <ul className="flex w-max items-center gap-1.5" aria-label={t('ai_send_panel_title')}>
+      <ul className="flex w-max items-center gap-2" aria-label={t('ai_send_panel_title')}>
         {items.map((item, index) => (
           <DraftItemChip key={item.id} item={item} order={index + 1} onRemove={onRemoveItem} />
         ))}
@@ -93,7 +93,7 @@ function DraftItemChip({
       contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
     >
       <li
-        className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-7 shrink-0 items-center gap-1.5 rounded-lg border pr-1 pl-1.5 transition-all"
+        className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border pr-0.5 pl-2 transition-all"
         data-testid="ai-draft-item"
       >
         <span
@@ -128,7 +128,9 @@ function DraftItemChip({
             onClick={() => onRemove(item.id)}
             aria-label={`${t('ai_send_remove_item')} — ${accessibleName}`}
             className={cn(
-              'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive size-5 shrink-0 rounded-md'
+              // A 24px box with its own padding keeps the delete target away
+              // from the label; a mis-click no longer costs the user the draft.
+              'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive ml-1 size-6 shrink-0 rounded-md p-1'
             )}
           >
             <X className="size-3" aria-hidden />

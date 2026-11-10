@@ -1,3 +1,6 @@
+import { useClipboard } from '@shared/hooks/useClipboard'
+
+import { Check } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo } from 'react'
 
@@ -7,6 +10,8 @@ interface AppInfoSectionProps {
 }
 
 const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
+  const { copy, isCopied } = useClipboard()
+
   return (
     <header className="border-border/60 bg-card/30 flex flex-col items-center rounded-2xl border p-5">
       <motion.div
@@ -33,9 +38,19 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
           <span className="text-muted-foreground text-ql-10 tracking-ql-label font-semibold uppercase">
             {t('version')}
           </span>
-          <span className="text-ql-12 border-border/60 bg-muted text-foreground rounded-lg border px-2 py-0.5 font-mono font-semibold">
+          <button
+            type="button"
+            onClick={() => {
+              if (appVersion) void copy(appVersion)
+            }}
+            disabled={!appVersion}
+            title={t('copy_version')}
+            aria-label={t('copy_version')}
+            className="text-ql-12 border-border/60 bg-muted text-foreground focus-visible:ring-ring/70 hover:border-border hover:bg-muted/80 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {appVersion}
-          </span>
+            {isCopied && <Check className="size-3 text-emerald-500" aria-hidden />}
+          </button>
         </div>
       </div>
     </header>

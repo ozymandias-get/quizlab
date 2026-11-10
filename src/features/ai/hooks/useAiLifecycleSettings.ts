@@ -15,7 +15,11 @@ export const SLEEP_TIMEOUT_OPTIONS = [
   { labelKey: 'sleep_never', value: Infinity }
 ] as const
 
-export const MAX_ALIVE_TABS_OPTIONS = [1, 2, 3, 4, 5] as const
+/** Slider range used by the settings tab. */
+export const MAX_ALIVE_TABS_MIN = 1
+export const MAX_ALIVE_TABS_MAX = 10
+
+export const MAX_ALIVE_TABS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
 export interface AiLifecycleSettingsReturn {
   maxAliveTabs: number
@@ -75,7 +79,10 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
   )
 
   const safeMaxAliveTabs = useMemo(
-    () => (maxAliveTabs >= 1 && maxAliveTabs <= 5 ? maxAliveTabs : DEFAULT_MAX_ALIVE_TABS),
+    () =>
+      maxAliveTabs >= MAX_ALIVE_TABS_MIN && maxAliveTabs <= MAX_ALIVE_TABS_MAX
+        ? maxAliveTabs
+        : DEFAULT_MAX_ALIVE_TABS,
     [maxAliveTabs]
   )
 

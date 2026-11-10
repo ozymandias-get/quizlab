@@ -11,7 +11,7 @@ function Textarea({
     <textarea
       data-slot="textarea"
       className={cn(
-        'bg-background/50 border-border/80 placeholder:text-muted-foreground aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 motion-slow focus-visible:ring-ring/70 flex field-sizing-content min-h-16 w-full resize-none rounded-lg border px-2.5 py-2 shadow-2xs transition-[color,box-shadow,border-color] outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-2',
+        'bg-background/50 border-border/80 placeholder:text-muted-foreground aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 motion-slow focus-visible:ring-ring/70 focus-visible:ring-offset-background flex field-sizing-content min-h-16 w-full resize-none rounded-lg border px-2.5 py-2 shadow-2xs transition-[color,box-shadow,border-color] outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-2',
         size === 'sm' ? 'text-ql-12' : 'text-ql-14 max-md:text-ql-16',
         className
       )}

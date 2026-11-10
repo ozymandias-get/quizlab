@@ -34,6 +34,9 @@ interface NativeZoomControlsSource {
   scale: number
   zoomIn: () => void
   zoomOut: () => void
+  zoomTo?: (scale: number) => void
+  fit?: () => void
+  fitWidth?: () => void
 }
 
 export interface NativeZoomControls {
@@ -43,7 +46,7 @@ export interface NativeZoomControls {
 }
 
 export function useNativeZoomControls(source: NativeZoomControlsSource): NativeZoomControls {
-  const { scale, zoomIn, zoomOut } = source
+  const { scale, zoomIn, zoomOut, zoomTo, fit, fitWidth } = source
   const scaleRef = useRef(scale)
   scaleRef.current = scale
 
@@ -61,8 +64,13 @@ export function useNativeZoomControls(source: NativeZoomControlsSource): NativeZ
       // toolbar. `zoomIn`/`zoomOut` are stable, so a scale change rebuilds
       // `CurrentScale` while keeping `ZoomIn`/`ZoomOut` mounted in the DOM.
       ({ children }) =>
-        children({ scale }),
-    [scale]
+        children({
+          scale,
+          ...(zoomTo ? { zoomTo } : {}),
+          ...(fit ? { fitPage: fit } : {}),
+          ...(fitWidth ? { fitWidth } : {})
+        }),
+    [scale, zoomTo, fit, fitWidth]
   )
 
   return useMemo(() => ({ ZoomIn, ZoomOut, CurrentScale }), [ZoomIn, ZoomOut, CurrentScale])

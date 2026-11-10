@@ -15,6 +15,7 @@ import { useAppToolActions, useAppToolScreenshotState } from '@app/providers/App
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Yakalama sonrası ikili menü — alan görseli, tam sayfa görseli **ve tam sayfa
@@ -88,6 +89,7 @@ import { createPortal } from 'react-dom'
  * "gönderim bitti mi?" sorusunu yanıtlayan effect'i besler.
  */
 function CaptureChoiceMenu() {
+  const { t } = useTranslation()
   const { pendingAreaCapture, pendingFullPageCapture, pendingFullPageTextCapture } =
     useAppToolScreenshotState()
   const {
@@ -458,12 +460,18 @@ function CaptureChoiceMenu() {
   // eder, yalnızca menü çizilmez.
   if (!hasPending || !anchor) return null
 
+  const previewSrc = pendingAreaCapture?.dataUrl ?? pendingFullPageCapture?.dataUrl ?? null
+  const previewPage =
+    pendingAreaCapture?.meta?.source?.page ?? pendingFullPageCapture?.meta?.source?.page ?? null
+
   return createPortal(
     <div ref={surfaceRef}>
       <PdfSelectionMenu
         top={anchor.top}
         left={anchor.left}
         feedback={feedback}
+        previewSrc={previewSrc ?? undefined}
+        previewLabel={previewPage ? `${t('page')} ${previewPage}` : undefined}
         onSendToAi={handleSendDirect}
         onAddToDraft={handleAddToDraft}
       />

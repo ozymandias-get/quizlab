@@ -15,7 +15,16 @@ import {
   TabPillLabel
 } from '@shared/ui/components/primitives'
 
-import { ClipboardPaste, Gauge, Keyboard, PenLine, Sparkles } from 'lucide-react'
+import {
+  ArrowRight,
+  ClipboardPaste,
+  FileText,
+  Gauge,
+  Keyboard,
+  MessageSquare,
+  PenLine,
+  Sparkles
+} from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -51,6 +60,37 @@ const TEXT_INPUT_MODE_ICON = (
   </SettingsTabIcon>
 )
 
+function FlowStep({
+  icon: Icon,
+  label,
+  caption,
+  active = false
+}: {
+  icon: typeof Keyboard
+  label: string
+  caption?: string
+  active?: boolean
+}) {
+  return (
+    <span
+      className={cn(
+        'flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5',
+        active
+          ? 'border-primary/30 bg-primary/10 text-primary'
+          : 'border-border/60 bg-card text-foreground'
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" aria-hidden />
+      <span className="min-w-0">
+        <span className="text-ql-11 block truncate font-medium">{label}</span>
+        {caption && (
+          <span className="text-ql-10 text-muted-foreground block truncate">{caption}</span>
+        )}
+      </span>
+    </span>
+  )
+}
+
 const TextInputModeTab = memo(() => {
   const { t } = useTranslation()
   const { textInputMode, typingSpeed, setTextInputMode, setTypingSpeed } = useTextInputMode()
@@ -68,6 +108,11 @@ const TextInputModeTab = memo(() => {
     },
     [setTypingSpeed]
   )
+
+  const activeMode =
+    TEXT_INPUT_MODE_OPTIONS.find((option) => option.value === textInputMode) ??
+    TEXT_INPUT_MODE_OPTIONS[0]
+  const ActiveModeIcon = activeMode.icon
 
   return (
     <div className="space-y-6">
@@ -120,6 +165,30 @@ const TextInputModeTab = memo(() => {
             })}
           </div>
         </SettingsSection>
+
+        {/* Two-step working model: the selected mode decides whether a PDF
+            selection lands in the draft strip first or goes straight to chat. */}
+        <div className="border-border/60 bg-background/40 rounded-xl border p-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <FlowStep icon={FileText} label={t('pdf_document')} />
+            <ArrowRight className="text-muted-foreground/50 size-3.5 shrink-0" aria-hidden />
+            <FlowStep
+              icon={ActiveModeIcon}
+              label={t(activeMode.labelKey)}
+              active
+              caption={t('text_input_mode')}
+            />
+            <ArrowRight className="text-muted-foreground/50 size-3.5 shrink-0" aria-hidden />
+            <FlowStep
+              icon={MessageSquare}
+              label={t('api_chat_title')}
+              caption={t('text_input_flow_chat')}
+            />
+          </div>
+          <p className="text-ql-11 text-muted-foreground mt-2 text-center leading-relaxed">
+            {t('text_input_flow_hint')}
+          </p>
+        </div>
 
         <SettingsSection
           icon={<Gauge className="h-4 w-4" />}

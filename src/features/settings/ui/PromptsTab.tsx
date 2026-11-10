@@ -6,7 +6,7 @@ import { useToastActions } from '@app/providers'
 import { Button, EmptyState } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Plus } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, Reorder } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, type ReactNode, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -45,7 +45,15 @@ function SectionChevron({ isOpen }: { isOpen: boolean }) {
 const PromptsTab = memo(() => {
   const { t } = useTranslation()
   const { showSuccess, showError } = useToastActions()
-  const { allPrompts, selectedPromptId, addPrompt, deletePrompt, selectPrompt } = usePrompts()
+  const {
+    allPrompts,
+    selectedPromptId,
+    addPrompt,
+    deletePrompt,
+    selectPrompt,
+    reorderPrompts,
+    pinPrompt
+  } = usePrompts()
   const [newPromptText, setNewPromptText] = useState('')
 
   const handleAddPrompt = useCallback(
@@ -157,7 +165,7 @@ const PromptsTab = memo(() => {
                   onChange={(e) => setNewPromptText(e.target.value)}
                   placeholder={t('prompt_placeholder')}
                   rows={2}
-                  className="text-ql-13 min-h-[56px] resize-none"
+                  className="custom-scrollbar text-ql-13 min-h-[56px] resize-none"
                 />
               </div>
               <Button
@@ -191,18 +199,49 @@ const PromptsTab = memo(() => {
                     </span>
                     <span aria-hidden className="bg-border h-px flex-1" />
                   </div>
-                  <div className="space-y-1.5" role="radiogroup" aria-label={group.title}>
-                    {group.items.map((prompt) => (
-                      <PromptItem
-                        key={prompt.id}
-                        prompt={prompt}
-                        isSelected={selectedPromptId === prompt.id}
-                        onSelect={selectPrompt}
-                        onDelete={handleDeletePrompt}
-                        t={t}
-                      />
-                    ))}
-                  </div>
+                  {group.items === customPrompts ? (
+                    <Reorder.Group
+                      as="div"
+                      axis="y"
+                      values={customPrompts.map((prompt) => prompt.id)}
+                      onReorder={(ids) => reorderPrompts(ids.map(String))}
+                      className="space-y-1.5"
+                      role="radiogroup"
+                      aria-label={group.title}
+                    >
+                      {customPrompts.map((prompt) => (
+                        <Reorder.Item
+                          as="div"
+                          key={prompt.id}
+                          value={prompt.id}
+                          className="cursor-grab active:cursor-grabbing"
+                        >
+                          <PromptItem
+                            prompt={prompt}
+                            isSelected={selectedPromptId === prompt.id}
+                            onSelect={selectPrompt}
+                            onDelete={handleDeletePrompt}
+                            onPin={pinPrompt}
+                            draggable
+                            t={t}
+                          />
+                        </Reorder.Item>
+                      ))}
+                    </Reorder.Group>
+                  ) : (
+                    <div className="space-y-1.5" role="radiogroup" aria-label={group.title}>
+                      {group.items.map((prompt) => (
+                        <PromptItem
+                          key={prompt.id}
+                          prompt={prompt}
+                          isSelected={selectedPromptId === prompt.id}
+                          onSelect={selectPrompt}
+                          onDelete={handleDeletePrompt}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
 

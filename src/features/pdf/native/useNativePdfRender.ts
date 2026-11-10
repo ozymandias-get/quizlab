@@ -154,12 +154,12 @@ export function useNativePdfRender({
         // simply paints the finished buffer over the outgoing page.
         if (canvas.width !== rendered.width) canvas.width = rendered.width
         if (canvas.height !== rendered.height) canvas.height = rendered.height
-        try {
-          canvas.getContext('2d', { alpha: false })?.drawImage(buffer, 0, 0)
-        } catch {
-          // A host without a 2D context keeps the correctly sized canvas; the
-          // capture path rejects it via `data-native-pdf-canvas-page`.
-        }
+        // A host without a 2D context cannot receive the buffer. Throw instead
+        // of claiming the page is on the canvas: capture must fall through to
+        // its renderer rather than read a blank canvas as valid pixels.
+        const blitContext = canvas.getContext('2d', { alpha: false })
+        if (!blitContext) throw new Error('2D canvas context unavailable')
+        blitContext.drawImage(buffer, 0, 0)
         // The pixels are in the canvas, so it holds this page now. A superseded
         // render gets here too late to claim that.
         canvas.setAttribute(NATIVE_CANVAS_PAGE_ATTRIBUTE, String(currentPage))

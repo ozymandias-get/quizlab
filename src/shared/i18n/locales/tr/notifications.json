@@ -1,5 +1,6 @@
 {
   "notifications": "Bildirimler",
+  "notification_preview_title": "Bildirim önizlemesi",
   "notification_settings": "Bildirim Ayarları",
   "notifications_description": "Hangi bildirim türlerini almak istediğinizi seçin. Her türü ayrı ayrı açıp kapatabilirsiniz.",
   "notification_success_title": "Başarılı",

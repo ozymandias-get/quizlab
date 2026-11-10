@@ -90,6 +90,38 @@ const StorageTab = memo(function StorageTab() {
   const pressure = useMemo(() => resolveCachePressure(cacheInfo), [cacheInfo])
   const partitionRows = useMemo(() => resolvePartitionCacheRows(cacheInfo, t), [cacheInfo, t])
 
+  // Same source colours the section's legend uses: Chromium = sky, code =
+  // violet, GPU = emerald, temp = amber. Temp files stay out of the legend when
+  // they are empty, exactly like the optional root-cache row.
+  const cacheSegments = useMemo(() => {
+    const breakdown = cacheInfo?.breakdown
+    if (!breakdown) return undefined
+    const partitionBytes = Object.values(breakdown.partitionCaches ?? {}).reduce(
+      (sum, size) => sum + size,
+      0
+    )
+    const segments = [
+      {
+        key: 'chromium',
+        label: t('browser_cache'),
+        size: breakdown.chromiumCache,
+        color: 'bg-sky-500'
+      },
+      { key: 'code', label: t('code_cache'), size: breakdown.codeCache, color: 'bg-violet-500' },
+      { key: 'gpu', label: t('gpu_cache'), size: breakdown.gpuCache, color: 'bg-emerald-500' },
+      { key: 'temp', label: t('temp_files'), size: breakdown.tempFiles, color: 'bg-amber-500' },
+      // Partition data is part of `breakdown.total`; without it the stacked
+      // bar silently renormalised to the root caches only.
+      {
+        key: 'partitions',
+        label: t('storage_partition_caches'),
+        size: partitionBytes,
+        color: 'bg-teal-500'
+      }
+    ]
+    return segments.filter((segment) => segment.size > 0)
+  }, [cacheInfo?.breakdown, t])
+
   const smart = cacheInfo?.smart
   const recommendationAction = smart?.recommendation?.action
   const showSmartClean = Boolean(smart?.recommendation) && recommendationAction !== 'none'
@@ -134,6 +166,7 @@ const StorageTab = memo(function StorageTab() {
         pressurePercentage={pressure.percentage}
         isOverLimit={pressure.isOverLimit}
         barColor={pressure.barColor}
+        segments={cacheSegments}
         autoCleanEnabled={smart?.autoClean.enabled ?? true}
         onToggleAutoClean={handleToggleAutoClean}
         t={t}

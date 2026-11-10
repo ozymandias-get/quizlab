@@ -20,6 +20,20 @@ function Switch({
       )}
       {...props}
     >
+      {/* Non-colour state cue: "I" reads on the filled track, "O" on the
+          empty one. The thumb paints above both glyphs. */}
+      <span
+        aria-hidden
+        className="text-primary-foreground/80 pointer-events-none absolute top-1/2 left-1 -translate-y-1/2 text-[7px] leading-none font-bold opacity-0 transition-opacity group-data-[state=checked]/switch:opacity-100"
+      >
+        I
+      </span>
+      <span
+        aria-hidden
+        className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 text-[7px] leading-none font-bold opacity-0 transition-opacity group-data-[state=unchecked]/switch:opacity-100"
+      >
+        O
+      </span>
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className="bg-background dark:data-checked:bg-primary-foreground dark:data-unchecked:bg-foreground pointer-events-none block rounded-full shadow-sm ring-0 transition-transform not-dark:bg-clip-padding group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 data-checked:translate-x-[calc(100%-4px)] data-unchecked:translate-x-0"

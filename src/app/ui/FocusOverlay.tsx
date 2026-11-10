@@ -1,5 +1,6 @@
 import type { AiViewSurfaceState } from '@features/ai/viewState'
 
+import { Kbd } from '@app/components/ui/kbd'
 import {
   focusBackdropReducedVariants,
   focusBackdropVariants,
@@ -11,7 +12,7 @@ import { InlineSpinner } from '@shared/ui/components/primitives'
 import AestheticLoader from '@ui/components/AestheticLoader'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 
-import { motion, useReducedMotion, type Variants } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react'
 import {
   type CSSProperties,
   lazy,
@@ -20,7 +21,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef
+  useRef,
+  useState
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -44,8 +46,6 @@ interface FocusOverlayProps {
 }
 
 const SHELL_STYLE: CSSProperties = {
-  willChange: 'transform, opacity',
-  transform: 'translateZ(0)',
   contain: 'layout paint size',
   border: '1px solid oklch(var(--border))',
   borderRadius: 'var(--radius-xl)',
@@ -75,6 +75,30 @@ function FocusOverlay({
   const reducedMotion = useReducedMotion()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
+  // `will-change` is a promise to the compositor, not a permanent style: it is
+  // dropped as soon as the reveal finishes so the panel is rasterised normally.
+  const [isRevealSettled, setIsRevealSettled] = useState(false)
+  const [showEscHint, setShowEscHint] = useState(true)
+
+  useEffect(() => {
+    setIsRevealSettled(false)
+    setShowEscHint(true)
+  }, [mode])
+
+  // The shortcut is discoverable for the first two seconds, then gets out of
+  // the way; the close button remains for anyone who missed it.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowEscHint(false), 2000)
+    return () => window.clearTimeout(timer)
+  }, [mode])
+
+  const shellStyle = useMemo<CSSProperties>(
+    () => ({
+      ...SHELL_STYLE,
+      willChange: isRevealSettled ? undefined : 'opacity, clip-path'
+    }),
+    [isRevealSettled]
+  )
 
   const backdropVariants: Variants = reducedMotion
     ? focusBackdropReducedVariants
@@ -153,15 +177,31 @@ function FocusOverlay({
       className="z-modal"
       style={backdropStyle}
     >
+      <AnimatePresence>
+        {showEscHint && (
+          <motion.div
+            key="esc-hint"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: reducedMotion ? 0 : 0.18 }}
+            className="border-border/60 bg-background/85 text-foreground shadow-ambient-md text-ql-11 pointer-events-none absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border px-3 py-1.5 font-medium backdrop-blur-md"
+          >
+            <Kbd size="xs">ESC</Kbd>
+            <span>{t('focus_esc_hint')}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <motion.div
         key={`focus-content-${mode}`}
         variants={contentVariants}
         initial="hidden"
         animate="visible"
         exit="exit"
+        onAnimationComplete={() => setIsRevealSettled(true)}
         onClick={handleShellClick}
         className="glass-tier-1 relative flex h-full w-full flex-col overflow-hidden"
-        style={SHELL_STYLE}
+        style={shellStyle}
       >
         {/* A real header row instead of a floating close button: the strip owns
             the top-right corner, so the PDF/AI toolbars underneath are neither

@@ -74,6 +74,15 @@ function AiVisibleTabButton({
    */
   const activatedAtRef = useRef(0)
 
+  // Icons resolve asynchronously from the model registry. Once a tab has shown
+  // its real logo, keep that node mounted while a reload re-resolves, so the
+  // pill never flickers back to the letter fallback between sessions.
+  const iconLookupKey = iconKey || tab.modelId
+  const liveIcon = getAiIcon(iconLookupKey)
+  const lastIconRef = useRef(liveIcon)
+  if (liveIcon) lastIconRef.current = liveIcon
+  const tabIcon = liveIcon ?? lastIconRef.current
+
   const labelRef = useCallback((el: HTMLSpanElement | null) => {
     if (el) {
       spanRef.current = el
@@ -180,9 +189,7 @@ function AiVisibleTabButton({
           aria-label={label}
         >
           <TabPillIcon>
-            {getAiIcon(iconKey || tab.modelId) || (
-              <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>
-            )}
+            {tabIcon || <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>}
           </TabPillIcon>
 
           {isEditing ? (

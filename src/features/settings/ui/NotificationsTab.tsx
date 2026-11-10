@@ -148,25 +148,46 @@ const NotificationsTab = memo(() => {
                   </SettingsRowDescription>
                 </SettingsRowHeader>
 
-                <div className="flex shrink-0 items-center gap-2.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
-                    onClick={() => sendTestToast(config.type)}
-                  >
-                    {t(config.testKey)}
-                  </Button>
-
-                  <SettingsToggleSwitch
-                    checked={enabled}
-                    onChange={config.setIsEnabled}
-                    size="sm"
-                  />
-                </div>
+                <SettingsToggleSwitch checked={enabled} onChange={config.setIsEnabled} size="sm" />
               </SettingsRow>
             )
           })}
+        </div>
+
+        {/* One grouped preview surface instead of four loose debug buttons. */}
+        <div className="border-border/60 bg-background/40 mt-3 rounded-xl border p-3.5">
+          <div className="mb-2.5 flex items-center gap-2">
+            <span className="text-ql-10 text-muted-foreground tracking-ql-label font-semibold uppercase">
+              {t('notification_preview_title')}
+            </span>
+            <span aria-hidden className="bg-border h-px flex-1" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {notificationTypes.map((config) => (
+              <Button
+                key={config.type}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => sendTestToast(config.type)}
+                className="justify-start gap-2"
+              >
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 rounded-full ${
+                    config.type === 'success'
+                      ? 'bg-emerald-500'
+                      : config.type === 'error'
+                        ? 'bg-destructive'
+                        : config.type === 'warning'
+                          ? 'bg-amber-500'
+                          : 'bg-sky-500'
+                  }`}
+                />
+                <span className="text-ql-11 truncate">{t(config.testKey)}</span>
+              </Button>
+            ))}
+          </div>
         </div>
       </SettingsSection>
     </div>

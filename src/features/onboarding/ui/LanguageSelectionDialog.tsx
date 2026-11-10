@@ -74,13 +74,13 @@ export function LanguageSelectionDialog() {
                     role="radio"
                     aria-checked={isSelected}
                     onClick={() => setSelectedLang(lang.code)}
-                    className={`focus-visible:ring-ring/70 flex items-center gap-3.5 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                    className={`focus-visible:ring-ring/70 motion-normal group flex items-center gap-3.5 rounded-xl border p-3 text-left transition-all focus-visible:ring-2 focus-visible:outline-none ${
                       isSelected
-                        ? 'border-ring bg-accent/30 shadow-xs'
-                        : 'border-border bg-card hover:border-border hover:bg-muted/60'
+                        ? 'border-primary/60 bg-primary/10 shadow-primary/15 shadow-lg'
+                        : 'border-border bg-card hover:border-primary/30 hover:bg-primary/5 hover:shadow-primary/10 hover:shadow-md'
                     } `}
                   >
-                    <span className="border-border/60 bg-muted text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border">
+                    <span className="border-border/60 bg-muted text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border transition-transform group-hover:scale-105">
                       {lang.flag}
                     </span>
                     <div className="flex flex-col">

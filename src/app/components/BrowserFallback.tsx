@@ -29,25 +29,27 @@ function BrowserFallback() {
           {t('browser_fallback_description')}
         </p>
 
-        <div className="flex w-full flex-col gap-2.5 sm:flex-row">
+        <div className="flex w-full flex-col gap-2.5">
+          {/* The only action that actually gets the user into the app is the
+              download; retry is a fallback for a mistaken navigation. */}
           <Button
             type="button"
             variant="default"
-            size="default"
+            size="lg"
             onClick={() => {
               window.location.href = 'https://github.com/ozymandias-get/quizlab'
             }}
-            className="flex-1 gap-2"
+            className="shadow-primary/25 w-full gap-2 shadow-lg"
           >
             <DownloadCloud className="h-4 w-4" />
             <span>{t('browser_fallback_download')}</span>
           </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="default"
             onClick={() => window.location.reload()}
-            className="flex-1 gap-2"
+            className="text-muted-foreground w-full gap-2"
           >
             <span>{t('browser_fallback_retry')}</span>
           </Button>

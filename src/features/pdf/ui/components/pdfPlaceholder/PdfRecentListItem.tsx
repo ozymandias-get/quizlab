@@ -22,7 +22,7 @@ interface PdfRecentListItemProps {
   item: RecentItemView
   activePdfPath: string | undefined
   isInvalid: boolean
-  t: (key: string) => string
+  t: (key: string, params?: Record<string, string>) => string
   language: string
   onResume: (item: RecentItemView) => Promise<void>
   onRelink?: (item: RecentItemView) => Promise<void>
@@ -110,6 +110,7 @@ function PdfRecentListItem({
 
   const pageMeta = `${t('page')} ${item.page}${item.totalPages ? ` / ${item.totalPages}` : ''}`
   const progress = getProgressRatio(item.page, item.totalPages)
+  const progressPercent = Math.round(progress * 100)
   const openedMeta = item.lastOpenedAt
     ? formatRelativeTime(item.lastOpenedAt, language)
     : t('last_opened_unknown')
@@ -152,18 +153,38 @@ function PdfRecentListItem({
         <div className="min-w-0 flex-1">
           <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
           <div
-            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
+            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
           >
-            <span>{pageMeta}</span>
+            {showProgress ? (
+              <span
+                className="text-ql-10 border-primary/20 bg-primary/10 text-primary inline-flex items-center rounded-full border px-1.5 py-0.5 font-semibold tabular-nums"
+                data-testid="pdf-recent-progress-label"
+              >
+                {t('pdf_page_progress', {
+                  page: String(item.page),
+                  total: String(item.totalPages),
+                  percent: String(progressPercent)
+                })}
+              </span>
+            ) : (
+              <span>{pageMeta}</span>
+            )}
             <span aria-hidden>&middot;</span>
             <span>{openedMeta}</span>
           </div>
           {showProgress && (
-            <div className="bg-muted mt-2 h-1 overflow-hidden rounded-full">
+            <div
+              className="bg-border/60 mt-2 h-1 overflow-hidden rounded-full"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPercent}
+              aria-label={pageMeta}
+            >
               <div
-                className="h-full rounded-full"
+                className="h-full rounded-full transition-[width]"
                 style={{
-                  width: `${Math.round(progress * 100)}%`,
+                  width: `${progressPercent}%`,
                   backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))'
                 }}
               />

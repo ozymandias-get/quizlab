@@ -24,6 +24,12 @@ interface PdfSelectionMenuProps {
   left: number
   feedback?: SelectionMenuFeedback
   disabled?: boolean
+  /** Fades the bubble while the page scrolls beneath it. */
+  isScrolling?: boolean
+  /** Optional captured-image thumbnail shown above the actions. */
+  previewSrc?: string
+  /** Caption under the thumbnail, e.g. the cropped page number. */
+  previewLabel?: string
   onSendToAi: () => void
   onAddToDraft: () => void
 }
@@ -53,6 +59,9 @@ function PdfSelectionMenu({
   left,
   feedback = 'idle',
   disabled,
+  isScrolling = false,
+  previewSrc,
+  previewLabel,
   onSendToAi,
   onAddToDraft
 }: PdfSelectionMenuProps) {
@@ -129,13 +138,29 @@ function PdfSelectionMenu({
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className="border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-tooltip motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl"
+      className={`border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-tooltip motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl transition-opacity duration-150 ${
+        isScrolling ? 'pointer-events-none opacity-0' : 'opacity-100'
+      }`}
       onMouseDown={(e) => {
         // Menüye tıklanınca metin seçimi kaybolmasın: içerik zaten snapshot'ta,
         // ama seçim kaybı yeni bir selectionchange tetikleyip menüyü kapatırdı.
         e.preventDefault()
       }}
     >
+      {previewSrc && (
+        <div className="border-border/50 flex items-center gap-2 border-b px-2 py-1.5">
+          <img
+            src={previewSrc}
+            alt=""
+            className="border-border/60 h-12 w-auto max-w-[5.5rem] shrink-0 rounded-md border object-contain shadow-2xs"
+          />
+          {previewLabel && (
+            <span className="text-ql-11 text-muted-foreground min-w-0 truncate font-medium">
+              {previewLabel}
+            </span>
+          )}
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -3 }}
         animate={{ opacity: 1, y: 0 }}

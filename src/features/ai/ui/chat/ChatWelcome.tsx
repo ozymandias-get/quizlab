@@ -1,7 +1,7 @@
 import { Badge } from '@app/components/ui/badge'
 import { AiIcon } from '@ui/components/icons/AiIcon'
 
-import { AlertTriangle, ArrowRight, Box, Code, Info, PenTool } from 'lucide-react'
+import { AlertTriangle, Box, Code, Info, PenTool } from 'lucide-react'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -73,28 +73,31 @@ const ChatWelcome = memo(function ChatWelcome({
           {t('api_chat_empty_state')}
         </p>
 
-        {/* Suggestions Grid */}
+        {/* Suggestions — compact horizontal chips instead of full-width cards.
+            They sit above the composer, so a row of pills keeps the empty state
+            airy while still exposing every prompt. */}
         {hasProvider && onSuggestionClick && (
-          <div className="grid w-full max-w-xl grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
-            {suggestions.map((s, i) => (
-              <button
-                // Static suggestions list — items never reorder
-                // eslint-disable-next-line react/no-array-index-key -- Static suggestion buttons, stable order
-                key={i}
-                type="button"
-                onClick={() => onSuggestionClick(s.prompt)}
-                className="group border-border/50 bg-card/65 hover:border-border/80 hover:bg-muted/55 focus-visible:ring-ring/70 motion-normal relative flex w-full cursor-pointer flex-col justify-between rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              >
-                <div className="mb-1.5 flex items-center gap-2">
-                  <div className="bg-muted text-muted-foreground group-hover:text-foreground flex h-6 w-6 items-center justify-center rounded-md transition-colors">
-                    {s.Icon && <s.Icon className="h-3.5 w-3.5" />}
-                  </div>
-                  <span className="text-ql-12 text-foreground font-semibold">{s.title}</span>
-                </div>
-                <p className="text-ql-11 text-muted-foreground leading-normal">{s.desc}</p>
-                <ArrowRight className="text-muted-foreground/40 motion-normal absolute right-3 bottom-3 h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
-              </button>
-            ))}
+          <div className="w-full max-w-xl text-left">
+            <div className="custom-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+              {suggestions.map((s, i) => (
+                <button
+                  // Static suggestions list — items never reorder
+                  // eslint-disable-next-line react/no-array-index-key -- Static suggestion buttons, stable order
+                  key={i}
+                  type="button"
+                  onClick={() => onSuggestionClick(s.prompt)}
+                  title={s.desc}
+                  className="group border-border/50 bg-card/65 hover:border-border/80 hover:bg-muted/55 focus-visible:ring-ring/70 motion-normal flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                >
+                  {s.Icon && (
+                    <s.Icon className="text-muted-foreground group-hover:text-foreground h-3.5 w-3.5 shrink-0 transition-colors" />
+                  )}
+                  <span className="text-ql-12 text-foreground font-medium whitespace-nowrap">
+                    {s.title}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

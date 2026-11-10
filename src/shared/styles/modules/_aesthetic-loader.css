@@ -73,6 +73,18 @@
   width: 48px;
 }
 
+/* The soft halo behind the mark follows the user's accent (`--primary`), like
+   every other themed surface in the app. */
+
+.aesthetic-loader-modern .markGlow {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: oklch(var(--primary) / 0.18);
+  filter: blur(10px);
+  animation: markPulse 2.4s ease-in-out infinite;
+}
+
 .aesthetic-loader-modern .title {
   margin: 0;
   font-size: clamp(24px, 3vw, 32px);
@@ -104,7 +116,8 @@
   height: 100%;
   width: 40%;
   border-radius: var(--radius-full);
-  background: oklch(var(--ring));
+  background: oklch(var(--primary));
+  box-shadow: 0 0 12px oklch(var(--primary) / 0.45);
   animation: barTravel 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
@@ -118,7 +131,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: oklch(var(--ring));
+  background: oklch(var(--primary));
+  box-shadow: 0 0 8px oklch(var(--primary) / 0.6);
 }
 
 .aesthetic-loader-modern .statusText {
@@ -138,6 +152,19 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes markPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
   }
 }
 
@@ -163,5 +190,11 @@
   .aesthetic-loader-modern .meterBar {
     animation: none;
     width: 60%;
+  }
+
+  .aesthetic-loader-modern .markGlow {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
   }
 }

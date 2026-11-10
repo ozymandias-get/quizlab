@@ -215,7 +215,7 @@ function NativePdfViewer({
       */}
       <div
         data-native-pdf-page={currentPage}
-        className="m-auto"
+        className="shadow-ambient-md m-auto"
         style={totalScaleFactorStyle(scale, pageUserUnit)}
       >
         <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-lg" />

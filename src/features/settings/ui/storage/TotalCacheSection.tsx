@@ -41,12 +41,70 @@ function pressureReadoutTone(level: CachePressureLevel, isOverLimit: boolean): s
   return 'text-emerald-600 dark:text-emerald-400'
 }
 
+/**
+ * One slice of the root cache distribution. Colours are semantic per source
+ * (Chromium = blue, code = violet, GPU = emerald, temp = amber) so the same
+ * legend dot and bar segment always identify the same cache.
+ */
+export interface CacheDistributionSegment {
+  key: string
+  label: string
+  size: number
+  color: string
+}
+
+/** Stacked, proportional bar plus legend. Reads like a browser storage panel. */
+const CacheDistribution = memo(function CacheDistribution({
+  segments
+}: {
+  segments: CacheDistributionSegment[]
+}) {
+  const visible = segments.filter((segment) => segment.size > 0)
+  if (visible.length === 0) return null
+  const sum = visible.reduce((total, segment) => total + segment.size, 0) || 1
+  const description = visible.map((s) => `${s.label} ${formatBytes(s.size)}`).join(', ')
+
+  return (
+    <div className="space-y-2.5">
+      <div
+        role="img"
+        aria-label={description}
+        className="bg-muted flex h-2.5 w-full overflow-hidden rounded-full"
+      >
+        {visible.map((segment) => (
+          <div
+            key={segment.key}
+            title={`${segment.label} · ${formatBytes(segment.size)}`}
+            className={cn(
+              'motion-deliberate h-full transition-[width] first:rounded-l-full last:rounded-r-full',
+              segment.color
+            )}
+            style={{ width: `${(segment.size / sum) * 100}%` }}
+          />
+        ))}
+      </div>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {visible.map((segment) => (
+          <li key={segment.key} className="flex min-w-0 items-center gap-1.5">
+            <span aria-hidden className={cn('size-2 shrink-0 rounded-full', segment.color)} />
+            <span className="text-ql-11 text-muted-foreground truncate">{segment.label}</span>
+            <span className="text-ql-11 text-muted-foreground/80 shrink-0 font-mono tabular-nums">
+              {formatBytes(segment.size)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+})
+
 export const TotalCacheSection = memo(function TotalCacheSection({
   totalCache,
   pressureLevel,
   pressurePercentage,
   isOverLimit,
   barColor,
+  segments,
   autoCleanEnabled,
   onToggleAutoClean,
   t
@@ -56,6 +114,8 @@ export const TotalCacheSection = memo(function TotalCacheSection({
   pressurePercentage: number
   isOverLimit: boolean
   barColor: string
+  /** Root cache breakdown, rendered as a proportional stacked bar. */
+  segments?: CacheDistributionSegment[]
   autoCleanEnabled: boolean
   onToggleAutoClean: (checked: boolean) => void
   t: TFunction
@@ -88,6 +148,7 @@ export const TotalCacheSection = memo(function TotalCacheSection({
           {formatBytes(totalCache)} / {formatBytes(MAX_TOTAL_CACHE_BYTES)}
         </span>
       </div>
+      {segments && <CacheDistribution segments={segments} />}
       {isOverLimit && <p className="text-ql-11 text-destructive">{t('storage_exceeds_limit')}</p>}
       {pressureLevel === 'warning' && !isOverLimit && (
         <p className="text-ql-11 text-amber-600 dark:text-amber-400">

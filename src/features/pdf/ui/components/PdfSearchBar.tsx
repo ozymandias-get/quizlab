@@ -25,6 +25,12 @@ interface PdfSearchBarProps {
   /** Matches painted by the renderer for the current query. */
   matchCount?: number
   fileName?: string
+  /** `Aa`: match without folding case. */
+  caseSensitive?: boolean
+  /** Match only whole words. */
+  wholeWord?: boolean
+  onToggleCaseSensitive?: () => void
+  onToggleWholeWord?: () => void
 }
 
 function PdfSearchBar({
@@ -35,7 +41,11 @@ function PdfSearchBar({
   onSearch,
   onClear,
   matchCount = 0,
-  fileName
+  fileName,
+  caseSensitive = false,
+  wholeWord = false,
+  onToggleCaseSensitive,
+  onToggleWholeWord
 }: PdfSearchBarProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -70,13 +80,15 @@ function PdfSearchBar({
     <div className="relative flex h-full w-full items-center justify-center">
       <AnimatePresence mode="wait">
         {isOpen ? (
+          // A floating popover above the toolbar row: opening search no longer
+          // squeezes page navigation and zoom out of the bar.
           <motion.div
             key="search"
             initial={{ opacity: 0, scale: 0.98, y: 2 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -2 }}
             transition={{ duration: DURATION.normal }}
-            className="absolute inset-0 flex w-full items-center gap-1.5"
+            className="border-border bg-popover text-popover-foreground shadow-ambient-lg z-dropdown absolute top-[calc(100%+0.5rem)] left-1/2 flex w-[min(26rem,92vw)] -translate-x-1/2 items-center gap-1.5 rounded-xl border p-2 backdrop-blur-xl"
           >
             <InputGroup className="flex-1">
               <InputGroupAddon align="inline-start">
@@ -90,11 +102,43 @@ function PdfSearchBar({
                 placeholder={t('search_placeholder')}
                 aria-invalid={hasNoMatches}
                 aria-describedby="pdf-search-match-count"
-                className="text-ql-12 pr-20 pl-8 font-normal"
+                className="text-ql-12 pr-32 pl-8 font-normal"
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                 autoFocus
               />
-              <div className="absolute right-2 flex items-center gap-1">
+              <div className="absolute right-2 flex items-center gap-0.5">
+                {onToggleCaseSensitive && (
+                  <button
+                    type="button"
+                    onClick={onToggleCaseSensitive}
+                    aria-pressed={caseSensitive}
+                    aria-label={t('search_match_case')}
+                    title={t('search_match_case')}
+                    className={`text-ql-10 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors ${
+                      caseSensitive
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    Aa
+                  </button>
+                )}
+                {onToggleWholeWord && (
+                  <button
+                    type="button"
+                    onClick={onToggleWholeWord}
+                    aria-pressed={wholeWord}
+                    aria-label={t('search_whole_word')}
+                    title={t('search_whole_word')}
+                    className={`text-ql-10 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors ${
+                      wholeWord
+                        ? 'bg-primary/15 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    W
+                  </button>
+                )}
                 <span
                   id="pdf-search-match-count"
                   data-testid="pdf-search-match-count"

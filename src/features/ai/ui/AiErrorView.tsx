@@ -15,14 +15,16 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
 
   return (
     <div className="animate-in fade-in zoom-in bg-background/95 motion-slower absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md">
-      <div className="flex max-w-xs flex-col items-center gap-5 p-10 text-center">
-        <div className="bg-destructive/10 flex h-16 w-16 items-center justify-center rounded-full">
-          <AlertCircle className="text-destructive h-8 w-8" />
+      <div className="flex max-w-sm flex-col items-center gap-4 p-8 text-center">
+        {/* The glyph is a quiet marker, not the message: a calmer 48px disc so
+            the eye lands on the title first. */}
+        <div className="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full">
+          <AlertCircle className="text-destructive/80 h-6 w-6" strokeWidth={1.75} />
         </div>
-        <h3 className="font-display text-ql-20 text-foreground font-semibold">
+        <h3 className="font-display text-ql-16 text-foreground font-semibold">
           {t('ai_error_title', { name: aiName || 'AI' })}
         </h3>
-        <p className="text-ql-13 text-muted-foreground leading-relaxed">{error}</p>
+        <p className="text-ql-12 text-muted-foreground leading-relaxed">{error}</p>
         <Button
           type="button"
           variant="outline"

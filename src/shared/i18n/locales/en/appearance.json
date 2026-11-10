@@ -1,5 +1,6 @@
 {
   "appearance": "Appearance",
+  "appearance_preview": "Live preview",
   "appearance_description": "Customize app appearance and bar position.",
   "selection_color_desc": "Personalize text selection and AI send button color.",
   "selection_color_preview_hint": "Preview (Check by selecting text)",

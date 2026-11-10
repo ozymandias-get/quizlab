@@ -60,6 +60,12 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [isPanMode, setIsPanMode] = useState(false)
+  // Page-by-page wheel navigation vs. free scrolling inside the current page.
+  const [isWheelPageTurnEnabled, setIsWheelPageTurnEnabled] = useState(true)
+  const handleToggleWheelPageTurn = useCallback(
+    () => setIsWheelPageTurnEnabled((enabled) => !enabled),
+    []
+  )
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
   const handleExitPanMode = useCallback(() => setIsPanMode(false), [])
 
@@ -109,6 +115,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     containerRef,
     adjustedContainerSize,
     isPanMode: isPanEngaged,
+    isWheelPageTurnEnabled,
     isPanelResizing,
     pdfPath: pdfFile?.path ?? null,
     onReadingProgressChange,
@@ -232,6 +239,8 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     contextMenu,
     handleCloseContextMenu,
     handleTogglePanMode,
+    isWheelPageTurnEnabled,
+    handleToggleWheelPageTurn,
     menuItems,
     handleAddCurrentPageTextToAi,
     handleReload,

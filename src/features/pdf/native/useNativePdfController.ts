@@ -128,6 +128,8 @@ interface UseNativePdfControllerOptions {
   /** Shared container size minus the viewer inset, from `usePdfViewerState`. */
   adjustedContainerSize: { w: number; h: number }
   isPanMode: boolean
+  /** When false, the wheel scrolls instead of turning the page. */
+  isWheelPageTurnEnabled?: boolean
   isPanelResizing: boolean
   /** Only used as the reading-progress key. */
   pdfPath: string | null
@@ -181,6 +183,20 @@ export interface NativePdfController {
    * results, not their page.
    */
   searchError: string | null
+  /** Identity of the loaded document (`url::reloadKey`); re-render keys hang off it. */
+  documentKey: string
+  /**
+   * Paint one page into a thumbnail canvas.
+   *
+   * The thumbnail rail lives outside the main render path on purpose: it uses
+   * the same document but its own canvas, so a thumbnail render can never
+   * cancel the reader's page render.
+   */
+  renderPageThumbnail: (
+    pageNumber: number,
+    canvas: HTMLCanvasElement,
+    maxWidth: number
+  ) => Promise<void>
   goToPreviousPage: () => void
   goToNextPage: () => void
   jumpToPage: (page: number) => void
@@ -204,6 +220,7 @@ export function useNativePdfController({
   containerRef,
   adjustedContainerSize,
   isPanMode,
+  isWheelPageTurnEnabled = true,
   isPanelResizing,
   pdfPath,
   onReadingProgressChange,
@@ -274,7 +291,12 @@ export function useNativePdfController({
   const lastNavigationTimeRef = useLastNavigationTime(currentPage)
 
   usePdfCtrlWheelZoom(containerRef, zoomTo, scale, isReady, isPanMode)
-  usePdfWheelNavigation(containerRef, goToNextPage, goToPreviousPage, isReady && !isPanMode)
+  usePdfWheelNavigation(
+    containerRef,
+    goToNextPage,
+    goToPreviousPage,
+    isReady && !isPanMode && isWheelPageTurnEnabled
+  )
 
   // The Electron PDF context menu's Zoom In / Zoom Out / Reset Zoom items. The
   // hook is numeric and imports no viewer package, so the same three actions
@@ -359,7 +381,43 @@ export function useNativePdfController({
     textLayerReady
   })
 
-  const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut })
+  // Fit-width is a different number from fit-page (the latter is the smaller
+  // of width/height). It is computed from the same measured page box.
+  const fitWidth = useCallback(() => {
+    const pageWidth = pageDimensions?.width
+    if (!pageWidth || pageWidth <= 0 || adjustedContainerSize.w <= 0) {
+      fit()
+      return
+    }
+    zoomTo(adjustedContainerSize.w / pageWidth)
+  }, [adjustedContainerSize.w, fit, pageDimensions?.width, zoomTo])
+
+  const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut, zoomTo, fit, fitWidth })
+
+  const renderPageThumbnail = useCallback(
+    async (pageNumber: number, canvas: HTMLCanvasElement, maxWidth: number) => {
+      const instance = engine()
+      if (!instance) throw new Error('thumbnail render requested with no engine')
+      const page = await instance.manager.getPage(pageNumber)
+      const baseViewport = page.getViewport({ scale: 1 })
+      const scale = Math.min(1, Math.max(0.02, maxWidth / Math.max(1, baseViewport.width)))
+      const viewport = page.getViewport({ scale })
+      canvas.width = Math.max(1, Math.floor(viewport.width))
+      canvas.height = Math.max(1, Math.floor(viewport.height))
+      let canvasContext: CanvasRenderingContext2D | null = null
+      try {
+        canvasContext = canvas.getContext('2d', { alpha: false })
+      } catch {
+        // Non-standard canvas environments render without a context hint.
+      }
+      await page.render({
+        canvas,
+        ...(canvasContext ? { canvasContext } : {}),
+        viewport
+      }).promise
+    },
+    [engine]
+  )
 
   return useMemo(
     () => ({
@@ -368,6 +426,8 @@ export function useNativePdfController({
       currentPage: clampPdfPage(currentPage, totalPages),
       scale,
       pageUserUnit: pageDimensions?.userUnit ?? 1,
+      documentKey,
+      renderPageThumbnail,
       loadError,
       renderError,
       textLayerError,
@@ -391,6 +451,8 @@ export function useNativePdfController({
       currentPage,
       scale,
       pageDimensions,
+      documentKey,
+      renderPageThumbnail,
       loadError,
       renderError,
       textLayerError,

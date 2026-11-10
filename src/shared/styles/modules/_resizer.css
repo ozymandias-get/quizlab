@@ -40,28 +40,30 @@
   width: 1px;
   border-radius: var(--radius-full);
   transform: translateX(-50%) translateZ(0);
+  /* The divider is chrome, not a hover-only surprise: a faint 1px line is
+     always present so the two workspaces read as separate panes, and it grows
+     into the accent on hover to advertise that it can be dragged. */
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--border) / 0.65) 18%,
-    oklch(var(--border) / 0.65) 82%,
+    oklch(var(--border) / 0.55) 12%,
+    oklch(var(--border) / 0.55) 88%,
     transparent 100%
   );
-  opacity: calc(0.25 + (var(--bar-opacity-factor, 0.7) * 0.45));
+  opacity: 1;
   transition:
     width var(--duration-slow) var(--ease-glass),
-    opacity var(--duration-slow) var(--ease-glass),
     background var(--duration-slow) var(--ease-glass);
 }
 
-.resizer-drag-area:hover::after {
-  width: 2px;
-  opacity: 1;
+.resizer-drag-area:hover::after,
+.resizer-drag-area:focus-visible::after {
+  width: 3px;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    var(--selection-color-source, oklch(var(--ring))) 15%,
-    var(--selection-color-source, oklch(var(--ring))) 85%,
+    color-mix(in oklch, var(--selection-color-source, oklch(var(--ring))) 60%, transparent) 12%,
+    color-mix(in oklch, var(--selection-color-source, oklch(var(--ring))) 60%, transparent) 88%,
     transparent 100%
   );
 }
@@ -112,13 +114,13 @@
 
 .dragging .resizer-drag-area::after,
 .resizer-hub-container.dragging .resizer-drag-area::after {
-  width: 2px;
+  width: 3px;
   opacity: 1;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    var(--selection-color-source, oklch(var(--ring))) 15%,
-    var(--selection-color-source, oklch(var(--ring))) 85%,
+    var(--selection-color-source, oklch(var(--ring))) 12%,
+    var(--selection-color-source, oklch(var(--ring))) 88%,
     transparent 100%
   );
 }

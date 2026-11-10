@@ -1,6 +1,10 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
-import { memo, useMemo, useRef } from 'react'
+import { Button } from '@shared/ui/components/primitives'
+
+import { ChevronUp } from 'lucide-react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { AiAvatar, UserAvatar } from './Avatars'
 import { groupMessagesIncremental, type MessageGroupsCache } from './chatUtils'
@@ -33,6 +37,11 @@ const MessageList = memo(function MessageList({
   containerRef,
   endRef
 }: MessageListProps) {
+  const { t } = useTranslation()
+  const scrollToTop = useCallback(() => {
+    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [containerRef])
+
   // Single pass: groups + lastAssistantId both come out of the same walk.
   // Previously, `MessageList` did an O(n) lookup per date separator and an
   // O(n) `messages[messages.length - 1]?.id` check per non-user message
@@ -46,6 +55,21 @@ const MessageList = memo(function MessageList({
     groupingRef.current = { messages, result }
     return result
   }, [messages])
+
+  // Count messages that arrive while the reader is scrolled away. The baseline
+  // is the length at the moment they left the bottom, so the badge never counts
+  // history they have already seen.
+  const [unreadCount, setUnreadCount] = useState(0)
+  const unreadBaselineRef = useRef(0)
+  useEffect(() => {
+    if (isScrolledUp) {
+      if (unreadBaselineRef.current === 0) unreadBaselineRef.current = messages.length
+      setUnreadCount(Math.max(0, messages.length - unreadBaselineRef.current))
+      return
+    }
+    unreadBaselineRef.current = 0
+    setUnreadCount(0)
+  }, [isScrolledUp, messages.length])
 
   const rows = useMemo(() => buildMessageRows(messageGroups), [messageGroups])
   const { start, end, topPad, bottomPad } = useMessageListWindow({
@@ -114,25 +138,43 @@ const MessageList = memo(function MessageList({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="custom-scrollbar min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.03)_0%,_transparent_60%)]"
-    >
-      <div className="relative min-h-full px-4 py-4 sm:px-6 lg:px-8">
-        {topPad > 0 && <div aria-hidden="true" style={{ height: topPad }} />}
-        {rows.slice(start, end).map(renderRow)}
-        {bottomPad > 0 && <div aria-hidden="true" style={{ height: bottomPad }} />}
-        {isStreaming && (
-          <div className="flex justify-start gap-2.5">
-            <div className="shrink-0 pt-1">
-              <AiAvatar />
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div
+        ref={containerRef}
+        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_rgba(245,158,11,0.03)_0%,_transparent_60%)]"
+      >
+        <div className="relative min-h-full px-4 py-4 sm:px-6 lg:px-8">
+          {topPad > 0 && <div aria-hidden="true" style={{ height: topPad }} />}
+          {rows.slice(start, end).map(renderRow)}
+          {bottomPad > 0 && <div aria-hidden="true" style={{ height: bottomPad }} />}
+          {isStreaming && (
+            <div className="flex justify-start gap-2.5">
+              <div className="shrink-0 pt-1">
+                <AiAvatar />
+              </div>
+              <StreamingIndicator />
             </div>
-            <StreamingIndicator />
-          </div>
-        )}
-        <div ref={endRef} />
-        <ScrollToBottom visible={isScrolledUp} onClick={onScrollToBottom} />
+          )}
+          <div ref={endRef} />
+        </div>
       </div>
+      {/* Outside the scrollport: the shortcuts stay in the message panel's
+          bottom-right corner instead of hovering over the composer. */}
+      {isScrolledUp && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={scrollToTop}
+          aria-label={t('api_chat_scroll_to_top')}
+          title={t('api_chat_scroll_to_top')}
+          className="text-ql-11 border-border bg-card/95 text-muted-foreground shadow-ambient-md absolute right-4 bottom-16 z-10 gap-1 rounded-full border"
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+          <span className="max-sm:sr-only">{t('api_chat_scroll_to_top')}</span>
+        </Button>
+      )}
+      <ScrollToBottom visible={isScrolledUp} count={unreadCount} onClick={onScrollToBottom} />
     </div>
   )
 })

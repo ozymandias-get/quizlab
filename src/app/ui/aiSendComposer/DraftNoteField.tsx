@@ -30,6 +30,8 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
       <label htmlFor="ai-draft-note" className="sr-only">
         {t('ai_draft_note_label')}
       </label>
+      {/* Four-ish lines stay visible before the field scrolls, and the native
+          vertical grip lets the user pull it taller for a long prompt. */}
       <Textarea
         id="ai-draft-note"
         rows={1}
@@ -50,7 +52,7 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
           }
         }}
         placeholder={t('ai_draft_note_placeholder')}
-        className="field-sizing-content max-h-[4.75rem] min-h-[1.75rem] w-full resize-none rounded-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
+        className="custom-scrollbar field-sizing-content max-h-[8rem] min-h-[1.75rem] w-full resize-y rounded-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:focus-visible:border-transparent"
       />
     </>
   )

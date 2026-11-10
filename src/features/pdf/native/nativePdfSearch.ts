@@ -24,9 +24,10 @@
  *   current page, and the stored keyword makes it recompute when the next page's text
  *   layer renders: one page, query kept across page changes, geometry redrawn from
  *   the new page's runs.
- * - **Literal, case-insensitive.** The keyword is scanned directly rather than
- *   compiled into a pattern, so a keyword is never a regex — no injection surface
- *   and no escaping to get wrong.
+ * - **Literal, case-insensitive by default.** The keyword is scanned directly
+ *   rather than compiled into a pattern, so a keyword is never a regex — no
+ *   injection surface and no escaping to get wrong. The search bar can opt into
+ *   case-sensitive or whole-word matching; both stay literal scans.
  * - **Runs are concatenated with no separator**, which is what makes a match span two
  *   text runs, two words in two runs, or two lines. The classic cases — a keyword split
  *   across a style change, or across a line break — fall out of that rather than being
@@ -184,38 +185,65 @@ export function collectNativePdfSearchPageText(
   return { text, runs }
 }
 
-/** Case-insensitive equality of two single UTF-16 code units. See the module note. */
-function unitsMatch(haystackUnit: string, needleUnit: string): boolean {
-  return haystackUnit === needleUnit || haystackUnit.toLowerCase() === needleUnit.toLowerCase()
+/** Equality of two single UTF-16 code units, folding case unless asked not to. */
+function unitsMatch(haystackUnit: string, needleUnit: string, caseSensitive: boolean): boolean {
+  if (haystackUnit === needleUnit) return true
+  return !caseSensitive && haystackUnit.toLowerCase() === needleUnit.toLowerCase()
 }
+
+/** Options for the two match modes the search bar exposes. */
+export interface NativePdfSearchOptions {
+  /** `Aa`: compare without folding case. */
+  caseSensitive?: boolean
+  /** Whole word: reject matches that touch a letter/digit/underscore. */
+  wholeWord?: boolean
+}
+
+/** Unicode letters, digits and underscore — the boundary for whole-word mode. */
+const WORD_CHAR_PATTERN = /[\p{L}\p{N}_]/u
 
 /**
  * Every occurrence of `keyword` in the page text, in order, non-overlapping.
  *
- * Literal and case-insensitive, and nothing else: no word boundaries, no diacritic
- * folding, no whole-words mode. A whitespace-only keyword is not a search, so it
- * yields no matches instead of matching every run boundary.
+ * Literal, with optional case sensitivity and whole-word boundaries. No
+ * diacritic folding and no regex compilation. A whitespace-only keyword is not
+ * a search, so it yields no matches instead of matching every run boundary.
  */
 export function findNativePdfSearchMatches(
   pageText: NativePdfSearchPageText,
   keyword: string,
-  pageNumber: number
+  pageNumber: number,
+  options: NativePdfSearchOptions = {}
 ): NativePdfSearchMatch[] {
   if (!keyword.trim()) return []
+  const caseSensitive = options.caseSensitive === true
+  const wholeWord = options.wholeWord === true
   const haystack = pageText.text
   const needleLength = keyword.length
   const matches: NativePdfSearchMatch[] = []
   let index = 0
   scan: while (index + needleLength <= haystack.length) {
     // Cheap prescreen on the first unit, then verify the rest.
-    if (!unitsMatch(haystack.charAt(index), keyword.charAt(0))) {
+    if (!unitsMatch(haystack.charAt(index), keyword.charAt(0), caseSensitive)) {
       index += 1
       continue
     }
     for (let offset = 1; offset < needleLength; offset += 1) {
-      if (!unitsMatch(haystack.charAt(index + offset), keyword.charAt(offset))) {
+      if (!unitsMatch(haystack.charAt(index + offset), keyword.charAt(offset), caseSensitive)) {
         index += 1
         continue scan
+      }
+    }
+    if (wholeWord) {
+      const before = index > 0 ? haystack.charAt(index - 1) : ''
+      const after =
+        index + needleLength < haystack.length ? haystack.charAt(index + needleLength) : ''
+      const touchesWord =
+        (before !== '' && WORD_CHAR_PATTERN.test(before)) ||
+        (after !== '' && WORD_CHAR_PATTERN.test(after))
+      if (touchesWord) {
+        index += 1
+        continue
       }
     }
     matches.push({ pageNumber, start: index, end: index + needleLength, keyword })
@@ -377,15 +405,20 @@ export interface NativePdfSearchResult {
  * The one call the React layer makes, so matching, geometry and the text mapping cannot
  * be reached separately and drift apart.
  */
-export function findNativePdfSearchHighlights(options: {
-  keyword: string
-  pageNumber: number
-  pageBox: Element
-  textLayer: HTMLElement
-}): NativePdfSearchResult {
-  const { keyword, pageNumber, pageBox, textLayer } = options
+export function findNativePdfSearchHighlights(
+  options: {
+    keyword: string
+    pageNumber: number
+    pageBox: Element
+    textLayer: HTMLElement
+  } & NativePdfSearchOptions
+): NativePdfSearchResult {
+  const { keyword, pageNumber, pageBox, textLayer, caseSensitive, wholeWord } = options
   const pageText = collectNativePdfSearchPageText(textLayer)
-  const matches = findNativePdfSearchMatches(pageText, keyword, pageNumber)
+  const matches = findNativePdfSearchMatches(pageText, keyword, pageNumber, {
+    caseSensitive,
+    wholeWord
+  })
   return { matches, highlights: resolveNativePdfSearchHighlights(matches, pageText, pageBox) }
 }
 

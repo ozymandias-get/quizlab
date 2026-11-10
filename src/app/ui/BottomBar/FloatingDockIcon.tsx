@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/uiUtils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared/ui/components/primitives'
 
 import { motion, useSpring } from 'motion/react'
@@ -19,13 +20,16 @@ export interface FloatingDockIconProps {
   children: ReactNode
   id?: string
   onClick: () => void
+  /** Toggle-style tools keep a persistent active surface. */
+  isActive?: boolean
 }
 
 export const FloatingDockIcon = memo(function FloatingDockIcon({
   title,
   children,
   id,
-  onClick
+  onClick,
+  isActive = false
 }: FloatingDockIconProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [isHovered, setIsHovered] = useState(false)
@@ -70,15 +74,22 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           role="button"
           tabIndex={0}
           aria-label={title}
+          aria-pressed={isActive || undefined}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onClick={onClick}
           onKeyDown={handleKeyDown}
           style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
-          className="group hover:bg-muted focus-visible:ring-ring/70 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className={cn(
+            'group focus-visible:ring-ring/70 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            isActive ? 'bg-primary/15 hover:bg-primary/20' : 'hover:bg-muted'
+          )}
         >
           <div
-            className="text-muted-foreground group-hover:text-foreground flex items-center justify-center transition-colors"
+            className={cn(
+              'flex items-center justify-center transition-colors',
+              isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+            )}
             style={ICON_CONTAINER_STYLE}
           >
             {children}

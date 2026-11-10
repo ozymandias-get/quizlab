@@ -388,7 +388,9 @@ describe('AiContext', () => {
       expect(result.current.tabs.find((tab) => tab.id === tabId)).toBeUndefined()
 
       act(() => {
-        vi.advanceTimersByTime(5000)
+        // Teardown outlives the 5s toast: hovering pauses the toast timer, so
+        // cleanup must keep a longer retention window.
+        vi.advanceTimersByTime(30_000)
       })
     } finally {
       vi.useRealTimers()

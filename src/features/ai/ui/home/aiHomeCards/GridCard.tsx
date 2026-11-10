@@ -43,7 +43,16 @@ const GridCard = memo<GridCardProps>(function GridCard({
       ? site.url?.replace(/^https?:\/\//, '').replace(/\/$/, '') || t('ai_home.custom_site')
       : null
 
-  const letterFallback = <span className="text-ql-13 font-medium">{displayName.charAt(0)}</span>
+  // A missing logo becomes a deliberate monogram, not a bare letter: same
+  // gradient/ring language as the rest of the card surfaces.
+  const letterFallback = (
+    <span
+      aria-hidden
+      className="border-primary/20 from-primary/20 to-primary/5 text-primary text-ql-13 flex size-full items-center justify-center rounded-[inherit] border bg-gradient-to-br font-bold uppercase"
+    >
+      {displayName.charAt(0)}
+    </span>
+  )
 
   return (
     <div

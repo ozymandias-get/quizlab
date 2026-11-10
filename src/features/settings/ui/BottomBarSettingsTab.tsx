@@ -30,13 +30,18 @@ interface ToolItem {
   nameKey: string
 }
 
+/**
+ * Same top-to-bottom order as `FloatingDockInner` renders the dock. Keeping the
+ * settings list in visual order is what lets a schedule read "turn this off and
+ * that slot empties" without mentally mapping two different orders.
+ */
 const TOOL_LIST: ToolItem[] = [
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS, nameKey: 'tool_settings' },
-  { id: 'tool-gemini-web', nameKey: 'tool_site_sessions' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP, nameKey: 'tool_swap' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS, nameKey: 'tool_pdf_focus' },
   { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS, nameKey: 'tool_ai_focus' },
-  { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER, nameKey: 'tool_picker' }
+  { id: APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER, nameKey: 'tool_picker' },
+  { id: 'tool-gemini-web', nameKey: 'tool_site_sessions' }
 ]
 
 /** Shared row shell: dense toggle row, motion-safe, colour transitions only. */
@@ -153,21 +158,31 @@ const BottomBarSettingsTab = memo(() => {
           detail={t('tools_visibility_desc')}
         >
           <div className="flex flex-col gap-1.5">
-            {visibleToolsFiltered.map((tool) => {
+            {visibleToolsFiltered.map((tool, index) => {
               const isVisible = visibleTools[tool.id] !== false
+              const isFirst = index === 0
+              const isLast = index === visibleToolsFiltered.length - 1
               return (
                 <Field
                   key={tool.id}
                   className={`group ${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
                   onClick={() => handleToggleTool(tool.id)}
                 >
-                  <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3 self-stretch">
+                    {/* Schematic dock rail: one dot per physical slot, joined by
+                        a vertical guide so a hidden row maps to an empty slot. */}
                     <span
                       aria-hidden
-                      className={`h-2 w-2 shrink-0 rounded-full transition-colors ${
-                        isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-                      }`}
-                    />
+                      className="relative flex w-3 shrink-0 items-center justify-center self-stretch"
+                    >
+                      {!isFirst && <span className="bg-border/70 absolute top-0 h-1/2 w-px" />}
+                      {!isLast && <span className="bg-border/70 absolute bottom-0 h-1/2 w-px" />}
+                      <span
+                        className={`ring-card relative z-10 size-2 rounded-full ring-2 transition-colors ${
+                          isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                        }`}
+                      />
+                    </span>
                     <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
                       {t(tool.nameKey, { defaultValue: tool.id })}
                     </Label>

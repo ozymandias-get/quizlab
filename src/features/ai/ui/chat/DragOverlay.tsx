@@ -16,6 +16,7 @@ const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverl
       onDragOver={(e) => {
         e.preventDefault()
         e.stopPropagation()
+        e.dataTransfer.dropEffect = 'copy'
       }}
       onDragLeave={(e) => {
         e.preventDefault()
@@ -28,7 +29,7 @@ const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverl
       {/* Drop gate sits next to the composer instead of painting the whole
           panel opaque: the conversation remains readable and the reader can
           see where the image will land. */}
-      <div className="border-primary/50 bg-card/85 shadow-ambient-sm pointer-events-none mb-2 flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-3 text-center">
+      <div className="border-primary/50 bg-card/85 shadow-ambient-sm ring-primary/15 pointer-events-none mb-2 flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-3 text-center ring-2 motion-safe:animate-pulse">
         <div className="border-primary/20 bg-primary/10 text-primary mb-1.5 flex size-8 items-center justify-center rounded-lg border">
           <ImagePlus className="size-4" />
         </div>

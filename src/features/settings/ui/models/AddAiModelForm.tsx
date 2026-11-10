@@ -143,9 +143,14 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       aria-invalid={!!nameError}
                       className="text-ql-12"
                     />
-                    {nameError && (
-                      <span className="text-destructive text-ql-11 block px-1">{nameError}</span>
-                    )}
+                    {/* Reserved slot: validation never pushes the form down. */}
+                    <span
+                      role="alert"
+                      aria-live="polite"
+                      className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+                    >
+                      {nameError}
+                    </span>
                   </div>
                   <div className="text-ql-12 space-y-1.5">
                     <Label className="text-ql-11 text-muted-foreground font-medium">
@@ -162,9 +167,13 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       aria-invalid={!!urlError}
                       className="text-ql-12"
                     />
-                    {urlError && (
-                      <span className="text-destructive text-ql-11 block px-1">{urlError}</span>
-                    )}
+                    <span
+                      role="alert"
+                      aria-live="polite"
+                      className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+                    >
+                      {urlError}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Check, Trash2 } from 'lucide-react'
+import { Check, GripVertical, Pin, Trash2 } from 'lucide-react'
 import { memo, type MouseEvent } from 'react'
 
 interface PromptItemProps {
@@ -8,6 +8,10 @@ interface PromptItemProps {
   isSelected: boolean
   onSelect: (id: string) => void
   onDelete: (e: MouseEvent, id: string) => void
+  /** Moves this custom prompt to the top of the list. */
+  onPin?: (id: string) => void
+  /** Shows the drag grip used by the reorderable list. */
+  draggable?: boolean
   t: (key: string) => string
 }
 
@@ -16,18 +20,33 @@ export const PromptItem = memo(function PromptItem({
   isSelected,
   onSelect,
   onDelete,
+  onPin,
+  draggable = false,
   t
 }: PromptItemProps) {
   return (
-    <button
-      type="button"
+    <div
       role="radio"
       aria-checked={isSelected}
+      tabIndex={0}
       onClick={() => onSelect(prompt.id)}
-      className={`group flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        if (event.target !== event.currentTarget) return
+        event.preventDefault()
+        onSelect(prompt.id)
+      }}
+      className={`group focus-visible:ring-ring/70 flex w-full cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
         isSelected ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
       }`}
     >
+      {draggable && (
+        <GripVertical
+          aria-hidden
+          className="text-muted-foreground/50 group-hover:text-muted-foreground mt-0.5 -ml-1 h-4 w-4 shrink-0 cursor-grab active:cursor-grabbing"
+        />
+      )}
+
       <span
         className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
           isSelected
@@ -51,6 +70,24 @@ export const PromptItem = memo(function PromptItem({
         )}
       </span>
 
+      {!prompt.isDefault && onPin && (
+        <WithTooltip label={t('pin_to_top')}>
+          <IconButton
+            type="button"
+            size="compact"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation()
+              onPin(prompt.id)
+            }}
+            className="text-muted-foreground hover:text-primary -mt-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100"
+            aria-label={t('pin_to_top')}
+          >
+            <Pin className="h-3.5 w-3.5" />
+          </IconButton>
+        </WithTooltip>
+      )}
+
       {!prompt.isDefault && (
         <WithTooltip label={t('delete')}>
           <IconButton
@@ -68,7 +105,7 @@ export const PromptItem = memo(function PromptItem({
           </IconButton>
         </WithTooltip>
       )}
-    </button>
+    </div>
   )
 })
 PromptItem.displayName = 'PromptItem'

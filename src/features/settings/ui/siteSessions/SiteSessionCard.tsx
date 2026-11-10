@@ -1,6 +1,7 @@
 import { getSiteSessionMemberAppName } from '@shared-core/constants/siteSessionMemberApps'
+import type { SiteSessionView } from '@shared-core/types/siteSession'
 
-import { WithTooltip } from '@shared/ui/components/primitives'
+import { InlineSpinner, WithTooltip } from '@shared/ui/components/primitives'
 import { getAiIcon } from '@ui/components/Icons'
 
 import i18next from 'i18next'
@@ -25,11 +26,37 @@ function idHash(value: string): string {
   return (hash >>> 0).toString(36)
 }
 
+/** Colour of the readiness dot next to the status summary. */
+function statusDotTone(status: SiteSessionView['status']): string {
+  switch (status) {
+    case 'imported':
+    case 'manual_session':
+    case 'extension_connected':
+      return 'bg-emerald-500'
+    case 'import_failed':
+      return 'bg-destructive'
+    case 'signed_out':
+    case 'no_cookies_in_browser':
+    case 'permission_missing':
+    case 'extension_missing':
+    case 'extension_outdated':
+      return 'bg-amber-500'
+    default:
+      return 'bg-muted-foreground'
+  }
+}
+
 /**
- * One site: its name, its host, what the session looks like right now and the
- * switch that pulls the login from Chrome.
+ * One site: favicon and name on the left, host/app subtitle and the readiness
+ * summary in the middle, and the independent switch on the far right.
  */
-function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) {
+function SiteSessionCard({
+  view,
+  disabled,
+  onToggle,
+  isClearing = false,
+  t
+}: SiteSessionCardProps) {
   const idBase = `site-session-${idHash(view.siteId)}`
   const switchId = `${idBase}-switch`
   const icon = getAiIcon(view.kind === 'google' ? 'gemini' : view.memberAppIds[0] || view.siteId)
@@ -54,17 +81,19 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
 
   return (
     <div className="border-border/60 bg-background/40 flex flex-col gap-2.5 rounded-xl border p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          {icon && (
-            <span
-              aria-hidden="true"
-              className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg"
-            >
-              {icon}
-            </span>
-          )}
-          <div className="min-w-0">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="border-border/50 bg-muted/50 text-muted-foreground flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border"
+          >
+            {icon ?? (
+              <span className="text-ql-13 text-foreground font-bold uppercase">
+                {t(view.labelKey).charAt(0)}
+              </span>
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
             <WithTooltip
               label={t(view.labelKey)}
               contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
@@ -81,13 +110,27 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
                 {subtitle}
               </p>
             </WithTooltip>
+            {/* Readiness lives with the name, not buried under the switch. */}
+            <p className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className={`size-1.5 shrink-0 rounded-full ${statusDotTone(view.status)}`}
+              />
+              <span className="truncate">{t(`ws_status_${view.status}`)}</span>
+            </p>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <label htmlFor={switchId} className="text-ql-11 text-muted-foreground">
+        <div
+          className="flex shrink-0 flex-col items-end gap-1.5"
+          aria-busy={isClearing || undefined}
+        >
+          <label htmlFor={switchId} className="text-ql-11 text-muted-foreground font-medium">
             {t('ws_toggle_label')}
           </label>
+          {isClearing && (
+            <InlineSpinner className="text-primary size-3.5" aria-label={t('ws_clear_all_btn')} />
+          )}
           <SettingsToggleSwitch
             id={switchId}
             aria-label={switchLabel}
@@ -98,8 +141,6 @@ function SiteSessionCard({ view, disabled, onToggle, t }: SiteSessionCardProps) 
           />
         </div>
       </div>
-
-      <p className="text-ql-12 text-muted-foreground">{t(`ws_status_${view.status}`)}</p>
 
       {view.lastError && (
         <p className="text-ql-11 text-destructive">{t(`ws_error_${view.lastError}`)}</p>

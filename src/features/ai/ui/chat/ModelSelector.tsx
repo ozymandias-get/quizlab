@@ -141,7 +141,7 @@ const ModelSelector = memo(function ModelSelector({
               setIsOpen(!isOpen)
               setModelSearch('')
             }}
-            className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/70 flex max-w-[240px] min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/70 flex max-w-[190px] min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-controls={listboxId}
@@ -150,12 +150,12 @@ const ModelSelector = memo(function ModelSelector({
             <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
 
             <span
-              className="text-foreground max-w-[160px] min-w-0 truncate font-medium"
+              className="text-foreground max-w-[140px] min-w-0 truncate font-medium"
               title={currentDisplayName}
             >
               {currentDisplayName}
             </span>
-            <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 shrink-0 opacity-60 transition-transform group-data-[state=open]:rotate-180" />
+            <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0 opacity-60 transition-transform duration-200 group-data-[state=open]/btn:rotate-180" />
           </button>
         }
       >

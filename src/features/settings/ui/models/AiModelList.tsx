@@ -15,7 +15,7 @@ import { GridIcon, RefreshIcon, TrashIcon } from '@ui/components/Icons'
 import { Description, Field, Label } from '@headlessui/react'
 import { CircleCheck, Globe, Search, Star } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, type MouseEvent, useMemo, useState } from 'react'
+import { memo, type MouseEvent, type ReactNode, useMemo, useState } from 'react'
 
 import { getAiPlatformIcon, getAiPlatformLabel } from '../shared/aiPlatformPresentation'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
@@ -49,6 +49,36 @@ interface AiModelListProps {
  */
 const HOVER_AFFORDANCE =
   'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 group-focus-visible:opacity-100 motion-reduce:opacity-100'
+
+/** Wraps every case-insensitive occurrence of `query` in a highlight mark. */
+function highlightMatch(text: string, query: string): ReactNode {
+  const needle = query.trim()
+  if (!needle) return text
+  const haystack = text.toLowerCase()
+  const target = needle.toLowerCase()
+  let cursor = 0
+  let index = haystack.indexOf(target)
+  if (index === -1) return text
+
+  const parts: ReactNode[] = []
+  let key = 0
+  while (index !== -1) {
+    if (index > cursor) parts.push(text.slice(cursor, index))
+    parts.push(
+      <mark
+        key={key}
+        className="text-foreground rounded-sm bg-amber-300/50 px-0.5 dark:bg-amber-400/30"
+      >
+        {text.slice(index, index + target.length)}
+      </mark>
+    )
+    key += 1
+    cursor = index + target.length
+    index = haystack.indexOf(target, cursor)
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor))
+  return parts
+}
 
 const AiModelList = memo(function AiModelList({
   modelsList,
@@ -194,7 +224,7 @@ const AiModelList = memo(function AiModelList({
                       <Label
                         className={`text-ql-13 truncate font-semibold transition-colors ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}
                       >
-                        {getAiPlatformLabel(site, key, t)}
+                        {highlightMatch(getAiPlatformLabel(site, key, t), searchQuery)}
                       </Label>
                       {isCustom && (
                         <span className="text-primary border-primary/20 bg-primary/10 text-ql-10 shrink-0 rounded-lg border px-1.5 py-0.5 font-semibold uppercase">

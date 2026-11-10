@@ -1,5 +1,6 @@
 import { MenuItem, MenuSeparator, MenuSurface } from '@app/components/ui/menu'
 import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
+import { fitMenuToViewport } from '@shared/lib/menuPosition'
 import { DURATION } from '@shared/lib/motion'
 
 import type { LucideIcon } from 'lucide-react'
@@ -60,17 +61,10 @@ function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
   useLayoutEffect(() => {
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect()
-      let newX = x
-      let newY = y
-
-      if (x + rect.width > window.innerWidth) {
-        newX = window.innerWidth - rect.width - 10
-      }
-      if (y + rect.height > window.innerHeight) {
-        newY = window.innerHeight - rect.height - 10
-      }
-
-      setAdjustedPosition({ x: newX, y: newY })
+      // One shared collision rule (12px margin) instead of a bespoke 10px
+      // clamp: a menu never touches the window frame.
+      const { left, top } = fitMenuToViewport(x, y, rect.width, rect.height)
+      setAdjustedPosition({ x: left, y: top })
       setIsReady(true)
     }
   }, [x, y])

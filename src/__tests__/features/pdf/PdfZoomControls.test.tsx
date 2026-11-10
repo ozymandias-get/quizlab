@@ -2,7 +2,7 @@ import PdfZoomControls from '@features/pdf/ui/components/PdfZoomControls'
 
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({
@@ -19,15 +19,18 @@ const CurrentScale = ({ children }: { children: (props: { scale: number }) => Re
   children({ scale: 1.25 })
 
 describe('PdfZoomControls', () => {
-  it('shows the zoom level as read-only text, not a dead button', () => {
+  it('opens the zoom preset popover from the percentage badge', () => {
     render(
       <TooltipProvider>
         <PdfZoomControls ZoomIn={ZoomButton} ZoomOut={ZoomButton} CurrentScale={CurrentScale} />
       </TooltipProvider>
     )
 
-    const percentage = screen.getByText('125%')
-    expect(percentage.tagName).toBe('SPAN')
-    expect(percentage.closest('button')).toBeNull()
+    const percentage = screen.getByRole('button', { name: 'zoom_presets' })
+    expect(percentage).toHaveTextContent('125%')
+
+    fireEvent.click(percentage)
+    expect(screen.getByRole('button', { name: 'fit_page' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'fit_width' })).toBeInTheDocument()
   })
 })

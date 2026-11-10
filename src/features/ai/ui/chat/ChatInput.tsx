@@ -3,7 +3,9 @@ import type { ApiConfig } from '@shared-core/types'
 import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
 import { Badge } from '@app/components/ui/badge'
+import { Kbd } from '@app/components/ui/kbd'
 import { Textarea } from '@app/components/ui/textarea'
+import { formatBytes } from '@shared/lib/formatUtils'
 import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Image as ImageIcon, Send, Square, Trash2, X } from 'lucide-react'
@@ -33,6 +35,18 @@ interface ChatInputProps {
   onSelectModel: (model: string) => void
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
   fileInputRef: React.RefObject<HTMLInputElement | null>
+}
+
+/** MIME short name and decoded byte count for a `data:` attachment URL. */
+function attachmentMeta(dataUrl: string): { type: string; bytes: number } {
+  const header = dataUrl.slice(0, dataUrl.indexOf(','))
+  const mimeMatch = /^data:([^;]+)/.exec(header)
+  const type = (mimeMatch?.[1] ?? 'image').split('/').pop()?.toUpperCase() ?? 'IMAGE'
+  const payload = dataUrl.slice(dataUrl.indexOf(',') + 1)
+  const base64 = payload.replaceAll(/\s/g, '')
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
+  const bytes = Math.max(0, Math.floor((base64.length * 3) / 4) - padding)
+  return { type, bytes }
 }
 
 const ChatInput = memo(function ChatInput({
@@ -83,24 +97,38 @@ const ChatInput = memo(function ChatInput({
         <div className="border-border/55 bg-card/85 shadow-ambient-sm focus-within:border-border focus-within:ring-foreground/10 motion-normal @container relative w-full overflow-hidden rounded-2xl border transition-all focus-within:ring-1">
           {attachments.length > 0 && (
             <div className="border-border/50 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
-              {attachments.map((data, i) => (
-                // Attachments are local state — no stable id available
-                // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
-                <div key={i} className="group/attach animate-app-enter relative">
-                  <div className="border-border/60 h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs">
-                    <img src={data} alt="" className="h-full w-full object-cover" />
+              {attachments.map((data, i) => {
+                const meta = attachmentMeta(data)
+                return (
+                  // Attachments are local state — no stable id available
+                  // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
+                  <div key={i} className="group/attach animate-app-enter relative">
+                    <div
+                      className="border-border/60 relative h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs"
+                      title={`${meta.type} · ${formatBytes(meta.bytes)}`}
+                    >
+                      <img src={data} alt="" className="h-full w-full object-cover" />
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-1 pt-2 pb-0.5 text-white">
+                        <span className="text-ql-10 block truncate leading-tight font-semibold">
+                          {formatBytes(meta.bytes)}
+                        </span>
+                        <span className="block truncate text-[8px] leading-tight font-medium tracking-wide opacity-80">
+                          {meta.type}
+                        </span>
+                      </div>
+                    </div>
+                    <IconButton
+                      type="button"
+                      size="compact"
+                      onClick={() => onRemoveAttachment(i)}
+                      className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 rounded-full border shadow-2xs"
+                      aria-label={t('api_chat_remove_attachment')}
+                    >
+                      <X className="h-3 w-3" />
+                    </IconButton>
                   </div>
-                  <IconButton
-                    type="button"
-                    size="compact"
-                    onClick={() => onRemoveAttachment(i)}
-                    className="text-ql-10 border-border bg-card text-muted-foreground hover:border-destructive/40 hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 rounded-full border shadow-2xs"
-                    aria-label={t('api_chat_remove_attachment')}
-                  >
-                    <X className="h-3 w-3" />
-                  </IconButton>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
@@ -120,8 +148,11 @@ const ChatInput = memo(function ChatInput({
           {/* Clean Sub-divider */}
           <div className="bg-border/45 mx-3 h-px" />
 
-          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-            <div className="flex flex-wrap items-center gap-1.5">
+          {/* Bottom action row: a single fixed-height toolbar. It never wraps
+              into the textarea, so a long prompt grows upward while the
+              controls stay anchored to the bottom edge of the card. */}
+          <div className="flex flex-nowrap items-center justify-between gap-2 px-3 py-2">
+            <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-hidden">
               <ProviderSelector
                 config={config}
                 activeProvider={activeProvider}
@@ -173,6 +204,14 @@ const ChatInput = memo(function ChatInput({
                   <span>{t('api_chat_char_count', { count: charCount })}</span>
                 </Badge>
               )}
+
+              <span className="text-ql-10 text-muted-foreground/60 hidden items-center gap-1 @min-[520px]:flex">
+                <Kbd size="xs">Enter</Kbd>
+                <span>{t('api_chat_send_hint')}</span>
+                <span aria-hidden>·</span>
+                <Kbd size="xs">Shift+↵</Kbd>
+                <span>{t('api_chat_newline_hint')}</span>
+              </span>
 
               {messageCount > 0 && (
                 <WithTooltip label={t('api_chat_clear')}>

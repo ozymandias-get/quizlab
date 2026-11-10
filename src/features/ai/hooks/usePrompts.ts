@@ -17,6 +17,10 @@ interface UsePromptsReturn {
   deletePrompt: (id: string) => void
   selectPrompt: (id: string) => void
   clearSelection: () => void
+  /** Reorders custom prompts to match the given id order (drag/drop). */
+  reorderPrompts: (orderedIds: string[]) => void
+  /** Moves one custom prompt to the front of the list. */
+  pinPrompt: (id: string) => void
 }
 
 /**
@@ -86,6 +90,31 @@ export function usePrompts(): UsePromptsReturn {
     setSelectedPromptId('')
   }, [setSelectedPromptId])
 
+  const reorderPrompts = useCallback(
+    (orderedIds: string[]) => {
+      setCustomPrompts((previous) => {
+        const byId = new Map(previous.map((prompt) => [prompt.id, prompt]))
+        const ordered = orderedIds
+          .map((id) => byId.get(id))
+          .filter((prompt): prompt is BasePrompt => Boolean(prompt))
+        const missing = previous.filter((prompt) => !orderedIds.includes(prompt.id))
+        return [...ordered, ...missing]
+      })
+    },
+    [setCustomPrompts]
+  )
+
+  const pinPrompt = useCallback(
+    (id: string) => {
+      setCustomPrompts((previous) => {
+        const target = previous.find((prompt) => prompt.id === id)
+        if (!target) return previous
+        return [target, ...previous.filter((prompt) => prompt.id !== id)]
+      })
+    },
+    [setCustomPrompts]
+  )
+
   return {
     allPrompts,
     activePromptText,
@@ -94,6 +123,8 @@ export function usePrompts(): UsePromptsReturn {
     addPrompt,
     deletePrompt,
     selectPrompt,
-    clearSelection
+    clearSelection,
+    reorderPrompts,
+    pinPrompt
   }
 }

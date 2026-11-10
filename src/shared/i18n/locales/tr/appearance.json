@@ -1,5 +1,6 @@
 {
   "appearance": "Görünüm",
+  "appearance_preview": "Canlı önizleme",
   "appearance_description": "Uygulama görünümü ve çubuğun konumunu özelleştirin.",
   "selection_color_desc": "Metin seçme ve AI gönder butonu rengini kişiselleştirin.",
   "selection_color_preview_hint": "Önizleme (Metin seçerek kontrol edebilirsiniz)",

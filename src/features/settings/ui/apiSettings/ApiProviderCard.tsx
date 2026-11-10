@@ -100,11 +100,15 @@ function ApiProviderCard({
             aria-invalid={!!nameError}
             className="text-ql-12"
           />
-          {nameError && (
-            <span role="alert" className="text-destructive text-ql-11 px-1">
-              {t(nameError)}
-            </span>
-          )}
+          {/* Reserved slot: a validation message mutates this line, never the
+              card's height, so the controls underneath stay put. */}
+          <span
+            role="alert"
+            aria-live="polite"
+            className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+          >
+            {nameError ? t(nameError) : ''}
+          </span>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={baseUrlId} className="text-ql-11 text-muted-foreground font-medium">
@@ -124,11 +128,13 @@ function ApiProviderCard({
               className="text-ql-12"
             />
           </div>
-          {baseUrlError && (
-            <span role="alert" className="text-destructive text-ql-11 px-1">
-              {t(baseUrlError)}
-            </span>
-          )}
+          <span
+            role="alert"
+            aria-live="polite"
+            className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+          >
+            {baseUrlError ? t(baseUrlError) : ''}
+          </span>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={apiKeyId} className="text-ql-11 text-muted-foreground font-medium">

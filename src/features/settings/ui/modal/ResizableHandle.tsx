@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 
 interface ResizableHandleProps {
   onResize: (delta: number) => void
@@ -17,6 +17,7 @@ const ResizableHandle = memo(function ResizableHandle({
   label = 'Resize sidebar'
 }: ResizableHandleProps) {
   const isDragging = useRef(false)
+  const [isDragActive, setIsDragActive] = useState(false)
   const startXRef = useRef(0)
   const onResizeRef = useRef(onResize)
   onResizeRef.current = onResize
@@ -32,6 +33,7 @@ const ResizableHandle = memo(function ResizableHandle({
     const handleMouseUp = () => {
       if (isDragging.current) {
         isDragging.current = false
+        setIsDragActive(false)
         document.body.style.cursor = ''
         document.body.style.userSelect = ''
       }
@@ -45,6 +47,7 @@ const ResizableHandle = memo(function ResizableHandle({
       // Unmounting mid-drag must not leave the whole document stuck with the
       // resize cursor and selection disabled.
       isDragging.current = false
+      setIsDragActive(false)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -63,6 +66,7 @@ const ResizableHandle = memo(function ResizableHandle({
       onMouseDown={(e) => {
         e.preventDefault()
         isDragging.current = true
+        setIsDragActive(true)
         startXRef.current = e.clientX
         document.body.style.cursor = 'col-resize'
         document.body.style.userSelect = 'none'
@@ -77,10 +81,26 @@ const ResizableHandle = memo(function ResizableHandle({
         }
       }}
     >
-      {/* Single track + a wider hover wash. Previously three stacked divs drew
-          the same 1px line, and the third narrowed from 2px to 1px on hover. */}
-      <div className="bg-muted-foreground/45 absolute inset-y-0 left-1/2 w-px -translate-x-1/2" />
+      {/* Single track + a wider hover wash. */}
+      <div
+        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${
+          isDragActive ? 'bg-primary/60' : 'bg-muted-foreground/45'
+        }`}
+      />
       <div className="group-hover:bg-ring/10 absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 rounded-sm transition-colors" />
+      {/* Grip dots: the divider's position stays legible even on low-contrast
+          displays, and the accent guide line confirms an active drag. */}
+      <div className="pointer-events-none absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 rounded-full p-0.5 opacity-50 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
+        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
+        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
+      </div>
+      {isDragActive && (
+        <div
+          aria-hidden
+          className="bg-primary/25 pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2"
+        />
+      )}
     </div>
   )
 })

@@ -59,7 +59,7 @@ const ProviderSelector = memo(function ProviderSelector({
             >
               {activeProvider?.name || t('api_chat_select_provider')}
             </span>
-            <ChevronDown className="text-muted-foreground motion-normal h-3 w-3 opacity-60 transition-transform group-data-[state=open]/button:rotate-180" />
+            <ChevronDown className="text-muted-foreground h-3 w-3 opacity-60 transition-transform duration-200 group-data-[state=open]/button:rotate-180" />
           </Button>
         }
       >

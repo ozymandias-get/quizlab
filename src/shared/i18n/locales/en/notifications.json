@@ -1,5 +1,6 @@
 {
   "notifications": "Notifications",
+  "notification_preview_title": "Notification preview",
   "notification_settings": "Notification Settings",
   "notifications_description": "Choose which notification types you want to receive. Toggle each type on or off.",
   "notification_success_title": "Success",

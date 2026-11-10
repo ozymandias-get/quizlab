@@ -9,6 +9,7 @@ import {
   SelectValue
 } from '@app/components/ui/select'
 import { cn } from '@shared/lib/uiUtils'
+import { WithTooltip } from '@shared/ui/components/primitives'
 
 import { Check, FileText, Zap } from 'lucide-react'
 import { memo } from 'react'
@@ -52,7 +53,7 @@ function toPromptLabel(text: string): string {
     .map((line) => line.trim())
     .find((line) => line.length > 0)
   const flat = (firstLine ?? text).replaceAll(/\s+/g, ' ').trim()
-  return flat.length > 28 ? `${flat.slice(0, 28)}…` : flat
+  return flat.length > 42 ? `${flat.slice(0, 42)}…` : flat
 }
 
 /**
@@ -91,6 +92,10 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
   }
 
   const selectedPreset = presets.find((preset) => preset.key === quickActionKey)
+  const selectedPrompt = allPrompts.find((prompt) => prompt.id === selectedPromptId)
+  const promptTooltip = selectedPrompt
+    ? `${toPromptLabel(selectedPrompt.text)}\n${selectedPrompt.text}`
+    : undefined
 
   return (
     <div className="flex min-w-0 shrink items-center gap-1.5">
@@ -160,37 +165,42 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
       </Select>
 
       <Select value={selectedPromptId ?? NONE_VALUE} onValueChange={handlePromptChange}>
-        <SelectTrigger
-          id="ai-draft-prompt"
-          aria-label={t('ai_draft_prompt_label')}
-          size="sm"
-          style={
-            selectedPromptId
-              ? {
-                  borderColor:
-                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
-                  backgroundColor:
-                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
-                }
-              : undefined
-          }
-          className={cn(
-            TRIGGER_CLASS,
-            'max-w-[12.5rem]',
-            selectedPromptId ? 'text-foreground font-semibold' : 'text-muted-foreground'
-          )}
+        <WithTooltip
+          label={promptTooltip}
+          contentClassName="max-w-[22rem] whitespace-pre-wrap break-words"
         >
-          <FileText
+          <SelectTrigger
+            id="ai-draft-prompt"
+            aria-label={t('ai_draft_prompt_label')}
+            size="sm"
             style={
               selectedPromptId
-                ? { color: 'var(--selection-color-source, oklch(var(--primary)))' }
+                ? {
+                    borderColor:
+                      'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
+                    backgroundColor:
+                      'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
+                  }
                 : undefined
             }
-            className="text-muted-foreground size-3.5 shrink-0"
-            aria-hidden
-          />
-          <SelectValue placeholder={t('ai_draft_prompt_placeholder')} />
-        </SelectTrigger>
+            className={cn(
+              TRIGGER_CLASS,
+              'max-w-[16rem]',
+              selectedPromptId ? 'text-foreground font-semibold' : 'text-muted-foreground'
+            )}
+          >
+            <FileText
+              style={
+                selectedPromptId
+                  ? { color: 'var(--selection-color-source, oklch(var(--primary)))' }
+                  : undefined
+              }
+              className="text-muted-foreground size-3.5 shrink-0"
+              aria-hidden
+            />
+            <SelectValue placeholder={t('ai_draft_prompt_placeholder')} />
+          </SelectTrigger>
+        </WithTooltip>
         <SelectContent
           position="popper"
           align="start"

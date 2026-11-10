@@ -4,7 +4,12 @@ import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContent
 import { Button } from '@shared/ui/components/primitives'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
+import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
+
+/** Stable keys for the loading skeleton's placeholder cards. */
+const SKELETON_ROWS = ['one', 'two', 'three', 'four', 'five', 'six'] as const
 
 interface GoogleDrivePanelProps {
   tabId: string
@@ -32,10 +37,11 @@ function GoogleDrivePanel({
   reloadLabel,
   isInteractionBlocked
 }: GoogleDrivePanelProps) {
+  const { t } = useTranslation()
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
   const { showWarning } = useToastActions()
-  const { setHostElement, reload } = useManagedContentView({
+  const { setHostElement, reload, hasLoadedOnce, error, handleRetry } = useManagedContentView({
     viewId,
     showWarning,
     source: {
@@ -46,6 +52,10 @@ function GoogleDrivePanel({
     modelId: 'gdrive',
     isEnabled: true,
     isHostOwner: true,
+    // A native view paints above the DOM, so the themed skeleton can only be
+    // seen while the view is hidden. Reveal it on the first completed load.
+    revealAfterFirstLoad: true,
+    hideWhenError: true,
     // A dialog is the only thing that has to occlude the view, because a native
     // view paints above the DOM. `isInteractionBlocked` deliberately does not
     // drive this: it also covers "the dock is hovered", which used to blank the
@@ -55,7 +65,7 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border bg-card/90 flex items-center justify-between gap-4 border-b px-4 py-2.5">
+      <div className="border-border bg-card/90 relative flex items-center justify-between gap-4 border-b px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="border-border bg-muted/60 text-foreground flex h-9 w-9 items-center justify-center rounded-lg border shadow-xs">
             {getAiIcon('gdrive')}
@@ -71,6 +81,11 @@ function GoogleDrivePanel({
             {reloadLabel}
           </Button>
         </div>
+        {/* Soft inner edge between the themed chrome and the embedded page. */}
+        <div
+          aria-hidden
+          className="from-background/70 pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-b to-transparent"
+        />
       </div>
 
       <div className="relative min-h-0 flex-1">
@@ -80,7 +95,54 @@ function GoogleDrivePanel({
           data-ai-view-host={viewId}
           data-testid="drive-host"
         />
-        {isInteractionBlocked && (
+
+        {!hasLoadedOnce && !error && (
+          <div
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+            className="bg-card pointer-events-none absolute inset-0 z-10 flex flex-col gap-5 p-5"
+          >
+            <span className="sr-only">{t('loading')}</span>
+            <div className="flex items-center gap-3">
+              <div className="bg-muted h-9 w-9 shrink-0 rounded-lg motion-safe:animate-pulse" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="bg-muted h-3 w-40 max-w-full rounded-full motion-safe:animate-pulse" />
+                <div className="bg-muted/70 h-2.5 w-64 max-w-full rounded-full motion-safe:animate-pulse" />
+              </div>
+            </div>
+            <div className="bg-muted/70 h-9 w-full rounded-lg motion-safe:animate-pulse" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {SKELETON_ROWS.map((row) => (
+                <div
+                  key={row}
+                  className="border-border/50 bg-background/40 flex items-center gap-3 rounded-xl border p-3"
+                >
+                  <div className="bg-muted h-10 w-10 shrink-0 rounded-lg motion-safe:animate-pulse" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="bg-muted h-2.5 w-4/5 rounded-full motion-safe:animate-pulse" />
+                    <div className="bg-muted/70 h-2 w-1/2 rounded-full motion-safe:animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-card/95 absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-6 text-center backdrop-blur-sm">
+            <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden />
+            <p className="text-ql-12 text-muted-foreground max-w-sm break-words">{error}</p>
+            {handleRetry && (
+              <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+                <RefreshCw className="h-3.5 w-3.5" />
+                {reloadLabel}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {isInteractionBlocked && !error && (
           <div className="pointer-events-auto absolute inset-0 z-10 bg-transparent" />
         )}
       </div>

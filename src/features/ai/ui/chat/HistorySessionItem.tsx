@@ -1,15 +1,16 @@
 import { Input } from '@app/components/ui/input'
 import { FOCUS_DEFER_MS } from '@shared/constants/timingConstants'
-import { Button, IconButton, WithTooltip } from '@shared/ui/components/primitives'
+import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
+import { getAiIcon } from '@ui/components/Icons'
 
-import { Loader2, MessageSquare, Pencil, Trash2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useId, useRef } from 'react'
+import { Check, Loader2, MessageSquare, Pencil, Trash2, X } from 'lucide-react'
+import { memo, Suspense, useCallback, useEffect, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Session {
   id: string
   title: string
-  messages: { content: string }[]
+  messages: { content: string; model?: string }[]
   updatedAt?: number
   createdAt: number
 }
@@ -55,6 +56,9 @@ const HistorySessionItem = memo(function HistorySessionItem({
   const isEditing = session.id === editingId
   const isTitleEmpty = editTitle.trim().length === 0
   const msgCount = session.messages.length
+  // The model that produced the conversation, for the row's visual identity.
+  const sessionModel = session.messages.find((message) => message.model)?.model
+  const modelIcon = sessionModel ? getAiIcon(sessionModel) : null
 
   /**
    * Escape calls `onCancelEdit`, which unmounts the input; that unmount fires
@@ -112,7 +116,11 @@ const HistorySessionItem = memo(function HistorySessionItem({
           : 'border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground'
       }`}
     >
-      <MessageSquare className="h-4 w-4" />
+      {modelIcon ? (
+        <Suspense fallback={<MessageSquare className="h-4 w-4" />}>{modelIcon}</Suspense>
+      ) : (
+        <MessageSquare className="h-4 w-4" />
+      )}
     </div>
   )
 
@@ -159,17 +167,30 @@ const HistorySessionItem = memo(function HistorySessionItem({
                 aria-describedby={isTitleEmpty ? editErrorId : undefined}
                 className="min-w-0 flex-1 sm:max-w-64"
               />
-              <Button
+              <IconButton
                 type="button"
-                size="sm"
+                size="compact"
+                variant="ghost"
                 onClick={confirmEdit}
                 disabled={isTitleEmpty || isSavingEdit}
                 aria-busy={isSavingEdit || undefined}
-                className="text-ql-11 shrink-0"
+                aria-label={t('api_chat_save')}
+                title={t('api_chat_save')}
+                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 disabled:opacity-40 dark:text-emerald-400 dark:hover:text-emerald-400"
               >
-                {isSavingEdit && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t('api_chat_save')}
-              </Button>
+                {isSavingEdit ? <Loader2 className="animate-spin" /> : <Check />}
+              </IconButton>
+              <IconButton
+                type="button"
+                size="compact"
+                variant="ghost"
+                onClick={cancelEdit}
+                aria-label={t('api_chat_cancel')}
+                title={t('api_chat_cancel')}
+                className="text-destructive/80 hover:bg-destructive/10 hover:text-destructive shrink-0"
+              >
+                <X />
+              </IconButton>
             </div>
             {isTitleEmpty && (
               <span
@@ -194,9 +215,9 @@ const HistorySessionItem = memo(function HistorySessionItem({
           {icon}
 
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               <span
-                className={`text-ql-13 truncate font-semibold ${isActive ? 'text-foreground' : 'text-foreground/90'}`}
+                className={`text-ql-13 line-clamp-2 min-w-0 flex-1 font-semibold break-words ${isActive ? 'text-foreground' : 'text-foreground/90'}`}
               >
                 {session.title}
               </span>

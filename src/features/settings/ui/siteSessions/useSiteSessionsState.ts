@@ -32,6 +32,10 @@ export function useSiteSessionsState() {
   const [pairingOpen, setPairingOpen] = useState(false)
   /** Sites whose last clear failed; only these are offered for a retry. */
   const [failedClearSiteIds, setFailedClearSiteIds] = useState<string[]>([])
+  /** Live position of a bulk clear, so the UI can show `3/8` instead of a freeze. */
+  const [clearProgress, setClearProgress] = useState<{ done: number; total: number } | null>(null)
+  const [clearingSiteIds, setClearingSiteIds] = useState<string[]>([])
+  const [isBulkClearing, setIsBulkClearing] = useState(false)
   // A second click on the same switch before the first request settles would
   // read the same stale `view.enabled` and send the same target state twice.
   const pendingToggleSitesRef = useRef<Set<string>>(new Set())
@@ -82,17 +86,32 @@ export function useSiteSessionsState() {
     async (siteIds: string[]) => {
       if (siteIds.length === 0) return
 
-      const results = await Promise.all(
-        siteIds.map(async (siteId) => {
+      // Sequential, not Promise.all: the user sees which site is being cleared
+      // and how many remain, instead of one long opaque freeze.
+      setIsBulkClearing(true)
+      setClearingSiteIds([])
+      setClearProgress({ done: 0, total: siteIds.length })
+      const results: Array<{ siteId: string; ok: boolean }> = []
+      try {
+        for (let index = 0; index < siteIds.length; index += 1) {
+          const siteId = siteIds[index]
+          // Only the site currently being processed shows a spinner; marking
+          // all of them was misleading for a sequential run.
+          setClearingSiteIds([siteId])
           try {
             const result = await clearMutation.mutateAsync({ siteId })
-            return { siteId, ok: result.success }
+            results.push({ siteId, ok: result.success })
           } catch {
             // A thrown mutation already surfaced its own error toast.
-            return { siteId, ok: false }
+            results.push({ siteId, ok: false })
           }
-        })
-      )
+          setClearProgress({ done: index + 1, total: siteIds.length })
+        }
+      } finally {
+        setClearProgress(null)
+        setClearingSiteIds([])
+        setIsBulkClearing(false)
+      }
 
       const failedIds = results.filter((result) => !result.ok).map((result) => result.siteId)
       const successCount = results.length - failedIds.length
@@ -177,13 +196,15 @@ export function useSiteSessionsState() {
     t,
     views,
     /** True while a switch or a clear is on its way to the main process. */
-    isBusy: setEnabledMutation.isPending || clearMutation.isPending,
+    isBusy: isBulkClearing || setEnabledMutation.isPending || clearMutation.isPending,
     /** Whether there is a session of ours to forget. */
     canClearAll: views.some((view) => view.enabled),
     onToggle,
     onClearAll,
     onRetryFailedClear,
     failedClearSites,
+    clearProgress,
+    clearingSiteIds,
     confirmProps,
     riskItems,
     mitigationItems,

@@ -8,7 +8,13 @@ import type { SiteSessionListProps } from './types'
  * the registry order, then the user's own sites — because the service owns
  * that order and the list must not sort it again.
  */
-function SiteSessionList({ views, disabled, onToggle, t }: SiteSessionListProps) {
+function SiteSessionList({
+  views,
+  disabled,
+  onToggle,
+  clearingSiteIds = [],
+  t
+}: SiteSessionListProps) {
   return (
     <div className="flex flex-col gap-2.5">
       {views.map((view) => (
@@ -16,6 +22,7 @@ function SiteSessionList({ views, disabled, onToggle, t }: SiteSessionListProps)
           key={view.siteId}
           view={view}
           disabled={disabled}
+          isClearing={clearingSiteIds.includes(view.siteId)}
           onToggle={onToggle}
           t={t}
         />

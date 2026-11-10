@@ -1,9 +1,18 @@
 import { cn } from '@shared/lib/uiUtils'
 
 import { Popover, PopoverButton, PopoverPanel, Transition } from '@headlessui/react'
+import { Check } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { type CSSProperties, Fragment, memo, useMemo } from 'react'
 import { HexColorPicker } from 'react-colorful'
 import { useTranslation } from 'react-i18next'
+
+/**
+ * Quick-pick palette shown above the custom picker. These are deliberately
+ * spread across the hue wheel so the five most common accent choices are one
+ * click away; anything else still goes through the free-form picker.
+ */
+const PRESET_COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'] as const
 
 interface ColorPickerProps {
   color: string
@@ -14,8 +23,10 @@ interface ColorPickerProps {
 /** Accessible color popover (Headless UI + react-colorful). */
 const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   const { t } = useTranslation()
+  const prefersReducedMotion = useReducedMotion()
 
   const swatchStyle = useMemo<CSSProperties>(() => ({ backgroundColor: color }), [color])
+  const normalizedColor = color.toLowerCase()
 
   return (
     <div className="border-border/60 bg-background/40 flex flex-col gap-3 rounded-xl border p-4">
@@ -27,6 +38,41 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
           <span aria-hidden className="bg-border h-px flex-1" />
         </div>
       )}
+
+      {/* Round swatch dots: the selected one carries a check and gently grows. */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        {PRESET_COLORS.map((preset) => {
+          const isSelected = preset.toLowerCase() === normalizedColor
+          return (
+            <motion.button
+              key={preset}
+              type="button"
+              aria-label={`${t('select_color')} ${preset}`}
+              aria-pressed={isSelected}
+              onClick={() => onChange(preset)}
+              style={{ backgroundColor: preset }}
+              animate={{ scale: isSelected ? 1.12 : 1 }}
+              whileHover={prefersReducedMotion ? undefined : { scale: isSelected ? 1.16 : 1.08 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 24 }}
+              className={cn(
+                'focus-visible:ring-ring/70 relative flex size-7 shrink-0 items-center justify-center rounded-full transition-shadow outline-none focus-visible:ring-2',
+                isSelected
+                  ? 'ring-ring ring-offset-background ring-2 ring-offset-2'
+                  : 'ring-border/60 ring-1 hover:ring-2'
+              )}
+            >
+              {isSelected && (
+                <Check
+                  aria-hidden
+                  strokeWidth={3}
+                  className="size-3.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.55)]"
+                />
+              )}
+            </motion.button>
+          )
+        })}
+      </div>
 
       <Popover className="relative w-full">
         {({ open }) => (

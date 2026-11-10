@@ -133,7 +133,20 @@ export const useToastStore = create<ToastStoreState>((set, get) => {
             createdAt: Date.now()
           }
         ]
-        return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
+        if (next.length <= MAX_TOASTS) return { toasts: next }
+        // Evict the oldest non-action toast first. Dropping an Undo handle
+        // while it is the only way back from a destructive action is worse
+        // than dropping an informational message.
+        let trimmed = next
+        while (trimmed.length > MAX_TOASTS) {
+          // Never evict the toast that was just added; prefer the oldest
+          // non-action toast among the older entries, then the oldest overall.
+          const older = trimmed.slice(0, -1)
+          const evictIndex = older.findIndex((toast) => !toast.onAction)
+          const index = evictIndex >= 0 ? evictIndex : 0
+          trimmed = [...trimmed.slice(0, index), ...trimmed.slice(index + 1)]
+        }
+        return { toasts: trimmed }
       })
 
       return id

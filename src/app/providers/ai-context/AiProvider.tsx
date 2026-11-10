@@ -34,6 +34,13 @@ import { useAiProviderContexts } from './useAiProviderContexts'
 /** Undo window shown when a tab is closed, matching the draft-item toast. */
 const TAB_UNDO_TOAST_MS = 5000
 
+/**
+ * Teardown outlives the toast on purpose. The toast pauses its dismiss timer
+ * while hovered or focused, so a fixed 5s teardown could destroy the tab (and
+ * its composer state) while the Undo button was still on screen.
+ */
+const TAB_TEARDOWN_RETENTION_MS = 30_000
+
 function AiProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const { showWarning, addToast } = useToastActions()
@@ -209,7 +216,7 @@ function AiProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           pendingTabTeardownsRef.current.delete(tabId)
           runClosedTabTeardown(tabId)
-        }, TAB_UNDO_TOAST_MS)
+        }, TAB_TEARDOWN_RETENTION_MS)
       )
     },
     [addToast, cancelClosedTabTeardown, closeTab, restoreTab, runClosedTabTeardown]

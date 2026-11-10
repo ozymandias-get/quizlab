@@ -111,8 +111,9 @@ describe('StorageTab', () => {
 
     expect(screen.getByText('total_cache')).toBeInTheDocument()
     expect(screen.getByText('root_caches')).toBeInTheDocument()
-    // tempFiles is non-zero here, so the optional row is shown.
-    expect(screen.getByText('temp_files')).toBeInTheDocument()
+    // tempFiles is non-zero here, so the optional row is shown. The label also
+    // appears in the distribution legend, hence getAllByText.
+    expect(screen.getAllByText('temp_files').length).toBeGreaterThan(0)
     expect(screen.getByText('clear_cache_title')).toBeInTheDocument()
   })
 

@@ -198,6 +198,9 @@ export function useApiChatHandlers(deps: UseApiChatHandlersDeps) {
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    // The composer copies the dropped image into the message; it never moves
+    // or links the source file, so the OS cursor has to say "copy".
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
   }, [])
 
   const handleDragLeave = useCallback(

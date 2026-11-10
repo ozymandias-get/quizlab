@@ -1,4 +1,9 @@
-import { MAX_ALIVE_TABS_OPTIONS, SLEEP_TIMEOUT_OPTIONS, useAiLifecycleSettings } from '@features/ai'
+import {
+  MAX_ALIVE_TABS_MAX,
+  MAX_ALIVE_TABS_MIN,
+  SLEEP_TIMEOUT_OPTIONS,
+  useAiLifecycleSettings
+} from '@features/ai'
 
 import { useAiSites } from '@app/providers/ai-context'
 import { cn } from '@shared/lib/uiUtils'
@@ -9,6 +14,7 @@ import {
   SettingsTabIntro,
   TabPill
 } from '@shared/ui/components/primitives'
+import Slider from '@ui/components/Slider'
 
 import { Layers, Moon, Timer } from 'lucide-react'
 import { memo, useMemo } from 'react'
@@ -82,18 +88,28 @@ const AiLifecycleTab = memo(() => {
         title={t('max_alive_tabs')}
         detail={t('max_alive_tabs_description')}
       >
-        <div className="grid grid-cols-5 gap-2" role="tablist" aria-label={t('max_alive_tabs')}>
-          {MAX_ALIVE_TABS_OPTIONS.map((num) => (
-            <TabPill
-              key={num}
-              isActive={maxAliveTabs === num}
-              onClick={() => setMaxAliveTabs(num)}
-              aria-label={t('max_alive_tabs')}
-              className="w-full justify-center rounded-lg"
-            >
-              <span className="text-ql-12 font-medium tabular-nums">{num}</span>
-            </TabPill>
-          ))}
+        <div className="border-border/60 bg-background/40 rounded-xl border p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-ql-12 text-foreground font-medium">
+              {t('max_alive_tabs_value', { count: maxAliveTabs })}
+            </span>
+            <span className="text-ql-11 text-muted-foreground font-mono tabular-nums">
+              {maxAliveTabs} / {MAX_ALIVE_TABS_MAX}
+            </span>
+          </div>
+          <Slider
+            min={MAX_ALIVE_TABS_MIN}
+            max={MAX_ALIVE_TABS_MAX}
+            step={1}
+            value={[maxAliveTabs]}
+            onValueChange={(value) => setMaxAliveTabs(value[0] ?? MAX_ALIVE_TABS_MIN)}
+            aria-label={t('max_alive_tabs')}
+          />
+          <div className="text-ql-10 mt-2.5 flex items-center justify-between gap-2 font-medium">
+            <span className="text-emerald-600 dark:text-emerald-400">{t('max_alive_low_ram')}</span>
+            <span className="text-amber-600 dark:text-amber-400">{t('max_alive_balanced')}</span>
+            <span className="text-sky-600 dark:text-sky-400">{t('max_alive_performance')}</span>
+          </div>
         </div>
       </SettingsSection>
 

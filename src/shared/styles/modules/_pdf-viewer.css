@@ -1,5 +1,7 @@
 .pdf-viewer-container {
-  background: oklch(var(--background));
+  /* The letterbox around a fitted page is a desktop surface, not the app's
+     page background: a neutral muted tone softens the white-document step. */
+  background: oklch(var(--muted) / 0.3);
   position: relative;
   overflow: hidden;
   height: 100%;

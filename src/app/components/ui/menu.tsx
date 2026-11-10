@@ -65,7 +65,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
 
 function MenuSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div role="separator" className={cn('bg-border/80 mx-2 my-1 h-px', className)} {...props} />
+    <div role="separator" className={cn('bg-border/40 mx-1.5 my-1 h-px', className)} {...props} />
   )
 }
 

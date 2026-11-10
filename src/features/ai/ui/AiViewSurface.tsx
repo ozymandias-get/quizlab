@@ -3,9 +3,10 @@ import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceStat
 import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
+import { getAiIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { lazy, memo, Suspense, useMemo } from 'react'
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
@@ -46,6 +47,27 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
   // overlay — or any dialog anywhere in the app — has to be able to hide it.
   const isOverlayActive = showHome || isDialogOpen
 
+  // Briefly cover the native view while a different AI tab takes over: the
+  // outgoing WebContentsView paints its last frame above the DOM, so without
+  // this the user sees the previous platform frozen during the switch.
+  const [switchingTabId, setSwitchingTabId] = useState<string | null>(null)
+  const previousActiveTabRef = useRef(activeTabId)
+  useEffect(() => {
+    if (previousActiveTabRef.current === activeTabId) return
+    previousActiveTabRef.current = activeTabId
+    // Closing the last tab is a switch to "no tab": clear any veil state,
+    // otherwise `overlayBlocksViews` can stay true and hide every native view.
+    setSwitchingTabId(activeTabId || null)
+    if (!activeTabId) return
+    const timer = window.setTimeout(() => setSwitchingTabId(null), 500)
+    return () => window.clearTimeout(timer)
+  }, [activeTabId])
+
+  const switchingTab = switchingTabId
+    ? (tabs.find((tab) => tab.id === switchingTabId) ?? null)
+    : null
+  const overlayBlocksViews = isOverlayActive || switchingTabId !== null
+
   const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
 
   const renderedSessions = useMemo(
@@ -61,7 +83,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
             tab={tab}
             isActive={isActive}
             isSurfaceActive={isSurfaceActive}
-            isOverlayActive={isOverlayActive}
+            isOverlayActive={overlayBlocksViews}
             restoredUrl={getRestoredUrl(tab.id, tab.modelId)}
             onTabUrlRecorded={recordTabUrl}
           />
@@ -73,7 +95,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
       activeTabId,
       showHome,
       isSurfaceActive,
-      isOverlayActive,
+      overlayBlocksViews,
       getRestoredUrl,
       recordTabUrl
     ]
@@ -118,6 +140,33 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
           </AnimatePresence>
 
           {renderedSessions}
+
+          <AnimatePresence>
+            {switchingTab && (
+              <motion.div
+                key={`switching-${switchingTab.id}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: DURATION.fast }}
+                className="bg-background/55 pointer-events-none absolute inset-0 z-20 flex items-center justify-center backdrop-blur-[2px]"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <div className="border-border bg-card shadow-ambient-md relative flex size-12 items-center justify-center rounded-2xl border">
+                    {getAiIcon(switchingTab.modelId) ?? (
+                      <span className="text-ql-16 text-foreground font-bold uppercase">
+                        {(switchingTab.title ?? switchingTab.modelId).charAt(0)}
+                      </span>
+                    )}
+                    <span className="border-primary/40 absolute -inset-1 animate-ping rounded-2xl border" />
+                  </div>
+                  <span className="text-ql-11 text-muted-foreground max-w-[12rem] truncate font-medium">
+                    {switchingTab.title ?? switchingTab.modelId}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

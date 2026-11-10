@@ -1,6 +1,7 @@
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
-import { ChevronRightIcon, GithubIcon } from '@ui/components/Icons'
+import { GithubIcon } from '@ui/components/Icons'
 
+import { ExternalLink } from 'lucide-react'
 import { memo } from 'react'
 
 import AboutActionCard from './AboutActionCard'
@@ -18,7 +19,7 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
       target="_blank"
       rel="noopener noreferrer"
       interactive
-      className="group"
+      className="group bg-muted/30 hover:bg-muted/60"
       leading={
         <span
           aria-hidden
@@ -28,7 +29,9 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
         </span>
       }
       trailing={
-        <ChevronRightIcon className="text-muted-foreground group-hover:text-foreground h-4 w-4 shrink-0 transition-colors" />
+        <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center gap-1">
+          <ExternalLink className="size-3.5 transition-colors" aria-hidden />
+        </span>
       }
     />
   )

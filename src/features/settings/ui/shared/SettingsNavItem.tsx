@@ -1,3 +1,4 @@
+import { cn } from '@shared/lib/uiUtils'
 import { WithTooltip } from '@shared/ui/components/primitives'
 
 import { motion, useReducedMotion } from 'motion/react'
@@ -47,11 +48,21 @@ const SettingsNavItem = memo(function SettingsNavItem({
             }
           />
         )}
-        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+        {/* One icon contract for the whole rail: same 18px box, same 1.75
+            stroke. Active items get a soft solid fill behind the glyph in
+            addition to the accent line, so they read at a glance. */}
+        <div
+          className={cn(
+            'flex size-[18px] shrink-0 items-center justify-center rounded-[5px] transition-colors',
+            isActive ? 'bg-primary/10 text-primary' : 'bg-transparent'
+          )}
+        >
           <Icon
-            className={`h-4 w-4 transition-colors ${
-              isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
-            }`}
+            strokeWidth={1.75}
+            className={cn(
+              'size-[18px] transition-colors',
+              isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+            )}
           />
         </div>
         <span

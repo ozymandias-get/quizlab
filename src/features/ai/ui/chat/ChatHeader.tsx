@@ -44,27 +44,28 @@ const ChatHeader = memo(function ChatHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Archive is a secondary tool: icon-only and quiet. The primary
+            action keeps the accent tint so the hierarchy is obvious. */}
         <WithTooltip label={t('api_chat_history')}>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={onToggleHistoryModal}
-            className="gap-1.5"
+            className="text-muted-foreground hover:text-foreground gap-1.5"
             aria-label={t('api_chat_history')}
           >
-            <Clock className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
-            <span className="hidden sm:inline">{t('api_chat_history')}</span>
+            <Clock className="h-3.5 w-3.5 shrink-0" />
           </Button>
         </WithTooltip>
 
         <WithTooltip label={t('api_chat_new_chat_tooltip')}>
           <Button
             type="button"
-            variant="default"
+            variant="secondary"
             size="sm"
             onClick={onNewChat}
-            className="gap-1.5"
+            className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary gap-1.5 font-semibold shadow-none"
             aria-label={t('api_chat_new_chat_tooltip')}
           >
             <Plus className="h-3.5 w-3.5 shrink-0" />

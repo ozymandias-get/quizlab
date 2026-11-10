@@ -1,23 +1,15 @@
 import { DURATION } from '@shared/lib/motion'
 
-import type { Easing, Transition, Variants } from 'motion/react'
+import type { Easing, Variants } from 'motion/react'
 
 const smoothEase: Easing = [0.16, 1, 0.3, 1]
 
-// Premium spring for panels
-const panelSpring: Transition = {
-  type: 'spring',
-  stiffness: 280,
-  damping: 28,
-  mass: 1.1
-}
-
 // Fullscreen FocusOverlay — used when a single panel (PDF or AI) takes over
 // the whole window. The backdrop fades in with a slight blur; the content
-// panel scales+fades in with the same premium spring the bottom-bar panels
-// use, so the two motion languages feel like one product. Exits are a hair
-// faster (~200ms) to feel snappy on close, and skip the heavy `filter: blur`
-// work for users who prefer reduced motion.
+// panel fades and reveals through a clip-path inset, so the two motion
+// languages feel like one product without resampling the panel's contents.
+// Exits are a hair faster (~200ms) to feel snappy on close, and skip the heavy
+// `filter: blur` work for users who prefer reduced motion.
 const FOCUS_EXIT_EASE: Easing = [0.4, 0, 1, 1]
 
 export const focusBackdropVariants: Variants = {
@@ -32,30 +24,29 @@ export const focusBackdropVariants: Variants = {
   }
 }
 
+/**
+ * No `scale`, no `filter: blur`: both force Chromium to rasterise the whole
+ * panel (PDF canvases included) at a fractional scale, so text and hairlines
+ * shimmer until the animation settles. A pixel-based `clip-path` inset plus
+ * opacity gives the same "expanding panel" read without touching the raster.
+ */
 export const focusContentVariants: Variants = {
   hidden: {
     opacity: 0,
-    scale: 0.96,
-    y: 8,
-    filter: 'blur(8px)',
+    clipPath: 'inset(1.5% 1.5% 1.5% 1.5% round 16px)',
     transition: { duration: DURATION.slow, ease: FOCUS_EXIT_EASE }
   },
   visible: {
     opacity: 1,
-    scale: 1,
-    y: 0,
-    filter: 'blur(0px)',
+    clipPath: 'inset(0% 0% 0% 0% round 16px)',
     transition: {
-      ...panelSpring,
-      opacity: { duration: DURATION.slower, ease: smoothEase },
-      filter: { duration: DURATION.slower, ease: smoothEase }
+      clipPath: { duration: DURATION.slower, ease: smoothEase },
+      opacity: { duration: DURATION.slower, ease: smoothEase }
     }
   },
   exit: {
     opacity: 0,
-    scale: 0.97,
-    y: 4,
-    filter: 'blur(4px)',
+    clipPath: 'inset(1% 1% 1% 1% round 16px)',
     transition: { duration: DURATION.slow, ease: FOCUS_EXIT_EASE }
   }
 }

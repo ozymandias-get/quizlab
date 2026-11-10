@@ -212,7 +212,7 @@ describe('usePdfSelectionMenu — positioning', () => {
     expect(result.current.menu).toBeNull()
   })
 
-  it('follows the live selection on scroll instead of drifting', () => {
+  it('follows the live selection on scroll instead of drifting', async () => {
     const scrolledRect = { top: 120, bottom: 140, left: 200, right: 420 }
     const span = document.createElement('span')
     container.appendChild(span)
@@ -236,8 +236,10 @@ describe('usePdfSelectionMenu — positioning', () => {
     act(() => {
       container.dispatchEvent(new Event('scroll'))
     })
-    act(() => {
-      for (const cb of frameCallbacks.splice(0)) cb(0)
+    // The menu fades while the page moves and re-anchors after a short idle
+    // window, so let that timer run before asserting the new position.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150))
     })
 
     const expected = computeSelectionMenuAnchor(scrolledRect, {
