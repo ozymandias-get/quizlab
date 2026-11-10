@@ -3,6 +3,10 @@
   "pdf_documents": "PDF Belgeleri",
   "pdf_load_error": "PDF yüklenirken hata oluştu",
   "pdf_pan_mode": "El — sayfayı sürükleyerek kaydır (gerekirse önce yakınlaştır)",
+  "pdf_pan_mode_active": "Kaydırma Modu Aktif",
+  "pdf_pan_mode_exit_hint": "Çıkmak için ESC",
+  "pdf_space_pan_active": "Geçici Kaydırma",
+  "pdf_space_pan_hint": "Metin seçimi için Boşluk'u bırak",
   "screenshot": "Ekran Görüntüsü",
   "search_recent": "Geçmişte ara",
   "search_recent_placeholder": "Ara...",
@@ -12,6 +16,7 @@
   "gdrive_pdf_desc": "PDF panelinden aynı paylaşılan Google oturumuyla Drive'a erişin.",
   "pdf_tools": "Araçlar",
   "pdf_more_tools": "Diğer araçlar",
+  "pdf_tab_closed": "\"{name}\" sekmesi kapatıldı",
   "pdf_selection_menu_label": "Seçim işlemleri",
   "pdf_add_to_draft": "Taslağa Ekle"
 }

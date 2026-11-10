@@ -359,8 +359,10 @@
    its runs. It is a *style* switch rather than a teardown — the DOM stays mounted,
    so leaving pan mode restores selection with no re-render and no reload. */
 
-.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer],
-.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer] :is(span, br) {
+.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active) [data-native-pdf-text-layer],
+.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active)
+  [data-native-pdf-text-layer]
+  :is(span, br) {
   -webkit-user-select: none;
   user-select: none;
   cursor: inherit;

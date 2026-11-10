@@ -614,7 +614,7 @@ describe('screenshotHandlers', () => {
 
   it('captures the whole page when sender is trusted and window exists', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
-    const capturePage = vi.fn().mockResolvedValue({ toDataURL: () => 'data:image/png;base64,page' })
+    const capturePage = vi.fn().mockResolvedValue({ toPNG: () => Buffer.from('page') })
     fromWebContents.mockReturnValue({ isDestroyed: () => false, webContents: { capturePage } })
     const { registerScreenshotHandlers } =
       await import('../../../features/screenshot/screenshotHandlers.js')
@@ -623,7 +623,7 @@ describe('screenshotHandlers', () => {
     const captureHandler = getHandler(APP_CONFIG.IPC_CHANNELS.CAPTURE_SCREEN)
     const result = await captureHandler?.({ sender: {} })
 
-    expect(result).toEqual({ ok: true, data: 'data:image/png;base64,page' })
+    expect(result).toEqual({ ok: true, data: Buffer.from('page') })
     expect(capturePage).toHaveBeenCalledWith(undefined)
   })
 
@@ -681,9 +681,7 @@ describe('screenshotHandlers', () => {
 
   it('captures a valid rect', async () => {
     requireTrustedIpcSender.mockReturnValue(true)
-    const capturePage = vi
-      .fn()
-      .mockResolvedValue({ toDataURL: () => 'data:image/png;base64,region' })
+    const capturePage = vi.fn().mockResolvedValue({ toPNG: () => Buffer.from('region') })
     fromWebContents.mockReturnValue({ isDestroyed: () => false, webContents: { capturePage } })
     const { registerScreenshotHandlers } =
       await import('../../../features/screenshot/screenshotHandlers.js')
@@ -693,7 +691,7 @@ describe('screenshotHandlers', () => {
     const rect = { x: 0, y: 0, width: 800, height: 600 }
     const result = await captureHandler?.({ sender: {} }, rect)
 
-    expect(result).toEqual({ ok: true, data: 'data:image/png;base64,region' })
+    expect(result).toEqual({ ok: true, data: Buffer.from('region') })
     expect(capturePage).toHaveBeenCalledWith(rect)
   })
 })

@@ -156,6 +156,37 @@ describe('AiSendComposer (compact draft)', () => {
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({ autoSend: false, noteText: 'explain' })
     )
+
+    // Başarılı gönderim taslağı kapatır…
+    expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
+    // …ve ek not sıfırlanır: yeniden açıldığında önceki talimat yeni taslağa sızmaz.
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    expect(screen.getByLabelText('ai_draft_note_label')).toHaveValue('')
+  })
+
+  it('sends on Enter and keeps Shift+Enter as a newline', async () => {
+    const onSend = vi.fn().mockResolvedValue({ success: true })
+    renderComposer(
+      <AiSendComposer
+        items={[textItem('t1', 'hello')]}
+        onClearAll={vi.fn()}
+        onSend={onSend}
+        autoSend={false}
+      />
+    )
+    fireEvent.click(screen.getByTestId('ai-draft-badge'))
+    const note = screen.getByLabelText('ai_draft_note_label')
+    fireEvent.change(note, { target: { value: 'explain' } })
+
+    // Shift+Enter yeni satır bırakır, göndermez.
+    fireEvent.keyDown(note, { key: 'Enter', shiftKey: true })
+    expect(onSend).not.toHaveBeenCalled()
+
+    await act(async () => {
+      fireEvent.keyDown(note, { key: 'Enter' })
+    })
+    expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ noteText: 'explain' }))
+    expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
   })
 
   it('keeps every item when the clear confirmation is cancelled', async () => {
@@ -398,6 +429,21 @@ describe('AiSendComposer (compact draft)', () => {
       // Staging is a success outcome, and success is silent. The prepared text
       // is sitting in the site's composer for the user to see.
       expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('keeps the note when the send fails', async () => {
+      const onSend = vi.fn().mockResolvedValue({ success: false, error: 'paste_failed' })
+      openPanel(onSend)
+      fireEvent.change(screen.getByLabelText('ai_draft_note_label'), {
+        target: { value: 'explain' }
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      // Hata: içerik hedefe gitmedi, not kullanıcının tek kopyası.
+      expect(screen.getByLabelText('ai_draft_note_label')).toHaveValue('explain')
     })
 
     it('shows no status at all after a delivered send', async () => {

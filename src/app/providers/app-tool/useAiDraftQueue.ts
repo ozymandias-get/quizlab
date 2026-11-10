@@ -1,4 +1,5 @@
 import { Logger, reportSuppressedError } from '@shared/lib/logger'
+import { useToastStore } from '@shared/stores/toastStore'
 
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react'
 
@@ -19,6 +20,15 @@ export const MAX_QUEUE_SIZE = 20
 
 /** Bu boyutun altındaki base64 önizlemesi eşzamanlı üretilir; üstü asenkron. */
 const SYNC_BLOB_BASE64_LIMIT = 2_000_000
+
+/** "Geri Al" bildiriminin görünür kaldığı süre. */
+export const DRAFT_UNDO_TOAST_MS = 5000
+/**
+ * Silinen öğenin blob kaynağı bildirimden **daha uzun** tutulur: bildirim
+ * üzerine gelindiğinde/fokus aldığında duraklıyor, yani 5. saniyede iptal etmek
+ * geç gelen bir "Geri Al" tıklamasıyla yarışırdı.
+ */
+export const DRAFT_SOURCE_RETENTION_MS = 30_000
 
 /** Kuyruk yalnızca `blob:` önizlemeleri üretir; `data:` URL'ler yeniden üretilmez. */
 function revokeBlobUrl(url: string | null | undefined) {
@@ -128,10 +138,41 @@ export function useAiDraftQueue(onReject?: () => void) {
   const onRejectRef = useRef(onReject)
   onRejectRef.current = onReject
 
+  /** Tek öğe silindiğinde kaynağı **geçici olarak** yaşatan zamanlayıcılar. */
+  const deferredRevokesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  const cancelDeferredRevoke = useCallback((url: string) => {
+    const pending = deferredRevokesRef.current
+    const timer = pending.get(url)
+    if (timer === undefined) return
+    clearTimeout(timer)
+    pending.delete(url)
+  }, [])
+
+  const scheduleDeferredRevoke = useCallback(
+    (url: string) => {
+      cancelDeferredRevoke(url)
+      const timer = setTimeout(() => {
+        deferredRevokesRef.current.delete(url)
+        revokeBlobUrl(url)
+      }, DRAFT_SOURCE_RETENTION_MS)
+      deferredRevokesRef.current.set(url, timer)
+    },
+    [cancelDeferredRevoke]
+  )
+
   useEffect(() => {
     // Unmount'ta kalan kaynakları iptal et. Kalan küme **temizleme anında**
-    // okunur: etki gövdesi mount'ta çalışır ve o an kuyruk daha boştur.
+    // okunur: etki gövdesi mount'ta çalışır ve o an kuyruk daha boştur. Bekleyen
+    // "geri al" kaynakları da artık geri alınamaz; onları da hemen bırak.
+    const pendingRevokes = deferredRevokesRef.current
     return () => {
+      for (const [url, timer] of pendingRevokes) {
+        clearTimeout(timer)
+        revokeBlobUrl(url)
+      }
+      pendingRevokes.clear()
+
       const remaining = itemsRef.current
       itemsRef.current = []
       for (const url of survivingBlobUrls(remaining)) revokeBlobUrl(url)
@@ -148,18 +189,27 @@ export function useAiDraftQueue(onReject?: () => void) {
    * - Kuyruktan ayrılan kaynaklar burada, çağrıdan **sonra** iptal edilir ve
    *   yalnızca artık hiçbir öğe tarafından kullanılmayanlar için.
    */
-  const commit = useCallback((next: AiDraftItem[]) => {
-    const previous = itemsRef.current
-    itemsRef.current = next
-    setQueue(next)
+  const commit = useCallback(
+    (next: AiDraftItem[], options?: { deferSourceRelease?: boolean }) => {
+      const previous = itemsRef.current
+      itemsRef.current = next
+      setQueue(next)
 
-    const survivors = survivingBlobUrls(next)
-    // Paylaşılan URL: bir öğe çıktı ama başka bir öğe onu hâlâ kullanıyorsa
-    // iptal edilmez. Referans sayısı burada "kalan küme boş mu" sorusudur.
-    for (const url of survivingBlobUrls(previous)) {
-      if (!survivors.has(url)) revokeBlobUrl(url)
-    }
-  }, [])
+      const survivors = survivingBlobUrls(next)
+      // Kuyrukta duran bir URL için bekleyen iptal varsa (geri alındı ya da aynı
+      // kaynak yeniden eklendi) iptal edilmemeli.
+      for (const url of survivors) cancelDeferredRevoke(url)
+
+      // Paylaşılan URL: bir öğe çıktı ama başka bir öğe onu hâlâ kullanıyorsa
+      // iptal edilmez. Referans sayısı burada "kalan küme boş mu" sorusudur.
+      for (const url of survivingBlobUrls(previous)) {
+        if (survivors.has(url)) continue
+        if (options?.deferSourceRelease) scheduleDeferredRevoke(url)
+        else revokeBlobUrl(url)
+      }
+    },
+    [cancelDeferredRevoke, scheduleDeferredRevoke]
+  )
 
   /**
    * Gönderim orkestrasyonu bu setter'ı doğrudan çağırır. Aynı yazma,
@@ -334,11 +384,41 @@ export function useAiDraftQueue(onReject?: () => void) {
   const removePendingAiItem = useCallback(
     (id: string) => {
       const current = itemsRef.current
+      const index = current.findIndex((draft) => draft.id === id)
       // Geçersiz ya da ikinci kez kaldırılan kimlik: kuyruk zaten değişmedi,
       // dolayısıyla hiçbir sayaç da değişmemeli (ayrı sayaç tutulmadığı için
       // "kaydırma" imkânı da ortadan kalkar).
-      if (!current.some((draft) => draft.id === id)) return
-      commit(current.filter((draft) => draft.id !== id))
+      const removed = index === -1 ? undefined : current[index]
+      if (!removed) return
+
+      // Tek öğe silme onay istemez (tek tıkla geri alınabilir olması yeterli);
+      // ama geri alma penceresi kapanınca kaynak da kapanmalı.
+      const toastId = useToastStore.getState().addToast({
+        type: 'info',
+        message: 'ai_draft_item_removed',
+        duration: DRAFT_UNDO_TOAST_MS,
+        actionLabel: 'undo',
+        onAction: () => {
+          const now = itemsRef.current
+          if (now.some((draft) => draft.id === removed.id)) return
+          // Kapasite sözleşmesi geri almada da geçerli: sessizce 21. öğe eklemek
+          // yerine kullanıcıya mevcut "kuyruk dolu" uyarısı gösterilir.
+          if (now.length >= MAX_QUEUE_SIZE) {
+            onRejectRef.current?.()
+            return
+          }
+          const next = [...now]
+          next.splice(Math.min(Math.max(index, 0), next.length), 0, removed)
+          commit(next)
+        }
+      })
+
+      commit(
+        current.filter((draft) => draft.id !== id),
+        // Bildirim gösterilemediyse (tür kapalı) geri alma yolu yok: kaynağı
+        // boşuna 30 saniye tutma.
+        { deferSourceRelease: Boolean(toastId) }
+      )
     },
     [commit]
   )

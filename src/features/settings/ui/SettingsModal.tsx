@@ -1,14 +1,16 @@
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { Separator } from '@app/components/ui/separator'
-import { useDialogBehavior } from '@shared/hooks'
+import { useConfirmDialog, useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 import { Button } from '@shared/ui/components/primitives'
 import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 
 import { motion } from 'motion/react'
-import { memo, useRef } from 'react'
+import { memo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ResizableHandle from './modal/ResizableHandle'
+import { useHasDirtySettings } from './modal/settingsDirtyGuard'
 import SettingsModalContent from './modal/SettingsModalContent'
 import SettingsModalSidebar from './modal/SettingsModalSidebar'
 import { useResizableColumns } from './modal/useResizableColumns'
@@ -35,7 +37,35 @@ const SettingsModal = memo(function SettingsModal({
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
-  useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef: closeButtonRef })
+  const hasUnsavedChanges = useHasDirtySettings()
+  const { confirm, props: confirmProps } = useConfirmDialog()
+
+  /**
+   * The single close path — the header button, Escape and any tab that asks the
+   * modal to close (the selector flow does) all end here. Discarding is the
+   * only destructive possibility, so it is the only one that asks. Form
+   * registrations are cleaned up by their own unmount effects.
+   */
+  const handleRequestClose = useCallback(async () => {
+    if (hasUnsavedChanges) {
+      const discard = await confirm({
+        title: t('settings_unsaved_changes_title'),
+        description: t('settings_unsaved_changes_description'),
+        confirmLabel: t('settings_discard_changes'),
+        cancelLabel: t('settings_keep_editing'),
+        variant: 'destructive'
+      })
+      if (!discard) return
+    }
+    onClose()
+  }, [confirm, hasUnsavedChanges, onClose, t])
+
+  useDialogBehavior({
+    isOpen,
+    onClose: handleRequestClose,
+    dialogRef,
+    initialFocusRef: closeButtonRef
+  })
 
   const { sidebarWidth, handleSidebarResize, containerRef, isCompact } = useResizableColumns()
 
@@ -78,7 +108,7 @@ const SettingsModal = memo(function SettingsModal({
             ref={closeButtonRef}
             variant="ghost"
             size="icon"
-            onClick={onClose}
+            onClick={handleRequestClose}
             aria-label={t('tab_close')}
             className="text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg"
           >
@@ -110,11 +140,13 @@ const SettingsModal = memo(function SettingsModal({
           <SettingsModalContent
             activeTab={activeTab}
             activeTabMeta={activeTabMeta}
-            onClose={onClose}
+            onClose={handleRequestClose}
             setActiveTab={setActiveTab}
           />
         </div>
       </motion.div>
+
+      <ConfirmDialog {...confirmProps} />
     </div>
   )
 })

@@ -34,9 +34,7 @@ const SelectorActionBar = memo(function SelectorActionBar({
         type="button"
         variant="outline"
         size="sm"
-        disabled={
-          !hasSelectors || !canTestOnCurrentTab || isTesting || validation.status === 'loading'
-        }
+        disabled={!hasSelectors || isTesting || validation.status === 'loading'}
         onClick={onTestSelectors}
         className="gap-2 rounded-lg"
       >
@@ -45,7 +43,9 @@ const SelectorActionBar = memo(function SelectorActionBar({
         ) : (
           <RefreshIcon className="h-3.5 w-3.5" />
         )}
-        <span className="text-ql-11 font-semibold">{t('selectors_test_current_tab')}</span>
+        <span className="text-ql-11 font-semibold">
+          {t(canTestOnCurrentTab ? 'selectors_test_current_tab' : 'selectors_open_tab_and_test')}
+        </span>
       </Button>
 
       {selectorEntry && (

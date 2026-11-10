@@ -1,3 +1,6 @@
+import { cn } from '@shared/lib/uiUtils'
+
+import { Hand } from 'lucide-react'
 import { memo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -30,6 +33,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
     searchLayerRef,
     nativeViewer,
     isPanMode,
+    isSpacePanActive,
     isPanDragging,
     tt,
     contextMenu,
@@ -93,9 +97,12 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={containerRef}
-          className={`pdf-viewer-container relative flex h-full min-h-0 flex-1 flex-col overflow-hidden scrollbar-gutter-stable${
-            isPanMode ? 'pdf-pan-mode-active' : ''
-          }${isPanDragging ? 'pdf-pan-mode-dragging' : ''}`}
+          className={cn(
+            'pdf-viewer-container relative flex h-full min-h-0 flex-1 scrollbar-gutter-stable flex-col overflow-hidden',
+            isPanMode && 'pdf-pan-mode-active',
+            isSpacePanActive && 'pdf-space-pan-active',
+            isPanDragging && 'pdf-pan-mode-dragging'
+          )}
         >
           <NativePdfViewer
             controller={nativeViewer}
@@ -106,6 +113,32 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
             t={props.t}
             tt={tt}
           />
+
+          {/* The hand tool is invisible in the page itself: the pointer is the
+              only thing that changes, and it changes too late (after the drag
+              starts). This badge names the active mode in place, next to the
+              page, and says how to leave it. Space gets its own wording because
+              releasing the key, not Escape, is the way back to text selection.
+
+              Positioning is inline on purpose: `_pdf-viewer.css` gives every
+              direct child of `.pdf-viewer-container` `position: relative` to
+              make the native page layers stack, and that unlayered rule beats
+              a Tailwind `absolute` utility on specificity. */}
+          {(isPanMode || isSpacePanActive) && (
+            <div
+              role="status"
+              data-testid="pdf-pan-mode-badge"
+              data-pan-mode={isPanMode ? 'persistent' : 'temporary'}
+              style={{ position: 'absolute', right: '0.75rem', bottom: '0.75rem', zIndex: 6 }}
+              className="border-border/60 bg-background/85 text-foreground text-ql-11 shadow-ambient-sm pointer-events-none flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium backdrop-blur-md"
+            >
+              <Hand className="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{tt(isPanMode ? 'pdf_pan_mode_active' : 'pdf_space_pan_active')}</span>
+              <span className="text-muted-foreground">
+                ({tt(isPanMode ? 'pdf_pan_mode_exit_hint' : 'pdf_space_pan_hint')})
+              </span>
+            </div>
+          )}
 
           {contextMenu && (
             <ContextMenu
@@ -151,6 +184,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         onJumpToPage={nativeViewer.jumpToPage}
         highlight={nativeViewer.highlight}
         clearHighlights={nativeViewer.clearHighlights}
+        matchCount={nativeViewer.matchCount}
         ZoomIn={nativeViewer.zoomControls.ZoomIn}
         ZoomOut={nativeViewer.zoomControls.ZoomOut}
         CurrentScale={nativeViewer.zoomControls.CurrentScale}

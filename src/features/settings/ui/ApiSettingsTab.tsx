@@ -12,12 +12,22 @@ import { AiIcon } from '@shared/ui/components/icons/AiIcon'
 import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { Loader2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ApiProviderList from './apiSettings/ApiProviderList'
 import { DEFAULT_PROVIDER_TEMPLATES } from './apiSettings/constants'
 import PromptSettingsSection from './apiSettings/PromptSettingsSection'
+import { useSettingsDirty } from './modal/settingsDirtyGuard'
+
+const EMPTY_API_CONFIG: ApiConfig = {
+  providers: [],
+  generalPrompt: '',
+  memoryPrompt: '',
+  characterPrompt: '',
+  selectedProviderId: '',
+  selectedModel: ''
+}
 
 export default memo(function ApiSettingsTab() {
   const { t } = useTranslation()
@@ -25,14 +35,7 @@ export default memo(function ApiSettingsTab() {
   // local draft which is hydrated whenever the query delivers fresh data.
   const { data: savedConfig } = useApiChatConfigQuery()
   const { mutateAsync: saveConfig, isPending: saving } = useSaveApiChatConfigMutation()
-  const [config, setConfig] = useState<ApiConfig>({
-    providers: [],
-    generalPrompt: '',
-    memoryPrompt: '',
-    characterPrompt: '',
-    selectedProviderId: '',
-    selectedModel: ''
-  })
+  const [config, setConfig] = useState<ApiConfig>(() => ({ ...EMPTY_API_CONFIG }))
   const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({})
   const [testResults, setTestResults] = useState<Record<string, string>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
@@ -45,6 +48,19 @@ export default memo(function ApiSettingsTab() {
   // memo).
   const configRef = useRef(config)
   configRef.current = config
+
+  // The provider cards and this tab's prompt fields all edit one local draft.
+  // Comparing the draft with the last persisted snapshot is the only honest
+  // "dirty" answer; a per-field flag would miss reverted edits and removals.
+  const savedBaseline = useMemo(
+    () => normalizeApiConfig(savedConfig ?? EMPTY_API_CONFIG),
+    [savedConfig]
+  )
+  const isDirty = useMemo(
+    () => JSON.stringify(config) !== JSON.stringify(savedBaseline),
+    [config, savedBaseline]
+  )
+  useSettingsDirty('api-provider-settings', isDirty)
 
   useEffect(() => {
     if (!savedConfig) return

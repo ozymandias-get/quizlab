@@ -1,7 +1,8 @@
 /**
- * The destructive-actions section: clear, deep clean, the recommendation-driven
- * smart clean and a manual refresh — plus the read-out of when the cache was
- * last cleaned.
+ * The cleanup-actions section: the safe clear, the session-destroying deep
+ * clean (always confirmed before it runs), the recommendation-driven smart
+ * clean and a manual refresh — plus the read-out of when the cache was last
+ * cleaned.
  */
 import { formatBytes } from '@shared/lib/formatUtils'
 import { Button, SettingsSection } from '@shared/ui/components/primitives'
@@ -63,7 +64,7 @@ export const CacheActionsSection = memo(function CacheActionsSection({
           type="button"
           onClick={onClear}
           disabled={isClearing}
-          variant={isClearSuccess ? 'secondary' : 'destructive'}
+          variant={isClearSuccess ? 'secondary' : 'default'}
           size="sm"
           className="gap-1.5"
         >
@@ -89,7 +90,7 @@ export const CacheActionsSection = memo(function CacheActionsSection({
           type="button"
           onClick={onDeepClean}
           disabled={isDeepCleaning}
-          variant="outline"
+          variant="destructive-outline"
           size="sm"
           className="gap-1.5"
         >
@@ -130,6 +131,8 @@ export const CacheActionsSection = memo(function CacheActionsSection({
           <span className="text-ql-12">{t('refresh')}</span>
         </Button>
       </div>
+
+      <p className="text-ql-11 text-muted-foreground">{t('deep_clean_hint')}</p>
 
       {lastCleanup && (
         <div className="space-y-1">

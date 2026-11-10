@@ -55,4 +55,54 @@ describe('PdfSearchBar', () => {
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(onClear).toHaveBeenCalled()
   })
+
+  it('always shows the match counter, including 0/0', () => {
+    const { rerender } = renderWithTooltip(
+      <PdfSearchBar
+        isOpen
+        onToggle={vi.fn()}
+        keyword="cardiology"
+        onKeywordChange={vi.fn()}
+        onSearch={vi.fn()}
+        onClear={vi.fn()}
+        matchCount={3}
+      />
+    )
+
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('1/3')
+    expect(screen.getByDisplayValue('cardiology')).not.toHaveAttribute('aria-invalid', 'true')
+
+    rerender(
+      <TooltipProvider>
+        <PdfSearchBar
+          isOpen
+          onToggle={vi.fn()}
+          keyword="not-in-this-document"
+          onKeywordChange={vi.fn()}
+          onSearch={vi.fn()}
+          onClear={vi.fn()}
+          matchCount={0}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0/0')
+    expect(screen.getByDisplayValue('not-in-this-document')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('shows 0/0 without marking an empty query invalid', () => {
+    renderWithTooltip(
+      <PdfSearchBar
+        isOpen
+        onToggle={vi.fn()}
+        keyword="   "
+        onKeywordChange={vi.fn()}
+        onSearch={vi.fn()}
+        onClear={vi.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0/0')
+    expect(screen.getByRole('textbox')).not.toHaveAttribute('aria-invalid', 'true')
+  })
 })

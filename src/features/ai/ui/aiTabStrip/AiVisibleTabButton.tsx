@@ -20,6 +20,9 @@ import {
   useRef
 } from 'react'
 
+/** A double-click within this window of activating a tab only selects it. */
+const DOUBLE_CLICK_RENAME_GUARD_MS = 800
+
 interface AiVisibleTabButtonProps {
   tab: Tab
   label: string
@@ -64,6 +67,12 @@ function AiVisibleTabButton({
   const tabId = tab.id
   const labelWidthRef = useRef<number | null>(null)
   const spanRef = useRef<HTMLSpanElement | null>(null)
+  /**
+   * Time the tab was last activated by a click. A rapid second click on an
+   * inactive tab is an activation gesture, not a rename: by the time
+   * `dblclick` fires the component may already have re-rendered as active.
+   */
+  const activatedAtRef = useRef(0)
 
   const labelRef = useCallback((el: HTMLSpanElement | null) => {
     if (el) {
@@ -72,14 +81,24 @@ function AiVisibleTabButton({
     }
   }, [])
 
-  const handleClick = useCallback(() => onSelect(tabId), [onSelect, tabId])
+  const handleClick = useCallback(() => {
+    if (!isActive) activatedAtRef.current = Date.now()
+    onSelect(tabId)
+  }, [isActive, onSelect, tabId])
+
   const handleDoubleClick = useCallback(
     (event: ReactMouseEvent) => {
       event.preventDefault()
       event.stopPropagation()
+      if (isEditing) return
+
+      const activatedAt = activatedAtRef.current
+      activatedAtRef.current = 0
+      if (activatedAt !== 0 && Date.now() - activatedAt < DOUBLE_CLICK_RENAME_GUARD_MS) return
+      if (!isActive) return
       onBeginRename(tabId)
     },
-    [onBeginRename, tabId]
+    [isActive, isEditing, onBeginRename, tabId]
   )
   const handleContextMenu = useCallback(
     (event: ReactMouseEvent) => onContextMenu(event, tabId),

@@ -36,12 +36,26 @@
   background: oklch(0.5 0.01 60 / 0.6);
 }
 
-.pdf-viewer-container.pdf-pan-mode-active {
-  cursor: grab;
+/* ── Pan mode owns the pointer ────────────────────────────────────────
+ * The hand tool has to be readable before the first drag: every descendant of
+ * the page surface gets the grab hand, including PDF.js text runs (which set
+ * `cursor: text`) and annotation links (which set `cursor: pointer`). Without
+ * the forced cursor those layers win and the mode looks identical to text
+ * selection until the user tries to select something.
+ *
+ * `pdf-space-pan-active` is the same surface for the temporary Space-held pan;
+ * `pdf-pan-mode-dragging` is separate because the hand closes while dragging.
+ * These rules are unlayered and load with the shared sheet, so `!important` is
+ * what makes them beat the per-layer cursor declarations that load later. */
+
+.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active),
+.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active) * {
+  cursor: grab !important;
 }
 
-.pdf-viewer-container.pdf-pan-mode-dragging {
-  cursor: grabbing;
+.pdf-viewer-container.pdf-pan-mode-dragging,
+.pdf-viewer-container.pdf-pan-mode-dragging * {
+  cursor: grabbing !important;
 }
 
 /* ── Search highlight deferred fade-in ────────────────────────────────

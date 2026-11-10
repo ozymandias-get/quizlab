@@ -172,6 +172,8 @@ export interface NativePdfController {
   highlight: NativePdfSearchHandle['highlight']
   /** Drop the search query and empty the overlay. */
   clearHighlights: NativePdfSearchHandle['clearHighlights']
+  /** Matches painted on the rendered page; the search bar's counter reads it. */
+  matchCount: number
   /**
    * A genuine search failure. `null` while searching and on teardown.
    *
@@ -348,7 +350,7 @@ export function useNativePdfController({
   // Declared last, and that is load-bearing: the search measures the text layer's runs,
   // so on a page change or a zoom the text layer's cleanup — which empties its container
   // synchronously — has to run before this effect decides what to draw.
-  const { highlight, clearHighlights, searchError } = useNativePdfSearch({
+  const { highlight, clearHighlights, matchCount, searchError } = useNativePdfSearch({
     enabled,
     searchLayerRef,
     documentKey,
@@ -372,6 +374,7 @@ export function useNativePdfController({
       annotationLayerError,
       highlight,
       clearHighlights,
+      matchCount,
       searchError,
       goToPreviousPage,
       goToNextPage,
@@ -394,6 +397,7 @@ export function useNativePdfController({
       annotationLayerError,
       highlight,
       clearHighlights,
+      matchCount,
       searchError,
       goToPreviousPage,
       goToNextPage,

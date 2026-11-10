@@ -76,7 +76,7 @@ function DraftDockBar({
   return (
     <div
       data-testid="ai-draft-dock-bar"
-      className="border-border/50 bg-popover/88 hover:border-border/75 shadow-ambient-md hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border p-1 backdrop-blur-2xl transition-all"
+      className="border-border/50 bg-popover/88 dark:bg-background/92 hover:border-border/75 shadow-ambient-md hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border p-1 backdrop-blur-2xl transition-all"
     >
       <button
         type="button"

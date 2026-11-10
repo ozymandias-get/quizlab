@@ -3,6 +3,7 @@
   "sending_to_ai": "Sending to AI...",
   "ai_send_panel_title": "AI Send Draft",
   "ai_send_remove_item": "Remove item",
+  "ai_draft_item_removed": "Draft item removed",
   "ai_send_clear_all": "Clear all",
   "ai_send_expand": "Expand details",
   "ai_send_collapse": "Collapse details",

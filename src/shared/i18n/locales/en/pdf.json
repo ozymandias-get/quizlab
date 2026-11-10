@@ -3,6 +3,10 @@
   "pdf_documents": "PDF Documents",
   "pdf_load_error": "Error loading PDF",
   "pdf_pan_mode": "Pan — drag to move the page (zoom in first if needed)",
+  "pdf_pan_mode_active": "Pan mode active",
+  "pdf_pan_mode_exit_hint": "Press ESC to exit",
+  "pdf_space_pan_active": "Temporary pan",
+  "pdf_space_pan_hint": "Release Space to select text",
   "screenshot": "Screenshot",
   "search_recent": "Search history",
   "search_recent_placeholder": "Search...",
@@ -12,6 +16,7 @@
   "gdrive_pdf_desc": "Access Drive with the same shared Google session from the PDF panel.",
   "pdf_tools": "Tools",
   "pdf_more_tools": "More tools",
+  "pdf_tab_closed": "\"{name}\" tab closed",
   "pdf_selection_menu_label": "Selection actions",
   "pdf_add_to_draft": "Add to Draft"
 }

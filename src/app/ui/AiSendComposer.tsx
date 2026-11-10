@@ -132,6 +132,14 @@ function AiSendComposer({
     setStoredExpanded: (v) => {
       if (v === false) return
       setStoredOpen(v)
+    },
+    // Gönderim başarıyla çıktığında ek not temizlenir ve taslak kapanır; seçili
+    // hızlı işlem bir tercih olarak kalır. Hata/belirsizlikte not ve panel
+    // korunur (kullanıcının tek kopyası).
+    onSendSucceeded: () => {
+      clearNote()
+      setIsOpen(false)
+      setStoredOpen(false)
     }
   })
 
@@ -200,14 +208,16 @@ function AiSendComposer({
 
   // Gönderim anında tek bir deterministik talimat metni kurulur:
   // hızlı işlem talimatı + kullanıcının ek notu. Kayıtlı prompt burada değil —
-  // pipeline onu kendisi ekler.
+  // pipeline onu kendisi ekler. İçerik yokken (yalnızca boş not) gönderilecek
+  // bir şey yoktur; düğme de bu durumda zaten kapalıdır.
   const handleSubmit = useCallback(() => {
+    if (totalItems === 0) return
     const instruction = composeDraftInstruction({
       quickActionText: quickActionValue,
       noteText
     })
     void handleSend(instruction !== undefined ? { noteText: instruction } : undefined)
-  }, [handleSend, noteText, quickActionValue])
+  }, [handleSend, noteText, quickActionValue, totalItems])
 
   const isSending = sendFeedback === 'sending' || isSubmitting
 
@@ -277,7 +287,7 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="border-border/55 bg-popover/92 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border backdrop-blur-2xl"
+            className="border-border/55 bg-popover/92 dark:bg-background/95 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border backdrop-blur-2xl"
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir

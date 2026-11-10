@@ -14,12 +14,17 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
 
+/** How long an armed picker waits for the target tab to produce content. */
+const PICKER_ARM_TIMEOUT_MS = 15_000
+
 /**
  * Hook to manage the automatic arming and injection of the element picker into a managed view.
  * aiContentPickerReadiness is dynamically imported on first use to keep it out of the main chunk.
  */
 export function useElementPickerLifecycle(
-  getContentController: () => AiContentRef | null | undefined
+  getContentController: () => AiContentRef | null | undefined,
+  activeTabId?: string,
+  hasActiveContent = true
 ) {
   const { showError } = useToastActions()
 
@@ -32,6 +37,7 @@ export function useElementPickerLifecycle(
   const [armVersion, setArmVersion] = useState(0)
   const pendingPickerStartRef = useRef(false)
   const requestSeqRef = useRef(0)
+  const armTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pickerModRef = useRef<{
     oncePickerReady: (
       controller: AiContentController,
@@ -51,27 +57,52 @@ export function useElementPickerLifecycle(
     return pickerModRef.current
   }, [])
 
-  const clearPendingRequest = useCallback((requestId: number) => {
-    if (requestSeqRef.current === requestId) {
-      pendingPickerStartRef.current = false
-    }
+  const clearArmTimeout = useCallback(() => {
+    if (armTimeoutRef.current === null) return
+    clearTimeout(armTimeoutRef.current)
+    armTimeoutRef.current = null
   }, [])
+
+  const clearPendingRequest = useCallback(
+    (requestId: number) => {
+      if (requestSeqRef.current === requestId) {
+        pendingPickerStartRef.current = false
+        clearArmTimeout()
+      }
+    },
+    [clearArmTimeout]
+  )
 
   const isCurrentPendingRequest = useCallback((requestId: number) => {
     return requestSeqRef.current === requestId && pendingPickerStartRef.current
   }, [])
 
+  /**
+   * Arms the picker without requiring a controller at call time.
+   *
+   * The settings "re-pick" flow opens a tab and arms in the same tick, before
+   * the new tab has a controller. The old early return then dropped the request
+   * silently. The effect below waits for the target tab (its `activeTabId` and
+   * `hasActiveContent`) and starts once content exists; a timeout turns a tab
+   * that never opens into a visible error instead of a lost click.
+   */
   const startPickerWhenReady = useCallback(async () => {
-    if (!getContentController()) {
-      Logger.info('[PickerLifecycle] startPickerWhenReady: no managed view')
-      pendingPickerStartRef.current = false
-      return
-    }
     requestSeqRef.current += 1
     pendingPickerStartRef.current = true
     setArmVersion((v) => v + 1)
     Logger.info(`[PickerLifecycle] startPickerWhenReady: armed, requestId=${requestSeqRef.current}`)
-  }, [getContentController])
+
+    clearArmTimeout()
+    armTimeoutRef.current = setTimeout(() => {
+      armTimeoutRef.current = null
+      if (!pendingPickerStartRef.current) return
+      pendingPickerStartRef.current = false
+      Logger.warn('[ElementPickerLifecycle] timed out waiting for tab content')
+      showError('picker_webview_not_found')
+    }, PICKER_ARM_TIMEOUT_MS)
+  }, [clearArmTimeout, showError])
+
+  useEffect(() => () => clearArmTimeout(), [clearArmTimeout])
 
   useEffect(() => {
     if (!pendingPickerStartRef.current) return
@@ -151,8 +182,10 @@ export function useElementPickerLifecycle(
       controller.abort()
     }
   }, [
+    activeTabId,
     armVersion,
     clearPendingRequest,
+    hasActiveContent,
     isCurrentPendingRequest,
     getContentController,
     loadReadinessModule,

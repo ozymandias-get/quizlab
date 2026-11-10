@@ -75,6 +75,16 @@
   box-shadow: var(--shadow-ambient-sm);
 }
 
+/* Dark mode: the dock is chrome, not content. On the near-black workspace the
+   card token and the page showing through its translucent surface read as a
+   blue-tinted slab, so the dark surface uses the workspace background and a
+   higher opacity floor. The bar-opacity setting still shapes the glass — it
+   just never drops the rail back into the tinted range. */
+
+.dark .dock-surface {
+  background-color: oklch(var(--background) / calc(0.7 + (var(--bar-opacity-factor, 0.7) * 0.28)));
+}
+
 /* Handlebar pill — minimal at rest so it doesn't clutter the center column,
    surfacing clearly when the drag track is hovered or focused. */
 

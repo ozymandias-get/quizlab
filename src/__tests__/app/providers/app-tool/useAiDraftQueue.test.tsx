@@ -1,5 +1,11 @@
-import { MAX_QUEUE_SIZE, useAiDraftQueue } from '@app/providers/app-tool/useAiDraftQueue'
+import {
+  DRAFT_SOURCE_RETENTION_MS,
+  DRAFT_UNDO_TOAST_MS,
+  MAX_QUEUE_SIZE,
+  useAiDraftQueue
+} from '@app/providers/app-tool/useAiDraftQueue'
 import type { AiDraftItem } from '@app/providers/ai/types'
+import { useToastStore } from '@shared/stores/toastStore'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,6 +21,7 @@ describe('useAiDraftQueue', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    useToastStore.getState().clearAll()
     vi.stubGlobal(
       'URL',
       Object.assign(OriginalUrl, {
@@ -114,24 +121,36 @@ describe('useAiDraftQueue', () => {
       expect(blobOf(second)).toBe('blob:shared')
     })
 
-    it('releases the source only after the last item using it is gone', () => {
-      const { result } = renderHook(() => useAiDraftQueue())
+    it('releases the source after the last item is gone and the undo window passed', () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = renderHook(() => useAiDraftQueue())
 
-      act(() => {
-        result.current.queueImageForAi('blob:shared')
-        result.current.queueImageForAi('blob:shared')
-      })
-      const [first, second] = result.current.pendingAiItems
+        act(() => {
+          result.current.queueImageForAi('blob:shared')
+          result.current.queueImageForAi('blob:shared')
+        })
+        const [first, second] = result.current.pendingAiItems
 
-      act(() => {
-        result.current.removePendingAiItem(first.id)
-      })
-      act(() => {
-        result.current.removePendingAiItem(second.id)
-      })
+        act(() => {
+          result.current.removePendingAiItem(first.id)
+        })
+        act(() => {
+          result.current.removePendingAiItem(second.id)
+        })
 
-      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:shared')
-      expect(mockRevokeObjectURL).toHaveBeenCalledTimes(1)
+        // Undo is still possible: the source is held, not revoked.
+        expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:shared')
+
+        act(() => {
+          vi.advanceTimersByTime(DRAFT_SOURCE_RETENTION_MS)
+        })
+
+        expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:shared')
+        expect(mockRevokeObjectURL).toHaveBeenCalledTimes(1)
+      } finally {
+        vi.useRealTimers()
+      }
     })
 
     it('revokes each distinct source exactly once on clear', () => {
@@ -165,6 +184,82 @@ describe('useAiDraftQueue', () => {
 
       const revoked = mockRevokeObjectURL.mock.calls.map((c) => c[0])
       expect(revoked.sort()).toEqual(['blob:a', 'blob:b'])
+    })
+  })
+
+  /**
+   * Tek öğe silme onay istemez; yanlış tıklamanın telafisi geri alma
+   * bildirimidir. Bildirim görünmezse (bildirim türü kapalı) öğe yine gider,
+   * ama kaynak 30 saniye boyunca boşuna tutulmaz.
+   */
+  describe('single-item undo', () => {
+    it('offers an undo toast and puts the removed item back in its place', () => {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueTextForAi('first')
+        result.current.queueTextForAi('second')
+        result.current.queueTextForAi('third')
+      })
+      const second = result.current.pendingAiItems[1]
+
+      act(() => {
+        result.current.removePendingAiItem(second!.id)
+      })
+      expect(result.current.pendingAiItems.map(textOf)).toEqual(['first', 'third'])
+
+      const toast = useToastStore
+        .getState()
+        .toasts.find((entry) => entry.message === 'ai_draft_item_removed')
+      expect(toast?.actionLabel).toBe('undo')
+      expect(toast?.duration).toBe(DRAFT_UNDO_TOAST_MS)
+
+      act(() => {
+        toast?.onAction?.()
+      })
+
+      // Original position and id, not an append.
+      expect(result.current.pendingAiItems.map(textOf)).toEqual(['first', 'second', 'third'])
+      expect(result.current.pendingAiItems[1]?.id).toBe(second!.id)
+
+      // A second activation cannot duplicate the item.
+      act(() => {
+        toast?.onAction?.()
+      })
+      expect(result.current.pendingAiItems).toHaveLength(3)
+    })
+
+    it('keeps an image source alive for the whole undo window', () => {
+      vi.useFakeTimers()
+      try {
+        const { result } = renderHook(() => useAiDraftQueue())
+
+        act(() => {
+          result.current.queueImageForAi('blob:preview')
+        })
+        const item = result.current.pendingAiItems[0]
+
+        act(() => {
+          result.current.removePendingAiItem(item!.id)
+        })
+        expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:preview')
+
+        const toast = useToastStore
+          .getState()
+          .toasts.find((entry) => entry.message === 'ai_draft_item_removed')
+        act(() => {
+          toast?.onAction?.()
+        })
+
+        expect(blobOf(result.current.pendingAiItems[0]!)).toBe('blob:preview')
+
+        act(() => {
+          vi.advanceTimersByTime(DRAFT_SOURCE_RETENTION_MS)
+        })
+        expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:preview')
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 

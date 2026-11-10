@@ -153,6 +153,7 @@ async function mountWithGeometry(options: HarnessProps = {}) {
     get controller(): NativePdfController {
       return mounted.controller
     },
+    matchCount: () => mounted.controller.matchCount,
     searchError: () => mounted.controller.searchError
   }
 }
@@ -236,12 +237,13 @@ describe('native search overlay', () => {
         textItems: { 1: ['lupus, and more lupus, and lupus again'] }
       })
     )
-    const { view, controller, geometry } = await mountWithGeometry()
+    const { view, controller, geometry, matchCount } = await mountWithGeometry()
 
     runSearch(controller, 'lupus')
 
     const highlights = highlightsIn(searchLayerOf(view.container))
     expect(highlights).toHaveLength(3)
+    expect(matchCount()).toBe(3)
     expect(highlights.map((highlight) => highlight.dataset.nativePdfSearchMatch)).toEqual([
       '0',
       '1',
@@ -273,11 +275,12 @@ describe('native search overlay', () => {
 
   it('leaves the overlay empty when nothing matches, without reporting an error', async () => {
     serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus'] } }))
-    const { view, controller, geometry, searchError } = await mountWithGeometry()
+    const { view, controller, geometry, matchCount, searchError } = await mountWithGeometry()
 
     runSearch(controller, 'sjogren')
 
     expect(highlightsIn(searchLayerOf(view.container))).toHaveLength(0)
+    expect(matchCount()).toBe(0)
     expect(searchError()).toBe(null)
     expect(view.container.querySelector('[data-native-pdf-error]')).toBe(null)
     geometry.restore()
@@ -331,13 +334,14 @@ describe('native search overlay', () => {
 describe('native search invalidation', () => {
   it('empties the overlay on clear, without touching the other layers', async () => {
     serve(createFakeDocument({ numPages: 4, textItems: { 1: ['lupus'] } }))
-    const { view, controller, geometry } = await mountWithGeometry()
+    const { view, controller, geometry, matchCount } = await mountWithGeometry()
 
     runSearch(controller, 'lupus')
     expect(highlightsIn(searchLayerOf(view.container))).toHaveLength(1)
 
     runClear(controller)
 
+    expect(matchCount()).toBe(0)
     expect(highlightsIn(searchLayerOf(view.container))).toHaveLength(0)
     // The canvas, the text layer and the annotation layer are not search's to remove.
     expect(view.container.querySelector('[data-native-pdf-canvas]')).not.toBe(null)

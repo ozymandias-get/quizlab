@@ -57,6 +57,11 @@ interface PdfTabActions {
   openPdfInTab: (file: PdfFile) => PdfTab
   setActivePdfTab: (tabId: string) => void
   closePdfTab: (tabId: string) => void
+  /**
+   * Puts a closed tab back where it was. `activate` restores the focus the tab
+   * had before it was closed; background tabs stay in the background.
+   */
+  restorePdfTab: (tab: PdfTab, options?: { index?: number; activate?: boolean }) => void
   addEmptyPdfTab: () => void
   goToPdfHome: () => void
   openGoogleDriveTab: () => void

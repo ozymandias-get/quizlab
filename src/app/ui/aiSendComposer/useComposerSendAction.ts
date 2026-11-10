@@ -12,6 +12,12 @@ interface UseComposerSendActionOptions {
   effectiveAutoSend: boolean
   setIsExpanded: (value: boolean | ((prev: boolean) => boolean)) => void
   setStoredExpanded: (value: boolean) => void
+  /**
+   * A real success — delivered or staged — and nothing else. Failures,
+   * uncertainty and a concurrent-send rejection keep the draft note, because it
+   * is still the user's only copy of what they asked for.
+   */
+  onSendSucceeded?: () => void
 }
 
 /** Sonuç bildiriminin görünür kalma süreleri. Yalnızca hata kalıcıdır. */
@@ -65,7 +71,8 @@ export function useComposerSendAction({
   noteText,
   effectiveAutoSend,
   setIsExpanded,
-  setStoredExpanded
+  setStoredExpanded,
+  onSendSucceeded
 }: UseComposerSendActionOptions) {
   const { t } = useTranslation()
   const [sendFeedback, setSendFeedback] = useState<SendFeedback>('idle')
@@ -188,6 +195,9 @@ export function useComposerSendAction({
           clearFeedbackTimer()
           setSendFeedback('idle')
           setLastError(null)
+          // Ek not, tarif ettiği içerikle birlikte composer'dan çıktı. Burada
+          // bırakmak, bir sonraki taslağa ait olmayan bir talimatı devraldırırdı.
+          onSendSucceeded?.()
         }
       } catch {
         // `onSend` bir istisna fırlattı: hedefe **hiç dokunulmadığının kanıtı
@@ -214,6 +224,7 @@ export function useComposerSendAction({
       clearFeedbackTimer,
       isSubmitting,
       onSend,
+      onSendSucceeded,
       scheduleFeedbackReset,
       setIsExpanded,
       setStoredExpanded,

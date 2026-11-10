@@ -10,11 +10,12 @@
  * clearHighlights()    → drop the query and empty the overlay
  * ```
  *
- * Nothing else exists. There is no match count, no next/previous match, no
- * current-match marker and no auto page jump — those are not part of the product,
- * and `PdfSearchBar` does not render them. This hook implements exactly that
- * surface, so the search bar itself, `usePdfSearchStore`, `Enter` and `Escape`
- * need no renderer branch.
+ * `matchCount` is the number of matches the last run painted — the toolbar's
+ * counter reads it. There is still no next/previous match, no current-match
+ * marker and no auto page jump: the count exists to make a no-result search
+ * visible, not to navigate it. `PdfSearchBar` renders the count.
+ * This hook implements exactly that surface, so the search bar itself,
+ * `usePdfSearchStore`, `Enter` and `Escape` need no renderer branch.
  *
  * ## Scope: the rendered page
  *
@@ -84,6 +85,11 @@ export interface NativePdfSearchHandle {
   /** Drop the query and empty the overlay. */
   clearHighlights: () => void
   /**
+   * Number of matches painted on the rendered page. `0` when there is no query,
+   * no match, or the layer is not ready. The toolbar's counter reads this.
+   */
+  matchCount: number
+  /**
    * Message for a genuine search failure. `null` while searching and on teardown.
    *
    * Not rendered, on purpose — see the module note. A failed search is a degraded page,
@@ -138,6 +144,7 @@ export function useNativePdfSearch({
   textLayerReady
 }: UseNativePdfSearchOptions): NativePdfSearchHandle {
   const [keyword, setKeyword] = useState('')
+  const [matchCount, setMatchCount] = useState(0)
   const [searchError, setSearchError] = useState<string | null>(null)
 
   // Identity-only setters, so the toolbar's `useCallback`s over them stay stable and
@@ -151,7 +158,21 @@ export function useNativePdfSearch({
 
     // No query, no page, no runs, or the flag is off: nothing is drawn and nothing is
     // left over. This is also the path every geometry invalidation takes.
-    if (!enabled || !textLayerReady || !keyword.trim()) {
+    if (!enabled) {
+      layer.replaceChildren()
+      setSearchError(null)
+      setMatchCount(0)
+      return
+    }
+    if (!keyword.trim()) {
+      layer.replaceChildren()
+      setSearchError(null)
+      setMatchCount(0)
+      return
+    }
+    if (!textLayerReady) {
+      // A page/zoom rebuild is in flight. Keep the last count instead of flashing
+      // "0/0" and a red input for a query that is merely being re-measured.
       layer.replaceChildren()
       setSearchError(null)
       return
@@ -165,7 +186,7 @@ export function useNativePdfSearch({
     }
 
     try {
-      const { highlights } = findNativePdfSearchHighlights({
+      const { matches, highlights } = findNativePdfSearchHighlights({
         keyword,
         pageNumber: currentPage,
         pageBox,
@@ -176,11 +197,13 @@ export function useNativePdfSearch({
         reducedMotion: prefersReducedMotion()
       })
       setSearchError(null)
+      setMatchCount(matches.length)
     } catch (error) {
       // Measured against a DOM that is being rebuilt, or a Range the host cannot create.
       // The page stays readable; the search goes quiet rather than showing rectangles
       // from a query that no longer resolved.
       layer.replaceChildren()
+      setMatchCount(0)
       setSearchError(toSearchErrorMessage(error))
     }
     // `documentKey` and `scale` are not read here on purpose: they are the two inputs
@@ -188,5 +211,5 @@ export function useNativePdfSearch({
     // to empty the overlay immediately rather than wait for the next keyword.
   }, [enabled, searchLayerRef, documentKey, currentPage, scale, textLayerReady, keyword])
 
-  return { highlight, clearHighlights, searchError }
+  return { highlight, clearHighlights, matchCount, searchError }
 }

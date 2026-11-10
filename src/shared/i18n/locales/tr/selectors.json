@@ -30,11 +30,13 @@
   "selectors_submit_mode_enter_key": "Enter",
   "selectors_open_repick": "Aç ve Yeniden Seç",
   "selectors_test_current_tab": "Geçerli sekmede test et",
+  "selectors_open_tab_and_test": "Sekmeyi aç ve test et",
+  "selectors_test_open_tab_timeout": "Platform sekmesi zamanında hazır olmadı. Sekmeyi açıp tekrar deneyin.",
   "selectors_test_result_label": "Son Test",
   "selectors_test_success": "Selektörler başarıyla eşleşti",
   "selectors_test_failed": "Selektör testi başarısız",
   "selectors_test_no_config": "Bu AI için henüz kayıtlı selektör yok.",
-  "selectors_test_requires_active_tab": "Test veya yeniden seçim için bu AI'yı geçerli sekmede açın.",
+  "selectors_test_requires_active_tab": "Bu platformun sekmesi aktif değil. Test, sekmeyi sizin için açar.",
   "selectors_no_match": "Eşleşme yok",
   "confirm_delete_selectors": "Bu yapay zeka için tanımlı selektörleri silmek istediğinizden emin misiniz?"
 }

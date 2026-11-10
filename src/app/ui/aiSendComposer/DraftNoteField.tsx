@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 interface DraftNoteFieldProps {
   value: string
   onChange: (value: string) => void
-  /** Ctrl/Cmd+Enter ile gönderim / AI kutusuna hazırlama. */
+  /** Enter veya Ctrl/Cmd+Enter ile gönderim / AI kutusuna hazırlama. */
   onSubmit: () => void
   disabled?: boolean
 }
@@ -42,7 +42,9 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
           // Safari'de bileşimi tamamlayan Enter'da düşebildiği için eski
           // `keyCode === 229` sinyali de kontrol edilir.
           if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          // Enter gönderir; Shift+Enter yeni satır bırakır. Ctrl/Cmd+Enter da
+          // çalışmaya devam eder (eski kısayol alışkanlığı bozulmasın).
+          if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             onSubmit()
           }

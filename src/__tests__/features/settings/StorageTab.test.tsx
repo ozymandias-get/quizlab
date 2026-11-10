@@ -10,7 +10,7 @@ import StorageTab from '@features/settings/ui/StorageTab'
 
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
-import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import { fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -150,7 +150,7 @@ describe('StorageTab', () => {
     expect(screen.queryByText('smart_clean_cold')).not.toBeInTheDocument()
   })
 
-  it('maps a recommendation to the right smart-cache action and label', () => {
+  it('maps a recommendation to the right smart-cache action and label', async () => {
     setCacheInfo({ smart: makeSmart() })
     const { unmount } = render(<StorageTab />)
 
@@ -159,13 +159,19 @@ describe('StorageTab', () => {
     unmount()
 
     smartCacheAction.mockClear()
+    deepCleanCache.mockClear()
     setCacheInfo({ smart: makeSmart({}, { action: 'deep_clean' }) })
     render(<StorageTab />)
 
     // `deep_clean` labels both the plain deep-clean button and the smart-clean
-    // button, in that DOM order; the smart one is the follow-up control.
+    // button, in that DOM order; the smart one is the follow-up control. A
+    // recommendation that means "wipe everything" has to ask first.
     fireEvent.click(screen.getAllByText('deep_clean').at(-1) as HTMLElement)
-    expect(smartCacheAction).toHaveBeenCalledWith('clean_all')
+    expect(smartCacheAction).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'deep_clean_confirm_action' }))
+    await waitFor(() => expect(deepCleanCache).toHaveBeenCalled())
   })
 
   it('falls back to clean_cold when the recommendation action is unrecognised', () => {
@@ -213,7 +219,7 @@ describe('StorageTab', () => {
     expect(clearPartitionCache).toHaveBeenCalledWith({ partition: 'persist:ai_chatgpt' })
   })
 
-  it('fires the plain clear, deep clean and refresh mutations', () => {
+  it('fires the plain clear, deep clean and refresh mutations', async () => {
     setCacheInfo()
 
     render(<StorageTab />)
@@ -221,10 +227,36 @@ describe('StorageTab', () => {
     fireEvent.click(screen.getByText('clear_cache'))
     expect(clearCache).toHaveBeenCalled()
 
+    // Deep clean is session-destroying: it must ask before touching anything.
     fireEvent.click(screen.getByText('deep_clean'))
-    expect(deepCleanCache).toHaveBeenCalled()
+    expect(deepCleanCache).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'deep_clean_confirm_action' }))
+    await waitFor(() => expect(deepCleanCache).toHaveBeenCalled())
 
     fireEvent.click(screen.getByText('refresh'))
     expect(refetchCache).toHaveBeenCalled()
+  })
+
+  it('names the AI sessions that the deep clean will sign out', async () => {
+    setCacheInfo({
+      smart: makeSmart({
+        partitionDetails: [
+          { key: 'ai_chatgpt', size: 50_000, category: 'active', lastActive: 1, ttlMs: 0 },
+          { key: 'ai_gemini', size: 40_000, category: 'active', lastActive: 1, ttlMs: 0 }
+        ]
+      })
+    })
+
+    render(<StorageTab />)
+    fireEvent.click(screen.getByText('deep_clean'))
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('deep_clean_confirm_title')
+    // The names come from the same partition rows the tab renders.
+    expect(dialog).toHaveTextContent('Chatgpt')
+    expect(dialog).toHaveTextContent('Gemini')
+    expect(deepCleanCache).not.toHaveBeenCalled()
   })
 })

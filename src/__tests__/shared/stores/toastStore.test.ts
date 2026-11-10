@@ -163,6 +163,51 @@ describe('toastStore', () => {
       const stored = list.current.toasts.find((t) => t.message === msg)
       expect(stored?.[key as 'title' | 'params']).toEqual(expected)
     })
+
+    it('keeps the action label and callback that make an undo toast work', () => {
+      const msg = uniqueMessage('action')
+      const onAction = vi.fn()
+      const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+
+      act(() => {
+        actions.current.addToast({
+          message: msg,
+          type: 'info',
+          actionLabel: 'undo',
+          onAction
+        })
+      })
+
+      const stored = list.current.toasts.find((t) => t.message === msg)
+      expect(stored?.actionLabel).toBe('undo')
+      expect(stored?.onAction).toBe(onAction)
+    })
+
+    it('does not dedupe two action toasts for the same message', () => {
+      // Two drafts removed within a second must each keep their own undo
+      // handle; collapsing them would leave the second removal unrecoverable.
+      const msg = uniqueMessage('action-dedupe')
+      const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+
+      act(() => {
+        actions.current.addToast({
+          message: msg,
+          type: 'info',
+          actionLabel: 'undo',
+          onAction: vi.fn()
+        })
+        actions.current.addToast({
+          message: msg,
+          type: 'info',
+          actionLabel: 'undo',
+          onAction: vi.fn()
+        })
+      })
+
+      expect(list.current.toasts.filter((t) => t.message === msg)).toHaveLength(2)
+    })
   })
 
   describe('max toasts limit', () => {

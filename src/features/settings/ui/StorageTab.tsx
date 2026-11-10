@@ -16,6 +16,7 @@ import {
   useSmartCacheAction
 } from '@platform/electron/api/useSettingsSystemApi'
 
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { RefreshIcon } from '@ui/components/Icons'
 
@@ -27,6 +28,7 @@ import { PartitionCacheSection, RootCacheSection } from './storage/CacheBreakdow
 import { resolveCachePressure, resolvePartitionCacheRows } from './storage/cacheUsageSummary'
 import { SmartRecommendationBanner } from './storage/StorageComponents'
 import { TotalCacheSection } from './storage/TotalCacheSection'
+import { useDeepCleanConfirm } from './storage/useDeepCleanConfirm'
 
 /** Recommendation actions that both mean "wipe everything". */
 const DEEP_CLEAN_ACTIONS = new Set(['clean_all_partitions', 'deep_clean'])
@@ -44,16 +46,23 @@ const StorageTab = memo(function StorageTab() {
     clearCache()
   }, [clearCache])
 
-  const handleDeepClean = useCallback(() => {
-    deepCleanCache()
-  }, [deepCleanCache])
+  const { requestDeepClean, confirmProps: deepCleanConfirmProps } = useDeepCleanConfirm({
+    cacheInfo,
+    t,
+    onConfirm: deepCleanCache
+  })
 
   const handleSmartClean = useCallback(
     (action: string) => {
-      // recommendation action mapping: clean_cold vs clean_all
-      smartAction(DEEP_CLEAN_ACTIONS.has(action) ? 'clean_all' : 'clean_cold')
+      // The recommendation-driven path can also be "wipe everything". It must
+      // go through the same session warning instead of bypassing it.
+      if (DEEP_CLEAN_ACTIONS.has(action)) {
+        void requestDeepClean()
+        return
+      }
+      smartAction('clean_cold')
     },
-    [smartAction]
+    [requestDeepClean, smartAction]
   )
 
   const handleRefresh = useCallback(() => {
@@ -153,7 +162,7 @@ const StorageTab = memo(function StorageTab() {
         }
         lastCleanup={cleanupReadout}
         onClear={handleClear}
-        onDeepClean={handleDeepClean}
+        onDeepClean={requestDeepClean}
         onSmartClean={handleSmartCleanRecommended}
         onRefresh={handleRefresh}
         language={i18n.language}
@@ -173,6 +182,8 @@ const StorageTab = memo(function StorageTab() {
       {partitionRows.length > 0 && (
         <PartitionCacheSection rows={partitionRows} onClearPartition={handleClearPartition} t={t} />
       )}
+
+      <ConfirmDialog {...deepCleanConfirmProps} />
     </div>
   )
 })

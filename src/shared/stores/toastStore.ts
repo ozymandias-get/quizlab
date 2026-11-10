@@ -64,7 +64,17 @@ function generateId(): string {
   return `toast-${Date.now()}-${toastCounter}`
 }
 
-function isDuplicate(existing: Toast[], message: string, type: Toast['type']): boolean {
+function isDuplicate(
+  existing: Toast[],
+  message: string,
+  type: Toast['type'],
+  hasAction: boolean
+): boolean {
+  // An action toast is a one-shot handle on one specific removal. Collapsing two
+  // of them (two drafts removed within a second) would delete the second item
+  // with no way back, so action toasts never dedupe.
+  if (hasAction) return false
+
   const now = Date.now()
   return existing.some(
     (t) => t.message === message && t.type === type && now - t.createdAt < DEDUPE_WINDOW_MS
@@ -94,13 +104,15 @@ export const useToastStore = create<ToastStoreState>((set, get) => {
       title,
       type = 'info',
       params = {},
-      duration = DEFAULT_DURATION
+      duration = DEFAULT_DURATION,
+      actionLabel,
+      onAction
     }: ToastInput) => {
       if (!useNotificationPrefs.getState().isEnabled(type)) {
         return ''
       }
 
-      if (isDuplicate(get().toasts, message, type)) {
+      if (isDuplicate(get().toasts, message, type, Boolean(onAction))) {
         return ''
       }
 
@@ -109,7 +121,17 @@ export const useToastStore = create<ToastStoreState>((set, get) => {
       set((prev) => {
         const next = [
           ...prev.toasts,
-          { id, message, title, type, params, duration, createdAt: Date.now() }
+          {
+            id,
+            message,
+            title,
+            type,
+            params,
+            duration,
+            actionLabel,
+            onAction,
+            createdAt: Date.now()
+          }
         ]
         return { toasts: next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next }
       })

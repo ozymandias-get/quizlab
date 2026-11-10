@@ -52,6 +52,7 @@ function renderEditing(overrides: Partial<React.ComponentProps<typeof AiVisibleT
   const onCommitRename = vi.fn()
   const onCancelRename = vi.fn()
   const onSelect = vi.fn()
+  const onBeginRename = vi.fn()
 
   render(
     <AiVisibleTabButton
@@ -65,7 +66,7 @@ function renderEditing(overrides: Partial<React.ComponentProps<typeof AiVisibleT
       skipBlurSaveRef={{ current: false }}
       tr={(key, fallback) => fallback ?? key}
       onSelect={onSelect}
-      onBeginRename={vi.fn()}
+      onBeginRename={onBeginRename}
       onContextMenu={vi.fn()}
       onEditingValueChange={vi.fn()}
       onCommitRename={onCommitRename}
@@ -76,7 +77,7 @@ function renderEditing(overrides: Partial<React.ComponentProps<typeof AiVisibleT
     />
   )
 
-  return { onCommitRename, onCancelRename, onSelect }
+  return { onCommitRename, onCancelRename, onSelect, onBeginRename }
 }
 
 describe('AiVisibleTabButton rename keyboard handling', () => {
@@ -100,5 +101,55 @@ describe('AiVisibleTabButton rename keyboard handling', () => {
 
     expect(onCancelRename).toHaveBeenCalled()
     expect(onSelect).not.toHaveBeenCalled()
+  })
+})
+
+describe('AiVisibleTabButton double-click rename', () => {
+  it('does not rename when a rapid double-click only activates an inactive tab', () => {
+    const onBeginRename = vi.fn()
+
+    function Harness() {
+      const [isActive, setIsActive] = React.useState(false)
+      return (
+        <AiVisibleTabButton
+          tab={TAB}
+          label="Original"
+          tabColor="#fff"
+          isActive={isActive}
+          isEditing={false}
+          editingValue=""
+          renameInputRef={React.createRef<HTMLInputElement>()}
+          skipBlurSaveRef={{ current: false }}
+          tr={(key, fallback) => fallback ?? key}
+          onSelect={() => setIsActive(true)}
+          onBeginRename={onBeginRename}
+          onContextMenu={vi.fn()}
+          onEditingValueChange={vi.fn()}
+          onCommitRename={vi.fn()}
+          onCancelRename={vi.fn()}
+          onTogglePin={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    }
+
+    render(<Harness />)
+    const surface = screen.getByLabelText('Original')
+
+    fireEvent.click(surface)
+    // The click re-rendered the tab as active. The second click of the same
+    // gesture must still select, not open the rename input.
+    fireEvent.doubleClick(surface)
+
+    expect(onBeginRename).not.toHaveBeenCalled()
+  })
+
+  it('renames when the tab was already active', () => {
+    const { onBeginRename } = renderEditing({ isActive: true, isEditing: false })
+    const surface = screen.getByLabelText('Original')
+
+    fireEvent.doubleClick(surface)
+
+    expect(onBeginRename).toHaveBeenCalledWith('tab-1')
   })
 })

@@ -20,12 +20,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mockShowSuccess = vi.fn()
 const mockShowWarning = vi.fn()
 const mockShowError = vi.fn()
+const mockAddToast = vi.fn((_toast: Record<string, unknown>) => 'toast-id')
 
 vi.mock('@shared/stores/toastStore', () => ({
   useToastActions: () => ({
     showSuccess: mockShowSuccess,
     showWarning: mockShowWarning,
-    showError: mockShowError
+    showError: mockShowError,
+    addToast: mockAddToast
   })
 }))
 
@@ -356,10 +358,11 @@ describe('AiContext', () => {
     expect(result.current.getContentController(tabId)).toBe(replacement)
   })
 
-  it('retires the managed view when a tab is closed', async () => {
+  it('runs the closed tab teardown after the undo window', async () => {
     // Regression guard. Closing a tab used to only drop the registry entry, so
     // the main-process `WebContentsView` — and the Chromium renderer process
-    // behind it — survived the tab that owned it.
+    // behind it — survived the tab that owned it. The teardown now waits out the
+    // undo window so an "Undo" is not racing the cleanup of its own tab.
     const mockDestroyView = vi.fn(async () => true)
     window.electronAPI = {
       getAiRegistry: mockGetAiRegistry,
@@ -374,12 +377,66 @@ describe('AiContext', () => {
     })
     const tabId = result.current.activeTabId
 
-    act(() => {
-      result.current.closeTab(tabId)
-    })
+    vi.useFakeTimers()
+    try {
+      act(() => {
+        result.current.closeTab(tabId)
+      })
+
+      // Still alive: this is the window in which Undo restores the conversation.
+      expect(mockDestroyView).not.toHaveBeenCalled()
+      expect(result.current.tabs.find((tab) => tab.id === tabId)).toBeUndefined()
+
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
 
     expect(mockDestroyView).toHaveBeenCalledWith({ viewId: tabId })
     expect(result.current.getContentController(tabId)).toBeNull()
     expect(result.current.tabs.find((tab) => tab.id === tabId)).toBeUndefined()
+  })
+
+  it('restores a closed tab from the undo toast and cancels its teardown', async () => {
+    const mockDestroyView = vi.fn(async () => true)
+    window.electronAPI = {
+      getAiRegistry: mockGetAiRegistry,
+      aiView: { destroy: mockDestroyView }
+    } as unknown as Window['electronAPI']
+
+    const { result } = renderHook(() => useAiHarness(), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isRegistryLoaded).toBe(true))
+
+    act(() => {
+      result.current.openAiWorkspace('chatgpt')
+    })
+    const tabId = result.current.activeTabId
+
+    vi.useFakeTimers()
+    try {
+      act(() => {
+        result.current.closeTab(tabId)
+      })
+
+      const toast = mockAddToast.mock.calls[0]?.[0] as { onAction?: () => void } | undefined
+      expect(toast?.onAction).toBeTypeOf('function')
+
+      act(() => {
+        toast?.onAction?.()
+      })
+
+      expect(result.current.tabs.find((tab) => tab.id === tabId)).toBeDefined()
+      expect(result.current.activeTabId).toBe(tabId)
+
+      // The undo canceled the teardown: the repaired tab must not be destroyed.
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(mockDestroyView).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -50,7 +50,7 @@ const CacheControl = memo(
                 type="button"
                 onClick={handleDeepClean}
                 disabled={isDeepCleaning}
-                variant="outline"
+                variant="destructive-outline"
                 size="sm"
                 className="gap-1.5"
               >
@@ -66,7 +66,7 @@ const CacheControl = memo(
               type="button"
               onClick={handleClearCache}
               disabled={isClearing}
-              variant={isClearSuccess ? 'secondary' : 'destructive'}
+              variant={isClearSuccess ? 'secondary' : 'default'}
               size="sm"
               className="gap-1.5"
             >

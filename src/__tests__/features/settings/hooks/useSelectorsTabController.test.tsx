@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocked = vi.hoisted(() => ({
   tabs: [{ key: 'gemini' }],
   currentAI: 'gemini',
+  activeTabId: 'tab-gemini',
   contentController: { executeJavaScript: vi.fn() as any },
   aiSites: { gemini: { isSite: false, name: 'Gemini' } },
   openAiWorkspace: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('@app/providers/ai-context', () => ({
   }),
   useAiSites: () => mocked.aiSites,
   useAiTabsList: () => ({ tabs: mocked.tabs }),
-  useAiTabFocus: () => ({ currentAI: mocked.currentAI }),
+  useAiTabFocus: () => ({ activeTabId: mocked.activeTabId, currentAI: mocked.currentAI }),
   useAiContent: () => ({ getContentController: () => mocked.contentController }),
   useAiContentPresence: () => ({ hasActiveContent: true })
 }))
@@ -69,7 +70,12 @@ describe('useSelectorsTabController', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocked.currentAI = 'gemini'
-    mocked.contentController = { executeJavaScript: vi.fn().mockResolvedValue({ success: true }) }
+    mocked.activeTabId = 'tab-gemini'
+    mocked.contentController = {
+      executeJavaScript: vi.fn(async (script: string) =>
+        script === 'document.readyState' ? 'complete' : { success: true }
+      )
+    }
     mocked.generateValidateSelectorsScript.mockResolvedValue('window.__test = true')
   })
 
@@ -141,7 +147,7 @@ describe('useSelectorsTabController', () => {
     )
   })
 
-  it('shows warning when active tab or content is invalid', async () => {
+  it('opens the platform tab and parks the test instead of failing immediately', async () => {
     mocked.currentAI = 'chatgpt'
     const { result } = renderHook(() => useSelectorsTabController({}))
 
@@ -156,8 +162,46 @@ describe('useSelectorsTabController', () => {
       )
     })
 
-    expect(mocked.showWarning).toHaveBeenCalledWith(
+    expect(mocked.openAiWorkspace).toHaveBeenCalledWith('gemini')
+    expect(mocked.showWarning).not.toHaveBeenCalledWith(
       'selectors_test_requires_active_tab',
+      expect.anything()
+    )
+    expect(result.current.validationState['card-b']).toEqual({ status: 'loading' })
+  })
+
+  it('runs the parked test once the opened tab becomes active', async () => {
+    mocked.currentAI = 'chatgpt'
+    const { result, rerender } = renderHook(() => useSelectorsTabController({}))
+
+    await act(async () => {
+      await result.current.handleTestSelectors(
+        'gemini',
+        {
+          hostname: 'site.com',
+          config: { input: '#i', button: '#b', submitMode: 'mixed' }
+        } as never,
+        'card-open'
+      )
+    })
+
+    mocked.currentAI = 'gemini'
+    mocked.activeTabId = 'tab-gemini'
+
+    await act(async () => {
+      rerender()
+      await Promise.resolve()
+    })
+
+    await vi.waitFor(() => {
+      expect(result.current.validationState['card-open']).toEqual({
+        status: 'success',
+        diagnostics: null
+      })
+    })
+    expect(mocked.openAiWorkspace).toHaveBeenCalledWith('gemini')
+    expect(mocked.showSuccess).toHaveBeenCalledWith(
+      'selectors_test_success',
       'toast_automation_title'
     )
   })

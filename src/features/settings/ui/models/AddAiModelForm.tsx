@@ -12,6 +12,8 @@ import { Loader2, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, useState } from 'react'
 
+import { useSettingsDirty } from '../modal/settingsDirtyGuard'
+
 interface AddAiModelFormProps {
   showAddForm: boolean
   setShowAddForm: (show: boolean) => void
@@ -33,6 +35,13 @@ const AddAiModelForm = memo(function AddAiModelForm({
   const [newAiUrl, setNewAiUrl] = useState('')
   const [nameError, setNameError] = useState('')
   const [urlError, setUrlError] = useState('')
+
+  // Only a visible form with typed content can lose data. Opening the form and
+  // closing it again must not make the modal ask for confirmation.
+  useSettingsDirty(
+    isSite ? 'add-site-form' : 'add-ai-model-form',
+    showAddForm && Boolean(newAiName.trim() || newAiUrl.trim())
+  )
 
   function validateName(value: string): string {
     if (!value.trim()) return t('error_name_required')

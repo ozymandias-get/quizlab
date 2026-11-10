@@ -130,8 +130,10 @@ describe('native text layer — selection invariants', () => {
     expect(unselectable).toEqual([
       '[data-native-pdf-text-layer]',
       "[data-native-pdf-text-layer] span[role='img']",
-      '.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer],\n' +
-        '.pdf-viewer-container.pdf-pan-mode-active [data-native-pdf-text-layer] :is(span, br)'
+      '.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active) [data-native-pdf-text-layer],\n' +
+        '.pdf-viewer-container:is(.pdf-pan-mode-active, .pdf-space-pan-active)\n' +
+        '  [data-native-pdf-text-layer]\n' +
+        '  :is(span, br)'
     ])
   })
 })

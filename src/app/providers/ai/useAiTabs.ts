@@ -136,6 +136,37 @@ export function useAiTabs({
     [setPinnedTabs, setLastSelectedAI]
   )
 
+  /**
+   * Puts a tab closed through `closeTab` back. The id, title, model and pin
+   * state are all carried by the captured `Tab`, so an undo is a state restore,
+   * not a fresh `addTab` (which would mint a new id and lose the title).
+   */
+  const restoreTab = useCallback(
+    (tab: Tab, { index, activate = false }: { index?: number; activate?: boolean } = {}) => {
+      setTabs((prev) => {
+        if (prev.some((existing) => existing.id === tab.id)) return prev
+        const next = [...prev]
+        const insertAt = Math.min(Math.max(index ?? next.length, 0), next.length)
+        next.splice(insertAt, 0, tab)
+        return next
+      })
+
+      if (tab.pinned) {
+        setPinnedTabs((prev) =>
+          prev.some((pinned) => pinned.id === tab.id)
+            ? prev
+            : [...prev, { id: tab.id, modelId: tab.modelId, title: normalizeTitle(tab.title) }]
+        )
+      }
+
+      if (activate) {
+        setActiveTabId(tab.id)
+        setLastSelectedAI(tab.modelId)
+      }
+    },
+    [setLastSelectedAI, setPinnedTabs]
+  )
+
   const renameTab = useCallback(
     (tabId: string, title?: string) => {
       const normalizedTitle = normalizeTitle(title)
@@ -238,6 +269,7 @@ export function useAiTabs({
     isTabsInitialized,
     addTab,
     closeTab,
+    restoreTab,
     setActiveTab,
     renameTab,
     togglePinTab,

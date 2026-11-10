@@ -5,7 +5,7 @@ import { useChatUiStore } from '@features/ai'
 import { retireManagedView } from '@shared/hooks/aiContent/managedViewLifecycle'
 import { useToastActions } from '@shared/stores/toastStore'
 
-import { type ReactNode, useCallback, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useAiContentRegistry } from '../ai/useAiContentRegistry'
@@ -31,9 +31,12 @@ import {
 } from './contexts'
 import { useAiProviderContexts } from './useAiProviderContexts'
 
+/** Undo window shown when a tab is closed, matching the draft-item toast. */
+const TAB_UNDO_TOAST_MS = 5000
+
 function AiProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
-  const { showWarning } = useToastActions()
+  const { showWarning, addToast } = useToastActions()
   const { data: registryData, isLoading, isError, refetch } = useAiRegistry()
   const [aiViewRequestNonce, setAiViewRequestNonce] = useState(0)
 
@@ -70,6 +73,7 @@ function AiProvider({ children }: { children: ReactNode }) {
     isTabsInitialized,
     addTab,
     closeTab,
+    restoreTab,
     setActiveTab,
     renameTab,
     togglePinTab,
@@ -126,9 +130,16 @@ function AiProvider({ children }: { children: ReactNode }) {
     openAiWorkspace
   })
 
-  const handleCloseTab = useCallback(
+  // Deferred teardown for a just-closed tab. Registry cleanup and the chat-UI
+  // reset are irreversible, so they wait out the undo window: an undo brings the
+  // tab back together with the composer state (typed input, attachments) it
+  // owned. The hosted site itself is reconciled by the app-level live view set,
+  // so an undo after a close may reload the page — the tab and its own state
+  // still come back.
+  const pendingTabTeardownsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+
+  const runClosedTabTeardown = useCallback(
     (tabId: string) => {
-      closeTab(tabId)
       // Two independent teardowns, deliberately not one: dropping the registry
       // entry only stops the messaging / picker pipelines from addressing a tab
       // that no longer exists, while retiring the managed view is what actually
@@ -141,7 +152,67 @@ function AiProvider({ children }: { children: ReactNode }) {
       // behind only leaks memory and risks stale-state reads.
       useChatUiStore.getState().resetTabState(tabId)
     },
-    [closeTab, registerContent]
+    [registerContent]
+  )
+
+  const cancelClosedTabTeardown = useCallback((tabId: string) => {
+    const pending = pendingTabTeardownsRef.current
+    const timer = pending.get(tabId)
+    if (timer === undefined) return
+    clearTimeout(timer)
+    pending.delete(tabId)
+  }, [])
+
+  useEffect(() => {
+    const pending = pendingTabTeardownsRef.current
+    return () => {
+      // The provider only unmounts with the app; there is no undo surface left
+      // to keep the buffer for, and a timer firing after teardown would act on
+      // a dead registry.
+      for (const timer of pending.values()) clearTimeout(timer)
+      pending.clear()
+    }
+  }, [])
+
+  const handleCloseTab = useCallback(
+    (tabId: string) => {
+      const currentTabs = tabsRef.current
+      const tabToClose = currentTabs.find((tab) => tab.id === tabId)
+      if (!tabToClose) return
+      const closedIndex = currentTabs.findIndex((tab) => tab.id === tabId)
+      const wasActive = activeTabIdRef.current === tabId
+
+      closeTab(tabId)
+      cancelClosedTabTeardown(tabId)
+
+      const toastId = addToast({
+        type: 'info',
+        message: 'ai_tab_closed',
+        params: { name: tabToClose.title?.trim() || tabToClose.modelId },
+        duration: TAB_UNDO_TOAST_MS,
+        actionLabel: 'undo',
+        onAction: () => {
+          cancelClosedTabTeardown(tabId)
+          restoreTab(tabToClose, { index: closedIndex, activate: wasActive })
+        }
+      })
+
+      // Notifications are off for info toasts: no undo surface was shown, so the
+      // irreversible cleanup must not wait for a window nobody can use.
+      if (!toastId) {
+        runClosedTabTeardown(tabId)
+        return
+      }
+
+      pendingTabTeardownsRef.current.set(
+        tabId,
+        setTimeout(() => {
+          pendingTabTeardownsRef.current.delete(tabId)
+          runClosedTabTeardown(tabId)
+        }, TAB_UNDO_TOAST_MS)
+      )
+    },
+    [addToast, cancelClosedTabTeardown, closeTab, restoreTab, runClosedTabTeardown]
   )
 
   const reloadActiveContent = useCallback(() => {

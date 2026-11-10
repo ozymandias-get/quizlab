@@ -17,7 +17,8 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiTabFocus: () => ({ activeTabId: 'tab-1', currentAI: 'chatgpt' }),
   useAiContent: () => ({
     getContentController: () => mockState.contentController
-  })
+  }),
+  useAiContentPresence: () => ({ hasActiveContent: true })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({

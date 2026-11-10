@@ -57,6 +57,8 @@ interface PdfToolbarProps {
   onJumpToPage: (page: number) => void
   highlight: (keyword: string) => void
   clearHighlights: () => void
+  /** Matches painted by the renderer for the current query; `0` when unknown. */
+  matchCount?: number
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent
@@ -83,6 +85,7 @@ function PdfToolbar({
   onJumpToPage,
   highlight,
   clearHighlights,
+  matchCount = 0,
   ZoomIn,
   ZoomOut,
   CurrentScale,
@@ -441,6 +444,7 @@ function PdfToolbar({
           onKeywordChange={handleKeywordChange}
           onSearch={handleSearch}
           onClear={handleClearSearch}
+          matchCount={matchCount}
           fileName={pdfFile?.name}
         />
       </div>

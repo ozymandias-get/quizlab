@@ -101,8 +101,12 @@ function build(): Built {
   return { root, host, leaf, containerRef: { current: root } as RefObject<HTMLElement | null> }
 }
 
-function mountPan(containerRef: RefObject<HTMLElement | null>, isPanMode = true) {
-  return renderHook(() => usePdfPanTool({ containerRef, isPanMode }))
+function mountPan(
+  containerRef: RefObject<HTMLElement | null>,
+  isPanMode = true,
+  onExitPanMode?: () => void
+) {
+  return renderHook(() => usePdfPanTool({ containerRef, isPanMode, onExitPanMode }))
 }
 
 function pointerDown(target: HTMLElement, init: Partial<PointerEventInit> = {}) {
@@ -355,7 +359,7 @@ describe('usePdfPanTool', () => {
   })
 
   describe('pan mode disabled', () => {
-    it('registers no listeners when pan mode is off', () => {
+    it('does not start a drag when pan mode is off', () => {
       const { leaf, containerRef } = build()
       const { result } = mountPan(containerRef, false)
 
@@ -387,6 +391,140 @@ describe('usePdfPanTool', () => {
       })
       expect(host.el.scrollTop).toBe(-10)
       expect(result.current.isDragging).toBe(true)
+    })
+  })
+
+  describe('temporary Space pan', () => {
+    const spaceEvent = (type: 'keydown' | 'keyup') =>
+      new KeyboardEvent(type, { key: ' ', code: 'Space', bubbles: true })
+
+    it('pans while Space is held over the page and stops on release', () => {
+      const { root, host, leaf, containerRef } = build()
+      const { result } = mountPan(containerRef, false)
+
+      act(() => {
+        root.dispatchEvent(new PointerEvent('pointerenter'))
+      })
+      act(() => {
+        document.body.dispatchEvent(spaceEvent('keydown'))
+      })
+
+      expect(result.current.isSpacePanActive).toBe(true)
+
+      act(() => {
+        pointerDown(leaf)
+        document.dispatchEvent(pointer('pointermove', 15, 5))
+      })
+      expect(host.el.scrollLeft).toBe(-15)
+      expect(host.el.scrollTop).toBe(-5)
+
+      act(() => {
+        document.body.dispatchEvent(spaceEvent('keyup'))
+      })
+      expect(result.current.isSpacePanActive).toBe(false)
+    })
+
+    it('leaves Space alone when the pointer is not on the page', () => {
+      const { containerRef } = build()
+      const { result } = mountPan(containerRef, false)
+
+      let defaultPrevented = false
+      act(() => {
+        const event = spaceEvent('keydown')
+        document.body.dispatchEvent(event)
+        defaultPrevented = event.defaultPrevented
+      })
+
+      // The surrounding page keeps its normal Space-to-scroll behavior.
+      expect(result.current.isSpacePanActive).toBe(false)
+      expect(defaultPrevented).toBe(false)
+    })
+
+    it('pans from a focused button once the pointer is on the page', () => {
+      const { root, host, leaf, containerRef } = build()
+      const button = document.createElement('button')
+      document.body.appendChild(button)
+      button.focus()
+      const { result } = mountPan(containerRef, false)
+
+      act(() => {
+        root.dispatchEvent(new PointerEvent('pointerenter'))
+      })
+      act(() => {
+        button.dispatchEvent(spaceEvent('keydown'))
+      })
+
+      // The hand-tool button keeps focus after a click; Space must pan rather
+      // than re-activate whichever toolbar control happens to be focused.
+      expect(result.current.isSpacePanActive).toBe(true)
+
+      act(() => {
+        pointerDown(leaf)
+        document.dispatchEvent(pointer('pointermove', 12, 6))
+      })
+      expect(host.el.scrollLeft).toBe(-12)
+
+      act(() => {
+        document.body.dispatchEvent(spaceEvent('keyup'))
+      })
+    })
+
+    it('does not hijack Space while the user is typing', () => {
+      const { root, containerRef } = build()
+      const input = document.createElement('input')
+      root.appendChild(input)
+      const { result } = mountPan(containerRef, false)
+
+      act(() => {
+        root.dispatchEvent(new PointerEvent('pointerenter'))
+      })
+      act(() => {
+        input.dispatchEvent(spaceEvent('keydown'))
+      })
+
+      expect(result.current.isSpacePanActive).toBe(false)
+    })
+  })
+
+  describe('Escape exits the persistent hand tool', () => {
+    it('reports the exit once while pan mode is on', () => {
+      const { containerRef } = build()
+      const onExitPanMode = vi.fn()
+      mountPan(containerRef, true, onExitPanMode)
+
+      act(() => {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(onExitPanMode).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays quiet while pan mode is off', () => {
+      const { containerRef } = build()
+      const onExitPanMode = vi.fn()
+      mountPan(containerRef, false, onExitPanMode)
+
+      act(() => {
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      expect(onExitPanMode).not.toHaveBeenCalled()
+    })
+
+    it('still exits when the hand-tool button keeps focus', () => {
+      const { root, containerRef } = build()
+      const button = document.createElement('button')
+      root.appendChild(button)
+      const onExitPanMode = vi.fn()
+      mountPan(containerRef, true, onExitPanMode)
+
+      act(() => {
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+
+      // Switching the tool on leaves focus on its toolbar button; Escape must
+      // not depend on where focus happens to be.
+      expect(onExitPanMode).toHaveBeenCalledTimes(1)
     })
   })
 

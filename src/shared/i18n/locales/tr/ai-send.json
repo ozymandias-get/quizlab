@@ -3,6 +3,7 @@
   "sending_to_ai": "AI'ye gönderiliyor...",
   "ai_send_panel_title": "AI Gönderim Taslağı",
   "ai_send_remove_item": "Öğeyi kaldır",
+  "ai_draft_item_removed": "Taslak öğesi kaldırıldı",
   "ai_send_clear_all": "Tümünü temizle",
   "ai_send_expand": "Detayları aç",
   "ai_send_collapse": "Detayları daralt",

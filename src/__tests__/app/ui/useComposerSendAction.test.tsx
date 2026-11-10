@@ -33,8 +33,10 @@ function setupWith(overrides: {
   onSend: (payload: Payload) => Promise<unknown>
   isSubmitting?: boolean
   effectiveAutoSend?: boolean
+  onSendSucceeded?: () => void
 }) {
   const setIsExpanded = vi.fn()
+  const onSendSucceeded = overrides.onSendSucceeded ?? vi.fn()
   const { result, unmount } = renderHook(() =>
     useComposerSendAction({
       isSubmitting: overrides.isSubmitting ?? false,
@@ -43,10 +45,11 @@ function setupWith(overrides: {
       noteText: '',
       effectiveAutoSend: overrides.effectiveAutoSend ?? true,
       setIsExpanded,
-      setStoredExpanded: vi.fn()
+      setStoredExpanded: vi.fn(),
+      onSendSucceeded
     })
   )
-  return { result, setIsExpanded, unmount }
+  return { result, setIsExpanded, unmount, onSendSucceeded }
 }
 
 /** The escape hatch must be gone from the payload, not merely set to false. */
@@ -89,6 +92,44 @@ describe('useComposerSendAction', () => {
       expect.objectContaining({ noteText: 'Explain this', autoSend: false })
     )
     expect(sentPayloadKeys(onSend)).not.toContain('forceAutoSend')
+  })
+
+  /**
+   * The note describes the draft that was just sent. Leaving it in the composer
+   * would stamp an old instruction onto the next draft, so only a real success
+   * clears it — a failure or an uncertain outcome keeps the user's only copy.
+   */
+  describe('draft note lifecycle', () => {
+    it.each([
+      ['delivered', { success: true }],
+      ['staged', { success: true, mode: 'staged', stage: 'applied' }]
+    ])('clears the note after a %s send', async (_case, response) => {
+      const { result, onSendSucceeded } = setupWith({
+        onSend: vi.fn(async () => response as unknown)
+      })
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'Explain this' })
+      })
+
+      expect(onSendSucceeded).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['failed', { success: false, error: 'paste_failed' }],
+      ['uncertain', { success: false, error: 'autosend_failed_draft_saved' }],
+      ['busy', { success: false, error: 'send_in_progress' }]
+    ])('keeps the note when the send is %s', async (_case, response) => {
+      const { result, onSendSucceeded } = setupWith({
+        onSend: vi.fn(async () => response as unknown)
+      })
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'Explain this' })
+      })
+
+      expect(onSendSucceeded).not.toHaveBeenCalled()
+    })
   })
 
   it('passes auto-send through when auto-send is on', async () => {

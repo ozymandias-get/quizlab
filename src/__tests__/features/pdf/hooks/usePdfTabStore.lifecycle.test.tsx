@@ -15,6 +15,7 @@ import type { PdfFile } from '@shared-core/types'
 
 import { usePdfTabState } from '@features/pdf/hooks/usePdfTabState'
 import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
+import { useToastStore } from '@shared/stores/toastStore'
 
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -36,6 +37,7 @@ let randomUUID: ReturnType<typeof vi.fn>
 beforeEach(() => {
   randomUUID = vi.fn(() => `uuid-${Math.random().toString(36).slice(2, 9)}`)
   vi.stubGlobal('crypto', { randomUUID } as unknown as Crypto)
+  useToastStore.getState().clearAll()
   resetStore()
 })
 
@@ -309,6 +311,64 @@ describe('usePdfTabStore - closing tabs', () => {
 
     expect(result.current.pdfTabs).toHaveLength(0)
     expect(result.current.activePdfTabId).toBe('')
+  })
+
+  it('offers an undo toast that restores the closed tab in place', () => {
+    const { result } = renderHook(() => usePdfTabStore())
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
+    })
+    act(() => {
+      result.current.openPdfInTab(makeFile('b.pdf', '/docs/b.pdf'))
+    })
+    const closedId = result.current.activePdfTabId
+
+    act(() => {
+      result.current.closePdfTab(closedId)
+    })
+    expect(result.current.pdfTabs).toHaveLength(1)
+
+    const toast = useToastStore
+      .getState()
+      .toasts.find((entry) => entry.message === 'pdf_tab_closed')
+    expect(toast?.actionLabel).toBe('undo')
+    expect(toast?.duration).toBe(5000)
+    expect(toast?.params?.name).toBe('b.pdf')
+
+    act(() => {
+      toast?.onAction?.()
+    })
+
+    // Same id, original index, focus restored because it was the active tab.
+    expect(result.current.pdfTabs).toHaveLength(2)
+    expect(result.current.pdfTabs[1]?.id).toBe(closedId)
+    expect(result.current.activePdfTabId).toBe(closedId)
+  })
+
+  it('keeps focus on the current tab when a background tab is restored', () => {
+    const { result } = renderHook(() => usePdfTabStore())
+    act(() => {
+      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
+    })
+    act(() => {
+      result.current.openPdfInTab(makeFile('b.pdf', '/docs/b.pdf'))
+    })
+    const backgroundId = result.current.pdfTabs[0]?.id
+    const activeId = result.current.activePdfTabId
+
+    act(() => {
+      result.current.closePdfTab(backgroundId!)
+    })
+
+    const toast = useToastStore
+      .getState()
+      .toasts.find((entry) => entry.message === 'pdf_tab_closed')
+    act(() => {
+      toast?.onAction?.()
+    })
+
+    expect(result.current.pdfTabs.map((tab) => tab.id)).toEqual([backgroundId, activeId])
+    expect(result.current.activePdfTabId).toBe(activeId)
   })
 
   it('prefers the previous tab when closing the active tab', () => {

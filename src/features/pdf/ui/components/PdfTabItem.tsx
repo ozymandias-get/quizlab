@@ -13,7 +13,16 @@ import {
 } from '@shared/ui/components/primitives'
 
 import { X } from 'lucide-react'
-import { memo, type MouseEvent as ReactMouseEvent, type RefObject, useCallback } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  type RefObject,
+  useCallback,
+  useRef
+} from 'react'
+
+/** A double-click within this window of activating a tab only selects it. */
+const DOUBLE_CLICK_RENAME_GUARD_MS = 800
 
 interface PdfTabItemProps {
   tab: PdfTab
@@ -53,12 +62,37 @@ function PdfTabItem({
   buttonRef
 }: PdfTabItemProps) {
   const label = getTabLabel(tab)
+  /**
+   * Time the tab was last activated by a click. A rapid second click on an
+   * inactive tab is an activation gesture, not a rename: by the time
+   * `dblclick` fires the component already re-rendered with `isActive=true`,
+   * so an `isActive` check alone is too late.
+   */
+  const activatedAtRef = useRef(0)
 
   // Stable per-tab ref callback (memo-safe: identity depends only on the
   // stable `buttonRef` and the immutable `tab.id`).
   const handleButtonRef = useCallback(
     (el: HTMLButtonElement | null) => buttonRef?.(el, tab.id),
     [buttonRef, tab.id]
+  )
+
+  const handleActivate = useCallback(() => {
+    if (!isActive) activatedAtRef.current = Date.now()
+    onSetActiveTab(tab.id)
+  }, [isActive, onSetActiveTab, tab.id])
+
+  const handleDoubleClick = useCallback(
+    (event: ReactMouseEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const activatedAt = activatedAtRef.current
+      activatedAtRef.current = 0
+      if (activatedAt !== 0 && Date.now() - activatedAt < DOUBLE_CLICK_RENAME_GUARD_MS) return
+      if (!isActive) return
+      onBeginRename(tab)
+    },
+    [isActive, onBeginRename, tab]
   )
 
   const handleClose = useCallback(
@@ -109,12 +143,8 @@ function PdfTabItem({
               ref={handleButtonRef}
               isActive={isActive}
               tabIndex={isActive ? 0 : -1}
-              onClick={() => onSetActiveTab(tab.id)}
-              onDoubleClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                onBeginRename(tab)
-              }}
+              onClick={handleActivate}
+              onDoubleClick={handleDoubleClick}
               onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
               aria-label={label}
               withControls

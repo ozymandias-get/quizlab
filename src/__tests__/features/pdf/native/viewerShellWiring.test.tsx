@@ -15,7 +15,7 @@
  */
 import PdfViewerDocument from '@features/pdf/ui/components/PdfViewerDocument'
 
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PdfViewerDocumentProps } from '@features/pdf/hooks/usePdfViewerState'
@@ -181,6 +181,31 @@ describe('PdfViewerDocument renderer wiring', () => {
       return props[name]
     })
     expect(new Set(refs).size).toBe(4)
+  })
+
+  it('names the active pan mode on the page and clears it when the tool is off', () => {
+    renderDocument()
+
+    // Before the switch the page looks like a text surface, and nothing claims
+    // otherwise: no badge is mounted.
+    expect(screen.queryByTestId('pdf-pan-mode-badge')).not.toBeInTheDocument()
+
+    const toggle = toolbarProps().onTogglePanMode as () => void
+    act(() => toggle())
+
+    // The badge is what tells the reader why a drag pans instead of selecting.
+    // It carries both halves of the message (what is on, how to leave) so the
+    // answer survives without hovering anything.
+    const badge = screen.getByTestId('pdf-pan-mode-badge')
+    expect(badge).toHaveAttribute('data-pan-mode', 'persistent')
+    expect(badge).toHaveTextContent('pdf_pan_mode_active')
+    expect(badge).toHaveTextContent('pdf_pan_mode_exit_hint')
+    expect(document.querySelector('.pdf-viewer-container')?.className).toContain(
+      'pdf-pan-mode-active'
+    )
+
+    act(() => toggle())
+    expect(screen.queryByTestId('pdf-pan-mode-badge')).not.toBeInTheDocument()
   })
 
   it('mounts one toolbar, one viewer and one container', () => {

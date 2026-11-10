@@ -4,6 +4,7 @@ import {
   useDeepCleanCache
 } from '@platform/electron/api/useSettingsSystemApi'
 
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import type { UpdateInfo } from '@app/providers'
 import { formatBytes } from '@shared/lib/formatUtils'
 import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
@@ -18,6 +19,7 @@ import IssueReportCard from './about/IssueReportCard'
 import RepositoryLink from './about/RepositoryLink'
 import ShellIntegrationCard from './about/ShellIntegrationCard'
 import UpdatesCard from './about/UpdatesCard'
+import { useDeepCleanConfirm } from './storage/useDeepCleanConfirm'
 
 interface AboutTabProps {
   appVersion: string | null
@@ -45,10 +47,16 @@ const AboutTab = memo(
       clearCache()
     }, [clearCache])
 
-    const handleDeepClean = useCallback(() => {
+    const handleDeepCleanConfirmed = useCallback(() => {
       resetClear()
       deepCleanCache()
     }, [deepCleanCache, resetClear])
+
+    const { requestDeepClean, confirmProps: deepCleanConfirmProps } = useDeepCleanConfirm({
+      cacheInfo,
+      t,
+      onConfirm: handleDeepCleanConfirmed
+    })
 
     const cacheSize = useMemo(() => {
       if (!cacheInfo?.breakdown?.total) return null
@@ -87,7 +95,7 @@ const AboutTab = memo(
             handleClearCache={handleClearCache}
             isClearing={isClearing}
             isClearSuccess={isClearSuccess}
-            handleDeepClean={handleDeepClean}
+            handleDeepClean={requestDeepClean}
             isDeepCleaning={isDeepCleaning}
             cacheSize={cacheSize}
             lastCleanupTime={cacheInfo?.lastCleanup ?? null}
@@ -95,6 +103,8 @@ const AboutTab = memo(
 
           <IssueReportCard t={t} appVersion={appVersion} />
         </div>
+
+        <ConfirmDialog {...deepCleanConfirmProps} />
       </div>
     )
   }

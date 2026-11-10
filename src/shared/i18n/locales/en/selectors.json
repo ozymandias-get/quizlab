@@ -30,11 +30,13 @@
   "selectors_submit_mode_enter_key": "Enter",
   "selectors_open_repick": "Open & Re-pick",
   "selectors_test_current_tab": "Test on current tab",
+  "selectors_open_tab_and_test": "Open tab and test",
+  "selectors_test_open_tab_timeout": "The platform tab did not become ready in time. Open the tab and try again.",
   "selectors_test_result_label": "Latest Test",
   "selectors_test_success": "Selectors matched successfully",
   "selectors_test_failed": "Selector test failed",
   "selectors_test_no_config": "No selectors are saved for this AI yet.",
-  "selectors_test_requires_active_tab": "Open this AI on the current tab to test or re-pick selectors.",
+  "selectors_test_requires_active_tab": "This platform's tab is not active. The test opens it for you.",
   "selectors_no_match": "No match",
   "confirm_delete_selectors": "Are you sure you want to delete selectors for this AI?"
 }

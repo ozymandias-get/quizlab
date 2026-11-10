@@ -61,6 +61,17 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const [viewerReloadKey, setViewerReloadKey] = useState(0)
   const [isPanMode, setIsPanMode] = useState(false)
   const handleTogglePanMode = useCallback(() => setIsPanMode((v) => !v), [])
+  const handleExitPanMode = useCallback(() => setIsPanMode(false), [])
+
+  // Declared above the controller so the renderer sees the same "pan is engaged"
+  // flag the drag effect uses — otherwise Space would pan without suppressing
+  // wheel page-turn and Ctrl+wheel zoom.
+  const { isDragging: isPanDragging, isSpacePanActive } = usePdfPanTool({
+    containerRef,
+    isPanMode,
+    onExitPanMode: handleExitPanMode
+  })
+  const isPanEngaged = isPanMode || isSpacePanActive
   const [, startTransition] = useTransition()
   const { offerFullPageText } = useAppToolActions()
   const { showWarning } = useToastActions()
@@ -97,7 +108,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     initialPage: props.initialPage,
     containerRef,
     adjustedContainerSize,
-    isPanMode,
+    isPanMode: isPanEngaged,
     isPanelResizing,
     pdfPath: pdfFile?.path ?? null,
     onReadingProgressChange,
@@ -137,8 +148,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     startScreenshot,
     pdfUrl
   })
-
-  const { isDragging: isPanDragging } = usePdfPanTool({ containerRef, isPanMode })
 
   const { extractCurrentPageText } = usePdfTextActions({
     containerRef,
@@ -180,7 +189,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
       showWarning(tt('pdf_no_text_found'), undefined, undefined, 4000)
     },
     textSelectionEnabled:
-      !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !isPanMode
+      !isInteractionBlocked && activePdfTab?.kind !== 'drive' && !!pdfUrl && !isPanEngaged
   })
 
   const { contextMenu, setContextMenu, contextMenuPointRef } = usePdfContextMenu(containerRef)
@@ -216,6 +225,7 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     nativeViewer,
     viewerReloadKey,
     isPanMode,
+    isSpacePanActive,
     isPanDragging,
     handleAreaScreenshot,
     handleFullPageScreenshot,

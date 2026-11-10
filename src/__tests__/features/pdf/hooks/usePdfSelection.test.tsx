@@ -12,6 +12,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 vi.mock('@shared/stores/toastStore', () => ({
+  useToastStore: {
+    getState: () => ({ addToast: vi.fn(() => 'toast-id') })
+  },
   useToastActions: () => ({
     showError: mockShowError,
     showSuccess: mockShowSuccess

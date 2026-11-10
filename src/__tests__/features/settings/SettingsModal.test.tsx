@@ -1,7 +1,11 @@
 import SettingsModal from '@features/settings/ui/SettingsModal'
+import {
+  resetSettingsDirty,
+  setSettingsDirty
+} from '@features/settings/ui/modal/settingsDirtyGuard'
 
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const tMock = (key: string) => key
 vi.mock('@app/providers', () => ({
@@ -108,6 +112,10 @@ vi.mock('@features/settings/ui/modal/SettingsModalContent', () => ({
 }))
 
 describe('SettingsModal', () => {
+  beforeEach(() => {
+    resetSettingsDirty()
+  })
+
   it('renders nothing when closed', () => {
     render(<SettingsModal isOpen={false} onClose={vi.fn()} />)
     expect(screen.queryByText('Prompts')).not.toBeInTheDocument()
@@ -123,5 +131,54 @@ describe('SettingsModal', () => {
     const titleId = dialog.getAttribute('aria-labelledby')
     expect(titleId).toBeTruthy()
     expect(document.getElementById(titleId!)).toBeInTheDocument()
+  })
+
+  it('closes directly when no form holds unsaved changes', () => {
+    const onClose = vi.fn()
+    render(<SettingsModal isOpen onClose={onClose} />)
+
+    fireEvent.click(screen.getByText('Close'))
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks before discarding unsaved changes and can keep the modal open', async () => {
+    const onClose = vi.fn()
+    render(<SettingsModal isOpen onClose={onClose} />)
+
+    act(() => setSettingsDirty('api-provider-settings', true))
+    fireEvent.click(screen.getByText('Close'))
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it('discards and closes only after the confirmation', async () => {
+    const onClose = vi.fn()
+    render(<SettingsModal isOpen onClose={onClose} />)
+
+    act(() => setSettingsDirty('add-ai-model-form', true))
+    fireEvent.click(screen.getByText('Close'))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Discard and close' }))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+  })
+
+  it('guards Escape as well as the close button', async () => {
+    const onClose = vi.fn()
+    render(<SettingsModal isOpen onClose={onClose} />)
+
+    act(() => setSettingsDirty('add-ai-model-form', true))
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

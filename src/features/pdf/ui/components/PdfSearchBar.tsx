@@ -22,6 +22,8 @@ interface PdfSearchBarProps {
   onKeywordChange: (keyword: string) => void
   onSearch: () => void
   onClear: () => void
+  /** Matches painted by the renderer for the current query. */
+  matchCount?: number
   fileName?: string
 }
 
@@ -32,10 +34,17 @@ function PdfSearchBar({
   onKeywordChange,
   onSearch,
   onClear,
+  matchCount = 0,
   fileName
 }: PdfSearchBarProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const hasQuery = keyword.trim().length > 0
+  const hasNoMatches = hasQuery && matchCount === 0
+  // Search paints every match at once; the counter keeps the conventional
+  // current/total shape, with the first match as the current one.
+  const currentMatch = matchCount > 0 ? 1 : 0
 
   useEffect(() => {
     if (isOpen) {
@@ -79,11 +88,23 @@ function PdfSearchBar({
                 onChange={(e) => onKeywordChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t('search_placeholder')}
-                className="text-ql-12 pr-16 pl-8 font-normal"
+                aria-invalid={hasNoMatches}
+                aria-describedby="pdf-search-match-count"
+                className="text-ql-12 pr-20 pl-8 font-normal"
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                 autoFocus
               />
               <div className="absolute right-2 flex items-center gap-1">
+                <span
+                  id="pdf-search-match-count"
+                  data-testid="pdf-search-match-count"
+                  aria-live="polite"
+                  className={`text-ql-10 font-mono tabular-nums ${
+                    hasNoMatches ? 'text-destructive font-semibold' : 'text-muted-foreground'
+                  }`}
+                >
+                  {currentMatch}/{matchCount}
+                </span>
                 {keyword ? (
                   <Tooltip>
                     <TooltipTrigger asChild>

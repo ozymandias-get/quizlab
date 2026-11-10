@@ -10,6 +10,7 @@ import type { PdfSourceMeta } from './ai/pdfSource'
 import type { AiDraftItem, AiSendResult, SelectionPosition } from './ai/types'
 import {
   useAiContent,
+  useAiContentPresence,
   useAiMessagingActions,
   useAiSessionActions,
   useAiSessionUiPrefsState,
@@ -137,9 +138,10 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing } = useAiMessagingActions()
   const { setAutoSend, toggleAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
-  const { currentAI } = useAiTabFocus()
+  const { currentAI, activeTabId } = useAiTabFocus()
   const { showError } = useToastActions()
   const { getContentController } = useAiContent()
+  const { hasActiveContent } = useAiContentPresence()
 
   const {
     pendingAiItems,
@@ -189,7 +191,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
   })
 
   const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
-    useElementPickerLifecycle(getContentController)
+    useElementPickerLifecycle(getContentController, activeTabId, hasActiveContent)
 
   const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend }),

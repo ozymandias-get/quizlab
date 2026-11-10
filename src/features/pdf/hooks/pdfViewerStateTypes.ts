@@ -64,6 +64,8 @@ export interface UsePdfViewerStateReturn {
   nativeViewer: NativePdfController
   viewerReloadKey: number
   isPanMode: boolean
+  /** True while Space is held over the page as a temporary hand tool. */
+  isSpacePanActive: boolean
   isPanDragging: boolean
   handleFullPageScreenshot: (point?: PdfActionPoint) => Promise<void>
   handleAreaScreenshot: () => void
