@@ -181,4 +181,16 @@ describe('SettingsModal', () => {
     expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  it('closes from the backdrop but not from a click inside the floating panel', () => {
+    const onClose = vi.fn()
+    const { container } = render(<SettingsModal isOpen onClose={onClose} />)
+    const backdrop = container.firstElementChild as HTMLElement
+
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(backdrop)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
 })

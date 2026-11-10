@@ -21,7 +21,7 @@ const ChatHeader = memo(function ChatHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="border-border/50 bg-card/85 relative z-10 flex shrink-0 items-center justify-between border-b px-4 py-2.5 backdrop-blur-md sm:px-6 sm:py-3">
+    <div className="border-border/50 bg-card/95 relative z-10 flex shrink-0 items-center justify-between border-b px-4 py-2.5 sm:px-6 sm:py-3">
       <div className="flex items-center gap-3">
         <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-lg">
           <AiIcon modelKey="api-chat" className="h-4 w-4" />

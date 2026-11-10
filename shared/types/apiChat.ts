@@ -6,6 +6,8 @@ export interface ApiChatMessage {
   model?: string
   providerId?: string
   images?: string[]
+  /** True only for system/API failures, never for model prose that starts with "Error:". */
+  isError?: boolean
 }
 
 export interface ApiProviderConfig {

@@ -128,6 +128,7 @@ function FocusOverlay({
   }, [])
 
   const closeLabel = t('focus_close_aria')
+  const focusTitle = mode === 'pdf' ? t('pdf_documents') : t('api_chat_title')
 
   const backdropStyle = useMemo(
     () => ({
@@ -143,7 +144,7 @@ function FocusOverlay({
       key="focus-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label={closeLabel}
+      aria-label={focusTitle}
       variants={backdropVariants}
       initial="hidden"
       animate="visible"
@@ -159,12 +160,20 @@ function FocusOverlay({
         animate="visible"
         exit="exit"
         onClick={handleShellClick}
-        className="glass-tier-1 relative h-full w-full overflow-hidden"
+        className="glass-tier-1 relative flex h-full w-full flex-col overflow-hidden"
         style={SHELL_STYLE}
       >
-        <FocusCloseButton ref={closeButtonRef} onClick={onClose} label={closeLabel} />
+        {/* A real header row instead of a floating close button: the strip owns
+            the top-right corner, so the PDF/AI toolbars underneath are neither
+            covered nor unclickable. */}
+        <header className="border-border/60 flex h-12 shrink-0 items-center justify-between border-b px-4">
+          <span className="text-ql-12 text-muted-foreground min-w-0 truncate font-medium">
+            {focusTitle}
+          </span>
+          <FocusCloseButton ref={closeButtonRef} onClick={onClose} label={closeLabel} />
+        </header>
 
-        <div className="absolute inset-0 flex min-h-0 flex-col pt-12">
+        <div className="relative flex min-h-0 flex-1 flex-col">
           <ErrorBoundary title={t('error_pdf_handler')}>
             <Suspense
               fallback={

@@ -19,7 +19,7 @@ const ScrollToBottom = memo(function ScrollToBottom({
       variant="secondary"
       size="sm"
       onClick={onClick}
-      className="text-ql-11 border-border bg-popover/90 text-muted-foreground shadow-ambient-md absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border backdrop-blur-md"
+      className="text-ql-11 border-border bg-card/95 text-muted-foreground shadow-ambient-md absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border"
     >
       <ChevronDown className="h-3.5 w-3.5" />
       {t('api_chat_scroll_to_bottom')}

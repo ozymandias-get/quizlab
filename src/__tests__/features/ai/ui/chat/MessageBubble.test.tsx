@@ -69,4 +69,32 @@ describe('MessageBubble', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('does not paint prose starting with "Error:" as an error bubble', () => {
+    const { container } = render(
+      <MessageBubble
+        message={{
+          ...createMessage(),
+          images: [],
+          content: 'Error: this sentence explains a failure mode.'
+        }}
+        isUser={false}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(container.querySelector('[data-message-error]')).toBeNull()
+  })
+
+  it('paints an explicit system error as an error bubble', () => {
+    const { container } = render(
+      <MessageBubble
+        message={{ ...createMessage(), images: [], content: 'Request failed', isError: true }}
+        isUser={false}
+        onDelete={vi.fn()}
+      />
+    )
+
+    expect(container.querySelector('[data-message-error="true"]')).not.toBeNull()
+  })
 })

@@ -27,7 +27,7 @@ const UpdateBanner = memo(function UpdateBanner({
   if (!updateAvailable || !updateInfo || !isVisible) return null
 
   return (
-    <div className="z-dropdown animate-in slide-in-from-top-4 fade-in motion-slower fixed top-4 left-1/2 mx-4 w-full max-w-xl -translate-x-1/2">
+    <div className="z-dropdown animate-in slide-in-from-bottom-4 fade-in motion-slower fixed bottom-4 left-4 w-[min(28rem,calc(100vw-2rem))]">
       <div className="border-border bg-popover text-popover-foreground shadow-ambient-lg flex items-start gap-3.5 rounded-xl border p-4 backdrop-blur-md">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
           <UpdateIcon className="h-5 w-5" />

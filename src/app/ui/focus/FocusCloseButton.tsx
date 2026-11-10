@@ -16,7 +16,7 @@ const CLOSE_BUTTON_STYLE = {
 const FocusCloseButton = ({ label, className, ...rest }: FocusCloseButtonProps) => {
   return (
     <motion.div
-      className="absolute top-4 right-4 z-20"
+      className="flex shrink-0 items-center"
       style={CLOSE_BUTTON_STYLE}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}

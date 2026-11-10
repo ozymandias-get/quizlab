@@ -163,7 +163,7 @@ function AiVisibleTabButton({
         <TabPillContainer
           isActive={isActive}
           data-ai-tab=""
-          className={`group cursor-pointer ${isEditing ? 'pr-10' : 'pr-[4.5rem]'}`}
+          className={`group cursor-pointer ${isEditing ? 'pr-10' : 'pr-3 group-focus-within:pr-[4.5rem] group-hover:pr-[4.5rem]'}`}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
           onContextMenu={handleContextMenu}

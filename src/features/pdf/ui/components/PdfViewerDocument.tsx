@@ -90,6 +90,27 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {/* Toolbar sits under the PDF tab strip, matching the AI panel's
+          tab-strip + chat-header row so the two top control bands share one
+          horizontal eye line. */}
+      <PdfToolbar
+        pdfFile={pdfFile}
+        panMode={isPanMode}
+        onTogglePanMode={handleTogglePanMode}
+        currentPage={nativeViewer.currentPage}
+        totalPages={nativeViewer.totalPages}
+        onPreviousPage={nativeViewer.goToPreviousPage}
+        onNextPage={nativeViewer.goToNextPage}
+        onJumpToPage={nativeViewer.jumpToPage}
+        highlight={nativeViewer.highlight}
+        clearHighlights={nativeViewer.clearHighlights}
+        matchCount={nativeViewer.matchCount}
+        ZoomIn={nativeViewer.zoomControls.ZoomIn}
+        ZoomOut={nativeViewer.zoomControls.ZoomOut}
+        CurrentScale={nativeViewer.zoomControls.CurrentScale}
+        onReload={handleReload}
+      />
+
       {/* Sahne: PDF yüzeyi + yüzen AI draft dock'u aynı `relative` kutuyu paylaşır.
           Dock bu sahnenin *içinde* mutlak konumlanır, bu yüzden görüntüleme
           alanının yüksekliği hiç değişmez — dock açılıp kapandığında sayfa
@@ -169,27 +190,6 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
           </div>,
           document.body
         )}
-
-      {/* Araç çubuğu sahnenin *dışında*, kendi satırında kalır: sayfa bu satırın
-          varlığına göre ortalanır, dock ise yalnızca görüntüleme alanının üstüne
-          biner. */}
-      <PdfToolbar
-        pdfFile={pdfFile}
-        panMode={isPanMode}
-        onTogglePanMode={handleTogglePanMode}
-        currentPage={nativeViewer.currentPage}
-        totalPages={nativeViewer.totalPages}
-        onPreviousPage={nativeViewer.goToPreviousPage}
-        onNextPage={nativeViewer.goToNextPage}
-        onJumpToPage={nativeViewer.jumpToPage}
-        highlight={nativeViewer.highlight}
-        clearHighlights={nativeViewer.clearHighlights}
-        matchCount={nativeViewer.matchCount}
-        ZoomIn={nativeViewer.zoomControls.ZoomIn}
-        ZoomOut={nativeViewer.zoomControls.ZoomOut}
-        CurrentScale={nativeViewer.zoomControls.CurrentScale}
-        onReload={handleReload}
-      />
     </div>
   )
 }

@@ -102,6 +102,7 @@ describe('apiChatStore helpers (pure functions)', () => {
       expect(reply.role).toBe('assistant')
       // locale-aware: tr -> "Hata: boom", en -> "Error: boom"
       expect(reply.content).toMatch(/^(Hata|Error): boom$/)
+      expect(reply.isError).toBe(true)
       expect(reply.id.endsWith('-error')).toBe(true)
     })
 

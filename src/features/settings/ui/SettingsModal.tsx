@@ -1,4 +1,5 @@
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
+import { DialogBackdrop } from '@app/components/ui/dialog'
 import { Separator } from '@app/components/ui/separator'
 import { useConfirmDialog, useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
@@ -74,80 +75,88 @@ const SettingsModal = memo(function SettingsModal({
   }
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="settings-dialog-title"
-      className="z-overlay bg-background fixed inset-0 flex flex-col"
+    <DialogBackdrop
+      onClick={(event) => {
+        // The backdrop closes the window; clicks that started inside the panel
+        // (or inside the confirm dialog) bubble here and must not.
+        if (event.target === event.currentTarget) void handleRequestClose()
+      }}
     >
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: DURATION.normal }}
-        className="flex h-full flex-col"
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        className="border-border bg-background shadow-ambient-xl flex h-[85vh] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border"
       >
-        <header className="flex shrink-0 items-center justify-between px-3 py-3 sm:px-5 sm:py-4 md:px-8">
-          <div className="flex items-center gap-3">
-            <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
-              <SettingsIcon className="h-4 w-4" />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: DURATION.normal }}
+          className="flex h-full min-h-0 flex-col"
+        >
+          <header className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+                <SettingsIcon className="h-4 w-4" />
+              </div>
+              <div className="space-y-0.5">
+                <h1
+                  id="settings-dialog-title"
+                  className="text-foreground tracking-ql-tight text-ql-16 font-semibold"
+                >
+                  {t('settings_title')}
+                </h1>
+                <p className="text-muted-foreground text-ql-12 hidden sm:block">
+                  {t('settings_header_description')}
+                </p>
+              </div>
             </div>
-            <div className="space-y-0.5">
-              <h1
-                id="settings-dialog-title"
-                className="text-foreground tracking-ql-tight text-ql-16 font-semibold"
-              >
-                {t('settings_title')}
-              </h1>
-              <p className="text-muted-foreground text-ql-12 hidden sm:block">
-                {t('settings_header_description')}
-              </p>
-            </div>
+            <Button
+              ref={closeButtonRef}
+              variant="ghost"
+              size="icon"
+              onClick={handleRequestClose}
+              aria-label={t('tab_close')}
+              className="text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg"
+            >
+              <CloseIcon className="h-3.5 w-3.5" />
+            </Button>
+          </header>
+
+          <Separator />
+          <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
+            <SettingsModalSidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              sidebarScrollRef={sidebarScrollRef}
+              sidebarSections={sidebarSections}
+              sidebarWidth={sidebarWidth}
+              isCompact={isCompact}
+            />
+
+            {!isCompact && (
+              <div className="max-[768px]:hidden">
+                <ResizableHandle
+                  onResize={handleSidebarResize}
+                  value={sidebarWidth}
+                  label="Resize settings sidebar"
+                />
+              </div>
+            )}
+
+            <SettingsModalContent
+              activeTab={activeTab}
+              activeTabMeta={activeTabMeta}
+              onClose={handleRequestClose}
+              setActiveTab={setActiveTab}
+            />
           </div>
-          <Button
-            ref={closeButtonRef}
-            variant="ghost"
-            size="icon"
-            onClick={handleRequestClose}
-            aria-label={t('tab_close')}
-            className="text-muted-foreground hover:bg-accent hover:text-foreground rounded-lg"
-          >
-            <CloseIcon className="h-3.5 w-3.5" />
-          </Button>
-        </header>
-
-        <Separator />
-        <div ref={containerRef} className="flex min-h-0 flex-1 overflow-hidden">
-          <SettingsModalSidebar
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            sidebarScrollRef={sidebarScrollRef}
-            sidebarSections={sidebarSections}
-            sidebarWidth={sidebarWidth}
-            isCompact={isCompact}
-          />
-
-          {!isCompact && (
-            <div className="max-[768px]:hidden">
-              <ResizableHandle
-                onResize={handleSidebarResize}
-                value={sidebarWidth}
-                label="Resize settings sidebar"
-              />
-            </div>
-          )}
-
-          <SettingsModalContent
-            activeTab={activeTab}
-            activeTabMeta={activeTabMeta}
-            onClose={handleRequestClose}
-            setActiveTab={setActiveTab}
-          />
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       <ConfirmDialog {...confirmProps} />
-    </div>
+    </DialogBackdrop>
   )
 })
 

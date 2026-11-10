@@ -301,7 +301,7 @@ function PdfToolbar({
       // açık tonunu (`bg-card/60`) korur: iki yüzey bitişik olduğunda bile tek
       // kart gibi okunmamalı, aralarında kalan hava ikisini ayırır. Araç çubuğunun
       // içindeki kontrollerin görünümü değişmemiştir.
-      className="border-border bg-card/60 @container relative flex w-full shrink-0 items-center justify-between gap-2 border-t px-2 py-2.5 select-none sm:gap-3 sm:px-4"
+      className="border-border bg-card/60 @container relative flex w-full shrink-0 items-center justify-between gap-2 border-b px-2 py-2.5 select-none sm:gap-3 sm:px-4"
     >
       {/* Secondary controls yield first on narrow toolbars; page navigation,
           zoom and search stay reachable. Container queries follow the viewer

@@ -98,6 +98,7 @@ export function buildErrorReply(err: unknown): ApiChatMessage {
     id: generateId('msg') + '-error',
     role: 'assistant',
     content,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    isError: true
   }
 }

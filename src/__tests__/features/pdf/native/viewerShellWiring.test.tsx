@@ -233,10 +233,10 @@ describe('PdfViewerDocument renderer wiring', () => {
     // bottom of a short, centered page.
     expect(viewerArea).not.toBe(null)
     expect(viewerArea?.contains(toolbar)).toBe(false)
-    // The toolbar owns its own layout row in the shell column: it is a sibling of
-    // the viewer stage, never a child of it, so it cannot overlay the page bottom.
-    expect(viewerArea?.parentElement?.contains(toolbar)).toBe(false)
-    expect(toolbar.previousElementSibling).toBe(viewerArea?.parentElement)
+    // The toolbar owns its own layout row in the shell column, above the viewer stage,
+    // so it shares the PDF tab strip's side of the panel (matching the AI panel's
+    // top control band), never the page area itself.
+    expect(toolbar.nextElementSibling).toBe(viewerArea?.parentElement)
   })
 
   it('mounts the AI draft dock slot as an overlay that takes no layout space', () => {

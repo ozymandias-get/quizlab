@@ -41,7 +41,10 @@ const MessageBubble = memo(function MessageBubble({
   onRegenerate
 }: MessageBubbleProps) {
   const { t } = useTranslation()
-  const isError = message.content.startsWith('Hata:') || message.content.startsWith('Error:')
+  // The transcript is model prose: a message that happens to begin with
+  // "Error:" or "Hata:" is still a normal answer. Only the explicit flag that
+  // `buildErrorReply` sets may paint the destructive shell.
+  const isError = message.isError === true
   const [isEditing, setIsEditing] = useState(false)
   const [editVal, setEditVal] = useState(message.content)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -87,6 +90,7 @@ const MessageBubble = memo(function MessageBubble({
   return (
     <div className="group animate-app-enter">
       <div
+        data-message-error={isError ? 'true' : undefined}
         className={`w-fit ${isUser ? 'ml-auto' : ''} motion-normal relative rounded-xl px-4 py-2.5 transition-colors ${
           isUser
             ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
