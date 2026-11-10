@@ -27,9 +27,9 @@ export function getHealthTone(health: SelectorHealthState): HealthTone {
       }
     case 'needs_repick':
       return {
-        badge: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-        icon: 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-        border: 'border-amber-500/30 bg-card hover:bg-muted/50'
+        badge: 'border-destructive/30 bg-destructive/10 text-destructive',
+        icon: 'border-destructive/30 bg-destructive/10 text-destructive',
+        border: 'border-destructive/30 bg-card hover:bg-muted/50'
       }
     default:
       return {

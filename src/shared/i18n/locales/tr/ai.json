@@ -22,6 +22,7 @@
   "ai_home_open_tabs_label": "Açık sekmeler",
   "ai_session": {
     "sleep_title": "Sekme uyku modunda",
-    "sleep_description": "Bellek kullanımını azaltmak için sekme uyutuldu. Devam etmek ve görünümü tazelemek için herhangi bir yere tıklayın."
+    "sleep_description": "Bellek kullanımını azaltmak için sekme uyutuldu. Devam etmek ve görünümü tazelemek için uyandırın.",
+    "wake_action": "Oturumu uyandır"
   }
 }

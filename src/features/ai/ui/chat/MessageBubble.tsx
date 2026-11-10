@@ -45,6 +45,7 @@ const MessageBubble = memo(function MessageBubble({
   // "Error:" or "Hata:" is still a normal answer. Only the explicit flag that
   // `buildErrorReply` sets may paint the destructive shell.
   const isError = message.isError === true
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editVal, setEditVal] = useState(message.content)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
@@ -91,11 +92,15 @@ const MessageBubble = memo(function MessageBubble({
     <div className="group animate-app-enter">
       <div
         data-message-error={isError ? 'true' : undefined}
-        className={`w-fit ${isUser ? 'ml-auto' : ''} motion-normal relative rounded-xl px-4 py-2.5 transition-colors ${
-          isUser
-            ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
-            : 'border-border bg-card text-foreground border shadow-xs'
-        } ${isError ? 'border-destructive/40 bg-destructive/10 text-destructive' : ''}`}
+        className={`w-fit ${isUser ? 'ml-auto' : ''} motion-normal relative rounded-xl border px-4 py-2.5 transition-colors ${
+          isError
+            ? 'border-destructive/40 bg-destructive/10 text-destructive'
+            : isSpeaking
+              ? 'border-primary/40 bg-card text-foreground shadow-primary/10 shadow-md'
+              : isUser
+                ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
+                : 'border-border bg-card text-foreground border shadow-xs'
+        }`}
       >
         {message.images && message.images.length > 0 && (
           <div className="relative mb-2 flex flex-wrap gap-2">
@@ -238,7 +243,7 @@ const MessageBubble = memo(function MessageBubble({
               <Timestamp ts={message.timestamp} />
               {!isError && (
                 <div className="motion-normal flex items-center gap-1 opacity-80 transition-opacity group-hover:opacity-100">
-                  <TtsButton content={message.content} />
+                  <TtsButton content={message.content} onSpeakingChange={setIsSpeaking} />
                   {isLastAssistant && onRegenerate && (
                     <WithTooltip label={t('api_chat_regenerate_tooltip')}>
                       <IconButton

@@ -6,7 +6,7 @@ import { Textarea } from '@app/components/ui/textarea'
 import { cn } from '@shared/lib/uiUtils'
 import { Button } from '@shared/ui/components/primitives'
 
-import { RotateCcw } from 'lucide-react'
+import { Check, Pencil, RotateCcw } from 'lucide-react'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -23,6 +23,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
 }: QuickPresetEditorCardProps) {
   const { t } = useTranslation()
   const [labelError, setLabelError] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
   const Icon = preset.icon
 
   const handleLabelChange = useCallback(
@@ -40,10 +41,15 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
     [onUpdate]
   )
 
+  const closeEditor = useCallback(() => {
+    if (!preset.label.trim()) setLabelError('error_name_required')
+    setIsEditing(false)
+  }, [preset.label])
+
   return (
     <div
       className={cn(
-        'border-border/60 bg-card flex flex-col gap-3 rounded-xl border p-4',
+        'border-border/60 bg-card flex flex-col gap-3 rounded-xl border px-4 py-3',
         preset.isCustomized && 'border-ring/50 bg-accent/30'
       )}
     >
@@ -62,49 +68,70 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
             · {preset.isPrimary ? t('preset_primary_short') : t('preset_menu_short')}
           </span>
         </div>
-        {preset.isCustomized && (
+        <div className="flex shrink-0 items-center gap-1">
+          {preset.isCustomized && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={onReset}
+              className="shrink-0 gap-1 px-1.5"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span className="text-ql-10 text-muted-foreground">{t('reset')}</span>
+            </Button>
+          )}
           <Button
             type="button"
-            variant="ghost"
+            variant={isEditing ? 'secondary' : 'ghost'}
             size="xs"
-            onClick={onReset}
-            className="shrink-0 gap-1 px-1.5"
+            onClick={() => (isEditing ? closeEditor() : setIsEditing(true))}
+            className="shrink-0 gap-1 px-2"
+            aria-expanded={isEditing}
           >
-            <RotateCcw className="h-3 w-3" />
-            <span className="text-ql-10 text-muted-foreground">{t('reset')}</span>
+            {isEditing ? <Check className="h-3 w-3" /> : <Pencil className="h-3 w-3" />}
+            <span className="text-ql-10">{t(isEditing ? 'preset_done' : 'preset_edit')}</span>
           </Button>
-        )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr]">
-        <div className="text-ql-12 space-y-1">
-          <Label className="text-ql-10 text-muted-foreground">{t('prompt_label')}</Label>
-          <Input
-            value={preset.label}
-            onChange={handleLabelChange}
-            onBlur={() => setLabelError(preset.label.trim() ? '' : 'error_name_required')}
-            placeholder={preset.defaultLabel}
-            className="text-ql-12 h-7"
-            aria-invalid={!!labelError}
-          />
-          {labelError && (
-            <span role="alert" className="text-destructive text-ql-11 px-1">
-              {t(labelError)}
-            </span>
-          )}
+      {!isEditing && (
+        <p className="text-ql-11 text-muted-foreground line-clamp-2 leading-relaxed">
+          {preset.value || preset.defaultValue}
+        </p>
+      )}
+
+      {isEditing && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr]">
+          <div className="text-ql-12 space-y-1">
+            <Label className="text-ql-10 text-muted-foreground">{t('prompt_label')}</Label>
+            <Input
+              value={preset.label}
+              onChange={handleLabelChange}
+              onBlur={() => setLabelError(preset.label.trim() ? '' : 'error_name_required')}
+              placeholder={preset.defaultLabel}
+              className="text-ql-12 h-7"
+              aria-invalid={!!labelError}
+            />
+            {labelError && (
+              <span role="alert" className="text-destructive text-ql-11 px-1">
+                {t(labelError)}
+              </span>
+            )}
+          </div>
+          <div className="text-ql-12 space-y-1">
+            <Label className="text-ql-10 text-muted-foreground">{t('prompt_prompt')}</Label>
+            <Textarea
+              value={preset.value}
+              onChange={handleValueChange}
+              placeholder={preset.defaultValue}
+              rows={2}
+              size="sm"
+              className="min-h-[30px] py-1.5 leading-snug"
+            />
+          </div>
         </div>
-        <div className="text-ql-12 space-y-1">
-          <Label className="text-ql-10 text-muted-foreground">{t('prompt_prompt')}</Label>
-          <Textarea
-            value={preset.value}
-            onChange={handleValueChange}
-            placeholder={preset.defaultValue}
-            rows={1}
-            size="sm"
-            className="min-h-[30px] py-1.5 leading-snug"
-          />
-        </div>
-      </div>
+      )}
     </div>
   )
 })

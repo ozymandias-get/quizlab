@@ -12,6 +12,7 @@
   "selectors_health_needs_repick": "Re-pick needed",
   "selectors_health_missing": "Not configured",
   "selectors_locator_health_label": "Element Health",
+  "selectors_technical_details": "Technical details",
   "selectors_repair_summary": "Automatically repaired · Confidence: {confidence} · {date}",
   "selectors_repair_pending": "Verifying a repaired selector…",
   "selectors_confidence_high": "High",

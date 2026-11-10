@@ -57,7 +57,7 @@ const MessageList = memo(function MessageList({
   const renderRow = (row: MessageRowModel) => {
     if (row.kind === 'date') {
       return (
-        <div key={row.key} data-message-row={row.key} className="flow-root">
+        <div key={row.key} data-message-row={row.key} className="sticky top-0 z-[1] flow-root">
           <DateSeparator ts={row.timestamp} />
         </div>
       )

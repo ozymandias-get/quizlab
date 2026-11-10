@@ -140,6 +140,8 @@
   "prompt_prompt": "Prompt",
   "preset_primary_short": "Main",
   "preset_menu_short": "Menu",
+  "preset_edit": "Edit",
+  "preset_done": "Done",
   "prompts_ready_badge": "Ready",
   "prompts_selected_badge": "Selected",
   "prompts_default_title": "Ready Prompts — QuizLab focused",

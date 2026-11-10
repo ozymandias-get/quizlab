@@ -22,6 +22,7 @@
   "ai_home_open_tabs_label": "Open tabs",
   "ai_session": {
     "sleep_title": "Tab in sleep mode",
-    "sleep_description": "This tab was put to sleep to reduce memory use. Click anywhere to resume and refresh the view."
+    "sleep_description": "This tab was put to sleep to reduce memory use. Wake it up to resume and refresh the view.",
+    "wake_action": "Wake session"
   }
 }

@@ -1,5 +1,7 @@
 import type { AiSelectorConfig, SelectorRepairKind } from '@shared-core/types'
 
+import { ChevronDown } from 'lucide-react'
+
 import type { SelectorHealthState, TranslateFn } from '../types'
 
 /**
@@ -68,46 +70,52 @@ export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHeal
   const configHealth: SelectorHealthState = config?.health ?? 'ready'
 
   return (
-    <div className="border-border/60 bg-background/40 flex flex-col gap-2 rounded-xl border p-4">
-      <div className="text-muted-foreground flex items-center gap-2">
-        <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
+    <div className="border-border/60 bg-background/40 flex flex-col gap-1.5 rounded-xl border px-3.5 py-2.5">
+      <div className="flex items-center gap-2">
+        <span className="text-ql-11 text-muted-foreground font-medium">
           {t('selectors_locator_health_label')}
         </span>
         <span aria-hidden className="bg-border h-px flex-1" />
       </div>
+      <details className="group">
+        <summary className="text-ql-11 text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1.5 rounded-md py-0.5 select-none">
+          <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
+          {t('selectors_technical_details')}
+        </summary>
 
-      <ul className="flex flex-col gap-2">
-        {rows.map((row) => {
-          const state = row.hasLocator ? resolveHealthState(row, configHealth) : 'missing'
-          return (
-            <li key={row.kind} className="flex flex-wrap items-center gap-2">
-              <span className="text-ql-12 text-foreground w-16 shrink-0 font-medium">
-                {t(row.labelKey)}
-              </span>
-              <span
-                className={`text-ql-10 rounded-full border px-2 py-0.5 font-medium ${
-                  STATE_STYLES[state] ?? STATE_STYLES.missing
-                }`}
-              >
-                {t(`selectors_health_${state}`)}
-              </span>
-              {row.repaired && (
-                <span className="text-ql-11 text-muted-foreground">
-                  {t('selectors_repair_summary', {
-                    confidence: t(`selectors_confidence_${row.confidenceLevel ?? 'high'}`),
-                    date: row.repairedAt ? new Date(row.repairedAt).toLocaleDateString() : '—'
-                  })}
+        <ul className="mt-2 flex flex-col gap-2">
+          {rows.map((row) => {
+            const state = row.hasLocator ? resolveHealthState(row, configHealth) : 'missing'
+            return (
+              <li key={row.kind} className="flex flex-wrap items-center gap-2">
+                <span className="text-ql-12 text-foreground w-16 shrink-0 font-medium">
+                  {t(row.labelKey)}
                 </span>
-              )}
-              {row.awaitingPromotion && !row.repaired && (
-                <span className="text-ql-11 text-muted-foreground">
-                  {t('selectors_repair_pending')}
+                <span
+                  className={`text-ql-10 rounded-full border px-2 py-0.5 font-medium ${
+                    STATE_STYLES[state] ?? STATE_STYLES.missing
+                  }`}
+                >
+                  {t(`selectors_health_${state}`)}
                 </span>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+                {row.repaired && (
+                  <span className="text-ql-11 text-muted-foreground">
+                    {t('selectors_repair_summary', {
+                      confidence: t(`selectors_confidence_${row.confidenceLevel ?? 'high'}`),
+                      date: row.repairedAt ? new Date(row.repairedAt).toLocaleDateString() : '—'
+                    })}
+                  </span>
+                )}
+                {row.awaitingPromotion && !row.repaired && (
+                  <span className="text-ql-11 text-muted-foreground">
+                    {t('selectors_repair_pending')}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </details>
     </div>
   )
 }

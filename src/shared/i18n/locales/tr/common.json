@@ -140,6 +140,8 @@
   "prompt_prompt": "Prompt",
   "preset_primary_short": "Ana",
   "preset_menu_short": "Menü",
+  "preset_edit": "Düzenle",
+  "preset_done": "Bitti",
   "prompts_ready_badge": "Hazır",
   "prompts_selected_badge": "Seçili",
   "prompts_default_title": "Hazır Promptlar — Quizlab çalışma odaklı",

@@ -202,7 +202,10 @@ function PdfPageNav({
             aria-invalid={isPageInvalid || undefined}
             aria-describedby={isPageInvalid ? pageErrorId : undefined}
             className="text-ql-12 px-1.5 py-0.5 text-center font-medium tabular-nums"
-            style={{ width: `${Math.max(54, totalPages.toString().length * 10 + 20)}px` }}
+            style={{
+              width: `${totalPages.toString().length + 1.5}ch`,
+              minWidth: '54px'
+            }}
           />
           {isPageInvalid && (
             <span

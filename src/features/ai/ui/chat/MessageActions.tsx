@@ -44,12 +44,30 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
   )
 })
 
-export const TtsButton = memo(function TtsButton({ content }: { content: string }) {
+export const TtsButton = memo(function TtsButton({
+  content,
+  onSpeakingChange
+}: {
+  content: string
+  /**
+   * Lets the message bubble follow playback. The callback is read through a ref
+   * so a new identity every render cannot re-create the speak/stop handlers.
+   */
+  onSpeakingChange?: (isSpeaking: boolean) => void
+}) {
   const { t, i18n } = useTranslation()
   const [isSpeaking, setIsSpeaking] = useState(false)
   const isSpeakingRef = useRef(false)
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const stopRef = useRef<() => void>(() => undefined)
+  const onSpeakingChangeRef = useRef(onSpeakingChange)
+  onSpeakingChangeRef.current = onSpeakingChange
+
+  const publishSpeaking = useCallback((value: boolean) => {
+    isSpeakingRef.current = value
+    setIsSpeaking(value)
+    onSpeakingChangeRef.current?.(value)
+  }, [])
 
   const stop = useCallback(() => {
     const utterance = utteranceRef.current
@@ -58,10 +76,9 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
       utterance.onerror = null
     }
     window.speechSynthesis.cancel()
-    isSpeakingRef.current = false
-    setIsSpeaking(false)
+    publishSpeaking(false)
     if (activeTtsStop === stopRef.current) activeTtsStop = null
-  }, [])
+  }, [publishSpeaking])
   stopRef.current = stop
 
   useEffect(() => {
@@ -89,8 +106,7 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
     utterance.lang = isTurkish ? 'tr-TR' : 'en-US'
 
     const finish = () => {
-      isSpeakingRef.current = false
-      setIsSpeaking(false)
+      publishSpeaking(false)
       if (activeTtsStop === stopRef.current) activeTtsStop = null
     }
     utterance.onend = finish
@@ -99,9 +115,8 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
     utteranceRef.current = utterance
     activeTtsStop = stopRef.current
     window.speechSynthesis.speak(utterance)
-    isSpeakingRef.current = true
-    setIsSpeaking(true)
-  }, [content, i18n.language, isSpeaking, stop])
+    publishSpeaking(true)
+  }, [content, i18n.language, isSpeaking, publishSpeaking, stop])
 
   return (
     <WithTooltip
@@ -112,12 +127,20 @@ export const TtsButton = memo(function TtsButton({ content }: { content: string 
         size="compact"
         variant="ghost"
         onClick={handleSpeak}
+        aria-pressed={isSpeaking}
         className={`text-ql-10 ${
           isSpeaking ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
         }`}
         aria-label={isSpeaking ? t('api_chat_tts_stop_tooltip') : t('api_chat_tts_speak_tooltip')}
       >
-        {isSpeaking ? <Square className="animate-pulse" /> : <Volume2 />}
+        {isSpeaking ? (
+          <span className="relative flex size-3.5 items-center justify-center" aria-hidden>
+            <span className="bg-primary/25 absolute inset-0 animate-ping rounded-full" />
+            <Square className="relative size-3.5" />
+          </span>
+        ) : (
+          <Volume2 />
+        )}
       </IconButton>
     </WithTooltip>
   )

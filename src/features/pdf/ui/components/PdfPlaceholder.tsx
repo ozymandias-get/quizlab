@@ -54,78 +54,81 @@ function PdfPlaceholder({
 
   return (
     /* Top-aligned (not `justify-center`): with centring, the hero drifted
-       upward every time the reading history grew. The column now fills the
-       panel so the history section can extend down and scroll instead. */
-    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-6 py-7 select-none motion-reduce:animate-none">
-      <div className="flex h-full w-full max-w-[640px] flex-col items-center gap-6">
-        {/* Hero — clean elevated drop surface */}
-        <div className="border-border/50 bg-muted/20 hover:border-border/80 hover:bg-muted/30 motion-normal relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center transition-colors">
-          <span
-            aria-hidden
-            className="relative flex size-11 items-center justify-center rounded-xl border"
-            style={{
-              color: 'var(--selection-color-source, oklch(var(--primary)))',
-              backgroundColor:
-                'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 12%, transparent)',
-              borderColor:
-                'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
-            }}
-          >
-            <Upload className="h-5 w-5" />
-          </span>
+       upward every time the reading history grew. On wide panels the hero and
+       the history sit side by side so a long list cannot squeeze the primary
+       "open a PDF" action; on narrow panels they stack and the list scrolls. */
+    <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-4 py-6 select-none motion-reduce:animate-none sm:px-6 sm:py-7">
+      <div className="@container h-full w-full max-w-5xl">
+        <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 @min-[680px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[680px]:grid-rows-1">
+          {/* Hero — clean elevated drop surface */}
+          <div className="border-border/50 bg-muted/20 hover:border-border/80 hover:bg-muted/30 motion-normal relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 self-start rounded-2xl border px-6 py-7 text-center transition-colors">
+            <span
+              aria-hidden
+              className="relative flex size-11 items-center justify-center rounded-xl border"
+              style={{
+                color: 'var(--selection-color-source, oklch(var(--primary)))',
+                backgroundColor:
+                  'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 12%, transparent)',
+                borderColor:
+                  'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
+              }}
+            >
+              <Upload className="h-5 w-5" />
+            </span>
 
-          <div className="space-y-1">
-            <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
-              {t('no_pdf_loaded')}
-            </h2>
-            <p className="text-ql-12 text-muted-foreground mx-auto max-w-[260px] leading-relaxed">
-              {t('drop_pdf_here')}
-            </p>
+            <div className="space-y-1">
+              <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
+                {t('no_pdf_loaded')}
+              </h2>
+              <p className="text-ql-12 text-muted-foreground mx-auto max-w-[260px] leading-relaxed">
+                {t('drop_pdf_here')}
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="default"
+              size="lg"
+              onClick={onSelectPdf}
+              className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
+              aria-label={t('select_pdf')}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>{t('select_pdf')}</span>
+            </Button>
           </div>
 
-          <Button
-            type="button"
-            variant="default"
-            size="lg"
-            onClick={onSelectPdf}
-            className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
-            aria-label={t('select_pdf')}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            <span>{t('select_pdf')}</span>
-          </Button>
-        </div>
-
-        {/* Recent Reading Section */}
-        <div className="border-border/40 flex min-h-0 w-full flex-1 flex-col gap-3 border-t pt-5 text-left">
-          <PdfRecentControls
-            t={t}
-            recentCount={recentItems.length}
-            shouldShowAdvancedControls={shouldShowAdvancedControls}
-            searchQuery={searchQuery}
-            sortMode={sortMode}
-            isMobileSearchOpen={isMobileSearchOpen}
-            canClear={!!onClearResumePdf}
-            onSearchQueryChange={setSearchQuery}
-            onSortModeChange={setSortMode}
-            onToggleMobileSearch={toggleMobileSearch}
-            onClearAll={handleClearAll}
-          />
-
-          <div className="custom-scrollbar -mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
-            <PdfRecentList
+          {/* Recent Reading Section */}
+          <div className="border-border/40 flex min-h-0 w-full flex-col gap-3 border-t pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
+            <PdfRecentControls
               t={t}
-              language={language}
               recentCount={recentItems.length}
-              processedCount={processedItems.length}
-              groupedItems={groupedItems}
-              invalidPaths={invalidPaths}
-              canResume={!!onResumePdf}
+              shouldShowAdvancedControls={shouldShowAdvancedControls}
+              searchQuery={searchQuery}
+              sortMode={sortMode}
+              isMobileSearchOpen={isMobileSearchOpen}
               canClear={!!onClearResumePdf}
-              onResume={handleResume}
-              onRelink={handleRelink}
-              onRemove={handleRemove}
+              onSearchQueryChange={setSearchQuery}
+              onSortModeChange={setSortMode}
+              onToggleMobileSearch={toggleMobileSearch}
+              onClearAll={handleClearAll}
             />
+
+            <div className="custom-scrollbar -mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+              <PdfRecentList
+                t={t}
+                language={language}
+                recentCount={recentItems.length}
+                processedCount={processedItems.length}
+                groupedItems={groupedItems}
+                invalidPaths={invalidPaths}
+                canResume={!!onResumePdf}
+                canClear={!!onClearResumePdf}
+                onResume={handleResume}
+                onRelink={handleRelink}
+                onRemove={handleRemove}
+              />
+            </div>
           </div>
         </div>
       </div>

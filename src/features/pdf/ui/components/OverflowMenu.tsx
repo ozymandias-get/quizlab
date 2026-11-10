@@ -138,7 +138,7 @@ function OverflowMenu({
             ref={surfaceRef}
             role="dialog"
             aria-label={tr('tab_more', 'More tabs')}
-            className="w-[min(260px,calc(100vw-16px))] overflow-y-auto"
+            className="w-[min(300px,calc(100vw-16px))] min-w-[240px] overflow-y-auto"
             style={{ maxHeight: menuMaxHeight }}
             onKeyDown={(event) => {
               // The dialog sits inside the tablist row, whose roving handler
@@ -191,7 +191,7 @@ function OverflowMenu({
                         size="compact"
                         variant="ghost"
                         aria-label={tr('tab_close', 'Close tab')}
-                        className="text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border border-transparent"
+                        className="text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 shrink-0 rounded-md border border-transparent opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
                         onClick={() => {
                           onCloseTab(tab.id)
                           setIsOpen(false)

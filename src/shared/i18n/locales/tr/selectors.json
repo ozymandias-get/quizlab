@@ -12,6 +12,7 @@
   "selectors_health_needs_repick": "Yeniden seçim gerekli",
   "selectors_health_missing": "Ayarlanmadı",
   "selectors_locator_health_label": "Element Durumu",
+  "selectors_technical_details": "Teknik Ayrıntılar",
   "selectors_repair_summary": "Otomatik onarıldı · Güven: {confidence} · {date}",
   "selectors_repair_pending": "Onarılmış selektör doğrulanıyor…",
   "selectors_confidence_high": "Yüksek",

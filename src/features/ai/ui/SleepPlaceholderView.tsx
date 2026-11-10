@@ -20,13 +20,22 @@ function SleepPlaceholderViewImpl({ onWakeUp, t }: SleepPlaceholderViewProps) {
       }}
       className="group bg-background/60 focus-visible:ring-ring/70 flex flex-1 cursor-pointer flex-col items-center justify-center backdrop-blur-sm select-none focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="border-border bg-card group-hover:border-primary/40 group-hover:bg-muted mb-4 rounded-xl border p-4 shadow-xs transition-colors">
-        <Moon className="text-primary/80 h-8 w-8" />
+      <div className="border-border bg-card group-hover:border-primary/40 group-hover:bg-card/95 flex max-w-sm flex-col items-center rounded-2xl border px-8 py-7 text-center shadow-xs transition-colors">
+        <div className="border-border bg-muted/50 relative mb-4 flex size-14 items-center justify-center rounded-full border">
+          <span
+            aria-hidden
+            className="bg-primary/20 absolute inset-0 rounded-full motion-safe:animate-ping"
+          />
+          <Moon className="text-primary/80 relative size-7" />
+        </div>
+        <p className="text-ql-17 text-foreground font-semibold">{t('ai_session.sleep_title')}</p>
+        <p className="text-ql-12 text-muted-foreground mt-1 max-w-xs leading-relaxed">
+          {t('ai_session.sleep_description')}
+        </p>
+        <span className="border-primary/30 bg-primary/10 text-primary group-hover:bg-primary/15 motion-normal text-ql-12 mt-4 inline-flex items-center rounded-full border px-4 py-1.5 font-semibold transition-colors">
+          {t('ai_session.wake_action')}
+        </span>
       </div>
-      <p className="text-ql-18 text-foreground font-semibold">{t('ai_session.sleep_title')}</p>
-      <p className="text-ql-13 text-muted-foreground mt-1 max-w-sm px-6 text-center">
-        {t('ai_session.sleep_description')}
-      </p>
     </div>
   )
 }

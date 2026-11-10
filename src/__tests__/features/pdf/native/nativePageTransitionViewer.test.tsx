@@ -510,6 +510,10 @@ describe('native page transition — the render never waits for the presentation
       await settle()
     })
 
+    // The first page's own commit happens after the descriptor is installed;
+    // what matters here is the interval between page 1 and page 2.
+    resets = 0
+
     act(() => control.current?.goToNextPage())
     await waitForFrames(() => expect(pdf.page(2).renderCalls.length).toBeGreaterThan(0))
 

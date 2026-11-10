@@ -4,9 +4,10 @@
  * ## Single page only
  *
  * One `<canvas>` exists in the DOM at a time and it always holds the current
- * page. `ViewMode.SinglePage` parity means there is no page stack, no
- * prefetch and no second canvas — the previous page's render is *superseded*, not
- * kept alive beside the new one.
+ * page. `ViewMode.SinglePage` parity means there is no page stack and no
+ * prefetch. A detached buffer canvas is used as a second backing store so a
+ * resize or page swap never blanks the visible canvas: the new page is painted
+ * offscreen and copied over in one synchronous commit.
  *
  * ## Supersede, don't race
  *
@@ -32,10 +33,10 @@
  * superseded render reports nothing and a turn that was already abandoned is never
  * presented.
  *
- * "Until the new ones land" is exact, not approximate: `pageRenderer` sizes the canvas
- * only when the size actually changes, so a same-size page turn does not reset the
- * backing store and the outgoing page stays painted for the whole interval. That is
- * what makes the commit a meaningful signal rather than a race.
+ * "Until the new ones land" is exact, not approximate: the visible canvas is
+ * only resized and repainted after the detached buffer's render resolves, so
+ * the outgoing page stays painted for the whole interval and the commit is a
+ * real, single-task swap rather than a race.
  *
  * It is read through a ref so a new callback identity can never re-run the effect: a
  * presentation concern must not be able to cost an extra `getPage` or an extra render.
@@ -48,7 +49,7 @@
  * removes it when a render starts and writes it back only once the render commits, so
  * `findNativePageCanvas` refuses the canvas for the whole interval and a capture falls
  * through to rendering the page from the document. On a turn that is the previous
- * page's image; on a zoom it is a resized, partly blanked backing store. Neither may
+ * page's image; on a zoom it is the outgoing page at the old scale. Neither may
  * be sent to the AI under the new page's number.
  */
 import { isRenderCancelled } from '@features/pdf/engine'
@@ -109,6 +110,10 @@ export function useNativePdfRender({
 
   const onRenderCommittedRef = useRef(onRenderCommitted)
   onRenderCommittedRef.current = onRenderCommitted
+  // Detached backing store. Rendering into it first means a zoom (which resizes
+  // the attribute) or a page with a different box never blanks the visible
+  // canvas before the replacement is complete.
+  const bufferRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
     // The error shell removes the canvas. Clear the old failure during a new
@@ -136,10 +141,25 @@ export function useNativePdfRender({
         const page = await engineInstance.manager.getPage(currentPage)
         // The identity may have moved on while the page proxy was resolving.
         if (cancelled) return
+
+        const buffer = bufferRef.current ?? (bufferRef.current = document.createElement('canvas'))
         // Canvas sizing is the engine's job: it derives width/height from the
-        // page's own viewport at this scale, rotation included.
-        await engineInstance.renderer.renderPage(page, canvas, { scale })
+        // page's own viewport at this scale, rotation included. It happens on
+        // the detached buffer, so the visible canvas keeps the outgoing page.
+        const rendered = await engineInstance.renderer.renderPage(page, buffer, { scale })
         if (cancelled) return
+
+        // Commit: resize + blit in one task. A redundant assignment would reset
+        // the backing store, so the size guard is kept; a same-size page turn
+        // simply paints the finished buffer over the outgoing page.
+        if (canvas.width !== rendered.width) canvas.width = rendered.width
+        if (canvas.height !== rendered.height) canvas.height = rendered.height
+        try {
+          canvas.getContext('2d', { alpha: false })?.drawImage(buffer, 0, 0)
+        } catch {
+          // A host without a 2D context keeps the correctly sized canvas; the
+          // capture path rejects it via `data-native-pdf-canvas-page`.
+        }
         // The pixels are in the canvas, so it holds this page now. A superseded
         // render gets here too late to claim that.
         canvas.setAttribute(NATIVE_CANVAS_PAGE_ATTRIBUTE, String(currentPage))

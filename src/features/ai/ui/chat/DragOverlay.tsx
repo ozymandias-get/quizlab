@@ -23,16 +23,17 @@ const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverl
         onDragLeave(e)
       }}
       onDrop={onDrop}
-      className="z-overlay animate-fade-in border-primary/50 bg-background/95 absolute inset-0 m-4 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed backdrop-blur-sm"
+      className="z-overlay animate-fade-in bg-background/40 absolute inset-0 flex items-end justify-center p-4 backdrop-blur-xs"
     >
-      <div className="pointer-events-none flex flex-col items-center justify-center p-8 text-center">
-        <div className="border-primary/20 bg-primary/10 text-primary mb-4 flex h-14 w-14 items-center justify-center rounded-xl border shadow-xs">
-          <ImagePlus className="h-7 w-7" />
+      {/* Drop gate sits next to the composer instead of painting the whole
+          panel opaque: the conversation remains readable and the reader can
+          see where the image will land. */}
+      <div className="border-primary/50 bg-card/85 shadow-ambient-sm pointer-events-none mb-2 flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-3 text-center">
+        <div className="border-primary/20 bg-primary/10 text-primary mb-1.5 flex size-8 items-center justify-center rounded-lg border">
+          <ImagePlus className="size-4" />
         </div>
-        <h3 className="text-foreground text-ql-16 mb-1 font-semibold">
-          {t('api_chat_upload_image')}
-        </h3>
-        <p className="text-ql-12 text-muted-foreground max-w-xs">{t('api_chat_drop_image_hint')}</p>
+        <h3 className="text-foreground text-ql-13 font-semibold">{t('api_chat_upload_image')}</h3>
+        <p className="text-ql-11 text-muted-foreground max-w-md">{t('api_chat_drop_image_hint')}</p>
       </div>
     </div>
   )
