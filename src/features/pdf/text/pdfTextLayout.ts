@@ -54,7 +54,7 @@ interface FlowAnchor {
   block: PdfFlowBlock
 }
 
-export interface BuildPdfFlowOptions {
+interface BuildPdfFlowOptions {
   /** Turn reliable row/cell geometry into table blocks. Defaults to true. */
   detectTables?: boolean
 }

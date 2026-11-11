@@ -71,11 +71,32 @@ const MessageList = memo(function MessageList({
     setUnreadCount(0)
   }, [isScrolledUp, messages.length])
 
+  const [keepAliveIds, setKeepAliveIds] = useState<Set<string>>(() => new Set())
+  const handleKeepAliveChange = useCallback((messageId: string, keepAlive: boolean) => {
+    setKeepAliveIds((previous) => {
+      const has = previous.has(messageId)
+      if (has === keepAlive) return previous
+      const next = new Set(previous)
+      if (keepAlive) next.add(messageId)
+      else next.delete(messageId)
+      return next
+    })
+  }, [])
+
   const rows = useMemo(() => buildMessageRows(messageGroups), [messageGroups])
+  const pinnedRowKeys = useMemo(() => {
+    if (keepAliveIds.size === 0) return undefined
+    const keys = new Set<string>()
+    for (const row of rows) {
+      if (row.kind === 'message' && keepAliveIds.has(row.message.id)) keys.add(row.key)
+    }
+    return keys
+  }, [rows, keepAliveIds])
   const { start, end, topPad, bottomPad } = useMessageListWindow({
     rows,
     containerRef,
-    pinnedToBottom: !isScrolledUp
+    pinnedToBottom: !isScrolledUp,
+    pinnedRowKeys
   })
 
   const renderRow = (row: MessageRowModel) => {
@@ -109,6 +130,7 @@ const MessageList = memo(function MessageList({
                   onDelete={onDeleteMessage}
                   isLastAssistant={isLastAssistant}
                   onRegenerate={onRegenerateMessage}
+                  onKeepAliveChange={handleKeepAliveChange}
                 />
               </div>
             </div>
@@ -123,6 +145,7 @@ const MessageList = memo(function MessageList({
                   isUser
                   onDelete={onDeleteMessage}
                   onEdit={onEditMessage}
+                  onKeepAliveChange={handleKeepAliveChange}
                 />
               </div>
               {isFirstOfGroup && (

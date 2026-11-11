@@ -5,7 +5,7 @@
  * anındaki gerçek sayfa kaydedilir.
  */
 
-export type PdfCaptureKind = 'text-selection' | 'full-page-text' | 'full-page-image' | 'area-image'
+type PdfCaptureKind = 'text-selection' | 'full-page-text' | 'full-page-image' | 'area-image'
 
 export interface PdfSourceMeta {
   /** Kararlı belge kimliği: path + streamUrl + name + size birleşimi. */
@@ -22,14 +22,14 @@ export interface PdfSourceMeta {
   createdAt: number
 }
 
-export interface PdfFileIdentity {
+interface PdfFileIdentity {
   path?: string | null
   streamUrl?: string | null
   name?: string | null
   size?: number | null
 }
 
-export function buildPdfDocId(file: PdfFileIdentity | null | undefined): string {
+function buildPdfDocId(file: PdfFileIdentity | null | undefined): string {
   if (!file) return 'unknown-doc'
   const parts = [file.path ?? '', file.streamUrl ?? '', file.name ?? '', String(file.size ?? '')]
   const joined = parts.join('::')
@@ -87,7 +87,7 @@ export function formatSourcePages(source: PdfSourceMeta | null | undefined): str
 }
 
 /** "Sayfa 13/59" — UI satırları için. Toplam yoksa "Sayfa 13". */
-export function formatSourcePageLabel(source: PdfSourceMeta | null | undefined): string | null {
+function formatSourcePageLabel(source: PdfSourceMeta | null | undefined): string | null {
   const pages = formatSourcePages(source)
   if (!pages) return null
   return `Sayfa ${pages}`

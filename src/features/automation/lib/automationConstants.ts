@@ -19,7 +19,6 @@ export const PICKER_TRANSLATION_KEYS = [
   'picker_hint_input_correct',
   'picker_hint_submit_correct',
   'picker_hint_button_send',
-  'picker_hint_div_input',
   'picker_hint_textarea_perfect',
   'picker_hint_generic_box',
   'picker_hint_icon',

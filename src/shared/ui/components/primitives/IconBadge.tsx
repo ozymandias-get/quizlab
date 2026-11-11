@@ -7,15 +7,13 @@ interface IconBadgeProps {
   variant?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'ghost'
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
-  iconClassName?: string
 }
 
 export const IconBadge = ({
   icon: Icon,
   variant = 'primary',
   size = 'md',
-  className,
-  iconClassName
+  className
 }: IconBadgeProps) => {
   const sizeClasses = {
     sm: 'w-6 h-6 rounded-md',
@@ -49,7 +47,7 @@ export const IconBadge = ({
         className
       )}
     >
-      <Icon className={cn(iconSizeClasses[size], iconClassName)} />
+      <Icon className={iconSizeClasses[size]} />
     </div>
   )
 }

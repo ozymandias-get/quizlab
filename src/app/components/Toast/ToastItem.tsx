@@ -111,10 +111,12 @@ function renderToastMessage(text: string): ReactNode {
 interface ToastItemProps {
   toast: Toast
   onRemove: (id: string) => void
+  /** Background cards in the stack cannot be hovered, so their timer pauses too. */
+  paused?: boolean
 }
 
 const ToastItem = memo(
-  forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove }, ref) => {
+  forwardRef<HTMLDivElement, ToastItemProps>(({ toast, onRemove, paused = false }, ref) => {
     const { t } = useTranslation()
     const [isHovered, setIsHovered] = useState(false)
     const [isFocusWithin, setIsFocusWithin] = useState(false)
@@ -134,7 +136,7 @@ const ToastItem = memo(
     const toastId = toast.id
     // Pointer and keyboard both keep the toast alive: a user tabbing to the
     // close/action button must not lose it mid-interaction.
-    const isPaused = isHovered || isFocusWithin
+    const isPaused = paused || isHovered || isFocusWithin
 
     const clearTimer = useCallback(() => {
       if (timerRef.current !== null) {

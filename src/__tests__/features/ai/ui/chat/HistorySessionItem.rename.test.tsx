@@ -32,7 +32,6 @@ function renderEditingItem(
       <HistorySessionItem
         session={SESSION}
         isActive={false}
-        tabId="tab-1"
         onSelect={vi.fn()}
         onDelete={vi.fn()}
         editingId={SESSION.id}

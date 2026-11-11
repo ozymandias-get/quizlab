@@ -51,7 +51,7 @@ const STAGED_MODES = new Set(['staged', 'paste_only', 'paste_and_prompt'])
 
 type SendOutcomeKind = 'delivered' | 'staged' | 'failed' | 'incomplete' | 'busy'
 
-export interface SendOutcome {
+interface SendOutcome {
   kind: SendOutcomeKind
   /** `busy` için mevcut durum değişmez → `idle`. Başarılar da `idle`. */
   feedback: SendFeedback

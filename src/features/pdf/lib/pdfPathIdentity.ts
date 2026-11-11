@@ -5,7 +5,7 @@
  * History and tab lookups compare the same file by this key, not by the raw
  * string, so the same document does not become a second entry or a second tab.
  */
-export function normalizePdfPathKey(filePath: string | null | undefined): string {
+function normalizePdfPathKey(filePath: string | null | undefined): string {
   const value = (filePath ?? '').trim()
   if (!value) return ''
   const slashed = value.replaceAll('\\', '/')

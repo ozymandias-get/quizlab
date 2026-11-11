@@ -17,7 +17,7 @@ export const LIST_FALLBACK_HEIGHT = 480
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export interface HistoryRowLayout {
+interface HistoryRowLayout {
   /** Prefix offsets: row `i` starts at `offsets[i]`. */
   offsets: number[]
   totalHeight: number

@@ -8,8 +8,7 @@ import { SCREENSHOT_TYPES } from '../../shared/types/system.js'
 
 export const APP_CONFIG = {
   PARTITIONS: {
-    AI: 'persist:ai_session',
-    PDF: 'persist:pdf_viewer'
+    AI: 'persist:ai_session'
   },
   GITHUB: {
     OWNER: 'ozymandias-get',
@@ -23,7 +22,6 @@ export const APP_CONFIG = {
     DEFAULT_HEIGHT: 900
   },
   CLEANUP: {
-    STARTUP_DELAY_MS: 5000,
     IDLE_TIMEOUT_MS: 5 * 60 * 1000,
     MAX_TOTAL_CACHE_BYTES,
     MAX_PARTITION_CACHE_BYTES: 100 * 1024 * 1024,

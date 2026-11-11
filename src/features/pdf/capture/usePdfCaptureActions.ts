@@ -16,8 +16,8 @@
  *
  * ## One page source
  *
- * Both actions label their result with a page number, and both read it from
- * `capturePageRef`, which the viewer writes as the current page changes. The rest
+ * Both actions label their result with a page number, tracked from the
+ * `currentPage` prop as the viewer reports page changes. The rest
  * of this hook is renderer-agnostic on purpose: `renderPageToImageFallback`
  * borrows the mounted document and `findPageCanvas` resolves whichever canvas is
  * on screen, so this file needed no native branch and its supersession contract
@@ -118,19 +118,6 @@ interface UsePdfCaptureActionsOptions {
     size?: number | null
   } | null
   /**
-   * The page capture should actually read.
-   *
-   * The viewer writes the live page here, so a capture triggered in the same tick
-   * as a page change names the page the reader is now looking at rather than the
-   * page the hook last rendered. `PdfViewerDocument` owns the renderer, so it is
-   * the only place that can say which page is live; it writes the answer here,
-   * through a ref. A ref rather than a value because this hook already
-   * reads the page exactly once — at capture time, into `pageAtCaptureTime`, so
-   * the AI item is labelled with the page the reader was looking at when they
-   * pressed the button and not with whatever is current when the render lands.
-   */
-  capturePageRef?: React.RefObject<number>
-  /**
    * Tamamlanan tam sayfa yakalaması buraya iletilir; karar (gönder / taslak)
    * kullanıcıya bırakılır. Yakalama sonucu doğrudan kuyruğa yazılmaz.
    *
@@ -148,14 +135,13 @@ export function usePdfCaptureActions({
   currentPage,
   totalPages,
   pdfFile,
-  capturePageRef,
   onFullPageCapture,
   startScreenshot,
   pdfUrl
 }: UsePdfCaptureActionsOptions) {
   const { showError, showInfo } = useToastActions()
   const currentPageRef = useRef(currentPage)
-  currentPageRef.current = capturePageRef?.current ?? currentPage
+  currentPageRef.current = currentPage
   const totalPagesRef = useRef(totalPages ?? 0)
   totalPagesRef.current = totalPages ?? 0
   const pdfFileRef = useRef(pdfFile ?? null)

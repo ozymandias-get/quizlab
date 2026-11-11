@@ -1,6 +1,5 @@
 import {
   AI_TAB_MAX_WIDTH,
-  clamp,
   getAiTabStripChromeWidth,
   getDesiredAiTabWidth,
   getInitialVisibleAiTabs,
@@ -172,21 +171,5 @@ describe('resolveVisibleAiTabCount', () => {
         hasOverflow: true
       })
     ).toBe(1)
-  })
-})
-
-describe('clamp', () => {
-  it.each([
-    ['inside the range', 5, 0, 10, 5],
-    ['below the range', -3, 0, 10, 0],
-    ['above the range', 99, 0, 10, 10],
-    ['exactly the min', 0, 0, 10, 0],
-    ['exactly the max', 10, 0, 10, 10],
-    ['inside a negative range', -5, -10, -1, -5],
-    ['above a negative range', 0, -10, -1, -1],
-    ['below a negative range', -15, -10, -1, -10],
-    ['equal min and max', 5, 3, 3, 3]
-  ])('%s', (_case, value, min, max, expected) => {
-    expect(clamp(value, min, max)).toBe(expected)
   })
 })

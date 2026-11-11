@@ -65,7 +65,6 @@ export function useConfirmDialog() {
   }
 
   return {
-    isOpen,
     props,
     confirm
   }

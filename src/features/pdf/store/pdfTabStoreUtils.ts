@@ -20,13 +20,6 @@ export const toPdfFile = (file: PdfFile): PdfFile => ({
   size: file.size
 })
 
-export const isSamePdfStream = (prev: PdfFile | null | undefined, next: PdfFile): boolean => {
-  if (!prev) return false
-  return (
-    (prev.path ?? '') === (next.path ?? '') && (prev.streamUrl ?? '') === (next.streamUrl ?? '')
-  )
-}
-
 /**
  * Whether two registrations describe the same document.
  *

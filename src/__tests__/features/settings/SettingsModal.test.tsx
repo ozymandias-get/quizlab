@@ -1,8 +1,5 @@
 import SettingsModal from '@features/settings/ui/SettingsModal'
-import {
-  resetSettingsDirty,
-  setSettingsDirty
-} from '@features/settings/ui/modal/settingsDirtyGuard'
+import { setSettingsDirty } from '@features/settings/ui/modal/settingsDirtyGuard'
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -113,7 +110,8 @@ vi.mock('@features/settings/ui/modal/SettingsModalContent', () => ({
 
 describe('SettingsModal', () => {
   beforeEach(() => {
-    resetSettingsDirty()
+    setSettingsDirty('api-provider-settings', false)
+    setSettingsDirty('add-ai-model-form', false)
   })
 
   it('renders nothing when closed', () => {

@@ -110,7 +110,7 @@ const HIGHLIGHT_FADE_ANIMATION =
 const HIGHLIGHT_REDUCED_MOTION_OPACITY = '0.3'
 
 /** A logical match: a keyword occurrence in the page's concatenated run text. */
-export interface NativePdfSearchMatch {
+interface NativePdfSearchMatch {
   /** 1-based page the match was found on. */
   pageNumber: number
   /** Index of the first matched code unit in `NativePdfSearchPageText.text`. */
@@ -130,7 +130,7 @@ interface NativePdfSearchRect {
 }
 
 /** One highlight rectangle, plus the logical match it belongs to. */
-export interface NativePdfSearchHighlight {
+interface NativePdfSearchHighlight {
   /** Index of the logical match; several rectangles can share it. */
   matchIndex: number
   rect: NativePdfSearchRect
@@ -145,7 +145,7 @@ interface NativePdfSearchRun {
 }
 
 /** A page's runs concatenated, with the boundaries a match is resolved against. */
-export interface NativePdfSearchPageText {
+interface NativePdfSearchPageText {
   /** The page's text. Every match offset refers to exactly this string. */
   text: string
   runs: NativePdfSearchRun[]
@@ -394,7 +394,7 @@ export function findNativeSearchTextLayer(searchLayer: Element): HTMLElement | n
 }
 
 /** The matches and the drawable rectangles for one keyword on one page. */
-export interface NativePdfSearchResult {
+interface NativePdfSearchResult {
   matches: NativePdfSearchMatch[]
   highlights: NativePdfSearchHighlight[]
 }
@@ -423,7 +423,7 @@ export function findNativePdfSearchHighlights(
 }
 
 /** How a highlight element is painted: geometry always, motion per the preference. */
-export interface NativePdfSearchHighlightOptions {
+interface NativePdfSearchHighlightOptions {
   /** Becomes the element's `title`, trimmed. */
   keyword: string
   reducedMotion: boolean

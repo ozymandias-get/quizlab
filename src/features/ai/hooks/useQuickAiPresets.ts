@@ -85,7 +85,7 @@ const QUICK_PRESET_CONFIGS: QuickPresetConfig[] = [
   }
 ]
 
-export type CustomPresetsRecord = Partial<
+type CustomPresetsRecord = Partial<
   Record<
     QuickPresetKey,
     {

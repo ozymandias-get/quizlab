@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  buildPdfDocId,
   buildPdfSourceMeta,
   buildImageSourceHeader,
   buildTextSourceHeader,
   decorateTextWithSource,
-  formatSourcePageLabel,
   formatSourcePages
 } from '../../../../app/providers/ai/pdfSource'
 
@@ -18,7 +16,6 @@ describe('pdfSource metadata', () => {
       totalPages: 59,
       captureKind: 'text-selection'
     })
-    expect(formatSourcePageLabel(source)).toBe('Sayfa 13/59')
     expect(formatSourcePages(source)).toBe('13/59')
   })
 
@@ -52,7 +49,6 @@ describe('pdfSource metadata', () => {
       captureKind: 'text-selection'
     })
     expect(source.totalPages).toBeUndefined()
-    expect(formatSourcePageLabel(source)).toBe('Sayfa 13')
     expect(buildTextSourceHeader(source)).toBe('[PDF Kaynağı — Metin — Sayfa 13]')
   })
 
@@ -64,7 +60,6 @@ describe('pdfSource metadata', () => {
       totalPages: 59,
       captureKind: 'text-selection'
     })
-    expect(formatSourcePageLabel(source)).toBe('Sayfa 11–12/59')
     expect(buildTextSourceHeader(source)).toBe('[PDF Kaynağı — Metin — Sayfa 11–12/59]')
   })
 
@@ -82,13 +77,11 @@ describe('pdfSource metadata', () => {
       captureKind: 'text-selection'
     })
     expect(a.docId).not.toBe(b.docId)
-    expect(buildPdfDocId({ path: '/a.pdf', name: 'a.pdf' })).toBe(a.docId)
   })
 
   it('returns null headers when source is missing', () => {
     expect(buildTextSourceHeader(null)).toBeNull()
     expect(buildImageSourceHeader(undefined)).toBeNull()
-    expect(formatSourcePageLabel(null)).toBeNull()
     expect(decorateTextWithSource('x', null, 'text')).toBe('x')
   })
 })

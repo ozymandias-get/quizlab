@@ -10,7 +10,6 @@
 export {
   MAX_ALIVE_TABS_MAX,
   MAX_ALIVE_TABS_MIN,
-  MAX_ALIVE_TABS_OPTIONS,
   SLEEP_TIMEOUT_OPTIONS,
   useAiLifecycleSettings
 } from './hooks/useAiLifecycleSettings'

@@ -70,7 +70,6 @@ const ApiChatPage = memo(function ApiChatPage({ tabId }: ApiChatPageProps) {
           activeProvider={!!activeProvider}
           selectedModel={selectedModel ?? ''}
           providerName={activeProvider?.name || ''}
-          messageCount={messages.length}
           onNewChat={handleNewChat}
           onToggleHistoryModal={handleToggleHistoryModal}
         />

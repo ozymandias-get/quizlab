@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  registerDomSlot,
-  resolveDomSlot,
-  subscribeDomSlot,
-  unregisterDomSlot
-} from '../../../shared/lib/domSlot'
+import { registerDomSlot, subscribeDomSlot, unregisterDomSlot } from '../../../shared/lib/domSlot'
 
 function makeSlot(): HTMLElement {
   const el = document.createElement('div')
@@ -13,9 +8,19 @@ function makeSlot(): HTMLElement {
   return el
 }
 
+/** Reads the registry through its public subscription path. */
+function currentSlot(id: string): HTMLElement | null {
+  let current: HTMLElement | null = null
+  const unsubscribe = subscribeDomSlot(id, (element) => {
+    current = element
+  })
+  unsubscribe()
+  return current
+}
+
 describe('domSlot registry', () => {
   it('resolves null when nothing is registered', () => {
-    expect(resolveDomSlot('test-empty')).toBeNull()
+    expect(currentSlot('test-empty')).toBeNull()
   })
 
   it('resolves the most recently registered slot', () => {
@@ -24,7 +29,7 @@ describe('domSlot registry', () => {
     registerDomSlot('test-latest', first)
     registerDomSlot('test-latest', second)
 
-    expect(resolveDomSlot('test-latest')).toBe(second)
+    expect(currentSlot('test-latest')).toBe(second)
   })
 
   it('is idempotent for the same element', () => {
@@ -32,9 +37,9 @@ describe('domSlot registry', () => {
     registerDomSlot('test-idempotent', slot)
     registerDomSlot('test-idempotent', slot)
 
-    expect(resolveDomSlot('test-idempotent')).toBe(slot)
+    expect(currentSlot('test-idempotent')).toBe(slot)
     unregisterDomSlot('test-idempotent', slot)
-    expect(resolveDomSlot('test-idempotent')).toBeNull()
+    expect(currentSlot('test-idempotent')).toBeNull()
   })
 
   it('falls back to a surviving slot when the newest unmounts', () => {
@@ -45,7 +50,7 @@ describe('domSlot registry', () => {
 
     unregisterDomSlot('test-survivor', second)
 
-    expect(resolveDomSlot('test-survivor')).toBe(first)
+    expect(currentSlot('test-survivor')).toBe(first)
   })
 
   it('ignores a detached slot and reports the next live one', () => {
@@ -55,7 +60,7 @@ describe('domSlot registry', () => {
     registerDomSlot('test-detached', second)
     second.remove()
 
-    expect(resolveDomSlot('test-detached')).toBe(first)
+    expect(currentSlot('test-detached')).toBe(first)
   })
 
   it('notifies subscribers on register and unregister', () => {

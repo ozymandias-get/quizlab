@@ -96,11 +96,11 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
             <Transition
               as={Fragment}
               enter="transition ease-out motion-normal"
-              enterFrom="opacity-0 translate-y-1 scale-98"
+              enterFrom="opacity-0 translate-y-1 scale-[0.98]"
               enterTo="opacity-100 translate-y-0 scale-100"
               leave="transition ease-in motion-fast"
               leaveFrom="opacity-100 translate-y-0 scale-100"
-              leaveTo="opacity-0 translate-y-1 scale-98"
+              leaveTo="opacity-0 translate-y-1 scale-[0.98]"
             >
               <PopoverPanel className="z-overlay absolute bottom-full left-0 mb-3 outline-none">
                 <div className="border-border bg-popover text-popover-foreground shadow-ambient-xl rounded-xl border p-3.5">

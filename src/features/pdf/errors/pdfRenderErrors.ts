@@ -36,7 +36,7 @@ const CANCELLED_RENDER_ERROR_NAME = 'RenderingCancelledException'
 /** Substrings of the two messages pdf.js actually throws for a render race. */
 const IGNORED_RENDER_ERROR_MARKERS = ['rendering cancelled', 'multiple render() operations']
 
-export function isIgnorablePdfRenderError(error: unknown): boolean {
+function isIgnorablePdfRenderError(error: unknown): boolean {
   // Exact-name match first: it is the only signal that survives pdf.js
   // replacing the human-readable message with its own error object.
   if (

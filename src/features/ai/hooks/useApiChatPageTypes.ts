@@ -1,16 +1,12 @@
 import type { ApiChatMessage, ApiConfig, ApiProviderConfig } from '@shared-core/types'
 
-import type { ChatSession } from '../store/apiChatSessionUtils'
-
 export interface UseApiChatPageReturn {
-  activeSessionId: string | undefined
   inputValue: string
   attachments: string[]
   selectedModel: string | undefined
   activeProviderId: string | undefined
   isStreaming: boolean
   messages: ApiChatMessage[]
-  sessions: ChatSession[]
   config: ApiConfig | null | undefined
   activeProvider: ApiProviderConfig | null
   isScrolledUp: boolean

@@ -17,7 +17,6 @@
   "picker_good_choice": "İyi Seçim",
   "picker_hint_button_send": "Bu tıklanabilir bir buton - Gönderim için uygun görünüyor!",
   "picker_hint_clickable": "Bu alan tıklanabilir duruyor, doğru olabilir.",
-  "picker_hint_div_input": "Burası metin girişi için kullanılan bir alan. Doğru seçim.",
   "picker_hint_form": "Tüm formu seçtiniz. Lütfen sadece <b>içindeki giriş alanına</b> tıklayın.",
   "picker_hint_generic_box": "Bu çok genel bir çerçeve. Lütfen doğrudan yazı yazdığınız yere veya butona tıklayın.",
   "picker_hint_icon": "Sadece küçük bir simgeye tıkladınız. Lütfen bu simgeyi kapsayan <b>butonun kendisine</b> tıklayın!",

@@ -37,7 +37,6 @@ function PdfDraftSlot() {
   return (
     <div
       ref={ref}
-      data-ai-draft-slot=""
       data-testid="pdf-ai-draft-slot"
       className="z-dropdown pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3 sm:p-4"
     />

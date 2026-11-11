@@ -11,7 +11,6 @@
  * | Concern        | Owner                                       |
  * | -------------- | ------------------------------------------- |
  * | lookup         | this module                                  |
- * | identity       | this module (`pdfUrl` + the registrant's id) |
  * | liveness       | this module, **asking the handle**           |
  * | document load  | the viewer (`PdfDocumentManager`)            |
  * | teardown       | the viewer                                   |
@@ -110,8 +109,6 @@ export type ActivePdfDocumentToken = symbol
 
 interface ActivePdfDocumentEntry {
   pdfUrl: string
-  /** The registrant's own name for the document; the registry infers nothing. */
-  identity: string | null
   handle: ActivePdfDocumentHandle
   token: ActivePdfDocumentToken
 }
@@ -127,8 +124,7 @@ let activeEntry: ActivePdfDocumentEntry | null = null
  */
 export function setActivePdfDocument(
   handle: ActivePdfDocumentHandle | null,
-  pdfUrl: string | null,
-  identity?: string | null
+  pdfUrl: string | null
 ): ActivePdfDocumentToken | null {
   if (!handle || !pdfUrl) {
     activeEntry = null
@@ -137,7 +133,6 @@ export function setActivePdfDocument(
 
   activeEntry = {
     pdfUrl,
-    identity: identity ?? null,
     handle,
     token: Symbol('active-pdf-document')
   }
@@ -185,14 +180,4 @@ export function getActivePdfDocument(pdfUrl: string): ActivePdfDocumentHandle | 
   }
 
   return current.handle
-}
-
-/**
- * The identity string the current entry was registered with, or `null`.
- *
- * Diagnostics and the reload-generation tests: it is the registrant's own name
- * for the document, so the registry compares nothing and infers nothing from it.
- */
-export function getActivePdfDocumentIdentity(): string | null {
-  return activeEntry?.identity ?? null
 }

@@ -6,8 +6,6 @@ export interface ContextMenuState {
   y: number
 }
 
-export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
-
 const MIN_TAB_WIDTH = 140
 /** The PDF pill's own max width; long file names are ellipsized at this size. */
 export const PDF_TAB_MAX_WIDTH = 240
@@ -17,7 +15,7 @@ const HOME_BUTTON_WIDTH = 32
 const ADD_BUTTON_WIDTH = 32
 const OVERFLOW_BUTTON_WIDTH = 44
 
-export interface PdfTabStripCapacity {
+interface PdfTabStripCapacity {
   /** The overflow button only exists while at least one tab is hidden. */
   hasOverflow?: boolean
 }
@@ -50,7 +48,7 @@ export function getDesiredPdfTabWidth(renderedWidth: number, clippedText: number
   return Math.min(PDF_TAB_MAX_WIDTH, Math.max(0, renderedWidth + clippedText))
 }
 
-export interface PdfTabCapacityInput {
+interface PdfTabCapacityInput {
   current: number
   tabWidths: readonly number[]
   availableWidth: number
@@ -77,7 +75,7 @@ export function resolveVisiblePdfTabCount({
   return current
 }
 
-export interface TabVisibilityResult {
+interface TabVisibilityResult {
   visibleTabs: PdfTab[]
   overflowTabs: PdfTab[]
 }

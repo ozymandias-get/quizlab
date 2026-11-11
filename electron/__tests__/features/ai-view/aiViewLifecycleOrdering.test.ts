@@ -190,7 +190,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
     // The attach is in flight, still resolving its target: no view exists yet.
     const attaching = manager.attachAiView({ viewId: 'tab-A', source: CUSTOM })
     await reachAttach()
-    expect(manager.hasManagedAiView('tab-A')).toBe(false)
+    expect(manager.getManagedAiView('tab-A')).toBeNull()
     expect(WebContentsViewMock).not.toHaveBeenCalled()
 
     // The tab is closed while that attach is still resolving.
@@ -203,7 +203,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
 
     // The destroy has to run after the attach it was queued behind, so the final
     // state is "gone" rather than "an orphan WebContents for a closed tab".
-    expect(manager.hasManagedAiView('tab-A')).toBe(false)
+    expect(manager.getManagedAiView('tab-A')).toBeNull()
     expect(manager.listManagedAiViewIds()).not.toContain('tab-A')
     expect(removeChildView).toHaveBeenCalled()
   })
@@ -220,7 +220,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
     await destroy
 
     expect(manager.listManagedAiViewIds()).toEqual(['tab-B'])
-    expect(manager.hasManagedAiView('tab-B')).toBe(true)
+    expect(manager.getManagedAiView('tab-B')).not.toBeNull()
     // Two views were built over the sequence; the first one was closed.
     expect(WebContentsViewMock).toHaveBeenCalledTimes(2)
     expect(removeChildView).toHaveBeenCalledTimes(1)
@@ -247,7 +247,7 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
 
     // The final state is whatever the *last* lifecycle operation asked for. The
     // middle destroy must not swallow the attach behind it either.
-    expect(manager.hasManagedAiView('tab-C')).toBe(true)
+    expect(manager.getManagedAiView('tab-C')).not.toBeNull()
     expect(manager.listManagedAiViewIds()).toEqual(['tab-C'])
     expect(firstResponse.generation).toBeGreaterThan(0)
   })
@@ -284,6 +284,6 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
     await shutdown
 
     expect(manager.listManagedAiViewIds()).toEqual([])
-    expect(manager.hasManagedAiView('tab-F')).toBe(false)
+    expect(manager.getManagedAiView('tab-F')).toBeNull()
   })
 })

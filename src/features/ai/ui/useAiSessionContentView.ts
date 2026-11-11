@@ -32,7 +32,7 @@ export function useAiSessionSleep(
     setIsSleeping(false)
   }, [])
 
-  return { isSleeping, setIsSleeping, handleWakeUp }
+  return { isSleeping, handleWakeUp }
 }
 
 export function useAiSessionStaleCheck(initialUrl: string | undefined, isActive: boolean) {
@@ -96,7 +96,7 @@ export function useAiSessionStaleCheck(initialUrl: string | undefined, isActive:
     [initialUrl, isActive]
   )
 
-  return { handlePageSettled, staleCheckHandle }
+  return { handlePageSettled }
 }
 
 /**
@@ -131,5 +131,5 @@ export function useAiSessionEntryUrl(
 
   const entryUrl = entryUrlRef.current.url
 
-  return { generation, entryUrl }
+  return { entryUrl }
 }

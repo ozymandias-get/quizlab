@@ -62,7 +62,8 @@ const PdfThumbnail = memo(function PdfThumbnail({
     const canvas = canvasRef.current
     if (!canvas) return
     let cancelled = false
-    void renderPageThumbnail(pageNumber, canvas, THUMBNAIL_RENDER_WIDTH)
+    const controller = new AbortController()
+    void renderPageThumbnail(pageNumber, canvas, THUMBNAIL_RENDER_WIDTH, controller.signal)
       .then(() => {
         if (!cancelled) setHasRendered(true)
       })
@@ -71,6 +72,7 @@ const PdfThumbnail = memo(function PdfThumbnail({
       })
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [isVisible, pageNumber, renderPageThumbnail])
 

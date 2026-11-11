@@ -1,4 +1,4 @@
-export interface DraftInstructionInput {
+interface DraftInstructionInput {
   /** `useQuickAiPresets` seçiminden gelen talimat metni. */
   quickActionText?: string | null
   /** Kullanıcının ek talimat / not alanına yazdığı metin. */

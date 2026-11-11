@@ -12,7 +12,7 @@ interface BulkImageEntry {
   blobUrl?: string
 }
 
-export interface SingleMessagePlan {
+interface SingleMessagePlan {
   /** Sıralı gövde parçaları (metinler + görsel başlıkları, draft sırasıyla). */
   orderedParts: string[]
   /** orderedParts'un "\n\n---\n\n" ile birleşimi. */

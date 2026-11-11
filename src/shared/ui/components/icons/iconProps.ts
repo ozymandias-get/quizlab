@@ -17,9 +17,9 @@ import type { CSSProperties } from 'react'
  * must be passed explicitly via `className` / `strokeWidth` and is an
  * intentional exception, not the default.
  */
-export type IconSize = 'xs' | 'sm' | 'default' | 'lg'
+type IconSize = 'xs' | 'sm' | 'default' | 'lg'
 
-export type IconVariant = 'default' | 'subtle'
+type IconVariant = 'default' | 'subtle'
 
 const ICON_SIZE_CLASSES: Record<IconSize, string> = {
   xs: 'size-3',

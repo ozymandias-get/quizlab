@@ -1,20 +1,6 @@
-import { isVisionCapable, VISION_MODEL_PATTERNS } from '@features/ai/lib/apiChatUtils'
+import { isVisionCapable } from '@features/ai/lib/apiChatUtils'
 
 import { describe, expect, it } from 'vitest'
-
-describe('VISION_MODEL_PATTERNS', () => {
-  it('should match gpt-4o variants', () => {
-    expect(VISION_MODEL_PATTERNS[0].test('gpt-4o')).toBe(true)
-    expect(VISION_MODEL_PATTERNS[0].test('GPT-4o-mini')).toBe(true)
-    expect(VISION_MODEL_PATTERNS[0].test('gpt-4o-2024-08-06')).toBe(true)
-  })
-
-  it('should match gpt-4.x-turbo variants', () => {
-    expect(VISION_MODEL_PATTERNS[1].test('gpt-4.0-turbo')).toBe(true)
-    expect(VISION_MODEL_PATTERNS[1].test('gpt-4.1-turbo')).toBe(true)
-    expect(VISION_MODEL_PATTERNS[1].test('GPT-4.2-TURBO')).toBe(true)
-  })
-})
 
 describe('isVisionCapable', () => {
   // The legacy families that predate the modern allowlist. Kept as an explicit
@@ -27,6 +13,7 @@ describe('isVisionCapable', () => {
       'GPT-4o',
       'gpt-4.0-turbo',
       'gpt-4.1-turbo',
+      'GPT-4.2-TURBO',
       'claude-3-5-sonnet',
       'claude-3-opus',
       'CLAUDE-3-5-sonnet',

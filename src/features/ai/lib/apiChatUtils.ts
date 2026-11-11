@@ -9,7 +9,7 @@
  * *-vision, …) so locally hosted VLMs behind Ollama/LM Studio/vLLM are covered
  * without enumerating every checkpoint.
  */
-export const VISION_MODEL_PATTERNS = [
+const VISION_MODEL_PATTERNS = [
   // OpenAI
   // gpt-4o, gpt-4o-mini, gpt-4o-2024-08-06, chatgpt-4o-latest
   /^gpt-4o/i,

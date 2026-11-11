@@ -63,6 +63,8 @@ interface MessageBubbleProps {
   onEdit?: (messageId: string, newContent: string) => void
   isLastAssistant?: boolean
   onRegenerate?: () => void
+  /** Keeps a row mounted while it is editing or speaking inside a virtual list. */
+  onKeepAliveChange?: (messageId: string, keepAlive: boolean) => void
 }
 
 const MessageBubble = memo(function MessageBubble({
@@ -71,7 +73,8 @@ const MessageBubble = memo(function MessageBubble({
   onDelete,
   onEdit,
   isLastAssistant,
-  onRegenerate
+  onRegenerate,
+  onKeepAliveChange
 }: MessageBubbleProps) {
   const { t } = useTranslation()
   const { showError } = useToastActions()
@@ -134,6 +137,13 @@ const MessageBubble = memo(function MessageBubble({
     link.click()
     document.body.removeChild(link)
   }
+
+  // A virtualized list unmounts off-screen rows. Editing text and active TTS
+  // must survive that scroll, so the list pins this row while either is true.
+  useEffect(() => {
+    onKeepAliveChange?.(message.id, isEditing || isSpeaking)
+    return () => onKeepAliveChange?.(message.id, false)
+  }, [isEditing, isSpeaking, message.id, onKeepAliveChange])
 
   useDialogBehavior({
     isOpen: previewImage !== null,

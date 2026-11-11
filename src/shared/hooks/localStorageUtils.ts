@@ -19,7 +19,7 @@ export const getStorageItem = (key: string): string | null => {
   }
 }
 
-export interface StorageWriteResult {
+interface StorageWriteResult {
   ok: boolean
   /** Raw failure cause (e.g. `QuotaExceededError`) when `ok` is false. */
   error: unknown

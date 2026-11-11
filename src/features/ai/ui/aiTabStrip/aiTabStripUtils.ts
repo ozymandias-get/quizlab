@@ -1,19 +1,17 @@
 import type { Tab } from '@app/providers/ai-context'
 
-export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
-
 /** Smallest comfortable AI tab pill; used to derive how many fit. */
 export const AI_TAB_MIN_WIDTH = 132
 /** The pill's own max width; a long label is ellipsized, never widened past this. */
 export const AI_TAB_MAX_WIDTH = 240
-export const AI_TAB_GAP = 6
+const AI_TAB_GAP = 6
 const HOME_BUTTON_WIDTH = 32
 const REFRESH_BUTTON_WIDTH = 32
 const DIVIDER_WIDTH = 1
 const OVERFLOW_BUTTON_WIDTH = 44
 const ROW_GAP = 6
 
-export interface AiTabStripCapacity {
+interface AiTabStripCapacity {
   hasHome?: boolean
   hasRefresh?: boolean
   /** The overflow button only exists while at least one tab is hidden. */
@@ -80,7 +78,7 @@ export function getDesiredAiTabWidth(renderedWidth: number, clippedText: number)
   return Math.min(AI_TAB_MAX_WIDTH, Math.max(0, renderedWidth + clippedText))
 }
 
-export interface AiTabCapacityInput {
+interface AiTabCapacityInput {
   current: number
   tabWidths: readonly number[]
   availableWidth: number

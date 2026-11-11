@@ -286,9 +286,13 @@ describe('focus mode - the settled view handoff', () => {
     workspace.unmount()
     await flush()
 
-    const focus = await mount()
+    // The new host has no handle on the old controller, but the attach snapshot
+    // still reports where the conversation was, so the hook surfaces it through
+    // its URL callback instead of loading the entry URL again.
+    const onUrlChange = vi.fn()
+    await mount({ onUrlChange })
 
-    expect(focus.result.current.controller.getURL?.()).toBe('https://chatgpt.com/c/abc-123')
+    expect(onUrlChange).toHaveBeenCalledWith('https://chatgpt.com/c/abc-123')
     expect(aiViewClient.loadUrl).not.toHaveBeenCalled()
     expect(aiViewClient.reload).not.toHaveBeenCalled()
   })

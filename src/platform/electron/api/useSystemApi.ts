@@ -56,6 +56,9 @@ export function useCopyImageToClipboard() {
  * captured" instead of handing the caller a broken image.
  */
 function pngBytesToDataUrl(bytes: Uint8Array): Promise<string | null> {
+  // An empty capture is not an image; FileReader would otherwise turn it into
+  // the truthy string "data:image/png;base64," and report a false success.
+  if (!bytes || bytes.byteLength === 0) return Promise.resolve(null)
   return new Promise((resolve) => {
     try {
       const reader = new FileReader()

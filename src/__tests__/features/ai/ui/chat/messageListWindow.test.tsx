@@ -5,13 +5,10 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageList from '@features/ai/ui/chat/MessageList'
-import {
-  buildMessageRows,
-  buildRowOffsets,
-  findMessageWindow
-} from '@features/ai/ui/chat/messageListWindow'
+import { buildMessageRows, useMessageListWindow } from '@features/ai/ui/chat/messageListWindow'
 
 import { render, screen } from '@testing-library/react'
+import { useRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@features/ai/ui/chat/MessageBubble', () => ({
@@ -50,6 +47,60 @@ function sameRoleMessages(count: number): ApiChatMessage[] {
   }))
 }
 
+function WindowProbe({
+  rows,
+  pinnedToBottom
+}: {
+  rows: readonly { key: string; estimatedHeight: number }[]
+  pinnedToBottom: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const window = useMessageListWindow({ rows, containerRef, pinnedToBottom })
+  return (
+    <>
+      <div ref={containerRef} />
+      <output data-testid="window" data-start={window.start} data-end={window.end} />
+    </>
+  )
+}
+
+function MeasuredWindowProbe({
+  rows,
+  heights,
+  pinnedToBottom
+}: {
+  rows: readonly { key: string; estimatedHeight: number }[]
+  heights: ReadonlyMap<string, number>
+  pinnedToBottom: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const window = useMessageListWindow({ rows, containerRef, pinnedToBottom })
+  return (
+    <>
+      <div ref={containerRef}>
+        {rows.map((row) => (
+          <div
+            key={row.key}
+            data-message-row={row.key}
+            ref={(node) => {
+              if (!node) return
+              const height = heights.get(row.key)
+              if (height === undefined) return
+              node.getBoundingClientRect = () => ({ height }) as DOMRect
+            }}
+          />
+        ))}
+      </div>
+      <output
+        data-testid="measured-window"
+        data-start={window.start}
+        data-end={window.end}
+        data-bottom={window.bottomPad}
+      />
+    </>
+  )
+}
+
 function renderList(options: { count: number; isScrolledUp: boolean; sameRole?: boolean }) {
   const containerRef = { current: null as HTMLDivElement | null }
   const endRef = { current: null as HTMLDivElement | null }
@@ -69,17 +120,31 @@ function renderList(options: { count: number; isScrolledUp: boolean; sameRole?: 
 
 describe('message list window math', () => {
   it('uses measured heights and falls back to the estimate', () => {
-    const rows = buildMessageRows([
-      { kind: 'date', timestamp: T0 },
-      { kind: 'messages', messages: [message(1)] },
-      { kind: 'messages', messages: [message(2)] }
-    ])
+    const rows = buildMessageRows(
+      Array.from({ length: 50 }, (_, index) => ({
+        kind: 'messages' as const,
+        messages: [message(index)]
+      }))
+    )
     const heights = new Map([
       [rows[0].key, 10],
       [rows[1].key, 100]
     ])
 
-    expect(buildRowOffsets(rows, heights)).toEqual([0, 10, 110, 110 + rows[2].estimatedHeight])
+    render(<MeasuredWindowProbe rows={rows} heights={heights} pinnedToBottom={false} />)
+
+    const output = screen.getByTestId('measured-window')
+    const end = Number(output.dataset.end)
+    const expectedTotal = rows.reduce(
+      (sum, row) => sum + (heights.get(row.key) ?? row.estimatedHeight),
+      0
+    )
+    const expectedOffsetAtEnd = rows
+      .slice(0, end)
+      .reduce((sum, row) => sum + (heights.get(row.key) ?? row.estimatedHeight), 0)
+
+    expect(end).toBeLessThan(rows.length)
+    expect(Number(output.dataset.bottom)).toBeCloseTo(expectedTotal - expectedOffsetAtEnd)
   })
 
   it('renders a bounded window around the scroll position', () => {
@@ -89,9 +154,11 @@ describe('message list window math', () => {
         messages: [message(index)]
       }))
     )
-    const offsets = buildRowOffsets(rows, new Map())
+    render(<WindowProbe rows={rows} pinnedToBottom={false} />)
 
-    const { start, end } = findMessageWindow(offsets, rows.length, 0, 600, false)
+    const output = screen.getByTestId('window')
+    const start = Number(output.dataset.start)
+    const end = Number(output.dataset.end)
 
     expect(start).toBe(0)
     expect(end - start).toBeLessThan(40)
@@ -105,9 +172,11 @@ describe('message list window math', () => {
         messages: [message(index)]
       }))
     )
-    const offsets = buildRowOffsets(rows, new Map())
+    render(<WindowProbe rows={rows} pinnedToBottom />)
 
-    const { start, end } = findMessageWindow(offsets, rows.length, 0, 600, true)
+    const output = screen.getByTestId('window')
+    const start = Number(output.dataset.start)
+    const end = Number(output.dataset.end)
 
     expect(end).toBe(rows.length)
     expect(start).toBeGreaterThan(0)
@@ -117,8 +186,11 @@ describe('message list window math', () => {
     const rows = buildMessageRows([{ kind: 'messages', messages: sameRoleMessages(300) }])
     expect(rows).toHaveLength(300)
 
-    const offsets = buildRowOffsets(rows, new Map())
-    const { start, end } = findMessageWindow(offsets, rows.length, 0, 600, false)
+    render(<WindowProbe rows={rows} pinnedToBottom={false} />)
+
+    const output = screen.getByTestId('window')
+    const start = Number(output.dataset.start)
+    const end = Number(output.dataset.end)
 
     expect(start).toBe(0)
     expect(end - start).toBeLessThan(40)

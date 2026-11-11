@@ -45,7 +45,7 @@ const ToastContainer = memo(function ToastContainer() {
                 pointerEvents: depth === 0 ? 'auto' : 'none'
               }}
             >
-              <ToastItem toast={toast} onRemove={removeToast} />
+              <ToastItem toast={toast} onRemove={removeToast} paused={depth > 0} />
             </motion.div>
           )
         })}

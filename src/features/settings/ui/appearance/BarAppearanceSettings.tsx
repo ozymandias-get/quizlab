@@ -23,11 +23,11 @@ const BarAppearanceSettings = memo(
     t
   }: BarAppearanceSettingsProps) => {
     const handleOpacityChange = useCallback(
-      (vals: number[]) => setBottomBarOpacity(vals[0]),
+      (vals: number[]) => setBottomBarOpacity(vals[0] ?? 0.7),
       [setBottomBarOpacity]
     )
     const handleScaleChange = useCallback(
-      (vals: number[]) => setBottomBarScale(vals[0]),
+      (vals: number[]) => setBottomBarScale(vals[0] ?? 1),
       [setBottomBarScale]
     )
     return (
@@ -54,6 +54,7 @@ const BarAppearanceSettings = memo(
               step={0.01}
               value={[bottomBarOpacity]}
               onValueChange={handleOpacityChange}
+              aria-label={t('opacity')}
             />
           </div>
 
@@ -68,6 +69,7 @@ const BarAppearanceSettings = memo(
               step={0.01}
               value={[bottomBarScale]}
               onValueChange={handleScaleChange}
+              aria-label={t('scale')}
             />
           </div>
         </SettingsSection>

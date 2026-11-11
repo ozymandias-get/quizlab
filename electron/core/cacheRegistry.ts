@@ -193,14 +193,6 @@ export function getCacheRules(): CacheRule[] {
   return rules
 }
 
-export function getProtectedFiles(): ReadonlySet<string> {
-  return protectedFiles
-}
-
-export function getProtectedDirs(): ReadonlySet<string> {
-  return protectedDirs
-}
-
 export function isProtectedPath(targetPath: string, userDataPath: string): boolean {
   const normalizedTarget = path.normalize(targetPath)
   const relative = path.relative(userDataPath, normalizedTarget)

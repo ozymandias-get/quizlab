@@ -11,9 +11,6 @@ interface AboutActionCardProps {
   rel?: string
   target?: string
   className?: string
-  bodyClassName?: string
-  titleClassName?: string
-  descriptionClassName?: string
   interactive?: boolean
 }
 
@@ -26,22 +23,15 @@ function AboutActionCard({
   rel,
   target,
   className,
-  bodyClassName,
-  titleClassName,
-  descriptionClassName,
   interactive = false
 }: AboutActionCardProps) {
   const content = (
     <>
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {leading}
-        <div className={cn('min-w-0', bodyClassName)}>
-          <h4 className={cn('text-ql-13 text-foreground truncate font-semibold', titleClassName)}>
-            {title}
-          </h4>
-          <p className={cn('text-ql-12 text-muted-foreground mt-0.5', descriptionClassName)}>
-            {description}
-          </p>
+        <div className="min-w-0">
+          <h4 className="text-ql-13 text-foreground truncate font-semibold">{title}</h4>
+          <p className="text-ql-12 text-muted-foreground mt-0.5">{description}</p>
         </div>
       </div>
 

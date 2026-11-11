@@ -64,7 +64,7 @@ const AboutTab = memo(
     }, [cacheInfo])
 
     return (
-      <div className="space-y-6 pb-4" data-app-locale={language}>
+      <div className="space-y-6 pb-4">
         <SettingsTabIntro
           icon={
             <SettingsTabIcon>

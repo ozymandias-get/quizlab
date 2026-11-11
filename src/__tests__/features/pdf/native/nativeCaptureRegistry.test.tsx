@@ -20,8 +20,7 @@
  */
 import {
   clearActivePdfDocument,
-  getActivePdfDocument,
-  getActivePdfDocumentIdentity
+  getActivePdfDocument
 } from '@features/pdf/lib/activePdfDocumentRegistry'
 
 import {
@@ -162,7 +161,6 @@ describe('useNativePdfCaptureDocument', () => {
     render(<NativeViewerHarness pdfUrl="local-pdf://book" />)
 
     await waitForFrames(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-    expect(getActivePdfDocumentIdentity()).toBe('local-pdf://book::0')
   })
 
   it('publishes nothing while the document is still loading', async () => {
@@ -217,10 +215,11 @@ describe('useNativePdfCaptureDocument', () => {
       await waitForFrames(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
 
       const staleHandle = getActivePdfDocument('local-pdf://book')!
-      expect(getActivePdfDocumentIdentity()).toBe('local-pdf://book::0')
 
       rerender(<NativeViewerHarness pdfUrl="local-pdf://book" reloadKey={1} />)
-      await waitForFrames(() => expect(getActivePdfDocumentIdentity()).toBe('local-pdf://book::1'))
+      await waitForFrames(() =>
+        expect(getActivePdfDocument('local-pdf://book')).not.toBe(staleHandle)
+      )
 
       // Two independent answers, both required: the slot now holds the new
       // generation, and the old handle knows on its own that it is spent.

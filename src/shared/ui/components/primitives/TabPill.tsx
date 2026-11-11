@@ -10,10 +10,7 @@ const TAB_PILL_ACTIVE = 'border-border/70 bg-card text-foreground shadow-2xs'
 const TAB_PILL_INACTIVE =
   'text-muted-foreground border-transparent bg-transparent hover:border-border/45 hover:bg-muted/45 hover:text-foreground'
 
-export interface TabPillProps extends Omit<
-  React.ButtonHTMLAttributes<HTMLButtonElement>,
-  'onDrag'
-> {
+interface TabPillProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag'> {
   isActive?: boolean
   /** Right padding override when close/pin buttons are absolute inside. */
   withControls?: boolean

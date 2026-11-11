@@ -243,14 +243,12 @@ export function useApiChatPage(tabId: string): UseApiChatPageReturn {
   })
 
   return {
-    activeSessionId,
     inputValue,
     attachments,
     selectedModel,
     activeProviderId,
     isStreaming,
     messages,
-    sessions,
     config,
     activeProvider,
     isScrolledUp,

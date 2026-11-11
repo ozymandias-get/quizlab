@@ -28,8 +28,6 @@ const twMerge = extendTailwindMerge({
             'ql-16',
             'ql-18',
             'ql-20',
-            'ql-22',
-            'ql-24',
             'ql-28'
           ]
         }

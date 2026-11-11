@@ -102,7 +102,7 @@ interface UseNativePdfAnnotationLayerOptions {
   jumpToPage: (pageNumber: number) => void
 }
 
-export interface NativePdfAnnotationLayerHandle {
+interface NativePdfAnnotationLayerHandle {
   /**
    * Message for a genuine annotation-layer failure. `null` while rendering, while the
    * layer is torn down, and for a superseded run.

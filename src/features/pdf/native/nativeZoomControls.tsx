@@ -39,7 +39,7 @@ interface NativeZoomControlsSource {
   fitWidth?: () => void
 }
 
-export interface NativeZoomControls {
+interface NativeZoomControls {
   ZoomIn: ZoomComponent
   ZoomOut: ZoomComponent
   CurrentScale: CurrentScaleComponent

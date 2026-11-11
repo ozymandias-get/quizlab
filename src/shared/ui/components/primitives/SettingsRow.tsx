@@ -2,7 +2,7 @@ import { cn } from '@shared/lib/uiUtils'
 
 import * as React from 'react'
 
-export interface SettingsRowProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SettingsRowProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Visual variant maps to the approved radius/padding matrix. */
   variant?: 'default' | 'accent' | 'muted'
   interactive?: boolean

@@ -7,7 +7,7 @@ import type { LastReadingInfo } from './types'
 
 export const MAX_RECENT_PDFS = 24
 
-export function sanitizeReadingInfo(info: unknown): LastReadingInfo | null {
+function sanitizeReadingInfo(info: unknown): LastReadingInfo | null {
   if (!info || typeof info !== 'object') return null
   const entry = info as Partial<LastReadingInfo>
   if (!entry.path || !entry.name) return null
@@ -60,7 +60,7 @@ export function migrateReadingHistory(): void {
   }
 }
 
-export function parseReadingHistory(stored: string | null): LastReadingInfo[] {
+function parseReadingHistory(stored: string | null): LastReadingInfo[] {
   if (!stored) return []
 
   try {

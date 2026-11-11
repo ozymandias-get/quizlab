@@ -543,6 +543,42 @@ function PdfToolbar({
                   }}
                 </ZoomIn>
               )}
+              {isNarrowToolbar && (
+                <CurrentScale>
+                  {(scaleProps) => (
+                    <>
+                      <div role="separator" className="bg-border/40 mx-1.5 my-1 h-px" />
+                      {[50, 100, 150].map((preset) => (
+                        <MenuItem
+                          key={preset}
+                          onClick={() => {
+                            scaleProps.zoomTo?.(preset / 100)
+                            closeCompactMenu(true)
+                          }}
+                        >
+                          {preset}%
+                        </MenuItem>
+                      ))}
+                      <MenuItem
+                        onClick={() => {
+                          scaleProps.fitWidth?.()
+                          closeCompactMenu(true)
+                        }}
+                      >
+                        {t('fit_width')}
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          scaleProps.fitPage?.()
+                          closeCompactMenu(true)
+                        }}
+                      >
+                        {t('fit_page')}
+                      </MenuItem>
+                    </>
+                  )}
+                </CurrentScale>
+              )}
             </MenuSurface>
           )}
         </div>

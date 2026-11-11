@@ -19,9 +19,7 @@ export const SLEEP_TIMEOUT_OPTIONS = [
 export const MAX_ALIVE_TABS_MIN = 1
 export const MAX_ALIVE_TABS_MAX = 10
 
-export const MAX_ALIVE_TABS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
-
-export interface AiLifecycleSettingsReturn {
+interface AiLifecycleSettingsReturn {
   maxAliveTabs: number
   sleepTimeoutMs: number
   neverSleepSiteIds: string[]

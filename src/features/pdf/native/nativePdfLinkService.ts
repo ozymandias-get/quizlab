@@ -142,7 +142,7 @@ function parseAllowedExternalUrl(url: string): URL | null {
   return parsed
 }
 
-export interface NativePdfLinkServiceOptions {
+interface NativePdfLinkServiceOptions {
   /**
    * The live document, read at call time rather than captured. Returns `null` before
    * the first load and after teardown, which is how an inert service is recognised.

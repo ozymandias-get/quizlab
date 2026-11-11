@@ -24,8 +24,6 @@ import {
   isCancelledError
 } from './sendMessageUtils'
 
-export { type EditAndRegenerateParams } from './sendMessageUtils'
-
 export function useEditAndRegenerateMutation() {
   const queryClient = useQueryClient()
 

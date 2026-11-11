@@ -17,14 +17,14 @@ const PDF_RENDER_DEFAULT_SCALE = 2.0
 const PDF_RENDER_MAX_PIXELS = 16_000_000
 
 /** Shape `renderPageToImageFallback` resolves to. The caller must revoke `blobUrl`. */
-export interface RenderedPageImage {
+interface RenderedPageImage {
   blob: Blob
   blobUrl: string
   width: number
   height: number
 }
 
-export interface RenderOptions {
+interface RenderOptions {
   scale?: number
   maxPixels?: number
   /**

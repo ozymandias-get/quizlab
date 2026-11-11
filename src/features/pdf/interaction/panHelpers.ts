@@ -10,7 +10,7 @@
  */
 import { NATIVE_SCROLL_SELECTOR } from '../native/nativePdfDom'
 
-export function isScrollableElement(el: HTMLElement): boolean {
+function isScrollableElement(el: HTMLElement): boolean {
   const style = window.getComputedStyle(el)
   const oy = style.overflowY
   const ox = style.overflowX

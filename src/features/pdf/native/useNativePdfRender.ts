@@ -75,7 +75,7 @@ interface UseNativePdfRenderOptions {
   onRenderCommitted?: (pageNumber: number) => void
 }
 
-export interface NativePdfRenderHandle {
+interface NativePdfRenderHandle {
   /**
    * Message for a genuine render failure; `null` while rendering, on cancel, and
    * whenever the failure belongs to a page or scale other than the current one.

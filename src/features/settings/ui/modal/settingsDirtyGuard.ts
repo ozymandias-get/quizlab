@@ -42,13 +42,6 @@ export function setSettingsDirty(key: string, isDirty: boolean): void {
   emitChange()
 }
 
-/** Drops every registration; used when the user confirms a discard. */
-export function resetSettingsDirty(): void {
-  if (dirtyKeys.size === 0) return
-  dirtyKeys.clear()
-  emitChange()
-}
-
 /** Registers the calling form's dirty state for as long as it is mounted. */
 export function useSettingsDirty(key: string, isDirty: boolean): void {
   useEffect(() => {

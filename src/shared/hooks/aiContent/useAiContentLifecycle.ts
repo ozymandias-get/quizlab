@@ -39,7 +39,7 @@ const TRANSIENT_ERROR_CODES = new Set([
 const ABORT_PENDING_AUTOMATION_SCRIPT =
   'try{window.__quizlabAbortController&&window.__quizlabAbortController.abort()}catch(e){}'
 
-export interface UseAiContentLifecycleOptions {
+interface UseAiContentLifecycleOptions {
   currentAI: string
   /** Controller for this view; `null` until the host has been mounted. */
   controller: AiContentController | null
@@ -51,7 +51,7 @@ export interface UseAiContentLifecycleOptions {
   onCrashRecoveryRequested?: () => void
 }
 
-export interface UseAiContentLifecycleResult {
+interface UseAiContentLifecycleResult {
   isLoading: boolean
   error: string | null
   /**

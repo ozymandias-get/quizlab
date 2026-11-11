@@ -20,7 +20,7 @@ interface RenderChildProps {
   scale?: number
 }
 
-export interface ZoomPresetActions {
+interface ZoomPresetActions {
   zoomTo?: (scale: number) => void
   fitWidth?: () => void
   fitPage?: () => void

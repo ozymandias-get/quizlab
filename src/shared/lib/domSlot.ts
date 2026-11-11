@@ -29,7 +29,7 @@ function notify(id: string, element: HTMLElement | null): void {
 }
 
 /** The most recently registered slot that is still in the document. */
-export function resolveDomSlot(id: string): HTMLElement | null {
+function resolveDomSlot(id: string): HTMLElement | null {
   const registered = slots.get(id)
   if (!registered || registered.length === 0) return null
   for (let i = registered.length - 1; i >= 0; i--) {

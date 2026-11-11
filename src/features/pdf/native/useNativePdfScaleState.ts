@@ -46,7 +46,7 @@ interface UseNativePdfScaleStateOptions {
   fitScale: number | null
 }
 
-export interface NativePdfScaleHandle {
+interface NativePdfScaleHandle {
   /** Effective numeric scale, always within the product's zoom range. */
   scale: number
   /** rAF-coalesced numeric zoom channel — every zoom source goes through it. */

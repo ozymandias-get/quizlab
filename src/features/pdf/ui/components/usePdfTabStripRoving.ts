@@ -56,5 +56,5 @@ export function usePdfTabStripRoving<T extends { id: string }>({
     [visibleTabs, activeTabId, editingTabId, onSetActiveTab]
   )
 
-  return { tabButtonRefs, setTabButtonRef, handleRowKeyDown }
+  return { setTabButtonRef, handleRowKeyDown }
 }

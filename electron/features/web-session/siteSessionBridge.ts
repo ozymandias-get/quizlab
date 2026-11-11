@@ -2,14 +2,11 @@
  * The main-process core of the site session bridge.
  *
  * The Chrome extension talks to the app over a loopback HTTP bridge. This
- * module holds the two things that bridge needs from the app:
- *
- *   - the list of sites whose session may be taken from Chrome, and
- *   - the handling of a packet the extension sends for one of those sites.
- *
- * Both the HTTP bridge and the renderer-facing service go through here, so a
- * packet is accepted or refused by the same rules no matter which door it
- * came in.
+ * module holds the two things that bridge needs: the list of sites whose
+ * session may be taken from Chrome, and the handling of a packet the extension
+ * sends for one of them. Both the HTTP bridge and the renderer-facing service
+ * go through here, so a packet is accepted or refused by the same rules no
+ * matter which door it came in.
  */
 import type { ChromeExtensionCookie } from '@shared-core/types'
 
@@ -89,7 +86,7 @@ export interface SiteSessionImportEnvironment {
 }
 
 /** The version and lifetime of a round of packets. */
-export interface SiteSessionRoundMetadata {
+interface SiteSessionRoundMetadata {
   configVersion: number
   openedAt: number
   /**

@@ -16,7 +16,7 @@ import type { SendFeedback } from './types'
  *    bir kopya bırakırdı. Bu durumda düğme "Sitede gönderin" der ve etkin
  *    değildir — kullanıcının gerçek yapacağı eylem budur.
  */
-export type DraftSendIntent = 'sending' | 'retry' | 'send' | 'prepare' | 'awaiting'
+type DraftSendIntent = 'sending' | 'retry' | 'send' | 'prepare' | 'awaiting'
 
 /** `intent` → i18n anahtarı. Bileşenler `t()` çağrısını kendisi yapar. */
 export const DRAFT_SEND_INTENT_KEYS: Record<DraftSendIntent, string> = {

@@ -15,7 +15,7 @@ const ICON_CONTAINER_STYLE: CSSProperties = {
   height: '1.25rem'
 }
 
-export interface FloatingDockIconProps {
+interface FloatingDockIconProps {
   title: string
   children: ReactNode
   id?: string

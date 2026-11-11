@@ -246,7 +246,7 @@ export function stageApiChatInput(
  * `partially_reverted` ve `user_modified` sonuçlarında otomatik yeniden
  * ekleme/ekleme **yapılmaz**: hedefte zaten bizim içeriğimiz duruyordur.
  */
-export type ApiChatRollbackResult = 'fully_reverted' | 'partially_reverted' | 'user_modified'
+type ApiChatRollbackResult = 'fully_reverted' | 'partially_reverted' | 'user_modified'
 
 /** Telafi için mutasyon kaydı yoksa sonuç "tam"dır (yapılacak bir şey yok). */
 const NOOP_ROLLBACK: ApiChatRollbackResult = 'fully_reverted'

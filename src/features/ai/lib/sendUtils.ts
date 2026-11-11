@@ -23,49 +23,6 @@ export function resolveAutoSend(
 }
 
 /**
- * Send outcomes that mean the content was accepted but is still waiting for the
- * user to submit it.
- *
- * With auto-send off the pipeline only stages the turn: the image is pasted into
- * the site's composer and the prompt is typed, but submitting stays the user's
- * action. Those outcomes are still `success: true`, so callers must consult the
- * mode before claiming a delivery.
- *
- * This is an allowlist of *staged* outcomes rather than of delivered ones on
- * purpose: successful text sends report a wide range of `submitMode` values
- * (`click`, `enter_key`, `mixed`, …) and new ones appear as platforms evolve.
- * Treating "not staged" as delivered cannot mislabel a real delivery.
- */
-const STAGED_MODES = new Set(['staged', 'paste_only', 'paste_and_prompt'])
-
-/**
- * True when the content was accepted but is waiting for the user to submit it.
- */
-export function isStagedSendResult(result: { success: boolean; mode?: string }): boolean {
-  return result.success && typeof result.mode === 'string' && STAGED_MODES.has(result.mode)
-}
-
-/**
- * True when a successful non-staged result does not report an uncertain delivery.
- */
-export function isDeliveredSendResult(result: {
-  success: boolean
-  mode?: string
-  submitOutcome?: string
-  stage?: string
-}): boolean {
-  return (
-    result.success &&
-    !isStagedSendResult(result) &&
-    !['delivery_unconfirmed', 'blocked', 'not_attempted', 'input_only'].includes(
-      result.submitOutcome ?? ''
-    ) &&
-    result.stage !== 'uncertain' &&
-    result.stage !== 'partial'
-  )
-}
-
-/**
  * Maps browser/runtime messages to stable error codes.
  */
 export function normalizeSendErrorCode(raw: unknown, fallback: string): string {

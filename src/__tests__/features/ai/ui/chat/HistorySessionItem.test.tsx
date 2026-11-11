@@ -22,7 +22,6 @@ function renderItem(overrides: Partial<React.ComponentProps<typeof HistorySessio
   const props: React.ComponentProps<typeof HistorySessionItem> = {
     session: SESSION,
     isActive: false,
-    tabId: 'tab-1',
     onSelect: vi.fn(),
     onDelete: vi.fn(),
     editingId: null,

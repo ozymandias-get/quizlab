@@ -21,7 +21,7 @@ const MAX_TABLE_COLUMNS = 8
 const MAX_TABLE_CELL_LENGTH = 45
 const MAX_TWO_COLUMN_CELL_LENGTH = 28
 
-export interface DetectedTable {
+interface DetectedTable {
   block: PdfTableBlock
   fragments: PdfTextFragment[]
   top: number

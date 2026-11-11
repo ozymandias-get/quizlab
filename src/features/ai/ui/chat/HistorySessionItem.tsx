@@ -18,7 +18,6 @@ interface Session {
 interface HistorySessionItemProps {
   session: Session
   isActive: boolean
-  tabId: string
   onSelect: (sessionId: string) => void
   /** Asks the parent to confirm and start deletion. */
   onDelete: (sessionId: string) => void

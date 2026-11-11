@@ -115,7 +115,6 @@ interface AppToolActionsType {
   /** Doğrudan gönderim: taslak kuyruğuna dokunmadan mevcut AI pipeline'ına iletir. */
   sendTextDirectToAi: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageDirectToAi: (dataUrl: string, options?: AiSendOptions) => Promise<AiSendResult>
-  sendBulkDirectToAi?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
   startPicker: () => void
@@ -232,7 +231,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       sendPendingAiItems,
       sendTextDirectToAi: sendTextToAI,
       sendImageDirectToAi: sendImageToAI,
-      sendBulkDirectToAi: sendBulkToAI,
       setAutoSend,
       toggleAutoSend,
       startPicker,
@@ -260,7 +258,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       sendPendingAiItems,
       sendTextToAI,
       sendImageToAI,
-      sendBulkToAI,
       setAutoSend,
       toggleAutoSend,
       startPicker,

@@ -17,7 +17,6 @@ import {
   type ActivePdfDocumentHandle,
   clearActivePdfDocument,
   getActivePdfDocument,
-  getActivePdfDocumentIdentity,
   setActivePdfDocument
 } from '@features/pdf/lib/activePdfDocumentRegistry'
 
@@ -38,13 +37,13 @@ describe('activePdfDocumentRegistry', () => {
   })
 
   it('returns a handle for a matching url', () => {
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).not.toBeNull()
   })
 
   it('returns null for a different url', () => {
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
     expect(getActivePdfDocument('local-pdf://pdf_b')).toBeNull()
   })
@@ -52,7 +51,7 @@ describe('activePdfDocumentRegistry', () => {
   it('delegates getPage to the handle', async () => {
     const page = { getViewport: vi.fn(), render: vi.fn() }
     const getPage = vi.fn(async () => page)
-    setActivePdfDocument(makeHandle({ getPage }), 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle({ getPage }), 'local-pdf://pdf_a')
 
     const handle = getActivePdfDocument('local-pdf://pdf_a')
 
@@ -64,7 +63,7 @@ describe('activePdfDocumentRegistry', () => {
     // The reload case: the URL is unchanged but the document behind it is not the
     // one the viewer is rendering any more.
     const handle = makeHandle({ isAlive: vi.fn(() => false) })
-    setActivePdfDocument(handle, 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(handle, 'local-pdf://pdf_a')
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     // Evicted on sight, so a second capture must not probe the dead handle again.
@@ -80,34 +79,19 @@ describe('activePdfDocumentRegistry', () => {
           throw new Error('worker gone')
         })
       }),
-      'local-pdf://pdf_a',
-      'fp'
+      'local-pdf://pdf_a'
     )
 
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
   })
 
   it('keeps serving a live handle until it is withdrawn or cleared', () => {
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
     const first = getActivePdfDocument('local-pdf://pdf_a')
 
     // A borrowed handle is not consumed by being read: the viewer stays
     // mounted, so capture may ask for the same document again.
     expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(first)
-  })
-
-  it('reports the identity the registrant supplied', () => {
-    expect(getActivePdfDocumentIdentity()).toBeNull()
-
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
-
-    expect(getActivePdfDocumentIdentity()).toBe('local-pdf://pdf_a::0')
-  })
-
-  it('records no identity when the registrant supplies none', () => {
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
-
-    expect(getActivePdfDocumentIdentity()).toBeNull()
   })
 
   describe('ownership', () => {
@@ -117,7 +101,7 @@ describe('activePdfDocumentRegistry', () => {
       })
       // The handle has no teardown at all — that is the structural guarantee, so
       // this asserts the surface as well as the behaviour.
-      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'fp')
+      setActivePdfDocument(handle, 'local-pdf://pdf_a')
 
       const borrowed = getActivePdfDocument('local-pdf://pdf_a')
       await borrowed?.getPage(1)
@@ -130,17 +114,17 @@ describe('activePdfDocumentRegistry', () => {
 
   describe('registration', () => {
     it('clears the slot when the document is null', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
-      setActivePdfDocument(null, 'local-pdf://pdf_a', 'fp')
+      setActivePdfDocument(null, 'local-pdf://pdf_a')
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     })
 
     it('clears the slot when the url is null', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'fp')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
-      setActivePdfDocument(makeHandle(), null, 'fp')
+      setActivePdfDocument(makeHandle(), null)
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBeNull()
     })
@@ -148,8 +132,8 @@ describe('activePdfDocumentRegistry', () => {
     it('most recent registration wins', () => {
       const first = makeHandle()
       const second = makeHandle()
-      setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
-      setActivePdfDocument(second, 'local-pdf://pdf_a', 'second')
+      setActivePdfDocument(first, 'local-pdf://pdf_a')
+      setActivePdfDocument(second, 'local-pdf://pdf_a')
 
       expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(second)
     })
@@ -160,11 +144,11 @@ describe('activePdfDocumentRegistry', () => {
       // Two viewers can be mounted on the same file (`LeftPanel` and the
       // `FocusOverlay`). An unmounting one must not evict the other's document.
       const first = makeHandle()
-      setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
-      const firstToken = setActivePdfDocument(first, 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(first, 'local-pdf://pdf_a')
+      const firstToken = setActivePdfDocument(first, 'local-pdf://pdf_a')
 
       const second = makeHandle()
-      setActivePdfDocument(second, 'local-pdf://pdf_a', 'second')
+      setActivePdfDocument(second, 'local-pdf://pdf_a')
 
       clearActivePdfDocument(firstToken)
 
@@ -172,8 +156,8 @@ describe('activePdfDocumentRegistry', () => {
     })
 
     it('the matching token does withdraw its own entry', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
-      const token = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+      const token = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
       clearActivePdfDocument(token)
 
@@ -181,7 +165,7 @@ describe('activePdfDocumentRegistry', () => {
     })
 
     it('no token empties the slot', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
       clearActivePdfDocument()
 
@@ -189,20 +173,20 @@ describe('activePdfDocumentRegistry', () => {
     })
 
     it('tokens are never equal across re-registration', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
-      const a = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
-      const b = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+      const a = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+      const b = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
       expect(a).not.toBe(b)
       expect(typeof a).toBe('symbol')
     })
 
     it('a stale token cannot withdraw a re-registered entry', () => {
-      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
-      const stale = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a', 'first')
+      setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+      const stale = setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
 
       const live = makeHandle()
-      setActivePdfDocument(live, 'local-pdf://pdf_a', 'second')
+      setActivePdfDocument(live, 'local-pdf://pdf_a')
 
       clearActivePdfDocument(stale)
 

@@ -129,7 +129,6 @@ interface AiContextActions {
   openAiWorkspace: (modelId: string) => void
   renameTab: (tabId: string, title?: string) => void
   togglePinTab: (tabId: string) => void
-  setCurrentAI: (id: string) => void
   setEnabledModels: (models: string[]) => void
   setFavoriteModels: (models: string[]) => void
   toggleFavoriteModel: (model: string) => void
@@ -143,8 +142,6 @@ interface AiContextActions {
   ) => void
   /** Aktif sekmedeki AI web görünümünü yeniden yükler (Electron content.reload). */
   reloadActiveContent: () => void
-  /** Aktif sekmedeki AI web görünümünü sıfırdan yeniden oluşturur (partition değişimi). */
-  recreateActiveContent: () => void
   sendTextToAI: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendImageToAI: (imageData: string, options?: AiSendOptions) => Promise<AiSendResult>
   sendBulkToAI?: (imageDataUrls: string[], options?: AiSendOptions) => Promise<AiSendResult>
@@ -163,13 +160,7 @@ type AiWorkspaceActions = Omit<AiContextActions, 'sendTextToAI' | 'sendImageToAI
 /** Content örneğine bağlı kayıt / yenileme (dar abonelik: useAiContentHostActions). */
 export type AiContentHostActions = Pick<
   AiWorkspaceActions,
-  'registerContent' | 'reloadActiveContent' | 'recreateActiveContent'
->
-
-/** Sekme ve modeller; aktif content değişince güncellenmez. */
-export type AiCoreWorkspaceActions = Omit<
-  AiWorkspaceActions,
-  'registerContent' | 'reloadActiveContent' | 'recreateActiveContent' | 'cancelOngoing'
+  'registerContent' | 'reloadActiveContent'
 >
 
 export type AiTabActions = Pick<
@@ -179,11 +170,7 @@ export type AiTabActions = Pick<
 
 export type AiModelActions = Pick<
   AiContextActions,
-  | 'setCurrentAI'
-  | 'setEnabledModels'
-  | 'setDefaultAiModel'
-  | 'setFavoriteModels'
-  | 'toggleFavoriteModel'
+  'setEnabledModels' | 'setDefaultAiModel' | 'setFavoriteModels' | 'toggleFavoriteModel'
 >
 
 export type AiSessionActions = Pick<AiContextActions, 'setAutoSend' | 'toggleAutoSend'>

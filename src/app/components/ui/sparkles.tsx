@@ -3,13 +3,10 @@ import { cn } from '@shared/lib/uiUtils'
 import { memo, useEffect, useRef, useState } from 'react'
 
 type ParticlesProps = {
-  id?: string
   className?: string
   background?: string
-  particleSize?: number
   minSize?: number
   maxSize?: number
-  speed?: number
   particleColor?: string
   particleDensity?: number
 }
@@ -28,16 +25,15 @@ interface Particle {
 
 const SparklesCore = memo((props: SparklesCoreProps) => {
   const {
-    id,
     className,
     background = 'transparent',
     minSize = 0.4,
     maxSize = 0.9,
-    speed = 0.6,
     particleColor = '#FFFFFF',
     particleDensity = 5,
     paused = false
   } = props
+  const speed = 0.6
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [isPageHidden, setIsPageHidden] = useState(() =>
@@ -176,7 +172,6 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
 
   return (
     <canvas
-      id={id}
       ref={canvasRef}
       data-testid="sparkles-core"
       style={{ background }}

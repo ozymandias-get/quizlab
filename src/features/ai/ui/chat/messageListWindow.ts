@@ -23,7 +23,7 @@ import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import type { MessageGroupEntry } from './chatUtils'
 
 /** Below this many rows, rendering everything is cheaper than windowing. */
-export const MESSAGE_WINDOW_THRESHOLD = 40
+const MESSAGE_WINDOW_THRESHOLD = 40
 
 const DATE_ROW_ESTIMATE_PX = 48
 const GROUP_MESSAGE_ESTIMATE_PX = 56
@@ -33,7 +33,7 @@ const MAX_MESSAGE_ESTIMATE_PX = 480
 const OVERSCAN_PX = 700
 const FALLBACK_VIEWPORT_PX = 600
 
-export interface MessageRowHeight {
+interface MessageRowHeight {
   key: string
   estimatedHeight: number
 }
@@ -57,9 +57,12 @@ export type MessageRowModel =
 
 function estimateMessageHeight(message: ApiChatMessage): number {
   const lines = Math.max(1, Math.ceil(message.content.length / MESSAGE_CHARS_PER_LINE))
+  // Attachments render as a thumbnail row in the bubble; without this the
+  // virtual scroll height was far too short for screenshot-heavy messages.
+  const imagesHeight = (message.images?.length ?? 0) * 160
   return Math.min(
     MAX_MESSAGE_ESTIMATE_PX,
-    GROUP_MESSAGE_ESTIMATE_PX + lines * MESSAGE_LINE_ESTIMATE_PX
+    GROUP_MESSAGE_ESTIMATE_PX + lines * MESSAGE_LINE_ESTIMATE_PX + imagesHeight
   )
 }
 
@@ -92,7 +95,7 @@ export function buildMessageRows(groups: readonly MessageGroupEntry[]): MessageR
 }
 
 /** Prefix sums of row heights: `offsets[i]` is the top of row `i`. */
-export function buildRowOffsets(
+function buildRowOffsets(
   rows: readonly MessageRowHeight[],
   heights: ReadonlyMap<string, number>
 ): number[] {
@@ -116,7 +119,7 @@ function findFirstRowAfter(offsets: readonly number[], rowCount: number, y: numb
   return low
 }
 
-export function findMessageWindow(
+function findMessageWindow(
   offsets: readonly number[],
   rowCount: number,
   scrollTop: number,
@@ -144,6 +147,8 @@ interface UseMessageListWindowOptions {
   rows: readonly MessageRowHeight[]
   containerRef: RefObject<HTMLElement | null>
   pinnedToBottom: boolean
+  /** Rows that must stay mounted even when outside the virtual window. */
+  pinnedRowKeys?: ReadonlySet<string>
 }
 
 interface UseMessageListWindowResult {
@@ -156,7 +161,8 @@ interface UseMessageListWindowResult {
 export function useMessageListWindow({
   rows,
   containerRef,
-  pinnedToBottom
+  pinnedToBottom,
+  pinnedRowKeys
 }: UseMessageListWindowOptions): UseMessageListWindowResult {
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
@@ -167,6 +173,10 @@ export function useMessageListWindow({
   const nearBottomRef = useRef(true)
 
   const offsets = useMemo(() => buildRowOffsets(rows, heights), [rows, heights])
+  const estimates = useMemo(
+    () => new Map(rows.map((row) => [row.key, row.estimatedHeight])),
+    [rows]
+  )
 
   useEffect(() => {
     const container = containerRef.current
@@ -195,10 +205,24 @@ export function useMessageListWindow({
     }
   }, [containerRef])
 
-  const { start, end } = useMemo(
+  const { start: windowStart, end: windowEnd } = useMemo(
     () => findMessageWindow(offsets, rows.length, scrollTop, viewportHeight, pinnedToBottom),
     [offsets, rows.length, scrollTop, viewportHeight, pinnedToBottom]
   )
+
+  // Keep interaction rows (editing text, active speech) mounted outside the
+  // window; their padding is recomputed from the expanded range.
+  const { start, end } = useMemo(() => {
+    if (!pinnedRowKeys || pinnedRowKeys.size === 0) return { start: windowStart, end: windowEnd }
+    let first = windowStart
+    let last = windowEnd
+    for (const [index, row] of rows.entries()) {
+      if (!pinnedRowKeys.has(row.key)) continue
+      if (index < first) first = index
+      if (index + 1 > last) last = index + 1
+    }
+    return { start: first, end: last }
+  }, [pinnedRowKeys, rows, windowStart, windowEnd])
 
   // Measure the rows that were just rendered, and keep the reader's place when
   // a row above the viewport turns out to be a different height than estimated.
@@ -224,8 +248,12 @@ export function useMessageListWindow({
       const previous = heights.get(key)
       if (previous !== undefined && Math.abs(previous - height) <= 0.5) continue
 
-      if (previous !== undefined && !nearBottom && rect.bottom <= containerTop + 1) {
-        shift += height - previous
+      if (!nearBottom && rect.bottom <= containerTop + 1) {
+        // A newly mounted row above the viewport has no previous measurement;
+        // compensate against its estimate so the first measurement does not
+        // jump the transcript.
+        const baseline = previous ?? estimates.get(key) ?? height
+        shift += height - baseline
       }
       updates.set(key, height)
     }
@@ -243,7 +271,7 @@ export function useMessageListWindow({
       for (const [key, height] of updates) next.set(key, height)
       return next
     })
-  }, [containerRef, heights, pinnedToBottom, start, end])
+  }, [containerRef, heights, estimates, pinnedToBottom, start, end])
 
   return {
     start,

@@ -19,7 +19,7 @@ import type { QueuedImageMeta, QueuedTextMeta } from './useAiDraftQueue'
  * `kind`, kaynağın türünü de taşır: `area:<n>` ve `full:<n>` aynı sayıyı
  * paylaşsa bile farklı yakalamalardır.
  */
-export type CaptureId = string
+type CaptureId = string
 
 export interface PendingAreaCapture {
   id: CaptureId

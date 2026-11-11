@@ -59,7 +59,7 @@ type MessageGroupEntry =
 
 export type { MessageGroupEntry }
 
-export type MessageGroupsResult = {
+type MessageGroupsResult = {
   groups: MessageGroupEntry[]
   lastAssistantId: string | null
 }

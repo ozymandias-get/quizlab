@@ -103,7 +103,7 @@ import {
   usePdfWheelNavigation
 } from '@features/pdf/ui/hooks'
 
-import { type RefObject, useCallback, useMemo } from 'react'
+import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useNativeZoomControls } from './nativeZoomControls'
 
@@ -195,7 +195,8 @@ export interface NativePdfController {
   renderPageThumbnail: (
     pageNumber: number,
     canvas: HTMLCanvasElement,
-    maxWidth: number
+    maxWidth: number,
+    signal?: AbortSignal
   ) => Promise<void>
   goToPreviousPage: () => void
   goToNextPage: () => void
@@ -280,6 +281,10 @@ export function useNativePdfController({
   // number computed from the page box and the container box, so this is the same
   // value the scale state applies as an ordinary scale.
   const fitScale = useFitScale(pageDimensions, adjustedContainerSize)
+  const fitWidthScale =
+    pageDimensions && pageDimensions.width > 0 && adjustedContainerSize.w > 0
+      ? adjustedContainerSize.w / pageDimensions.width
+      : fitScale
 
   const { scale, zoomTo, zoomIn, zoomOut, fit } = useNativePdfScaleState({
     enabled,
@@ -297,6 +302,49 @@ export function useNativePdfController({
     goToPreviousPage,
     isReady && !isPanMode && isWheelPageTurnEnabled
   )
+
+  // Continuous-flow mode: the wheel scrolls inside the current page; at the
+  // top/bottom edge the next/previous page continues the flow. Without this it
+  // looked like the toggle did nothing on a page that fits the viewport.
+  useEffect(() => {
+    if (!enabled || !isReady || isPanMode || isWheelPageTurnEnabled) return
+    const root = containerRef.current
+    if (!root) return
+    let lastTurn = 0
+    const onWheel = (event: WheelEvent) => {
+      const scroller = root.querySelector<HTMLElement>('[data-native-pdf-scroll]') ?? root
+      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+      const atTop = scroller.scrollTop <= 0
+      const goingDown = event.deltaY > 0
+      if (goingDown ? !atBottom : !atTop) return
+      if (goingDown ? currentPage >= totalPages : currentPage <= 1) return
+      event.preventDefault()
+      const now = performance.now()
+      if (now - lastTurn < 350) return
+      lastTurn = now
+      if (goingDown) goToNextPage()
+      else goToPreviousPage()
+      // The new page starts at the edge the reader is entering from.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (goingDown) scroller.scrollTop = 0
+          else scroller.scrollTop = scroller.scrollHeight
+        })
+      })
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [
+    containerRef,
+    currentPage,
+    enabled,
+    goToNextPage,
+    goToPreviousPage,
+    isPanMode,
+    isReady,
+    isWheelPageTurnEnabled,
+    totalPages
+  ])
 
   // The Electron PDF context menu's Zoom In / Zoom Out / Reset Zoom items. The
   // hook is numeric and imports no viewer package, so the same three actions
@@ -330,7 +378,8 @@ export function useNativePdfController({
     refitZoomTo,
     isReady,
     isPanelResizing,
-    fitScale,
+    // Refit keeps flow mode's width fit instead of snapping back to fit-page.
+    isWheelPageTurnEnabled ? fitScale : fitWidthScale,
     lastNavigationTimeRef,
     NATIVE_FIT_FALLBACK_SCALE
   )
@@ -392,13 +441,33 @@ export function useNativePdfController({
     zoomTo(adjustedContainerSize.w / pageWidth)
   }, [adjustedContainerSize.w, fit, pageDimensions?.width, zoomTo])
 
+  // Flow mode needs a vertically scrollable page, otherwise "continuous" looks
+  // dead on a fit-page document. Switching back restores fit-page.
+  const previousFlowModeRef = useRef(isWheelPageTurnEnabled)
+  useEffect(() => {
+    if (previousFlowModeRef.current === isWheelPageTurnEnabled) return
+    previousFlowModeRef.current = isWheelPageTurnEnabled
+    if (isWheelPageTurnEnabled) fit()
+    else fitWidth()
+  }, [fit, fitWidth, isWheelPageTurnEnabled])
+
   const zoomControls = useNativeZoomControls({ scale, zoomIn, zoomOut, zoomTo, fit, fitWidth })
 
   const renderPageThumbnail = useCallback(
-    async (pageNumber: number, canvas: HTMLCanvasElement, maxWidth: number) => {
+    async (
+      pageNumber: number,
+      canvas: HTMLCanvasElement,
+      maxWidth: number,
+      signal?: AbortSignal
+    ) => {
       const instance = engine()
       if (!instance) throw new Error('thumbnail render requested with no engine')
-      const page = await instance.manager.getPage(pageNumber)
+      // Thumbnails bypass the viewer's small page cache: walking a long rail
+      // through it would evict the page the reader is actually looking at.
+      const document = instance.manager.getDocument()
+      const page = document
+        ? await document.getPage(pageNumber)
+        : await instance.manager.getPage(pageNumber)
       const baseViewport = page.getViewport({ scale: 1 })
       const scale = Math.min(1, Math.max(0.02, maxWidth / Math.max(1, baseViewport.width)))
       const viewport = page.getViewport({ scale })
@@ -410,11 +479,22 @@ export function useNativePdfController({
       } catch {
         // Non-standard canvas environments render without a context hint.
       }
-      await page.render({
+      const task = page.render({
         canvas,
         ...(canvasContext ? { canvasContext } : {}),
         viewport
-      }).promise
+      })
+      if (signal?.aborted) {
+        task.cancel()
+        return
+      }
+      const cancel = () => task.cancel()
+      signal?.addEventListener('abort', cancel, { once: true })
+      try {
+        await task.promise
+      } finally {
+        signal?.removeEventListener('abort', cancel)
+      }
     },
     [engine]
   )

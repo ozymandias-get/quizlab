@@ -18,16 +18,7 @@
     'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Playfair Display', Georgia, serif;
 
-  --color-stone-50: #fafaf9;
   --color-stone-100: #f5f5f4;
-  --color-stone-200: #e7e5e4;
-  --color-stone-300: #d6d3d1;
-  --color-stone-400: #a8a29e;
-  --color-stone-500: #78716c;
-  --color-stone-600: #57534e;
-  --color-stone-700: #44403c;
-  --color-stone-800: #292524;
-  --color-stone-900: #1c1917;
   --color-stone-950: #0c0a09;
 
   --color-border: oklch(var(--border));
@@ -48,7 +39,6 @@
   --color-popover: oklch(var(--popover));
   --color-popover-foreground: oklch(var(--popover-foreground));
   --color-card: oklch(var(--card));
-  --color-card-foreground: oklch(var(--card-foreground));
 
   /* Radius semantics — components must map surfaces to these levels:
      compact control → rounded-md   (radius-md)
@@ -56,7 +46,6 @@
      popover/menu    → rounded-xl   (radius-xl)
      large surface   → rounded-2xl  (radius-2xl)
      circular action → rounded-full (radius-full) */
-  --radius-2xs: 0.125rem;
   --radius-xs: 0.25rem;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -83,71 +72,34 @@
   --text-ql-18--line-height: 1.25;
   --text-ql-20: 20px;
   --text-ql-20--line-height: 1.2;
-  --text-ql-22: 22px;
-  --text-ql-22--line-height: 1.15;
-  --text-ql-24: 24px;
-  --text-ql-24--line-height: 1.15;
   --text-ql-28: 28px;
   --text-ql-28--line-height: 1.1;
 
-  /* Letter-spacing scale — exactly 5 semantic levels. Components must not
+  /* Letter-spacing scale — exactly 4 semantic levels. Components must not
      invent new tracking values; map intent to one of these:
      tight   → default body/small copy micro-tweak (0.01em)
      normal  → general text baseline (0.03em)
      label   → interactive labels / small uppercase (0.08em)
-     caps    → uppercase section headers (0.14em)
-     display → display/hero typography (0.3em) */
+     caps    → uppercase section headers (0.14em) */
   --tracking-ql-tight: 0.01em;
   --tracking-ql-normal: 0.03em;
   --tracking-ql-label: 0.08em;
   --tracking-ql-caps: 0.14em;
-  --tracking-ql-display: 0.3em;
 
-  --z-negative-10: -10;
   --z-negative-2: -2;
   --z-negative-1: -1;
-  --z-surface-0: 0;
-  --z-surface-2: 2;
-  --z-surface-4: 4;
   --z-resizer-hub: 40;
   --z-dropdown: 100;
   --z-overlay: 200;
   --z-modal: 300;
   --z-toast: 400;
   --z-tooltip: 500;
-  --z-top: 9999;
-  --z-max: 2147483647;
 
-  --animate-accordion-down: accordion-down 0.2s ease-out;
-  --animate-accordion-up: accordion-up 0.2s ease-out;
-
-  @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-
-    to {
-      height: var(--radix-accordion-content-height);
-    }
-  }
-
-  @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-
-    to {
-      height: 0;
-    }
-  }
-
-  --duration-instant: 0ms;
   --duration-fast: 80ms;
   --duration-normal: 140ms;
   --duration-slow: 200ms;
   --duration-slower: 280ms;
   --duration-deliberate: 400ms;
-  --duration-slowest: 600ms;
 
   --ease-glass: cubic-bezier(0.2, 0.9, 0.22, 1);
 
@@ -188,26 +140,6 @@
   z-index: 500;
 }
 
-@utility z-top {
-  z-index: 9999;
-}
-
-@utility z-max {
-  z-index: 2147483647;
-}
-
-@utility z-negative-10 {
-  z-index: -10;
-}
-
-@utility z-negative-2 {
-  z-index: -2;
-}
-
-@utility z-negative-1 {
-  z-index: -1;
-}
-
 @utility z-resizer-hub {
   z-index: 40;
 }
@@ -226,22 +158,6 @@
 
 @utility shadow-ambient-xl {
   box-shadow: var(--shadow-ambient-xl);
-}
-
-@custom-variant motion-ok {
-  @media (prefers-reduced-motion: no-preference) {
-    @slot;
-  }
-}
-
-@custom-variant motion-not {
-  @media (prefers-reduced-motion: reduce) {
-    @slot;
-  }
-}
-
-@utility motion-instant {
-  transition-duration: var(--duration-instant);
 }
 
 @utility motion-fast {
@@ -264,16 +180,11 @@
   transition-duration: var(--duration-deliberate);
 }
 
-@utility motion-slowest {
-  transition-duration: var(--duration-slowest);
-}
-
 @layer base {
   :root {
     --background: 0.98 0.002 260;
     --foreground: 0.15 0.01 260;
     --card: 1 0 0;
-    --card-foreground: 0.15 0.01 260;
     --popover: 1 0 0;
     --popover-foreground: 0.15 0.01 260;
     --primary: 0.2 0.015 260;
@@ -289,27 +200,13 @@
     --border: 0.89 0.004 260;
     --input: 0.89 0.004 260;
     --ring: 0.5 0.01 260;
-    --chart-1: 0.87 0 0;
-    --chart-2: 0.556 0 0;
-    --chart-3: 0.439 0 0;
-    --chart-4: 0.371 0 0;
-    --chart-5: 0.269 0 0;
     --radius: 0.75rem;
-    --sidebar: 0.965 0.003 260;
-    --sidebar-foreground: 0.15 0.01 260;
-    --sidebar-primary: 0.2 0.015 260;
-    --sidebar-primary-foreground: 0.985 0 0;
-    --sidebar-accent: 0.935 0.005 260;
-    --sidebar-accent-foreground: 0.18 0.01 260;
-    --sidebar-border: 0.89 0.004 260;
-    --sidebar-ring: 0.5 0.01 260;
   }
 
   .dark {
     --background: 0.11 0.005 260;
     --foreground: 0.965 0.003 260;
     --card: 0.148 0.006 260;
-    --card-foreground: 0.965 0.003 260;
     --popover: 0.165 0.007 260;
     --popover-foreground: 0.965 0.003 260;
     --primary: 0.94 0.004 260;
@@ -325,25 +222,7 @@
     --border: 0.225 0.007 260;
     --input: 0.225 0.007 260;
     --ring: 0.62 0.01 260;
-    --chart-1: 0.87 0 0;
-    --chart-2: 0.556 0 0;
-    --chart-3: 0.439 0 0;
-    --chart-4: 0.371 0 0;
-    --chart-5: 0.269 0 0;
-    --sidebar: 0.135 0.006 260;
-    --sidebar-foreground: 0.965 0.003 260;
-    --sidebar-primary: 0.62 0.01 260;
-    --sidebar-primary-foreground: 0.12 0.008 260;
-    --sidebar-accent: 0.2 0.007 260;
-    --sidebar-accent-foreground: 0.965 0.003 260;
-    --sidebar-border: 0.225 0.007 260;
-    --sidebar-ring: 0.62 0.01 260;
     color-scheme: dark;
-  }
-
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', sans-serif;
   }
 
   * {

@@ -37,13 +37,13 @@ import type {
 
 const REPAIR_KINDS: readonly SelectorRepairKind[] = ['input', 'button']
 
-export interface RepairEvaluationInput {
+interface RepairEvaluationInput {
   config: AiSelectorConfig
   diagnostics: AutomationExecutionDiagnostics
   now?: number
 }
 
-export interface RepairEvaluation {
+interface RepairEvaluation {
   /** The config patch to persist. */
   patch: AiSelectorConfig
   /** False when nothing meaningful changed and no write is warranted. */

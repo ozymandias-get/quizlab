@@ -10,7 +10,7 @@ const PICKER_PREFIX = '_aiPicker:'
 const PICKER_RESULT_PREFIX = '_aiPicker:result:'
 const PICKER_CANCELLED = '_aiPicker:cancelled'
 
-export interface UsePickerConsoleBridgeOptions {
+interface UsePickerConsoleBridgeOptions {
   getContentController: () => AiContentController | null | undefined
   mountedRef: RefObject<boolean>
   onResult: (data: unknown, sessionId?: string | null) => void | Promise<void>
@@ -18,7 +18,7 @@ export interface UsePickerConsoleBridgeOptions {
   onError: (error: unknown) => void
 }
 
-export interface UsePickerConsoleBridgeResult {
+interface UsePickerConsoleBridgeResult {
   startListening: (controller?: AiContentController | null, sessionId?: string | null) => void
   stopListening: () => void
 }

@@ -48,7 +48,6 @@
   "ai_draft_item_text": "Text",
   "ai_draft_item_image": "Image",
   "ai_draft_item_position": "Item {index}",
-  "ai_draft_bulk_unsupported": "This provider does not support multiple images in one message. Draft kept.",
   "ai_draft_open": "Open draft",
   "ai_draft_close": "Close draft",
   "ai_draft_content_count_one": "{count} item",

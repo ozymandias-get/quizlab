@@ -13,7 +13,7 @@ import {
 } from '../../text/selectionPage'
 import type { SelectionMenuFeedback } from './PdfSelectionMenu'
 
-export interface TextSelectionSnapshot {
+interface TextSelectionSnapshot {
   text: string
   position: MenuAnchor
   source: PdfSourceMeta | null
@@ -72,6 +72,12 @@ export function usePdfSelectionMenu({
   /** True while the page is scrolling: the bubble fades out instead of hanging. */
   const [isScrolling, setIsScrolling] = useState(false)
   const scrollIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
   const requestIdRef = useRef(0)
   const menuRef = useRef<TextSelectionSnapshot | null>(null)
   menuRef.current = menu
@@ -114,6 +120,12 @@ export function usePdfSelectionMenu({
       const rects = typeof range.getClientRects === 'function' ? [...range.getClientRects()] : []
       const end = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect()
       if (end.width <= 0 && end.height <= 0) return null
+      // Once the selected text scrolls out of the viewport the menu should not
+      // clamp itself to the panel edge over unrelated content.
+      const containerRect = containerRef.current?.getBoundingClientRect()
+      if (containerRect && (end.bottom < containerRect.top || end.top > containerRect.bottom)) {
+        return null
+      }
       return { top: end.top, bottom: end.bottom, left: end.left, right: end.right }
     } catch {
       return null
@@ -254,7 +266,7 @@ export function usePdfSelectionMenu({
         clearTimeout(scrollIdleTimerRef.current)
         scrollIdleTimerRef.current = null
       }
-      setIsScrolling(false)
+      if (mountedRef.current) setIsScrolling(false)
       container?.removeEventListener('scroll', schedule, { capture: true })
       window.removeEventListener('resize', schedule)
     }

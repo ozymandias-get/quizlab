@@ -16,7 +16,7 @@
 import { normalizePdfText } from './normalizePdfText'
 import type { PdfFlowBlock, PdfTableBlock, PdfTextLine } from './types'
 
-export interface SerializePdfFlowOptions {
+interface SerializePdfFlowOptions {
   /** Emit Markdown heading markers for measurably larger lines. */
   inferHeadings?: boolean
 }

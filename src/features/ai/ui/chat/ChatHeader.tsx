@@ -15,7 +15,6 @@ const ChatHeader = memo(function ChatHeader({
   activeProvider: boolean
   selectedModel: string
   providerName: string
-  messageCount: number
   onNewChat: () => void
   onToggleHistoryModal: () => void
 }) {

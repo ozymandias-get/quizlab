@@ -4,14 +4,13 @@
  */
 import {
   getInnerContainerFallback,
-  getScrollableAncestor,
-  isScrollableElement
+  getScrollableAncestor
 } from '@features/pdf/interaction/panHelpers'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('panHelpers', () => {
-  describe('isScrollableElement', () => {
+  describe('scroll detection', () => {
     function makeEl(
       overflow: { x?: string; y?: string },
       scroll: { width?: number; height?: number },
@@ -39,37 +38,37 @@ describe('panHelpers', () => {
         { width: 100, height: 100 },
         { width: 100, height: 100 }
       )
-      expect(isScrollableElement(el)).toBe(false)
+      expect(getScrollableAncestor(el, el)).toBeNull()
     })
 
     it('returns true for vertical overflow: auto when scrollHeight > clientHeight + 1', () => {
       const el = makeEl({ y: 'auto' }, { height: 1000 }, { height: 100 })
-      expect(isScrollableElement(el)).toBe(true)
+      expect(getScrollableAncestor(el, el)).toBe(el)
     })
 
     it('returns false for vertical overflow: auto when scrollHeight == clientHeight (no overflow)', () => {
       const el = makeEl({ y: 'auto' }, { height: 100 }, { height: 100 })
-      expect(isScrollableElement(el)).toBe(false)
+      expect(getScrollableAncestor(el, el)).toBeNull()
     })
 
     it('returns false for vertical overflow: auto when scrollHeight === clientHeight + 1 (boundary)', () => {
       const el = makeEl({ y: 'auto' }, { height: 101 }, { height: 100 })
-      expect(isScrollableElement(el)).toBe(false)
+      expect(getScrollableAncestor(el, el)).toBeNull()
     })
 
     it('returns true for vertical overflow: scroll even with tiny overflow', () => {
       const el = makeEl({ y: 'scroll' }, { height: 110 }, { height: 100 })
-      expect(isScrollableElement(el)).toBe(true)
+      expect(getScrollableAncestor(el, el)).toBe(el)
     })
 
     it('returns true for vertical overflow: overlay', () => {
       const el = makeEl({ y: 'overlay' }, { height: 200 }, { height: 100 })
-      expect(isScrollableElement(el)).toBe(true)
+      expect(getScrollableAncestor(el, el)).toBe(el)
     })
 
     it('returns true for horizontal overflow when scrollWidth > clientWidth + 1', () => {
       const el = makeEl({ x: 'auto' }, { width: 1000 }, { width: 100 })
-      expect(isScrollableElement(el)).toBe(true)
+      expect(getScrollableAncestor(el, el)).toBe(el)
     })
 
     it('returns false for overflow:hidden', () => {
@@ -78,7 +77,7 @@ describe('panHelpers', () => {
         { width: 200, height: 200 },
         { width: 100, height: 100 }
       )
-      expect(isScrollableElement(el)).toBe(false)
+      expect(getScrollableAncestor(el, el)).toBeNull()
     })
   })
 

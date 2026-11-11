@@ -37,13 +37,6 @@ const WATERMARKS = {
   critical: 1.0 // 100%
 } as const
 
-// Partition eşikleri
-const PARTITION_WATERMARKS = {
-  warning: 0.8, // 80MB
-  high: 0.9, // 90MB
-  critical: 1.0 // 100MB
-} as const
-
 export function getCachePressure(totalBytes: number): CachePressure {
   const limit = MAX_TOTAL_CACHE_BYTES
   const pct = limit > 0 ? totalBytes / limit : 0
@@ -157,9 +150,7 @@ export function getRecommendation(
 export const SMART_CACHE_CONFIG = {
   AUTO_CLEAN_ENABLED_DEFAULT: true,
   AUTO_CLEAN_COOLDOWN_MS: 10 * 60 * 1000, // 10 dk
-  AUTO_CLEAN_MIN_INTERVAL_MS: 5 * 60 * 1000, // 5 dk
-  WATERMARKS,
-  PARTITION_WATERMARKS
+  WATERMARKS
 } as const
 
 export type AutoCleanConfig = {

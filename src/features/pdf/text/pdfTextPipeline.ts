@@ -12,7 +12,7 @@ import type { PdfTextItem } from './types'
 
 type PdfTextExtractionMode = 'page' | 'selection'
 
-export interface ExtractStructuredPdfTextOptions {
+interface ExtractStructuredPdfTextOptions {
   /**
    * `page` may promote measurably larger lines to Markdown headings. `selection`
    * never does: the user selected that text, not a document position, and a

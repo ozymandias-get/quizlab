@@ -5,7 +5,7 @@ import { subscribeDomSlot } from '@shared/lib/domSlot'
 import { type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export type AiDraftPlacement = 'inline' | 'floating'
+type AiDraftPlacement = 'inline' | 'floating'
 
 /**
  * AI Taslağı katmanı — PDF sahnesinin üzerine yerleşir.

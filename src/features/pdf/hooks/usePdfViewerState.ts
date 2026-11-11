@@ -132,7 +132,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   const currentPage = nativeViewer.currentPage
   const currentPageRef = useRef(currentPage)
   currentPageRef.current = currentPage
-  props.capturePageRef && (props.capturePageRef.current = currentPage)
 
   // Single owner of PDF canvas/GPU lifetime. containerRef wraps every pdf.js
   // canvas, so this one MutationObserver sees all page swaps and zoom re-renders.
@@ -150,7 +149,6 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     currentPage,
     totalPages: nativeViewer.totalPages,
     pdfFile,
-    capturePageRef: props.capturePageRef,
     onFullPageCapture,
     startScreenshot,
     pdfUrl
@@ -210,18 +208,17 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
   handleFullPageScreenshotRef.current = handleFullPageScreenshot
   extractCurrentPageTextRef.current = extractCurrentPageText
 
-  const { handleAddCurrentPageTextToAi, handleReload, handleCloseContextMenu, menuItems } =
-    usePdfViewerMenuItems({
-      t,
-      tt,
-      handleAreaScreenshot,
-      extractCurrentPageTextRef,
-      handleFullPageScreenshotRef,
-      setContextMenu,
-      contextMenuPointRef,
-      setViewerReloadKey,
-      startTransition
-    })
+  const { handleReload, handleCloseContextMenu, menuItems } = usePdfViewerMenuItems({
+    t,
+    tt,
+    handleAreaScreenshot,
+    extractCurrentPageTextRef,
+    handleFullPageScreenshotRef,
+    setContextMenu,
+    contextMenuPointRef,
+    setViewerReloadKey,
+    startTransition
+  })
 
   return {
     containerRef,
@@ -230,23 +227,19 @@ export function usePdfViewerState(props: PdfViewerDocumentProps): UsePdfViewerSt
     annotationLayerRef,
     searchLayerRef,
     nativeViewer,
-    viewerReloadKey,
     isPanMode,
     isSpacePanActive,
     isPanDragging,
-    handleAreaScreenshot,
-    handleFullPageScreenshot,
     contextMenu,
     handleCloseContextMenu,
     handleTogglePanMode,
     isWheelPageTurnEnabled,
     handleToggleWheelPageTurn,
     menuItems,
-    handleAddCurrentPageTextToAi,
     handleReload,
     tt,
     selectionMenu
   }
 }
 
-export type { PdfViewerDocumentProps, UsePdfViewerStateReturn }
+export type { PdfViewerDocumentProps }

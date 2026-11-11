@@ -262,14 +262,14 @@ describe('electron/core/logger', () => {
 
     it('keeps chronological order across the wrap and maps absolute indices', async () => {
       process.env.NODE_ENV = 'production'
-      const { Logger, getLogBufferLength, getPendingLogEntries, getTotalLogCount } =
+      const { Logger, getPendingLogEntries, getRecentElectronLogs, getTotalLogCount } =
         await loadLogger()
 
       for (let i = 0; i < 500; i++) {
         Logger.info(`entry-${i}`)
       }
 
-      expect(getLogBufferLength()).toBe(400)
+      expect(getRecentElectronLogs(500)).toHaveLength(400)
       expect(getTotalLogCount()).toBe(500)
       // Absolute 450 is still retained (the ring holds 100..499).
       expect(getPendingLogEntries(450).map((entry) => entry.message)).toEqual(

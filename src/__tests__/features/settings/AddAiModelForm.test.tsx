@@ -1,8 +1,5 @@
 import AddAiModelForm from '@features/settings/ui/models/AddAiModelForm'
-import {
-  resetSettingsDirty,
-  useHasDirtySettings
-} from '@features/settings/ui/modal/settingsDirtyGuard'
+import { useHasDirtySettings } from '@features/settings/ui/modal/settingsDirtyGuard'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -45,7 +42,6 @@ function renderForm(showAddForm = true) {
 describe('AddAiModelForm unsaved state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    resetSettingsDirty()
   })
 
   it('reports dirty as soon as a field has content', () => {

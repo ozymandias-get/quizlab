@@ -48,16 +48,14 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
  * For simple confirm-style dialogs use <Dialog> directly; for complex
  * custom modals (History, Settings) compose Backdrop + Panel manually.
  */
-export interface DialogProps {
+interface DialogProps {
   isOpen: boolean
   onClose: () => void
   size?: DialogPanelSize
   role?: 'dialog' | 'alertdialog'
   ariaLabelledBy?: string
   ariaDescribedBy?: string
-  initialFocusRef?: React.RefObject<HTMLElement | null>
   children: React.ReactNode
-  backdropClassName?: string
   panelClassName?: string
 }
 
@@ -68,18 +66,16 @@ export function Dialog({
   role = 'dialog',
   ariaLabelledBy,
   ariaDescribedBy,
-  initialFocusRef,
   children,
-  backdropClassName,
   panelClassName
 }: DialogProps) {
   const dialogRef = React.useRef<HTMLDivElement>(null)
-  useDialogBehavior({ isOpen, onClose, dialogRef, initialFocusRef })
+  useDialogBehavior({ isOpen, onClose, dialogRef })
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <DialogBackdrop onClick={onClose} className={backdropClassName}>
+        <DialogBackdrop onClick={onClose}>
           <motion.div
             ref={dialogRef}
             role={role}

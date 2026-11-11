@@ -23,7 +23,7 @@ import { resetConfigCache } from '../aiSenderSupport'
 
 export const SELECTOR_REPAIR_LOG_PREFIX = '[SelectorRepair]'
 
-export interface ApplySelectorRepairParams {
+interface ApplySelectorRepairParams {
   hostname: string
   patch: AiSelectorConfig
   queryClient: QueryClient

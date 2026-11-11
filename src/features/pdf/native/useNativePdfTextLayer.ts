@@ -106,7 +106,7 @@ interface UseNativePdfTextLayerOptions {
   scale: number
 }
 
-export interface NativePdfTextLayerHandle {
+interface NativePdfTextLayerHandle {
   /**
    * Message for a genuine text-layer failure. `null` while rendering and while
    * the layer is torn down; cancellation is never an error.

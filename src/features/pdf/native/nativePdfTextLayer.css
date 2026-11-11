@@ -204,8 +204,8 @@
  * the real glyphs, so this is a *tint over ink*, not a fill under text. Two
  * consequences drive everything below:
  *
- *  - **Alpha is the whole design.** `--selection-color-vivid` is 0.84, which is
- *    tuned for a themed UI surface where the text behind it is a known colour. Over
+ *  - **Alpha is the whole design.** A dense 0.84-alpha tint is tuned for a themed
+ *    UI surface where the text behind it is a known colour. Over
  *    arbitrary PDF content that reads as a highlighter slab: it hides the glyph
  *    contrast the canvas painted and makes the selection look like a bug rather
  *    than a highlight. A translucent tint keeps the user's colour recognisable

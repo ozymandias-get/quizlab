@@ -17,7 +17,6 @@
   "picker_good_choice": "Good Choice",
   "picker_hint_button_send": "This is a clickable button - Looks correct for sending!",
   "picker_hint_clickable": "This area looks clickable, might be correct.",
-  "picker_hint_div_input": "This is an area used for text input. Correct choice.",
   "picker_hint_form": "You selected the whole form. Please click <b>only the input field</b> inside it.",
   "picker_hint_generic_box": "This is too generic. Please focus on where you directly type or click.",
   "picker_hint_icon": "You clicked just the icon. Please click the <b>button itself</b> that contains this icon!",

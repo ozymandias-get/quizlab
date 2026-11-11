@@ -45,7 +45,7 @@ interface UseNativePdfPageStateOptions {
   onReadingProgressChange?: (update: ReadingProgressUpdate) => void
 }
 
-export interface NativePdfPageHandle {
+interface NativePdfPageHandle {
   /** 1-based page currently shown. */
   currentPage: number
   goToPreviousPage: () => void

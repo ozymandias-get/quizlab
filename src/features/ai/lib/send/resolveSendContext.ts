@@ -12,7 +12,7 @@ import {
   isContentUsable
 } from '../aiSenderSupport'
 
-export interface ResolvedSendContext {
+interface ResolvedSendContext {
   aiConfig: AiConfig
   currentUrl: string
 }

@@ -85,11 +85,7 @@ export function useNativePdfCaptureDocument({
 
     tokenRef.current = setActivePdfDocument(
       createNativeCaptureHandle(engineInstance.manager, document),
-      pdfUrl,
-      // The document generation. Recorded rather than compared: liveness is the
-      // decision, and the manager — not the registry — is what knows whether a
-      // generation is still current.
-      `${pdfUrl}::${reloadKey}`
+      pdfUrl
     )
 
     return () => {

@@ -1,16 +1,10 @@
 import {
-  resetSettingsDirty,
-  setSettingsDirty,
   useHasDirtySettings,
   useSettingsDirty
 } from '@features/settings/ui/modal/settingsDirtyGuard'
 
-import { act, renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
-
-afterEach(() => {
-  resetSettingsDirty()
-})
+import { renderHook } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 
 describe('settings dirty guard', () => {
   it('tracks a form registration until the form unmounts', () => {
@@ -38,30 +32,22 @@ describe('settings dirty guard', () => {
 
   it('needs every form to be clean before the modal reports no unsaved changes', () => {
     const hasDirty = renderHook(() => useHasDirtySettings())
-
-    act(() => {
-      setSettingsDirty('form-a', true)
-      setSettingsDirty('form-b', true)
+    const first = renderHook(({ dirty }: { dirty: boolean }) => useSettingsDirty('form-a', dirty), {
+      initialProps: { dirty: false }
     })
+    const second = renderHook(
+      ({ dirty }: { dirty: boolean }) => useSettingsDirty('form-b', dirty),
+      { initialProps: { dirty: false } }
+    )
+
+    first.rerender({ dirty: true })
+    second.rerender({ dirty: true })
     expect(hasDirty.result.current).toBe(true)
 
-    act(() => setSettingsDirty('form-a', false))
+    first.rerender({ dirty: false })
     expect(hasDirty.result.current).toBe(true)
 
-    act(() => setSettingsDirty('form-b', false))
-    expect(hasDirty.result.current).toBe(false)
-  })
-
-  it('reset drops every registration at once', () => {
-    const hasDirty = renderHook(() => useHasDirtySettings())
-
-    act(() => {
-      setSettingsDirty('form-a', true)
-      setSettingsDirty('form-b', true)
-    })
-    expect(hasDirty.result.current).toBe(true)
-
-    act(() => resetSettingsDirty())
+    second.rerender({ dirty: false })
     expect(hasDirty.result.current).toBe(false)
   })
 })

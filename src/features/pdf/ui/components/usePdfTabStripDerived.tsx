@@ -39,5 +39,5 @@ export function usePdfTabStripDerived(tabs: PdfTab[], activeTabId: string) {
 
   const isPdfHomeActive = pdfHomeTabId !== '' && activeTabId === pdfHomeTabId
 
-  return { t, tr, getTabLabel, getTabIcon, pdfHomeTabId, isPdfHomeActive }
+  return { t, tr, getTabLabel, getTabIcon, isPdfHomeActive }
 }

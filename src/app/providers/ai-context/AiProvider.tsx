@@ -16,7 +16,6 @@ import {
   AiContentContext,
   AiContentHostActionsContext,
   AiContentPresenceContext,
-  AiCoreWorkspaceActionsContext,
   AiMessagingActionsContext,
   AiModelActionsContext,
   AiModelsCatalogSliceContext,
@@ -83,8 +82,7 @@ function AiProvider({ children }: { children: ReactNode }) {
     restoreTab,
     setActiveTab,
     renameTab,
-    togglePinTab,
-    setCurrentAI
+    togglePinTab
   } = useAiTabs({
     isRegistryLoaded,
     allAiIds,
@@ -226,18 +224,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     getContentController()?.reload?.()
   }, [getContentController])
 
-  const recreateActiveContent = useCallback(() => {
-    const controller = getContentController() as {
-      recreate?: () => void
-      reload?: () => void
-    } | null
-    if (typeof controller?.recreate === 'function') {
-      void controller.recreate()
-    } else {
-      controller?.reload?.()
-    }
-  }, [getContentController])
-
   const contextValues = useAiProviderContexts({
     tabs,
     activeTabId,
@@ -257,7 +243,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     openAiWorkspace,
     renameTab,
     togglePinTab,
-    setCurrentAI,
     setEnabledModels,
     favoriteModels,
     setFavoriteModels,
@@ -267,7 +252,6 @@ function AiProvider({ children }: { children: ReactNode }) {
     toggleAutoSend,
     registerContent,
     reloadActiveContent,
-    recreateActiveContent,
     sendTextToAI,
     sendImageToAI,
     sendBulkToAI,
@@ -291,37 +275,33 @@ function AiProvider({ children }: { children: ReactNode }) {
                           <AiSessionActionsContext.Provider
                             value={contextValues.sessionActionsValue}
                           >
-                            <AiCoreWorkspaceActionsContext.Provider
-                              value={contextValues.coreWorkspaceActionsValue}
+                            <AiContentHostActionsContext.Provider
+                              value={contextValues.contentHostActionsValue}
                             >
-                              <AiContentHostActionsContext.Provider
-                                value={contextValues.contentHostActionsValue}
+                              <AiMessagingActionsContext.Provider
+                                value={contextValues.messagingActionsValue}
                               >
-                                <AiMessagingActionsContext.Provider
-                                  value={contextValues.messagingActionsValue}
-                                >
-                                  {isError ? (
-                                    <div
-                                      role="alert"
-                                      className="bg-background flex h-screen w-screen flex-col items-center justify-center gap-3 p-6 text-center"
+                                {isError ? (
+                                  <div
+                                    role="alert"
+                                    className="bg-background flex h-screen w-screen flex-col items-center justify-center gap-3 p-6 text-center"
+                                  >
+                                    <p className="text-foreground text-ql-14 font-medium">
+                                      {t('error_registry_not_loaded')}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      className="border-border bg-card text-foreground hover:bg-muted focus-visible:ring-ring/70 text-ql-14 rounded-lg border px-4 py-2 font-medium focus-visible:ring-2 focus-visible:outline-none"
+                                      onClick={() => void refetch()}
                                     >
-                                      <p className="text-foreground text-ql-14 font-medium">
-                                        {t('error_registry_not_loaded')}
-                                      </p>
-                                      <button
-                                        type="button"
-                                        className="border-border bg-card text-foreground hover:bg-muted focus-visible:ring-ring/70 text-ql-14 rounded-lg border px-4 py-2 font-medium focus-visible:ring-2 focus-visible:outline-none"
-                                        onClick={() => void refetch()}
-                                      >
-                                        {t('try_again')}
-                                      </button>
-                                    </div>
-                                  ) : isRegistryLoaded && isTabsInitialized ? (
-                                    children
-                                  ) : null}
-                                </AiMessagingActionsContext.Provider>
-                              </AiContentHostActionsContext.Provider>
-                            </AiCoreWorkspaceActionsContext.Provider>
+                                      {t('try_again')}
+                                    </button>
+                                  </div>
+                                ) : isRegistryLoaded && isTabsInitialized ? (
+                                  children
+                                ) : null}
+                              </AiMessagingActionsContext.Provider>
+                            </AiContentHostActionsContext.Provider>
                           </AiSessionActionsContext.Provider>
                         </AiModelActionsContext.Provider>
                       </AiTabActionsContext.Provider>

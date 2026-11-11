@@ -46,7 +46,7 @@ function pressureReadoutTone(level: CachePressureLevel, isOverLimit: boolean): s
  * (Chromium = blue, code = violet, GPU = emerald, temp = amber) so the same
  * legend dot and bar segment always identify the same cache.
  */
-export interface CacheDistributionSegment {
+interface CacheDistributionSegment {
   key: string
   label: string
   size: number

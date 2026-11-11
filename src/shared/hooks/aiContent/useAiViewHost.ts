@@ -21,7 +21,7 @@ import { getAiViewClient } from './aiViewClient'
  *    rectangle, corner radius, visibility — is part of that identity.
  */
 
-export interface UseAiViewHostOptions {
+interface UseAiViewHostOptions {
   viewId: string
   /** Identity of this host. Only the current owner may move the view. */
   hostToken: string
@@ -31,7 +31,7 @@ export interface UseAiViewHostOptions {
   visible: boolean
 }
 
-export interface UseAiViewHostResult {
+interface UseAiViewHostResult {
   setHostElement: (element: HTMLDivElement | null) => void
   /** Pushes the current rectangle immediately, bypassing frame coalescing. */
   flush: () => void

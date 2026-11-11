@@ -1,7 +1,7 @@
 /** Minimum distance kept between a floating menu and the viewport edge. */
-export const MENU_VIEWPORT_MARGIN = 12
+const MENU_VIEWPORT_MARGIN = 12
 
-export interface MenuPosition {
+interface MenuPosition {
   left: number
   top: number
 }

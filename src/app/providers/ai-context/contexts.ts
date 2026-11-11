@@ -6,7 +6,6 @@ import type {
   AiContentHostActions,
   AiContentPresenceState,
   AiContentState,
-  AiCoreWorkspaceActions,
   AiMessagingActions,
   AiModelActions,
   AiModelsCatalogSliceState,
@@ -28,7 +27,6 @@ export const AiViewRequestNonceContext = createContext<AiViewRequestNonceState |
 export const AiRegistryMetaSliceContext = createContext<AiRegistryMetaSliceState | null>(null)
 export const AiModelsCatalogSliceContext = createContext<AiModelsCatalogSliceState | null>(null)
 export const AiSessionUiPrefsSliceContext = createContext<AiSessionUiPrefsSliceState | null>(null)
-export const AiCoreWorkspaceActionsContext = createContext<AiCoreWorkspaceActions | null>(null)
 export const AiContentHostActionsContext = createContext<AiContentHostActions | null>(null)
 export const AiMessagingActionsContext = createContext<AiMessagingActions | null>(null)
 export const AiContentContext = createContext<AiContentState | null>(null)

@@ -22,7 +22,7 @@
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist'
 
 /** The document operations this cache needs. Narrow on purpose. */
-export type PageSource = Pick<PDFDocumentProxy, 'getPage'>
+type PageSource = Pick<PDFDocumentProxy, 'getPage'>
 
 /**
  * How many page proxies the app-side map keeps. A single-page view only touches
@@ -31,7 +31,7 @@ export type PageSource = Pick<PDFDocumentProxy, 'getPage'>
  */
 export const DEFAULT_MAX_CACHED_PAGES = 8
 
-export interface PdfPageCacheOptions {
+interface PdfPageCacheOptions {
   /** Upper bound on retained entries. Values below 1 are clamped to 1. */
   maxPages?: number
 }

@@ -6,7 +6,7 @@
 
 const HTTP_PROTOCOLS: readonly string[] = ['http:', 'https:']
 
-export type UrlValidationResult = 'ok' | 'invalid_format' | 'protocol_not_allowed'
+type UrlValidationResult = 'ok' | 'invalid_format' | 'protocol_not_allowed'
 
 /** Parses `rawUrl` and returns it only when its protocol is allow-listed. */
 export function parseUrlWithAllowedProtocols(

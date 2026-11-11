@@ -38,7 +38,7 @@ import { evaluateSelectorRepairEvidence } from './evaluateRepairEvidence'
 import { aggregateLogicalSendEvidence } from './logicalSendEvidence'
 import { enqueueSelectorRepair } from './repairQueue'
 
-export interface ReportSelectorRepairParams {
+interface ReportSelectorRepairParams {
   /** Config snapshot resolved at the *start* of the send; only a fallback. */
   aiConfig: AiPlatform | AiSelectorConfig
   currentUrl: string

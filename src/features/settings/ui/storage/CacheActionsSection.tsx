@@ -13,7 +13,7 @@ import { memo } from 'react'
 
 import { formatTimeAgo } from './storageUtils'
 
-export interface CacheCleanupReadout {
+interface CacheCleanupReadout {
   /** Timestamp of the last manual cleanup, if one has run. */
   lastCleanup: number | null
   /** Only rendered when both are known numbers. */

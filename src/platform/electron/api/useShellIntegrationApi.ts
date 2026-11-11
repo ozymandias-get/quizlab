@@ -2,7 +2,7 @@ import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-export interface ShellIntegrationStatus {
+interface ShellIntegrationStatus {
   supported: boolean
   installed: boolean
   label: string | null

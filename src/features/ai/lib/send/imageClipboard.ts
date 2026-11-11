@@ -41,7 +41,7 @@ function nextClipboardScopeId(): string {
   return `send-${Date.now().toString(36)}-${clipboardScopeCounter.toString(36)}`
 }
 
-export interface ClipboardRestore {
+interface ClipboardRestore {
   /** Bu gönderime ait pano snapshot'ının sahiplik anahtarı. */
   readonly scopeId: string
   /** Called once the paste actually reached the page, so the restore waits first. */

@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next'
 let hostTokenCounter = 0
 const createHostToken = (): string => `host-${(hostTokenCounter++).toString(36)}`
 
-export interface UseManagedContentViewOptions {
+interface UseManagedContentViewOptions {
   viewId: string
   source: AiViewSource
   /** Entry URL replayed on attach; validated in the main process. */
@@ -50,8 +50,7 @@ export interface UseManagedContentViewOptions {
   registerContent?: (controller: AiContentController | null, expected?: AiContentController) => void
 }
 
-export interface UseManagedContentViewResult {
-  controller: AiContentController
+interface UseManagedContentViewResult {
   isLoading: boolean
   error: string | null
   hasLoadedOnce: boolean
@@ -187,7 +186,6 @@ export function useManagedContentView({
   }, [controller])
 
   return {
-    controller,
     isLoading,
     error,
     hasLoadedOnce,

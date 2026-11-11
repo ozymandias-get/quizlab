@@ -1,6 +1,5 @@
 import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
 import { DialogBackdrop } from '@app/components/ui/dialog'
-import { Input } from '@app/components/ui/input'
 import {
   PanelHeader,
   PanelHeaderIcon,
@@ -12,7 +11,7 @@ import { DURATION } from '@shared/lib/motion'
 import { useToastActions } from '@shared/stores/toastStore'
 import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives'
 
-import { CircleOff, Clock, Loader2, Search, Trash2, X } from 'lucide-react'
+import { CircleOff, Clock, Loader2, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +24,7 @@ import {
 } from '../../queries/useSessionsQuery'
 import type { ChatSession } from '../../store/apiChatSessionUtils'
 import { useChatUiStore } from '../../store/chatUiStore'
+import { handleHistoryListArrowKey } from './historyListArrowNavigation'
 import {
   buildRowLayout,
   findFirstRowAfter,
@@ -34,6 +34,7 @@ import {
   LIST_ROW_GAP,
   LIST_ROW_HEIGHT
 } from './historyListVirtualization'
+import HistorySearchField from './HistorySearchField'
 import HistorySessionItem from './HistorySessionItem'
 import { useHistoryListKeyboard } from './useHistoryListKeyboard'
 import { useHistorySearchIndex } from './useHistorySearchIndex'
@@ -329,6 +330,11 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   const handleCancelEdit = () => setEditingId(null)
 
+  const handleClearSearch = useCallback(() => {
+    setModalSearch('')
+    searchInputRef.current?.focus()
+  }, [])
+
   const handleSelect = useCallback(
     (id: string) => {
       selectSession(tabIdRef.current, id)
@@ -407,6 +413,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     return (
       <div
         key={session.id}
+        role="presentation"
         ref={isEditing ? measureEditingRow : undefined}
         data-history-row=""
         data-history-editing={isEditing ? '' : undefined}
@@ -431,7 +438,6 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           session={session}
           isActive={session.id === activeSessionId}
           isDeleting={deletingIds.has(session.id)}
-          tabId={tabId}
           editingId={editingId}
           editTitle={session.id === editingId ? editTitle : ''}
           isSavingEdit={renamingId === session.id}
@@ -520,46 +526,15 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           </PanelHeader>
 
           {/* Search Input */}
-          <div className="border-border bg-muted/20 shrink-0 border-b px-5 py-3">
-            <div className="group/modal-search relative">
-              <Input
-                ref={searchInputRef}
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                placeholder={t('api_chat_modal_search_placeholder')}
-                className="text-ql-14 pr-24 pl-9"
-                data-testid="history-search-input"
-              />
-              <Search className="text-muted-foreground group-focus-within/modal-search:text-primary absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />
-              {isSearchActive && (
-                <span
-                  data-testid="history-search-count"
-                  aria-live="polite"
-                  className="bg-muted text-muted-foreground text-ql-10 absolute top-1/2 right-9 -translate-y-1/2 rounded-full px-1.5 py-0.5 font-medium tabular-nums"
-                >
-                  {isSearchPending
-                    ? '…'
-                    : t('api_chat_search_results', { count: filteredSessions.length })}
-                </span>
-              )}
-              {modalSearch && (
-                <IconButton
-                  type="button"
-                  variant="ghost"
-                  size="compact"
-                  onClick={() => {
-                    setModalSearch('')
-                    searchInputRef.current?.focus()
-                  }}
-                  aria-label={t('api_chat_clear_search')}
-                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
-                  data-testid="history-search-clear"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </IconButton>
-              )}
-            </div>
-          </div>
+          <HistorySearchField
+            value={modalSearch}
+            isSearchActive={isSearchActive}
+            isSearchPending={isSearchPending}
+            resultCount={filteredSessions.length}
+            inputRef={searchInputRef}
+            onChange={setModalSearch}
+            onClear={handleClearSearch}
+          />
 
           {editingSessionIsFilteredOut && (
             <div
@@ -571,10 +546,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 type="button"
                 variant="link"
                 size="xs"
-                onClick={() => {
-                  setModalSearch('')
-                  searchInputRef.current?.focus()
-                }}
+                onClick={handleClearSearch}
                 className="text-ql-11 shrink-0 font-semibold"
               >
                 {t('api_chat_clear_search')}
@@ -587,26 +559,18 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
             ref={listRef}
             role="presentation"
             onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-            onKeyDown={(event) => {
-              const target = event.target as HTMLElement | null
-              // The rename input owns its own arrow keys (caret movement).
-              if (target?.closest('input, textarea, [contenteditable="true"]')) return
-              if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-              if (filteredSessions.length === 0) return
-              event.preventDefault()
-              const next =
-                event.key === 'ArrowDown'
-                  ? Math.min(filteredSessions.length - 1, keyboardIndex + 1)
-                  : Math.max(0, keyboardIndex <= 0 ? 0 : keyboardIndex - 1)
-              setKeyboardIndex(next)
-              // Scroll from the virtual offsets first: the target row may not
-              // be mounted yet, so `scrollIntoView` cannot be the primary move.
-              const container = listRef.current
-              if (container) {
-                container.scrollTop = Math.max(0, rowLayout.offsets[next] - LIST_ROW_GAP)
-                setScrollTop(container.scrollTop)
-              }
-            }}
+            onKeyDown={(event) =>
+              handleHistoryListArrowKey({
+                event,
+                list: listRef.current,
+                total: filteredSessions.length,
+                keyboardIndex,
+                offsets: rowLayout.offsets,
+                baseRowHeight,
+                onKeyboardIndexChange: setKeyboardIndex,
+                onScrollTopChange: setScrollTop
+              })
+            }
             aria-busy={isSearchPending || undefined}
             className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4"
           >

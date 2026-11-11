@@ -35,11 +35,10 @@ const AppearanceTab = memo(() => {
     }))
   )
 
-  const { t, i18n } = useTranslation()
-  const language = i18n.language
+  const { t } = useTranslation()
 
   return (
-    <div className="space-y-6" data-app-locale={language}>
+    <div className="space-y-6">
       <SettingsTabIntro icon={APPEARANCE_ICON} description={t('appearance_description')} />
 
       <div className="space-y-4">

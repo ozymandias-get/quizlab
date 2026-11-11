@@ -206,7 +206,7 @@ const PromptsTab = memo(() => {
                       values={customPrompts.map((prompt) => prompt.id)}
                       onReorder={(ids) => reorderPrompts(ids.map(String))}
                       className="space-y-1.5"
-                      role="radiogroup"
+                      role="group"
                       aria-label={group.title}
                     >
                       {customPrompts.map((prompt) => (
@@ -229,7 +229,7 @@ const PromptsTab = memo(() => {
                       ))}
                     </Reorder.Group>
                   ) : (
-                    <div className="space-y-1.5" role="radiogroup" aria-label={group.title}>
+                    <div className="space-y-1.5" role="group" aria-label={group.title}>
                       {group.items.map((prompt) => (
                         <PromptItem
                           key={prompt.id}

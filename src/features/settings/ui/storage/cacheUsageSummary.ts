@@ -27,7 +27,7 @@ export interface PartitionCacheRow {
   lastActive: number | null
 }
 
-export interface PartitionCacheGroup {
+interface PartitionCacheGroup {
   key: string
   label: string
   rows: PartitionCacheRow[]
@@ -55,7 +55,7 @@ export function groupPartitionCacheRows(
   return [...groups.values()].sort((a, b) => b.size - a.size)
 }
 
-export interface CachePressure {
+interface CachePressure {
   level: CachePressureLevel
   percentage: number
   isOverLimit: boolean

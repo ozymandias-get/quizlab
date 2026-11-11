@@ -33,7 +33,7 @@ import {
  * address a `WebContents` that this map does not contain.
  */
 
-export interface ManagedAiView {
+interface ManagedAiView {
   view: WebContentsView
   webContents: WebContents
   /** Stable key the renderer addresses this view by (an AI tab id or namespaced pdf id). */
@@ -135,10 +135,6 @@ export function getManagedAiView(viewId: string): ManagedAiView | null {
 
 export function listManagedAiViewIds(): string[] {
   return [...views.keys()]
-}
-
-export function hasManagedAiView(viewId: string): boolean {
-  return getManagedAiView(viewId) !== null
 }
 
 /**

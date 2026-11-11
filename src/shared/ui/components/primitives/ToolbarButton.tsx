@@ -14,13 +14,11 @@ interface ToolbarButtonProps {
   tooltip?: string
   isActive?: boolean
   className?: string
-  activeClassName?: string
   disabled?: boolean
   /** Control size contract: `compact` = 28px (dense toolbars), `default` = 32px. */
   size?: IconButtonSize
   tooltipSide?: 'top' | 'right' | 'bottom' | 'left'
   tooltipAvoidCollisions?: boolean
-  tooltipSideOffset?: number
 }
 
 export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
@@ -31,12 +29,10 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
       tooltip,
       isActive = false,
       className,
-      activeClassName,
       disabled = false,
       size = 'default',
       tooltipSide,
-      tooltipAvoidCollisions,
-      tooltipSideOffset
+      tooltipAvoidCollisions
     },
     ref
   ) => {
@@ -54,7 +50,7 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
         onClick={onClick}
         disabled={disabled}
         aria-label={tooltip}
-        className={cn(isActive ? activeClassName || 'glass-control-active' : '', className)}
+        className={cn(isActive && 'glass-control-active', className)}
       >
         <motion.button
           type="button"
@@ -71,11 +67,7 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     return (
       <Tooltip>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
-        <TooltipContent
-          side={tooltipSide}
-          avoidCollisions={tooltipAvoidCollisions}
-          sideOffset={tooltipSideOffset}
-        >
+        <TooltipContent side={tooltipSide} avoidCollisions={tooltipAvoidCollisions}>
           {tooltip}
         </TooltipContent>
       </Tooltip>

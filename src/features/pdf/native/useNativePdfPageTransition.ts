@@ -119,7 +119,7 @@ interface UseNativePdfPageTransitionOptions {
   containerRef: RefObject<HTMLElement | null>
 }
 
-export interface NativePdfPageTransitionHandle {
+interface NativePdfPageTransitionHandle {
   /**
    * Report that a render has committed `pageNumber`'s pixels to the canvas.
    *

@@ -4,8 +4,8 @@
  * ## Why it exists
  *
  * `prefers-reduced-motion` is not a single switch in this codebase: the search
- * overlay reads it once per query, the shared stylesheet answers it with the
- * `motion-ok` / `motion-not` variants, and the `motion` components read it through
+ * overlay reads it once per query, the shared stylesheet answers it in its own
+ * media queries, and the `motion` components read it through
  * `useReducedMotion()`. The native viewer needed a fourth reader, and duplicating a
  * media query behind a feature flag four times is how four answers to one question
  * drift apart.

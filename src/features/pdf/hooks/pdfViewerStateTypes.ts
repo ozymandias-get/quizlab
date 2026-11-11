@@ -27,13 +27,6 @@ export interface PdfViewerDocumentProps {
    */
   onFullPageCapture: (imageUri: string, meta: ScreenshotMeta, point?: PdfActionPoint | null) => void
   isPanelResizing?: boolean
-  /**
-   * The live page number capture must read.
-   *
-   * Not part of what a caller supplies: it is created one level up so that a direct
-   * test of this hook can omit it, and the hook falls back to its own live page.
-   */
-  capturePageRef?: React.RefObject<number>
 }
 
 /**
@@ -64,13 +57,10 @@ export interface UsePdfViewerStateReturn {
   searchLayerRef: React.RefObject<HTMLDivElement | null>
   /** The single PDF renderer: page, scale, navigation, search and zoom. */
   nativeViewer: NativePdfController
-  viewerReloadKey: number
   isPanMode: boolean
   /** True while Space is held over the page as a temporary hand tool. */
   isSpacePanActive: boolean
   isPanDragging: boolean
-  handleFullPageScreenshot: (point?: PdfActionPoint) => Promise<void>
-  handleAreaScreenshot: () => void
   contextMenu: { x: number; y: number } | null
   handleCloseContextMenu: () => void
   handleTogglePanMode: () => void
@@ -78,7 +68,6 @@ export interface UsePdfViewerStateReturn {
   isWheelPageTurnEnabled: boolean
   handleToggleWheelPageTurn: () => void
   menuItems: MenuItem[]
-  handleAddCurrentPageTextToAi: () => void
   handleReload: () => void
   tt: (key: string) => string
   selectionMenu: SelectionMenuState

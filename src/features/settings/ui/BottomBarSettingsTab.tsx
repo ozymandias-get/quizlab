@@ -79,8 +79,7 @@ function SectionCaption({ children }: { children: ReactNode }) {
 }
 
 const BottomBarSettingsTab = memo(() => {
-  const { t, i18n } = useTranslation()
-  const language = i18n.language
+  const { t } = useTranslation()
   const { data: siteSessionData } = useSiteSessionListQuery()
   const isSiteSessionEnabled = hasEnabledSiteSession(siteSessionData?.views ?? [])
   const { enabledModels, aiSites, favoriteModels = [] } = useAiModelsCatalog()
@@ -144,7 +143,7 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   return (
-    <div className="space-y-6" data-app-locale={language}>
+    <div className="space-y-6">
       <SettingsTabIntro icon={BOTTOM_BAR_ICON} description={t('bottom_bar_description')} />
 
       <motion.div
@@ -187,18 +186,23 @@ const BottomBarSettingsTab = memo(() => {
                       {t(tool.nameKey, { defaultValue: tool.id })}
                     </Label>
                   </div>
-                  <SettingsToggleSwitch
-                    checked={isVisible}
-                    onChange={() => handleToggleTool(tool.id)}
-                    size="sm"
-                  />
+                  <span role="presentation" onClick={(event) => event.stopPropagation()}>
+                    <SettingsToggleSwitch
+                      checked={isVisible}
+                      onChange={() => handleToggleTool(tool.id)}
+                      size="sm"
+                    />
+                  </span>
                 </Field>
               )
             })}
           </div>
 
           <SectionCaption>
-            {visibleToolCount} / {visibleToolsFiltered.length} tools visible
+            {t('tools_visible_count', {
+              visible: visibleToolCount,
+              total: visibleToolsFiltered.length
+            })}
           </SectionCaption>
         </SettingsSection>
       </motion.div>
@@ -305,12 +309,14 @@ const BottomBarSettingsTab = memo(() => {
                         {displayName}
                       </Label>
                     </div>
-                    <SettingsToggleSwitch
-                      aria-label={displayName}
-                      checked={isVisible}
-                      onChange={() => handleToggleModel(modelId)}
-                      size="sm"
-                    />
+                    <span role="presentation" onClick={(event) => event.stopPropagation()}>
+                      <SettingsToggleSwitch
+                        aria-label={displayName}
+                        checked={isVisible}
+                        onChange={() => handleToggleModel(modelId)}
+                        size="sm"
+                      />
+                    </span>
                   </Field>
                 </Reorder.Item>
               )
@@ -324,7 +330,10 @@ const BottomBarSettingsTab = memo(() => {
                   total: enabledModels.length,
                   limit: bottomBarMaxIcons
                 })
-              : `${visibleModelCount} / ${enabledModels.length} models visible`}
+              : t('models_visible_count', {
+                  visible: visibleModelCount,
+                  total: enabledModels.length
+                })}
           </SectionCaption>
         </SettingsSection>
       </motion.div>

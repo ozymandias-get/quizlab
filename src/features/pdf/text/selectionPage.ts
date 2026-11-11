@@ -6,7 +6,7 @@
  * gerçek aralık (page–pageEnd) döndürülür.
  */
 
-export interface SelectionPageRange {
+interface SelectionPageRange {
   page: number
   pageEnd?: number
 }
@@ -129,7 +129,7 @@ const MARGIN = SELECTION_MENU_GAP
  */
 export const DEFAULT_SELECTION_MENU_SIZE = { width: 296, height: 44 } as const
 
-export interface MenuBounds {
+interface MenuBounds {
   top: number
   bottom: number
   left: number

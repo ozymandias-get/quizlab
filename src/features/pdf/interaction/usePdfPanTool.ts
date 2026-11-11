@@ -130,6 +130,9 @@ export function usePdfPanTool({ containerRef, isPanMode, onExitPanMode }: UsePdf
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
+      // A modal owns Escape; exiting pan mode behind it would swallow the
+      // dialog's close key.
+      if (isAnyDialogOpen) return
       // Escape does not activate buttons, so a focused hand-tool button must
       // still be able to leave the mode. Only a text field keeps the key.
       if (isInteractiveTarget(event.target, EDITABLE_TARGETS)) return
@@ -147,7 +150,7 @@ export function usePdfPanTool({ containerRef, isPanMode, onExitPanMode }: UsePdf
     // listen for Escape on `document`, and the mode change has to win.
     document.addEventListener('keydown', handleKeyDown, true)
     return () => document.removeEventListener('keydown', handleKeyDown, true)
-  }, [containerRef, isPanMode, onExitPanMode])
+  }, [containerRef, isAnyDialogOpen, isPanMode, onExitPanMode])
 
   useEffect(() => {
     const root = containerRef.current

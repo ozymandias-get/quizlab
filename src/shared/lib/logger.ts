@@ -206,10 +206,6 @@ export function getPendingLogEntries(fromIndex: number): LogEntry[] {
   return entries
 }
 
-export function getLogBufferLength(): number {
-  return bufferSize
-}
-
 /**
  * Total number of entries ever pushed to the buffer (monotonic counter).
  *

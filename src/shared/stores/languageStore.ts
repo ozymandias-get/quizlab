@@ -6,7 +6,7 @@ import i18next from 'i18next'
 import { useEffect } from 'react'
 import { create } from 'zustand'
 
-export interface LanguageInfo {
+interface LanguageInfo {
   code: string
   name: string
   nativeName: string

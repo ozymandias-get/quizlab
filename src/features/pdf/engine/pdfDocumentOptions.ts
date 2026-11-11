@@ -56,7 +56,7 @@ type PdfDocumentInitParameters = NonNullable<Parameters<typeof getDocument>[0]>
  * reads but does not declare. Kept narrow on purpose: only the missing key is
  * added, so a typo in any other option still fails to compile.
  */
-export type SecureDocumentInitParameters = PdfDocumentInitParameters & {
+type SecureDocumentInitParameters = PdfDocumentInitParameters & {
   enableScripting?: boolean
 }
 
@@ -73,7 +73,7 @@ export const PDFJS_ASSET_DIR = 'pdfjs'
  */
 export const PDFJS_ASSET_SUBDIRS = ['cmaps', 'standard_fonts', 'wasm', 'iccs'] as const
 
-export type PdfjsAssetSubdir = (typeof PDFJS_ASSET_SUBDIRS)[number]
+type PdfjsAssetSubdir = (typeof PDFJS_ASSET_SUBDIRS)[number]
 
 /**
  * Base URL the asset directories are served from.

@@ -40,14 +40,8 @@ vi.mock('@electron/features/ai/aiManager', () => ({
 }))
 
 // Import after mocks are set up
-const {
-  getCacheRules,
-  getProtectedFiles,
-  getProtectedDirs,
-  isProtectedPath,
-  isSymlinkSafe,
-  markPartitionActive
-} = await import('@electron/core/cacheRegistry')
+const { getCacheRules, isProtectedPath, isSymlinkSafe, markPartitionActive } =
+  await import('@electron/core/cacheRegistry')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -85,15 +79,18 @@ describe('cacheRegistry', () => {
       // the Magic Selector's saved selectors, the AI provider config, the
       // per-site import switches and the legacy file they are migrated from.
       'ai_custom_selectors.json',
+      'ai_custom_platforms.json',
       'api_chat_config.json',
       'site-sessions.json',
       'gemini-web-session.json'
     ])('protects %s', (file) => {
-      expect(getProtectedFiles().has(file)).toBe(true)
+      expect(isProtectedPath(`/mock/user-data/${file}`, '/mock/user-data')).toBe(true)
     })
 
     it('protects gemini-web-profile directory', () => {
-      expect(getProtectedDirs().has('gemini-web-profile')).toBe(true)
+      expect(
+        isProtectedPath('/mock/user-data/gemini-web-profile/cookies.db', '/mock/user-data')
+      ).toBe(true)
     })
   })
 

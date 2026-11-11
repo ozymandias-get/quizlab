@@ -174,7 +174,7 @@ describe('renderPageToImageFallback', () => {
     it('reuses the registered document without loading a second one', async () => {
       const page = makePage(595, 842)
       const handle = makeHandle({ 3: page })
-      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(handle, 'local-pdf://pdf_a')
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 3, { scale: 2 })
 
@@ -187,7 +187,7 @@ describe('renderPageToImageFallback', () => {
       // Page 99 is absent, so getPage() rejects. The failure path still must not
       // tear down a document this call did not create.
       const handle = makeHandle({ 1: makePage(595, 842) })
-      setActivePdfDocument(handle, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(handle, 'local-pdf://pdf_a')
 
       await expect(renderPageToImageFallback('local-pdf://pdf_a', 99, { scale: 2 })).resolves.toBe(
         null
@@ -202,7 +202,7 @@ describe('renderPageToImageFallback', () => {
       // degrade to a screen-resolution clone.
       const stale = makeHandle({ 1: makePage(595, 842) })
       stale.isAlive.mockReturnValue(false)
-      setActivePdfDocument(stale, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(stale, 'local-pdf://pdf_a')
       const temporary = serveTemporaryDocument({ 1: makePage(595, 842) })
 
       const result = await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
@@ -217,7 +217,7 @@ describe('renderPageToImageFallback', () => {
   describe('stale / unusable registry entry', () => {
     it('self-loads instead of reusing a document registered for a different url', async () => {
       const other = makeHandle({ 1: makePage(595, 842) })
-      setActivePdfDocument(other, 'local-pdf://pdf_b', 'local-pdf://pdf_b::0')
+      setActivePdfDocument(other, 'local-pdf://pdf_b')
       serveTemporaryDocument({ 1: makePage(595, 842) })
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
@@ -229,7 +229,7 @@ describe('renderPageToImageFallback', () => {
     it('evicts the dead entry so a later capture does not retry it', async () => {
       const stale = makeHandle({ 1: makePage(595, 842) })
       stale.isAlive.mockReturnValue(false)
-      setActivePdfDocument(stale, 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(stale, 'local-pdf://pdf_a')
       serveTemporaryDocument({ 1: makePage(595, 842) })
 
       await renderPageToImageFallback('local-pdf://pdf_a', 1, { scale: 2 })
@@ -550,7 +550,7 @@ describe('renderPageToImageFallback', () => {
   describe('high-zoom reuse of the mounted canvas', () => {
     it('skips the second PDF.js render when the screen already has the resolution', async () => {
       const page = makePage(595, 842)
-      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a')
       // 595x842pt at scale 4 is 2380x3368: the mounted canvas is exactly the target.
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(2380, 3368))
 
@@ -565,7 +565,7 @@ describe('renderPageToImageFallback', () => {
 
     it('still renders when the mounted canvas is below the target resolution', async () => {
       const page = makePage(595, 842)
-      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a', 'local-pdf://pdf_a::0')
+      setActivePdfDocument(makeHandle({ 3: page }), 'local-pdf://pdf_a')
       mocks.findPageCanvas.mockReturnValue(makeMountedCanvas(800, 1132))
 
       await renderPageToImageFallback('local-pdf://pdf_a', 3, { scale: 4 })

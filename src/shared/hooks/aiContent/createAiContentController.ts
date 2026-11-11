@@ -24,14 +24,14 @@ import { getAiViewClient, subscribeAiViewEvents } from './aiViewClient'
 
 const MAX_BUFFERED_EVENTS = 64
 
-export interface AiContentControllerInit {
+interface AiContentControllerInit {
   viewId: string
   source: AiViewSource
   /** URL to replay after a cold unmount; validated in the main process. */
   restoredUrl?: string
 }
 
-export interface AiContentControllerHandle extends AiContentController {
+interface AiContentControllerHandle extends AiContentController {
   viewId: string
   /** Creates the view if needed and starts mirroring its state. */
   attach: (restoredUrl?: string) => Promise<boolean>

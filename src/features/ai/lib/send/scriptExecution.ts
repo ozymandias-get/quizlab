@@ -23,7 +23,7 @@ export function isContentDestroyedError(error: unknown): boolean {
   return DESTROYED_CONTENT_PATTERNS.some((pattern) => pattern.test(message))
 }
 
-export type ExecuteContentScriptResult =
+type ExecuteContentScriptResult =
   { ok: true; value: unknown } | { ok: false; destroyed: boolean; error: unknown }
 
 /**
