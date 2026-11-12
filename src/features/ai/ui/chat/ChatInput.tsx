@@ -9,7 +9,7 @@ import { formatBytes } from '@shared/lib/formatUtils'
 import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Image as ImageIcon, Send, Square, Trash2, X } from 'lucide-react'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ModelSelector from './ModelSelector'
@@ -47,6 +47,24 @@ function attachmentMeta(dataUrl: string): { type: string; bytes: number } {
   const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
   const bytes = Math.max(0, Math.floor((base64.length * 3) / 4) - padding)
   return { type, bytes }
+}
+
+/** Whitespace-delimited word count without allocating a split array per keystroke. */
+function countWords(text: string): number {
+  let words = 0
+  let inWord = false
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index)
+    // space, tab, LF, CR, form feed, vertical tab; the composer never needs
+    // Unicode-aware word segmentation for a live character badge.
+    if (code === 32 || (code >= 9 && code <= 13)) {
+      inWord = false
+    } else if (!inWord) {
+      words += 1
+      inWord = true
+    }
+  }
+  return words
 }
 
 const ChatInput = memo(function ChatInput({
@@ -87,8 +105,11 @@ const ChatInput = memo(function ChatInput({
   const effectiveModel = selectedModel || activeProvider?.defaultModel || ''
   const canAttachImage = Boolean(activeProvider) && isVisionCapable(effectiveModel)
 
-  const wordCount = inputValue.trim().split(/\s+/).filter(Boolean).length
+  const wordCount = countWords(inputValue)
   const charCount = inputValue.length
+  // Deriving MIME/byte metadata scans the full data URL; do it only when the
+  // attachment list changes, not on every keystroke that recreates this tree.
+  const attachmentMetadata = useMemo(() => attachments.map(attachmentMeta), [attachments])
 
   return (
     <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
@@ -98,7 +119,7 @@ const ChatInput = memo(function ChatInput({
           {attachments.length > 0 && (
             <div className="border-border/50 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
               {attachments.map((data, i) => {
-                const meta = attachmentMeta(data)
+                const meta = attachmentMetadata[i] ?? attachmentMeta(data)
                 return (
                   // Attachments are local state — no stable id available
                   // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order

@@ -55,8 +55,8 @@ vi.mock('@features/ai/aiViewSurface', () => ({
   }
 }))
 
-vi.mock('@ui/components/AestheticLoader', () => ({
-  default: () => <div data-testid="aesthetic-loader">Loading</div>
+vi.mock('@ui/components/PanelLoadingPlaceholder', () => ({
+  default: () => <div data-testid="panel-loading-placeholder" />
 }))
 
 vi.mock('@ui/components/ErrorBoundary', () => ({
@@ -101,7 +101,7 @@ describe('FocusOverlay', () => {
     activePdfTabId: '',
     setActivePdfTab: vi.fn(),
     closePdfTab: vi.fn(),
-    renamePdfTab: vi.fn(),
+    movePdfTab: vi.fn(),
     handleSelectPdf: vi.fn(),
     updateReadingProgress: vi.fn(),
     resumeLastPdf: vi.fn(),
@@ -146,7 +146,7 @@ describe('FocusOverlay', () => {
     )
   })
 
-  it('renders the aesthetic loader while AI is still mounting', () => {
+  it('renders a neutral placeholder while AI is still mounting', () => {
     render(
       <FocusOverlay
         mode="ai"
@@ -158,7 +158,7 @@ describe('FocusOverlay', () => {
       />
     )
 
-    expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
+    expect(screen.getByTestId('panel-loading-placeholder')).toBeInTheDocument()
     expect(screen.queryByTestId('ai-content')).not.toBeInTheDocument()
   })
 

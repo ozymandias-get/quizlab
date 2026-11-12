@@ -42,7 +42,6 @@ function App() {
     animations,
     isAiSurfaceMounted,
     panelResize,
-    workspaceState,
     updateBanner,
     focus
   } = useAppShellState()
@@ -55,7 +54,7 @@ function App() {
     isInteractionBlocked,
     isPanelResizing
   } = usePdfWorkspaceState({
-    isInteractionBlocked: workspaceState.isBarHovered || panelResize.isResizing,
+    isInteractionBlocked: panelResize.isResizing,
     isPanelResizing: panelResize.isResizing
   })
 
@@ -147,7 +146,6 @@ function App() {
               isResizeReversed={isLayoutSwapped}
               isAiSurfaceMounted={isAiSurfaceMounted}
               isResizing={isResizing}
-              onBarHoverChange={workspaceState.setIsBarHovered}
               leftPanelProps={combinedLeftPanelProps}
               isInteractionBlocked={isInteractionBlocked}
               isPanelResizing={isPanelResizing}

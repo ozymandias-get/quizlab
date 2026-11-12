@@ -164,7 +164,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } })
 }))
 
-vi.mock('@ui/components/AestheticLoader', () => ({
+vi.mock('@ui/components/AiSiteLoader', () => ({
   default: () => <div data-testid="loader" />
 }))
 

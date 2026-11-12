@@ -1,7 +1,7 @@
 import type { AiViewSurfaceState } from '@features/ai/viewState'
 
 import BottomBar from '@app/ui/BottomBar'
-import AestheticLoader from '@ui/components/AestheticLoader'
+import PanelLoadingPlaceholder from '@ui/components/PanelLoadingPlaceholder'
 import LeftPanel from '@ui/layout/LeftPanel'
 
 import { motion, type Variants } from 'motion/react'
@@ -36,7 +36,6 @@ interface MainWorkspaceProps {
   isResizeReversed?: boolean
   isAiSurfaceMounted: boolean
   isResizing: boolean
-  onBarHoverChange: (isHovered: boolean) => void
   leftPanelProps: ComponentProps<typeof LeftPanel>
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
@@ -63,7 +62,6 @@ function MainWorkspace({
   isResizeReversed,
   isAiSurfaceMounted,
   isResizing,
-  onBarHoverChange,
   leftPanelProps,
   isInteractionBlocked,
   isPanelResizing,
@@ -102,7 +100,6 @@ function MainWorkspace({
         className="z-resizer-hub relative h-full shrink-0"
       >
         <BottomBar
-          onHoverChange={onBarHoverChange}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -119,7 +116,7 @@ function MainWorkspace({
         className="relative flex min-w-[280px] flex-1 flex-col will-change-transform sm:min-w-[320px] lg:min-w-[350px]"
         style={{ transform: 'translateZ(0)' }}
       >
-        <Suspense fallback={<AestheticLoader />}>
+        <Suspense fallback={<PanelLoadingPlaceholder />}>
           {isAiSurfaceMounted ? (
             <AiViewSurface
               isResizing={isResizing}
@@ -127,7 +124,7 @@ function MainWorkspace({
               surfaceState={aiViewSurfaceState}
             />
           ) : (
-            <AestheticLoader />
+            <PanelLoadingPlaceholder />
           )}
         </Suspense>
       </motion.div>

@@ -11,9 +11,7 @@ const makeTabs = (count: number, suffix = ''): Tab[] =>
     (_, i) =>
       ({
         id: `tab-${i}`,
-        modelId: `model-${i}`,
-        title: `Tab ${i}${suffix}`,
-        isPinned: false
+        modelId: `model-${i}${suffix}`
       }) as Tab
   )
 
@@ -38,8 +36,7 @@ function Harness({
     tabs,
     activeTabId: tabs[0]?.id ?? '',
     aiSites,
-    t: (key) => key,
-    renameTab: vi.fn()
+    t: (key) => key
   })
 
   return (
@@ -51,7 +48,7 @@ function Harness({
             data-label-full={labelFullWidth}
             data-label-visible={labelVisibleWidth}
           >
-            {tab.title}
+            {tab.modelId}
           </span>
         </div>
       ))}
@@ -150,7 +147,7 @@ describe('useAiTabStripState measured capacity', () => {
 
     rerender(
       <Harness
-        tabs={makeTabs(4, ' renamed')}
+        tabs={makeTabs(4, '-wider')}
         rowWidth={400}
         tabWidth={80}
         labelFullWidth={80}
@@ -161,7 +158,7 @@ describe('useAiTabStripState measured capacity', () => {
     await waitFor(() => expect(screen.getByTestId('visible-count')).toHaveTextContent('2'))
   })
 
-  it('recovers from zero after a later rename and a wider row', async () => {
+  it('recovers from zero after a later content change and a wider row', async () => {
     const { rerender } = render(
       <Harness
         tabs={makeTabs(4)}
@@ -176,7 +173,7 @@ describe('useAiTabStripState measured capacity', () => {
 
     rerender(
       <Harness
-        tabs={makeTabs(4, ' renamed')}
+        tabs={makeTabs(4, '-wider')}
         rowWidth={1000}
         tabWidth={100}
         labelFullWidth={100}
@@ -187,14 +184,13 @@ describe('useAiTabStripState measured capacity', () => {
     await waitFor(() => expect(screen.getByTestId('visible-count')).toHaveTextContent('4'))
   })
 
-  it('resets capacity when a title-less tab gets a shorter site label', async () => {
+  it('resets capacity when a model tab gets a shorter site label', async () => {
     const untitledTabs = Array.from(
       { length: 4 },
       (_, i) =>
         ({
           id: `tab-${i}`,
-          modelId: 'same-site',
-          isPinned: false
+          modelId: 'same-site'
         }) as Tab
     )
     const site = (displayName: string) =>

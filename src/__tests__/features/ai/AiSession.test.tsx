@@ -50,8 +50,8 @@ vi.mock('@shared/hooks/aiContent/useAiContentLifecycle', () => ({
   }
 }))
 
-vi.mock('@ui/components/AestheticLoader', () => ({
-  default: () => <div data-testid="aesthetic-loader">Loading...</div>
+vi.mock('@ui/components/AiSiteLoader', () => ({
+  default: () => <div data-testid="ai-site-loader">Loading...</div>
 }))
 
 vi.mock('@features/ai/ui/AiErrorView', () => ({
@@ -171,7 +171,7 @@ describe('AiSession', () => {
     render(
       <AiSession tab={{ ...defaultTab, modelId: 'loading-model' }} isActive {...defaultProps} />
     )
-    expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
+    expect(screen.getByTestId('ai-site-loader')).toBeInTheDocument()
   })
 
   it('shows error view when error occurs', async () => {

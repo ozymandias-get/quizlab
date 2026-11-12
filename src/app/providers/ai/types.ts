@@ -36,17 +36,20 @@ export const NO_SEND_RESULT: AiSendResult = {
 
 import type { PdfSourceMeta } from './pdfSource'
 
-export interface PinnedTabStorage {
+/**
+ * One persisted tab row.
+ *
+ * The storage key predates the removal of pinning (`pinnedAiTabs`); it now
+ * holds every open tab in order so a drag-reordered strip survives a restart.
+ */
+export interface StoredAiTab {
   id: string
   modelId: string
-  title?: string
 }
 
 export interface Tab {
   id: string
   modelId: string
-  title?: string
-  pinned?: boolean
 }
 
 interface AiDraftTextItem {
@@ -127,8 +130,7 @@ interface AiContextActions {
   closeTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
   openAiWorkspace: (modelId: string) => void
-  renameTab: (tabId: string, title?: string) => void
-  togglePinTab: (tabId: string) => void
+  moveTab: (tabId: string, targetId: string, placeAfter: boolean) => void
   setEnabledModels: (models: string[]) => void
   setFavoriteModels: (models: string[]) => void
   toggleFavoriteModel: (model: string) => void
@@ -165,7 +167,7 @@ export type AiContentHostActions = Pick<
 
 export type AiTabActions = Pick<
   AiContextActions,
-  'addTab' | 'closeTab' | 'setActiveTab' | 'openAiWorkspace' | 'renameTab' | 'togglePinTab'
+  'addTab' | 'closeTab' | 'setActiveTab' | 'openAiWorkspace' | 'moveTab'
 >
 
 export type AiModelActions = Pick<

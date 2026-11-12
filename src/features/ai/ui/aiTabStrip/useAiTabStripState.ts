@@ -1,7 +1,6 @@
 import type { AiPlatform } from '@shared-core/types'
 
 import type { Tab } from '@app/providers/ai-context'
-import { isValidHexColor } from '@shared/lib/uiUtils'
 
 import {
   type MouseEvent as ReactMouseEvent,
@@ -28,49 +27,32 @@ interface UseAiTabStripStateParams {
   activeTabId: string
   aiSites: Record<string, AiPlatform>
   t: (key: string) => string
-  renameTab: (tabId: string, title?: string) => void
 }
 
-export function useAiTabStripState({
-  tabs,
-  activeTabId,
-  aiSites,
-  t,
-  renameTab
-}: UseAiTabStripStateParams) {
+export function useAiTabStripState({ tabs, activeTabId, aiSites, t }: UseAiTabStripStateParams) {
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
-  const renameInputRef = useRef<HTMLInputElement>(null)
-  const skipBlurSaveRef = useRef(false)
   const tabsRef = useRef(tabs)
   tabsRef.current = tabs
 
-  const [editingTabId, setEditingTabId] = useState<string | null>(null)
-  const [editingValue, setEditingValue] = useState('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [isOverflowOpen, setIsOverflowOpen] = useState(false)
   const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
 
-  // A tab close, open or rename changes how much room the pills need. Reset to
+  // A tab close, open or reorder changes how much room the pills need. Reset to
   // the width-based estimate first; the measurement pass below trims it again
   // if the new labels are still too wide. Without this reset the capacity could
   // only ever shrink within one row width.
   // Include every input that can change a pill's rendered label width: the
-  // title, the model/site label used when there is no title, and its
-  // translation. Colour and pin state do not affect width.
+  // model/site label and its translation.
   const tabContentSignature = tabs
     .map((tab) => {
       const site = aiSites[tab.modelId]
-      return [
-        tab.id,
-        tab.title ?? '',
-        tab.modelId,
-        site?.displayName ?? '',
-        site?.name ?? '',
-        t(tab.modelId)
-      ].join(':')
+      return [tab.id, tab.modelId, site?.displayName ?? '', site?.name ?? '', t(tab.modelId)].join(
+        ':'
+      )
     })
     .join('|')
   // Prevent an add/remove loop when a returning tab turns out wider than the
@@ -203,7 +185,6 @@ export function useAiTabStripState({
     (tab: Tab) => {
       const currentAiSites = aiSitesRef.current
       const currentT = tRef.current
-      if (tab.title) return tab.title
       const site = currentAiSites[tab.modelId]
       const translated = currentT(tab.modelId)
       if (translated && translated !== tab.modelId) return translated
@@ -212,19 +193,10 @@ export function useAiTabStripState({
     [] // stable — reads latest aiSites/t from refs
   )
 
-  const getTabColor = useCallback(
-    (tab: Tab) => {
-      const color = aiSitesRef.current[tab.modelId]?.color
-      return color && isValidHexColor(color) ? color : '#ffffff'
-    },
-    [] // stable — reads latest aiSites from ref
-  )
-
   const handleOpenContextMenu = useCallback((event: ReactMouseEvent, tabId: string) => {
     event.preventDefault()
     event.stopPropagation()
     setIsOverflowOpen(false)
-    setEditingTabId(null)
 
     contextMenuTriggerRef.current =
       event.currentTarget instanceof HTMLElement ? event.currentTarget : null
@@ -238,50 +210,8 @@ export function useAiTabStripState({
     })
   }, [])
 
-  const beginRename = useCallback(
-    (tabId: string) => {
-      setContextMenu(null)
-      setIsOverflowOpen(false)
-      const tab = tabsRef.current.find((t) => t.id === tabId)
-      setEditingTabId(tabId)
-      setEditingValue(tab?.title || '')
-    },
-    [] // stable — reads latest `tabs` from ref
-  )
-
-  // renameTab is stable (useCallback with setPinnedTabs dep) but keep
-  // a ref to be safe — avoids entire `actions` object recreation if the
-  // parent ever changes renameTab's deps.
-  const renameTabRef = useRef(renameTab)
-  renameTabRef.current = renameTab
-
-  const commitRename = useCallback(
-    (tabId: string, tabTitle: string) => {
-      renameTabRef.current(tabId, tabTitle)
-      setEditingTabId(null)
-      setEditingValue('')
-    },
-    [] // stable — reads latest `renameTab` from ref
-  )
-
-  const cancelRename = useCallback(() => {
-    skipBlurSaveRef.current = true
-    setEditingTabId(null)
-    setEditingValue('')
-  }, [])
-
-  useEffect(() => {
-    if (editingTabId) {
-      renameInputRef.current?.focus()
-      renameInputRef.current?.select()
-    }
-  }, [editingTabId])
-
   useEffect(() => {
     // Only attach the document listener when a menu is actually open.
-    // Previously this ran unconditionally, adding/removing a document
-    // mousedown listener on every state toggle and wasting cycles when
-    // neither the context menu nor overflow panel was visible.
     if (!contextMenu && !isOverflowOpen) return
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -310,39 +240,20 @@ export function useAiTabStripState({
     }
   }, [contextMenu, isOverflowOpen])
 
-  useEffect(() => {
-    if (editingTabId && !tabs.some((tab) => tab.id === editingTabId)) {
-      setEditingTabId(null)
-      setEditingValue('')
-    }
-  }, [editingTabId, tabs])
-
   const contextMenuTab = tabs.find((tab) => tab.id === contextMenu?.tabId)
 
-  // All callbacks below are now stable (useCallback([]) thanks to refs),
+  // All callbacks below are stable (useCallback([]) thanks to refs),
   // and useState setters are inherently stable. Memoize once to prevent
   // parent re-renders from creating new `helpers`/`actions` object
   // references, which would break memo on AiVisibleTabButton et al.
-  const helpers = useMemo(() => ({ tr, getTabLabel, getTabColor }), [tr, getTabLabel, getTabColor])
+  const helpers = useMemo(() => ({ tr, getTabLabel }), [tr, getTabLabel])
   const actions = useMemo(
     () => ({
-      setEditingValue,
       setContextMenu,
       setIsOverflowOpen,
-      beginRename,
-      commitRename,
-      cancelRename,
       handleOpenContextMenu
     }),
-    [
-      setEditingValue,
-      setContextMenu,
-      setIsOverflowOpen,
-      beginRename,
-      commitRename,
-      cancelRename,
-      handleOpenContextMenu
-    ]
+    [setContextMenu, setIsOverflowOpen, handleOpenContextMenu]
   )
 
   return {
@@ -350,13 +261,9 @@ export function useAiTabStripState({
       contextMenuRef,
       contextMenuTriggerRef,
       overflowRef,
-      rowRef,
-      renameInputRef,
-      skipBlurSaveRef
+      rowRef
     },
     state: {
-      editingTabId,
-      editingValue,
       contextMenu,
       contextMenuTab,
       isOverflowOpen,

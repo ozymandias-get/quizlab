@@ -60,7 +60,7 @@ function PdfRecentControls({
           </h3>
           {recentCount > 0 && (
             <span
-              className="bg-muted text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums"
+              className="bg-muted text-muted-foreground text-ql-11 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 tabular-nums"
               aria-label={t('recent_count_aria', { count: recentCount })}
             >
               {recentCount}

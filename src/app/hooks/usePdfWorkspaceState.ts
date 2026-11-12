@@ -23,7 +23,7 @@ export function usePdfWorkspaceState({
     activePdfTabId,
     setActivePdfTab,
     closePdfTab,
-    renamePdfTab,
+    movePdfTab,
     handleSelectPdf,
     handlePdfDrop,
     updateReadingProgress,
@@ -127,7 +127,7 @@ export function usePdfWorkspaceState({
       activePdfTabId,
       onSetActivePdfTab: setActivePdfTab,
       onClosePdfTab: closePdfTab,
-      onRenamePdfTab: renamePdfTab,
+      onMovePdfTab: movePdfTab,
       onAddEmptyPdfTab: addEmptyPdfTab,
       onPdfHome: goToPdfHome
     }),
@@ -140,7 +140,7 @@ export function usePdfWorkspaceState({
       activePdfTabId,
       setActivePdfTab,
       closePdfTab,
-      renamePdfTab,
+      movePdfTab,
       addEmptyPdfTab,
       goToPdfHome
     ]

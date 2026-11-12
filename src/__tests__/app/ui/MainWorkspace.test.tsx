@@ -15,8 +15,8 @@ vi.mock('@app/ui/BottomBar', () => ({
   default: () => <div data-testid="bottom-bar">Bottom Bar</div>
 }))
 
-vi.mock('@ui/components/AestheticLoader', () => ({
-  default: () => <div data-testid="aesthetic-loader">Loading</div>
+vi.mock('@ui/components/PanelLoadingPlaceholder', () => ({
+  default: () => <div data-testid="panel-loading-placeholder" />
 }))
 
 vi.mock('@ui/layout/LeftPanel', () => ({
@@ -43,7 +43,6 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
       handleLostPointerCapture={vi.fn()}
       isAiSurfaceMounted
       isResizing={false}
-      onBarHoverChange={vi.fn()}
       leftPanelProps={{} as never}
       isAiSurfaceActive
       aiViewSurfaceState={{
@@ -79,10 +78,10 @@ describe('MainWorkspace', () => {
     expect(swapped.container.querySelector('main')?.className).toContain('flex-row-reverse')
   })
 
-  it('shows the loader instead of the content when it is not mounted', () => {
+  it('shows the neutral placeholder instead of the content when it is not mounted', () => {
     renderWorkspace({ isAiSurfaceMounted: false })
 
-    expect(screen.getByTestId('aesthetic-loader')).toBeInTheDocument()
+    expect(screen.getByTestId('panel-loading-placeholder')).toBeInTheDocument()
     expect(screen.queryByTestId('ai-content')).not.toBeInTheDocument()
   })
 })

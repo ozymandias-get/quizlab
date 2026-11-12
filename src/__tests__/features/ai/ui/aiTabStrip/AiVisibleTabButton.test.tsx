@@ -46,110 +46,64 @@ vi.mock('@shared/ui/components/primitives', async () => {
   }
 })
 
-const TAB = { id: 'tab-1', modelId: 'chatgpt', title: 'Original', isPinned: false } as Tab
+const TAB = { id: 'tab-1', modelId: 'chatgpt' } as Tab
 
-function renderEditing(overrides: Partial<React.ComponentProps<typeof AiVisibleTabButton>> = {}) {
-  const onCommitRename = vi.fn()
-  const onCancelRename = vi.fn()
+function renderTab(overrides: Partial<React.ComponentProps<typeof AiVisibleTabButton>> = {}) {
   const onSelect = vi.fn()
-  const onBeginRename = vi.fn()
+  const onClose = vi.fn()
 
   render(
     <AiVisibleTabButton
       tab={TAB}
       label="Original"
-      tabColor="#fff"
       isActive
-      isEditing
-      editingValue="Renamed"
-      renameInputRef={React.createRef<HTMLInputElement>()}
-      skipBlurSaveRef={{ current: false }}
+      isDragging={false}
+      dropSide={null}
       tr={(key, fallback) => fallback ?? key}
       onSelect={onSelect}
-      onBeginRename={onBeginRename}
       onContextMenu={vi.fn()}
-      onEditingValueChange={vi.fn()}
-      onCommitRename={onCommitRename}
-      onCancelRename={onCancelRename}
-      onTogglePin={vi.fn()}
-      onClose={vi.fn()}
+      onClose={onClose}
       {...overrides}
     />
   )
 
-  return { onCommitRename, onCancelRename, onSelect, onBeginRename }
+  return { onSelect, onClose }
 }
 
-describe('AiVisibleTabButton rename keyboard handling', () => {
-  it('commits on Enter without bubbling into tab selection', () => {
-    const { onCommitRename, onSelect } = renderEditing()
-    const input = screen.getByRole('textbox')
+describe('AiVisibleTabButton', () => {
+  it('selects the tab on click', () => {
+    const { onSelect } = renderTab()
+    fireEvent.click(screen.getByLabelText('Original'))
+    expect(onSelect).toHaveBeenCalledWith('tab-1')
+  })
 
-    const notCancelled = fireEvent.keyDown(input, { key: 'Enter' })
-
-    // fireEvent returns false when preventDefault was called.
-    expect(notCancelled).toBe(false)
-    expect(onCommitRename).toHaveBeenCalledWith('tab-1', 'Renamed')
+  it('closes without selecting when the close control is pressed', () => {
+    const { onSelect, onClose } = renderTab()
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(onClose).toHaveBeenCalledWith('tab-1')
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('cancels on Escape without selecting the tab', () => {
-    const { onCancelRename, onSelect } = renderEditing()
-    const input = screen.getByRole('textbox')
-
-    fireEvent.keyDown(input, { key: 'Escape' })
-
-    expect(onCancelRename).toHaveBeenCalled()
-    expect(onSelect).not.toHaveBeenCalled()
-  })
-})
-
-describe('AiVisibleTabButton double-click rename', () => {
-  it('does not rename when a rapid double-click only activates an inactive tab', () => {
-    const onBeginRename = vi.fn()
-
-    function Harness() {
-      const [isActive, setIsActive] = React.useState(false)
-      return (
-        <AiVisibleTabButton
-          tab={TAB}
-          label="Original"
-          tabColor="#fff"
-          isActive={isActive}
-          isEditing={false}
-          editingValue=""
-          renameInputRef={React.createRef<HTMLInputElement>()}
-          skipBlurSaveRef={{ current: false }}
-          tr={(key, fallback) => fallback ?? key}
-          onSelect={() => setIsActive(true)}
-          onBeginRename={onBeginRename}
-          onContextMenu={vi.fn()}
-          onEditingValueChange={vi.fn()}
-          onCommitRename={vi.fn()}
-          onCancelRename={vi.fn()}
-          onTogglePin={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
-    }
-
-    render(<Harness />)
-    const surface = screen.getByLabelText('Original')
-
-    fireEvent.click(surface)
-    // The click re-rendered the tab as active. The second click of the same
-    // gesture must still select, not open the rename input.
-    fireEvent.doubleClick(surface)
-
-    expect(onBeginRename).not.toHaveBeenCalled()
+  // The close control of an active tab is visible without hover, so its width
+  // has to come out of the label's box at all times; otherwise it paints over
+  // the label (a tab named "Gemini" used to show only its tail).
+  it('reserves space for the always-visible close button on the active tab', () => {
+    renderTab({ isActive: true })
+    expect(screen.getByLabelText('Original').className).toContain('pr-[4.5rem]')
   })
 
-  it('renames when the tab was already active', () => {
-    const { onBeginRename } = renderEditing({ isActive: true, isEditing: false })
-    const surface = screen.getByLabelText('Original')
+  it('keeps the collapsed padding for an inactive tab until hover', () => {
+    renderTab({ isActive: false })
+    const className = screen.getByLabelText('Original').className
+    expect(className).toContain('pr-3')
+    expect(className.split(' ')).not.toContain('pr-[4.5rem]')
+  })
 
-    fireEvent.doubleClick(surface)
-
-    expect(onBeginRename).toHaveBeenCalledWith('tab-1')
+  it('exposes the drag identity and the insertion marker for reordering', () => {
+    renderTab({ dropSide: 'before' })
+    const pill = screen.getByLabelText('Original')
+    expect(pill).toHaveAttribute('draggable', 'true')
+    expect(pill).toHaveAttribute('data-tab-id', 'tab-1')
+    expect(pill.className).toContain('before:bg-primary')
   })
 })

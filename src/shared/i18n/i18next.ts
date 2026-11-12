@@ -9,7 +9,6 @@ import enAutoSend from './locales/en/auto-send.json'
 import enCommon from './locales/en/common.json'
 import enCtx from './locales/en/ctx.json'
 import enErrors from './locales/en/errors.json'
-import enLoader from './locales/en/loader.json'
 import enNavigation from './locales/en/navigation.json'
 import enNotifications from './locales/en/notifications.json'
 import enPdf from './locales/en/pdf.json'
@@ -27,7 +26,6 @@ import trAutoSend from './locales/tr/auto-send.json'
 import trCommon from './locales/tr/common.json'
 import trCtx from './locales/tr/ctx.json'
 import trErrors from './locales/tr/errors.json'
-import trLoader from './locales/tr/loader.json'
 import trNavigation from './locales/tr/navigation.json'
 import trNotifications from './locales/tr/notifications.json'
 import trPdf from './locales/tr/pdf.json'
@@ -53,7 +51,6 @@ const enResources = {
   ...enWs,
   ...enErrors,
   ...enToasts,
-  ...enLoader,
   ...enNotifications,
   ...enAutoSend,
   ...enCtx
@@ -74,7 +71,6 @@ const trResources = {
   ...trWs,
   ...trErrors,
   ...trToasts,
-  ...trLoader,
   ...trNotifications,
   ...trAutoSend,
   ...trCtx

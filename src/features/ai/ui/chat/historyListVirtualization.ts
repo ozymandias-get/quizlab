@@ -11,8 +11,8 @@
 // offsets still use one uniform row height, and the edited row is measured.
 export const LIST_ROW_HEIGHT = 80
 export const LIST_ROW_GAP = 8
-export const LIST_OVERSCAN = 4
-export const LIST_FALLBACK_HEIGHT = 480
+const LIST_OVERSCAN = 4
+const LIST_FALLBACK_HEIGHT = 480
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -52,11 +52,7 @@ export function getFocusableElements(root: HTMLElement): HTMLElement[] {
 }
 
 /** First row whose bottom edge is past `scrollTop`. */
-export function findFirstVisibleRow(
-  offsets: readonly number[],
-  total: number,
-  scrollTop: number
-): number {
+function findFirstVisibleRow(offsets: readonly number[], total: number, scrollTop: number): number {
   let low = 0
   let high = total
 
@@ -70,7 +66,7 @@ export function findFirstVisibleRow(
 }
 
 /** First row starting at or after `windowBottom`, searching from `from`. */
-export function findFirstRowAfter(
+function findFirstRowAfter(
   offsets: readonly number[],
   total: number,
   from: number,
@@ -86,4 +82,42 @@ export function findFirstRowAfter(
   }
 
   return low
+}
+
+export interface HistoryVirtualWindow {
+  start: number
+  end: number
+  top: number
+  bottom: number
+}
+
+/**
+ * The row range to keep mounted for a scroll offset, including overscan.
+ *
+ * Extracted so the scroll listener can ask "did the window actually move?" and
+ * skip a state update when it did not.
+ */
+export function computeHistoryVirtualWindow(
+  total: number,
+  offsets: readonly number[],
+  scrollTop: number,
+  viewportHeight: number
+): HistoryVirtualWindow {
+  if (total === 0) return { start: 0, end: 0, top: 0, bottom: 0 }
+
+  const height = viewportHeight > 0 ? viewportHeight : LIST_FALLBACK_HEIGHT
+  const firstVisible = findFirstVisibleRow(offsets, total, scrollTop)
+  const lastVisible = findFirstRowAfter(offsets, total, firstVisible, scrollTop + height)
+
+  // A shrinking list (delete, external clear) must never leave every row
+  // outside the window while the scroll offset is still catching up.
+  const start = Math.min(total - 1, Math.max(0, firstVisible - LIST_OVERSCAN))
+  const end = Math.min(total, Math.max(start + 1, lastVisible + LIST_OVERSCAN))
+
+  return {
+    start,
+    end,
+    top: offsets[start] ?? 0,
+    bottom: (offsets[total] ?? 0) - (offsets[end] ?? 0)
+  }
 }

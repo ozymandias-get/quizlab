@@ -41,7 +41,7 @@ interface LeftPanelProps {
   activePdfTabId?: string
   onSetActivePdfTab?: (tabId: string) => void
   onClosePdfTab?: (tabId: string) => void
-  onRenamePdfTab?: (tabId: string, title?: string) => void
+  onMovePdfTab?: (tabId: string, targetId: string, placeAfter: boolean) => void
   onAddEmptyPdfTab?: () => void
   onPdfHome?: () => void
   isInteractionBlocked?: boolean
@@ -80,7 +80,7 @@ function LeftPanel({
   activePdfTabId = '',
   onSetActivePdfTab,
   onClosePdfTab,
-  onRenamePdfTab,
+  onMovePdfTab,
   onAddEmptyPdfTab,
   onPdfHome,
   isInteractionBlocked,
@@ -105,14 +105,14 @@ function LeftPanel({
 
         <ErrorBoundary title={t('error_pdf_handler')}>
           <div className="relative flex h-full flex-1 flex-col overflow-hidden">
-            {pdfTabs?.length > 0 && onSetActivePdfTab && onClosePdfTab && onRenamePdfTab && (
+            {pdfTabs?.length > 0 && onSetActivePdfTab && onClosePdfTab && onMovePdfTab && (
               <Suspense fallback={null}>
                 <PdfTabStrip
                   tabs={pdfTabs}
                   activeTabId={activePdfTabId}
                   onSetActiveTab={onSetActivePdfTab}
                   onCloseTab={onClosePdfTab}
-                  onRenameTab={onRenamePdfTab}
+                  onMoveTab={onMovePdfTab}
                   onAddTab={onAddEmptyPdfTab || onSelectPdf}
                   onHome={onPdfHome}
                 />

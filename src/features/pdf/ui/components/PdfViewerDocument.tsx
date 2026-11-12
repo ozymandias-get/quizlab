@@ -1,7 +1,7 @@
 import { cn } from '@shared/lib/uiUtils'
 
 import { Hand } from 'lucide-react'
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import type { PdfViewerDocumentProps } from '../../hooks/pdfViewerStateTypes'
@@ -50,6 +50,8 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   const { pdfFile } = props
   const selectionMenuRef = useRef<HTMLDivElement | null>(null)
   const [isThumbnailRailOpen, setIsThumbnailRailOpen] = useState(false)
+  // Stable so memo(PdfToolbar) bails out when only the viewer state changes.
+  const toggleThumbnailRail = useCallback(() => setIsThumbnailRailOpen((open) => !open), [])
 
   const { menu: activeSelectionMenu, closeMenu: closeSelectionMenu } = selectionMenu
 
@@ -57,6 +59,21 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
   // görsel/işlevsel engelleme olmasın: sağ tık menüsü açıksa seçim menüsü kapanır.
   useEffect(() => {
     if (!activeSelectionMenu) return
+
+    /**
+     * Dışarı tıklama = iptal. Balon kapanırken sarı seçim vurgusu da gider;
+     * aksi hâlde kullanıcı iptal ettiğini sandığı seçimin sayfayı hâlâ
+     * "sahiplendiğini" görür.
+     */
+    const dismiss = () => {
+      closeSelectionMenu()
+      try {
+        window.getSelection()?.removeAllRanges()
+      } catch {
+        // best-effort
+      }
+    }
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null
       // Menünün kendi mousedown'u preventDefault yapar; burada yalnızca dış
@@ -68,18 +85,45 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
       // tıklamaları yanlış yüzeye yönlendirilirdi.
       const surface = selectionMenuRef.current
       if (surface && target && surface.contains(target)) return
-      closeSelectionMenu()
+      dismiss()
     }
+
+    /**
+     * AI sitesi ve Google Drive panelleri ana süreçteki `WebContentsView`'lardır:
+     * DOM'un üstüne çizilirler ve oraya yapılan basış bu belgeye hiç ulaşmaz.
+     * Bu yüzden "başka yere tıklama" sinyali olarak belgenin odağı kaybetmesi
+     * kullanılır; aksi hâlde menü ancak ikinci tıkla kapanıyordu.
+     */
+    const handleFocusLoss = () => dismiss()
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Escape yalnızca geçici seçim menüsünü kapatır.
+      // Escape yalnızca geçici seçim menüsünü kapatır; seçim panoya kopyalanmak
+      // üzere kullanıcıda kalabilir.
       if (event.key === 'Escape') {
         closeSelectionMenu()
       }
     }
+    // `blur` çoğu durumda anında haber verir; native görünüme geçişte
+    // güvenilir olmadığı için menü açık kaldığı sürece odak yoklaması da yapılır.
+    //
+    // Odağın açılışta zaten yok olması (ör. menü klavyeyle açıldı) bir iptal
+    // değildir: yalnızca "önce vardı, sonra gitti" geçişi kapatır.
+    let hadFocus = document.hasFocus()
+    const focusPoll = window.setInterval(() => {
+      const focused = document.hasFocus()
+      if (focused) {
+        hadFocus = true
+        return
+      }
+      if (hadFocus) dismiss()
+    }, 150)
     document.addEventListener('pointerdown', handlePointerDown, true)
+    window.addEventListener('blur', handleFocusLoss)
     document.addEventListener('keydown', handleKeyDown)
     return () => {
+      window.clearInterval(focusPoll)
       document.removeEventListener('pointerdown', handlePointerDown, true)
+      window.removeEventListener('blur', handleFocusLoss)
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [activeSelectionMenu, closeSelectionMenu])
@@ -114,7 +158,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
         CurrentScale={nativeViewer.zoomControls.CurrentScale}
         onReload={handleReload}
         thumbnailRailOpen={isThumbnailRailOpen}
-        onToggleThumbnailRail={() => setIsThumbnailRailOpen((open) => !open)}
+        onToggleThumbnailRail={toggleThumbnailRail}
         wheelPageTurnEnabled={isWheelPageTurnEnabled}
         onToggleWheelPageTurn={handleToggleWheelPageTurn}
       />

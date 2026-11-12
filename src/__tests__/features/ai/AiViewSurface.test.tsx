@@ -98,7 +98,7 @@ describe('AiViewSurface', () => {
   it('mounts only tabs that are alive', () => {
     mockAiState.tabs = [
       { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
-      { id: '2', modelId: 'claude-3', title: 'Claude 3', pinned: true },
+      { id: '2', modelId: 'claude-3', title: 'Claude 3' },
       { id: '3', modelId: 'deepseek', title: 'DeepSeek' }
     ]
 

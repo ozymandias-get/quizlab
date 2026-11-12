@@ -32,22 +32,43 @@ export function usePdfPlaceholderState({
   const [invalidPaths, setInvalidPaths] = useState<Set<string>>(new Set())
   const emptyItemsRef = useRef<LastReadingInfo[]>([])
   const recentItems = lastReadingInfo ?? emptyItemsRef.current
+  const recentItemViewsRef = useRef<RecentItemView[]>([])
 
   useEffect(() => {
     setInvalidPaths((prev) => {
-      const next = new Set<string>()
+      if (prev.size === 0) return prev
       const validPaths = new Set(recentItems.map((item) => item.path))
+      const next = new Set<string>()
+      let changed = false
       for (const path of prev) {
         if (validPaths.has(path)) next.add(path)
+        else changed = true
       }
-      return next
+      return changed ? next : prev
     })
   }, [recentItems])
 
-  const recentItemsWithIndex = useMemo<RecentItemView[]>(
-    () => recentItems.map((item, originalIndex) => ({ ...item, originalIndex })),
-    [recentItems]
-  )
+  const recentItemsWithIndex = useMemo<RecentItemView[]>(() => {
+    const previousByPath = new Map(recentItemViewsRef.current.map((item) => [item.path, item]))
+    const next = recentItems.map((item, originalIndex) => {
+      const previous = previousByPath.get(item.path)
+      // Keep the object identity when only other history entries changed, so
+      // memoised rows for untouched PDFs can bail out.
+      if (
+        previous &&
+        previous.originalIndex === originalIndex &&
+        previous.name === item.name &&
+        previous.page === item.page &&
+        previous.totalPages === item.totalPages &&
+        previous.lastOpenedAt === item.lastOpenedAt
+      ) {
+        return previous
+      }
+      return { ...item, originalIndex }
+    })
+    recentItemViewsRef.current = next
+    return next
+  }, [recentItems])
 
   const processedItems = useMemo(
     () => processRecentItems(recentItemsWithIndex, searchQuery, sortMode, language),

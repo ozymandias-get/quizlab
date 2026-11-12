@@ -89,9 +89,9 @@ function PdfRecentList({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {groupedItems.map((group, groupIndex) => (
-        <div key={group.id} className="space-y-1.5">
+        <div key={group.id} className="space-y-2">
           {group.labelKey && (
             <div
               className={`text-ql-10 text-muted-foreground flex items-center gap-2 font-semibold uppercase ${groupIndex > 0 ? 'mt-3' : ''}`}

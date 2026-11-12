@@ -1,5 +1,7 @@
 import type { PdfFile } from '@shared-core/types'
 
+import { moveItemWithinList } from '@shared/lib/reorderList'
+
 import type { PdfTab } from '../hooks/types'
 import { isSamePdfPath } from '../lib/pdfPathIdentity'
 
@@ -8,9 +10,17 @@ export const createViewerSessionKey = (): string =>
     ? crypto.randomUUID()
     : `vs_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
-export const normalizeTitle = (title?: string): string | undefined => {
-  const normalized = title?.trim()
-  return normalized || undefined
+/**
+ * Moves a PDF tab next to another one; the shared helper keeps drag order in
+ * the tab strip and in the AI tab strip on the same rule.
+ */
+export function moveTabWithinList<T extends { id: string }>(
+  tabs: T[],
+  tabId: string,
+  targetId: string,
+  placeAfter: boolean
+): T[] {
+  return moveItemWithinList(tabs, tabId, targetId, placeAfter)
 }
 
 export const toPdfFile = (file: PdfFile): PdfFile => ({
@@ -50,15 +60,10 @@ interface PdfTabActions {
   openPdfInTab: (file: PdfFile) => PdfTab
   setActivePdfTab: (tabId: string) => void
   closePdfTab: (tabId: string) => void
-  /**
-   * Puts a closed tab back where it was. `activate` restores the focus the tab
-   * had before it was closed; background tabs stay in the background.
-   */
-  restorePdfTab: (tab: PdfTab, options?: { index?: number; activate?: boolean }) => void
   addEmptyPdfTab: () => void
   goToPdfHome: () => void
   openGoogleDriveTab: () => void
-  renamePdfTab: (tabId: string, title?: string) => void
+  movePdfTab: (tabId: string, targetId: string, placeAfter: boolean) => void
 }
 
 export type PdfTabStore = PdfTabState & PdfTabActions

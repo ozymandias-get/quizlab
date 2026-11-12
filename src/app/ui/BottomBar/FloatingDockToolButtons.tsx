@@ -10,16 +10,9 @@ import { usePdfTabStore } from '@features/pdf'
 
 import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/providers'
 import { useAiModelsCatalog, useAiTabActions } from '@app/providers/ai-context'
-import {
-  ExpandIcon,
-  GlobeIcon,
-  MagicWandIcon,
-  SettingsIcon,
-  SparklesExpandIcon,
-  SwapIcon
-} from '@ui/components/Icons'
 import { getAiIcon } from '@ui/components/Icons'
 
+import { ArrowLeftRight, Crosshair, Globe, Maximize2, Settings, Sparkles } from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -35,7 +28,7 @@ export const SettingsToolButton = memo(function SettingsToolButton({
 
   return (
     <FloatingDockIcon id="tour-target-tool-settings" title={t('settings')} onClick={handleClick}>
-      <SettingsIcon className="h-5 w-5" />
+      <Settings className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })
@@ -51,7 +44,7 @@ export const SwapToolButton = memo(function SwapToolButton() {
       onClick={toggleLayoutSwap}
       isActive={isLayoutSwapped}
     >
-      <SwapIcon
+      <ArrowLeftRight
         className={`motion-normal h-5 w-5 transition-transform duration-300 ${
           isLayoutSwapped ? 'rotate-180' : 'rotate-0'
         }`}
@@ -83,7 +76,7 @@ export const PdfFocusToolButton = memo(function PdfFocusToolButton() {
       title={isPdfFocusable ? t('pdf_focus') : t('pdf_focus_no_doc')}
       onClick={handleClick}
     >
-      <ExpandIcon className="h-5 w-5" />
+      <Maximize2 className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })
@@ -95,7 +88,7 @@ export const AiFocusToolButton = memo(function AiFocusToolButton() {
 
   return (
     <FloatingDockIcon id="tour-target-tool-ai-focus" title={t('ai_focus')} onClick={handleClick}>
-      <SparklesExpandIcon className="h-5 w-5" />
+      <Sparkles className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })
@@ -114,7 +107,7 @@ export const PickerToolButton = memo(function PickerToolButton() {
 
   return (
     <FloatingDockIcon title={t('element_picker')} onClick={handleClick}>
-      <MagicWandIcon className="h-5 w-5" />
+      <Crosshair className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })
@@ -143,7 +136,7 @@ export const GeminiToolButton = memo(function GeminiToolButton({
       title={needsAttention ? t('ws_toolbar_attention') : t('ws_toolbar_title')}
       onClick={handleClick}
     >
-      <GlobeIcon className="h-5 w-5" />
+      <Globe className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })

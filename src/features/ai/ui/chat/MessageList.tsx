@@ -10,7 +10,12 @@ import { AiAvatar, UserAvatar } from './Avatars'
 import { groupMessagesIncremental, type MessageGroupsCache } from './chatUtils'
 import DateSeparator from './DateSeparator'
 import MessageBubble from './MessageBubble'
-import { buildMessageRows, type MessageRowModel, useMessageListWindow } from './messageListWindow'
+import {
+  buildMessageRowsCache,
+  type MessageRowModel,
+  type MessageRowsCache,
+  useMessageListWindow
+} from './messageListWindow'
 import ScrollToBottom from './ScrollToBottom'
 import StreamingIndicator from './StreamingIndicator'
 
@@ -83,7 +88,12 @@ const MessageList = memo(function MessageList({
     })
   }, [])
 
-  const rows = useMemo(() => buildMessageRows(messageGroups), [messageGroups])
+  const rowsCacheRef = useRef<MessageRowsCache | null>(null)
+  const rows = useMemo(() => {
+    const cache = buildMessageRowsCache(rowsCacheRef.current, messageGroups)
+    rowsCacheRef.current = cache
+    return cache.rows
+  }, [messageGroups])
   const pinnedRowKeys = useMemo(() => {
     if (keepAliveIds.size === 0) return undefined
     const keys = new Set<string>()

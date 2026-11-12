@@ -3,7 +3,6 @@ import { useCallback, useRef } from 'react'
 interface UsePdfTabStripRovingOptions<T extends { id: string }> {
   visibleTabs: T[]
   activeTabId: string
-  editingTabId?: string | null
   onSetActiveTab: (tabId: string) => void
 }
 
@@ -14,7 +13,6 @@ interface UsePdfTabStripRovingOptions<T extends { id: string }> {
 export function usePdfTabStripRoving<T extends { id: string }>({
   visibleTabs,
   activeTabId,
-  editingTabId,
   onSetActiveTab
 }: UsePdfTabStripRovingOptions<T>) {
   const tabButtonRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map())
@@ -32,8 +30,7 @@ export function usePdfTabStripRoving<T extends { id: string }>({
       ) {
         return
       }
-      // Arrow keys inside the rename input must keep editing text.
-      if (editingTabId) return
+      // Arrow keys stay inside the strip and only move tab focus.
       if (visibleTabs.length === 0) return
       event.preventDefault()
 
@@ -53,7 +50,7 @@ export function usePdfTabStripRoving<T extends { id: string }>({
       onSetActiveTab(nextTab.id)
       tabButtonRefs.current.get(nextTab.id)?.focus()
     },
-    [visibleTabs, activeTabId, editingTabId, onSetActiveTab]
+    [visibleTabs, activeTabId, onSetActiveTab]
   )
 
   return { setTabButtonRef, handleRowKeyDown }

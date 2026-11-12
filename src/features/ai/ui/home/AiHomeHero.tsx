@@ -47,7 +47,7 @@ const AiHomeHero = memo(function AiHomeHero({
             {tabs.slice(0, 5).map((tab) => {
               const site = aiSites[tab.modelId]
               const isActive = tab.id === activeTabId
-              const displayName = tab.title || site?.displayName || site?.name || tab.modelId
+              const displayName = site?.displayName || site?.name || tab.modelId
               return (
                 <Button
                   key={tab.id}

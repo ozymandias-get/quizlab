@@ -15,7 +15,7 @@ const mockHandlePdfDrop = vi.fn()
 const mockHandleSelectPdf = vi.fn()
 const mockSetActivePdfTab = vi.fn()
 const mockClosePdfTab = vi.fn()
-const mockRenamePdfTab = vi.fn()
+const mockMovePdfTab = vi.fn()
 const mockUpdateReadingProgress = vi.fn()
 const mockResumeLastPdf = vi.fn().mockResolvedValue(undefined)
 const mockClearLastReading = vi.fn()
@@ -36,7 +36,7 @@ vi.mock('@features/pdf', () => ({
     activePdfTabId: null,
     setActivePdfTab: mockSetActivePdfTab,
     closePdfTab: mockClosePdfTab,
-    renamePdfTab: mockRenamePdfTab,
+    movePdfTab: mockMovePdfTab,
     handleSelectPdf: mockHandleSelectPdf,
     handlePdfDrop: mockHandlePdfDrop,
     updateReadingProgress: mockUpdateReadingProgress,

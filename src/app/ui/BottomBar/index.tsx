@@ -1,4 +1,5 @@
 import { useAppearance } from '@app/providers'
+import { setDockHovered } from '@shared/stores/dockHoverStore'
 
 import { GripVertical } from 'lucide-react'
 import {
@@ -163,8 +164,14 @@ function BottomBar({
     [onKeyboardResize, onDoubleClick, isResizeReversed]
   )
 
-  const handleMouseEnter = useCallback(() => onHoverChange?.(true), [onHoverChange])
-  const handleMouseLeave = useCallback(() => onHoverChange?.(false), [onHoverChange])
+  const handleMouseEnter = useCallback(() => {
+    setDockHovered(true)
+    onHoverChange?.(true)
+  }, [onHoverChange])
+  const handleMouseLeave = useCallback(() => {
+    setDockHovered(false)
+    onHoverChange?.(false)
+  }, [onHoverChange])
 
   const openSettings = useCallback((tab?: string) => {
     setSettingsInitialTab(tab)

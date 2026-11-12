@@ -5,7 +5,9 @@ export const STORAGE_KEYS = {
   ENABLED_MODELS: 'enabledModels',
   FAVORITE_AI_MODELS: 'favoriteAiModels',
   DEFAULT_AI_MODEL: 'defaultAiModel',
-  PINNED_AI_TABS: 'pinnedAiTabs',
+  // Legacy key name: this used to hold only pinned tabs. It now stores every
+  // open AI tab in strip order so a drag-reordered strip survives a restart.
+  AI_TABS: 'pinnedAiTabs',
   APP_LANGUAGE: 'appLanguage',
   APP_LANGUAGE_ONBOARDING_DONE: 'app-language-onboarding-done',
   CUSTOM_PROMPTS: 'customPrompts',

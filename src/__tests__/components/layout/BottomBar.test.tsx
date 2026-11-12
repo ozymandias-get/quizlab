@@ -137,7 +137,7 @@ describe('BottomBar', () => {
     render(<BottomBar />)
     expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('settings-icon'))
+    fireEvent.click(document.querySelector('#tour-target-tool-settings') as HTMLElement)
     expect(screen.getByTestId('settings-modal')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Close Modal' }))

@@ -2,6 +2,21 @@ import type { RecentItemGroup, RecentItemView, SortMode } from './types'
 
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000
 
+/**
+ * `Intl.RelativeTimeFormat` construction is the expensive part of formatting a
+ * relative timestamp, and every history row asks for one. Two locales can only
+ * ever exist here, so the formatter is built once per locale.
+ */
+const relativeTimeFormatters = new Map<string, Intl.RelativeTimeFormat>()
+
+function getRelativeTimeFormat(locale: string): Intl.RelativeTimeFormat {
+  const cached = relativeTimeFormatters.get(locale)
+  if (cached) return cached
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  relativeTimeFormatters.set(locale, formatter)
+  return formatter
+}
+
 export function formatRelativeTime(timestamp: number, language: string): string {
   const locale = language === 'en' ? 'en-US' : 'tr-TR'
   const diffMs = timestamp - Date.now()
@@ -9,7 +24,7 @@ export function formatRelativeTime(timestamp: number, language: string): string 
   const minute = 60 * 1000
   const hour = 60 * minute
   const day = 24 * hour
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  const rtf = getRelativeTimeFormat(locale)
 
   if (absMs < hour) return rtf.format(Math.round(diffMs / minute), 'minute')
   if (absMs < day) return rtf.format(Math.round(diffMs / hour), 'hour')
@@ -39,7 +54,9 @@ export function processRecentItems(
       ? recentItems.filter((item) => item.name.toLocaleLowerCase(locale).includes(query))
       : recentItems
 
-  return filtered.sort((a, b) => {
+  // Copy before sorting: when the query is empty `filtered` aliases the
+  // memoized prop array, and sorting it in place would mutate the caller's list.
+  return [...filtered].sort((a, b) => {
     if (sortMode === 'name') {
       return a.name.localeCompare(b.name, language)
     }

@@ -17,8 +17,6 @@ interface AiTabContextMenuProps {
   contextMenuRef: RefObject<HTMLDivElement | null>
   triggerRef?: RefObject<HTMLElement | null>
   tr: (key: string, fallback: string) => string
-  onBeginRename: (tabId: string) => void
-  onTogglePin: (tabId: string) => void
   onCloseTab: (tabId: string) => void
   onDismiss: () => void
 }
@@ -30,8 +28,6 @@ function AiTabContextMenu({
   contextMenuRef,
   triggerRef,
   tr,
-  onBeginRename,
-  onTogglePin,
   onCloseTab,
   onDismiss
 }: AiTabContextMenuProps) {
@@ -66,17 +62,6 @@ function AiTabContextMenu({
       style={{ left: contextMenu.x, top: contextMenu.y }}
     >
       <MenuSurface className="min-w-[160px]">
-        <MenuItem onClick={() => onBeginRename(contextMenuTab.id)}>
-          {tr('tab_rename', 'Rename')}
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            onTogglePin(contextMenuTab.id)
-            onDismiss()
-          }}
-        >
-          {contextMenuTab.pinned ? tr('tab_unpin', 'Unpin') : tr('tab_pin', 'Pin')}
-        </MenuItem>
         <MenuItem
           disabled={tabsCount <= 1}
           onClick={() => {

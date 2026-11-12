@@ -1,5 +1,6 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
+import { useTabStripReorder } from '@shared/hooks'
 import { TabStripHomeButton, ToolbarButton } from '@shared/ui/components/primitives'
 import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
 
@@ -28,14 +29,13 @@ import {
 import TabContextMenu from './TabContextMenu'
 import { usePdfTabStripDerived } from './usePdfTabStripDerived'
 import { usePdfTabStripRoving } from './usePdfTabStripRoving'
-import { useTabEditing } from './useTabEditing'
 
 interface PdfTabStripProps {
   tabs: PdfTab[]
   activeTabId: string
   onSetActiveTab: (tabId: string) => void
   onCloseTab: (tabId: string) => void
-  onRenameTab: (tabId: string, title?: string) => void
+  onMoveTab: (tabId: string, targetId: string, placeAfter: boolean) => void
   onAddTab: () => void
   onHome?: () => void
 }
@@ -45,7 +45,7 @@ function PdfTabStrip({
   activeTabId,
   onSetActiveTab,
   onCloseTab,
-  onRenameTab,
+  onMoveTab,
   onAddTab,
   onHome
 }: PdfTabStripProps) {
@@ -53,7 +53,6 @@ function PdfTabStrip({
     tabs,
     activeTabId
   )
-  const renameInputRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const tabsRef = useRef(tabs)
@@ -138,41 +137,13 @@ function PdfTabStrip({
     [tabs, activeTabId, maxVisibleTabs]
   )
 
-  const {
-    editingTabId,
-    editingValue,
-    setEditingValue,
-    beginRename: startRename,
-    handleEditingBlur,
-    handleEditingKeyDown,
-    cancelRename
-  } = useTabEditing()
+  const { draggedId, dropTarget, rowDragHandlers } = useTabStripReorder({ onReorder: onMoveTab })
 
   const { setTabButtonRef, handleRowKeyDown } = usePdfTabStripRoving({
     visibleTabs,
     activeTabId,
-    editingTabId,
     onSetActiveTab
   })
-
-  const beginRename = useCallback(
-    (tab: PdfTab) => {
-      setContextMenu(null)
-      startRename(tab)
-    },
-    [startRename]
-  )
-
-  // Bind `onRenameTab` once so PdfTabItem's memo is not busted per render.
-  const handleTabEditingBlur = useCallback(
-    (tabId: string, tabTitle: string) => handleEditingBlur(tabId, tabTitle, onRenameTab),
-    [handleEditingBlur, onRenameTab]
-  )
-  const handleTabEditingKeyDown = useCallback(
-    (event: React.KeyboardEvent, tabId: string, tabTitle: string) =>
-      handleEditingKeyDown(event, tabId, tabTitle, onRenameTab),
-    [handleEditingKeyDown, onRenameTab]
-  )
 
   const handleOpenContextMenu = useCallback((event: ReactMouseEvent, tabId: string) => {
     event.preventDefault()
@@ -189,17 +160,6 @@ function PdfTabStrip({
       y: event.clientY
     })
   }, [])
-
-  useEffect(() => {
-    if (editingTabId) {
-      renameInputRef.current?.focus()
-      renameInputRef.current?.select()
-    }
-  }, [editingTabId])
-
-  useEffect(() => {
-    if (editingTabId && !tabs.some((tab) => tab.id === editingTabId)) cancelRename()
-  }, [editingTabId, tabs, cancelRename])
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -224,6 +184,7 @@ function PdfTabStrip({
         aria-label={tr('pdf_tablist_label', 'PDF tabs')}
         className={TAB_STRIP_ROW_CLASS}
         onKeyDown={handleRowKeyDown}
+        {...rowDragHandlers}
       >
         {onHome && (
           <TabStripHomeButton
@@ -238,19 +199,16 @@ function PdfTabStrip({
             key={tab.id}
             tab={tab}
             isActive={tab.id === activeTabId}
-            isEditing={editingTabId === tab.id}
-            editingValue={editingTabId === tab.id ? editingValue : ''}
+            isDragging={draggedId === tab.id}
+            dropSide={
+              dropTarget?.tabId === tab.id ? (dropTarget.placeAfter ? 'after' : 'before') : null
+            }
             getTabLabel={getTabLabel}
             getTabIcon={getTabIcon}
             tr={tr}
             onSetActiveTab={onSetActiveTab}
             onCloseTab={onCloseTab}
-            onBeginRename={beginRename}
             onOpenContextMenu={handleOpenContextMenu}
-            onEditingValueChange={setEditingValue}
-            onEditingBlur={handleTabEditingBlur}
-            onEditingKeyDown={handleTabEditingKeyDown}
-            renameInputRef={editingTabId === tab.id ? renameInputRef : undefined}
             buttonRef={setTabButtonRef}
           />
         ))}
@@ -281,7 +239,6 @@ function PdfTabStrip({
         contextMenu={contextMenu}
         tab={contextMenuTab}
         tr={tr}
-        onBeginRename={beginRename}
         onCloseTab={onCloseTab}
         onDismiss={() => setContextMenu(null)}
         triggerRef={contextMenuTriggerRef}

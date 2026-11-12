@@ -60,35 +60,8 @@ export const SelectorIcon = (props: IconProps) => (
   </SvgIcon>
 )
 
-export const BellIcon = (props: IconProps) => (
-  <SvgIcon size="default" {...props}>
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </SvgIcon>
-)
-
 export const ChevronRightIcon = (props: IconProps) => (
   <SvgIcon size="default" {...props}>
     <path d="M10 8L14 12L10 16" />
-  </SvgIcon>
-)
-
-export const ExpandIcon = (props: IconProps) => (
-  <SvgIcon size="default" {...props}>
-    <path d="M4 9V5.6C4 5.03995 4 4.75992 4.10899 4.54601C4.20487 4.35785 4.35785 4.20487 4.54601 4.10899C4.75992 4 5.03995 4 5.6 4H9M4 15V18.4C4 18.9601 4 19.2401 4.10899 19.454C4.20487 19.6422 4.35785 19.7951 4.54601 19.891C4.75992 20 5.03995 20 5.6 20H9M15 4H18.4C18.9601 4 19.2401 4 19.454 4.10899C19.6422 4.20487 19.7951 4.35785 19.891 4.54601C20 4.75992 20 5.03995 20 5.6V9M20 15V18.4C20 18.9601 20 19.2401 19.891 19.454C19.7951 19.6422 19.6422 19.7951 19.454 19.891C19.2401 20 18.9601 20 18.4 20H15" />
-  </SvgIcon>
-)
-
-export const KeyboardIcon = (props: IconProps) => (
-  <SvgIcon size="lg" variant="subtle" {...props}>
-    <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
-    <path d="M6 8h.001" />
-    <path d="M10 8h.001" />
-    <path d="M14 8h.001" />
-    <path d="M18 8h.001" />
-    <path d="M8 12h.001" />
-    <path d="M12 12h.001" />
-    <path d="M16 12h.001" />
-    <path d="M7 16h10" />
   </SvgIcon>
 )

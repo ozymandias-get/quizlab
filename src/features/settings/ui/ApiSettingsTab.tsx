@@ -12,7 +12,7 @@ import { AiIcon } from '@shared/ui/components/icons/AiIcon'
 import { Button, SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 
 import { Loader2 } from 'lucide-react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import ApiProviderList from './apiSettings/ApiProviderList'
@@ -56,9 +56,14 @@ export default memo(function ApiSettingsTab() {
     () => normalizeApiConfig(savedConfig ?? EMPTY_API_CONFIG),
     [savedConfig]
   )
+  // Typing replaces `config` on every keystroke. Deferring the serialisation
+  // keeps the field responsive while the dirty check catches up; a stale
+  // "unsaved" badge for one frame is cheaper than walking a large config in the
+  // same render that handles the keypress.
+  const deferredConfig = useDeferredValue(config)
   const isDirty = useMemo(
-    () => JSON.stringify(config) !== JSON.stringify(savedBaseline),
-    [config, savedBaseline]
+    () => JSON.stringify(deferredConfig) !== JSON.stringify(savedBaseline),
+    [deferredConfig, savedBaseline]
   )
   useSettingsDirty('api-provider-settings', isDirty)
 

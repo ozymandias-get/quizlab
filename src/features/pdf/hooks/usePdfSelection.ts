@@ -17,7 +17,7 @@ export function usePdfSelection() {
     addEmptyPdfTab,
     goToPdfHome,
     openGoogleDriveTab,
-    renamePdfTab
+    movePdfTab
   } = usePdfTabState()
 
   const {
@@ -79,7 +79,7 @@ export function usePdfSelection() {
       activePdfTabId,
       setActivePdfTab,
       closePdfTab,
-      renamePdfTab,
+      movePdfTab,
       handleSelectPdf,
       handlePdfDrop,
       updateReadingProgress,
@@ -103,7 +103,7 @@ export function usePdfSelection() {
       activePdfTabId,
       setActivePdfTab,
       closePdfTab,
-      renamePdfTab,
+      movePdfTab,
       handleSelectPdf,
       handlePdfDrop,
       updateReadingProgress,

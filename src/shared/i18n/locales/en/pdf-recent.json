@@ -2,7 +2,6 @@
   "reading_now": "READING",
   "clear_recent": "Clear",
   "continue_reading": "Continue reading",
-  "continue_reading_short": "Continue",
   "last_opened_unknown": "unknown",
   "recent_count_aria": "{count} saved PDFs",
   "recent_entry_removed": "\"{fileName}\" removed from history",

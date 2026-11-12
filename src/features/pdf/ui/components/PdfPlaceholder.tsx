@@ -60,11 +60,13 @@ function PdfPlaceholder({
     <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-4 py-6 select-none motion-reduce:animate-none sm:px-6 sm:py-7">
       <div className="@container h-full w-full max-w-5xl">
         <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 @min-[680px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[680px]:grid-rows-1">
-          {/* Hero — clean elevated drop surface */}
-          <div className="border-border/50 bg-muted/20 hover:border-border/80 hover:bg-muted/30 motion-normal relative flex w-full max-w-sm shrink-0 flex-col items-center gap-3.5 self-start rounded-2xl border px-6 py-7 text-center transition-colors">
+          {/* Hero — a compact drop surface, vertically centred against the
+              reading history so the column does not read as a small card
+              stranded above a dead half-panel. */}
+          <div className="group border-border/70 bg-muted/20 hover:border-primary/40 hover:bg-muted/30 motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 self-center rounded-2xl border border-dashed px-6 py-8 text-center transition-colors">
             <span
               aria-hidden
-              className="relative flex size-11 items-center justify-center rounded-xl border"
+              className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-300 group-hover:-translate-y-0.5"
               style={{
                 color: 'var(--selection-color-source, oklch(var(--primary)))',
                 backgroundColor:
@@ -73,10 +75,10 @@ function PdfPlaceholder({
                   'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
               }}
             >
-              <Upload className="h-5 w-5" />
+              <Upload className="h-6 w-6" />
             </span>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
                 {t('no_pdf_loaded')}
               </h2>
@@ -99,7 +101,7 @@ function PdfPlaceholder({
           </div>
 
           {/* Recent Reading Section */}
-          <div className="border-border/40 flex min-h-0 w-full flex-col gap-3 border-t pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
+          <div className="border-border/40 flex min-h-0 w-full flex-col gap-4 border-t pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
             <PdfRecentControls
               t={t}
               recentCount={recentItems.length}

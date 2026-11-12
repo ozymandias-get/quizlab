@@ -1,10 +1,6 @@
 {
   "tab_close": "Close",
   "tab_more": "More tabs",
-  "tab_pin": "Pin",
-  "tab_rename": "Rename",
-  "tab_rename_placeholder": "Tab name...",
-  "tab_unpin": "Unpin",
   "new_tab_title": "New Tab",
   "bar_appearance": "Bar Appearance"
 }

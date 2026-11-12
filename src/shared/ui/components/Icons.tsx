@@ -7,20 +7,16 @@ export {
   ImportIcon,
   LoaderIcon,
   RefreshIcon,
-  SwapIcon,
   TrashIcon,
   XIcon
 } from './icons/IconsAction'
-export { GithubIcon, MagicWandIcon, SparklesExpandIcon, UpdateIcon } from './icons/IconsAI'
+export { GithubIcon, UpdateIcon } from './icons/IconsAI'
 export {
-  BellIcon,
   ChevronRightIcon,
-  ExpandIcon,
   EyeIcon,
   GlobeIcon,
   GridIcon,
   InfoIcon,
-  KeyboardIcon,
   LanguageIcon,
   SelectionIcon,
   SelectorIcon,

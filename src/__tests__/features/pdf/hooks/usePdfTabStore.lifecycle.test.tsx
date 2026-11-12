@@ -313,7 +313,7 @@ describe('usePdfTabStore - closing tabs', () => {
     expect(result.current.activePdfTabId).toBe('')
   })
 
-  it('offers an undo toast that restores the closed tab in place', () => {
+  it('closes the tab without offering an undo toast', () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
       result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
@@ -326,49 +326,13 @@ describe('usePdfTabStore - closing tabs', () => {
     act(() => {
       result.current.closePdfTab(closedId)
     })
+
     expect(result.current.pdfTabs).toHaveLength(1)
-
-    const toast = useToastStore
-      .getState()
-      .toasts.find((entry) => entry.message === 'pdf_tab_closed')
-    expect(toast?.actionLabel).toBe('undo')
-    expect(toast?.duration).toBe(5000)
-    expect(toast?.params?.name).toBe('b.pdf')
-
-    act(() => {
-      toast?.onAction?.()
-    })
-
-    // Same id, original index, focus restored because it was the active tab.
-    expect(result.current.pdfTabs).toHaveLength(2)
-    expect(result.current.pdfTabs[1]?.id).toBe(closedId)
-    expect(result.current.activePdfTabId).toBe(closedId)
-  })
-
-  it('keeps focus on the current tab when a background tab is restored', () => {
-    const { result } = renderHook(() => usePdfTabStore())
-    act(() => {
-      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
-    })
-    act(() => {
-      result.current.openPdfInTab(makeFile('b.pdf', '/docs/b.pdf'))
-    })
-    const backgroundId = result.current.pdfTabs[0]?.id
-    const activeId = result.current.activePdfTabId
-
-    act(() => {
-      result.current.closePdfTab(backgroundId!)
-    })
-
-    const toast = useToastStore
-      .getState()
-      .toasts.find((entry) => entry.message === 'pdf_tab_closed')
-    act(() => {
-      toast?.onAction?.()
-    })
-
-    expect(result.current.pdfTabs.map((tab) => tab.id)).toEqual([backgroundId, activeId])
-    expect(result.current.activePdfTabId).toBe(activeId)
+    // Closing is immediate and final. A close notification with an "Undo"
+    // action only made the tab strip noisier.
+    expect(
+      useToastStore.getState().toasts.some((entry) => entry.message === 'pdf_tab_closed')
+    ).toBe(false)
   })
 
   it('prefers the previous tab when closing the active tab', () => {
@@ -400,67 +364,44 @@ describe('usePdfTabStore - closing tabs', () => {
   })
 })
 
-describe('usePdfTabStore - renaming', () => {
-  it('renames a tab', () => {
+describe('usePdfTabStore - reordering', () => {
+  const makeTree = () => {
     const { result } = renderHook(() => usePdfTabStore())
     act(() => {
       result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
+      result.current.openPdfInTab(makeFile('b.pdf', '/docs/b.pdf'))
+      result.current.openPdfInTab(makeFile('c.pdf', '/docs/c.pdf'))
     })
-    const id = result.current.pdfTabs[0]?.id
+    return result
+  }
+
+  it('moves a tab before and after a target instead of swapping slots', () => {
+    const result = makeTree()
+    const [aId, bId, cId] = result.current.pdfTabs.map((tab) => tab.id)
 
     act(() => {
-      result.current.renamePdfTab(id!, 'My Document')
+      result.current.movePdfTab(cId!, aId!, false)
     })
+    expect(result.current.pdfTabs.map((tab) => tab.id)).toEqual([cId, aId, bId])
 
-    expect(result.current.pdfTabs[0]?.title).toBe('My Document')
+    act(() => {
+      result.current.movePdfTab(cId!, bId!, true)
+    })
+    expect(result.current.pdfTabs.map((tab) => tab.id)).toEqual([aId, bId, cId])
   })
 
-  it('clears the title when passed empty/whitespace', () => {
-    const { result } = renderHook(() => usePdfTabStore())
-    act(() => {
-      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
-    })
-    const id = result.current.pdfTabs[0]?.id
-    act(() => {
-      result.current.renamePdfTab(id!, 'Initial')
-    })
-    expect(result.current.pdfTabs[0]?.title).toBe('Initial')
-
-    act(() => {
-      result.current.renamePdfTab(id!, '   ')
-    })
-    expect(result.current.pdfTabs[0]?.title).toBeUndefined()
-  })
-
-  it('keeps the title when re-set to the same value', () => {
-    const { result } = renderHook(() => usePdfTabStore())
-    act(() => {
-      result.current.openPdfInTab(makeFile('a.pdf', '/docs/a.pdf'))
-    })
-    const id = result.current.pdfTabs[0]?.id
-    act(() => {
-      result.current.renamePdfTab(id!, 'Same')
-    })
-    expect(result.current.pdfTabs[0]?.title).toBe('Same')
-
+  it('keeps the array reference for a no-op move', () => {
+    const result = makeTree()
+    const [aId] = result.current.pdfTabs.map((tab) => tab.id)
     const before = result.current.pdfTabs
-    act(() => {
-      result.current.renamePdfTab(id!, 'Same')
-    })
-    expect(result.current.pdfTabs[0]?.title).toBe('Same')
 
-    // Re-setting an identical title must not rebuild the array either: `map`
-    // always returns a fresh reference, which re-renders every tab subscriber
-    // (FocusPdfBody -> PdfTabStrip -> OverflowMenu) for nothing. Only
-    // referential identity can see this.
+    act(() => {
+      result.current.movePdfTab(aId!, aId!, false)
+    })
+
+    // A drop that changed nothing must not re-render every tab subscriber
+    // (FocusPdfBody -> PdfTabStrip -> OverflowMenu) for a fresh array.
     expect(result.current.pdfTabs).toBe(before)
-
-    // The redundant call must not wedge the store: a later, different rename
-    // still has to land.
-    act(() => {
-      result.current.renamePdfTab(id!, 'Renamed')
-    })
-    expect(result.current.pdfTabs[0]?.title).toBe('Renamed')
   })
 })
 

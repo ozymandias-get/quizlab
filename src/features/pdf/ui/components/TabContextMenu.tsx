@@ -13,7 +13,6 @@ interface TabContextMenuProps {
   contextMenu: { tabId: string; x: number; y: number } | null
   tab: PdfTab | undefined
   tr: (key: string, fallback: string) => string
-  onBeginRename: (tab: PdfTab) => void
   onCloseTab: (tabId: string) => void
   onDismiss: () => void
   triggerRef?: RefObject<HTMLElement | null>
@@ -23,7 +22,6 @@ function TabContextMenu({
   contextMenu,
   tab,
   tr,
-  onBeginRename,
   onCloseTab,
   onDismiss,
   triggerRef
@@ -54,14 +52,6 @@ function TabContextMenu({
       style={{ left: contextMenu.x, top: contextMenu.y }}
     >
       <MenuSurface className="min-w-[160px]">
-        <MenuItem
-          onClick={() => {
-            onBeginRename(tab)
-            onDismiss()
-          }}
-        >
-          {tr('tab_rename', 'Rename')}
-        </MenuItem>
         <MenuItem
           onClick={() => {
             onCloseTab(tab.id)

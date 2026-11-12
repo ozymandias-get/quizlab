@@ -2,8 +2,6 @@ import { GOOGLE_DRIVE_WEB_APP } from '@shared-core/constants/googleAiWebApps'
 
 import { revokeObjectUrl } from '@platform/electron/browserApiUtils'
 
-import { useToastStore } from '@shared/stores/toastStore'
-
 import { create } from 'zustand'
 
 import type { PdfTab } from '../hooks/types'
@@ -13,49 +11,14 @@ import {
   createViewerSessionKey,
   isSamePdfDocument,
   isSamePdfFull,
-  normalizeTitle,
+  moveTabWithinList,
   toPdfFile
 } from './pdfTabStoreUtils'
-
-/** Undo window shown on a tab close, matching every other undo toast. */
-const TAB_UNDO_TOAST_MS = 5000
-/**
- * Blob sources outlive the toast on purpose: the toast pauses on hover/focus,
- * so dismissing it at 5 s and revoking at 5 s would race a late "Undo" click.
- * The source is still released without the user doing anything.
- */
-const CLOSED_TAB_SOURCE_RETENTION_MS = 30_000
-
-const pendingSourceRevokes = new Map<string, ReturnType<typeof setTimeout>>()
-
-function cancelSourceRevoke(url: string | null | undefined): void {
-  if (!url) return
-  const timer = pendingSourceRevokes.get(url)
-  if (timer === undefined) return
-  clearTimeout(timer)
-  pendingSourceRevokes.delete(url)
-}
-
-function scheduleSourceRevoke(url: string): void {
-  cancelSourceRevoke(url)
-  const timer = setTimeout(() => {
-    pendingSourceRevokes.delete(url)
-    revokeObjectUrl(url)
-  }, CLOSED_TAB_SOURCE_RETENTION_MS)
-  pendingSourceRevokes.set(url, timer)
-}
-
-/** Picks the human name a close toast should show. */
-function closedTabLabel(tab: PdfTab): string {
-  return tab.title?.trim() || tab.file?.name || (tab.kind === 'drive' ? 'Google Drive' : 'PDF')
-}
 
 /**
  * Resets the PDF tab store to its initial empty state. Test-only helper.
  */
 export function resetPdfTabStore(): void {
-  for (const timer of pendingSourceRevokes.values()) clearTimeout(timer)
-  pendingSourceRevokes.clear()
   usePdfTabStore.setState({ pdfTabs: [], activePdfTabId: '' })
 }
 
@@ -175,51 +138,13 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
 
     set({ pdfTabs: nextTabs, activePdfTabId: nextActiveId })
 
-    // The closed tab's document is released — but not before the undo toast has
-    // run out. The retention map is simply the deferred half of the same release,
-    // so there is only one answer to "which blob is still alive", and a restore
-    // cancels the pending release.
+    // Closing a tab is immediate and final: the document is released right away
+    // unless another tab still streams the same blob. There is no undo window
+    // and no notification to keep the source alive for.
     const closedUrl = closedTab.file?.streamUrl
     const holdsBlob = !!closedUrl?.startsWith('blob:')
     const stillReferenced = holdsBlob && nextTabs.some((tab) => tab.file?.streamUrl === closedUrl)
-    if (holdsBlob && closedUrl && !stillReferenced) scheduleSourceRevoke(closedUrl)
-
-    const toastId = useToastStore.getState().addToast({
-      type: 'info',
-      message: 'pdf_tab_closed',
-      params: { name: closedTabLabel(closedTab) },
-      duration: TAB_UNDO_TOAST_MS,
-      actionLabel: 'undo',
-      onAction: () => {
-        get().restorePdfTab(closedTab, { index: tabIndex, activate: wasActive })
-      }
-    })
-
-    // No toast means no undo (that notification type is switched off): release
-    // the source now instead of holding it for a window nobody can use.
-    if (!toastId && holdsBlob && closedUrl && !stillReferenced) {
-      cancelSourceRevoke(closedUrl)
-      revokeObjectUrl(closedUrl)
-    }
-  },
-
-  restorePdfTab: (tab, { index, activate = false } = {}) => {
-    cancelSourceRevoke(tab.file?.streamUrl)
-
-    const { pdfTabs, activePdfTabId } = get()
-    if (pdfTabs.some((existing) => existing.id === tab.id)) {
-      if (activate) set({ activePdfTabId: tab.id })
-      return
-    }
-
-    const nextTabs = [...pdfTabs]
-    const insertAt = Math.min(Math.max(index ?? nextTabs.length, 0), nextTabs.length)
-    nextTabs.splice(insertAt, 0, tab)
-
-    set({
-      pdfTabs: nextTabs,
-      activePdfTabId: activate ? tab.id : activePdfTabId
-    })
+    if (holdsBlob && closedUrl && !stillReferenced) revokeObjectUrl(closedUrl)
   },
 
   addEmptyPdfTab: () => {
@@ -282,18 +207,13 @@ export const usePdfTabStore = create<PdfTabStore>((set, get) => ({
     }
   },
 
-  renamePdfTab: (tabId, title) => {
-    const normalizedTitle = normalizeTitle(title)
-    const targetTab = get().pdfTabs.find((tab) => tab.id === tabId)
-    // Same early return as `setActivePdfTab`/`closePdfTab`: `map` always hands
-    // back a fresh array, so a no-op rename would still swap the `pdfTabs`
-    // reference and re-render every subscriber (FocusPdfBody -> App ->
-    // MainWorkspace -> LeftPanel -> PdfTabStrip -> OverflowMenu).
-    if (!targetTab || targetTab.title === normalizedTitle) return
-    set((state) => ({
-      pdfTabs: state.pdfTabs.map((tab) =>
-        tab.id === tabId ? { ...tab, title: normalizedTitle } : tab
-      )
-    }))
+  movePdfTab: (tabId, targetId, placeAfter) => {
+    const currentTabs = get().pdfTabs
+    const nextTabs = moveTabWithinList(currentTabs, tabId, targetId, placeAfter)
+    // No-op moves keep the array reference, so subscribers (FocusPdfBody ->
+    // App -> MainWorkspace -> LeftPanel -> PdfTabStrip -> OverflowMenu) are not
+    // re-rendered for a drop that changed nothing.
+    if (nextTabs === currentTabs) return
+    set({ pdfTabs: nextTabs })
   }
 }))

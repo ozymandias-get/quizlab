@@ -57,8 +57,9 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                         key={tab.id}
                         label={tab.label}
                         icon={tab.icon}
+                        tabId={tab.id}
                         isActive={activeTab === tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onSelect={setActiveTab}
                         compact={isCompact}
                       />
                     ))}

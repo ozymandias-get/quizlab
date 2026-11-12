@@ -211,6 +211,37 @@ describe('usePdfTextActions', () => {
       expect(selectionChangeCalls.some((call) => call[2] === true)).toBe(false)
     })
 
+    it('keeps listeners bound when selection is temporarily disabled', () => {
+      const addSpy = vi.spyOn(document, 'addEventListener')
+      const removeSpy = vi.spyOn(document, 'removeEventListener')
+      const { container } = buildContainer()
+      const containerRef = { current: container } as RefObject<HTMLElement | null>
+      const page = nextPage++
+
+      const { rerender } = renderHook(
+        ({ enabled }: { enabled: boolean }) =>
+          usePdfTextActions({
+            containerRef,
+            currentPage: page,
+            onTextSelection: vi.fn(),
+            textSelectionEnabled: enabled
+          }),
+        { initialProps: { enabled: true } }
+      )
+      const selectionAdds = addSpy.mock.calls.filter(([type]) => type === 'selectionchange').length
+
+      // The bottom bar flips this flag on every hover. Tearing the listener set
+      // down and rebuilding it for a pure pointer state was the expensive part;
+      // handlers now gate on the current value instead.
+      rerender({ enabled: false })
+      rerender({ enabled: true })
+
+      expect(addSpy.mock.calls.filter(([type]) => type === 'selectionchange')).toHaveLength(
+        selectionAdds
+      )
+      expect(removeSpy.mock.calls.filter(([type]) => type === 'selectionchange')).toHaveLength(0)
+    })
+
     it('registers the scroll lock on the container as a passive listener', () => {
       const { panel, container } = buildContainer()
       const addSpy = vi.spyOn(container, 'addEventListener')

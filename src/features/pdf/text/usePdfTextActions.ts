@@ -1,5 +1,7 @@
 import type { PdfActionPoint } from '@shared-core/types'
 
+import { getDockHovered } from '@shared/stores/dockHoverStore'
+
 import { type RefObject, useCallback, useEffect, useRef } from 'react'
 
 import { extractPageTextFromDom, invalidatePageCache } from './extractPageTextFromDom'
@@ -36,6 +38,17 @@ export function usePdfTextActions({
   const onNoTextFoundRef = useRef(onNoTextFound)
   const currentPageRef = useRef(currentPage)
   const documentKeyRef = useRef(documentKey)
+  /**
+   * Read inside event handlers instead of in the effect dependency list.
+   *
+   * `textSelectionEnabled` flips whenever the pointer enters the bottom bar or a
+   * panel drag starts. Re-running the effect for that tore down and re-bound six
+   * document/window listeners (plus a capture scroll listener) twice per hover,
+   * while the handlers themselves are identical. The listeners now stay bound
+   * and each handler gates on the current flag.
+   */
+  const textSelectionEnabledRef = useRef(textSelectionEnabled)
+  textSelectionEnabledRef.current = textSelectionEnabled
 
   onTextSelectionRef.current = onTextSelection
   onTextExtractedRef.current = onTextExtracted
@@ -127,7 +140,11 @@ export function usePdfTextActions({
   }, [])
 
   useEffect(() => {
-    if (!textSelectionEnabled || !onTextSelectionRef.current) return
+    const container = containerRef.current
+    if (!container) return
+
+    const isSelectionEnabled = () =>
+      textSelectionEnabledRef.current && !getDockHovered() && !!onTextSelectionRef.current
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     let frameId: number | null = null
@@ -135,15 +152,13 @@ export function usePdfTextActions({
     let scrollFreezeTimer: ReturnType<typeof setTimeout> | null = null
     let isScrolling = false
 
-    const container = containerRef.current
-    if (!container) return
-
     const clearSelectionState = () => {
       container.classList.remove('pdf-selection-active')
       onTextSelectionRef.current?.('', null)
     }
 
     const scheduleSelectionUpdate = () => {
+      if (!isSelectionEnabled()) return
       if (frameId) cancelAnimationFrame(frameId)
 
       frameId = requestAnimationFrame(() => {
@@ -170,7 +185,10 @@ export function usePdfTextActions({
     }
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (isScrolling) return
+      if (isScrolling || !isSelectionEnabled()) {
+        pointerStartedInsideContainer = false
+        return
+      }
       pointerStartedInsideContainer =
         event.target instanceof Node && container.contains(event.target)
     }
@@ -196,7 +214,10 @@ export function usePdfTextActions({
     }
 
     const handlePointerUp = (event: PointerEvent) => {
-      if (isScrolling) return
+      if (isScrolling || !isSelectionEnabled()) {
+        pointerStartedInsideContainer = false
+        return
+      }
 
       const shouldCheckSelection = pointerStartedInsideContainer
       pointerStartedInsideContainer = false
@@ -222,6 +243,7 @@ export function usePdfTextActions({
     }
 
     const handleSelectionChange = () => {
+      if (!isSelectionEnabled()) return
       if (isScrolling) return
       if (pointerStartedInsideContainer) return
 
@@ -292,7 +314,7 @@ export function usePdfTextActions({
       if (frameId) cancelAnimationFrame(frameId)
       if (scrollFreezeTimer) clearTimeout(scrollFreezeTimer)
     }
-  }, [containerRef, textSelectionEnabled])
+  }, [containerRef])
 
   const previousPageRef = useRef(currentPage)
   useEffect(() => {

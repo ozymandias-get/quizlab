@@ -5,6 +5,7 @@ import {
   useAiTabActions,
   useAiTabsSliceState
 } from '@app/providers/ai-context'
+import { useTabStripReorder } from '@shared/hooks'
 import { TabStripHomeButton } from '@shared/ui/components/primitives'
 import {
   TAB_STRIP_BAR_CLASS,
@@ -31,16 +32,16 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const aiSites = useAiSites()
   const { hasActiveContent } = useAiContentPresence()
-  const { setActiveTab, closeTab, renameTab, togglePinTab } = useAiTabActions()
+  const { setActiveTab, closeTab, moveTab } = useAiTabActions()
   const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
   const { refs, state, helpers, actions } = useAiTabStripState({
     tabs,
     activeTabId,
     aiSites,
-    t,
-    renameTab
+    t
   })
+  const { draggedId, dropTarget, rowDragHandlers } = useTabStripReorder({ onReorder: moveTab })
 
   const handleSelectTab = useCallback(
     (tabId: string) => {
@@ -73,7 +74,7 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
 
   return (
     <div className={TAB_STRIP_BAR_CLASS}>
-      <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS}>
+      <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 
         <AiTabStripRefreshButton
@@ -89,21 +90,15 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
             key={tab.id}
             tab={tab}
             label={helpers.getTabLabel(tab)}
-            tabColor={helpers.getTabColor(tab)}
             isActive={tab.id === activeTabId}
-            isEditing={tab.id === state.editingTabId}
-            editingValue={tab.id === state.editingTabId ? state.editingValue : ''}
-            renameInputRef={refs.renameInputRef}
-            skipBlurSaveRef={refs.skipBlurSaveRef}
+            isDragging={draggedId === tab.id}
+            dropSide={
+              dropTarget?.tabId === tab.id ? (dropTarget.placeAfter ? 'after' : 'before') : null
+            }
             tr={helpers.tr}
             iconKey={aiSites[tab.modelId]?.icon || tab.modelId}
             onSelect={handleSelectTab}
-            onBeginRename={actions.beginRename}
             onContextMenu={actions.handleOpenContextMenu}
-            onEditingValueChange={actions.setEditingValue}
-            onCommitRename={actions.commitRename}
-            onCancelRename={actions.cancelRename}
-            onTogglePin={togglePinTab}
             onClose={closeTab}
           />
         ))}
@@ -129,8 +124,6 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
         contextMenuRef={refs.contextMenuRef}
         triggerRef={refs.contextMenuTriggerRef}
         tr={helpers.tr}
-        onBeginRename={actions.beginRename}
-        onTogglePin={togglePinTab}
         onCloseTab={closeTab}
         onDismiss={handleDismissContextMenu}
       />

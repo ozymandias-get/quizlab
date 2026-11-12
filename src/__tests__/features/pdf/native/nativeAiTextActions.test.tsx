@@ -88,6 +88,9 @@ vi.mock('@features/pdf/ui/hooks', async (importOriginal) => {
 
 const PAGE_TEXT = 'the native page text goes to the ai'
 
+/** Selection double: a dismissal must also release the browser selection. */
+const removeAllRanges = vi.fn()
+
 function createDeferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: unknown) => void
@@ -279,7 +282,8 @@ async function selectPageRun(): Promise<void> {
     rangeCount: 1,
     anchorNode: run,
     focusNode: run,
-    getRangeAt: () => range
+    getRangeAt: () => range,
+    removeAllRanges
   } as unknown as Selection)
 
   const container = document.querySelector('.pdf-viewer-container') as HTMLElement
@@ -332,5 +336,38 @@ describe('native viewer — AI text actions', () => {
     expect(mocks.queueTextForAi).not.toHaveBeenCalled()
     // Kaynak başlığı doğrudan gönderimde korunur.
     expect(mocks.sendTextDirectToAi.mock.calls[0][0]).toContain('[PDF Kaynağı')
+  })
+
+  /**
+   * İptal tek tık olmalı: menü açıkken belgenin herhangi bir yerine basmak
+   * yeterlidir. Seçim vurgusu da bırakılır, yoksa iptal edilmiş gibi görünmez.
+   */
+  it('cancels the selection with a single outside press', async () => {
+    renderDocument()
+    await selectPageRun()
+
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    })
+
+    expect(screen.queryByTestId('pdf-selection-menu')).toBeNull()
+    expect(removeAllRanges).toHaveBeenCalled()
+  })
+
+  /**
+   * AI sitesi ve Google Drive panelleri ayrı birer `WebContentsView`: oraya
+   * yapılan basış bu DOM'a hiç ulaşmaz. Belgenin odağı kaybetmesi o tıklamanın
+   * tek sinyalidir ve menüyü ilk basışta kapatmalıdır.
+   */
+  it('cancels the selection when focus leaves for a native view', async () => {
+    renderDocument()
+    await selectPageRun()
+
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+    })
+
+    expect(screen.queryByTestId('pdf-selection-menu')).toBeNull()
+    expect(removeAllRanges).toHaveBeenCalled()
   })
 })

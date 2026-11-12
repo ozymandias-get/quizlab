@@ -4,15 +4,6 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('@app/components/ui/input', async () => {
-  const ReactModule = await import('react')
-  return {
-    Input: ReactModule.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-      (props, ref) => <input ref={ref} {...props} />
-    )
-  }
-})
-
 vi.mock('@shared/ui/components/primitives', async () => {
   const ReactModule = await import('react')
   const PassThrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>
@@ -23,11 +14,6 @@ vi.mock('@shared/ui/components/primitives', async () => {
   >(({ isActive: _isActive, withControls: _withControls, ...props }, ref) => (
     <button ref={ref} type="button" {...props} />
   ))
-
-  const TabPillContainer = ReactModule.forwardRef<
-    HTMLDivElement,
-    React.HTMLAttributes<HTMLDivElement> & { isActive?: boolean }
-  >(({ isActive: _isActive, ...props }, ref) => <div ref={ref} {...props} />)
 
   const IconButton = ReactModule.forwardRef<
     HTMLButtonElement,
@@ -41,7 +27,6 @@ vi.mock('@shared/ui/components/primitives', async () => {
   return {
     IconButton,
     TabPill,
-    TabPillContainer,
     TabPillIcon: PassThrough,
     TabPillLabel: PassThrough,
     Tooltip: PassThrough,
@@ -53,80 +38,55 @@ vi.mock('@shared/ui/components/primitives', async () => {
 const TAB = { id: 'tab-1', file: null, kind: 'pdf' as const }
 
 function renderItem(overrides: Partial<React.ComponentProps<typeof PdfTabItem>> = {}) {
-  const onBeginRename = vi.fn()
   const onSetActiveTab = vi.fn()
+  const onCloseTab = vi.fn()
 
   render(
     <PdfTabItem
       tab={TAB as never}
       isActive
-      isEditing={false}
-      editingValue=""
+      isDragging={false}
+      dropSide={null}
       getTabLabel={() => 'Doc'}
       getTabIcon={() => null}
       tr={(key, fallback) => fallback ?? key}
       onSetActiveTab={onSetActiveTab}
-      onCloseTab={vi.fn()}
-      onBeginRename={onBeginRename}
+      onCloseTab={onCloseTab}
       onOpenContextMenu={vi.fn()}
-      onEditingValueChange={vi.fn()}
-      onEditingBlur={vi.fn()}
-      onEditingKeyDown={vi.fn()}
       {...overrides}
     />
   )
 
-  return { onBeginRename, onSetActiveTab }
+  return { onSetActiveTab, onCloseTab }
 }
 
-describe('PdfTabItem double-click rename', () => {
-  it('does not rename when a rapid double-click only activates an inactive tab', () => {
-    const onBeginRename = vi.fn()
-    const onSetActiveTab = vi.fn()
-
-    function Harness() {
-      const [isActive, setIsActive] = React.useState(false)
-      return (
-        <PdfTabItem
-          tab={TAB as never}
-          isActive={isActive}
-          isEditing={false}
-          editingValue=""
-          getTabLabel={() => 'Doc'}
-          getTabIcon={() => null}
-          tr={(key, fallback) => fallback ?? key}
-          onSetActiveTab={(tabId) => {
-            onSetActiveTab(tabId)
-            setIsActive(true)
-          }}
-          onCloseTab={vi.fn()}
-          onBeginRename={onBeginRename}
-          onOpenContextMenu={vi.fn()}
-          onEditingValueChange={vi.fn()}
-          onEditingBlur={vi.fn()}
-          onEditingKeyDown={vi.fn()}
-        />
-      )
-    }
-
-    render(<Harness />)
-    const surface = screen.getByLabelText('Doc')
-
-    fireEvent.click(surface)
+describe('PdfTabItem', () => {
+  it('selects the tab on click', () => {
+    const { onSetActiveTab } = renderItem()
+    fireEvent.click(screen.getByLabelText('Doc'))
     expect(onSetActiveTab).toHaveBeenCalledWith('tab-1')
-    // The click re-rendered the tab as active. The second click of the same
-    // gesture must still select, not open the rename input.
-    fireEvent.doubleClick(surface)
-
-    expect(onBeginRename).not.toHaveBeenCalled()
   })
 
-  it('renames when the tab was already active', () => {
-    const { onBeginRename } = renderItem({ isActive: true })
-    const surface = screen.getByLabelText('Doc')
+  it('closes without selecting when the close control is pressed', () => {
+    const { onSetActiveTab, onCloseTab } = renderItem()
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(onCloseTab).toHaveBeenCalledWith('tab-1')
+    expect(onSetActiveTab).not.toHaveBeenCalled()
+  })
 
-    fireEvent.doubleClick(surface)
+  it('exposes the drag identity and the insertion marker for reordering', () => {
+    renderItem({ dropSide: 'after' })
+    const wrapper = screen.getByLabelText('Doc').closest('[data-tab-id]') as HTMLElement
 
-    expect(onBeginRename).toHaveBeenCalledWith(TAB)
+    expect(wrapper).not.toBeNull()
+    expect(wrapper).toHaveAttribute('draggable', 'true')
+    expect(wrapper).toHaveAttribute('data-tab-id', 'tab-1')
+    expect(wrapper.className).toContain('after:bg-primary')
+  })
+
+  it('marks the pill being dragged', () => {
+    renderItem({ isDragging: true })
+    const wrapper = screen.getByLabelText('Doc').closest('[data-tab-id]') as HTMLElement
+    expect(wrapper.className).toContain('opacity-45')
   })
 })

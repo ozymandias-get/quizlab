@@ -1,18 +1,20 @@
-import { AiIcon } from '@shared/ui/components/icons/AiIcon'
+import type { LucideIcon } from 'lucide-react'
 import {
-  BellIcon,
-  EyeIcon,
-  GlobeIcon,
-  GridIcon,
-  InfoIcon,
-  KeyboardIcon,
-  LanguageIcon,
-  MagicWandIcon,
-  RefreshIcon,
-  SelectorIcon,
-  type SettingsIcon,
-  SliderIcon
-} from '@ui/components/Icons'
+  Activity,
+  ArrowLeftRight,
+  BellRing,
+  Bot,
+  HardDrive,
+  Info,
+  Keyboard,
+  Languages,
+  LayoutGrid,
+  MessagesSquare,
+  MousePointerClick,
+  Palette,
+  PanelBottom,
+  WandSparkles
+} from 'lucide-react'
 
 export const SETTINGS_SIDEBAR_GROUP_ORDER = [
   'workspace',
@@ -28,13 +30,9 @@ interface SettingsTabMeta {
   group: SettingsTabGroup
   labelKey: string
   descriptionKey: string
-  icon: typeof SettingsIcon
+  icon: LucideIcon
   accent: string
   glow: string
-}
-
-function ApiChatIcon({ className = 'w-5 h-5' }: { className?: string }) {
-  return <AiIcon modelKey="api-chat" className={className} />
 }
 
 export const SETTINGS_TABS = [
@@ -43,7 +41,7 @@ export const SETTINGS_TABS = [
     group: 'workspace',
     labelKey: 'prompts',
     descriptionKey: 'prompts_description',
-    icon: MagicWandIcon,
+    icon: WandSparkles,
     accent: 'from-amber-300/28 via-orange-200/12 to-transparent',
     glow: '#f59e0b'
   },
@@ -52,7 +50,7 @@ export const SETTINGS_TABS = [
     group: 'workspace',
     labelKey: 'models',
     descriptionKey: 'models_description',
-    icon: GridIcon,
+    icon: Bot,
     accent: 'from-sky-300/28 via-cyan-200/12 to-transparent',
     glow: '#38bdf8'
   },
@@ -61,7 +59,7 @@ export const SETTINGS_TABS = [
     group: 'workspace',
     labelKey: 'ai_sites',
     descriptionKey: 'sites_description',
-    icon: GridIcon,
+    icon: LayoutGrid,
     accent: 'from-emerald-300/28 via-teal-200/12 to-transparent',
     glow: '#34d399'
   },
@@ -70,7 +68,7 @@ export const SETTINGS_TABS = [
     group: 'workspace',
     labelKey: 'ai_lifecycle',
     descriptionKey: 'ai_lifecycle_description',
-    icon: SliderIcon,
+    icon: Activity,
     accent: 'from-violet-300/28 via-purple-200/12 to-transparent',
     glow: '#8b5cf6'
   },
@@ -79,7 +77,7 @@ export const SETTINGS_TABS = [
     group: 'workspace',
     labelKey: 'text_input_mode',
     descriptionKey: 'text_input_mode_description',
-    icon: KeyboardIcon,
+    icon: Keyboard,
     accent: 'from-orange-300/28 via-amber-200/12 to-transparent',
     glow: '#f97316'
   },
@@ -88,7 +86,7 @@ export const SETTINGS_TABS = [
     group: 'integration',
     labelKey: 'api_chat_settings_title',
     descriptionKey: 'api_chat_settings_desc',
-    icon: ApiChatIcon,
+    icon: MessagesSquare,
     accent: 'from-amber-300/28 via-amber-200/12 to-transparent',
     glow: '#f59e0b'
   },
@@ -97,7 +95,7 @@ export const SETTINGS_TABS = [
     group: 'integration',
     labelKey: 'ws_title',
     descriptionKey: 'ws_description',
-    icon: GlobeIcon,
+    icon: ArrowLeftRight,
     accent: 'from-violet-300/28 via-indigo-200/12 to-transparent',
     glow: '#8b5cf6'
   },
@@ -106,7 +104,7 @@ export const SETTINGS_TABS = [
     group: 'integration',
     labelKey: 'selectors',
     descriptionKey: 'selectors_description_simple',
-    icon: SelectorIcon,
+    icon: MousePointerClick,
     accent: 'from-white/28 via-white/12 to-transparent',
     glow: '#d4d4d8'
   },
@@ -115,7 +113,7 @@ export const SETTINGS_TABS = [
     group: 'preferences',
     labelKey: 'notifications',
     descriptionKey: 'notifications_description',
-    icon: BellIcon,
+    icon: BellRing,
     accent: 'from-emerald-300/28 via-teal-200/12 to-transparent',
     glow: '#34d399'
   },
@@ -124,7 +122,7 @@ export const SETTINGS_TABS = [
     group: 'preferences',
     labelKey: 'appearance',
     descriptionKey: 'appearance_description',
-    icon: EyeIcon,
+    icon: Palette,
     accent: 'from-rose-300/28 via-red-200/10 to-transparent',
     glow: '#fb7185'
   },
@@ -133,7 +131,7 @@ export const SETTINGS_TABS = [
     group: 'preferences',
     labelKey: 'bottom_bar',
     descriptionKey: 'bottom_bar_description',
-    icon: SliderIcon,
+    icon: PanelBottom,
     accent: 'from-sky-300/28 via-cyan-200/12 to-transparent',
     glow: '#38bdf8'
   },
@@ -142,7 +140,7 @@ export const SETTINGS_TABS = [
     group: 'preferences',
     labelKey: 'language',
     descriptionKey: 'language_description',
-    icon: LanguageIcon,
+    icon: Languages,
     accent: 'from-lime-300/24 via-emerald-200/10 to-transparent',
     glow: '#84cc16'
   },
@@ -151,7 +149,7 @@ export const SETTINGS_TABS = [
     group: 'app',
     labelKey: 'about',
     descriptionKey: 'configure_settings',
-    icon: InfoIcon,
+    icon: Info,
     accent: 'from-slate-200/24 via-white/8 to-transparent',
     glow: '#94a3b8'
   },
@@ -160,7 +158,7 @@ export const SETTINGS_TABS = [
     group: 'app',
     labelKey: 'storage',
     descriptionKey: 'storage_description',
-    icon: RefreshIcon,
+    icon: HardDrive,
     accent: 'from-cyan-300/28 via-teal-200/12 to-transparent',
     glow: '#22d3ee'
   }

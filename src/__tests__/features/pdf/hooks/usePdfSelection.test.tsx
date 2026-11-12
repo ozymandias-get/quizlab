@@ -300,7 +300,7 @@ describe('usePdfSelection', () => {
     ])
   })
 
-  it('should manage multiple pdf tabs (open, switch, rename, close)', async () => {
+  it('should manage multiple pdf tabs (open, switch, reorder, close)', async () => {
     const firstPdf = { name: 'first.pdf', path: '/path/first.pdf', streamUrl: 'first-url' }
     const secondPdf = { name: 'second.pdf', path: '/path/second.pdf', streamUrl: 'second-url' }
     mockSelectPdfMutate.mockResolvedValueOnce(firstPdf).mockResolvedValueOnce(secondPdf)
@@ -328,9 +328,9 @@ describe('usePdfSelection', () => {
     expect(result.current.pdfFile?.name).toBe('first.pdf')
 
     act(() => {
-      result.current.renamePdfTab(firstTabId, '  Notes PDF  ')
+      result.current.movePdfTab(secondTabId, firstTabId, false)
     })
-    expect(result.current.pdfTabs[0].title).toBe('Notes PDF')
+    expect(result.current.pdfTabs.map((tab) => tab.id)).toEqual([secondTabId, firstTabId])
 
     act(() => {
       result.current.closePdfTab(firstTabId)

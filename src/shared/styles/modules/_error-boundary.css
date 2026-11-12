@@ -1,6 +1,5 @@
 /* ── Aesthetic ErrorBoundary ─────────────────────────────────────────── */
-/* Re-uses the visual language of `.aesthetic-loader-modern` and the    */
-/* glass tier system, but the palette is shifted to a warm rose / amber  */
+/* Re-uses the glass tier system, but the palette is shifted to a warm    */
 /* range so an error screen reads as "something is wrong" at a glance.   */
 
 .aesthetic-error-boundary {

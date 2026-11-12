@@ -1,5 +1,20 @@
 import i18next from 'i18next'
 
+/**
+ * `Intl.RelativeTimeFormat` construction is the expensive half of formatting a
+ * cache timestamp, and several storage cards ask for the same locale. Build one
+ * formatter per locale and reuse it.
+ */
+const relativeTimeFormatters = new Map<string, Intl.RelativeTimeFormat>()
+
+function getRelativeTimeFormat(locale: string): Intl.RelativeTimeFormat {
+  const cached = relativeTimeFormatters.get(locale)
+  if (cached) return cached
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  relativeTimeFormatters.set(locale, formatter)
+  return formatter
+}
+
 export function formatTimeAgo(timestamp: number, language = 'en'): string {
   const diff = Date.now() - timestamp
   const minutes = Math.floor(diff / 60000)
@@ -12,7 +27,7 @@ export function formatTimeAgo(timestamp: number, language = 'en'): string {
     defaultValue: language === 'tr' ? 'az önce' : 'just now'
   })
   try {
-    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+    const rtf = getRelativeTimeFormat(locale)
     if (minutes < 1) {
       // Keep short 'just now' / 'az önce' for <1m to avoid 'in 0 minutes'
       return justNow

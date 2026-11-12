@@ -56,21 +56,6 @@ describe('useAppShellState', () => {
     vi.clearAllMocks()
   })
 
-  describe('workspaceState', () => {
-    it('starts with bar not hovered', () => {
-      const { result } = renderHook(() => useAppShellState())
-      expect(result.current.workspaceState.isBarHovered).toBe(false)
-    })
-
-    it('setIsBarHovered updates hover state', () => {
-      const { result } = renderHook(() => useAppShellState())
-      act(() => {
-        result.current.workspaceState.setIsBarHovered(true)
-      })
-      expect(result.current.workspaceState.isBarHovered).toBe(true)
-    })
-  })
-
   describe('updateBanner', () => {
     it('is visible by default', () => {
       const { result } = renderHook(() => useAppShellState())

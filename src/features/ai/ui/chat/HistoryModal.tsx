@@ -25,19 +25,12 @@ import {
 import type { ChatSession } from '../../store/apiChatSessionUtils'
 import { useChatUiStore } from '../../store/chatUiStore'
 import { handleHistoryListArrowKey } from './historyListArrowNavigation'
-import {
-  buildRowLayout,
-  findFirstRowAfter,
-  findFirstVisibleRow,
-  LIST_FALLBACK_HEIGHT,
-  LIST_OVERSCAN,
-  LIST_ROW_GAP,
-  LIST_ROW_HEIGHT
-} from './historyListVirtualization'
+import { buildRowLayout, LIST_ROW_GAP, LIST_ROW_HEIGHT } from './historyListVirtualization'
 import HistorySearchField from './HistorySearchField'
 import HistorySessionItem from './HistorySessionItem'
 import { useHistoryListKeyboard } from './useHistoryListKeyboard'
 import { useHistorySearchIndex } from './useHistorySearchIndex'
+import { useHistoryVirtualWindow } from './useHistoryVirtualWindow'
 
 // Debounced so keystrokes don't trigger a full O(sessions × messages) scan.
 const SEARCH_DEBOUNCE_MS = 180
@@ -70,7 +63,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   const [editTitle, setEditTitle] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(() => new Set())
-  const [scrollTop, setScrollTop] = useState(0)
+  const scrollTopRef = useRef(0)
+  const [scrollTick, setScrollTick] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
   const [keyboardIndex, setKeyboardIndex] = useState(-1)
   const [editingRowHeight, setEditingRowHeight] = useState(LIST_ROW_HEIGHT)
@@ -87,6 +81,19 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
   // before `await confirm(...)`, because two rapid clicks would otherwise open
   // two dialogs for the same row.
   const pendingDeleteIdsRef = useRef<Set<string>>(new Set())
+
+  /** Programmatic scroll (keyboard, reset, clamp): always re-render. */
+  const bumpScrollWindow = useCallback(() => {
+    setScrollTick((tick) => tick + 1)
+  }, [])
+
+  const commitScrollTop = useCallback(
+    (nextScrollTop: number) => {
+      scrollTopRef.current = nextScrollTop
+      bumpScrollWindow()
+    },
+    [bumpScrollWindow]
+  )
 
   const { confirm, props: confirmProps } = useConfirmDialog()
 
@@ -157,8 +164,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     if (!isOpen) return
     const element = listRef.current
     if (element) element.scrollTop = 0
-    setScrollTop(0)
-  }, [isOpen, debouncedSearch])
+    commitScrollTop(0)
+  }, [isOpen, debouncedSearch, commitScrollTop])
 
   const isSearchActive = debouncedSearch.trim().length > 0
 
@@ -205,28 +212,14 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     [filteredSessions, editingId, editingRowHeight, baseRowHeight]
   )
 
-  const virtualRows = useMemo(() => {
-    const total = filteredSessions.length
-    if (total === 0) return { start: 0, end: 0, top: 0, bottom: 0 }
-
-    const { offsets, totalHeight } = rowLayout
-    const height = viewportHeight > 0 ? viewportHeight : LIST_FALLBACK_HEIGHT
-
-    const firstVisible = findFirstVisibleRow(offsets, total, scrollTop)
-    const lastVisible = findFirstRowAfter(offsets, total, firstVisible, scrollTop + height)
-
-    // A shrinking list (delete, external clear) must never leave every row
-    // outside the window while the scroll offset is still catching up.
-    const start = Math.min(total - 1, Math.max(0, firstVisible - LIST_OVERSCAN))
-    const end = Math.min(total, Math.max(start + 1, lastVisible + LIST_OVERSCAN))
-
-    return {
-      start,
-      end,
-      top: offsets[start],
-      bottom: totalHeight - offsets[end]
-    }
-  }, [filteredSessions.length, rowLayout, scrollTop, viewportHeight])
+  const { virtualRows, handleListScroll } = useHistoryVirtualWindow(
+    filteredSessions.length,
+    rowLayout.offsets,
+    viewportHeight,
+    scrollTopRef,
+    scrollTick,
+    bumpScrollWindow
+  )
 
   // Once the virtual window includes the keyboard target, hand it focus.
   useEffect(() => {
@@ -266,9 +259,16 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     const maxScrollTop = Math.max(0, element.scrollHeight - element.clientHeight)
     if (element.scrollTop > maxScrollTop) {
       element.scrollTop = maxScrollTop
-      setScrollTop(maxScrollTop)
+      commitScrollTop(maxScrollTop)
     }
-  }, [filteredSessions.length, editingRowHeight, baseRowHeight, isOpen, viewportHeight])
+  }, [
+    filteredSessions.length,
+    editingRowHeight,
+    baseRowHeight,
+    isOpen,
+    viewportHeight,
+    commitScrollTop
+  ])
 
   // Hooks must be unconditional and before any early return (rules-of-hooks).
   const editTitleRef = useRef(editTitle)
@@ -464,7 +464,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
     windowStart: virtualRows.start,
     windowEnd: virtualRows.end,
     editingId,
-    onScrollTopChange: setScrollTop
+    onScrollTopChange: commitScrollTop
   })
 
   if (!isOpen) return null
@@ -558,7 +558,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           <div
             ref={listRef}
             role="presentation"
-            onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+            onScroll={handleListScroll}
             onKeyDown={(event) =>
               handleHistoryListArrowKey({
                 event,
@@ -568,7 +568,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
                 offsets: rowLayout.offsets,
                 baseRowHeight,
                 onKeyboardIndexChange: setKeyboardIndex,
-                onScrollTopChange: setScrollTop
+                onScrollTopChange: commitScrollTop
               })
             }
             aria-busy={isSearchPending || undefined}

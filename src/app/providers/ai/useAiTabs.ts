@@ -1,7 +1,9 @@
+import { moveItemWithinList } from '@shared/lib/reorderList'
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { arePinnedTabsEqual, normalizeTitle, sanitizePinnedTabs } from './tabUtils'
-import type { PinnedTabStorage, SetStoredValue, Tab } from './types'
+import { areStoredTabsEqual, sanitizeStoredTabs } from './tabUtils'
+import type { SetStoredValue, StoredAiTab, Tab } from './types'
 
 interface UseAiTabsParams {
   isRegistryLoaded: boolean
@@ -10,8 +12,8 @@ interface UseAiTabsParams {
   defaultAiModel: string
   lastSelectedAI: string
   setLastSelectedAI: SetStoredValue<string>
-  pinnedTabs: PinnedTabStorage[]
-  setPinnedTabs: SetStoredValue<PinnedTabStorage[]>
+  storedTabs: StoredAiTab[]
+  setStoredTabs: SetStoredValue<StoredAiTab[]>
 }
 
 export function useAiTabs({
@@ -21,8 +23,8 @@ export function useAiTabs({
   defaultAiModel,
   lastSelectedAI,
   setLastSelectedAI,
-  pinnedTabs,
-  setPinnedTabs
+  storedTabs,
+  setStoredTabs
 }: UseAiTabsParams) {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState('')
@@ -59,12 +61,12 @@ export function useAiTabs({
       setLastSelectedAI(fallbackModelId)
     }
 
-    const sanitizedPinned = sanitizePinnedTabs(pinnedTabs, allAiIds)
-    if (!arePinnedTabsEqual(sanitizedPinned, pinnedTabs)) {
-      setPinnedTabs(sanitizedPinned)
+    const sanitizedStored = sanitizeStoredTabs(storedTabs, allAiIds)
+    if (!areStoredTabsEqual(sanitizedStored, storedTabs)) {
+      setStoredTabs(sanitizedStored)
     }
 
-    const nextTabs: Tab[] = sanitizedPinned.map((tab) => ({ ...tab, pinned: true }))
+    const nextTabs: Tab[] = sanitizedStored.map(({ id, modelId }) => ({ id, modelId }))
     setTabs(nextTabs)
     setActiveTabId(nextTabs.length > 0 ? nextTabs[0].id : '')
     setIsTabsInitialized(true)
@@ -75,10 +77,22 @@ export function useAiTabs({
     defaultAiId,
     lastSelectedAI,
     defaultAiModel,
-    pinnedTabs,
-    setPinnedTabs,
+    storedTabs,
+    setStoredTabs,
     setLastSelectedAI
   ])
+
+  /**
+   * The strip is the source of truth while the app runs; the stored list is a
+   * mirror of it, kept in the same order. Writing here (instead of in every
+   * add/close/move action) means the persisted order can never drift from the
+   * pills the user sees.
+   */
+  useEffect(() => {
+    if (!hasInitializedTabsRef.current) return
+    const nextStored: StoredAiTab[] = tabs.map(({ id, modelId }) => ({ id, modelId }))
+    setStoredTabs((current) => (areStoredTabsEqual(current, nextStored) ? current : nextStored))
+  }, [tabs, setStoredTabs])
 
   const setActiveTab = useCallback(
     (tabId: string) => {
@@ -118,10 +132,6 @@ export function useAiTabs({
       const nextTabs = currentTabs.filter((tab) => tab.id !== tabId)
       setTabs(nextTabs)
 
-      if (tabToClose.pinned) {
-        setPinnedTabs((prev) => prev.filter((tab) => tab.id !== tabId))
-      }
-
       if (activeTabIdRef.current === tabId) {
         const nextActiveTab = nextTabs[nextTabs.length - 1]
         if (nextActiveTab) {
@@ -132,81 +142,15 @@ export function useAiTabs({
         }
       }
     },
-    [setPinnedTabs, setLastSelectedAI]
+    [setLastSelectedAI]
   )
 
-  /**
-   * Puts a tab closed through `closeTab` back. The id, title, model and pin
-   * state are all carried by the captured `Tab`, so an undo is a state restore,
-   * not a fresh `addTab` (which would mint a new id and lose the title).
-   */
-  const restoreTab = useCallback(
-    (tab: Tab, { index, activate = false }: { index?: number; activate?: boolean } = {}) => {
-      setTabs((prev) => {
-        if (prev.some((existing) => existing.id === tab.id)) return prev
-        const next = [...prev]
-        const insertAt = Math.min(Math.max(index ?? next.length, 0), next.length)
-        next.splice(insertAt, 0, tab)
-        return next
-      })
-
-      if (tab.pinned) {
-        setPinnedTabs((prev) =>
-          prev.some((pinned) => pinned.id === tab.id)
-            ? prev
-            : [...prev, { id: tab.id, modelId: tab.modelId, title: normalizeTitle(tab.title) }]
-        )
-      }
-
-      if (activate) {
-        setActiveTabId(tab.id)
-        setLastSelectedAI(tab.modelId)
-      }
-    },
-    [setLastSelectedAI, setPinnedTabs]
-  )
-
-  const renameTab = useCallback(
-    (tabId: string, title?: string) => {
-      const normalizedTitle = normalizeTitle(title)
-      setTabs((prev) =>
-        prev.map((tab) => (tab.id === tabId ? { ...tab, title: normalizedTitle } : tab))
-      )
-      setPinnedTabs((prev) =>
-        prev.map((tab) => (tab.id === tabId ? { ...tab, title: normalizedTitle } : tab))
-      )
-    },
-    [setPinnedTabs]
-  )
-
-  const togglePinTab = useCallback(
-    (tabId: string) => {
-      const targetTab = tabsRef.current.find((tab) => tab.id === tabId)
-      if (!targetTab) return
-
-      const shouldPin = !targetTab.pinned
-      const normalizedTitle = normalizeTitle(targetTab.title)
-
-      setTabs((prev) => prev.map((tab) => (tab.id === tabId ? { ...tab, pinned: shouldPin } : tab)))
-
-      setPinnedTabs((prevPinnedTabs) => {
-        if (!shouldPin) {
-          return prevPinnedTabs.filter((tab) => tab.id !== tabId)
-        }
-
-        const filteredTabs = prevPinnedTabs.filter((tab) => tab.id !== tabId)
-        return [
-          ...filteredTabs,
-          {
-            id: targetTab.id,
-            modelId: targetTab.modelId,
-            title: normalizedTitle
-          }
-        ]
-      })
-    },
-    [setPinnedTabs]
-  )
+  const moveTab = useCallback((tabId: string, targetId: string, placeAfter: boolean) => {
+    setTabs((prev) => {
+      const next = moveItemWithinList(prev, tabId, targetId, placeAfter)
+      return next === prev ? prev : next
+    })
+  }, [])
 
   useEffect(() => {
     if (!isRegistryLoaded || allAiIds.length === 0) return
@@ -234,17 +178,7 @@ export function useAiTabs({
     if (activeTab) {
       setLastSelectedAI(activeTab.modelId)
     }
-
-    setPinnedTabs((prevPinned) => {
-      let pinnedChanged = false
-      const mapped = prevPinned.map((tab) => {
-        if (validIds.has(tab.modelId)) return tab
-        pinnedChanged = true
-        return { ...tab, modelId: fallbackModelId }
-      })
-      return pinnedChanged ? mapped : prevPinned
-    })
-  }, [isRegistryLoaded, allAiIds, defaultAiId, defaultAiModel, setPinnedTabs, setLastSelectedAI])
+  }, [isRegistryLoaded, allAiIds, defaultAiId, defaultAiModel, setLastSelectedAI])
 
   const currentAI = useMemo(() => {
     const activeTab = tabs.find((tab) => tab.id === activeTabId)
@@ -258,9 +192,7 @@ export function useAiTabs({
     isTabsInitialized,
     addTab,
     closeTab,
-    restoreTab,
     setActiveTab,
-    renameTab,
-    togglePinTab
+    moveTab
   }
 }

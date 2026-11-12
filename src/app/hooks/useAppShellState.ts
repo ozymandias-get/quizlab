@@ -22,7 +22,6 @@ export function useAppShellState() {
         toggleFocusMode: s.toggleFocusMode
       }))
     )
-  const [isBarHovered, setIsBarHovered] = useState(false)
   const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
 
   const resizerShellWidth = useMemo(() => {
@@ -44,14 +43,6 @@ export function useAppShellState() {
 
   const closeUpdateBanner = useCallback(() => setIsUpdateBannerVisible(false), [])
   const closeFocusMode = useCallback(() => setFocusMode(null), [setFocusMode])
-
-  const workspaceState = useMemo(
-    () => ({
-      isBarHovered,
-      setIsBarHovered
-    }),
-    [isBarHovered]
-  )
 
   const updateBanner = useMemo(
     () => ({
@@ -78,7 +69,6 @@ export function useAppShellState() {
       animations,
       isAiSurfaceMounted,
       panelResize,
-      workspaceState,
       updateBanner,
       focus
     }),
@@ -89,7 +79,6 @@ export function useAppShellState() {
       animations,
       isAiSurfaceMounted,
       panelResize,
-      workspaceState,
       updateBanner,
       focus
     ]

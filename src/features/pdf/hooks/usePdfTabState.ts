@@ -20,7 +20,7 @@ export function usePdfTabState() {
   const addEmptyPdfTab = usePdfTabStore((s) => s.addEmptyPdfTab)
   const goToPdfHome = usePdfTabStore((s) => s.goToPdfHome)
   const openGoogleDriveTab = usePdfTabStore((s) => s.openGoogleDriveTab)
-  const renamePdfTab = usePdfTabStore((s) => s.renamePdfTab)
+  const movePdfTab = usePdfTabStore((s) => s.movePdfTab)
 
   const activeTab = useMemo(() => {
     if (!activePdfTabId) return null
@@ -43,7 +43,7 @@ export function usePdfTabState() {
       addEmptyPdfTab,
       goToPdfHome,
       openGoogleDriveTab,
-      renamePdfTab
+      movePdfTab
     }),
     [
       pdfTabs,
@@ -56,7 +56,7 @@ export function usePdfTabState() {
       addEmptyPdfTab,
       goToPdfHome,
       openGoogleDriveTab,
-      renamePdfTab
+      movePdfTab
     ]
   )
 }

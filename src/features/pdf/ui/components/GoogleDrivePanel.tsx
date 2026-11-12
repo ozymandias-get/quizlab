@@ -1,6 +1,7 @@
 import { useToastActions } from '@app/providers'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
+import { useDockHovered } from '@shared/stores/dockHoverStore'
 import { Button } from '@shared/ui/components/primitives'
 import { getAiIcon, RefreshIcon } from '@ui/components/Icons'
 
@@ -40,6 +41,7 @@ function GoogleDrivePanel({
   const { t } = useTranslation()
   const viewId = `gdrive:${tabId}`
   const isDialogOpen = useIsAnyDialogOpen()
+  const isDockHovered = useDockHovered()
   const { showWarning } = useToastActions()
   const { setHostElement, reload, hasLoadedOnce, error, handleRetry } = useManagedContentView({
     viewId,
@@ -142,7 +144,7 @@ function GoogleDrivePanel({
           </div>
         )}
 
-        {isInteractionBlocked && !error && (
+        {(isInteractionBlocked || isDockHovered) && !error && (
           <div className="pointer-events-auto absolute inset-0 z-10 bg-transparent" />
         )}
       </div>

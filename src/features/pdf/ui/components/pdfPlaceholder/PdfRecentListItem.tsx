@@ -172,24 +172,6 @@ function PdfRecentListItem({
             <span aria-hidden>&middot;</span>
             <span>{openedMeta}</span>
           </div>
-          {showProgress && (
-            <div
-              className="bg-border/60 mt-2 h-1 overflow-hidden rounded-full"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progressPercent}
-              aria-label={pageMeta}
-            >
-              <div
-                className="h-full rounded-full transition-[width]"
-                style={{
-                  width: `${progressPercent}%`,
-                  backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))'
-                }}
-              />
-            </div>
-          )}
           {isInvalid && (
             <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
           )}
@@ -218,11 +200,11 @@ function PdfRecentListItem({
               onClick={handleResumeButtonClick}
               onPointerDown={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              className="text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="text-muted-foreground hover:bg-accent hover:text-foreground size-8 shrink-0 p-0"
               aria-label={t('continue_reading')}
+              title={t('continue_reading')}
             >
               <Play className="h-3.5 w-3.5" />
-              <span className="text-ql-12 hidden sm:inline">{t('continue_reading_short')}</span>
             </Button>
           )}
 

@@ -3,7 +3,6 @@ import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceStat
 import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
-import { getAiIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
 import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react'
@@ -149,22 +148,13 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: DURATION.fast }}
-                className="bg-background/55 pointer-events-none absolute inset-0 z-20 flex items-center justify-center backdrop-blur-[2px]"
-              >
-                <div className="flex flex-col items-center gap-2">
-                  <div className="border-border bg-card shadow-ambient-md relative flex size-12 items-center justify-center rounded-2xl border">
-                    {getAiIcon(switchingTab.modelId) ?? (
-                      <span className="text-ql-16 text-foreground font-bold uppercase">
-                        {(switchingTab.title ?? switchingTab.modelId).charAt(0)}
-                      </span>
-                    )}
-                    <span className="border-primary/40 absolute -inset-1 animate-ping rounded-2xl border" />
-                  </div>
-                  <span className="text-ql-11 text-muted-foreground max-w-[12rem] truncate font-medium">
-                    {switchingTab.title ?? switchingTab.modelId}
-                  </span>
-                </div>
-              </motion.div>
+                aria-hidden
+                data-testid="ai-view-switching-veil"
+                // The veil only has to hide the outgoing native frame; a brand
+                // mark here duplicated the incoming site's loader icon and the
+                // two painted on top of each other.
+                className="bg-background/55 pointer-events-none absolute inset-0 z-20 backdrop-blur-[2px]"
+              />
             )}
           </AnimatePresence>
         </div>

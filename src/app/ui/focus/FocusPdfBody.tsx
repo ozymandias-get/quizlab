@@ -20,7 +20,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
   const activePdfTabId = usePdfTabStore((s) => s.activePdfTabId)
   const setActivePdfTab = usePdfTabStore((s) => s.setActivePdfTab)
   const closePdfTab = usePdfTabStore((s) => s.closePdfTab)
-  const renamePdfTab = usePdfTabStore((s) => s.renamePdfTab)
+  const movePdfTab = usePdfTabStore((s) => s.movePdfTab)
   const addEmptyPdfTab = usePdfTabStore((s) => s.addEmptyPdfTab)
   const goToPdfHome = usePdfTabStore((s) => s.goToPdfHome)
 
@@ -94,7 +94,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
           activeTabId={activePdfTabId}
           onSetActiveTab={setActivePdfTab}
           onCloseTab={closePdfTab}
-          onRenameTab={renamePdfTab}
+          onMoveTab={movePdfTab}
           onAddTab={addEmptyPdfTab || handleSelectPdf}
           onHome={goToPdfHome}
         />

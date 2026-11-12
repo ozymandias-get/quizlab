@@ -6,7 +6,7 @@ import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
 import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
-import AestheticLoader from '@ui/components/AestheticLoader'
+import AiSiteLoader from '@ui/components/AiSiteLoader'
 
 import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -126,7 +126,7 @@ const AiSession = memo(
       <div className="absolute inset-0 flex flex-col" style={visibilityStyle}>
         <div className="relative flex min-h-0 flex-1 flex-col">
           {isApiChat ? (
-            <Suspense fallback={<AestheticLoader />}>
+            <Suspense fallback={<AiSiteLoader modelId={tab.modelId} iconKey={siteConfig?.icon} />}>
               <ApiChatPage tabId={tab.id} />
             </Suspense>
           ) : isSleeping ? (
@@ -135,7 +135,9 @@ const AiSession = memo(
             <div ref={setHostElement} className="h-full w-full flex-1" data-ai-view-host={tab.id} />
           )}
 
-          {isLoading && isActive && !isSleeping && !isApiChat && <AestheticLoader />}
+          {isLoading && isActive && !isSleeping && !isApiChat && (
+            <AiSiteLoader modelId={tab.modelId} iconKey={siteConfig?.icon} />
+          )}
 
           {error && isActive && !isSleeping && !isApiChat && (
             <Suspense fallback={null}>

@@ -9,8 +9,8 @@ import {
 } from '@app/ui/BottomBar/animations'
 import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
 import { InlineSpinner } from '@shared/ui/components/primitives'
-import AestheticLoader from '@ui/components/AestheticLoader'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
+import PanelLoadingPlaceholder from '@ui/components/PanelLoadingPlaceholder'
 
 import { AnimatePresence, motion, useReducedMotion, type Variants } from 'motion/react'
 import {
@@ -231,7 +231,7 @@ function FocusOverlay({
                   surfaceState={aiViewSurfaceState}
                 />
               ) : (
-                <AestheticLoader />
+                <PanelLoadingPlaceholder />
               )}
             </Suspense>
           </ErrorBoundary>

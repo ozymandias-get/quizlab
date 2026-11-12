@@ -5,7 +5,11 @@
 import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageList from '@features/ai/ui/chat/MessageList'
-import { buildMessageRows, useMessageListWindow } from '@features/ai/ui/chat/messageListWindow'
+import {
+  buildMessageRows,
+  buildMessageRowsCache,
+  useMessageListWindow
+} from '@features/ai/ui/chat/messageListWindow'
 
 import { render, screen } from '@testing-library/react'
 import { useRef } from 'react'
@@ -194,6 +198,35 @@ describe('message list window math', () => {
 
     expect(start).toBe(0)
     expect(end - start).toBeLessThan(40)
+  })
+})
+
+describe('message row cache', () => {
+  it('returns the same cache for an unchanged group list', () => {
+    const groups = [{ kind: 'messages' as const, messages: [message(0)] }]
+    const first = buildMessageRowsCache(null, groups)
+
+    expect(buildMessageRowsCache(first, groups)).toBe(first)
+  })
+
+  it('reuses rows of unchanged groups when only the tail changes', () => {
+    const head = { kind: 'messages' as const, messages: [message(0)] }
+    const tail = { kind: 'messages' as const, messages: [message(1)] }
+    const first = buildMessageRowsCache(null, [head, tail])
+
+    const streamedTail = {
+      kind: 'messages' as const,
+      messages: [{ ...message(1), content: 'streamed reply' }]
+    }
+    const second = buildMessageRowsCache(first, [head, streamedTail])
+
+    // The untouched head row keeps its object identity.
+    expect(second.rows[0]).toBe(first.rows[0])
+    expect(second.rows[1]).not.toBe(first.rows[1])
+    expect(second.rows[1]?.kind).toBe('message')
+    if (second.rows[1]?.kind === 'message') {
+      expect(second.rows[1].message.content).toBe('streamed reply')
+    }
   })
 })
 

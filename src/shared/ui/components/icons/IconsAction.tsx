@@ -31,12 +31,6 @@ export const RefreshIcon = (props: IconProps) => (
   </SvgIcon>
 )
 
-export const SwapIcon = (props: IconProps) => (
-  <SvgIcon {...props}>
-    <path d="M16 13L19 16M19 16L16 19M19 16H5M8 11L5 8M5 8L8 5M5 8H19" />
-  </SvgIcon>
-)
-
 export const DownloadIcon = (props: IconProps) => (
   <SvgIcon {...props}>
     <path d="M6 21H18M12 3V17M12 17L17 12M12 17L7 12" />

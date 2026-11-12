@@ -7,7 +7,7 @@ import { useAppearance } from '@shared/stores/appearanceStore'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { areStringArraysEqual } from './tabUtils'
-import type { PinnedTabStorage } from './types'
+import type { StoredAiTab } from './types'
 
 interface UseAiModelPreferencesParams {
   registryData?: AiRegistryResponse | null
@@ -72,10 +72,7 @@ export function useAiModelPreferences({
     STORAGE_KEYS.AUTO_SEND_ENABLED,
     false
   )
-  const [pinnedTabs, setPinnedTabs] = useLocalStorage<PinnedTabStorage[]>(
-    STORAGE_KEYS.PINNED_AI_TABS,
-    []
-  )
+  const [storedTabs, setStoredTabs] = useLocalStorage<StoredAiTab[]>(STORAGE_KEYS.AI_TABS, [])
 
   // Use refs to access latest values inside effects without dep cycles
   const enabledModelsRef = useRef(enabledModels)
@@ -151,7 +148,7 @@ export function useAiModelPreferences({
     autoSend,
     setAutoSend,
     toggleAutoSend,
-    pinnedTabs,
-    setPinnedTabs
+    storedTabs,
+    setStoredTabs
   }
 }

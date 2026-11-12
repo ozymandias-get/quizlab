@@ -14,15 +14,15 @@ import {
   SettingsTabIcon,
   SettingsTabIntro
 } from '@shared/ui/components/primitives'
-import { getAiIcon, GridIcon, SliderIcon } from '@ui/components/Icons'
+import { GridIcon, SliderIcon } from '@ui/components/Icons'
 
 import { Field, Label } from '@headlessui/react'
-import { GripVertical } from 'lucide-react'
 import { motion, Reorder } from 'motion/react'
-import { memo, type ReactNode, useCallback, useMemo } from 'react'
+import { memo, type ReactNode, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 
+import BottomBarModelRow from './BottomBarModelRow'
 import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 interface ToolItem {
@@ -51,14 +51,6 @@ const ROW_BASE =
 /** Enabled row uses the accent surface, disabled row the translucent card. */
 const ROW_ACTIVE = 'border-border/65 bg-accent/35'
 const ROW_IDLE = 'border-border/45 bg-card/55 hover:bg-muted/45'
-
-/**
- * The drag handle repeats on every model row, so it stays hidden at rest and
- * fades in on hover/focus instead of forming a wall of identical icons. The
- * brand/identity icon beside it always stays visible.
- */
-const HOVER_AFFORDANCE =
-  'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 group-focus-visible:opacity-100 motion-reduce:opacity-100'
 
 const BOTTOM_BAR_ICON = (
   <SettingsTabIcon>
@@ -113,14 +105,30 @@ const BottomBarSettingsTab = memo(() => {
     [visibleTools, setVisibleTool]
   )
 
-  const handleToggleModel = useCallback(
-    (modelId: string) =>
-      setVisibleModel(
-        modelId,
-        !isAiDockVisible(modelId, visibleModels, aiSites[modelId], favoriteModels)
-      ),
-    [visibleModels, setVisibleModel, aiSites, favoriteModels]
-  )
+  // Model rows get a stable toggle so memo(BottomBarModelRow) survives a
+  // visibility change; the latest maps are read from the ref at click time.
+  const modelToggleStateRef = useRef({
+    visibleModels,
+    aiSites,
+    favoriteModels,
+    setVisibleModel
+  })
+  modelToggleStateRef.current = {
+    visibleModels,
+    aiSites,
+    favoriteModels,
+    setVisibleModel
+  }
+
+  const handleToggleModel = useCallback((modelId: string) => {
+    const {
+      visibleModels: visible,
+      aiSites: sites,
+      favoriteModels: favorites,
+      setVisibleModel: set
+    } = modelToggleStateRef.current
+    set(modelId, !isAiDockVisible(modelId, visible, sites[modelId], favorites))
+  }, [])
 
   const handleReorder = useCallback(
     (newOrder: string[]) => setEnabledModels(newOrder),
@@ -289,35 +297,13 @@ const BottomBarSettingsTab = memo(() => {
                     }
                   }}
                 >
-                  <Field
-                    className={`${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
-                    onClick={() => handleToggleModel(modelId)}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <GripVertical
-                        aria-hidden="true"
-                        className={`${HOVER_AFFORDANCE} text-muted-foreground h-4 w-4 shrink-0`}
-                      />
-                      <div className="flex size-5 shrink-0 items-center justify-center">
-                        {getAiIcon(site.icon || modelId) || (
-                          <span className="text-muted-foreground text-ql-12 font-semibold">
-                            {displayName.charAt(0)}
-                          </span>
-                        )}
-                      </div>
-                      <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
-                        {displayName}
-                      </Label>
-                    </div>
-                    <span role="presentation" onClick={(event) => event.stopPropagation()}>
-                      <SettingsToggleSwitch
-                        aria-label={displayName}
-                        checked={isVisible}
-                        onChange={() => handleToggleModel(modelId)}
-                        size="sm"
-                      />
-                    </span>
-                  </Field>
+                  <BottomBarModelRow
+                    modelId={modelId}
+                    site={site}
+                    displayName={displayName}
+                    isVisible={isVisible}
+                    onToggle={handleToggleModel}
+                  />
                 </Reorder.Item>
               )
             })}

@@ -3,35 +3,20 @@
  * Critical for tab state correctness.
  */
 import {
-  arePinnedTabsEqual,
+  areStoredTabsEqual,
   areStringArraysEqual,
-  normalizeTitle,
-  sanitizePinnedTabs
+  sanitizeStoredTabs
 } from '@app/providers/ai/tabUtils'
 
 import { describe, expect, it } from 'vitest'
 
-describe('normalizeTitle', () => {
-  it.each([undefined, '', '   '])('returns undefined for the blank input %j', (input) => {
-    expect(normalizeTitle(input)).toBeUndefined()
-  })
-
-  it.each([
-    ['  Hello  ', 'Hello'],
-    ['  Hello   World  ', 'Hello   World'],
-    ['Hello', 'Hello']
-  ])('trims the outside of %j without touching the inside', (input, expected) => {
-    expect(normalizeTitle(input)).toBe(expected)
-  })
-})
-
-describe('sanitizePinnedTabs', () => {
+describe('sanitizeStoredTabs', () => {
   const validIds = ['gpt', 'claude', 'gemini']
 
   it.each([null, undefined, 'not array', 42, {}, []])(
     'returns an empty array for the unusable input %j',
     (input) => {
-      expect(sanitizePinnedTabs(input as never, validIds)).toEqual([])
+      expect(sanitizeStoredTabs(input as never, validIds)).toEqual([])
     }
   )
 
@@ -45,7 +30,7 @@ describe('sanitizePinnedTabs', () => {
         { id: 42, modelId: 'gpt' },
         { id: 'valid', modelId: 'gpt' }
       ],
-      { id: 'valid', modelId: 'gpt', title: undefined }
+      { id: 'valid', modelId: 'gpt' }
     ],
     [
       'a non-string modelId',
@@ -54,7 +39,7 @@ describe('sanitizePinnedTabs', () => {
         { id: 'b', modelId: 42 },
         { id: 'c', modelId: 'gpt' }
       ],
-      { id: 'c', modelId: 'gpt', title: undefined }
+      { id: 'c', modelId: 'gpt' }
     ],
     [
       'an unknown modelId',
@@ -62,7 +47,7 @@ describe('sanitizePinnedTabs', () => {
         { id: 'a', modelId: 'unknown' },
         { id: 'b', modelId: 'gpt' }
       ],
-      { id: 'b', modelId: 'gpt', title: undefined }
+      { id: 'b', modelId: 'gpt' }
     ],
     [
       'a duplicate id',
@@ -70,29 +55,29 @@ describe('sanitizePinnedTabs', () => {
         { id: 'dup', modelId: 'gpt' },
         { id: 'dup', modelId: 'claude' }
       ],
-      { id: 'dup', modelId: 'gpt', title: undefined }
+      { id: 'dup', modelId: 'gpt' }
     ],
     [
       'surrounding whitespace',
       [{ id: '  abc  ', modelId: '  gpt  ' }],
-      { id: 'abc', modelId: 'gpt', title: undefined }
+      { id: 'abc', modelId: 'gpt' }
     ],
     [
       'null and primitive entries',
       [null, 'string', 42, undefined, false, { id: 'a', modelId: 'gpt' }],
-      { id: 'a', modelId: 'gpt', title: undefined }
+      { id: 'a', modelId: 'gpt' }
     ]
   ] as const)('drops the entry with %s and keeps the rest', (_label, input, expected) => {
-    expect(sanitizePinnedTabs(input as never, validIds)).toEqual([expected])
+    expect(sanitizeStoredTabs(input as never, validIds)).toEqual([expected])
   })
 
-  it('preserves a normalized title', () => {
-    const result = sanitizePinnedTabs([{ id: 'a', modelId: 'gpt', title: '  My Tab  ' }], validIds)
-    expect(result).toEqual([{ id: 'a', modelId: 'gpt', title: 'My Tab' }])
+  it('drops a stored title left over from the removed rename feature', () => {
+    const result = sanitizeStoredTabs([{ id: 'a', modelId: 'gpt', title: '  My Tab  ' }], validIds)
+    expect(result).toEqual([{ id: 'a', modelId: 'gpt' }])
   })
 })
 
-describe('arePinnedTabsEqual', () => {
+describe('areStoredTabsEqual', () => {
   const tab = (over: Record<string, unknown> = {}) => ({ id: 'a', modelId: 'gpt', ...over })
 
   it.each([
@@ -103,13 +88,12 @@ describe('arePinnedTabsEqual', () => {
       [tab(), tab({ id: 'b', modelId: 'claude' })],
       true
     ],
-    ['normalized titles', [tab({ title: '  Tab  ' })], [tab({ title: 'Tab' })], true],
     ['different lengths', [tab()], [], false],
     ['a different id', [tab()], [tab({ id: 'b' })], false],
     ['a different modelId', [tab()], [tab({ modelId: 'claude' })], false],
-    ['a different title', [tab({ title: 'A' })], [tab({ title: 'B' })], false]
+    ['a different order', [tab(), tab({ id: 'b' })], [tab({ id: 'b' }), tab()], false]
   ] as const)('compares %s', (_label, a, b, expected) => {
-    expect(arePinnedTabsEqual(a as never, b as never)).toBe(expected)
+    expect(areStoredTabsEqual(a as never, b as never)).toBe(expected)
   })
 })
 

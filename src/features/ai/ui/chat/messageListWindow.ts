@@ -67,31 +67,82 @@ function estimateMessageHeight(message: ApiChatMessage): number {
 }
 
 export function buildMessageRows(groups: readonly MessageGroupEntry[]): MessageRowModel[] {
-  const rows: MessageRowModel[] = []
-  for (const group of groups) {
-    if (group.kind === 'date') {
-      rows.push({
-        kind: 'date',
-        key: `d-${group.timestamp}-${rows.length}`,
-        timestamp: group.timestamp,
-        estimatedHeight: DATE_ROW_ESTIMATE_PX
-      })
-      continue
-    }
-    const lastIndex = group.messages.length - 1
-    for (let index = 0; index <= lastIndex; index += 1) {
-      const message = group.messages[index]
-      rows.push({
-        kind: 'message',
-        key: `m-${message.id}`,
-        message,
-        isFirstOfGroup: index === 0,
-        isLastOfGroup: index === lastIndex,
-        estimatedHeight: estimateMessageHeight(message)
-      })
-    }
+  return buildMessageRowsCache(null, groups).rows
+}
+
+/** Appends the rows of one group, reusing the same key/estimate rules. */
+function appendGroupRows(group: MessageGroupEntry, rows: MessageRowModel[]): void {
+  if (group.kind === 'date') {
+    rows.push({
+      kind: 'date',
+      key: `d-${group.timestamp}-${rows.length}`,
+      timestamp: group.timestamp,
+      estimatedHeight: DATE_ROW_ESTIMATE_PX
+    })
+    return
   }
-  return rows
+  const lastIndex = group.messages.length - 1
+  for (let index = 0; index <= lastIndex; index += 1) {
+    const message = group.messages[index]
+    rows.push({
+      kind: 'message',
+      key: `m-${message.id}`,
+      message,
+      isFirstOfGroup: index === 0,
+      isLastOfGroup: index === lastIndex,
+      estimatedHeight: estimateMessageHeight(message)
+    })
+  }
+}
+
+export interface MessageRowsCache {
+  groups: readonly MessageGroupEntry[]
+  rows: MessageRowModel[]
+  /** `rowEnds[i]` is the row count after group `i`. */
+  rowEnds: number[]
+}
+
+/**
+ * Row construction for the streaming hot path.
+ *
+ * `groupMessagesIncremental` reuses every group before the changed tail, and
+ * the rows of those groups are just as reusable: only the groups whose identity
+ * changed need to be walked again. This keeps a token update from re-estimating
+ * every message in a long transcript.
+ */
+export function buildMessageRowsCache(
+  previous: MessageRowsCache | null,
+  groups: readonly MessageGroupEntry[]
+): MessageRowsCache {
+  if (previous && previous.groups === groups) return previous
+  if (!previous) {
+    const rows: MessageRowModel[] = []
+    const rowEnds: number[] = []
+    for (const group of groups) {
+      appendGroupRows(group, rows)
+      rowEnds.push(rows.length)
+    }
+    return { groups, rows, rowEnds }
+  }
+
+  const previousGroups = previous.groups
+  const common = Math.min(previousGroups.length, groups.length)
+  let firstChanged = 0
+  while (firstChanged < common && previousGroups[firstChanged] === groups[firstChanged]) {
+    firstChanged += 1
+  }
+  if (firstChanged === groups.length && firstChanged === previousGroups.length) {
+    return previous
+  }
+
+  const rowStart = firstChanged === 0 ? 0 : previous.rowEnds[firstChanged - 1]
+  const rows = previous.rows.slice(0, rowStart)
+  const rowEnds = previous.rowEnds.slice(0, firstChanged)
+  for (let index = firstChanged; index < groups.length; index += 1) {
+    appendGroupRows(groups[index], rows)
+    rowEnds.push(rows.length)
+  }
+  return { groups, rows, rowEnds }
 }
 
 /** Prefix sums of row heights: `offsets[i]` is the top of row `i`. */
@@ -164,9 +215,15 @@ export function useMessageListWindow({
   pinnedToBottom,
   pinnedRowKeys
 }: UseMessageListWindowOptions): UseMessageListWindowResult {
-  const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(0)
   const [heights, setHeights] = useState<ReadonlyMap<string, number>>(() => new Map())
+  // The raw scroll offset lives in a ref: a scroll that stays inside the
+  // current overscan window changes nothing the list renders, so it must not
+  // schedule a render at all. `windowTick` is the only state a scroll commits,
+  // and only when the row window actually moved.
+  const scrollTopRef = useRef(0)
+  const windowRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 })
+  const [windowTick, setWindowTick] = useState(0)
   // Whether the reader was at the bottom *when the last scroll happened*. This
   // is deliberately not `pinnedToBottom`: that prop can lag one frame behind a
   // scroll-up, and correcting against a stale value would yank the reader down.
@@ -178,6 +235,11 @@ export function useMessageListWindow({
     [rows]
   )
 
+  // Latest values the scroll listener compares against, without re-binding it
+  // every time a row is measured or the viewport changes.
+  const scrollStateRef = useRef({ offsets, rowCount: rows.length, viewportHeight, pinnedToBottom })
+  scrollStateRef.current = { offsets, rowCount: rows.length, viewportHeight, pinnedToBottom }
+
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -185,12 +247,33 @@ export function useMessageListWindow({
     const syncSize = () => setViewportHeight(container.clientHeight)
     syncSize()
 
-    const onScroll = () => {
-      setScrollTop(container.scrollTop)
-      nearBottomRef.current =
-        container.scrollHeight - container.scrollTop - container.clientHeight <= 24
+    let scrollFrame: number | null = null
+    const commitScroll = () => {
+      scrollFrame = null
+      const nextTop = container.scrollTop
+      scrollTopRef.current = nextTop
+      nearBottomRef.current = container.scrollHeight - nextTop - container.clientHeight <= 24
+
+      const state = scrollStateRef.current
+      const nextWindow = findMessageWindow(
+        state.offsets,
+        state.rowCount,
+        nextTop,
+        state.viewportHeight,
+        state.pinnedToBottom
+      )
+      const previous = windowRef.current
+      if (previous.start !== nextWindow.start || previous.end !== nextWindow.end) {
+        setWindowTick((tick) => tick + 1)
+      }
     }
-    onScroll()
+    // Scroll fires many times per frame; rAF also lets several events collapse
+    // into the single comparison above.
+    const onScroll = () => {
+      if (scrollFrame !== null) return
+      scrollFrame = requestAnimationFrame(commitScroll)
+    }
+    commitScroll()
     container.addEventListener('scroll', onScroll, { passive: true })
 
     let observer: ResizeObserver | null = null
@@ -200,15 +283,20 @@ export function useMessageListWindow({
     }
 
     return () => {
+      if (scrollFrame !== null) cancelAnimationFrame(scrollFrame)
       container.removeEventListener('scroll', onScroll)
       observer?.disconnect()
     }
   }, [containerRef])
 
   const { start: windowStart, end: windowEnd } = useMemo(
-    () => findMessageWindow(offsets, rows.length, scrollTop, viewportHeight, pinnedToBottom),
-    [offsets, rows.length, scrollTop, viewportHeight, pinnedToBottom]
+    () =>
+      findMessageWindow(offsets, rows.length, scrollTopRef.current, viewportHeight, pinnedToBottom),
+    // `windowTick` is the scroll signal; the ref is read inside on purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [offsets, rows.length, viewportHeight, pinnedToBottom, windowTick]
   )
+  windowRef.current = { start: windowStart, end: windowEnd }
 
   // Keep interaction rows (editing text, active speech) mounted outside the
   // window; their padding is recomputed from the expanded range.
