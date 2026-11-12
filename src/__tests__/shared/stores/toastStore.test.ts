@@ -36,13 +36,6 @@ function uniqueMessage(base = 'msg'): string {
 }
 
 describe('toastStore', () => {
-  describe('initial state', () => {
-    it('starts with empty toasts', () => {
-      const { result } = renderHook(() => useToastList())
-      expect(result.current.toasts).toEqual([])
-    })
-  })
-
   describe('addToast', () => {
     it('adds a toast and returns an id that the list holds', () => {
       const msg = uniqueMessage()
@@ -54,7 +47,6 @@ describe('toastStore', () => {
         id = actions.current.addToast({ message: msg, type: 'info' })
       })
 
-      expect(id).toBeTruthy()
       expect(typeof id).toBe('string')
       const found = list.current.toasts.find((t) => t.id === id)
       expect(found?.message).toBe(msg)
@@ -295,7 +287,6 @@ describe('toastStore', () => {
       })
 
       const stored = list.current.toasts.find((t) => t.id === id)
-      expect(id).toBeTruthy()
       expect(stored).toMatchObject({ message, type })
     })
   })

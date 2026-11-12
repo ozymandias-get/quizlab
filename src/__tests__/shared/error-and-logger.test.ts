@@ -16,20 +16,6 @@ describe('ensureErrorMessage', () => {
     expect(ensureErrorMessage(new Error('boom'))).toBe('boom')
   })
 
-  it('returns TypeError message for TypeError', () => {
-    expect(ensureErrorMessage(new TypeError('bad type'))).toBe('bad type')
-  })
-
-  it('returns custom error message', () => {
-    class CustomError extends Error {
-      constructor(msg: string) {
-        super(msg)
-        this.name = 'CustomError'
-      }
-    }
-    expect(ensureErrorMessage(new CustomError('custom issue'))).toBe('custom issue')
-  })
-
   it('returns string inputs verbatim', () => {
     expect(ensureErrorMessage('plain string')).toBe('plain string')
     expect(ensureErrorMessage('')).toBe('')

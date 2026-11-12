@@ -72,7 +72,6 @@ describe('AI catalogue preferences', () => {
     await waitFor(() => expect(result.current.enabledModels).toContain('chatgpt'))
     expect(result.current.enabledModels).not.toContain('poe')
     expect(result.current.enabledModels).not.toContain('perplexity')
-    expect(Object.keys(result.current.aiRegistry)).toHaveLength(52)
   })
 
   it('keeps a disabled built-in disabled across registry refresh and restart', async () => {

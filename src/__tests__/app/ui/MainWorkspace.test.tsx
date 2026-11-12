@@ -51,7 +51,10 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
         showHideHome: { show: vi.fn(), hide: vi.fn() },
         coldTabIds: new Set<string>(),
         recordTabUrl: vi.fn(),
-        getRestoredUrl: () => undefined
+        getRestoredUrl: () => undefined,
+        tabUrlRequests: {},
+        requestTabUrl: vi.fn(),
+        clearTabUrlRequest: vi.fn()
       }}
       {...props}
     />
@@ -59,14 +62,6 @@ function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspa
 }
 
 describe('MainWorkspace', () => {
-  it('renders the real left/right workspace panels', async () => {
-    renderWorkspace()
-
-    expect(screen.getByTestId('left-panel')).toBeInTheDocument()
-    // AiViewSurface is lazy: the Suspense boundary resolves after mount.
-    expect(await screen.findByTestId('ai-content')).toBeInTheDocument()
-  })
-
   it('lays panels out left-to-right by default, reversed when swapped', () => {
     const normal = renderWorkspace()
     const main = normal.container.querySelector('main')

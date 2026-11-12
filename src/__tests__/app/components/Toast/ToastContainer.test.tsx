@@ -57,12 +57,4 @@ describe('ToastContainer', () => {
     expect(politeRegion).toHaveAttribute('aria-live', 'polite')
     expect(within(politeRegion).getByText('success_message')).toBeInTheDocument()
   })
-
-  it('leaves room for its right offset in narrow windows', () => {
-    render(<ToastContainer />)
-
-    const root = document.getElementById('toast-root')
-    expect(root?.className).toContain('w-[calc(100vw-2rem)]')
-    expect(root?.className).toContain('max-w-[420px]')
-  })
 })

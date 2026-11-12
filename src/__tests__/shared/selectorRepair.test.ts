@@ -12,8 +12,8 @@ import type { SelectorRepairEvidence } from '@shared-core/selectorRepair'
 import { describe, expect, it } from 'vitest'
 
 import {
-  AUTOMATION_LOOKUP_STRATEGIES,
   advanceRepairCandidate,
+  AUTOMATION_LOOKUP_STRATEGIES,
   buildPromotedSelectors,
   buildRepairCandidateId,
   classifyRepairEligibility,
@@ -35,9 +35,6 @@ import {
   normalizeLookupStrategy,
   RECOVERY_LOOKUP_STRATEGIES,
   REPAIR_FLAP_WINDOW_MS,
-  REPAIR_SCORE_BONUS_INTERACTIVE,
-  REPAIR_SCORE_BONUS_MAX,
-  REPAIR_SCORE_BONUS_STABLE_SELECTOR,
   REPAIR_STRATEGY_TRUST_ORDER,
   SELF_HEAL_PROMOTION_SUCCESS_THRESHOLD
 } from '../../../shared/selectorRepair'
@@ -72,16 +69,17 @@ function buildCandidate(overrides: Partial<SelectorRepairCandidate> = {}): Selec
 }
 
 describe('lookup strategy union', () => {
-  it('accepts every runtime strategy name', () => {
-    for (const strategy of AUTOMATION_LOOKUP_STRATEGIES) {
-      expect(isLookupStrategy(strategy)).toBe(true)
+  it('keeps the recovery vocabulary and trust order in sync', () => {
+    expect([...REPAIR_STRATEGY_TRUST_ORDER].sort()).toEqual([...RECOVERY_LOOKUP_STRATEGIES].sort())
+    for (const strategy of REPAIR_STRATEGY_TRUST_ORDER) {
+      expect(AUTOMATION_LOOKUP_STRATEGIES).toContain(strategy)
     }
   })
 
   it('rejects unknown strategy names', () => {
     expect(isLookupStrategy('telemetry')).toBe(false)
-    // 'siteStrategy' is in AUTOMATION_LOOKUP_STRATEGIES (covered above) and is a
-    // recovery strategy rather than a silent hit — see selectorRepairSiteStrategy.
+    // 'siteStrategy' is a recovery strategy rather than a silent hit - see
+    // selectorRepairSiteStrategy.
     expect(isLookupStrategy(42)).toBe(false)
     expect(normalizeLookupStrategy('direct')).toBe('direct')
     expect(normalizeLookupStrategy('nope')).toBeUndefined()
@@ -616,12 +614,6 @@ describe('evidence ranking', () => {
 })
 
 describe('policy constants', () => {
-  it('bounds the repair score bonus by the sum of its parts', () => {
-    expect(REPAIR_SCORE_BONUS_MAX).toBe(
-      REPAIR_SCORE_BONUS_STABLE_SELECTOR + REPAIR_SCORE_BONUS_INTERACTIVE
-    )
-  })
-
   it('maps each locator kind to its own config keys', () => {
     expect(getLocatorSelectorKeys('input')).toEqual({
       primary: 'input',

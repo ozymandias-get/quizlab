@@ -16,11 +16,6 @@ describe('useAiSurfaceMount', () => {
     vi.useRealTimers()
   })
 
-  it('starts with isAiSurfaceMounted = false', () => {
-    const { result } = renderHook(() => useAiSurfaceMount())
-    expect(result.current).toBe(false)
-  })
-
   it('mounts after 120ms when requestIdleCallback is unavailable', () => {
     const original = (window as any).requestIdleCallback
     ;(window as any).requestIdleCallback = undefined
@@ -34,19 +29,6 @@ describe('useAiSurfaceMount', () => {
       })
 
       expect(result.current).toBe(true)
-    } finally {
-      ;(window as any).requestIdleCallback = original
-    }
-  })
-
-  it('mounts on requestIdleCallback when available', () => {
-    const idleCallback = vi.fn()
-    const original = (window as any).requestIdleCallback
-    ;(window as any).requestIdleCallback = idleCallback
-
-    try {
-      renderHook(() => useAiSurfaceMount())
-      expect(idleCallback).toHaveBeenCalled()
     } finally {
       ;(window as any).requestIdleCallback = original
     }

@@ -29,11 +29,6 @@ function renderOpenTooltip() {
 }
 
 describe('Tooltip', () => {
-  it('renders an open tooltip bubble', () => {
-    renderOpenTooltip()
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Hint')
-  })
-
   it('stays open while the pointer is still over the trigger', () => {
     renderOpenTooltip()
     const trigger = screen.getByText('Trigger')

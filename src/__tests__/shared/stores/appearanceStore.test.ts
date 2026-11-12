@@ -82,6 +82,13 @@ describe('appearanceStore', () => {
       expect(state).not.toHaveProperty('bgSolidColor')
     })
 
+    it('does not re-hydrate the removed theme preference', async () => {
+      persistEntry({ theme: 'light' })
+      await useAppearance.persist.rehydrate()
+
+      expect(useAppearance.getState()).not.toHaveProperty('theme')
+    })
+
     it('still re-hydrates the settings that remain', async () => {
       persistEntry({ bgMode: 'solid', bgSolidColor: '#123456' })
       await useAppearance.persist.rehydrate()
@@ -91,13 +98,6 @@ describe('appearanceStore', () => {
       expect(state.bottomBarScale).toBe(1.2)
       expect(state.selectionColor).toBe('#ff0000')
       expect(state.isLayoutSwapped).toBe(true)
-    })
-  })
-
-  describe('selection color', () => {
-    it('updates selection color', () => {
-      useAppearance.getState().setSelectionColor('#ff0000')
-      expect(useAppearance.getState().selectionColor).toBe('#ff0000')
     })
   })
 

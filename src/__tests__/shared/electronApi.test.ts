@@ -1,12 +1,13 @@
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-let originalElectronAPI: unknown
+const hadElectronAPI = 'electronAPI' in window
+const originalElectronAPI = (window as unknown as Record<string, unknown>).electronAPI
 
 afterEach(() => {
-  // Restore window.electronAPI to prevent state leaking across test files
-  if (originalElectronAPI !== undefined) {
+  // Restore window.electronAPI to prevent state leaking across tests.
+  if (hadElectronAPI) {
     Object.defineProperty(window, 'electronAPI', {
       value: originalElectronAPI,
       writable: true,
@@ -18,12 +19,6 @@ afterEach(() => {
 })
 
 function setElectronAPI(value: unknown) {
-  // Save original only once
-  if (originalElectronAPI === undefined && !('electronAPI' in window)) {
-    originalElectronAPI = undefined
-  } else if (originalElectronAPI === undefined) {
-    originalElectronAPI = (window as unknown as Record<string, unknown>).electronAPI
-  }
   Object.defineProperty(window, 'electronAPI', { value, writable: true, configurable: true })
 }
 

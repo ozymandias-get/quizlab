@@ -15,11 +15,6 @@ import { DEFAULT_PROMPTS } from '../shared/constants/prompts'
 import { STORAGE_KEYS } from '../shared/constants/storageKeys'
 
 describe('DEFAULT_PROMPTS - structure', () => {
-  it('is a non-empty array', () => {
-    expect(Array.isArray(DEFAULT_PROMPTS)).toBe(true)
-    expect(DEFAULT_PROMPTS.length).toBeGreaterThan(0)
-  })
-
   it('ids are unique (no duplicates)', () => {
     const ids = DEFAULT_PROMPTS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -117,7 +112,9 @@ describe('STORAGE_KEYS - required fields present', () => {
       'APP_LANGUAGE',
       'CUSTOM_PROMPTS',
       'SELECTED_PROMPT_ID',
-      'LAST_PDF_READING'
+      'LAST_PDF_READING',
+      'RECENT_AI_WORK',
+      'PINNED_AI_PROJECTS'
     ]
     for (const r of required) {
       expect(STORAGE_KEYS, `STORAGE_KEYS.${r} should be defined`).toHaveProperty(r)

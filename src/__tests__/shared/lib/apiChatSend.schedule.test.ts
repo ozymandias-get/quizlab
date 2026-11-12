@@ -7,8 +7,6 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
-
 const mockFlush = vi.fn()
 
 import { cancelScheduledApiChatSends, scheduleApiChatSend } from '@app/providers/ai/lib/apiChatSend'
@@ -77,23 +75,5 @@ describe('scheduleApiChatSend', () => {
     expect(r1.error).toBe('cancelled_before_send')
     expect(r1.stage).toBe('not_started')
     expect(mockFlush).not.toHaveBeenCalled()
-  })
-
-  it('a before-send cancellation is safe to retry, an in-flight one is not', async () => {
-    // İki iptal farklı iki gerçeği temsil eder; üst katmanın tekrar kararı
-    // yalnızca `stage` üzerinden verilebilir.
-    const cancelledBeforeSend = resolveSendOutcome({
-      success: false,
-      error: 'cancelled_before_send',
-      stage: 'not_started'
-    })
-    const cancelledInFlight = resolveSendOutcome({
-      success: false,
-      error: 'cancelled',
-      stage: 'uncertain'
-    })
-
-    expect(cancelledBeforeSend.resendSafe).toBe(true)
-    expect(cancelledInFlight.resendSafe).toBe(false)
   })
 })

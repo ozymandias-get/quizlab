@@ -90,7 +90,10 @@ const surfaceState = {
   showHideHome: { show: vi.fn(), hide: vi.fn() },
   coldTabIds: new Set<string>(),
   recordTabUrl: vi.fn(),
-  getRestoredUrl: () => undefined
+  getRestoredUrl: () => undefined,
+  tabUrlRequests: {} as Record<string, never>,
+  requestTabUrl: vi.fn(),
+  clearTabUrlRequest: vi.fn()
 }
 
 describe('FocusOverlay', () => {

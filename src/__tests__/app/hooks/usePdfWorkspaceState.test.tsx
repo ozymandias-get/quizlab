@@ -75,16 +75,6 @@ describe('usePdfWorkspaceState', () => {
     vi.mocked(getElectronApi).mockReturnValue(null)
   })
 
-  describe('leftPanelProps', () => {
-    it('passes through interaction states', () => {
-      const { result } = renderHook(() =>
-        usePdfWorkspaceState({ isInteractionBlocked: true, isPanelResizing: true })
-      )
-      expect(result.current.isInteractionBlocked).toBe(true)
-      expect(result.current.isPanelResizing).toBe(true)
-    })
-  })
-
   describe('readingProps', () => {
     it('removes only the old history entry when relinking to a different path', async () => {
       vi.mocked(getElectronApi).mockReturnValue({

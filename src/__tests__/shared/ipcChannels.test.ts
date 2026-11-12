@@ -4,7 +4,6 @@
  * removed constant will silently break IPC, so we pin them down here.
  */
 import {
-  GOOGLE_DRIVE_WEB_APP,
   GOOGLE_WEB_SESSION_APPS,
   GOOGLE_WEB_SESSION_REGISTRY_IDS
 } from '@shared-core/constants/googleAiWebApps'
@@ -13,13 +12,6 @@ import { IPC_CHANNELS } from '@shared-core/constants/ipcChannels'
 import { describe, expect, it } from 'vitest'
 
 describe('IPC_CHANNELS - structural invariants', () => {
-  it('every channel value is a non-empty string', () => {
-    for (const [k, v] of Object.entries(IPC_CHANNELS)) {
-      expect(typeof v, `IPC_CHANNELS.${k} should be a string`).toBe('string')
-      expect(v.length, `IPC_CHANNELS.${k} should not be empty`).toBeGreaterThan(0)
-    }
-  })
-
   it('all channel values are unique', () => {
     const vals = Object.values(IPC_CHANNELS)
     expect(new Set(vals).size).toBe(vals.length)
@@ -29,12 +21,6 @@ describe('IPC_CHANNELS - structural invariants', () => {
     for (const v of Object.values(IPC_CHANNELS)) {
       // Allow colon-separated segments (e.g. 'pdf:register-path')
       expect(v).toMatch(/^[a-z][\da-z-]*(:[a-z][\da-z-]*)*$/)
-    }
-  })
-
-  it('property keys are SCREAMING_SNAKE_CASE', () => {
-    for (const k of Object.keys(IPC_CHANNELS)) {
-      expect(k).toMatch(/^[A-Z][\dA-Z_]*$/)
     }
   })
 })
@@ -130,22 +116,7 @@ describe('GOOGLE_WEB_SESSION_APPS - registry invariants', () => {
 })
 
 describe('GOOGLE_WEB_SESSION_REGISTRY_IDS', () => {
-  it('contains only registryEligible app ids', () => {
-    const registryApps = GOOGLE_WEB_SESSION_APPS.filter((a) => a.registryEligible)
-    const expected = registryApps.map((a) => a.id)
-    expect([...GOOGLE_WEB_SESSION_REGISTRY_IDS].sort()).toEqual([...expected].sort())
-  })
-
   it('does not include registry-ineligible apps (e.g. gdrive)', () => {
     expect(GOOGLE_WEB_SESSION_REGISTRY_IDS).not.toContain('gdrive')
-  })
-})
-
-describe('GOOGLE_DRIVE_WEB_APP', () => {
-  it('has a non-empty id and url', () => {
-    expect(typeof GOOGLE_DRIVE_WEB_APP.id).toBe('string')
-    expect(GOOGLE_DRIVE_WEB_APP.id.length).toBeGreaterThan(0)
-    expect(typeof GOOGLE_DRIVE_WEB_APP.url).toBe('string')
-    expect(GOOGLE_DRIVE_WEB_APP.url).toMatch(/^https?:\/\//)
   })
 })

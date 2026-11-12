@@ -41,16 +41,6 @@ describe('LeftPanel', () => {
     })
   })
 
-  it('mounts the PDF viewer inside the panel shell', async () => {
-    const { container } = render(<LeftPanel {...defaultProps} />)
-
-    // The panel's own surface class, plus the viewer being mounted under it.
-    // The ErrorBoundary wrapper is deliberately not asserted: it is stubbed
-    // here, so asserting it would only test the stub.
-    expect(container.querySelector('.glass-tier-1')).toBeInTheDocument()
-    expect(await screen.findByTestId('pdf-viewer')).toBeInTheDocument()
-  })
-
   it('shows drop overlay when isDragOver is true', () => {
     mockUseSharedDragDrop.mockReturnValue({
       isDragOver: true,

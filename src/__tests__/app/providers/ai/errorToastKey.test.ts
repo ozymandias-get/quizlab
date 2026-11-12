@@ -29,6 +29,7 @@ describe('toErrorToastKey', () => {
     // A code added to a send pipeline without a bundles entry would otherwise
     // render verbatim in the toast.
     const key = toErrorToastKey('teapot')
+    expect(key).toBe('error_unknown_error')
     expect(i18next.t(key)).not.toBe(key)
   })
 
@@ -36,6 +37,7 @@ describe('toErrorToastKey', () => {
     void i18next.changeLanguage('tr')
     try {
       const key = toErrorToastKey('teapot')
+      expect(key).toBe('error_unknown_error')
       expect(i18next.t(key)).not.toBe(key)
     } finally {
       void i18next.changeLanguage('en')

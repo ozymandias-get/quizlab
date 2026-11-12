@@ -6,7 +6,6 @@
 
 import {
   DEFAULT_LANGUAGE,
-  LANGUAGES,
   getInitialLanguage,
   getInitialOnboardingDone,
   useLanguage
@@ -50,19 +49,6 @@ describe('languageStore', () => {
     })
   })
 
-  describe('LANGUAGES constant', () => {
-    it.each(['en', 'tr'] as const)('includes %s with its code and direction', (code) => {
-      expect(LANGUAGES[code]).toBeDefined()
-      expect(LANGUAGES[code].code).toBe(code)
-      expect(LANGUAGES[code].dir).toBe('ltr')
-    })
-
-    it('has no unsupported languages', () => {
-      const codes = Object.keys(LANGUAGES)
-      expect(codes).toEqual(['en', 'tr'])
-    })
-  })
-
   describe('setLanguage', () => {
     it('changes language to a valid option', async () => {
       await useLanguage.getState().setLanguage('tr')
@@ -89,7 +75,9 @@ describe('languageStore', () => {
         throw new Error('Storage full')
       })
       await useLanguage.getState().setLanguage('tr')
-      expect(useLanguage.getState().lastError).toBeTruthy()
+      expect(useLanguage.getState().lastError).toBe(
+        'Language preference could not be saved persistently'
+      )
     })
   })
 

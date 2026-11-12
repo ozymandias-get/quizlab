@@ -56,11 +56,11 @@ describe('settingsSync', () => {
     uninstallSync = installSettingsSync()
 
     window.localStorage.setItem(STORAGE_KEYS.CUSTOM_PROMPTS, '["p1"]')
-    window.localStorage.setItem('appearance-storage', '{"theme":"dark"}')
+    window.localStorage.setItem('appearance-storage', '{"bottomBarOpacity":0.7}')
     window.localStorage.setItem('transient-key', 'not-synced')
 
     expect(saveAppSetting).toHaveBeenCalledWith(STORAGE_KEYS.CUSTOM_PROMPTS, '["p1"]')
-    expect(saveAppSetting).toHaveBeenCalledWith('appearance-storage', '{"theme":"dark"}')
+    expect(saveAppSetting).toHaveBeenCalledWith('appearance-storage', '{"bottomBarOpacity":0.7}')
     expect(saveAppSetting).not.toHaveBeenCalledWith('transient-key', 'not-synced')
   })
 
@@ -75,7 +75,7 @@ describe('settingsSync', () => {
 
   it('hydrateSettingsFromMain writes persisted settings without forwarding back', async () => {
     getAppSettings.mockResolvedValue({
-      'appearance-storage': '{"theme":"dark"}',
+      'appearance-storage': '{"bottomBarOpacity":0.7}',
       [STORAGE_KEYS.CUSTOM_PROMPTS]: '["p1"]',
       'not-synced-key': 'ignored'
     })
@@ -83,7 +83,7 @@ describe('settingsSync', () => {
 
     await hydrateSettingsFromMain()
 
-    expect(window.localStorage.getItem('appearance-storage')).toBe('{"theme":"dark"}')
+    expect(window.localStorage.getItem('appearance-storage')).toBe('{"bottomBarOpacity":0.7}')
     expect(window.localStorage.getItem(STORAGE_KEYS.CUSTOM_PROMPTS)).toBe('["p1"]')
     expect(window.localStorage.getItem('not-synced-key')).toBeNull()
     expect(saveAppSetting).not.toHaveBeenCalled()

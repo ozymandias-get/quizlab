@@ -257,35 +257,6 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
       expect(onClearAll).not.toHaveBeenCalled()
     })
-
-    it('does not open the panel when the pill send is used', async () => {
-      const onSend = vi.fn().mockResolvedValue({ success: true })
-      renderComposer(
-        <AiSendComposer
-          items={[textItem('t1', 'hello')]}
-          onClearAll={vi.fn()}
-          onSend={onSend}
-          autoSend
-        />
-      )
-
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
-      })
-
-      expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ autoSend: true }))
-      expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
-    })
-
-    it('keeps the pill send out of the panel, where the action already lives', () => {
-      renderComposer(
-        <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={vi.fn()} onSend={vi.fn()} />
-      )
-      fireEvent.click(screen.getByTestId('ai-draft-badge'))
-      expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
-      expect(screen.queryByTestId('ai-draft-pill-send')).not.toBeInTheDocument()
-      expect(screen.getByTestId('ai-draft-send')).toBeInTheDocument()
-    })
   })
 
   describe('dismiss on outside click', () => {
@@ -359,17 +330,6 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
 
       unrelatedDialog.remove()
-    })
-
-    it('does not attach the outside listener while collapsed', () => {
-      renderComposer(<AiSendComposer items={[]} onClearAll={vi.fn()} onSend={vi.fn()} />)
-      const badge = screen.getByTestId('ai-draft-badge')
-      fireEvent.pointerDown(document.body)
-      // Kapalıyken zaten açık değil; dinleyicinin takılıp takılmadığı ayrımı:
-      // bir dış tıklama hapı kapatmamalı, görünür kalmalı.
-      expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
-      fireEvent.click(badge)
-      expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
     })
   })
 

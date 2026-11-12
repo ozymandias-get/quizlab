@@ -223,16 +223,6 @@ describe('CaptureChoiceMenu', () => {
 
   // ── Tam sayfa metni: görsellerle aynı ikili menü ───────────────────────
   describe('page text', () => {
-    it('offers the same binary choice as the image paths', () => {
-      setFullPageText('sayfa metni')
-
-      render(<CaptureChoiceMenu />)
-
-      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
-      expect(screen.getByTestId('pdf-selection-send')).toBeTruthy()
-      expect(screen.getByTestId('pdf-selection-draft')).toBeTruthy()
-    })
-
     it('sends the text through the TEXT pipeline, never the image one', async () => {
       setFullPageText('sayfa metni')
 
@@ -279,14 +269,14 @@ describe('CaptureChoiceMenu', () => {
       })
 
       // Karar verilmedi: bekleyen metin korunur, içerik kaybolmaz.
-      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
+      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
     })
 
     it('dismisses the pending text on Escape', async () => {
       setFullPageText('sayfa metni')
 
       render(<CaptureChoiceMenu />)
-      expect(screen.getByTestId('pdf-selection-menu')).toBeTruthy()
+      expect(screen.getByTestId('pdf-selection-menu')).toBeInTheDocument()
 
       await act(async () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))

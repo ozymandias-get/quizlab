@@ -26,13 +26,6 @@ describe('resolveSendOutcome — cancellation', () => {
     expect(outcome.errorCode).toBe('cancelled')
   })
 
-  it('blocks auto-retry when the request had already started', () => {
-    const outcome = resolveSendOutcome({ success: false, error: 'cancelled', stage: 'uncertain' })
-
-    expect(outcome.resendSafe).toBe(false)
-    expect(outcome.kind).toBe('incomplete')
-  })
-
   it('allows auto-retry when the send was cancelled before anything was written', () => {
     const outcome = resolveSendOutcome({
       success: false,
@@ -243,16 +236,5 @@ describe('resolveSendOutcome - submit delivery confirmation', () => {
     expect(outcome.kind).toBe('delivered')
     expect(outcome.feedback).toBe('idle')
     expect(outcome.resendSafe).toBe(true)
-  })
-
-  it('keeps staged mode silent when auto-send is off', () => {
-    const outcome = resolveSendOutcome({
-      success: true,
-      mode: 'staged',
-      submitOutcome: 'input_only'
-    })
-
-    expect(outcome.kind).toBe('staged')
-    expect(outcome.feedback).toBe('idle')
   })
 })

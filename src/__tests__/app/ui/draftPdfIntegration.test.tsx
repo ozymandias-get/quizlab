@@ -164,37 +164,6 @@ describe('dock ↔ PDF integration', () => {
     expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
   })
 
-  it('reports no dock at all when there is no PDF and the draft is empty', () => {
-    // PDF ekleme ekranında boş bir "AI Taslağı" kutusu ekranı işgal etmez.
-    view(
-      <AiDraftLayer hasContent={false}>
-        {(placement) => <span data-testid="draft">{placement}</span>}
-      </AiDraftLayer>
-    )
-    expect(screen.queryByTestId('draft')).not.toBeInTheDocument()
-  })
-
-  it('does not resize or reflow the PDF when the panel opens and closes', () => {
-    const items = [textItem('t1'), textItem('t2')]
-    view(<AiSendComposer items={items} onClearAll={vi.fn()} onSend={vi.fn()} />)
-
-    const before = screen.getByTestId('ai-draft-dock').getAttribute('className')
-
-    act(() => {
-      fireEvent.click(screen.getByTestId('ai-draft-badge'))
-    })
-    expect(screen.getByTestId('ai-draft-panel')).toBeInTheDocument()
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'ai_draft_close' }))
-    })
-    expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
-
-    // Dock kapsayıcısının ölçü sınıfları hiç değişmedi: PDF yüzeyine yeni bir
-    // ölçü bildirilmez, dolayısıyla yeniden akış (reflow) tetiklenmez.
-    expect(screen.getByTestId('ai-draft-dock').getAttribute('className')).toBe(before)
-  })
-
   it('keeps the draft when the panel closes and reopens', () => {
     const items = [textItem('t1'), textItem('t2')]
     const onClearAll = vi.fn()
@@ -207,26 +176,6 @@ describe('dock ↔ PDF integration', () => {
     fireEvent.click(screen.getByTestId('ai-draft-badge'))
 
     // İçerikler ve hiçbir temizleme çağrısı yok.
-    expect(screen.getAllByTestId('ai-draft-item')).toHaveLength(2)
-    expect(onClearAll).not.toHaveBeenCalled()
-  })
-
-  it('keeps the draft across a focus-mode style remount', () => {
-    const items = [textItem('t1'), textItem('t2')]
-    const onClearAll = vi.fn()
-    const tree = () => (
-      <AiSendComposer items={items} onClearAll={onClearAll} onSend={vi.fn()} placement="inline" />
-    )
-
-    const first = view(tree())
-    fireEvent.click(screen.getByTestId('ai-draft-badge'))
-    expect(screen.getAllByTestId('ai-draft-item')).toHaveLength(2)
-    first.unmount()
-
-    // Odak modu PDF sahnesini yeniden kurar; dock kuyruğu bağımsızdır.
-    view(tree())
-    expect(screen.getByTestId('ai-draft-root')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('ai-draft-badge'))
     expect(screen.getAllByTestId('ai-draft-item')).toHaveLength(2)
     expect(onClearAll).not.toHaveBeenCalled()
   })

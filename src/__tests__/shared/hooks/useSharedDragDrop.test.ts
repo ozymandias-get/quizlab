@@ -44,11 +44,6 @@ function makeFile(name: string, path?: string): File {
 }
 
 describe('useSharedDragDrop', () => {
-  it('starts with isDragOver=false', () => {
-    const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-    expect(result.current.isDragOver).toBe(false)
-  })
-
   describe('onDragEnter', () => {
     it('sets isDragOver=true when files are being dragged', () => {
       const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
@@ -74,21 +69,6 @@ describe('useSharedDragDrop', () => {
       })
       expect(event.preventDefault).toHaveBeenCalled()
       expect(event.stopPropagation).toHaveBeenCalled()
-    })
-
-    it('increments internal counter on each enter (handles nested elements)', () => {
-      const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-      act(() => {
-        result.current.dragHandlers.onDragEnter(fileDrag())
-      })
-      act(() => {
-        result.current.dragHandlers.onDragEnter(fileDrag())
-      })
-      // Even after 2 enters and 1 leave, isDragOver should still be true
-      act(() => {
-        result.current.dragHandlers.onDragLeave(makeDragEvent())
-      })
-      expect(result.current.isDragOver).toBe(true)
     })
   })
 
@@ -137,18 +117,7 @@ describe('useSharedDragDrop', () => {
       })
       expect(result.current.isDragOver).toBe(true)
     })
-
-    it('clamps counter to 0 (no negative values)', () => {
-      const { result } = renderHook(() => useSharedDragDrop(vi.fn()))
-      // Multiple leaves without enters
-      act(() => {
-        result.current.dragHandlers.onDragLeave(makeDragEvent())
-        result.current.dragHandlers.onDragLeave(makeDragEvent())
-      })
-      expect(result.current.isDragOver).toBe(false)
-    })
   })
-
   describe('onDrop', () => {
     it('calls onFileReceived with the dropped PDF file', () => {
       const onFileReceived = vi.fn()

@@ -57,11 +57,6 @@ describe('useAppShellState', () => {
   })
 
   describe('updateBanner', () => {
-    it('is visible by default', () => {
-      const { result } = renderHook(() => useAppShellState())
-      expect(result.current.updateBanner.isVisible).toBe(true)
-    })
-
     it('close hides the banner', () => {
       const { result } = renderHook(() => useAppShellState())
       act(() => {

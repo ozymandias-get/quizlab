@@ -47,13 +47,6 @@ describe('useBottomBarStyles', () => {
     expect(result.current.stackStyle.transform).toBe('scale(1.2)')
   })
 
-  it('returns shellStyle with CSS custom properties', () => {
-    const { result } = renderHook(() => useBottomBarStyles(0.7, 1.0))
-    expect(result.current.shellStyle).toHaveProperty('--bar-opacity-factor')
-    expect(result.current.shellStyle).toHaveProperty('--bar-scale-factor')
-    expect(result.current.shellStyle).toHaveProperty('width')
-  })
-
   it('returns stackStyle with z-index and width', () => {
     const { result } = renderHook(() => useBottomBarStyles(0.7, 1.0))
     expect(result.current.stackStyle.zIndex).toBe(50)

@@ -8,10 +8,6 @@ import { WEB_AI_REGISTRY } from '@platform/electron/web-ai-registry'
 import { describe, expect, it } from 'vitest'
 
 describe('webAiRegistry', () => {
-  it('exports a non-empty registry', () => {
-    expect(Object.keys(WEB_AI_REGISTRY).length).toBeGreaterThan(0)
-  })
-
   it('every entry has the required AiPlatform shape', () => {
     for (const [id, platform] of Object.entries(WEB_AI_REGISTRY)) {
       expect(platform.id).toBe(id)

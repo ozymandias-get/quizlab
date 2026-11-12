@@ -99,7 +99,6 @@ describe('selectPdfInBrowser', () => {
     })
 
     const promise = selectPdfInBrowser()
-    expect(createdInput).toBeDefined()
     createdInput.dispatchEvent(new Event('cancel'))
     const result = await promise
     expect(result).toBeNull()

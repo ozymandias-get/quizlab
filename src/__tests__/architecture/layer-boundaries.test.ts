@@ -95,11 +95,7 @@ describe('layer boundary: src/shared must not import the app shell', () => {
 describe('layer boundary: dependency-cruiser enforces it', () => {
   const names = depcruiseConfig.forbidden.map((rule) => rule.name)
 
-  it('forbids src/shared from reaching src/app', () => {
-    expect(names).toContain('shared-no-app')
-  })
-
-  it('scopes that rule to the shared → app direction', () => {
+  it('scopes the shared -> app rule and makes it blocking', () => {
     const rule = depcruiseConfig.forbidden.find((r) => r.name === 'shared-no-app')
     expect(rule?.severity).toBe('error')
     expect(rule?.from?.path).toBe('^src/shared/')

@@ -8,6 +8,14 @@ describe('AppEffects legacy storage cleanup', () => {
     window.localStorage.clear()
   })
 
+  it('enforces the dark-only theme on mount', () => {
+    document.documentElement.classList.remove('dark')
+
+    render(<AppEffects />)
+
+    expect(document.documentElement).toHaveClass('dark')
+  })
+
   it('removes leftover keys from removed features on mount', () => {
     window.localStorage.setItem('ocr-storage', JSON.stringify({ state: { config: {} } }))
     window.localStorage.setItem('useCustomPdfEngine', 'true')
