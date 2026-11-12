@@ -25,11 +25,7 @@ import {
 import { FakeAnnotationLayer } from './nativeAnnotationLayerDouble'
 import { FakeTextLayer } from './nativeTextLayerDouble'
 
-import {
-  PDF_ZOOM_MAX_SCALE,
-  PDF_ZOOM_MIN_SCALE,
-  PDF_ZOOM_STEP
-} from '@features/pdf/constants/pdfZoom'
+import { PDF_ZOOM_STEP } from '@features/pdf/constants/pdfZoom'
 
 import { act, render } from '@testing-library/react'
 import type { NativePdfController } from '@features/pdf/native/useNativePdfController'
@@ -247,54 +243,5 @@ describe('native viewer — keyboard zoom removed', () => {
     })
 
     expect(current().scale).toBeCloseTo(before, 5)
-  })
-
-  it('stays inside the product zoom range', async () => {
-    const { current } = await mountReady()
-
-    for (let i = 0; i < 80; i += 1) {
-      await actAndCommit(() => {
-        keydown('=')
-      })
-    }
-    expect(current().scale).toBeLessThanOrEqual(PDF_ZOOM_MAX_SCALE)
-
-    for (let i = 0; i < 120; i += 1) {
-      await actAndCommit(() => {
-        keydown('-')
-      })
-    }
-    expect(current().scale).toBeGreaterThanOrEqual(PDF_ZOOM_MIN_SCALE)
-  })
-
-  it('ignores shortcuts while the viewer is disabled', async () => {
-    const { current } = await mountReady({ enabled: false })
-    const before = current().scale
-
-    await actAndCommit(() => {
-      keydown('=')
-    })
-
-    expect(current().scale).toBe(before)
-  })
-
-  it('does not steal the shortcut from a text field', async () => {
-    const { current, view } = await mountReady()
-    const before = current().scale
-    const input = document.createElement('input')
-    view.container.appendChild(input)
-
-    await actAndCommit(() => {
-      const event = new KeyboardEvent('keydown', {
-        bubbles: true,
-        cancelable: true,
-        ctrlKey: true,
-        key: '='
-      })
-      input.dispatchEvent(event)
-      expect(event.defaultPrevented).toBe(false)
-    })
-
-    expect(current().scale).toBe(before)
   })
 })

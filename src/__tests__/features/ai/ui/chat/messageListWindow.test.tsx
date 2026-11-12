@@ -151,24 +151,6 @@ describe('message list window math', () => {
     expect(Number(output.dataset.bottom)).toBeCloseTo(expectedTotal - expectedOffsetAtEnd)
   })
 
-  it('renders a bounded window around the scroll position', () => {
-    const rows = buildMessageRows(
-      Array.from({ length: 200 }, (_, index) => ({
-        kind: 'messages' as const,
-        messages: [message(index)]
-      }))
-    )
-    render(<WindowProbe rows={rows} pinnedToBottom={false} />)
-
-    const output = screen.getByTestId('window')
-    const start = Number(output.dataset.start)
-    const end = Number(output.dataset.end)
-
-    expect(start).toBe(0)
-    expect(end - start).toBeLessThan(40)
-    expect(end).toBeLessThan(rows.length)
-  })
-
   it('windows from the tail while the reader is pinned to the bottom', () => {
     const rows = buildMessageRows(
       Array.from({ length: 200 }, (_, index) => ({

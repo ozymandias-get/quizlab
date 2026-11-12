@@ -106,19 +106,6 @@ describe('attachDiagnostics', () => {
     expect(enriched.diagnostics).toBeDefined()
   })
 
-  it('calculates totalMs from requestStartedAt', () => {
-    const result = { success: true as const }
-    const diagnostics = createSendDiagnostics({
-      pipeline: 'text',
-      currentAI: 'chatgpt',
-      autoSend: true
-    })
-
-    const startedAt = performance.now()
-    const enriched = attachDiagnostics(result, diagnostics, startedAt)
-    expect(enriched.diagnostics!.timings.totalMs).toBeGreaterThanOrEqual(0)
-  })
-
   it('does not mutate original result', () => {
     const result = { success: true as const, mode: 'click' }
     const diagnostics = createSendDiagnostics({

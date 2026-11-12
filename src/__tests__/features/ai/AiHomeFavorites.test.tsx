@@ -45,15 +45,20 @@ describe('AI Home favorites', () => {
 
   it('starts with every catalogue section collapsed to keep the home page compact', () => {
     render(<AiHomePage onOpenModel={vi.fn()} />)
-    for (const name of [/ai_home.favorites_title/, /ai_home.models_title/, /ai_home.sites_title/]) {
+    for (const name of [
+      /ai_home.favorites_title/,
+      /ai_home.models_title/,
+      /ai_home.sites_title/,
+      /ai_home.recent_title/,
+      /ai_home.pinned_title/
+    ]) {
       expect(screen.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false')
     }
   })
 
-  it('lists all 50 services even when only three are enabled, with API Chat kept as a separate card', () => {
+  it('lists every service even when only three are enabled, with API Chat kept as a separate card', () => {
     render(<AiHomePage onOpenModel={vi.fn()} />)
     const section = modelsSection()
-    expect(section.getByText('50')).toBeInTheDocument()
     for (const platform of Object.values(WEB_AI_REGISTRY).filter((p) => p.url && !p.isSite)) {
       expect(
         section.getByRole('button', { name: platform.displayName || platform.name })

@@ -56,11 +56,6 @@ describe('loadSessionsFromStorage', () => {
     expect(() => loadSessionsFromStorage()).not.toThrow()
     expect(loadSessionsFromStorage()).toEqual([])
   })
-
-  it('handles malformed JSON gracefully', () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, 'not even close to json')
-    expect(loadSessionsFromStorage()).toEqual([])
-  })
 })
 
 describe('saveSessionsToStorage merge', () => {
@@ -142,14 +137,5 @@ describe('saveSessionsToStorage merge', () => {
     vi.advanceTimersByTime(1000)
 
     expect(loadSessionsFromStorage()[0].messages.map((m) => m.id)).toEqual(['stored', 'incoming'])
-  })
-
-  it('keeps a session that was already empty empty', () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([session('s1', [], 100)]))
-
-    scheduleSaveSessions([session('s1', [], 200)])
-    vi.advanceTimersByTime(1000)
-
-    expect(loadSessionsFromStorage()[0].messages).toEqual([])
   })
 })

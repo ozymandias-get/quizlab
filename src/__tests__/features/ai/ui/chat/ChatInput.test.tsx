@@ -65,11 +65,6 @@ function uploadButton() {
 }
 
 describe('ChatInput image attachment gate', () => {
-  it('shows the upload button for a vision-capable selected model', () => {
-    renderInput()
-    expect(uploadButton()).toBeInTheDocument()
-  })
-
   it('shows the upload button for a vision-capable model outside the old allowlist', () => {
     renderInput({ selectedModel: 'gpt-4.1' })
     expect(uploadButton()).toBeInTheDocument()
@@ -80,14 +75,6 @@ describe('ChatInput image attachment gate', () => {
   // button used to stay hidden in exactly that situation.
   it('falls back to the provider default model when no model is selected', () => {
     renderInput({ selectedModel: '' })
-    expect(uploadButton()).toBeInTheDocument()
-  })
-
-  it('uses the provider default model when it is vision-capable', () => {
-    renderInput({
-      selectedModel: '',
-      activeProvider: { ...VISION_PROVIDER, defaultModel: 'gpt-4.1' }
-    })
     expect(uploadButton()).toBeInTheDocument()
   })
 

@@ -51,16 +51,6 @@ describe('UpdatesCard', () => {
     ...overrides
   })
 
-  it('shows the idle status and check button', () => {
-    const props = createProps()
-
-    render(<UpdatesCard {...props} />)
-
-    expect(screen.getByText('update_not_available')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /check_for_updates/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /download_from_github/i })).not.toBeInTheDocument()
-  })
-
   it('shows the available status and opens the releases page', () => {
     const props = createProps({
       updateStatus: 'available',

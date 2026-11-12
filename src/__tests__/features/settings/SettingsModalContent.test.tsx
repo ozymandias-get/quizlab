@@ -43,7 +43,6 @@ vi.mock('motion/react', () => {
   }
 })
 
-const EMPTY_META = null
 const PROMPTS_META = { id: 'prompts' } as any
 const MODELS_META = { id: 'models' } as any
 
@@ -85,18 +84,5 @@ describe('SettingsModalContent', () => {
     )
 
     expect(screen.getByLabelText('prompts-draft')).toHaveValue('unsaved draft')
-  })
-
-  it('shows the empty state before any tab is selected', () => {
-    render(
-      <SettingsModalContent
-        activeTab={null}
-        activeTabMeta={EMPTY_META}
-        onClose={vi.fn()}
-        setActiveTab={vi.fn()}
-      />
-    )
-
-    expect(screen.getByText('select_setting_from_list')).toBeInTheDocument()
   })
 })

@@ -69,6 +69,9 @@ function createSurfaceState(overrides: Partial<AiViewSurfaceState> = {}): AiView
     coldTabIds: new Set<string>(),
     recordTabUrl: vi.fn(),
     getRestoredUrl: () => undefined,
+    tabUrlRequests: {},
+    requestTabUrl: vi.fn(),
+    clearTabUrlRequest: vi.fn(),
     ...overrides
   }
 }

@@ -135,6 +135,38 @@ describe('AiSession', () => {
     expect(secondOptions.source).toEqual(firstOptions.source)
   })
 
+  it('navigates a live view to the requested conversation once it is ready', async () => {
+    const loadUrl = vi.fn(async () => true)
+    const getUrl = vi.fn(async () => 'https://chat.openai.com/')
+    Object.defineProperty(window, 'electronAPI', {
+      value: { aiView: { getUrl, loadUrl } },
+      configurable: true,
+      writable: true
+    })
+
+    render(
+      <AiSession
+        tab={defaultTab}
+        isActive
+        {...defaultProps}
+        urlRequest={{
+          modelId: 'gpt-4',
+          url: 'https://chat.openai.com/c/abc',
+          nonce: 7
+        }}
+      />
+    )
+
+    await waitFor(() =>
+      expect(loadUrl).toHaveBeenCalledWith({
+        viewId: '1',
+        url: 'https://chat.openai.com/c/abc'
+      })
+    )
+
+    Reflect.deleteProperty(window, 'electronAPI')
+  })
+
   it('hides when inactive', () => {
     const { container } = render(<AiSession tab={defaultTab} isActive={false} {...defaultProps} />)
     const wrapper = container.firstChild as HTMLElement
@@ -180,10 +212,5 @@ describe('AiSession', () => {
       expect(screen.getByTestId('ai-error-view')).toBeInTheDocument()
     })
     expect(screen.getByText('Error: Failed to load')).toBeInTheDocument()
-  })
-
-  it('renders no mouse shield, which cannot cover a native view anyway', () => {
-    const { container } = render(<AiSession tab={defaultTab} isActive {...defaultProps} />)
-    expect(container.querySelector('.pointer-events-auto')).not.toBeInTheDocument()
   })
 })

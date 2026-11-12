@@ -29,7 +29,6 @@ describe('pdf worker', () => {
   })
 
   it('resolves the worker URL to the 6.x ESM build', () => {
-    expect(nativeWorkerUrl).toBeTruthy()
     expect(nativeWorkerUrl).toContain('pdf.worker.min')
     // PDF.js 6 ships `pdf.worker.min.mjs`. The 3.x `.js` file the legacy viewer
     // imported does not exist in this package any more, so a `.js` URL here would

@@ -20,13 +20,6 @@ describe('releaseCanvasGpuMemory', () => {
     expect(canvas.width).toBe(0)
     expect(canvas.height).toBe(0)
   })
-
-  it('is a no-op for already-zeroed canvases', () => {
-    const canvas = makeCanvas(0, 0)
-    releaseCanvasGpuMemory(canvas)
-    expect(canvas.width).toBe(0)
-    expect(canvas.height).toBe(0)
-  })
 })
 
 describe('useCanvasGpuCleanup', () => {

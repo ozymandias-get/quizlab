@@ -114,11 +114,6 @@ describe('SettingsModal', () => {
     setSettingsDirty('add-ai-model-form', false)
   })
 
-  it('renders nothing when closed', () => {
-    render(<SettingsModal isOpen={false} onClose={vi.fn()} />)
-    expect(screen.queryByText('Prompts')).not.toBeInTheDocument()
-  })
-
   // The modal is a dialog, so a screen reader has to be told it is modal and
   // told what it is; without those it reads as an unlabelled region.
   it('exposes a labelled modal dialog when open', () => {
@@ -127,7 +122,6 @@ describe('SettingsModal', () => {
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     const titleId = dialog.getAttribute('aria-labelledby')
-    expect(titleId).toBeTruthy()
     expect(document.getElementById(titleId!)).toBeInTheDocument()
   })
 

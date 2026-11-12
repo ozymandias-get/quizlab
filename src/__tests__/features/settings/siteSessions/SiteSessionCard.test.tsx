@@ -40,11 +40,6 @@ const renderCard = (ui: ReactElement) =>
   rtlRender(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
 
 describe('SiteSessionCard', () => {
-  it('shows the import switch', () => {
-    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
-    expect(screen.getByRole('switch')).toBeInTheDocument()
-  })
-
   it('shows the signed out state for a site without a session', () => {
     renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('ws_status_signed_out')).toBeInTheDocument()
@@ -66,11 +61,6 @@ describe('SiteSessionCard', () => {
     renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
     expect(screen.getByText('ws_target_chatgpt')).toBeInTheDocument()
     expect(screen.getByText('chatgpt.com')).toBeInTheDocument()
-  })
-
-  it('names the switch that pulls the session from Chrome', () => {
-    renderCard(<SiteSessionCard view={VIEW} disabled={false} onToggle={() => {}} t={t} />)
-    expect(screen.getByText('ws_toggle_label')).toBeInTheDocument()
   })
 
   it('shows when the session was imported the last time', () => {

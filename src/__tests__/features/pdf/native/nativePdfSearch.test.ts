@@ -108,7 +108,10 @@ describe('collecting the page text', () => {
   it('ignores an empty run rather than offsetting the ones after it', () => {
     const { textLayer } = buildPage(['', 'lupus', ''])
 
-    expect(collectNativePdfSearchPageText(textLayer).text).toBe('lupus')
+    const pageText = collectNativePdfSearchPageText(textLayer)
+    expect(pageText.text).toBe('lupus')
+    expect(pageText.runs).toHaveLength(1)
+    expect(pageText.runs[0]).toMatchObject({ offset: 0, length: 5 })
   })
 
   it('is empty for a page with no text at all', () => {

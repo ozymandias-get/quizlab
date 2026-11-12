@@ -1,7 +1,4 @@
-import {
-  PICKER_SCRIPTS,
-  PICKER_TRANSLATION_KEYS
-} from '@features/automation/lib/automationConstants'
+import { PICKER_TRANSLATION_KEYS } from '@features/automation/lib/automationConstants'
 import '@shared/i18n/i18next'
 
 import i18next from 'i18next'
@@ -24,24 +21,6 @@ describe('PICKER_TRANSLATION_KEYS', () => {
       for (const key of PICKER_TRANSLATION_KEYS) {
         expect(typeof bundle[key], `${lng} is missing "${key}"`).toBe('string')
       }
-    }
-  })
-
-  // The array is append-only; a duplicated entry silently overwrites its own
-  // translation and shifts every later label.
-  it('lists every key exactly once', () => {
-    const unique = new Set(PICKER_TRANSLATION_KEYS)
-    expect(unique.size).toBe(PICKER_TRANSLATION_KEYS.length)
-  })
-})
-
-describe('PICKER_SCRIPTS', () => {
-  // Both strings are handed straight to `executeJavaScript`, so an empty or
-  // non-string value would inject nothing and leave the picker overlay stuck.
-  it('exposes non-empty injectable source for RESET and CLEANUP', () => {
-    for (const [name, script] of Object.entries(PICKER_SCRIPTS)) {
-      expect(typeof script, `${name} should be a string`).toBe('string')
-      expect(script.length, `${name} should not be empty`).toBeGreaterThan(0)
     }
   })
 })

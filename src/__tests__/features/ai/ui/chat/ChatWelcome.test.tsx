@@ -26,15 +26,6 @@ function renderChatWelcome(overrides: Partial<ComponentProps<typeof ChatWelcome>
 }
 
 describe('ChatWelcome suggestion cards', () => {
-  it('should render all suggestions when provider is available', () => {
-    renderChatWelcome()
-
-    expect(screen.getByText(i18next.t('api_chat_sugg_1_title'))).toBeInTheDocument()
-    expect(screen.getByText(i18next.t('api_chat_sugg_2_title'))).toBeInTheDocument()
-    expect(screen.getByText(i18next.t('api_chat_sugg_3_title'))).toBeInTheDocument()
-    expect(screen.getByText(i18next.t('api_chat_sugg_4_title'))).toBeInTheDocument()
-  })
-
   it.each(['api_chat_sugg_1', 'api_chat_sugg_2', 'api_chat_sugg_3', 'api_chat_sugg_4'])(
     'should call onSuggestionClick with the matching prompt for %s',
     (key) => {

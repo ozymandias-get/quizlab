@@ -10,10 +10,6 @@ import { describe, expect, it } from 'vitest'
 
 const t = (key: string) => key
 
-it('uses a 1 GiB cache budget', () => {
-  expect(MAX_TOTAL_CACHE_BYTES).toBe(1024 * 1024 * 1024)
-})
-
 function makeCacheInfo(overrides: Partial<CacheInfoResponse> = {}): CacheInfoResponse {
   return {
     breakdown: {

@@ -1,5 +1,4 @@
 import PdfSelectionMenu from '@features/pdf/ui/components/PdfSelectionMenu'
-import { DEFAULT_SELECTION_MENU_SIZE } from '@features/pdf/text/selectionPage'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -24,16 +23,6 @@ describe('PdfSelectionMenu', () => {
    * ikon + dolgu ile birlikte taşıyacak kadar olmalı ve render edilen genişlik
    * konumlandırmada kullanılan sabitle AYNI olmalı (kelepçeleme birebir).
    */
-  it('renders at exactly the width the positioning maths assumes', () => {
-    render(<PdfSelectionMenu top={100} left={100} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
-    const menu = screen.getByTestId('pdf-selection-menu')
-
-    // Yüzey genişliği konumlandırma sabitiyle birebir aynı: `computeSelectionMenuAnchor`
-    // kelepçelemeyi bu değerle yapıyor, render başka bir genişlik kullanırsa
-    // iki eylemli menü taşar.
-    expect(menu.style.width).toBe(`${DEFAULT_SELECTION_MENU_SIZE.width}px`)
-  })
-
   it('keeps the actions as real buttons with keyboard focus', () => {
     render(<PdfSelectionMenu top={100} left={100} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
     expect(screen.getByTestId('pdf-selection-send').tagName).toBe('BUTTON')

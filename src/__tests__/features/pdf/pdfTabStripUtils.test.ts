@@ -15,10 +15,6 @@ const makeTabs = (count: number): PdfTab[] =>
   Array.from({ length: count }, (_, i) => ({ id: `tab-${i}` }) as PdfTab)
 
 describe('getMaxVisibleTabs', () => {
-  it('matches the tab strip CSS gap', () => {
-    expect(PDF_TAB_GAP).toBe(6)
-  })
-
   it('returns 0 when not even one pill fits, so controls are not pushed out', () => {
     expect(getMaxVisibleTabs(120, false)).toBe(0)
   })
@@ -44,6 +40,27 @@ describe('getDesiredPdfTabWidth', () => {
 })
 
 describe('resolveVisiblePdfTabCount', () => {
+  it('counts the gap between measured pills when deciding whether they fit', () => {
+    const required = 200 + 200 + PDF_TAB_GAP
+
+    expect(
+      resolveVisiblePdfTabCount({
+        current: 1,
+        tabWidths: [200, 200],
+        availableWidth: required - 1,
+        hasOverflow: true
+      })
+    ).toBe(0)
+    expect(
+      resolveVisiblePdfTabCount({
+        current: 1,
+        tabWidths: [200, 200],
+        availableWidth: required,
+        hasOverflow: true
+      })
+    ).toBe(1)
+  })
+
   it('drops a slot when the measured pills no longer fit', () => {
     expect(
       resolveVisiblePdfTabCount({

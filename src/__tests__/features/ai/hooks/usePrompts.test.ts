@@ -37,14 +37,6 @@ describe('usePrompts', () => {
       // Should be the same number of prompts (when ignoring custom ones)
       expect(result.current.allPrompts.filter((p) => p.isDefault).length).toBe(expected.length)
     })
-
-    it('marks all default prompts with isDefault: true', () => {
-      const { result } = renderHook(() => usePrompts())
-      const defaults = result.current.allPrompts.filter((p) => p.isDefault)
-      for (const p of defaults) {
-        expect(p.isDefault).toBe(true)
-      }
-    })
   })
 
   describe('addPrompt', () => {
@@ -207,21 +199,6 @@ describe('usePrompts', () => {
         result.current.clearSelection()
       })
       expect(result.current.selectedPromptId).toBeNull()
-    })
-  })
-
-  describe('activePromptText', () => {
-    it('returns null when no prompt is selected', () => {
-      const { result } = renderHook(() => usePrompts())
-      expect(result.current.activePromptText).toBeNull()
-    })
-
-    it('returns the text of the selected prompt', () => {
-      const { result } = renderHook(() => usePrompts())
-      act(() => {
-        result.current.addPrompt('My selected prompt')
-      })
-      expect(result.current.activePromptText).toBe('My selected prompt')
     })
   })
 

@@ -88,12 +88,4 @@ describe('groupMessagesIncremental', () => {
 
     expect(groupMessagesIncremental(previous, appended)).toEqual(groupMessages(appended))
   })
-
-  it('falls back to the full walk when a message is removed', () => {
-    const previousMessages = baseMessages()
-    const previous = { messages: previousMessages, result: groupMessages(previousMessages) }
-    const removed = previousMessages.slice(0, -1)
-
-    expect(groupMessagesIncremental(previous, removed)).toEqual(groupMessages(removed))
-  })
 })

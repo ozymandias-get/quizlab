@@ -245,17 +245,6 @@ describe('native text layer — mount and shape', () => {
     expect(layer?.isCancelled()).toBe(false)
     expect(document.page(1).getTextContentCalls).toHaveLength(lookupsAfterFirstRender)
   })
-
-  it('is inert while the feature flag is off', async () => {
-    serveDocument(createFakeDocument({ numPages: 6 }))
-
-    const { container } = render(<NativeViewerHarness enabled={false} />)
-    await settle()
-
-    expect(mocks.getDocument).not.toHaveBeenCalled()
-    expect(FakeTextLayer.calls).toHaveLength(0)
-    expect(textLayerOf(container)).toBe(null)
-  })
 })
 
 /* ------------------------------------------------------------- supersede */

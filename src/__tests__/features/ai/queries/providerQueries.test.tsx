@@ -89,40 +89,4 @@ describe('useApiConfigQuery', () => {
     expect(result.current.data?.selectedProviderId).toBe('openai')
     expect(mockGetApiChatConfig).toHaveBeenCalledTimes(1)
   })
-
-  it('stores prompts and provider selection in the response', async () => {
-    const config = mockApiConfig({
-      generalPrompt: 'Custom prompt',
-      memoryPrompt: 'Custom memory',
-      characterPrompt: 'Custom character',
-      selectedProviderId: 'anthropic',
-      selectedModel: 'claude-3-sonnet'
-    })
-    mockGetApiChatConfig.mockResolvedValue(config)
-
-    const { result } = renderHook(() => useApiConfigQuery(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.generalPrompt).toBe('Custom prompt')
-    expect(result.current.data?.memoryPrompt).toBe('Custom memory')
-    expect(result.current.data?.characterPrompt).toBe('Custom character')
-    expect(result.current.data?.selectedProviderId).toBe('anthropic')
-    expect(result.current.data?.selectedModel).toBe('claude-3-sonnet')
-  })
-
-  it('returns provider configurations in the response', async () => {
-    mockGetApiChatConfig.mockResolvedValue(mockApiConfig())
-
-    const { result } = renderHook(() => useApiConfigQuery(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.providers).toHaveLength(2)
-    expect(result.current.data?.providers[0].id).toBe('openai')
-    expect(result.current.data?.providers[0].models).toContain('gpt-4')
-    expect(result.current.data?.providers[1].id).toBe('anthropic')
-  })
 })

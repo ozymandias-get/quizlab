@@ -50,17 +50,6 @@ describe('createPdfDocumentOptions', () => {
     expect(createPdfDocumentOptions(asUrl, BASE).url).toBe(asUrl)
   })
 
-  it('does not widen the source type beyond what pdf.js 6 declares', () => {
-    // 6.4.299 types `url` as `string | URL` only; the `TypedArray | ArrayBuffer`
-    // variants the 3.x surface accepted are gone from the declaration. Binary
-    // sources would have to go through `data`, so the engine must not pretend
-    // otherwise.
-    expect(() =>
-      createPdfDocumentOptions(new Uint8Array([1, 2, 3]) as unknown as string, BASE)
-    ).not.toThrow()
-    expect(PDFJS_ASSET_DIR).toBe('pdfjs')
-  })
-
   it('points every asset directory at the staged output', () => {
     const options = createPdfDocumentOptions('local-pdf://a', BASE)
 

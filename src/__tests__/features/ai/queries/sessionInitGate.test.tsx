@@ -35,7 +35,7 @@ describe('useApiChatSessionInit enabled gate', () => {
     const create = vi.fn(async () => ({ session: { id: 'new-id' } }))
     const setActive = vi.fn()
 
-    const { result } = renderHook(() =>
+    renderHook(() =>
       useApiChatSessionInit({
         tabId: 't1',
         sessions: [],
@@ -51,7 +51,6 @@ describe('useApiChatSessionInit enabled gate', () => {
     // setActive is called after the promise resolves
     await new Promise((r) => setTimeout(r, 0))
     expect(setActive).toHaveBeenCalledWith('t1', 'new-id')
-    void result
   })
 
   it('adopts the most recently updated session instead of creating', async () => {

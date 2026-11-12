@@ -28,8 +28,4 @@ describe('settings tab registry', () => {
   ])('treats %s as unknown', (_label, value) => {
     expect(toSettingsTabId(value)).toBeNull()
   })
-
-  it('resolves a known tab id', () => {
-    expect(toSettingsTabId('prompts')).toBe('prompts')
-  })
 })

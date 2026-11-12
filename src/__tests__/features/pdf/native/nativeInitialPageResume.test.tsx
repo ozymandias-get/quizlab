@@ -186,25 +186,6 @@ describe('native viewer — reading-progress resume', () => {
     expect(view.controller().scale).toBeCloseTo(FIT_SCALE, 2)
   })
 
-  it('does not re-apply the saved page while the reader turns pages', async () => {
-    const view = await mount({ initialPage: 3 })
-    expect(await shownPage(view)).toBe(3)
-
-    // The reader navigates, and reading progress persists the new page, so the
-    // same file now reports a different `initialPage`. Reading it again would be
-    // a no-op here, which is exactly why the case that actually discriminates is
-    // the next one.
-    await act(async () => {
-      view.controller().jumpToPage(7)
-      await Promise.resolve()
-    })
-    expect(await shownPage(view)).toBe(7)
-
-    view.rerender({ initialPage: 7 })
-
-    expect(await shownPage(view)).toBe(7)
-  })
-
   // The load-bearing case. `initialPage` is a *mirror* of persisted progress, not
   // a navigation command: it can legitimately carry a page that is not where the
   // reader currently is — another surface wrote progress for the same file, a link

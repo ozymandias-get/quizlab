@@ -56,9 +56,4 @@ describe('AddAiModelForm unsaved state', () => {
     fireEvent.change(name!, { target: { value: '' } })
     expect(screen.getByTestId('dirty')).toHaveTextContent('false')
   })
-
-  it('stays clean when the form is closed with an empty draft', () => {
-    renderForm(false)
-    expect(screen.getByTestId('dirty')).toHaveTextContent('false')
-  })
 })

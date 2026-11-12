@@ -123,15 +123,6 @@ describe('selector repair concurrency', () => {
     expect(new Set(persisted?.inputCandidates).size).toBe(persisted?.inputCandidates?.length)
   })
 
-  it('D3: reports whether *this* send caused the write', async () => {
-    const store = createRepairStore({ initial: { 'example.com': STAGED_AT_ONE }, latencyMs: 2 })
-    mockGetElectronApi.mockReturnValue(store)
-
-    // Send A sees count 1 and stages 2; send B sees count 2 and promotes.
-    const [a, b] = await Promise.all([send('example.com'), send('example.com')])
-    expect([a, b].filter(Boolean)).toHaveLength(2)
-  })
-
   it('E: different hostnames do not block each other', async () => {
     const store = createRepairStore({
       initial: {

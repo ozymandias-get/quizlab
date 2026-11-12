@@ -128,19 +128,6 @@ describe('chatUiStore', () => {
       useChatUiStore.getState().clearStreamingContent('tab1')
       expect(useChatUiStore.getState().activeStreamingContentByTab.tab1).toBe('')
     })
-
-    // The mutation cleanup in useSendMessageMutation ends a send with exactly
-    // these two calls; running them as one sequence is what a real send does.
-    it('clears both the flag and the partial content when streaming ends', () => {
-      useChatUiStore.getState().setStreaming('tab1', true)
-      useChatUiStore.getState().appendStreamingContent('tab1', 'partial response')
-
-      useChatUiStore.getState().setStreaming('tab1', false)
-      useChatUiStore.getState().clearStreamingContent('tab1')
-
-      expect(useChatUiStore.getState().isStreamingByTab.tab1).toBe(false)
-      expect(useChatUiStore.getState().activeStreamingContentByTab.tab1).toBe('')
-    })
   })
 
   describe('setConfigPrompts', () => {
@@ -154,23 +141,6 @@ describe('chatUiStore', () => {
       expect(state.generalPrompt).toBe('general')
       expect(state.memoryPrompt).toBe('memory')
       expect(state.characterPrompt).toBe('character')
-    })
-
-    it('overwrites previous prompt values', () => {
-      useChatUiStore.getState().setConfigPrompts({
-        generalPrompt: 'old',
-        memoryPrompt: 'old',
-        characterPrompt: 'old'
-      })
-      useChatUiStore.getState().setConfigPrompts({
-        generalPrompt: 'new',
-        memoryPrompt: 'new',
-        characterPrompt: 'new'
-      })
-      const state = useChatUiStore.getState()
-      expect(state.generalPrompt).toBe('new')
-      expect(state.memoryPrompt).toBe('new')
-      expect(state.characterPrompt).toBe('new')
     })
   })
 

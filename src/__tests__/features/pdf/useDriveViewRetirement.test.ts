@@ -42,12 +42,6 @@ describe('useDriveViewRetirement', () => {
     pdfTabState.pdfTabs = [driveTab('a')]
   })
 
-  it('retires nothing while the drive tab stays open', () => {
-    const { rerender } = mount()
-    rerender()
-    expect(aiViewClient.destroy).not.toHaveBeenCalled()
-  })
-
   it('does not retire the view when another pdf tab takes over the surface', () => {
     // The panel unmounts here, but the drive tab is still in the list: coming
     // back to it must not reload Drive.

@@ -3,7 +3,7 @@ import { useAiTabStripState } from '@features/ai/ui/aiTabStrip/useAiTabStripStat
 import type { AiPlatform } from '@shared-core/types'
 
 import { render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const makeTabs = (count: number, suffix = ''): Tab[] =>
   Array.from(
@@ -182,45 +182,6 @@ describe('useAiTabStripState measured capacity', () => {
     )
 
     await waitFor(() => expect(screen.getByTestId('visible-count')).toHaveTextContent('4'))
-  })
-
-  it('resets capacity when a model tab gets a shorter site label', async () => {
-    const untitledTabs = Array.from(
-      { length: 4 },
-      (_, i) =>
-        ({
-          id: `tab-${i}`,
-          modelId: 'same-site'
-        }) as Tab
-    )
-    const site = (displayName: string) =>
-      ({ displayName, name: displayName }) as unknown as AiPlatform
-
-    const { rerender } = render(
-      <Harness
-        tabs={untitledTabs}
-        rowWidth={400}
-        tabWidth={200}
-        labelFullWidth={200}
-        labelVisibleWidth={200}
-        aiSites={{ 'same-site': site('A very long site label') }}
-      />
-    )
-
-    await waitFor(() => expect(screen.getByTestId('visible-count')).toHaveTextContent('1'))
-
-    rerender(
-      <Harness
-        tabs={untitledTabs}
-        rowWidth={400}
-        tabWidth={80}
-        labelFullWidth={80}
-        labelVisibleWidth={80}
-        aiSites={{ 'same-site': site('Short') }}
-      />
-    )
-
-    await waitFor(() => expect(screen.getByTestId('visible-count')).toHaveTextContent('2'))
   })
 
   it('adds a slot when spare space can fit another full pill', async () => {

@@ -4,7 +4,6 @@ import {
   buildCombinedPrompt,
   buildErrorReply,
   createEmptySession,
-  DEFAULT_SESSION_TITLE,
   generateId,
   getDefaultSessionTitle
 } from '@features/ai/store/apiChatSessionUtils'
@@ -48,7 +47,9 @@ describe('apiChatStore helpers (pure functions)', () => {
   describe('createEmptySession', () => {
     it('returns a session with the default title and empty messages', () => {
       const session = createEmptySession()
-      expect([DEFAULT_SESSION_TITLE, getDefaultSessionTitle()]).toContain(session.title)
+      expect(session.title).toBe(getDefaultSessionTitle())
+      // The translated title must never fall back to the raw key.
+      expect(session.title).not.toBe('api_chat_new_chat')
       expect(session.messages).toEqual([])
     })
 

@@ -128,6 +128,42 @@ describe('useAiViewSurfaceState - url restoration cache', () => {
   })
 })
 
+describe('useAiViewSurfaceState - conversation requests', () => {
+  it('exposes a request with a new nonce and clears it after the session consumes it', () => {
+    const { result } = mount({ activeTabId: 'a' })
+
+    act(() => {
+      result.current.requestTabUrl('a', 'chatgpt', 'https://chatgpt.com/c/42')
+    })
+
+    expect(result.current.tabUrlRequests.a).toMatchObject({
+      modelId: 'chatgpt',
+      url: 'https://chatgpt.com/c/42'
+    })
+
+    act(() => {
+      result.current.clearTabUrlRequest('a')
+    })
+
+    expect(result.current.tabUrlRequests.a).toBeUndefined()
+  })
+
+  it('uses a fresh nonce when the same conversation is requested again', () => {
+    const { result } = mount({ activeTabId: 'a' })
+
+    act(() => {
+      result.current.requestTabUrl('a', 'chatgpt', 'https://chatgpt.com/c/1')
+    })
+    const firstNonce = result.current.tabUrlRequests.a?.nonce
+
+    act(() => {
+      result.current.requestTabUrl('a', 'chatgpt', 'https://chatgpt.com/c/1')
+    })
+
+    expect(result.current.tabUrlRequests.a?.nonce).not.toBe(firstNonce)
+  })
+})
+
 describe('useAiViewSurfaceState - home surface', () => {
   it('shows home when there are no tabs', () => {
     const { result } = renderHook(() =>

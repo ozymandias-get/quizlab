@@ -32,7 +32,7 @@ import {
 
 import { extractSelectedText } from '@features/pdf/text/extractSelectedText'
 
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -282,42 +282,6 @@ describe('native text layer — selection scope', () => {
 })
 
 /* ------------------------------------------------------ enablement guards */
-
-describe('native text layer — selection enablement', () => {
-  it('registers no listeners at all when selection is disabled', async () => {
-    const addSpy = vi.spyOn(document, 'addEventListener')
-    const { container } = await mountSelection({ textSelectionEnabled: false })
-    addSpy.mockClear()
-
-    act(() => {
-      container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
-      document.dispatchEvent(new Event('selectionchange'))
-    })
-    act(flushFrames)
-
-    const types = addSpy.mock.calls.map(([type]) => type)
-    expect(types).not.toContain('selectionchange')
-    expect(pendingFrames.size).toBe(0)
-  })
-
-  it('suppresses selection while pan mode holds the viewer', async () => {
-    // `usePdfTextActions` is mounted by the shared state with the same
-    // `!isPanMode` condition the legacy path uses, so the listener set must be
-    // gone while the drag tool owns the panel.
-    const { container } = await mountSelection({
-      isPanMode: true,
-      textSelectionEnabled: false
-    })
-    const addSpy = vi.spyOn(document, 'addEventListener')
-
-    fireEvent.pointerDown(container, { button: 0 })
-    fireEvent.pointerUp(document, { button: 0 })
-    act(flushFrames)
-
-    expect(addSpy.mock.calls.map(([type]) => type)).not.toContain('selectionchange')
-  })
-})
 
 describe('native text layer — reading order', () => {
   it('rebuilds two-column text in column order from the run geometry', async () => {

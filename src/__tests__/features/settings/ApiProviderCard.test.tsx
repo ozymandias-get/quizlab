@@ -64,7 +64,6 @@ describe('ApiProviderCard local-network consent', () => {
     renderCard()
     const toggle = screen.getByRole('switch', { name: /allow local\/private network endpoints/i })
     const describedBy = toggle.getAttribute('aria-describedby')
-    expect(describedBy).toBeTruthy()
     expect(document.getElementById(describedBy as string)).toHaveTextContent(/does not need it/i)
   })
 })

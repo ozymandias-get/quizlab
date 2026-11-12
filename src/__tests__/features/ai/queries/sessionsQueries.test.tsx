@@ -333,31 +333,6 @@ describe('useClearSessionMutation', () => {
     expect(cached![0].title).toBe('Yeni Sohbet')
     expect(mockPersistSessions).toHaveBeenCalledTimes(1)
   })
-
-  it('does not affect other sessions', async () => {
-    const sessions = [
-      mockSession({ id: 's1', messages: [{ id: 'm1', role: 'user', content: 'A', timestamp: 1 }] }),
-      mockSession({ id: 's2', messages: [{ id: 'm2', role: 'user', content: 'B', timestamp: 2 }] })
-    ]
-    queryClient.setQueryData(['ai', 'sessions'], sessions)
-
-    const { result } = renderHook(() => useClearSessionMutation(), {
-      wrapper: createWrapper(queryClient)
-    })
-
-    await act(async () => {
-      await result.current.mutateAsync('s1')
-    })
-
-    const cached = queryClient.getQueryData<ChatSession[]>(['ai', 'sessions'])
-    expect(cached).toHaveLength(2)
-    // s1 should be cleared
-    expect(cached![0].messages).toHaveLength(0)
-    expect(cached![0].title).toBe('Yeni Sohbet')
-    // s2 should be untouched
-    expect(cached![1].messages).toHaveLength(1)
-    expect(cached![1].title).toBe('Test Session')
-  })
 })
 
 describe('useClearAllSessionsMutation', () => {

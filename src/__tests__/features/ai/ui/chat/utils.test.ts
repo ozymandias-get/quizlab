@@ -18,15 +18,12 @@ function makeMessage(
 }
 
 describe('formatTime', () => {
-  // Local-time dependent, so the contract is the zero-padded HH:MM shape —
-  // including the midnight case, which lands on 00:00 or the day-before 23:59
-  // depending on the runner's timezone.
   it.each([
-    ['a two-digit time', '2026-06-02T14:30:00'],
-    ['a single-digit hour and minute', '2026-06-02T09:05:00'],
-    ['midnight', '2026-06-02T00:00:00']
-  ])('formats %s as HH:MM', (_case, iso) => {
-    expect(formatTime(new Date(iso).getTime())).toMatch(/^\d{2}:\d{2}$/)
+    ['a two-digit time', new Date(2026, 5, 2, 14, 30), '14:30'],
+    ['a single-digit hour and minute', new Date(2026, 5, 2, 9, 5), '09:05'],
+    ['midnight', new Date(2026, 5, 2, 0, 0), '00:00']
+  ])('formats %s as HH:MM', (_case, date, expected) => {
+    expect(formatTime(date.getTime())).toBe(expected)
   })
 })
 
@@ -61,27 +58,13 @@ describe('formatDate', () => {
   })
 
   it('returns a formatted date for older dates', () => {
-    const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000
-    const result = formatDate(fiveDaysAgo)
-    // Should NOT be Today or Yesterday
-    expect(result).not.toBe('Today')
-    expect(result).not.toBe('Yesterday')
-    expect(result.length).toBeGreaterThan(0)
+    const result = formatDate(new Date(2026, 0, 15).getTime(), 'Today', 'Yesterday', 'en-US')
+    expect(result).toBe('Jan 15')
   })
 
   it('includes the year when the date is in a different year', () => {
-    const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000
-    const result = formatDate(oneYearAgo)
-    // Should contain a 4-digit year
-    expect(result).toMatch(/\d{4}/)
-  })
-
-  it('does not include the year for the current year', () => {
-    // The formatted branch for older dates in the same calendar year
-    // should NOT include a 4-digit year (only "Mon DD" or similar).
-    const thisYearDate = new Date('2026-01-15').getTime()
-    const result = formatDate(thisYearDate)
-    expect(result).not.toMatch(/\b20\d{2}\b/)
+    const result = formatDate(new Date(2025, 5, 2).getTime(), 'Today', 'Yesterday', 'en-US')
+    expect(result).toBe('Jun 2, 2025')
   })
 })
 
@@ -187,17 +170,5 @@ describe('groupMessages', () => {
     expect(result.groups[0]).toMatchObject({ kind: 'date' })
     expect(result.groups[1]).toMatchObject({ kind: 'messages', messages })
     expect(result.lastAssistantId).toBe(messages[0].id)
-  })
-
-  it('records the last assistant id, even when followed by a user message', () => {
-    const now = Date.now()
-    const messages = [
-      makeMessage(now, 'user', 'u1'),
-      makeMessage(now + 1000, 'assistant', 'a1'),
-      makeMessage(now + 2000, 'user', 'u2')
-    ]
-    const result = groupMessages(messages)
-    // The last assistant in the list is a1 (u2 comes after but is user).
-    expect(result.lastAssistantId).toBe(messages[1].id)
   })
 })

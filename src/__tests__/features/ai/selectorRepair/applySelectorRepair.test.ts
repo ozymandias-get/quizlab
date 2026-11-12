@@ -120,7 +120,7 @@ describe('applySelectorRepair', () => {
     ).resolves.toBe(false)
   })
 
-  it('reports failure without throwing when the save is rejected', async () => {
+  it('reports failure without throwing when the save is refused', async () => {
     mockSaveAiConfig.mockResolvedValue(false)
 
     await expect(

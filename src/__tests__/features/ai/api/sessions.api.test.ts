@@ -52,7 +52,7 @@ describe('createNewSession', () => {
 
   it('creates a session with Yeni Sohbet title', () => {
     const session = createNewSession()
-    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(session.title)
+    expect(session.title).toBe(getDefaultSessionTitle())
     expect(session.messages).toEqual([])
     expect(session.id).toBeTruthy()
     expect(session.createdAt).toBeGreaterThan(0)
@@ -121,7 +121,7 @@ describe('clearSessionMessages', () => {
 
     const result = clearSessionMessages(sessions, 'session-1')
     expect(result[0].messages).toEqual([])
-    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
+    expect(result[0].title).toBe(getDefaultSessionTitle())
   })
 })
 
@@ -135,7 +135,7 @@ describe('renameSession', () => {
   it('defaults to Yeni Sohbet for empty title', () => {
     const sessions = [makeSession({ title: 'Old Title' })]
     const result = renameSession(sessions, 'session-1', '')
-    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
+    expect(result[0].title).toBe(getDefaultSessionTitle())
   })
 })
 
@@ -151,6 +151,6 @@ describe('deleteSessionFromList', () => {
     const sessions = [makeSession({ id: 's1' })]
     const result = deleteSessionFromList(sessions, 's1')
     expect(result).toHaveLength(1)
-    expect([getDefaultSessionTitle(), 'Yeni Sohbet', 'New Chat']).toContain(result[0].title)
+    expect(result[0].title).toBe(getDefaultSessionTitle())
   })
 })

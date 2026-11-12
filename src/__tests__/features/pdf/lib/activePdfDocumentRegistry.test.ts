@@ -36,10 +36,11 @@ describe('activePdfDocumentRegistry', () => {
     clearActivePdfDocument()
   })
 
-  it('returns a handle for a matching url', () => {
-    setActivePdfDocument(makeHandle(), 'local-pdf://pdf_a')
+  it('returns the registered handle for a matching url', () => {
+    const handle = makeHandle()
+    setActivePdfDocument(handle, 'local-pdf://pdf_a')
 
-    expect(getActivePdfDocument('local-pdf://pdf_a')).not.toBeNull()
+    expect(getActivePdfDocument('local-pdf://pdf_a')).toBe(handle)
   })
 
   it('returns null for a different url', () => {

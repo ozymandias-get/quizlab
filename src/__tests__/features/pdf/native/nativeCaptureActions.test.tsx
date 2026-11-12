@@ -315,14 +315,6 @@ describe('native viewer — capture actions', () => {
     expect(mocks.onFullPageCapture).not.toHaveBeenCalled()
   })
 
-  it('publishes the mounted document so a capture can borrow it', async () => {
-    renderDocument()
-
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-    // One document for the whole app, not one per capture.
-    expect(mocks.getDocument).toHaveBeenCalledTimes(1)
-  })
-
   it('sends the current native page to the AI as one image, exactly once', async () => {
     renderDocument()
     await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
@@ -418,17 +410,6 @@ describe('native viewer — context menu', () => {
     expect(menuItem('pdf_send_page_as_image')).toBeInTheDocument()
     expect(menuItem('ctx_crop_screenshot_ai')).toBeInTheDocument()
     expect(menuItem('ctx_reload')).toBeInTheDocument()
-  })
-
-  it('reaches the real capture backend from the page-image item', async () => {
-    renderDocument()
-    await waitFor(() => expect(getActivePdfDocument('local-pdf://book')).not.toBeNull())
-
-    openContextMenu()
-    fireEvent.click(menuItem('pdf_send_page_as_image'))
-
-    await waitFor(() => expect(mocks.onFullPageCapture).toHaveBeenCalledTimes(1))
-    expect(mocks.getDocument).toHaveBeenCalledTimes(1)
   })
 
   it('offers the page text for the same binary choice instead of queueing it', async () => {

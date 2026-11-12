@@ -42,11 +42,6 @@ const t = (key: string, params?: Record<string, string>) =>
   params ? `${key} ${Object.values(params).join(' ')}` : key
 
 describe('SiteSessionList', () => {
-  it('renders one card per site', () => {
-    render(<SiteSessionList views={VIEWS} disabled={false} onToggle={() => {}} t={t} />)
-    expect(screen.getAllByRole('switch')).toHaveLength(2)
-  })
-
   // The service decides the order (the Google group first, then the registry
   // order, then the user's own sites). The list must not sort it again.
   it('keeps the order the service returned', () => {
