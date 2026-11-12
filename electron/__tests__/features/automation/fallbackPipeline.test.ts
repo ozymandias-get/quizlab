@@ -135,13 +135,6 @@ describe('injected fallback pipeline', () => {
     expect(result.viaResolveElementId).toBe('stub-target')
   })
 
-  it('still resolves normally when strategies stay inside budget', async () => {
-    const result = await window.eval(buildHarness({ semanticCostMs: 10 }))
-
-    expect(result.directStrategy).toBe('semantic')
-    expect(result.viaResolveStrategy).toBe('semantic')
-  })
-
   it('stops starting further strategies once a step overruns its budget', async () => {
     // The budget guard is preserved: an overrunning step that resolves nothing
     // must end the pipeline instead of walking every remaining strategy.

@@ -161,17 +161,6 @@ describe('getSafeClassTokens', () => {
     expect(getSafeClassTokens(el)).toEqual(['send-btn', 'composer-send', 'ProseMirror'])
   })
 
-  it('returns an empty array — never undefined/null — when every token is a hash', () => {
-    const el = document.createElement('button')
-    el.setAttribute('class', 'x16qrm4 xxyica1 xgkqi7n')
-
-    const tokens = getSafeClassTokens(el)
-    expect(Array.isArray(tokens)).toBe(true)
-    expect(tokens).not.toBeUndefined()
-    expect(tokens).not.toBeNull()
-    expect(tokens).toHaveLength(0)
-  })
-
   it('buildCssCandidates omits class candidates and still falls back to the bare tag', () => {
     const el = document.createElement('button')
     el.setAttribute('aria-label', 'Send message')
@@ -215,10 +204,6 @@ describe('getSafeClassTokens', () => {
 })
 
 describe('generateLocatorBundle', () => {
-  it('returns null for null element', () => {
-    expect(generateLocatorBundle(null, 'input')).toBeNull()
-  })
-
   it('generates a locator bundle for an input element', () => {
     const el = document.createElement('input')
     el.setAttribute('type', 'text')

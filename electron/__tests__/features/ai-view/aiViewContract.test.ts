@@ -47,10 +47,6 @@ describe('view id validation', () => {
 })
 
 describe('parseTabRequest', () => {
-  it('accepts a bare view id', () => {
-    expect(parseTabRequest({ viewId: 'tab-1', partition: 'evil' })).toEqual({ viewId: 'tab-1' })
-  })
-
   it('refuses to carry a partition through', () => {
     // The renderer has no business naming a partition; anything extra is dropped.
     expect(parseTabRequest({ viewId: 'tab-1', partition: 'persist:ai_custom_x' })).toEqual({

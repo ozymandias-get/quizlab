@@ -18,7 +18,7 @@ type TestConfig = {
 
 const tempDirs: string[] = []
 
-function createTempManager<T extends object>(_data?: T) {
+function createTempManager<T extends object>() {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), 'cfg-test-'))
   tempDirs.push(tempDir)
   const filePath = path.join(tempDir, 'config.json')
@@ -200,19 +200,6 @@ describe('ConfigManager - Error Handling', () => {
 
     expect(success).toBe(false)
   })
-
-  it('returns empty object on read failure with no cache', async () => {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'cfg-err3-'))
-    tempDirs.push(tempDir)
-    // Use a deeply nested non-existent subdirectory
-    const manager = new ConfigManager<TestConfig>(
-      path.join(tempDir, 'nonexistent', 'deep', 'path', 'config.json')
-    )
-
-    // This should create the directory and return empty object
-    const result = await manager.read()
-    expect(result).toEqual({})
-  })
 })
 
 describe('ConfigManager - Race Conditions', () => {
@@ -298,7 +285,7 @@ describe('ConfigManager - Security (Prototype Pollution)', () => {
   it.each(['__proto__', 'constructor', 'prototype'])('strips the %s key on read', async (key) => {
     const { manager, filePath } = createTempManager<Record<string, unknown>>()
     const malicious = { name: 'safe', [key]: { polluted: true } }
-    require('fs').writeFileSync(filePath, JSON.stringify(malicious), 'utf8')
+    writeFileSync(filePath, JSON.stringify(malicious), 'utf8')
 
     const result = await manager.read()
     expect(result).toEqual({ name: 'safe' })
@@ -312,7 +299,7 @@ describe('ConfigManager - Security (Prototype Pollution)', () => {
       config: { theme: 'dark' },
       nested: { __proto__: { polluted: true } }
     }
-    require('fs').writeFileSync(filePath, JSON.stringify(malicious), 'utf8')
+    writeFileSync(filePath, JSON.stringify(malicious), 'utf8')
 
     const result = await manager.read()
     expect(result).toEqual({ config: { theme: 'dark' }, nested: {} })

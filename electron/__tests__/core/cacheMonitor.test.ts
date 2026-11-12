@@ -105,7 +105,7 @@ describe('collectExpiredFiles', () => {
     const expired = await collectExpiredFiles(tempDir, userDataPath, 10)
     expect(expired.length).toBeGreaterThanOrEqual(1)
     expect(expired[0].size).toBeGreaterThan(0)
-    expect(expired[0].absolutePath).toBeTruthy()
+    expect(expired.some((entry) => entry.absolutePath.endsWith('old.txt'))).toBe(true)
   })
 
   it('collects files at every depth but never returns a directory entry', async () => {

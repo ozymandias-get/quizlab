@@ -18,7 +18,7 @@
 
 import { isAuthNavigationDomain } from '../../../app/window/remoteContentSecurity'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const REMOTE_CONTENT_CLIPBOARD_PROTECTION_SCRIPT = (
   await import('../../../app/window/remoteContentSecurity')
@@ -79,11 +79,7 @@ describe('remote content clipboard guard', () => {
     new Function(REMOTE_CONTENT_CLIPBOARD_PROTECTION_SCRIPT)()
   })
 
-  afterEachRestore()
-
-  function afterEachRestore() {
-    return () => fakeDocument.restore()
-  }
+  afterEach(() => fakeDocument.restore())
 
   describe('registration', () => {
     it('guards copy, cut and paste in the capture phase', () => {

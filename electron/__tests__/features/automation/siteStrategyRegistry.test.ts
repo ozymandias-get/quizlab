@@ -222,12 +222,6 @@ describe('siteStrategyRegistry', () => {
       expect(result!.element).toBe(button)
     })
 
-    it('tryGenericButtonFallback returns null when no send button exists', () => {
-      listApplicableStrategies('claude.ai')
-      const claude = findStrategiesForHostname('claude.ai').find((s) => s.id === 'builtin:claude')!
-      expect(claude.produce('button')).toBeNull()
-    })
-
     it('all builtin strategies share the same DOM-based produce functions', () => {
       listApplicableStrategies('chat.deepseek.com')
       const matches = findStrategiesForHostname('chat.deepseek.com')

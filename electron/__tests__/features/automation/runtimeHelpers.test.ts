@@ -22,36 +22,14 @@ describe('runtime helpers (guest-page template strings)', () => {
     const harness = `() => {
       ${errorClassifierRuntime}
       return {
-        classify: __classifyError,
-        retryBudget: __retryBudgetFor,
-        normalize: __normalizeErrorCode
+        retryBudget: __retryBudgetFor
       }
     }`
 
     const getHelpers = () =>
       (window.eval(harness) as () => unknown)() as {
-        classify: (raw: string) => { retry: string; triggerFallback: boolean; category: string }
         retryBudget: (raw: string) => number
-        normalize: (raw: string) => string
       }
-
-    it('classifies selector errors with after-repick policy and no fallback', () => {
-      const result = getHelpers().classify('input_not_found')
-      expect(result.category).toBe('selector')
-      expect(result.retry).toBe('after-repick')
-      expect(result.triggerFallback).toBe(false)
-    })
-
-    it('classifies submit_not_ready as different-strategy with fallback', () => {
-      const result = getHelpers().classify('submit_not_ready')
-      expect(result.category).toBe('submit')
-      expect(result.retry).toBe('different-strategy')
-      expect(result.triggerFallback).toBe(true)
-    })
-
-    it('normalizes framework noise to unknown', () => {
-      expect(getHelpers().normalize('Illegal invocation')).toBe('unknown')
-    })
 
     // `errorClassifierParity.test.ts` bu runtime'ın her hata kodunda host ile
     // birebir aynı kararı verdiğini zaten kanıtlıyor. Parity tek sayısal alanı
@@ -187,27 +165,6 @@ describe('runtime helpers (guest-page template strings)', () => {
       ${eventDrivenWaitRuntime}
       return { wait: __eventDrivenWait }
     }`
-
-    it('resolves immediately if check() returns truthy on first call', async () => {
-      const helpers = (window.eval(harness) as () => unknown)() as {
-        wait: (params: {
-          root: Element
-          check: () => boolean
-          timeoutMs: number
-          settleMs: number
-          minimumWaitMs: number
-        }) => Promise<{ result: unknown; totalMs: number }>
-      }
-      const result = await helpers.wait({
-        root: document.body,
-        check: () => true,
-        timeoutMs: 1000,
-        settleMs: 0,
-        minimumWaitMs: 0
-      })
-      expect(result.result).toBe(true)
-      expect(result.totalMs).toBeGreaterThanOrEqual(0)
-    })
 
     it('returns null when timeout elapses before check() passes', async () => {
       const helpers = (window.eval(harness) as () => unknown)() as {

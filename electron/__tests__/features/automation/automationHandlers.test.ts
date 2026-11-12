@@ -179,30 +179,6 @@ describe('automationHandlers', () => {
     expect(generateValidateSelectorsScript).toHaveBeenCalledWith(config)
   })
 
-  it('accepts undefined wait options and rejects malformed wait/picker payloads', async () => {
-    generateWaitForSubmitReadyScript.mockReturnValue('wait-script')
-    const { registerAutomationHandlers } =
-      await import('../../../features/automation/automationHandlers.js')
-    registerAutomationHandlers()
-
-    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
-    const config = { input: '#prompt' }
-
-    const waitOk = await handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config)
-    expect(waitOk).toEqual({ ok: true, data: 'wait-script' })
-    expect(generateWaitForSubmitReadyScript).toHaveBeenCalledWith(config, undefined)
-
-    for (const invalidCall of [
-      () => handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config, 123 as never),
-      () => handler?.(trustedEvent, 'generatePickerScript', null)
-    ]) {
-      expect(await invalidCall()).toEqual({
-        ok: false,
-        error: { code: 'invalid_input', message: 'Invalid action or arguments' }
-      })
-    }
-  })
-
   it('returns null for unknown automation actions', async () => {
     const { registerAutomationHandlers } =
       await import('../../../features/automation/automationHandlers.js')

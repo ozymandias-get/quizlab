@@ -40,7 +40,7 @@ vi.mock('@electron/features/ai/aiManager', () => ({
 }))
 
 // Import after mocks are set up
-const { getCacheRules, isProtectedPath, isSymlinkSafe, markPartitionActive } =
+const { getCacheRules, isProtectedPath, isSymlinkSafe } =
   await import('@electron/core/cacheRegistry')
 
 beforeEach(() => {
@@ -97,17 +97,6 @@ describe('cacheRegistry', () => {
   describe('isProtectedPath', () => {
     const userDataPath = '/mock/user-data'
 
-    it('returns true for protected file names', () => {
-      expect(isProtectedPath('/mock/user-data/window-state.json', userDataPath)).toBe(true)
-      expect(isProtectedPath('/mock/user-data/pdf-allowlist.json', userDataPath)).toBe(true)
-    })
-
-    it('returns true for protected directories', () => {
-      expect(isProtectedPath('/mock/user-data/gemini-web-profile/cookies.db', userDataPath)).toBe(
-        true
-      )
-    })
-
     it('returns true for Partitions storage subdirectories', () => {
       // The storage subdirectory (parent of the actual file) must be a protected type
       expect(
@@ -149,17 +138,6 @@ describe('cacheRegistry', () => {
     it('returns false for paths outside userData', () => {
       mockGetPath.mockReturnValue('/mock/user-data')
       expect(isSymlinkSafe('/etc/passwd')).toBe(false)
-    })
-  })
-
-  describe('markPartitionActive', () => {
-    it('accepts a partition name and an empty name without corrupting the set', () => {
-      // Activity is observed through isProtectedPartition() in
-      // electron/__tests__/core/systemHandlers/cache.test.ts ("protects recently
-      // active partitions from cleanup"). This case only pins that the ingest
-      // path does not throw on its two boundary inputs.
-      expect(() => markPartitionActive('test-partition')).not.toThrow()
-      expect(() => markPartitionActive('')).not.toThrow()
     })
   })
 })

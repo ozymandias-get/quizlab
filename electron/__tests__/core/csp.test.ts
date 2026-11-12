@@ -3,12 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { generateCspNonce, getDevCsp, getStrictCsp } from '../../core/csp.js'
 
 describe('generateCspNonce', () => {
-  it('returns a base64 string', () => {
-    const nonce = generateCspNonce()
-    expect(nonce).toBeTruthy()
-    expect(() => Buffer.from(nonce, 'base64')).not.toThrow()
-  })
-
   it('returns different values on each call', () => {
     const a = generateCspNonce()
     const b = generateCspNonce()

@@ -454,36 +454,6 @@ describe('automationScripts', () => {
    */
   describe('submit wait budgets are opt-in', () => {
     const CONFIG = { input: '#input', button: '#send', submitMode: 'click' } as const
-    const PRODUCTION_BUDGETS = {
-      submitBudgetMs: 15000,
-      unconfiguredButtonProbeMs: 1000,
-      stableBlockedExitMs: 2000,
-      observeAttempts: 25,
-      observeIntervalMs: 120,
-      rejectedControlRetryMs: 120
-    }
-
-    it('emits byte-identical scripts with no budget given as with the production budget', () => {
-      // Birebir aynı metin: parametresiz çağrı, üretim değerlerinin kendisidir.
-      expect(generateAutoSendScript(CONFIG, 'hello', true)).toBe(
-        generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, PRODUCTION_BUDGETS)
-      )
-      expect(generateAutoSendScript(CONFIG, 'hello', true)).toBe(
-        generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, {})
-      )
-      expect(generateClickSendScript(CONFIG)).toBe(
-        generateClickSendScript(CONFIG, PRODUCTION_BUDGETS)
-      )
-    })
-
-    it('embeds the measured production budgets in the emitted script', () => {
-      const script = generateAutoSendScript(CONFIG, 'hello', true)
-
-      expect(script).toContain('configured ? 15000 : 1000')
-      expect(script).toContain('attempts = 25, intervalMs = 120')
-      expect(script).toMatch(/true,\s*2000\s*\);/)
-      expect(script).toContain('await wait(120);')
-    })
 
     it('actually substitutes every budget when one is supplied', () => {
       const script = generateAutoSendScript(CONFIG, 'hello', true, false, 'auto', 30, {

@@ -180,17 +180,9 @@ describe('decryptValue', () => {
   })
 
   it('returns "" when encryption is unavailable after having been encrypted', () => {
-    mockIsEncryptionAvailable.mockReturnValue(false)
-    const result = decryptValue('enc:' + Buffer.from('x').toString('base64'))
-    expect(result).toBe('')
-  })
-
-  it('handles decrypt of value that was encrypted when available becomes unavailable', () => {
-    mockIsEncryptionAvailable.mockReturnValueOnce(true).mockReturnValueOnce(false)
-
     const encrypted = encryptValue('test')
-    const decrypted = decryptValue(encrypted)
-    expect(decrypted).toBe('')
+    mockIsEncryptionAvailable.mockReturnValue(false)
+    expect(decryptValue(encrypted)).toBe('')
   })
 })
 

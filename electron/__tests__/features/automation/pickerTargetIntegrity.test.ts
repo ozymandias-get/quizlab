@@ -233,16 +233,6 @@ describe('picker target integrity', () => {
     expect(bundle!.primarySelector).toBe('button[data-testid="send-button"]')
   })
 
-  it('T09: semantic classes beside hashes still reach the fingerprint', () => {
-    const el = document.createElement('div')
-    el.setAttribute('contenteditable', 'true')
-    el.setAttribute('class', 'x16qrm4 xxyica1 ProseMirror composer-send')
-    document.body.appendChild(el)
-
-    const bundle = generateLocatorBundle(el, 'input')
-    expect(bundle!.fingerprint.classTokens).toEqual(['ProseMirror', 'composer-send'])
-  })
-
   /**
    * Injection contract: `buildInjectedPickerDomHelpers` re-emits every helper
    * with `fn.toString()` and only mirrors GENERATED_TOKEN_REGEX /

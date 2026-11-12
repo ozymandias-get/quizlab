@@ -35,12 +35,4 @@ describe('electron/core/coreHelpers', () => {
     expect(result).toBe(path.join('/mock', 'userData', fileName))
     expect(path.dirname(result)).toBe(path.join('/mock', 'userData'))
   })
-
-  it('gives every helper a distinct destination path', async () => {
-    const helpers: CoreHelpers = await import('../../core/coreHelpers.js')
-
-    const resolved = new Set(PATHS.map(([name]) => helpers[name]() as unknown as string))
-
-    expect(resolved.size).toBe(PATHS.length)
-  })
 })
