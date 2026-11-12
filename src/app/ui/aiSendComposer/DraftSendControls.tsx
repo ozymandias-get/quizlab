@@ -106,7 +106,7 @@ function DraftSendControls({
           }
           className={cn(
             'text-ql-10 shrink-0 rounded-full px-1.5 py-0.5 font-semibold transition-colors',
-            autoSend ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground/70'
+            autoSend ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground'
           )}
         >
           {autoSend ? t('ai_send_auto_on') : t('ai_send_auto_off')}
@@ -241,7 +241,7 @@ export function DraftSendButton({
           // yüzey + okunur metin. Tüm düğmeyi `opacity` ile soldurmak koyu temada
           // ıslak gri bir leke gibi okunuyordu.
           isDisabled &&
-            'bg-muted/65 text-muted-foreground/65 hover:bg-muted/65 opacity-100 shadow-none'
+            'bg-muted/65 text-muted-foreground hover:bg-muted/65 opacity-100 shadow-none'
         )}
       >
         <SendIcon className={cn('size-3.5', intent === 'sending' && 'animate-spin')} aria-hidden />

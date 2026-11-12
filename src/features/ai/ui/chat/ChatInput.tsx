@@ -133,7 +133,7 @@ const ChatInput = memo(function ChatInput({
                         <span className="text-ql-10 block truncate leading-tight font-semibold">
                           {formatBytes(meta.bytes)}
                         </span>
-                        <span className="block truncate text-[8px] leading-tight font-medium tracking-wide opacity-80">
+                        <span className="block truncate text-[9px] leading-tight font-medium tracking-wide opacity-90">
                           {meta.type}
                         </span>
                       </div>
@@ -226,7 +226,7 @@ const ChatInput = memo(function ChatInput({
                 </Badge>
               )}
 
-              <span className="text-ql-10 text-muted-foreground/60 hidden items-center gap-1 @min-[520px]:flex">
+              <span className="text-ql-10 text-muted-foreground/85 hidden items-center gap-1 @min-[520px]:flex">
                 <Kbd size="xs">Enter</Kbd>
                 <span>{t('api_chat_send_hint')}</span>
                 <span aria-hidden>·</span>

@@ -22,6 +22,13 @@ export {
 } from './hooks/useQuickAiPresets'
 export { TYPING_SPEED_OPTIONS, useTextInputMode } from './hooks/useTextInputMode'
 export { prepareImageForUpload } from './lib/imageDownscale'
+export {
+  createRecentAiWorkEntry,
+  RECENT_AI_WORK_LIMIT,
+  type RecentAiWorkEntry,
+  recordRecentAiWork,
+  replaceRecentAiWork
+} from './lib/recentWork'
 export { normalizeExecutionResult } from './lib/send/scriptExecution'
 /**
  * The app-layer messaging provider measures `contentReadyMs` with the same

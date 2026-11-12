@@ -66,7 +66,7 @@ const AiHomeHero = memo(function AiHomeHero({
       )}
 
       {tabs.length === 0 && (
-        <div className="text-muted-foreground/80 flex items-center gap-2">
+        <div className="text-muted-foreground flex items-center gap-2">
           <MousePointerClick
             className="h-3.5 w-3.5 shrink-0"
             style={{ color: 'var(--selection-color-source, currentColor)' }}

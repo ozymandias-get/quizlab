@@ -69,22 +69,16 @@
 }
 
 /* Center floating dock surface — responds directly to `--bar-opacity-factor`
-   configured in Settings > Appearance > Bar Appearance. */
+   configured in Settings > Appearance > Bar Appearance. The dark surface uses
+   the workspace background and a higher opacity floor: on the near-black
+   workspace the card token reads as a blue-tinted slab. The bar-opacity
+   setting still shapes the glass — it just never drops the rail back into the
+   tinted range. */
 
 .dock-surface {
-  background-color: oklch(var(--card) / calc(0.15 + (var(--bar-opacity-factor, 0.7) * 0.82)));
+  background-color: oklch(var(--background) / calc(0.7 + (var(--bar-opacity-factor, 0.7) * 0.28)));
   border-color: oklch(var(--border) / calc(0.2 + (var(--bar-opacity-factor, 0.7) * 0.65)));
   box-shadow: var(--shadow-ambient-sm);
-}
-
-/* Dark mode: the dock is chrome, not content. On the near-black workspace the
-   card token and the page showing through its translucent surface read as a
-   blue-tinted slab, so the dark surface uses the workspace background and a
-   higher opacity floor. The bar-opacity setting still shapes the glass — it
-   just never drops the rail back into the tinted range. */
-
-.dark .dock-surface {
-  background-color: oklch(var(--background) / calc(0.7 + (var(--bar-opacity-factor, 0.7) * 0.28)));
 }
 
 /* Handlebar pill — minimal at rest so it doesn't clutter the center column,

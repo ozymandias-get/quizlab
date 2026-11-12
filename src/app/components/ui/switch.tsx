@@ -30,7 +30,7 @@ function Switch({
       </span>
       <span
         aria-hidden
-        className="text-muted-foreground/70 pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 text-[7px] leading-none font-bold opacity-0 transition-opacity group-data-[state=unchecked]/switch:opacity-100"
+        className="text-muted-foreground pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 text-[7px] leading-none font-bold opacity-0 transition-opacity group-data-[state=unchecked]/switch:opacity-100"
       >
         O
       </span>

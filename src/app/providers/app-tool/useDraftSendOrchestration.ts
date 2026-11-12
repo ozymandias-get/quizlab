@@ -59,6 +59,19 @@ function mergeNoteWithBody(note: string | undefined, body: string): string | und
   return `${normalizedNote}\n\n${body}`
 }
 
+/** One card row per conversation: multiple files collapse to a short label. */
+function collectDocumentName(items: readonly AiDraftItem[]): string | undefined {
+  const names = [
+    ...new Set(
+      items
+        .map((item) => item.source?.docName?.trim())
+        .filter((name): name is string => Boolean(name))
+    )
+  ]
+  if (names.length === 0) return undefined
+  return names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`
+}
+
 export function useDraftSendOrchestration({
   autoSend,
   providerId,
@@ -86,12 +99,16 @@ export function useDraftSendOrchestration({
       if (!combinedPrompt && plan.images.length === 0) {
         return { result: { success: false, error: 'invalid_input' }, sentItemIds: [] }
       }
+      const documentName =
+        collectDocumentName(items) ?? options?.sourceDocument?.name?.trim() ?? undefined
+      const sourceDocument = documentName ? { sourceDocument: { name: documentName } } : {}
 
       // Görsel yoksa tek metin gönderimi (tek submit, tek prompt).
       if (plan.images.length === 0) {
         const sendResult =
           (await sendTextToAI(combinedPrompt ?? '', {
-            autoSend: effectiveAutoSend
+            autoSend: effectiveAutoSend,
+            ...sourceDocument
           })) ?? NO_SEND_RESULT
         if (!sendResult.success) {
           if ((sendResult as { error?: string }).error !== 'webview_not_ready') {
@@ -143,7 +160,8 @@ export function useDraftSendOrchestration({
       const sendResult =
         (await sendBulkToAI(imageDataUrls, {
           autoSend: effectiveAutoSend,
-          promptText: combinedPrompt
+          promptText: combinedPrompt,
+          ...sourceDocument
         })) ?? NO_SEND_RESULT
 
       if (!sendResult.success) {

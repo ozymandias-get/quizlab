@@ -15,7 +15,7 @@ import { QUERY_KEYS } from '@shared/query/queryKeys'
  */
 
 export const SETTINGS_SYNC_KEYS: readonly string[] = [
-  // Theme / appearance (zustand persist under `appearance-storage`)
+  // Appearance (zustand persist under `appearance-storage`)
   'appearance-storage',
   // Prompt templates
   STORAGE_KEYS.CUSTOM_PROMPTS,

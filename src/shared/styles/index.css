@@ -53,10 +53,10 @@
   --radius-2xl: 1.25rem;
   --radius-full: 9999px;
 
-  --text-ql-10: 10px;
-  --text-ql-10--line-height: 1.35;
-  --text-ql-11: 11px;
-  --text-ql-11--line-height: 1.4;
+  --text-ql-10: 11px;
+  --text-ql-10--line-height: 1.4;
+  --text-ql-11: 12px;
+  --text-ql-11--line-height: 1.42;
   --text-ql-12: 12px;
   --text-ql-12--line-height: 1.45;
   --text-ql-13: 13px;
@@ -181,28 +181,6 @@
 
 @layer base {
   :root {
-    --background: 0.98 0.002 260;
-    --foreground: 0.15 0.01 260;
-    --card: 1 0 0;
-    --popover: 1 0 0;
-    --popover-foreground: 0.15 0.01 260;
-    --primary: 0.2 0.015 260;
-    --primary-foreground: 0.985 0 0;
-    --secondary: 0.945 0.004 260;
-    --secondary-foreground: 0.2 0.01 260;
-    --muted: 0.945 0.004 260;
-    --muted-foreground: 0.48 0.01 260;
-    --accent: 0.935 0.005 260;
-    --accent-foreground: 0.18 0.01 260;
-    --destructive: 0.577 0.245 27.325;
-    --destructive-foreground: 0.985 0 0;
-    --border: 0.89 0.004 260;
-    --input: 0.89 0.004 260;
-    --ring: 0.5 0.01 260;
-    --radius: 0.75rem;
-  }
-
-  .dark {
     --background: 0.11 0.005 260;
     --foreground: 0.965 0.003 260;
     --card: 0.148 0.006 260;
@@ -213,7 +191,7 @@
     --secondary: 0.195 0.007 260;
     --secondary-foreground: 0.95 0.004 260;
     --muted: 0.19 0.007 260;
-    --muted-foreground: 0.63 0.008 260;
+    --muted-foreground: 0.72 0.01 260;
     --accent: 0.215 0.008 260;
     --accent-foreground: 0.965 0.003 260;
     --destructive: 0.704 0.191 22.216;
@@ -221,6 +199,7 @@
     --border: 0.225 0.007 260;
     --input: 0.225 0.007 260;
     --ring: 0.62 0.01 260;
+    --radius: 0.75rem;
     color-scheme: dark;
   }
 

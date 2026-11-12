@@ -25,9 +25,9 @@ function AppEffects() {
   const selectionColor = useAppearance((state) => state.selectionColor)
 
   useEffect(() => {
-    const root = document.documentElement
-    root.classList.add('dark')
-    root.classList.remove('light')
+    // Dark is the only theme now. The class stays so existing `dark:` utility
+    // variants keep applying; there is no theme switch to remove it.
+    document.documentElement.classList.add('dark')
   }, [])
 
   useEffect(() => {

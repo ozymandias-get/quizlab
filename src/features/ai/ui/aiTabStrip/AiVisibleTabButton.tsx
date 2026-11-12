@@ -1,5 +1,4 @@
 import type { Tab } from '@app/providers/ai-context'
-import { TAB_DRAG_ID_ATTR } from '@shared/hooks'
 import {
   IconButton,
   TabPillContainer,

@@ -7,6 +7,7 @@ export const AI_TAB_MAX_WIDTH = 240
 const AI_TAB_GAP = 6
 const HOME_BUTTON_WIDTH = 32
 const REFRESH_BUTTON_WIDTH = 32
+const PIN_BUTTON_WIDTH = 32
 const DIVIDER_WIDTH = 1
 const OVERFLOW_BUTTON_WIDTH = 44
 const ROW_GAP = 6
@@ -14,6 +15,7 @@ const ROW_GAP = 6
 interface AiTabStripCapacity {
   hasHome?: boolean
   hasRefresh?: boolean
+  hasPin?: boolean
   /** The overflow button only exists while at least one tab is hidden. */
   hasOverflow?: boolean
 }
@@ -22,15 +24,17 @@ interface AiTabStripCapacity {
 export function getAiTabStripChromeWidth({
   hasHome = false,
   hasRefresh = false,
+  hasPin = false,
   hasOverflow = true
 }: AiTabStripCapacity = {}): number {
   return (
     (hasHome ? HOME_BUTTON_WIDTH : 0) +
     (hasRefresh ? REFRESH_BUTTON_WIDTH : 0) +
+    (hasPin ? PIN_BUTTON_WIDTH : 0) +
     DIVIDER_WIDTH +
     (hasOverflow ? OVERFLOW_BUTTON_WIDTH : 0) +
-    // Home/refresh/divider before the pills, overflow after them.
-    4 * ROW_GAP
+    // Home/refresh/pin/divider before the pills, overflow after them.
+    (hasPin ? 5 : 4) * ROW_GAP
   )
 }
 

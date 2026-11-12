@@ -88,7 +88,7 @@ const CacheDistribution = memo(function CacheDistribution({
           <li key={segment.key} className="flex min-w-0 items-center gap-1.5">
             <span aria-hidden className={cn('size-2 shrink-0 rounded-full', segment.color)} />
             <span className="text-ql-11 text-muted-foreground truncate">{segment.label}</span>
-            <span className="text-ql-11 text-muted-foreground/80 shrink-0 font-mono tabular-nums">
+            <span className="text-ql-11 text-muted-foreground shrink-0 font-mono tabular-nums">
               {formatBytes(segment.size)}
             </span>
           </li>

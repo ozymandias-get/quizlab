@@ -119,6 +119,7 @@ export function useAiTabs({
       setTabs((prev) => [...prev, { id: newTabId, modelId: selectedModel }])
       setActiveTabId(newTabId)
       setLastSelectedAI(selectedModel)
+      return newTabId
     },
     [allAiIds, defaultAiModel, setLastSelectedAI]
   )

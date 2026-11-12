@@ -13,33 +13,42 @@ import {
   TAB_STRIP_ROW_CLASS
 } from '@shared/ui/tabStripChrome'
 
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
+import { createPinnedAiProject, savePinnedAiProject } from '../lib/pinnedProjects'
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
+import AiTabStripPinButton from './aiTabStrip/AiTabStripPinButton'
 import AiTabStripRefreshButton from './aiTabStrip/AiTabStripRefreshButton'
 import AiVisibleTabButton from './aiTabStrip/AiVisibleTabButton'
+import PinAiProjectDialog from './aiTabStrip/PinAiProjectDialog'
 import { useAiTabStripState } from './aiTabStrip/useAiTabStripState'
 
 interface AiTabStripProps {
   showHome?: boolean
   onShowHome?: () => void
   onHideHome?: () => void
+  /** Last known URL per tab; used by the pin dialog when the view is not live. */
+  getTabUrl: (tabId: string, modelId: string) => string | undefined
 }
 
-function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
+function AiTabStrip({ showHome, onShowHome, onHideHome, getTabUrl }: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const aiSites = useAiSites()
   const { hasActiveContent } = useAiContentPresence()
   const { setActiveTab, closeTab, moveTab } = useAiTabActions()
   const { reloadActiveContent } = useAiContentHostActions()
   const { t } = useTranslation()
+  const [isPinOpen, setIsPinOpen] = useState(false)
+  const [pinTabId, setPinTabId] = useState('')
   const { refs, state, helpers, actions } = useAiTabStripState({
     tabs,
     activeTabId,
     aiSites,
-    t
+    t,
+    hasPin: true
   })
   const { draggedId, dropTarget, rowDragHandlers } = useTabStripReorder({ onReorder: moveTab })
 
@@ -72,6 +81,16 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
     actions.setContextMenu(null)
   }, [actions])
 
+  const handleOpenPin = useCallback(() => {
+    setPinTabId(activeTabId || tabs[0]?.id || '')
+    setIsPinOpen(true)
+  }, [activeTabId, tabs])
+
+  const handleSavePin = useCallback((input: { modelId: string; name: string; url: string }) => {
+    const project = createPinnedAiProject(input.modelId, input.name, input.url)
+    if (project) savePinnedAiProject(project)
+  }, [])
+
   return (
     <div className={TAB_STRIP_BAR_CLASS}>
       <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>
@@ -81,6 +100,12 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
           disabled={Boolean(showHome) || tabs.length === 0 || !hasActiveContent}
           title={t('ai_home.refresh_page')}
           onRefresh={reloadActiveContent}
+        />
+
+        <AiTabStripPinButton
+          disabled={tabs.length === 0 || tabs.every((tab) => tab.modelId === 'api-chat')}
+          title={t('ai_home.pin_project')}
+          onPin={handleOpenPin}
         />
 
         <div className={TAB_STRIP_DIVIDER_CLASS} aria-hidden />
@@ -127,6 +152,20 @@ function AiTabStrip({ showHome, onShowHome, onHideHome }: AiTabStripProps) {
         onCloseTab={closeTab}
         onDismiss={handleDismissContextMenu}
       />
+
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <PinAiProjectDialog
+            isOpen={isPinOpen}
+            onClose={() => setIsPinOpen(false)}
+            tabs={tabs}
+            initialTabId={pinTabId}
+            aiSites={aiSites}
+            getTabUrl={getTabUrl}
+            onSave={handleSavePin}
+          />,
+          document.body
+        )}
     </div>
   )
 }

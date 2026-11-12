@@ -126,7 +126,7 @@ function DraftDockBar({
           }
           className={cn(
             'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
-            itemCount > 0 ? 'text-primary bg-primary/10' : 'bg-muted/70 text-muted-foreground/80'
+            itemCount > 0 ? 'text-primary bg-primary/10' : 'bg-muted/70 text-muted-foreground'
           )}
         >
           {t('ai_draft_content_count', { count: itemCount })}
@@ -175,7 +175,7 @@ function DraftDockBar({
             className={cn(
               'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98]',
               !canSend &&
-                'bg-muted/70 text-muted-foreground/70 hover:bg-muted/70 opacity-100 shadow-none'
+                'bg-muted/70 text-muted-foreground hover:bg-muted/70 opacity-100 shadow-none'
             )}
           >
             <SendIcon

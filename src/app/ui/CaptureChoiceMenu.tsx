@@ -353,9 +353,14 @@ function CaptureChoiceMenu() {
       const header = isTextRun
         ? buildTextSourceHeader(textSourceMeta)
         : buildImageSourceHeader(sourceMeta)
+      const documentName = (isTextRun ? textSourceMeta : sourceMeta)?.docName
+      const sendOptions = {
+        ...(header ? { promptText: header } : {}),
+        ...(documentName ? { sourceDocument: { name: documentName } } : {})
+      }
       const result = isTextRun
-        ? await sendTextDirectToAi(dataUrl, header ? { promptText: header } : {})
-        : await sendImageDirectToAi(dataUrl, header ? { promptText: header } : {})
+        ? await sendTextDirectToAi(dataUrl, sendOptions)
+        : await sendImageDirectToAi(dataUrl, sendOptions)
       if (!isCurrentRun()) return
       // Kaynağın gönderim üzerindeki müsahadeti biter: ertelenmiş bir iptal
       // varsa burada ve şimdi yapılır (yoksa kaynak sızar).

@@ -19,6 +19,7 @@ import type {
   AiTabFocusSliceState,
   AiTabsListSliceState,
   AiViewRequestNonceState,
+  OpenAiWorkspaceOptions,
   Tab
 } from '../ai/types'
 
@@ -39,10 +40,10 @@ interface UseAiProviderContextsParams {
   autoSend: boolean
   getContentController: (tabId?: string) => AiContentController | null
   hasActiveContent: boolean
-  addTab: (modelId: string) => void
+  addTab: (modelId: string) => string
   handleCloseTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
-  openAiWorkspace: (modelId: string) => void
+  openAiWorkspace: (modelId: string, options?: OpenAiWorkspaceOptions) => string
   moveTab: (tabId: string, targetId: string, placeAfter: boolean) => void
   setEnabledModels: (models: string[]) => void
   setFavoriteModels: (models: string[]) => void

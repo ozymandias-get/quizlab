@@ -1,14 +1,26 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
+import type { AiTabUrlRequest } from '@features/ai/hooks/useAiViewSurfaceState'
 
 import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
 import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
 import { useManagedContentView } from '@shared/hooks/aiContent/useManagedContentView'
+import { getElectronApi } from '@shared/lib/electronApi'
 import AiSiteLoader from '@ui/components/AiSiteLoader'
 
-import { type CSSProperties, lazy, memo, Suspense, useCallback, useMemo } from 'react'
+import {
+  type CSSProperties,
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import SleepPlaceholderView from './SleepPlaceholderView'
@@ -34,6 +46,9 @@ interface AiSessionProps {
   isOverlayActive: boolean
   /** Last URL before cold unmount; must match current model (parent validates). */
   restoredUrl?: string
+  /** One-shot "open this conversation" request coming from AI Home. */
+  urlRequest?: AiTabUrlRequest
+  onUrlRequestHandled?: (tabId: string) => void
   onTabUrlRecorded?: (tabId: string, modelId: string, url: string) => void
 }
 
@@ -53,6 +68,8 @@ const AiSession = memo(
     isSurfaceActive,
     isOverlayActive,
     restoredUrl,
+    urlRequest,
+    onUrlRequestHandled,
     onTabUrlRecorded
   }: AiSessionProps) => {
     const aiSites = useAiSites()
@@ -70,7 +87,29 @@ const AiSession = memo(
       tab.modelId
     )
 
-    const { entryUrl } = useAiSessionEntryUrl(tab.modelId, isSleeping, restoredUrl, siteConfig?.url)
+    const [entryOverride, setEntryOverride] = useState<{ url: string; seq: number } | null>(() =>
+      urlRequest && urlRequest.modelId === tab.modelId
+        ? { url: urlRequest.url, seq: urlRequest.nonce }
+        : null
+    )
+    const pendingNavigationRef = useRef<string | null>(null)
+
+    useEffect(() => {
+      if (!urlRequest || urlRequest.modelId !== tab.modelId) return
+      pendingNavigationRef.current = urlRequest.url
+      setEntryOverride((current) =>
+        current?.seq === urlRequest.nonce ? current : { url: urlRequest.url, seq: urlRequest.nonce }
+      )
+      onUrlRequestHandled?.(tab.id)
+    }, [onUrlRequestHandled, tab.id, tab.modelId, urlRequest])
+
+    const { entryUrl } = useAiSessionEntryUrl(
+      tab.modelId,
+      isSleeping,
+      entryOverride?.url ?? restoredUrl,
+      siteConfig?.url,
+      entryOverride?.seq
+    )
     const { handlePageSettled } = useAiSessionStaleCheck(siteConfig?.url, isActive)
 
     const canHostRemoteView = Boolean(siteConfig) && !isApiChat && !isSleeping
@@ -112,7 +151,34 @@ const AiSession = memo(
       registerContent: registerInstance
     })
 
-    const { isLoading, error, handleRetry, setHostElement } = managed
+    const { isLoading, error, handleRetry, hasLoadedOnce, setHostElement } = managed
+
+    // A live view ignores `restoredUrl` on re-attach (the attach path only uses
+    // it when it creates the view), so the one-shot request is applied here,
+    // after the guest is actually mounted. Waiting for `hasLoadedOnce` removes
+    // the race where the initial entry load overwrites a navigation issued
+    // while the view was still being created.
+    useEffect(() => {
+      const pending = pendingNavigationRef.current
+      if (!pending || isSleeping || !canHostRemoteView || !hasLoadedOnce) return
+
+      let cancelled = false
+      void (async () => {
+        const api = getElectronApi()
+        if (!api) return
+        const currentUrl = await api.aiView.getUrl({ viewId: tab.id }).catch(() => null)
+        if (cancelled) return
+        if (currentUrl !== pending) {
+          await api.aiView.loadUrl({ viewId: tab.id, url: pending }).catch(() => false)
+        }
+        if (cancelled) return
+        pendingNavigationRef.current = null
+      })()
+
+      return () => {
+        cancelled = true
+      }
+    }, [canHostRemoteView, entryOverride?.seq, hasLoadedOnce, isSleeping, tab.id])
 
     const visibilityStyle = useMemo<CSSProperties>(
       () => ({

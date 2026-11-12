@@ -55,7 +55,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut && (
-        <span className="text-ql-10 text-muted-foreground tracking-ql-caps shrink-0 font-mono uppercase opacity-60">
+        <span className="text-ql-10 text-muted-foreground tracking-ql-caps shrink-0 font-mono uppercase">
           {shortcut}
         </span>
       )}

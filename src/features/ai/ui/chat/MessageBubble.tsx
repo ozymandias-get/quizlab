@@ -415,7 +415,7 @@ const MessageBubble = memo(function MessageBubble({
             <div className="mt-1 flex items-center gap-2.5 px-1">
               {message.model && (
                 <span
-                  className="text-ql-10 text-muted-foreground/60 max-w-[180px] truncate font-mono select-none"
+                  className="text-ql-10 text-muted-foreground/80 max-w-[180px] truncate font-mono select-none"
                   title={message.model}
                 >
                   {message.model}

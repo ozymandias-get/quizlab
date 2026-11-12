@@ -27,9 +27,17 @@ interface UseAiTabStripStateParams {
   activeTabId: string
   aiSites: Record<string, AiPlatform>
   t: (key: string) => string
+  /** The pin button occupies chrome width before the first pill. */
+  hasPin?: boolean
 }
 
-export function useAiTabStripState({ tabs, activeTabId, aiSites, t }: UseAiTabStripStateParams) {
+export function useAiTabStripState({
+  tabs,
+  activeTabId,
+  aiSites,
+  t,
+  hasPin = false
+}: UseAiTabStripStateParams) {
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const overflowRef = useRef<HTMLDivElement>(null)
@@ -59,15 +67,19 @@ export function useAiTabStripState({ tabs, activeTabId, aiSites, t }: UseAiTabSt
   // measured pills used to predict it.
   const blockedCapacityRef = useRef<number | null>(null)
 
-  const getInitialCapacity = useCallback((width: number) => {
-    blockedCapacityRef.current = null
-    // Home + refresh + divider are always rendered before the pills. The
-    // overflow button is only reserved when a tab really has to be hidden.
-    return getInitialVisibleAiTabs(width, tabsRef.current.length, {
-      hasHome: true,
-      hasRefresh: true
-    })
-  }, [])
+  const getInitialCapacity = useCallback(
+    (width: number) => {
+      blockedCapacityRef.current = null
+      // Home + refresh + pin + divider are always rendered before the pills. The
+      // overflow button is only reserved when a tab really has to be hidden.
+      return getInitialVisibleAiTabs(width, tabsRef.current.length, {
+        hasHome: true,
+        hasRefresh: true,
+        hasPin
+      })
+    },
+    [hasPin]
+  )
 
   const lastTabContentSignatureRef = useRef(tabContentSignature)
   useLayoutEffect(() => {
@@ -124,6 +136,7 @@ export function useAiTabStripState({ tabs, activeTabId, aiSites, t }: UseAiTabSt
       getAiTabStripChromeWidth({
         hasHome: true,
         hasRefresh: true,
+        hasPin,
         hasOverflow: tabs.length > renderedTabs.length
       })
     const tabWidths = renderedTabs.map((tab) => {
@@ -148,7 +161,7 @@ export function useAiTabStripState({ tabs, activeTabId, aiSites, t }: UseAiTabSt
     else if (next > maxVisibleTabs) blockedCapacityRef.current = null
 
     if (next !== maxVisibleTabs) setMaxVisibleTabs(next)
-  }, [maxVisibleTabs, tabs, activeTabId])
+  }, [hasPin, maxVisibleTabs, tabs, activeTabId])
 
   const visibleTabIds = useMemo(
     () => getVisibleTabIds(tabs, activeTabId, maxVisibleTabs),

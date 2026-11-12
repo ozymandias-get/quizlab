@@ -46,7 +46,7 @@ const UpdateBanner = memo(function UpdateBanner({
                 </span>{' '}
                 {t('is_available')}
                 {updateInfo.releaseName && (
-                  <span className="text-muted-foreground/80 mt-0.5 block">
+                  <span className="text-muted-foreground mt-0.5 block">
                     {updateInfo.releaseName}
                   </span>
                 )}

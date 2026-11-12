@@ -1,6 +1,5 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
-import { TAB_DRAG_ID_ATTR } from '@shared/hooks'
 import {
   IconButton,
   TabPill,

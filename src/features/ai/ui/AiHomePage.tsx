@@ -1,10 +1,14 @@
-import { Globe, Sparkles, Star } from 'lucide-react'
+import { Globe, History, Pin, Sparkles, Star } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useAiHomeState } from '../hooks/useAiHomeState'
+import { usePinnedAiProjects } from '../hooks/usePinnedAiProjects'
+import { useRecentAiWork } from '../hooks/useRecentAiWork'
 import AiHomeCardGrid, { EmptySitesState } from './home/AiHomeCards'
 import AiHomeHero from './home/AiHomeHero'
+import AiHomePinnedProjects from './home/AiHomePinnedProjects'
+import AiHomeRecentWork from './home/AiHomeRecentWork'
 import AiHomeSection from './home/AiHomeSection'
 
 /** Stable icon refs — hoisted outside the component so that `memo` on
@@ -13,12 +17,16 @@ import AiHomeSection from './home/AiHomeSection'
 const MODELS_SECTION_ICON = <Sparkles className="h-4 w-4" />
 const SITES_SECTION_ICON = <Globe className="h-4 w-4" />
 const FAVORITES_SECTION_ICON = <Star className="h-4 w-4 text-amber-500" />
+const RECENT_SECTION_ICON = <History className="h-4 w-4" />
+const PINNED_SECTION_ICON = <Pin className="h-4 w-4" />
 
 interface AiHomePageProps {
   onOpenModel: (modelId: string) => void
+  onOpenRecent?: (modelId: string, url: string) => void
+  onOpenPinned?: (modelId: string, url: string) => void
 }
 
-function AiHomePage({ onOpenModel }: AiHomePageProps) {
+function AiHomePage({ onOpenModel, onOpenRecent, onOpenPinned }: AiHomePageProps) {
   const { t } = useTranslation()
   const {
     activeModelIds,
@@ -36,6 +44,10 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
     siteOrder,
     tabs
   } = useAiHomeState()
+  const { recentWorks, removeRecentWork } = useRecentAiWork()
+  const { pinnedProjects, removePinnedProject } = usePinnedAiProjects()
+  const handleOpenRecent = onOpenRecent ?? onOpenModel
+  const handleOpenPinned = onOpenPinned ?? onOpenModel
   const handleOpenModel = useCallback(
     (id: string) => {
       enableModel(id)
@@ -121,6 +133,44 @@ function AiHomePage({ onOpenModel }: AiHomePageProps) {
               />
             ) : (
               <EmptySitesState />
+            )}
+          </AiHomeSection>
+
+          <AiHomeSection
+            title={t('ai_home.recent_title')}
+            detail={t('ai_home.recent_detail')}
+            icon={RECENT_SECTION_ICON}
+            count={recentWorks.length}
+            defaultOpen={false}
+          >
+            {recentWorks.length > 0 ? (
+              <AiHomeRecentWork
+                aiSites={aiSites}
+                entries={recentWorks}
+                onOpen={handleOpenRecent}
+                onRemove={removeRecentWork}
+              />
+            ) : (
+              <p className="text-ql-12 text-muted-foreground py-2">{t('ai_home.recent_empty')}</p>
+            )}
+          </AiHomeSection>
+
+          <AiHomeSection
+            title={t('ai_home.pinned_title')}
+            detail={t('ai_home.pinned_detail')}
+            icon={PINNED_SECTION_ICON}
+            count={pinnedProjects.length}
+            defaultOpen={false}
+          >
+            {pinnedProjects.length > 0 ? (
+              <AiHomePinnedProjects
+                aiSites={aiSites}
+                projects={pinnedProjects}
+                onOpen={handleOpenPinned}
+                onRemove={removePinnedProject}
+              />
+            ) : (
+              <p className="text-ql-12 text-muted-foreground py-2">{t('ai_home.pinned_empty')}</p>
             )}
           </AiHomeSection>
         </div>

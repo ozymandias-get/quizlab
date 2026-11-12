@@ -12,6 +12,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
  * geometry change.
  */
 
+export interface AiTabUrlRequest {
+  modelId: string
+  url: string
+  /** Monotonic id so the same URL can be requested again later. */
+  nonce: number
+}
+
 export interface AiViewSurfaceState {
   /** Tabs that currently own a managed view, most-recently-used first. */
   aliveTabIds: string[]
@@ -31,6 +38,15 @@ export interface AiViewSurfaceState {
   coldTabIds: Set<string>
   recordTabUrl: (tabId: string, modelId: string, url: string) => void
   getRestoredUrl: (tabId: string, modelId: string) => string | undefined
+  /**
+   * One-shot navigation requests created by the home page. A session consumes
+   * its request and loads the URL through the same attach/restore path used
+   * when a tab is rebuilt, which keeps the request reliable for live, sleeping
+   * and brand-new tabs alike.
+   */
+  tabUrlRequests: Record<string, AiTabUrlRequest | undefined>
+  requestTabUrl: (tabId: string, modelId: string, url: string) => void
+  clearTabUrlRequest: (tabId: string) => void
 }
 
 interface UseAiViewSurfaceStateOptions {
@@ -47,6 +63,10 @@ export function useAiViewSurfaceState({
   const { maxAliveTabs } = useAiLifecycleSettings()
   const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
   const [showHome, setShowHome] = useState(() => tabIds.length === 0 || !activeTabId)
+  const [tabUrlRequests, setTabUrlRequests] = useState<Record<string, AiTabUrlRequest | undefined>>(
+    {}
+  )
+  const requestNonceRef = useRef(0)
   const urlCacheRef = useRef<Record<string, { url: string; modelId: string }>>({})
   const isMountedRef = useRef(true)
 
@@ -67,6 +87,21 @@ export function useAiViewSurfaceState({
     return cached.url
   }, [])
 
+  const requestTabUrl = useCallback((tabId: string, modelId: string, url: string) => {
+    requestNonceRef.current += 1
+    const nonce = requestNonceRef.current
+    setTabUrlRequests((current) => ({ ...current, [tabId]: { modelId, url, nonce } }))
+  }, [])
+
+  const clearTabUrlRequest = useCallback((tabId: string) => {
+    setTabUrlRequests((current) => {
+      if (!current[tabId]) return current
+      const next = { ...current }
+      delete next[tabId]
+      return next
+    })
+  }, [])
+
   // Combine showHome logic into one effect to avoid a cascade: when
   // activeTabId/tabIds change, two effects would fire separately and cause two
   // renders.
@@ -77,6 +112,17 @@ export function useAiViewSurfaceState({
       setShowHome(false)
     }
   }, [tabIds.length, activeTabId, aiViewRequestNonce])
+
+  useEffect(() => {
+    const currentTabIds = new Set(tabIds)
+    setTabUrlRequests((current) => {
+      const stale = Object.keys(current).filter((id) => !currentTabIds.has(id))
+      if (stale.length === 0) return current
+      const next = { ...current }
+      for (const id of stale) delete next[id]
+      return next
+    })
+  }, [tabIds])
 
   // Reconciles the alive set against the tab list on every change, including
   // when there is no active tab: a tab that was closed (or dropped by the LRU)
@@ -127,8 +173,21 @@ export function useAiViewSurfaceState({
       showHideHome,
       coldTabIds,
       recordTabUrl,
-      getRestoredUrl
+      getRestoredUrl,
+      tabUrlRequests,
+      requestTabUrl,
+      clearTabUrlRequest
     }),
-    [aliveTabIds, showHome, showHideHome, coldTabIds, recordTabUrl, getRestoredUrl]
+    [
+      aliveTabIds,
+      showHome,
+      showHideHome,
+      coldTabIds,
+      recordTabUrl,
+      getRestoredUrl,
+      tabUrlRequests,
+      requestTabUrl,
+      clearTabUrlRequest
+    ]
   )
 }

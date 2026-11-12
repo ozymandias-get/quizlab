@@ -323,7 +323,9 @@ export function usePdfSelectionMenu({
     try {
       // Doğrudan gönderim taslak kuyruğuna eklemez, mevcut taslağı tüketmez/silmez.
       const decorated = decorateTextWithSource(snapshot.text, snapshot.source, 'text')
-      const result = await sendTextDirectToAi(decorated, {})
+      const result = await sendTextDirectToAi(decorated, {
+        ...(snapshot.source?.docName ? { sourceDocument: { name: snapshot.source.docName } } : {})
+      })
       if (result && (result as { success?: boolean }).success) {
         // Hem teslim hem hazırlama sessizdir: mesaj site kutusunda belirir,
         // menü kapanır. Hızlı arka arkaya seçimde yeni bir menü açıldıysa

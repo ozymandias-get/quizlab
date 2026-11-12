@@ -39,7 +39,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
   if (items.length === 0) {
     return (
       <p
-        className="border-border/40 bg-muted/15 text-ql-11 text-muted-foreground/75 mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed px-3 py-1.5 text-center"
+        className="border-border/40 bg-muted/15 text-ql-11 text-muted-foreground mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed px-3 py-1.5 text-center"
         data-testid="ai-draft-empty"
       >
         {t('ai_draft_empty_hint')}
@@ -115,7 +115,7 @@ function DraftItemChip({
         </span>
         <span className="text-ql-11 text-foreground shrink-0 font-medium">{kindLabel}</span>
         {pageLabel && (
-          <span className="text-muted-foreground/85 text-ql-10 shrink-0 font-mono tabular-nums">
+          <span className="text-muted-foreground text-ql-10 shrink-0 font-mono tabular-nums">
             · {pageLabel}
           </span>
         )}
@@ -130,7 +130,7 @@ function DraftItemChip({
             className={cn(
               // A 24px box with its own padding keeps the delete target away
               // from the label; a mis-click no longer costs the user the draft.
-              'text-muted-foreground/75 hover:bg-destructive/12 hover:text-destructive ml-1 size-6 shrink-0 rounded-md p-1'
+              'text-muted-foreground/85 hover:bg-destructive/12 hover:text-destructive ml-1 size-6 shrink-0 rounded-md p-1'
             )}
           >
             <X className="size-3" aria-hidden />

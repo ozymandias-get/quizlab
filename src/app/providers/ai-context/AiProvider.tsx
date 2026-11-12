@@ -8,6 +8,7 @@ import { useToastActions } from '@shared/stores/toastStore'
 import { type ReactNode, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { OpenAiWorkspaceOptions } from '../ai/types'
 import { useAiContentRegistry } from '../ai/useAiContentRegistry'
 import { useAiMessaging } from '../ai/useAiMessaging'
 import { useAiModelPreferences } from '../ai/useAiModelPreferences'
@@ -94,15 +95,22 @@ function AiProvider({ children }: { children: ReactNode }) {
   activeTabIdRef.current = activeTabId
 
   const openAiWorkspace = useCallback(
-    (modelId: string) => {
-      const existingTab = tabsRef.current.find((tab) => tab.modelId === modelId)
+    (modelId: string, options?: OpenAiWorkspaceOptions) => {
+      const requested = options?.tabId
+        ? tabsRef.current.find((tab) => tab.id === options.tabId)
+        : undefined
+      const existing =
+        requested ??
+        (options?.tabId || options?.forceNew
+          ? undefined
+          : tabsRef.current.find((tab) => tab.modelId === modelId))
+      const tabId = existing ? existing.id : addTab(modelId)
 
-      if (existingTab) {
-        setActiveTab(existingTab.id)
-      } else {
-        addTab(modelId)
+      if (existing) {
+        setActiveTab(existing.id)
       }
       setAiViewRequestNonce((current) => current + 1)
+      return tabId
     },
     [addTab, setActiveTab]
   )

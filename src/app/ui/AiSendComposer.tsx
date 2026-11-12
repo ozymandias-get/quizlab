@@ -336,7 +336,7 @@ function AiSendComposer({
                   'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
                   totalItems > 0
                     ? 'bg-primary/10 text-primary'
-                    : 'bg-muted/70 text-muted-foreground/80'
+                    : 'bg-muted/70 text-muted-foreground'
                 )}
               >
                 {t('ai_draft_content_count', { count: totalItems })}

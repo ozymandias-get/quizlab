@@ -4,8 +4,11 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type * as AiFeatureModule from '@features/ai'
 import type { AiSendOptions } from '@features/ai'
 import {
+  createRecentAiWorkEntry,
   nowMs as diagNowMs,
   prepareImageForUpload,
+  recordRecentAiWork,
+  replaceRecentAiWork,
   roundMs as diagRoundMs,
   useAiSender
 } from '@features/ai'
@@ -13,6 +16,7 @@ import { resolveAutoSend } from '@features/ai'
 
 import type { AiSendResult, Tab } from '@app/providers/ai/types'
 import { NO_SEND_RESULT } from '@app/providers/ai/types'
+import { getElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { reportSuppressedError } from '@shared/lib/logger'
 
@@ -117,6 +121,52 @@ function attachWebSendTimings(
     result.diagnostics.timings.endToEndMs = endToEndMs
   }
   return result
+}
+
+const RECENT_URL_POLL_ATTEMPTS = 20
+const RECENT_URL_POLL_INTERVAL_MS = 300
+
+/**
+ * Records the conversation a send landed in.
+ *
+ * The pipeline resolves the URL before submitting, so a brand-new chat is still
+ * on the provider's landing page at that point. A provisional entry is stored
+ * immediately (the user should see the card right away) and swapped for the
+ * real conversation URL once the provider navigates. The swap is a background
+ * task: it never delays the send result or the home page.
+ */
+async function captureRecentAiWork(
+  modelId: string,
+  tabId: string | undefined,
+  baselineUrl: string | undefined,
+  readLiveUrl: () => string | undefined,
+  documentName?: string
+): Promise<void> {
+  if (modelId === 'api-chat') return
+
+  const initialUrl = readLiveUrl() ?? baselineUrl
+  const initialEntry = initialUrl
+    ? createRecentAiWorkEntry(modelId, initialUrl, Date.now(), documentName)
+    : null
+  if (!initialEntry) return
+  recordRecentAiWork(initialEntry)
+
+  let finalUrl = initialEntry.url
+  const api = getElectronApi()
+  for (let attempt = 0; attempt < RECENT_URL_POLL_ATTEMPTS; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, RECENT_URL_POLL_INTERVAL_MS))
+    const currentUrl =
+      tabId && api
+        ? ((await api.aiView.getUrl({ viewId: tabId }).catch(() => null)) ?? readLiveUrl())
+        : readLiveUrl()
+    if (currentUrl && currentUrl !== initialEntry.url) {
+      finalUrl = currentUrl
+      break
+    }
+  }
+
+  const finalEntry = createRecentAiWorkEntry(modelId, finalUrl, Date.now(), documentName)
+  if (finalEntry) replaceRecentAiWork(initialEntry, finalEntry)
 }
 
 interface UseAiMessagingParams {
@@ -351,11 +401,21 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
+      const targetTab = getActiveTab()
       const result = attachWebSendTimings(
         (await rawSendText(text, options)) ?? NO_SEND_RESULT,
         contentReadyMs,
         diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
+      if (result.success) {
+        void captureRecentAiWork(
+          targetTab?.modelId ?? currentAI,
+          targetTab?.id,
+          result.diagnostics?.currentUrl,
+          () => getContentController(targetTab?.id)?.getURL?.(),
+          options?.sourceDocument?.name
+        )
+      }
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
@@ -365,6 +425,7 @@ export function useAiMessaging({
       currentAI,
       autoSend,
       ensureApiChatTab,
+      getActiveTab,
       getContentController,
       openAiWorkspace,
       rawSendText,
@@ -428,11 +489,21 @@ export function useAiMessaging({
         return { success: false, error: 'webview_not_ready' }
       }
 
+      const targetTab = getActiveTab()
       const result = attachWebSendTimings(
         (await rawSendImage(imageData, options)) ?? NO_SEND_RESULT,
         contentReadyMs,
         diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
+      if (result.success) {
+        void captureRecentAiWork(
+          targetTab?.modelId ?? currentAI,
+          targetTab?.id,
+          result.diagnostics?.currentUrl,
+          () => getContentController(targetTab?.id)?.getURL?.(),
+          options?.sourceDocument?.name
+        )
+      }
       if (!result.success && result.error !== 'cancelled') {
         showWarning(toErrorToastKey(result.error))
       }
@@ -442,6 +513,7 @@ export function useAiMessaging({
       currentAI,
       autoSend,
       ensureApiChatTab,
+      getActiveTab,
       getContentController,
       openAiWorkspace,
       rawSendImage,
@@ -518,11 +590,21 @@ export function useAiMessaging({
       if (!rawSendBulk) {
         return { success: false, error: 'bulk_not_supported' }
       }
+      const targetTab = getActiveTab()
       const result = attachWebSendTimings(
         (await rawSendBulk(imageDataUrls, options)) ?? NO_SEND_RESULT,
         contentReadyMs,
         diagRoundMs(diagNowMs() - endToEndStartedAt)
       )
+      if (result.success) {
+        void captureRecentAiWork(
+          targetTab?.modelId ?? currentAI,
+          targetTab?.id,
+          result.diagnostics?.currentUrl,
+          () => getContentController(targetTab?.id)?.getURL?.(),
+          options?.sourceDocument?.name
+        )
+      }
       if (!result.success && (result as { error?: string }).error !== 'cancelled') {
         showWarning(toErrorToastKey((result as { error?: string }).error))
       }
@@ -532,6 +614,7 @@ export function useAiMessaging({
       currentAI,
       autoSend,
       ensureApiChatTab,
+      getActiveTab,
       getContentController,
       openAiWorkspace,
       rawSendBulk,

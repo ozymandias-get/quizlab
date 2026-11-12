@@ -100,7 +100,9 @@ export const useAppearance = create<AppearanceState>()(
        * ambient glow that was removed because its continuously repainting 70px
        * blurred, blend-mode background starved the composited `WebContentsView`
        * AI panels; leaving them reachable here would keep a removed feature
-       * alive in memory on every install that had ever saved them.
+       * alive in memory on every install that had ever saved them. `theme` is
+       * the same story: the app is dark-only now, so an old persisted theme key
+       * must not become part of the live store again.
        *
        * The keys stay on disk. Rewriting the entry would need `version` +
        * `migrate`, and `migrate` marking the state dirty makes the persist
@@ -113,10 +115,12 @@ export const useAppearance = create<AppearanceState>()(
         const {
           bgMode: _bgMode,
           bgSolidColor: _bgSolidColor,
+          theme: _theme,
           ...stillOwned
         } = (persisted ?? {}) as Record<string, unknown> & {
           bgMode?: unknown
           bgSolidColor?: unknown
+          theme?: unknown
         }
         return {
           ...currentState,

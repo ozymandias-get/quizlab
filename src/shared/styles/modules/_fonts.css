@@ -26,7 +26,9 @@
 }
 
 body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Keep native subpixel rendering: grayscale smoothing thins small and
+     medium-weight text, which reads as faded on the dark workspace. */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
 }

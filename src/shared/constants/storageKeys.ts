@@ -16,6 +16,8 @@ export const STORAGE_KEYS = {
   AI_MAX_ALIVE_TABS: 'aiMaxAliveTabs',
   AI_SLEEP_TIMEOUT_MS: 'aiSleepTimeoutMs',
   AI_NEVER_SLEEP_SITES: 'aiNeverSleepSites',
+  RECENT_AI_WORK: 'recentAiWork',
+  PINNED_AI_PROJECTS: 'pinnedAiProjects',
   TEXT_INPUT_MODE: 'textInputMode',
   TYPING_SPEED: 'typingSpeed',
   QUICK_AI_PRESETS: 'quickAiPresets'

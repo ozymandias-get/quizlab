@@ -2,11 +2,13 @@ import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceStat
 
 import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
+import { getElectronApi } from '@shared/lib/electronApi'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { createRecentAiWorkEntry, recordRecentAiWork } from '../lib/recentWork'
 import AiSession from './AiSession'
 import AiTabStrip from './AiTabStrip'
 
@@ -16,6 +18,28 @@ const PANEL_STYLE = {
   border: '1px solid oklch(var(--border) / 0.7)',
   borderRadius: 'var(--radius-2xl)'
 } as const
+
+const RECENT_URL_ATTEMPTS = 30
+const RECENT_URL_RETRY_MS = 150
+
+/**
+ * Navigates a live view immediately when a history card is chosen.
+ *
+ * The declarative request passed to `AiSession` covers tabs whose view is
+ * being created. This direct path is the one that moves an already-mounted
+ * view; it waits for the view to appear (new tab) and skips the load when the
+ * guest is already on the requested conversation.
+ */
+async function navigateToRecentUrl(tabId: string, url: string): Promise<void> {
+  const api = getElectronApi()
+  if (!api) return
+  for (let attempt = 0; attempt < RECENT_URL_ATTEMPTS; attempt++) {
+    const currentUrl = await api.aiView.getUrl({ viewId: tabId }).catch(() => null)
+    if (currentUrl === url) return
+    if (await api.aiView.loadUrl({ viewId: tabId, url }).catch(() => false)) return
+    await new Promise((resolve) => setTimeout(resolve, RECENT_URL_RETRY_MS))
+  }
+}
 
 interface AiViewSurfaceProps {
   isResizing: boolean
@@ -41,7 +65,46 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
   const { openAiWorkspace } = useAiTabActions()
   const isDialogOpen = useIsAnyDialogOpen()
 
-  const { aliveTabIds, showHome, showHideHome, recordTabUrl, getRestoredUrl } = surfaceState
+  const {
+    aliveTabIds,
+    showHome,
+    showHideHome,
+    recordTabUrl,
+    getRestoredUrl,
+    tabUrlRequests,
+    requestTabUrl,
+    clearTabUrlRequest
+  } = surfaceState
+  const openSavedUrl = useCallback(
+    (modelId: string, url: string) => {
+      const matchingTab = tabs.find(
+        (tab) => tab.modelId === modelId && getRestoredUrl(tab.id, modelId) === url
+      )
+      // An already-open conversation is activated in place. Otherwise a fresh
+      // tab is created with the URL as its entry URL, which uses the same
+      // restore path as a cold tab and does not depend on navigating a live
+      // view after the fact.
+      const tabId = matchingTab
+        ? openAiWorkspace(modelId, { tabId: matchingTab.id })
+        : openAiWorkspace(modelId, { forceNew: true })
+      requestTabUrl(tabId, modelId, url)
+      void navigateToRecentUrl(tabId, url)
+    },
+    [getRestoredUrl, openAiWorkspace, requestTabUrl, tabs]
+  )
+
+  const openRecentWork = useCallback(
+    (modelId: string, url?: string) => {
+      if (!url) {
+        openAiWorkspace(modelId)
+        return
+      }
+      const touchedEntry = createRecentAiWorkEntry(modelId, url)
+      if (touchedEntry) recordRecentAiWork(touchedEntry)
+      openSavedUrl(modelId, url)
+    },
+    [openAiWorkspace, openSavedUrl]
+  )
   // A native view is composited above every DOM layer, so any full-panel DOM
   // overlay — or any dialog anywhere in the app — has to be able to hide it.
   const isOverlayActive = showHome || isDialogOpen
@@ -84,6 +147,8 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
             isSurfaceActive={isSurfaceActive}
             isOverlayActive={overlayBlocksViews}
             restoredUrl={getRestoredUrl(tab.id, tab.modelId)}
+            urlRequest={tabUrlRequests[tab.id]}
+            onUrlRequestHandled={clearTabUrlRequest}
             onTabUrlRecorded={recordTabUrl}
           />
         )
@@ -96,6 +161,8 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
       isSurfaceActive,
       overlayBlocksViews,
       getRestoredUrl,
+      tabUrlRequests,
+      clearTabUrlRequest,
       recordTabUrl
     ]
   )
@@ -118,6 +185,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
           showHome={showHome}
           onShowHome={showHideHome.show}
           onHideHome={showHideHome.hide}
+          getTabUrl={getRestoredUrl}
         />
 
         <div className="relative min-h-0 flex-1">
@@ -132,7 +200,11 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
                 className="absolute inset-0 z-10"
               >
                 <Suspense fallback={null}>
-                  <AiHomePage onOpenModel={openAiWorkspace} />
+                  <AiHomePage
+                    onOpenModel={openAiWorkspace}
+                    onOpenRecent={openRecentWork}
+                    onOpenPinned={openSavedUrl}
+                  />
                 </Suspense>
               </motion.div>
             )}

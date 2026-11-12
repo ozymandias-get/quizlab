@@ -53,7 +53,7 @@ const ChatWelcome = memo(function ChatWelcome({
               <span className="text-foreground min-w-0 truncate font-semibold">
                 {activeProviderName}
                 {activeModelName && (
-                  <span className="font-normal opacity-60"> · {activeModelName}</span>
+                  <span className="font-normal opacity-80"> · {activeModelName}</span>
                 )}
               </span>
             </Badge>

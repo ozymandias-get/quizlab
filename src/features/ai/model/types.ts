@@ -191,6 +191,14 @@ export interface AiSendOptions {
    * false: tüm alanı yeniden yazmayı dene (eski mod). Varsayılan: true.
    */
   appendPromptAfterPaste?: boolean
+  /**
+   * Which PDF produced this send. Carried through the pipeline only so the
+   * recent-work card can say "this conversation was worked on with this file";
+   * it is never sent to the provider.
+   */
+  sourceDocument?: {
+    name?: string
+  }
 }
 
 export type AiSendResult = SendTextResult | SendImageResult

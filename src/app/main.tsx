@@ -43,7 +43,7 @@ async function bootstrap() {
 
   // Restore persisted preferences from the main process ConfigManager store
   // BEFORE React mounts so stores/hooks that read localStorage synchronously
-  // pick up the saved values (theme, prompts, selector settings, ...).
+  // pick up the saved values (appearance, prompts, selector settings, ...).
   if (isElectron) {
     await hydrateSettingsFromMain()
     await hydratePreferenceStores()

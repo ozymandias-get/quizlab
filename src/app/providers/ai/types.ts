@@ -125,11 +125,23 @@ export interface AiContentPresenceState {
   hasActiveContent: boolean
 }
 
+export interface OpenAiWorkspaceOptions {
+  /** Activate this tab instead of the first tab of the same model. */
+  tabId?: string
+  /** Create a tab even when one for the model already exists. */
+  forceNew?: boolean
+}
+
 interface AiContextActions {
-  addTab: (modelId: string) => void
+  addTab: (modelId: string) => string
   closeTab: (tabId: string) => void
   setActiveTab: (tabId: string) => void
-  openAiWorkspace: (modelId: string) => void
+  /**
+   * Opens the model workspace and returns the id of the tab that is now
+   * active. Callers that need a specific conversation use the returned id to
+   * request a URL from the view surface.
+   */
+  openAiWorkspace: (modelId: string, options?: OpenAiWorkspaceOptions) => string
   moveTab: (tabId: string, targetId: string, placeAfter: boolean) => void
   setEnabledModels: (models: string[]) => void
   setFavoriteModels: (models: string[]) => void
