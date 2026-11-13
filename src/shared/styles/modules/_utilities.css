@@ -21,6 +21,12 @@ html[data-platform='win32'] .window-controls-safe {
   padding-right: 9.5rem;
 }
 
+/* macOS traffic lights occupy the top-left corner of a hidden title bar. */
+
+html[data-platform='darwin'] .app-drag-region {
+  padding-left: 5rem;
+}
+
 .custom-scrollbar {
   content-visibility: auto;
   contain-intrinsic-size: 400px;

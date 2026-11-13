@@ -102,7 +102,7 @@ function AiTabStrip({
   }, [])
 
   return (
-    <div className={TAB_STRIP_BAR_CLASS}>
+    <div className={`${TAB_STRIP_BAR_CLASS} window-controls-safe`}>
       <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 
