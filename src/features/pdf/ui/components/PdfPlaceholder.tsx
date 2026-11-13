@@ -61,7 +61,7 @@ function PdfPlaceholder({
        "open a PDF" action; on narrow panels they stack and the list scrolls. */
     <div className="animate-in fade-in zoom-in-98 motion-slow flex h-full flex-col items-center overflow-hidden px-4 py-6 select-none motion-reduce:animate-none sm:px-6 sm:py-7">
       <div className="@container h-full w-full max-w-5xl">
-        <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-5 @min-[680px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)] @min-[680px]:grid-rows-1 @min-[680px]:gap-3">
+        <div className="grid h-full min-h-0 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-5 @min-[680px]:grid-cols-[minmax(0,300px)_minmax(0,1fr)] @min-[680px]:grid-rows-1 @min-[680px]:gap-3 @min-[860px]:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
           {/* Hero — a compact drop surface, vertically centred against the
               reading history so the column does not read as a small card
               stranded above a dead half-panel. */}

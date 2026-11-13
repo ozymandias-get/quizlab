@@ -12,6 +12,8 @@ interface AiHomeHeroProps {
   aiSites: AiSiteMap
   isCompact: boolean
   onOpenModel: (id: string) => void
+  /** Activates an already-open tab by id without creating a new session. */
+  onOpenTab?: (tabId: string) => void
   tabs: Tab[]
 }
 
@@ -20,6 +22,7 @@ const AiHomeHero = memo(function AiHomeHero({
   aiSites,
   isCompact,
   onOpenModel,
+  onOpenTab,
   tabs
 }: AiHomeHeroProps) {
   const { t } = useTranslation()
@@ -54,7 +57,7 @@ const AiHomeHero = memo(function AiHomeHero({
                   type="button"
                   variant={isActive ? 'outline' : 'ghost'}
                   size="xs"
-                  onClick={() => onOpenModel(tab.modelId)}
+                  onClick={() => (onOpenTab ? onOpenTab(tab.id) : onOpenModel(tab.modelId))}
                   className="rounded-full border px-3 py-1"
                 >
                   {displayName}

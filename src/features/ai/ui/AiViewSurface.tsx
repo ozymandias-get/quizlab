@@ -62,7 +62,7 @@ interface AiViewSurfaceProps {
  */
 function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurfaceProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
-  const { openAiWorkspace } = useAiTabActions()
+  const { openAiWorkspace, setActiveTab } = useAiTabActions()
   const isDialogOpen = useIsAnyDialogOpen()
 
   const {
@@ -91,6 +91,15 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
       void navigateToRecentUrl(tabId, url)
     },
     [getRestoredUrl, openAiWorkspace, requestTabUrl, tabs]
+  )
+
+  const hideHome = showHideHome.hide
+  const openHomeTab = useCallback(
+    (tabId: string) => {
+      setActiveTab(tabId)
+      hideHome()
+    },
+    [setActiveTab, hideHome]
   )
 
   const openRecentWork = useCallback(
@@ -203,6 +212,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
                 <Suspense fallback={null}>
                   <AiHomePage
                     onOpenModel={openAiWorkspace}
+                    onOpenTab={openHomeTab}
                     onOpenRecent={openRecentWork}
                     onOpenPinned={openSavedUrl}
                   />
