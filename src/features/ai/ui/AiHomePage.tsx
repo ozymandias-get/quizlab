@@ -25,18 +25,11 @@ const PINNED_SECTION_ICON = <Pin className="h-4 w-4" />
 interface AiHomePageProps {
   onOpenModel: (modelId: string) => void
   onOpenTab?: (tabId: string) => void
-  getTabUrl?: (tabId: string, modelId: string) => string | undefined
   onOpenRecent?: (modelId: string, url: string) => void
   onOpenPinned?: (modelId: string, url: string) => void
 }
 
-function AiHomePage({
-  onOpenModel,
-  onOpenTab,
-  getTabUrl,
-  onOpenRecent,
-  onOpenPinned
-}: AiHomePageProps) {
+function AiHomePage({ onOpenModel, onOpenTab, onOpenRecent, onOpenPinned }: AiHomePageProps) {
   const { t } = useTranslation()
   const {
     activeModelIds,
@@ -86,7 +79,6 @@ function AiHomePage({
             isCompact={isCompact}
             onOpenModel={onOpenModel}
             onOpenTab={onOpenTab}
-            getTabUrl={getTabUrl}
             tabs={tabs}
           />
 

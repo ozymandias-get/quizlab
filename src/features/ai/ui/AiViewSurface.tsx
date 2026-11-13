@@ -213,7 +213,6 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
                   <AiHomePage
                     onOpenModel={openAiWorkspace}
                     onOpenTab={openHomeTab}
-                    getTabUrl={getRestoredUrl}
                     onOpenRecent={openRecentWork}
                     onOpenPinned={openSavedUrl}
                   />

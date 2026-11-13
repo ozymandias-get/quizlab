@@ -35,7 +35,7 @@ const AiHomeSection = memo(function AiHomeSection({
       <button
         type="button"
         aria-expanded={isOpen}
-        aria-controls={contentId}
+        aria-controls={isOpen ? contentId : undefined}
         className="focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none hover:bg-white/[0.03] focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >

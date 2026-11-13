@@ -139,10 +139,9 @@ function PdfRecentListItem({
         gradientTo="#18181b"
       >
         <ListItemCard
-          {...interactionProps}
           active={isActive}
-          className={`pdf-recent-item group relative border-0 bg-transparent p-0 shadow-none hover:bg-white/[0.03] ${isInvalid ? 'text-foreground border-destructive/30 bg-destructive/5' : ''}`}
-          interactive={!isInvalid}
+          className={`group relative border-0 bg-transparent p-0 shadow-none hover:bg-white/[0.03] ${isInvalid ? 'text-foreground border-destructive/30 bg-destructive/5' : ''}`}
+          interactive={false}
         >
           {isActive && (
             <span
@@ -153,38 +152,51 @@ function PdfRecentListItem({
           )}
 
           <div className="flex w-full items-center gap-3 p-3">
-            <IconBadge
-              icon={FileText}
-              variant={isInvalid ? 'danger' : isActive ? 'primary' : 'ghost'}
-              size="md"
-              className="shrink-0"
-            />
+            {/* The clickable area is a sibling of the action buttons, not their
+                ancestor: no interactive control is nested inside role=button. */}
+            <div
+              {...interactionProps}
+              className={`pdf-recent-item flex min-w-0 flex-1 items-center gap-3 rounded-lg ${
+                isInvalid
+                  ? ''
+                  : 'focus-visible:ring-ring/70 cursor-pointer focus-visible:ring-2 focus-visible:outline-none'
+              }`}
+            >
+              <IconBadge
+                icon={FileText}
+                variant={isInvalid ? 'danger' : isActive ? 'primary' : 'ghost'}
+                size="md"
+                className="shrink-0"
+              />
 
-            <div className="min-w-0 flex-1">
-              <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
-              <div
-                className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
-              >
-                {showProgress ? (
-                  <span
-                    className="text-ql-10 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-semibold text-zinc-400 tabular-nums"
-                    data-testid="pdf-recent-progress-label"
-                  >
-                    {t('pdf_page_progress', {
-                      page: String(item.page),
-                      total: String(item.totalPages),
-                      percent: String(progressPercent)
-                    })}
-                  </span>
-                ) : (
-                  <span>{pageMeta}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
+                <div
+                  className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
+                >
+                  {showProgress ? (
+                    <span
+                      className="text-ql-10 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-semibold text-zinc-400 tabular-nums"
+                      data-testid="pdf-recent-progress-label"
+                    >
+                      {t('pdf_page_progress', {
+                        page: String(item.page),
+                        total: String(item.totalPages),
+                        percent: String(progressPercent)
+                      })}
+                    </span>
+                  ) : (
+                    <span>{pageMeta}</span>
+                  )}
+                  <span aria-hidden>&middot;</span>
+                  <span>{openedMeta}</span>
+                </div>
+                {isInvalid && (
+                  <div className="text-ql-12 text-destructive mt-1.5">
+                    {t('recent_invalid_hint')}
+                  </div>
                 )}
-                <span aria-hidden>&middot;</span>
-                <span>{openedMeta}</span>
               </div>
-              {isInvalid && (
-                <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
-              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
