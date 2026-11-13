@@ -17,7 +17,7 @@ export interface GridDragReorderState {
   handleDragOver: (event: DragEvent, id: string) => void
   handleDragStart: (id: string) => void
   handleDrop: (event: DragEvent) => void
-  moveItem: (id: string, delta: -1 | 1) => void
+  moveItem: (id: string, delta: -1 | 1, visibleOrder?: string[]) => void
 }
 
 export function useGridDragReorder(
@@ -138,12 +138,18 @@ export function useGridDragReorder(
     clearDragState()
   }, [clearDragState])
 
-  const moveItem = useCallback((id: string, delta: -1 | 1) => {
+  const moveItem = useCallback((id: string, delta: -1 | 1, visibleOrder?: string[]) => {
     const currentOrder = orderRef.current
+    const navigationOrder = visibleOrder ?? currentOrder
+    const visibleFromIndex = navigationOrder.indexOf(id)
+    if (visibleFromIndex === -1) return
+    const visibleToIndex = visibleFromIndex + delta
+    if (visibleToIndex < 0 || visibleToIndex >= navigationOrder.length) return
+
+    const targetId = navigationOrder[visibleToIndex]
     const fromIndex = currentOrder.indexOf(id)
-    if (fromIndex === -1) return
-    const toIndex = fromIndex + delta
-    if (toIndex < 0 || toIndex >= currentOrder.length) return
+    const toIndex = currentOrder.indexOf(targetId)
+    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return
 
     const nextOrder = [...currentOrder]
     nextOrder.splice(fromIndex, 1)

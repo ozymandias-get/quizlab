@@ -266,5 +266,15 @@ describe('useGridDragReorder', () => {
       })
       expect(onReorder).toHaveBeenCalledWith(['b', 'a', 'c'])
     })
+
+    it('moves across non-visible items when visibleOrder is provided', () => {
+      const onReorder = vi.fn()
+      const { result } = renderHook(() => useGridDragReorder(['a', 'hidden', 'b'], onReorder))
+
+      act(() => {
+        result.current.moveItem('a', 1, ['a', 'b'])
+      })
+      expect(onReorder).toHaveBeenCalledWith(['hidden', 'b', 'a'])
+    })
   })
 })

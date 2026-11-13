@@ -69,21 +69,26 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
     [onGridDragLeave]
   )
 
+  const visibleIds = useMemo(
+    () =>
+      ids.filter(
+        (id) => !(tone === 'model' && showApiChat && id === 'api-chat') && Boolean(aiSites[id])
+      ),
+    [aiSites, ids, showApiChat, tone]
+  )
+
   const handleCardMove = useCallback(
     (itemId: string, delta: -1 | 1) => {
-      const visibleIds = ids.filter(
-        (id) => !(tone === 'model' && showApiChat && id === 'api-chat') && Boolean(aiSites[id])
-      )
       const fromIndex = visibleIds.indexOf(itemId)
       const toIndex = fromIndex + delta
-      moveGridItem(itemId, delta)
+      moveGridItem(itemId, delta, visibleIds)
       if (fromIndex !== -1 && toIndex >= 0 && toIndex < visibleIds.length) {
         const site = aiSites[itemId]
         const name = site?.displayName || site?.name || itemId
         setReorderAnnouncement(`${name} (${toIndex + 1} / ${visibleIds.length})`)
       }
     },
-    [aiSites, ids, moveGridItem, showApiChat, tone]
+    [aiSites, moveGridItem, visibleIds]
   )
 
   return (
@@ -145,30 +150,28 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
           </div>
         )}
 
-        {ids
-          .filter((id) => !(tone === 'model' && showApiChat && id === 'api-chat'))
-          .map((id) => {
-            const site = aiSites[id]
-            if (!site) return null
-            return (
-              <GridCard
-                key={id}
-                isActive={activeModelIds.has(id)}
-                isDragging={dragState.draggingId === id}
-                isDropTarget={dragState.dragOverId === id}
-                itemId={id}
-                onClick={onOpenModel}
-                onDragEnd={dragState.handleDragEnd}
-                onDragLeave={handleCardDragLeave}
-                onDragOver={handleCardDragOver}
-                onDragStart={dragState.handleDragStart}
-                onDrop={dragState.handleDrop}
-                onMove={handleCardMove}
-                site={site}
-                tone={tone}
-              />
-            )
-          })}
+        {visibleIds.map((id) => {
+          const site = aiSites[id]
+          if (!site) return null
+          return (
+            <GridCard
+              key={id}
+              isActive={activeModelIds.has(id)}
+              isDragging={dragState.draggingId === id}
+              isDropTarget={dragState.dragOverId === id}
+              itemId={id}
+              onClick={onOpenModel}
+              onDragEnd={dragState.handleDragEnd}
+              onDragLeave={handleCardDragLeave}
+              onDragOver={handleCardDragOver}
+              onDragStart={dragState.handleDragStart}
+              onDrop={dragState.handleDrop}
+              onMove={handleCardMove}
+              site={site}
+              tone={tone}
+            />
+          )
+        })}
       </div>
     </>
   )

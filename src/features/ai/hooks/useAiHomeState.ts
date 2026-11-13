@@ -48,6 +48,12 @@ export function useAiHomeState() {
     setSiteOrder((previous) => mergeOrderedIds(previous, siteIds))
   }, [siteIdsKey, siteIds])
 
+  const resolvedModelOrder = useMemo(
+    () => mergeOrderedIds(modelOrder, modelIds),
+    [modelOrder, modelIds]
+  )
+  const resolvedSiteOrder = useMemo(() => mergeOrderedIds(siteOrder, siteIds), [siteOrder, siteIds])
+
   // Stable Set — only recreated when `tabs` actually changes content.
   // The `useMemo` ensures the Set reference stays the same when `tabs`
   // array length changes but the modelId set is identical (e.g. a tab
@@ -76,8 +82,8 @@ export function useAiHomeState() {
     [aiSites, setEnabledModels]
   )
 
-  const modelDrag = useGridDragReorder(modelOrder, handleModelReorder)
-  const siteDrag = useGridDragReorder(siteOrder, handleSiteReorder)
+  const modelDrag = useGridDragReorder(resolvedModelOrder, handleModelReorder)
+  const siteDrag = useGridDragReorder(resolvedSiteOrder, handleSiteReorder)
   const favoriteOrder = useMemo(
     () =>
       favoriteModels.filter(
@@ -122,10 +128,10 @@ export function useAiHomeState() {
       cardColumns: layout.cardColumns,
       isCompact: layout.isCompact,
       modelDrag,
-      modelOrder,
+      modelOrder: resolvedModelOrder,
       pageRef,
       siteDrag,
-      siteOrder,
+      siteOrder: resolvedSiteOrder,
       tabs
     }),
     [
@@ -138,10 +144,10 @@ export function useAiHomeState() {
       layout.cardColumns,
       layout.isCompact,
       modelDrag,
-      modelOrder,
+      resolvedModelOrder,
       pageRef,
       siteDrag,
-      siteOrder,
+      resolvedSiteOrder,
       tabs
     ]
   )
