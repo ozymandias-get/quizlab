@@ -1,16 +1,16 @@
 import { cn } from '@shared/lib/uiUtils'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import type { MotionProps } from 'motion/react'
-import { motion, type MotionValue, useMotionValue, useSpring, useTransform } from 'motion/react'
-import React, {
-  type PropsWithChildren,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState
-} from 'react'
+import {
+  motion,
+  type MotionProps,
+  type MotionValue,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform
+} from 'motion/react'
+import React, { type PropsWithChildren, useCallback, useContext, useRef } from 'react'
 
 export interface DockProps extends VariantProps<typeof dockVariants> {
   className?: string
@@ -150,16 +150,7 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
   const activeMouseX = mouseX ?? pointer?.mouseX
   const fallbackMouseX = useMotionValue(Infinity)
   const padding = Math.max(6, size * 0.2)
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    if (!mediaQuery) return
-    setPrefersReducedMotion(mediaQuery.matches)
-    const handleChange = (event: MediaQueryListEvent) => setPrefersReducedMotion(event.matches)
-    mediaQuery.addEventListener?.('change', handleChange)
-    return () => mediaQuery.removeEventListener?.('change', handleChange)
-  }, [])
+  const prefersReducedMotion = useReducedMotion()
 
   const setRefs = useCallback(
     (node: HTMLDivElement | null) => {

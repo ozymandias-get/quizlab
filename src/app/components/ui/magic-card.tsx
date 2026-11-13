@@ -138,6 +138,12 @@ export function MagicCard(props: MagicCardProps) {
     reset('init')
   }, [reset])
 
+  // If the OS switches to reduced motion while an orb is visible, its pointer
+  // handlers are removed, so the glow would otherwise stay on screen.
+  useEffect(() => {
+    if (prefersReducedMotion) reset('global')
+  }, [prefersReducedMotion, reset])
+
   useEffect(() => {
     const handleGlobalPointerOut = (e: PointerEvent) => {
       if (!e.relatedTarget) reset('global')

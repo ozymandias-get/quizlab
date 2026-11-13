@@ -41,6 +41,8 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
         className={cn(
           'group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--radius)] border border-white/[0.07] px-6 py-3 whitespace-nowrap text-white [background:var(--bg)]',
           'transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px',
+          'focus-visible:ring-ring/70 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          'disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}
         ref={ref}
@@ -48,8 +50,9 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
       >
         {/* spark container */}
         <div
+          aria-hidden
           className={cn(
-            '-z-30 blur-[2px] motion-reduce:hidden',
+            'pointer-events-none -z-30 blur-[2px] motion-reduce:hidden',
             '@container-[size] absolute inset-0 overflow-visible'
           )}
         >
@@ -63,8 +66,9 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
 
         {/* Highlight */}
         <div
+          aria-hidden
           className={cn(
-            'absolute inset-0 size-full',
+            'pointer-events-none absolute inset-0 size-full',
 
             'rounded-2xl px-4 py-1.5 text-sm font-medium shadow-[inset_0_-8px_10px_#ffffff1f]',
 
@@ -81,8 +85,9 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
 
         {/* backdrop */}
         <div
+          aria-hidden
           className={cn(
-            'absolute inset-(--cut) -z-20 [border-radius:var(--radius)] [background:var(--bg)]'
+            'pointer-events-none absolute inset-(--cut) -z-20 [border-radius:var(--radius)] [background:var(--bg)]'
           )}
         />
       </button>
