@@ -66,7 +66,9 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
 
   const handleCardMove = useCallback(
     (itemId: string, delta: -1 | 1) => {
-      const visibleIds = ids.filter((id) => !(tone === 'model' && showApiChat && id === 'api-chat'))
+      const visibleIds = ids.filter(
+        (id) => !(tone === 'model' && showApiChat && id === 'api-chat') && Boolean(aiSites[id])
+      )
       const fromIndex = visibleIds.indexOf(itemId)
       const toIndex = fromIndex + delta
       dragState.moveItem(itemId, delta)

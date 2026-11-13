@@ -53,7 +53,7 @@ describe('AI Home pinned projects', () => {
     expect(open).toHaveBeenCalledWith('chatgpt', 'https://chatgpt.com/c/abc')
   })
 
-  it('removes a pin from the card', () => {
+  it('removes a pin from the card', async () => {
     const project = createPinnedAiProject('chatgpt', 'Silinecek', 'https://chatgpt.com/c/abc')
     if (!project) throw new Error('project expected')
     savePinnedAiProject(project)
@@ -65,5 +65,7 @@ describe('AI Home pinned projects', () => {
 
     expect(pinnedSection().queryByText('Silinecek')).not.toBeInTheDocument()
     expect(pinnedSection().getByText('ai_home.pinned_empty')).toBeInTheDocument()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(screen.getByRole('button', { name: /ai_home.pinned_title/ })).toHaveFocus()
   })
 })

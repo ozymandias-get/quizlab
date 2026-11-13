@@ -66,7 +66,7 @@ describe('AI Home recent work', () => {
     expect(recentSection().getByText('ai_home.recent_no_document')).toBeInTheDocument()
   })
 
-  it('removes a history entry from the card itself', () => {
+  it('removes a history entry from the card itself', async () => {
     const entry = createRecentAiWorkEntry(
       'chatgpt',
       'https://chatgpt.com/c/abc',
@@ -83,5 +83,7 @@ describe('AI Home recent work', () => {
 
     expect(recentSection().queryByText('Fizik.pdf')).not.toBeInTheDocument()
     expect(recentSection().getByText('ai_home.recent_empty')).toBeInTheDocument()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(screen.getByRole('button', { name: /ai_home.recent_title/ })).toHaveFocus()
   })
 })

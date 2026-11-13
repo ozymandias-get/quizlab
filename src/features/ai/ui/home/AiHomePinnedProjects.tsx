@@ -3,7 +3,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Link2, Pin, X } from 'lucide-react'
-import { memo, Suspense, useCallback, useRef } from 'react'
+import { memo, type MouseEvent as ReactMouseEvent, Suspense, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { PinnedAiProject } from '../../lib/pinnedProjects'
@@ -34,18 +34,30 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
   )
 
   const handleRemove = useCallback(
-    (id: string, index: number) => {
+    (event: ReactMouseEvent<HTMLButtonElement>, id: string, index: number) => {
+      // Mouse clicks should not cause an artificial focus jump.
+      if (event.detail !== 0) {
+        onRemove(id)
+        return
+      }
+      const grid = gridRef.current
       const remainingCount = projects.length - 1
+      // Capture the section toggle before `onRemove` unmounts this list on the last item.
+      const sectionToggle =
+        remainingCount === 0
+          ? (grid?.closest('section')?.querySelector<HTMLButtonElement>('button[aria-expanded]') ??
+            null)
+          : null
       onRemove(id)
       requestAnimationFrame(() => {
-        const grid = gridRef.current
-        if (!grid) return
         if (remainingCount > 0) {
           const targetIndex = Math.min(index, remainingCount - 1)
-          grid.querySelectorAll<HTMLButtonElement>('[data-pinned-open]')[targetIndex]?.focus()
+          gridRef.current
+            ?.querySelectorAll<HTMLButtonElement>('[data-pinned-open]')
+            [targetIndex]?.focus()
           return
         }
-        grid.closest('section')?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus()
+        sectionToggle?.focus()
       })
     },
     [onRemove, projects.length]
@@ -115,7 +127,7 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
 
                   <button
                     type="button"
-                    onClick={() => handleRemove(project.id, index)}
+                    onClick={(event) => handleRemove(event, project.id, index)}
                     aria-label={t('ai_home.pinned_remove', { name: project.name })}
                     title={t('ai_home.pinned_remove', { name: project.name })}
                     className="motion-normal text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring/70 absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-[color,background-color] focus-visible:ring-2 focus-visible:outline-none"
