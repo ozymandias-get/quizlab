@@ -60,7 +60,7 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
 
   return (
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
-      <div className="@container flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
+      <div className="@container flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <span
             aria-hidden="true"

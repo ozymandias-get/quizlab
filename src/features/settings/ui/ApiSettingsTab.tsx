@@ -211,7 +211,7 @@ export default memo(function ApiSettingsTab() {
   )
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6 p-6">
+    <div className="space-y-4 pb-4">
       <SettingsTabIntro
         icon={
           <SettingsTabIcon>

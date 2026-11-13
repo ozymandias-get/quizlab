@@ -12,12 +12,12 @@ import { useTranslation } from 'react-i18next'
 
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { DEFAULT_PLACEHOLDERS, PROVIDER_PLACEHOLDERS } from './constants'
-
-const FIELD_INPUT_CLASS = 'text-ql-12'
 import {
   validateProviderBaseUrl as validateBaseUrl,
   validateProviderName as validateName
 } from './providerValidation'
+
+const FIELD_INPUT_CLASS = 'text-ql-12'
 
 interface ApiProviderCardProps {
   provider: ApiProviderConfig
@@ -61,7 +61,7 @@ function ApiProviderCard({
   const placeholders = PROVIDER_PLACEHOLDERS[provider.providerType] || DEFAULT_PLACEHOLDERS
 
   return (
-    <div className="group flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+    <div className="group @container flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="muted" className="tracking-ql-label font-mono uppercase">
@@ -72,7 +72,7 @@ function ApiProviderCard({
           </span>
           <Badge
             variant={provider.enabled ? 'success' : 'muted'}
-            className="text-ql-10 shrink-0 px-2 py-0 font-medium"
+            className="text-ql-10 shrink-0 rounded-full px-2 py-0 font-medium"
           >
             {t(provider.enabled ? 'model_active' : 'model_inactive')}
           </Badge>
@@ -91,7 +91,7 @@ function ApiProviderCard({
         </WithTooltip>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
         <div className="text-ql-12 flex flex-col gap-1.5">
           <Label htmlFor={nameId} className="text-ql-11 text-muted-foreground font-medium">
             {t('name')}

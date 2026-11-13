@@ -5,11 +5,9 @@ import {
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
 
-import { BlurFade } from '@app/components/ui/blur-fade'
 import { useAppearance } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
-import { DURATION } from '@shared/lib/motion'
 import {
   SettingsSection,
   SettingsTabIcon,
@@ -19,7 +17,7 @@ import { GridIcon, SliderIcon } from '@ui/components/Icons'
 import Slider from '@ui/components/Slider'
 
 import { Field, Label } from '@headlessui/react'
-import { motion, Reorder } from 'motion/react'
+import { Reorder } from 'motion/react'
 import { memo, type ReactNode, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
@@ -156,175 +154,156 @@ const BottomBarSettingsTab = memo(() => {
     <div className="space-y-4">
       <SettingsTabIntro icon={BOTTOM_BAR_ICON} description={t('bottom_bar_description')} />
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: DURATION.fast }}
+      <SettingsSection
+        icon={<SliderIcon className="h-4 w-4" />}
+        title={t('tools_visibility')}
+        detail={t('tools_visibility_desc')}
       >
-        <SettingsSection
-          icon={<SliderIcon className="h-4 w-4" />}
-          title={t('tools_visibility')}
-          detail={t('tools_visibility_desc')}
-        >
-          <div className="flex flex-col gap-1.5">
-            {visibleToolsFiltered.map((tool, index) => {
-              const isVisible = visibleTools[tool.id] !== false
-              const isFirst = index === 0
-              const isLast = index === visibleToolsFiltered.length - 1
-              return (
-                <BlurFade key={tool.id} delay={index * 0.03} className="w-full">
-                  <Field
-                    className={`group ${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
-                    onClick={() => handleToggleTool(tool.id)}
-                  >
-                    <div className="flex min-w-0 items-center gap-3 self-stretch">
-                      {/* Schematic dock rail: one dot per physical slot, joined by
+        <div className="flex flex-col gap-1.5">
+          {visibleToolsFiltered.map((tool, index) => {
+            const isVisible = visibleTools[tool.id] !== false
+            const isFirst = index === 0
+            const isLast = index === visibleToolsFiltered.length - 1
+            return (
+              <Field
+                key={tool.id}
+                className={`group ${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
+                onClick={() => handleToggleTool(tool.id)}
+              >
+                <div className="flex min-w-0 items-center gap-3 self-stretch">
+                  {/* Schematic dock rail: one dot per physical slot, joined by
                         a vertical guide so a hidden row maps to an empty slot. */}
-                      <span
-                        aria-hidden
-                        className="relative flex w-3 shrink-0 items-center justify-center self-stretch"
-                      >
-                        {!isFirst && <span className="bg-border/70 absolute top-0 h-1/2 w-px" />}
-                        {!isLast && <span className="bg-border/70 absolute bottom-0 h-1/2 w-px" />}
-                        <span
-                          className={`ring-card relative z-10 size-2 rounded-full ring-2 transition-colors ${
-                            isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-                          }`}
-                        />
-                      </span>
-                      <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
-                        {t(tool.nameKey, { defaultValue: tool.id })}
-                      </Label>
-                    </div>
-                    <span role="presentation" onClick={(event) => event.stopPropagation()}>
-                      <SettingsToggleSwitch
-                        checked={isVisible}
-                        onChange={() => handleToggleTool(tool.id)}
-                        size="sm"
-                      />
-                    </span>
-                  </Field>
-                </BlurFade>
-              )
-            })}
-          </div>
-
-          <SectionCaption>
-            {t('tools_visible_count', {
-              visible: visibleToolCount,
-              total: visibleToolsFiltered.length
-            })}
-          </SectionCaption>
-        </SettingsSection>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: DURATION.fast, delay: 0.03 }}
-      >
-        <SettingsSection
-          icon={<SliderIcon className="h-4 w-4" />}
-          title={t('bottom_bar_max_icons')}
-          detail={t('bottom_bar_max_icons_desc')}
-        >
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-foreground text-ql-12 font-medium">
-                {t('bottom_bar_max_icons_label')}
-              </span>
-              <span className="text-foreground text-ql-11 shrink-0 rounded-md border border-white/[0.07] bg-white/[0.04] px-2 py-0.5 font-semibold tabular-nums">
-                {bottomBarMaxIcons} {t('bottom_bar_max_icons_unit')}
-              </span>
-            </div>
-            <Slider
-              min={1}
-              max={50}
-              step={1}
-              value={[bottomBarMaxIcons]}
-              onValueChange={(value) => setBottomBarMaxIcons(value[0] ?? 5)}
-              aria-label={t('bottom_bar_max_icons')}
-            />
-            <p className="text-muted-foreground text-ql-11">
-              {t('bottom_bar_max_icons_hint', { count: bottomBarMaxIcons })}
-            </p>
-          </div>
-        </SettingsSection>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: DURATION.fast, delay: 0.05 }}
-      >
-        <SettingsSection
-          icon={<GridIcon className="h-4 w-4" />}
-          title={t('model_visibility')}
-          detail={t('model_visibility_desc')}
-        >
-          <Reorder.Group
-            axis="y"
-            values={enabledModels}
-            onReorder={handleReorder}
-            className="flex flex-col gap-1.5"
-          >
-            {enabledModels.map((modelId) => {
-              const site = aiSites[modelId]
-              if (!site) return null
-              const isVisible = isAiDockVisible(modelId, visibleModels, site, favoriteModels)
-              const displayName = site.displayName || site.name || modelId
-
-              return (
-                <Reorder.Item
-                  key={modelId}
-                  value={modelId}
-                  className="group cursor-grab active:cursor-grabbing"
-                  aria-roledescription="sortable"
-                  aria-label={t('model_sort_label', {
-                    name: displayName
-                  })}
-                  onKeyDown={(e) => {
-                    const items = enabledModels
-                    const idx = items.indexOf(modelId)
-                    if (e.key === 'ArrowUp' && idx > 0) {
-                      e.preventDefault()
-                      const newOrder = [...items]
-                      ;[newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]]
-                      handleReorder(newOrder)
-                    } else if (e.key === 'ArrowDown' && idx < items.length - 1) {
-                      e.preventDefault()
-                      const newOrder = [...items]
-                      ;[newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]]
-                      handleReorder(newOrder)
-                    }
-                  }}
-                >
-                  <BottomBarModelRow
-                    modelId={modelId}
-                    site={site}
-                    displayName={displayName}
-                    isVisible={isVisible}
-                    onToggle={handleToggleModel}
+                  <span
+                    aria-hidden
+                    className="relative flex w-3 shrink-0 items-center justify-center self-stretch"
+                  >
+                    {!isFirst && <span className="bg-border/70 absolute top-0 h-1/2 w-px" />}
+                    {!isLast && <span className="bg-border/70 absolute bottom-0 h-1/2 w-px" />}
+                    <span
+                      className={`ring-card relative z-10 size-2 rounded-full ring-2 transition-colors ${
+                        isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                      }`}
+                    />
+                  </span>
+                  <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
+                    {t(tool.nameKey, { defaultValue: tool.id })}
+                  </Label>
+                </div>
+                <span role="presentation" onClick={(event) => event.stopPropagation()}>
+                  <SettingsToggleSwitch
+                    checked={isVisible}
+                    onChange={() => handleToggleTool(tool.id)}
+                    size="sm"
                   />
-                </Reorder.Item>
-              )
-            })}
-          </Reorder.Group>
+                </span>
+              </Field>
+            )
+          })}
+        </div>
 
-          <SectionCaption>
-            {visibleModelCount > bottomBarMaxIcons
-              ? t('bottom_bar_showing_limited', {
-                  visible: visibleModelCount,
-                  total: enabledModels.length,
-                  limit: bottomBarMaxIcons
-                })
-              : t('models_visible_count', {
-                  visible: visibleModelCount,
-                  total: enabledModels.length
+        <SectionCaption>
+          {t('tools_visible_count', {
+            visible: visibleToolCount,
+            total: visibleToolsFiltered.length
+          })}
+        </SectionCaption>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<SliderIcon className="h-4 w-4" />}
+        title={t('bottom_bar_max_icons')}
+        detail={t('bottom_bar_max_icons_desc')}
+      >
+        <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-foreground text-ql-12 font-medium">
+              {t('bottom_bar_max_icons_label')}
+            </span>
+            <span className="text-foreground text-ql-11 shrink-0 rounded-md border border-white/[0.07] bg-white/[0.04] px-2 py-0.5 font-semibold tabular-nums">
+              {bottomBarMaxIcons} {t('bottom_bar_max_icons_unit')}
+            </span>
+          </div>
+          <Slider
+            min={1}
+            max={50}
+            step={1}
+            value={[bottomBarMaxIcons]}
+            onValueChange={(value) => setBottomBarMaxIcons(value[0] ?? 5)}
+            aria-label={t('bottom_bar_max_icons')}
+          />
+          <p className="text-muted-foreground text-ql-11">
+            {t('bottom_bar_max_icons_hint', { count: bottomBarMaxIcons })}
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<GridIcon className="h-4 w-4" />}
+        title={t('model_visibility')}
+        detail={t('model_visibility_desc')}
+      >
+        <Reorder.Group
+          axis="y"
+          values={enabledModels}
+          onReorder={handleReorder}
+          className="flex flex-col gap-1.5"
+        >
+          {enabledModels.map((modelId) => {
+            const site = aiSites[modelId]
+            if (!site) return null
+            const isVisible = isAiDockVisible(modelId, visibleModels, site, favoriteModels)
+            const displayName = site.displayName || site.name || modelId
+
+            return (
+              <Reorder.Item
+                key={modelId}
+                value={modelId}
+                className="group cursor-grab active:cursor-grabbing"
+                aria-roledescription="sortable"
+                aria-label={t('model_sort_label', {
+                  name: displayName
                 })}
-          </SectionCaption>
-        </SettingsSection>
-      </motion.div>
+                onKeyDown={(e) => {
+                  const items = enabledModels
+                  const idx = items.indexOf(modelId)
+                  if (e.key === 'ArrowUp' && idx > 0) {
+                    e.preventDefault()
+                    const newOrder = [...items]
+                    ;[newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]]
+                    handleReorder(newOrder)
+                  } else if (e.key === 'ArrowDown' && idx < items.length - 1) {
+                    e.preventDefault()
+                    const newOrder = [...items]
+                    ;[newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]]
+                    handleReorder(newOrder)
+                  }
+                }}
+              >
+                <BottomBarModelRow
+                  modelId={modelId}
+                  site={site}
+                  displayName={displayName}
+                  isVisible={isVisible}
+                  onToggle={handleToggleModel}
+                />
+              </Reorder.Item>
+            )
+          })}
+        </Reorder.Group>
+
+        <SectionCaption>
+          {visibleModelCount > bottomBarMaxIcons
+            ? t('bottom_bar_showing_limited', {
+                visible: visibleModelCount,
+                total: enabledModels.length,
+                limit: bottomBarMaxIcons
+              })
+            : t('models_visible_count', {
+                visible: visibleModelCount,
+                total: enabledModels.length
+              })}
+        </SectionCaption>
+      </SettingsSection>
     </div>
   )
 })

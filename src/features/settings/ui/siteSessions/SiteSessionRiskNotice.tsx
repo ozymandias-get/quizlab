@@ -14,7 +14,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
       title={t('ws_warning_title')}
       detail={t('ws_warning_intro')}
     >
-      <div className="flex flex-col gap-5 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
+      <div className="flex flex-col gap-5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
             <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-400 uppercase">

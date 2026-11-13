@@ -28,7 +28,7 @@ const SelectorDiagnosticTile = memo(function SelectorDiagnosticTile({
   t
 }: SelectorDiagnosticTileProps) {
   return (
-    <div className="flex flex-col gap-1 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
+    <div className="flex flex-col gap-1 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
       <p className="text-muted-foreground text-ql-10 tracking-ql-label font-semibold uppercase">
         {t(labelKey)}
       </p>

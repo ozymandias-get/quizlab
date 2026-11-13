@@ -96,7 +96,7 @@ const SettingsModal = memo(function SettingsModal({
           transition={{ duration: prefersReducedMotion ? 0 : DURATION.normal }}
           className="flex h-full min-h-0 flex-col"
         >
-          <header className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
+          <header className="flex shrink-0 items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]">
                 <SettingsIcon className="h-4 w-4" />

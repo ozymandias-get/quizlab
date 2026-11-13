@@ -139,7 +139,7 @@ const AiModelRow = memo(function AiModelRow({
                 {highlightMatch(getAiPlatformLabel(site, modelKey, t), searchQuery)}
               </Label>
               {isCustom && (
-                <span className="text-primary border-primary/20 bg-primary/10 text-ql-10 shrink-0 rounded-lg border px-1.5 py-0.5 font-semibold uppercase">
+                <span className="text-primary border-primary/20 bg-primary/10 text-ql-10 shrink-0 rounded-md border px-1.5 py-0.5 font-semibold uppercase">
                   {t('custom_badge')}
                 </span>
               )}

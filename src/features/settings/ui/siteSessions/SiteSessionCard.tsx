@@ -80,7 +80,7 @@ function SiteSessionCard({
   const switchLabel = `${t('ws_toggle_label')} — ${t(view.labelKey)} (${view.hostname})`
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
+    <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span

@@ -192,7 +192,7 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
           <div className="flex items-start gap-3">
             <span
               aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900/45"
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04]"
             >
               <AlertTriangle className="h-4 w-4" />
             </span>
@@ -220,7 +220,7 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900/45"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04]"
         >
           <Glyph className="h-4 w-4" />
         </span>

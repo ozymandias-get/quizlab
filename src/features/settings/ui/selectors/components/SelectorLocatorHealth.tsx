@@ -65,7 +65,7 @@ const STATE_STYLES: Record<string, string> = {
   migrated: 'border-primary/30 bg-primary/10 text-primary',
   repaired: 'border-sky-500/30 bg-sky-500/10 text-sky-400',
   needs_repick: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
-  missing: 'border-white/[0.07] bg-zinc-900/45 text-muted-foreground'
+  missing: 'border-white/[0.07] bg-white/[0.03] text-muted-foreground'
 }
 
 export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHealthProps) {
@@ -75,7 +75,7 @@ export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHeal
   const panelId = useId()
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-xl border border-white/[0.07] bg-zinc-900/45 px-3.5 py-2.5">
+    <div className="flex flex-col gap-1.5 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3.5 py-2.5">
       <div className="flex items-center gap-2">
         <span className="text-ql-11 text-muted-foreground font-medium">
           {t('selectors_locator_health_label')}
