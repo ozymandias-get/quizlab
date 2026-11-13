@@ -15,6 +15,14 @@
   -webkit-app-region: no-drag;
 }
 
+/* Windows custom title bar: the empty gutter above the panels is the primary
+   grab area. Kept separate from the tab strips so no interactive row is
+   covered. Scoped to Windows so macOS/Linux behaviour stays untouched. */
+
+html[data-platform='win32'] .app-drag-gutter {
+  -webkit-app-region: drag;
+}
+
 /* Windows titleBarOverlay reserves the top-right corner for caption buttons. */
 
 html[data-platform='win32'] .window-controls-safe {

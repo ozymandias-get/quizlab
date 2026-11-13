@@ -114,6 +114,15 @@ function App() {
       >
         <ToastContainer />
 
+        {/* The workspace pads its top edge, but that gutter was not part of any
+            drag region: only the tab strips were draggable. This invisible strip
+            covers exactly that empty padding (h-2…h-5 matches py-2…py-5) so the
+            window can be grabbed from the top edge without overlaying tabs. */}
+        <div
+          aria-hidden
+          className="app-drag-gutter absolute inset-x-0 top-0 z-10 h-2 sm:h-3 md:h-4 lg:h-5"
+        />
+
         {shouldShowUpdateBanner && (
           <Suspense fallback={null}>
             <UpdateBanner
