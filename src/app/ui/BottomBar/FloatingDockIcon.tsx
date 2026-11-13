@@ -81,7 +81,10 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           onKeyDown={handleKeyDown}
           size={DOCK_ICON_BASE}
           magnification={DOCK_ICON_HOVER}
-          distance={90}
+          // Icons sit ~35px apart; a 90px radius made five neighbours breathe
+          // together, which reads as the whole rail sliding. Keep the growth
+          // local to the hovered icon and its immediate neighbours.
+          distance={56}
           className={cn(
             'group focus-visible:ring-ring/70 motion-normal relative shrink-0 rounded-lg ring-1 transition-colors focus-visible:ring-2 focus-visible:outline-none',
             disabled

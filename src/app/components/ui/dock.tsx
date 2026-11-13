@@ -229,7 +229,7 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
     >
       <motion.div
         ref={setRefs}
-        style={{ width: size, height: size, padding, scale, transformOrigin: 'center center' }}
+        style={{ width: size, height: size, padding }}
         className={cn(
           'group flex aspect-square cursor-pointer items-center justify-center rounded-full',
           isMagnificationDisabled && 'hover:bg-muted-foreground transition-colors',
@@ -237,7 +237,15 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
         )}
         {...props}
       >
-        <div className="transition-transform group-active:scale-[0.97]">{children}</div>
+        {/* Only the visual icon scales. The button box, hover surface and
+            tooltip anchor stay fixed, so magnification cannot pull the pointer
+            hitbox out from under the cursor. */}
+        <motion.div
+          style={{ scale, transformOrigin: 'center center', willChange: 'transform' }}
+          className="pointer-events-none flex size-full items-center justify-center"
+        >
+          <div className="transition-transform group-active:scale-[0.97]">{children}</div>
+        </motion.div>
       </motion.div>
     </div>
   )

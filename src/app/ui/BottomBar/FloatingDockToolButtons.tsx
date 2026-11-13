@@ -162,8 +162,13 @@ export const ModelIconsList = memo(function ModelIconsList({
 
   return (
     <div
-      className="scrollbar-hidden flex max-h-[calc(100dvh-12rem)]! min-h-0 w-full flex-col items-center gap-1 overflow-y-auto py-1"
-      style={{ maxHeight: bottomBarMaxIcons * 36 + 8 }}
+      className="scrollbar-hidden flex min-h-0 w-full flex-col items-center gap-1 overflow-y-auto py-1"
+      style={{
+        // One limit only: the user's icon cap, clamped by the viewport space
+        // the tools/padding leave. The old `!important` class silently won
+        // over this inline value, so the two maxima disagreed.
+        maxHeight: `min(${bottomBarMaxIcons * 36 + 8}px, calc(100dvh - 12rem))`
+      }}
     >
       {displayModels.map((modelKey) => (
         <ModelDockIcon key={modelKey} modelKey={modelKey} site={aiSites[modelKey]} />

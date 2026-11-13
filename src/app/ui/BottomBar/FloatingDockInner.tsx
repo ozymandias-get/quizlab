@@ -53,7 +53,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
           orientation="vertical"
           iconSize={32}
           iconMagnification={34}
-          iconDistance={90}
+          iconDistance={56}
           disableMagnification={isResizing}
           className="dock-surface mt-0 h-auto max-h-[calc(100dvh-4rem)] w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
         >
