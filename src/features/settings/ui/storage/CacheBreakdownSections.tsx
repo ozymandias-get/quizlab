@@ -4,11 +4,11 @@
  */
 import { formatBytes } from '@shared/lib/formatUtils'
 import { cn } from '@shared/lib/uiUtils'
-import { SettingsSection } from '@shared/ui/components/primitives'
+import { CollapsiblePanel, SettingsSection } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
 import { ChevronDown, FolderTree, Layers } from 'lucide-react'
-import { memo } from 'react'
+import { memo, useId, useState } from 'react'
 
 import type { PartitionCacheRow } from './cacheUsageSummary'
 import { groupPartitionCacheRows } from './cacheUsageSummary'
@@ -16,6 +16,70 @@ import { PartitionRow, RootCacheRow } from './StorageComponents'
 
 /** Nested list surface: recessed inside a section card, so it never uses `bg-card`. */
 const INSET_LIST = 'border-white/[0.07] bg-zinc-950/40 rounded-xl border'
+
+type PartitionGroupModel = ReturnType<typeof groupPartitionCacheRows>[number]
+
+/**
+ * A multi-profile partition group. Kept as a disclosure (not a native
+ * `<details>`) so the body can use the shared accordion motion: the native
+ * element hides its content before an exit transition can run.
+ */
+const PartitionGroup = memo(function PartitionGroup({
+  group,
+  onClearPartition,
+  t
+}: {
+  group: PartitionGroupModel
+  onClearPartition: (partitionKey: string) => void
+  t: TFunction
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const panelId = useId()
+
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={() => setIsOpen((open) => !open)}
+        className="focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors select-none hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <ChevronDown
+          aria-hidden
+          className={`motion-slow h-4 w-4 shrink-0 transition-transform ease-in-out motion-reduce:transition-none ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+        <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
+          {group.label}
+        </span>
+        <span className="text-ql-11 text-muted-foreground">
+          {t('storage_profiles_count', { count: group.rows.length })}
+        </span>
+        <span className="text-ql-12 text-muted-foreground font-mono tabular-nums">
+          {formatBytes(group.size)}
+        </span>
+      </button>
+
+      <CollapsiblePanel isOpen={isOpen}>
+        <div id={panelId} className="divide-y divide-white/5 border-t border-white/[0.07] pl-4">
+          {group.rows.map((row) => (
+            <PartitionRow
+              key={row.key}
+              label={row.label}
+              size={row.size}
+              category={row.category}
+              lastActive={row.lastActive}
+              onClear={() => onClearPartition(row.key)}
+              t={t}
+            />
+          ))}
+        </div>
+      </CollapsiblePanel>
+    </div>
+  )
+})
 
 export const RootCacheSection = memo(function RootCacheSection({
   chromiumCache,
@@ -70,36 +134,12 @@ export const PartitionCacheSection = memo(function PartitionCacheSection({
               t={t}
             />
           ) : (
-            <details key={group.key} className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2">
-                <ChevronDown
-                  aria-hidden
-                  className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
-                />
-                <span className="text-ql-12 text-foreground min-w-0 flex-1 truncate font-medium">
-                  {group.label}
-                </span>
-                <span className="text-ql-11 text-muted-foreground">
-                  {t('storage_profiles_count', { count: group.rows.length })}
-                </span>
-                <span className="text-ql-12 text-muted-foreground font-mono tabular-nums">
-                  {formatBytes(group.size)}
-                </span>
-              </summary>
-              <div className="divide-y divide-white/5 border-t border-white/[0.07] pl-4">
-                {group.rows.map((row) => (
-                  <PartitionRow
-                    key={row.key}
-                    label={row.label}
-                    size={row.size}
-                    category={row.category}
-                    lastActive={row.lastActive}
-                    onClear={() => onClearPartition(row.key)}
-                    t={t}
-                  />
-                ))}
-              </div>
-            </details>
+            <PartitionGroup
+              key={group.key}
+              group={group}
+              onClearPartition={onClearPartition}
+              t={t}
+            />
           )
         )}
       </div>

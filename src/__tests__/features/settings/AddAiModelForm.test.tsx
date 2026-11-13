@@ -14,6 +14,7 @@ vi.mock('@app/providers', () => ({
 
 vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useReducedMotion: () => false,
   motion: {
     div: ({ children, ...props }: Record<string, unknown>) => (
       <div {...props}>{children as React.ReactNode}</div>

@@ -2,10 +2,10 @@ import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
-import { Button } from '@shared/ui/components/primitives'
+import { Button, CollapsiblePanel } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Copy, Loader2 } from 'lucide-react'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useId, useMemo, useState } from 'react'
 
 import AboutActionCard from './AboutActionCard'
 
@@ -79,6 +79,8 @@ async function copyToClipboard(text: string): Promise<void> {
 
 const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
   const [isCopying, setIsCopying] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const previewId = useId()
   const { showSuccess, showError } = useToastActions()
 
   // The exact text that will be written to the clipboard, so the disclosure
@@ -133,15 +135,31 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
         }
       />
 
-      <details className="group mt-2 rounded-xl border border-white/[0.07] bg-zinc-950/40">
-        <summary className="text-ql-11 text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 font-medium select-none">
+      <div className="mt-2 rounded-xl border border-white/[0.07] bg-zinc-950/40">
+        <button
+          type="button"
+          aria-expanded={isPreviewOpen}
+          aria-controls={previewId}
+          onClick={() => setIsPreviewOpen((open) => !open)}
+          className="text-ql-11 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left font-medium select-none focus-visible:ring-2 focus-visible:outline-none"
+        >
           {t('preview_report_data')}
-          <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
-        </summary>
-        <pre className="custom-scrollbar text-ql-11 text-muted-foreground max-h-56 overflow-auto border-t border-white/[0.07] p-3 font-mono break-words whitespace-pre-wrap">
-          {report}
-        </pre>
-      </details>
+          <ChevronDown
+            aria-hidden
+            className={`motion-slow size-3.5 shrink-0 transition-transform ease-in-out motion-reduce:transition-none ${
+              isPreviewOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+        <CollapsiblePanel isOpen={isPreviewOpen}>
+          <pre
+            id={previewId}
+            className="custom-scrollbar text-ql-11 text-muted-foreground max-h-56 overflow-auto border-t border-white/[0.07] p-3 font-mono break-words whitespace-pre-wrap"
+          >
+            {report}
+          </pre>
+        </CollapsiblePanel>
+      </div>
     </>
   )
 })

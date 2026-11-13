@@ -1,6 +1,9 @@
 import type { AiSelectorConfig, SelectorRepairKind } from '@shared-core/types'
 
+import { CollapsiblePanel } from '@shared/ui/components/primitives'
+
 import { ChevronDown } from 'lucide-react'
+import { useId, useState } from 'react'
 
 import type { SelectorHealthState, TranslateFn } from '../types'
 
@@ -68,6 +71,8 @@ const STATE_STYLES: Record<string, string> = {
 export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHealthProps) {
   const rows = [resolveRow(config, 'input'), resolveRow(config, 'button')]
   const configHealth: SelectorHealthState = config?.health ?? 'ready'
+  const [isOpen, setIsOpen] = useState(false)
+  const panelId = useId()
 
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border border-white/[0.07] bg-zinc-900/45 px-3.5 py-2.5">
@@ -77,13 +82,27 @@ export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHeal
         </span>
         <span aria-hidden className="bg-border h-px flex-1" />
       </div>
-      <details className="group">
-        <summary className="text-ql-11 text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1.5 rounded-md py-0.5 select-none">
-          <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
-          {t('selectors_technical_details')}
-        </summary>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={() => setIsOpen((open) => !open)}
+        className="text-ql-11 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex cursor-pointer items-center gap-1.5 self-start rounded-md py-0.5 select-none focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <ChevronDown
+          aria-hidden
+          className={`motion-slow size-3.5 shrink-0 transition-transform ease-in-out motion-reduce:transition-none ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+        {t('selectors_technical_details')}
+      </button>
 
-        <ul className="mt-2 flex flex-col gap-2">
+      {/* Kept mounted (height 0 + inert while closed): the closed rows are part
+          of the card's existing DOM contract, and unmounting them would change
+          what the health probes can read without opening the disclosure. */}
+      <CollapsiblePanel isOpen={isOpen} keepMounted>
+        <ul id={panelId} className="mt-2 flex flex-col gap-2">
           {rows.map((row) => {
             const state = row.hasLocator ? resolveHealthState(row, configHealth) : 'missing'
             return (
@@ -115,7 +134,7 @@ export default function SelectorLocatorHealth({ config, t }: SelectorLocatorHeal
             )
           })}
         </ul>
-      </details>
+      </CollapsiblePanel>
     </div>
   )
 }

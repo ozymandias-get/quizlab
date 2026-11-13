@@ -1,4 +1,5 @@
 export { Button } from './button'
+export { default as CollapsiblePanel } from './CollapsiblePanel'
 export { EmptyState } from './EmptyState'
 export { IconButton } from './icon-button'
 export { IconBadge } from './IconBadge'

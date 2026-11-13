@@ -5,12 +5,10 @@ import { Label } from '@app/components/ui/label'
 import { ShimmerButton } from '@app/components/ui/shimmer-button'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
-import { DURATION } from '@shared/lib/motion'
 import { parseHttpUrl, validateHttpUrl } from '@shared/lib/urlUtils'
-import { Button, SettingsSection } from '@shared/ui/components/primitives'
+import { Button, CollapsiblePanel, SettingsSection } from '@shared/ui/components/primitives'
 
 import { Loader2, Plus } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
 import { type FormEvent, memo, useState } from 'react'
 
 import { useSettingsDirty } from '../modal/settingsDirtyGuard'
@@ -100,118 +98,91 @@ const AddAiModelForm = memo(function AddAiModelForm({
   // The add form is deliberately compact: each control opts into the 12px
   // scale explicitly, so it no longer depends on an inherited wrapper size.
   return (
-    <AnimatePresence>
-      {showAddForm && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{
-            opacity: 1,
-            height: 'auto',
-            transition: {
-              height: { duration: DURATION.slower, ease: [0.25, 1, 0.5, 1] },
-              opacity: { duration: DURATION.slow, delay: 0.1 }
-            }
-          }}
-          exit={{
-            opacity: 0,
-            height: 0,
-            transition: {
-              height: { duration: DURATION.slow, ease: 'easeInOut' },
-              opacity: { duration: DURATION.fast }
-            }
-          }}
-          className="overflow-hidden"
-        >
-          <SettingsSection
-            icon={<Plus className="h-4 w-4" />}
-            title={isSite ? t('add_site') : t('add_custom_ai')}
-          >
-            <form onSubmit={handleAddAi} className="flex flex-col gap-4">
-              <div className="@container">
-                <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
-                  <div className="text-ql-12 space-y-1.5">
-                    <Label className="text-ql-11 text-muted-foreground font-medium">
-                      {t('name')}
-                    </Label>
-                    <Input
-                      value={newAiName}
-                      onChange={(e) => {
-                        setNewAiName(e.target.value)
-                        if (nameError) setNameError(validateName(e.target.value))
-                      }}
-                      onBlur={() => setNameError(validateName(newAiName))}
-                      placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
-                      aria-invalid={!!nameError}
-                      className="text-ql-12"
-                    />
-                    {/* Reserved slot: validation never pushes the form down. */}
-                    <span
-                      role="alert"
-                      aria-live="polite"
-                      className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
-                    >
-                      {nameError}
-                    </span>
-                  </div>
-                  <div className="text-ql-12 space-y-1.5">
-                    <Label className="text-ql-11 text-muted-foreground font-medium">
-                      {t('url')}
-                    </Label>
-                    <Input
-                      value={newAiUrl}
-                      onChange={(e) => {
-                        setNewAiUrl(e.target.value)
-                        if (urlError) setUrlError(validateUrl(e.target.value))
-                      }}
-                      onBlur={() => setUrlError(validateUrl(newAiUrl))}
-                      placeholder="https://..."
-                      aria-invalid={!!urlError}
-                      className="text-ql-12"
-                    />
-                    <span
-                      role="alert"
-                      aria-live="polite"
-                      className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
-                    >
-                      {urlError}
-                    </span>
-                  </div>
-                </div>
+    <CollapsiblePanel isOpen={showAddForm} className="rounded-2xl">
+      <SettingsSection
+        icon={<Plus className="h-4 w-4" />}
+        title={isSite ? t('add_site') : t('add_custom_ai')}
+      >
+        <form onSubmit={handleAddAi} className="flex flex-col gap-4">
+          <div className="@container">
+            <div className="grid grid-cols-1 gap-4 @min-[520px]:grid-cols-2">
+              <div className="text-ql-12 space-y-1.5">
+                <Label className="text-ql-11 text-muted-foreground font-medium">{t('name')}</Label>
+                <Input
+                  value={newAiName}
+                  onChange={(e) => {
+                    setNewAiName(e.target.value)
+                    if (nameError) setNameError(validateName(e.target.value))
+                  }}
+                  onBlur={() => setNameError(validateName(newAiName))}
+                  placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
+                  aria-invalid={!!nameError}
+                  className="text-ql-12"
+                />
+                {/* Reserved slot: validation never pushes the form down. */}
+                <span
+                  role="alert"
+                  aria-live="polite"
+                  className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+                >
+                  {nameError}
+                </span>
               </div>
-              <div className="text-ql-12 flex justify-end">
-                {isAdding || !newAiName.trim() || !newAiUrl.trim() ? (
-                  <Button
-                    type="submit"
-                    disabled
-                    size="sm"
-                    className="gap-1.5 border-0 bg-zinc-800 text-zinc-500 opacity-100 hover:bg-zinc-800"
-                  >
-                    {isAdding ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>{t('adding')}</span>
-                      </>
-                    ) : (
-                      <span>{t('save_platform')}</span>
-                    )}
-                  </Button>
+              <div className="text-ql-12 space-y-1.5">
+                <Label className="text-ql-11 text-muted-foreground font-medium">{t('url')}</Label>
+                <Input
+                  value={newAiUrl}
+                  onChange={(e) => {
+                    setNewAiUrl(e.target.value)
+                    if (urlError) setUrlError(validateUrl(e.target.value))
+                  }}
+                  onBlur={() => setUrlError(validateUrl(newAiUrl))}
+                  placeholder="https://..."
+                  aria-invalid={!!urlError}
+                  className="text-ql-12"
+                />
+                <span
+                  role="alert"
+                  aria-live="polite"
+                  className="text-destructive text-ql-11 block min-h-[1.25rem] px-1"
+                >
+                  {urlError}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="text-ql-12 flex justify-end">
+            {isAdding || !newAiName.trim() || !newAiUrl.trim() ? (
+              <Button
+                type="submit"
+                disabled
+                size="sm"
+                className="gap-1.5 border-0 bg-zinc-800 text-zinc-500 opacity-100 hover:bg-zinc-800"
+              >
+                {isAdding ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t('adding')}</span>
+                  </>
                 ) : (
-                  <ShimmerButton
-                    type="submit"
-                    borderRadius="12px"
-                    shimmerDuration="4s"
-                    background="linear-gradient(180deg, #fafafa, #d4d4d8)"
-                    className="text-ql-12 h-8 gap-1.5 px-3.5 font-semibold text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:brightness-105"
-                  >
-                    <span>{t('save_platform')}</span>
-                  </ShimmerButton>
+                  <span>{t('save_platform')}</span>
                 )}
-              </div>
-            </form>
-          </SettingsSection>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              </Button>
+            ) : (
+              <ShimmerButton
+                type="submit"
+                borderRadius="12px"
+                shimmerDuration="4s"
+                background="linear-gradient(180deg, #fafafa, #d4d4d8)"
+                className="text-ql-12 h-8 gap-1.5 px-3.5 font-semibold text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:brightness-105"
+              >
+                <span>{t('save_platform')}</span>
+              </ShimmerButton>
+            )}
+          </div>
+        </form>
+      </SettingsSection>
+    </CollapsiblePanel>
   )
 })
 

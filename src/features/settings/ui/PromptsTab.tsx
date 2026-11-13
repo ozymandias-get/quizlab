@@ -5,36 +5,19 @@ import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
 import {
   Button,
+  CollapsiblePanel,
   EmptyState,
   SettingsTabIcon,
   SettingsTabIntro
 } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Library, Plus, WandSparkles, Zap } from 'lucide-react'
-import { AnimatePresence, motion, Reorder } from 'motion/react'
-import { type FormEvent, memo, type MouseEvent, type ReactNode, useCallback, useState } from 'react'
+import { Reorder } from 'motion/react'
+import { type FormEvent, memo, type MouseEvent, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { PromptItem } from './prompts/PromptItem'
 import { QuickPresetsSection } from './prompts/QuickPresetsSection'
-
-function DisclosureBody({ isOpen, children }: { isOpen: boolean; children: ReactNode }) {
-  return (
-    <AnimatePresence initial={false}>
-      {isOpen && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          className="overflow-hidden"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
 
 function SectionChevron({ isOpen }: { isOpen: boolean }) {
   return (
@@ -42,7 +25,9 @@ function SectionChevron({ isOpen }: { isOpen: boolean }) {
       aria-hidden
       className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
     >
-      <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      <ChevronDown
+        className={`motion-slow h-4 w-4 transition-transform ease-in-out motion-reduce:transition-none ${isOpen ? 'rotate-180' : ''}`}
+      />
     </span>
   )
 }
@@ -105,8 +90,14 @@ const PromptsTab = memo(() => {
         description={t('prompts_description')}
       />
 
-      {/* AI Gönder taslağı — açılır/kapanır */}
-      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
+      {/* AI Gönder taslağı — açılır/kapanır. Surface follows the AI home
+          sections: open cards carry the stronger hairline, closed ones sit
+          back into the panel. */}
+      <section
+        className={`overflow-hidden rounded-2xl border transition-colors ${
+          isQuickOpen ? 'border-white/[0.09] bg-zinc-950/70' : 'border-white/[0.07] bg-zinc-950/40'
+        }`}
+      >
         <button
           type="button"
           onClick={() => setIsQuickOpen((v) => !v)}
@@ -129,15 +120,21 @@ const PromptsTab = memo(() => {
           </div>
           <SectionChevron isOpen={isQuickOpen} />
         </button>
-        <DisclosureBody isOpen={isQuickOpen}>
+        <CollapsiblePanel isOpen={isQuickOpen}>
           <div className="border-t border-white/[0.07] px-4 py-4">
             <QuickPresetsSection />
           </div>
-        </DisclosureBody>
+        </CollapsiblePanel>
       </section>
 
       {/* Prompt Kütüphanesi — açılır/kapanır */}
-      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
+      <section
+        className={`overflow-hidden rounded-2xl border transition-colors ${
+          isLibraryOpen
+            ? 'border-white/[0.09] bg-zinc-950/70'
+            : 'border-white/[0.07] bg-zinc-950/40'
+        }`}
+      >
         <button
           type="button"
           onClick={() => setIsLibraryOpen((v) => !v)}
@@ -170,7 +167,7 @@ const PromptsTab = memo(() => {
           </div>
           <SectionChevron isOpen={isLibraryOpen} />
         </button>
-        <DisclosureBody isOpen={isLibraryOpen}>
+        <CollapsiblePanel isOpen={isLibraryOpen}>
           <div className="space-y-4 border-t border-white/[0.07] px-4 py-4">
             <p className="text-ql-12 text-muted-foreground leading-relaxed">
               {t('prompts_auto_append_desc')}
@@ -295,7 +292,7 @@ const PromptsTab = memo(() => {
               </div>
             )}
           </div>
-        </DisclosureBody>
+        </CollapsiblePanel>
       </section>
     </div>
   )
