@@ -52,14 +52,26 @@ describe('useGridDragReorder', () => {
   })
 
   describe('handleDragOver', () => {
-    it('calls preventDefault and sets dropEffect to "move"', () => {
+    it('calls preventDefault and sets dropEffect to "move" when dragging a grid item', () => {
+      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], vi.fn()))
+      const event = makeDragEvent()
+      act(() => {
+        result.current.handleDragStart('a')
+        result.current.handleDragOver(event, 'b')
+      })
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect((event.dataTransfer as any).dropEffect).toBe('move')
+    })
+
+    it('ignores external or foreign drags without calling preventDefault', () => {
       const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], vi.fn()))
       const event = makeDragEvent()
       act(() => {
         result.current.handleDragOver(event, 'b')
       })
-      expect(event.preventDefault).toHaveBeenCalled()
-      expect((event.dataTransfer as any).dropEffect).toBe('move')
+      expect(event.preventDefault).not.toHaveBeenCalled()
+      expect((event.dataTransfer as any).dropEffect).toBe('')
+      expect(result.current.dragOverId).toBeNull()
     })
   })
 
@@ -121,11 +133,15 @@ describe('useGridDragReorder', () => {
           result.current.handleDragOver(makeDragEvent(), to)
         })
       }
+      const dropEvent = makeDragEvent()
       act(() => {
-        result.current.handleDrop(makeDragEvent())
+        result.current.handleDrop(dropEvent)
       })
 
       expect(onReorder).not.toHaveBeenCalled()
+      if (!doDragStart || from === null) {
+        expect(dropEvent.preventDefault).not.toHaveBeenCalled()
+      }
     })
 
     it('moves an item earlier in the list', () => {

@@ -70,10 +70,16 @@ export function useGridDragReorder(
   }, [])
 
   const handleDragOver = useCallback((event: DragEvent, id: string) => {
+    const from = dragItemRef.current
+    if (!from || !orderRef.current.includes(from) || !orderRef.current.includes(id)) {
+      return
+    }
     event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move'
+    }
     dragOverItemRef.current = id
-    const nextDropTarget = dragItemRef.current && dragItemRef.current !== id ? id : null
+    const nextDropTarget = from !== id ? id : null
     setDragOverId((prev) => (prev === nextDropTarget ? prev : nextDropTarget))
   }, [])
 
@@ -96,17 +102,23 @@ export function useGridDragReorder(
 
   const handleDrop = useCallback(
     (event: DragEvent) => {
-      event.preventDefault()
       const from = dragItemRef.current
       const to = dragOverItemRef.current
       // Every path clears the drag state, including the early returns.
       clearDragState()
 
-      if (!from || !to || from === to) {
+      const currentOrder = orderRef.current
+      if (!from || !currentOrder.includes(from)) {
         return
       }
 
-      const currentOrder = orderRef.current
+      event.preventDefault()
+      event.stopPropagation?.()
+
+      if (!to || from === to) {
+        return
+      }
+
       const nextOrder = [...currentOrder]
       const fromIndex = nextOrder.indexOf(from)
       const toIndex = nextOrder.indexOf(to)

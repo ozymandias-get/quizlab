@@ -48,20 +48,25 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
   )
   const isApiChatActive = activeModelIds.has('api-chat')
 
+  const {
+    handleDragOver: onGridDragOver,
+    handleDragLeave: onGridDragLeave,
+    moveItem: moveGridItem
+  } = dragState
+
   // The hook's `handleDragOver` is `(event, id) => void` (React DOM ordering),
   // but `GridCard`'s prop signature is `(id, event) => void` (curried). This
-  // adapter swaps the args. `dragState.handleDragOver` is itself a stable
-  // `useCallback` from the hook, so this adapter is also stable — important
-  // because `GridCard` is `memo`'d and a fresh lambda on every render would
-  // defeat that.
+  // adapter swaps the args. `onGridDragOver` is itself a stable `useCallback`
+  // from the hook (decoupled from `dragState` identity changes), so `GridCard`
+  // memo guards hold across `draggingId`/`dragOverId` updates.
   const handleCardDragOver = useCallback(
-    (itemId: string, event: DragEvent<Element>) => dragState.handleDragOver(event, itemId),
-    [dragState]
+    (itemId: string, event: DragEvent<Element>) => onGridDragOver(event, itemId),
+    [onGridDragOver]
   )
 
   const handleCardDragLeave = useCallback(
-    (itemId: string, event: DragEvent<Element>) => dragState.handleDragLeave(event, itemId),
-    [dragState]
+    (itemId: string, event: DragEvent<Element>) => onGridDragLeave(event, itemId),
+    [onGridDragLeave]
   )
 
   const handleCardMove = useCallback(
@@ -71,14 +76,14 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
       )
       const fromIndex = visibleIds.indexOf(itemId)
       const toIndex = fromIndex + delta
-      dragState.moveItem(itemId, delta)
+      moveGridItem(itemId, delta)
       if (fromIndex !== -1 && toIndex >= 0 && toIndex < visibleIds.length) {
         const site = aiSites[itemId]
         const name = site?.displayName || site?.name || itemId
         setReorderAnnouncement(`${name} (${toIndex + 1} / ${visibleIds.length})`)
       }
     },
-    [aiSites, dragState, ids, showApiChat, tone]
+    [aiSites, ids, moveGridItem, showApiChat, tone]
   )
 
   return (

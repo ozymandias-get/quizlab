@@ -79,27 +79,24 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
         onRemove(id)
         return
       }
-      const grid = gridRef.current
-      const remainingCount = entries.length - 1
       // Capture the section toggle before `onRemove` unmounts this list on the last item.
       const sectionToggle =
-        remainingCount === 0
-          ? (grid?.closest('section')?.querySelector<HTMLButtonElement>('button[aria-expanded]') ??
-            null)
-          : null
+        gridRef.current
+          ?.closest('section')
+          ?.querySelector<HTMLButtonElement>('button[aria-expanded]') ?? null
       onRemove(id)
       requestAnimationFrame(() => {
-        if (remainingCount > 0) {
-          const targetIndex = Math.min(index, remainingCount - 1)
-          gridRef.current
-            ?.querySelectorAll<HTMLButtonElement>('[data-recent-open]')
-            [targetIndex]?.focus()
+        const buttons = gridRef.current?.querySelectorAll<HTMLButtonElement>('[data-recent-open]')
+        if (buttons && buttons.length > 0) {
+          buttons[Math.min(index, buttons.length - 1)]?.focus()
           return
         }
-        sectionToggle?.focus()
+        if (sectionToggle?.isConnected) {
+          sectionToggle.focus()
+        }
       })
     },
-    [entries.length, onRemove]
+    [onRemove]
   )
 
   return (
