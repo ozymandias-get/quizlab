@@ -1,8 +1,8 @@
 import { DURATION } from '@shared/lib/motion'
 
 import { ChevronDown } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
-import { memo, type ReactNode, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { memo, type ReactNode, useId, useState } from 'react'
 
 interface AiHomeSectionProps {
   children: ReactNode
@@ -22,6 +22,8 @@ const AiHomeSection = memo(function AiHomeSection({
   title
 }: AiHomeSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
+  const contentId = useId()
+  const prefersReducedMotion = useReducedMotion()
   const handleToggle = () => setIsOpen((current) => !current)
 
   return (
@@ -33,6 +35,7 @@ const AiHomeSection = memo(function AiHomeSection({
       <button
         type="button"
         aria-expanded={isOpen}
+        aria-controls={contentId}
         className="focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none hover:bg-white/[0.03] focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
@@ -67,10 +70,15 @@ const AiHomeSection = memo(function AiHomeSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: DURATION.slow, ease: [0.4, 0, 0.2, 1] }}
+            transition={{
+              duration: prefersReducedMotion ? 0 : DURATION.slow,
+              ease: [0.4, 0, 0.2, 1]
+            }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div className="px-4 pt-2 pb-4">{children}</div>
+            <div id={contentId} className="px-4 pt-2 pb-4">
+              {children}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -188,22 +188,24 @@ function PdfRecentListItem({
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              {isInvalid && onRelink ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleRelinkButtonClick}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"
-                  aria-label={t('choose_new_location')}
-                >
-                  <FolderOpen className="h-3.5 w-3.5" />
-                  <span className="text-ql-12 hidden sm:inline">
-                    {t('choose_new_location_short')}
-                  </span>
-                </Button>
+              {isInvalid ? (
+                onRelink ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRelinkButtonClick}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"
+                    aria-label={t('choose_new_location')}
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    <span className="text-ql-12 hidden sm:inline">
+                      {t('choose_new_location_short')}
+                    </span>
+                  </Button>
+                ) : null
               ) : (
                 <Button
                   type="button"

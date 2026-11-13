@@ -14,7 +14,24 @@ interface AiHomeHeroProps {
   onOpenModel: (id: string) => void
   /** Activates an already-open tab by id without creating a new session. */
   onOpenTab?: (tabId: string) => void
+  /** Restored URL for an open tab, when the session has reported one. */
+  getTabUrl?: (tabId: string, modelId: string) => string | undefined
   tabs: Tab[]
+}
+
+/** Short, human-readable suffix from a session URL; null when unavailable. */
+function getSessionHint(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const tail = segments[segments.length - 1]
+    if (!tail) return parsed.hostname.replace(/^www\./, '')
+    const decoded = decodeURIComponent(tail)
+    return decoded.length > 16 ? `${decoded.slice(0, 14)}…` : decoded
+  } catch {
+    return null
+  }
 }
 
 const AiHomeHero = memo(function AiHomeHero({
@@ -23,6 +40,7 @@ const AiHomeHero = memo(function AiHomeHero({
   isCompact,
   onOpenModel,
   onOpenTab,
+  getTabUrl,
   tabs
 }: AiHomeHeroProps) {
   const { t } = useTranslation()
@@ -51,6 +69,17 @@ const AiHomeHero = memo(function AiHomeHero({
               const site = aiSites[tab.modelId]
               const isActive = tab.id === activeTabId
               const displayName = site?.displayName || site?.name || tab.modelId
+              const sameModelTabs = tabs.filter((candidate) => candidate.modelId === tab.modelId)
+              const sessionNumber =
+                sameModelTabs.findIndex((candidate) => candidate.id === tab.id) + 1
+              const sessionUrl = getTabUrl?.(tab.id, tab.modelId)
+              const sessionHint = getSessionHint(sessionUrl)
+              // Duplicate model sessions need a stable, visible distinction; the
+              // URL tail is used when the session has reported one.
+              const label =
+                sameModelTabs.length > 1
+                  ? `${displayName}${sessionHint ? ` · ${sessionHint}` : ''} (${sessionNumber})`
+                  : displayName
               return (
                 <Button
                   key={tab.id}
@@ -58,9 +87,11 @@ const AiHomeHero = memo(function AiHomeHero({
                   variant={isActive ? 'outline' : 'ghost'}
                   size="xs"
                   onClick={() => (onOpenTab ? onOpenTab(tab.id) : onOpenModel(tab.modelId))}
-                  className="rounded-full border px-3 py-1"
+                  aria-current={isActive ? 'true' : undefined}
+                  title={sessionUrl ?? label}
+                  className="max-w-[220px] rounded-full border px-3 py-1"
                 >
-                  {displayName}
+                  <span className="min-w-0 truncate">{label}</span>
                 </Button>
               )
             })}

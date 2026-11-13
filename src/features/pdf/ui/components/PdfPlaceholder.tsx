@@ -139,7 +139,7 @@ function PdfPlaceholder({
                 canResume={!!onResumePdf}
                 canClear={!!onClearResumePdf}
                 onResume={handleResume}
-                onRelink={handleRelink}
+                onRelink={onRelinkPdf ? handleRelink : undefined}
                 onRemove={handleRemove}
                 onClearSearch={() => setSearchQuery('')}
               />
