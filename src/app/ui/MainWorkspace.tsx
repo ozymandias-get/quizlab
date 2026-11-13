@@ -75,7 +75,7 @@ function MainWorkspace({
       animate="visible"
       exit="hidden"
       variants={containerVariants}
-      className={`relative flex h-screen w-screen px-2 py-2 sm:px-3 sm:py-3 md:px-4 md:py-4 lg:px-5 lg:py-5 ${isLayoutSwapped ? 'flex-row-reverse' : 'flex-row'}`}
+      className={`relative flex h-screen w-screen px-2 py-3 sm:px-3 sm:py-4 md:px-4 md:py-5 lg:px-5 lg:py-6 ${isLayoutSwapped ? 'flex-row-reverse' : 'flex-row'}`}
     >
       <motion.div
         ref={leftPanelRef}
