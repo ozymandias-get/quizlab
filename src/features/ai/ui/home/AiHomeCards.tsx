@@ -122,7 +122,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
             <GridCard
               key={id}
               isActive={activeModelIds.has(id)}
-              isDragging={dragState.dragItemRef.current === id}
+              isDragging={dragState.draggingId === id}
               itemId={id}
               onClick={onOpenModel}
               onDragEnd={dragState.handleDragEnd}

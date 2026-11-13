@@ -64,7 +64,10 @@ const Dock = React.forwardRef<HTMLDivElement, DockProps>(
 
     const handleMouseMove = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
-        mouseX.set(orientation === 'vertical' ? event.pageY : event.pageX)
+        // DockIcon measures distances against getBoundingClientRect(), which is
+        // viewport-relative. pageX/pageY include document scroll, so a scrolled
+        // page made the magnification point drift away from the cursor.
+        mouseX.set(orientation === 'vertical' ? event.clientY : event.clientX)
       },
       [mouseX, orientation]
     )

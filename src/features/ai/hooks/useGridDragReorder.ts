@@ -1,7 +1,15 @@
-import { type DragEvent, type MutableRefObject, useCallback, useMemo, useRef } from 'react'
+import {
+  type DragEvent,
+  type MutableRefObject,
+  useCallback,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 
 export interface GridDragReorderState {
   dragItemRef: MutableRefObject<string | null>
+  draggingId: string | null
   handleDragEnd: () => void
   handleDragOver: (event: DragEvent, id: string) => void
   handleDragStart: (id: string) => void
@@ -14,6 +22,9 @@ export function useGridDragReorder(
 ): GridDragReorderState {
   const dragItemRef = useRef<string | null>(null)
   const dragOverItemRef = useRef<string | null>(null)
+  // Ref mutations do not render. Cards use this state mirror to dim the item
+  // that is actually being dragged; the ref stays the synchronous drag source.
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   // Use refs to keep callback identities stable — without this, every
   // change to `order` or `onReorder` recreates `handleDrop`, which
@@ -26,6 +37,7 @@ export function useGridDragReorder(
 
   const handleDragStart = useCallback((id: string) => {
     dragItemRef.current = id
+    setDraggingId(id)
     // A new drag must not inherit the drop target of the previous one.
     dragOverItemRef.current = null
   }, [])
@@ -44,6 +56,7 @@ export function useGridDragReorder(
       // Every path clears the drag state, including the early returns.
       dragItemRef.current = null
       dragOverItemRef.current = null
+      setDraggingId(null)
 
       if (!from || !to || from === to) {
         return
@@ -68,10 +81,11 @@ export function useGridDragReorder(
   const handleDragEnd = useCallback(() => {
     dragItemRef.current = null
     dragOverItemRef.current = null
+    setDraggingId(null)
   }, [])
 
   return useMemo(
-    () => ({ dragItemRef, handleDragEnd, handleDragOver, handleDragStart, handleDrop }),
-    [dragItemRef, handleDragEnd, handleDragOver, handleDragStart, handleDrop]
+    () => ({ dragItemRef, draggingId, handleDragEnd, handleDragOver, handleDragStart, handleDrop }),
+    [dragItemRef, draggingId, handleDragEnd, handleDragOver, handleDragStart, handleDrop]
   )
 }

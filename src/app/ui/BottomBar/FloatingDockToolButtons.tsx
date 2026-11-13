@@ -75,6 +75,7 @@ export const PdfFocusToolButton = memo(function PdfFocusToolButton() {
       id="tour-target-tool-pdf-focus"
       title={isPdfFocusable ? t('pdf_focus') : t('pdf_focus_no_doc')}
       onClick={handleClick}
+      disabled={!isPdfFocusable}
     >
       <Maximize2 className="h-5 w-5" />
     </FloatingDockIcon>

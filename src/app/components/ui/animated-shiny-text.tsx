@@ -23,7 +23,7 @@ export const AnimatedShinyText: FC<AnimatedShinyTextProps> = ({
         'mx-auto max-w-md text-zinc-400/80',
 
         // Shine effect
-        'animate-shiny-text bg-size-[var(--shiny-width)_100%] bg-clip-text bg-position-[0_0] bg-no-repeat [transition:background-position_1s_cubic-bezier(.6,.6,0,1)_infinite]',
+        'animate-shiny-text bg-size-[var(--shiny-width)_100%] bg-clip-text bg-position-[0_0] bg-no-repeat [transition:background-position_1s_cubic-bezier(.6,.6,0,1)_infinite] motion-reduce:animate-none motion-reduce:[transition:none]',
 
         // Shine gradient
         'bg-linear-to-r from-transparent via-white/85 via-50% to-transparent',

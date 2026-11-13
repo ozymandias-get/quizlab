@@ -23,6 +23,8 @@ interface FloatingDockIconProps {
   onClick: () => void
   /** Toggle-style tools keep a persistent active surface. */
   isActive?: boolean
+  /** Action is currently unavailable; keeps the control out of the tab order. */
+  disabled?: boolean
   /** Small session signal shown at the icon's trailing corner. */
   status?: 'active' | 'generating' | 'sleeping' | 'attention'
 }
@@ -33,18 +35,20 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   id,
   onClick,
   isActive = false,
+  disabled = false,
   status
 }: FloatingDockIconProps) {
   const tooltipAlign = useDockTooltipAlign()
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (disabled) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         onClick()
       }
     },
-    [onClick]
+    [disabled, onClick]
   )
 
   return (
@@ -53,19 +57,24 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
         <DockIcon
           id={id}
           role="button"
-          tabIndex={0}
+          tabIndex={disabled ? -1 : 0}
           aria-label={title}
+          aria-disabled={disabled || undefined}
+          aria-busy={status === 'generating' || undefined}
+          aria-current={status === 'active' ? 'true' : undefined}
           aria-pressed={isActive || undefined}
-          onClick={onClick}
+          onClick={disabled ? undefined : onClick}
           onKeyDown={handleKeyDown}
           size={DOCK_ICON_BASE}
           magnification={DOCK_ICON_HOVER}
           distance={90}
           className={cn(
             'group focus-visible:ring-ring/70 motion-normal relative shrink-0 rounded-lg ring-1 transition-colors focus-visible:ring-2 focus-visible:outline-none',
-            isActive
-              ? 'bg-white/10 text-zinc-100 ring-white/20 hover:bg-white/15'
-              : 'text-zinc-400 ring-transparent hover:bg-white/5 hover:text-zinc-200 hover:ring-white/10'
+            disabled
+              ? 'cursor-not-allowed text-zinc-500 opacity-50 ring-transparent'
+              : isActive
+                ? 'bg-white/10 text-zinc-100 ring-white/20 hover:bg-white/15'
+                : 'text-zinc-400 ring-transparent hover:bg-white/5 hover:text-zinc-200 hover:ring-white/10'
           )}
         >
           <div

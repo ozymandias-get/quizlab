@@ -75,6 +75,15 @@ export function MagicCard(props: MagicCardProps) {
   const mouseX = useMotionValue(-gradientSize)
   const mouseY = useMotionValue(-gradientSize)
 
+  // Must run unconditionally: the layer that consumes it is conditional, and a
+  // hook inside that branch would change hook order when mode or reduced motion
+  // changes at runtime.
+  const gradientBackground = useMotionTemplate`
+    radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px,
+      ${gradientColor},
+      transparent 100%
+    )
+  `
   const orbX = useSpring(mouseX, { stiffness: 250, damping: 30, mass: 0.6 })
   const orbY = useSpring(mouseY, { stiffness: 250, damping: 30, mass: 0.6 })
   const orbVisible = useSpring(0, { stiffness: 300, damping: 35 })
@@ -165,19 +174,14 @@ export function MagicCard(props: MagicCardProps) {
         `
       }}
     >
-      <div className="absolute inset-px z-20 rounded-[inherit] bg-zinc-950/90" />
+      <div className="pointer-events-none absolute inset-px z-20 rounded-[inherit] bg-zinc-950/90" />
 
       {mode === 'gradient' && !prefersReducedMotion && (
         <motion.div
           suppressHydrationWarning
           className="pointer-events-none absolute inset-px z-30 rounded-[inherit] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           style={{
-            background: useMotionTemplate`
-              radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px,
-                ${gradientColor},
-                transparent 100%
-              )
-            `,
+            background: gradientBackground,
             opacity: gradientOpacity
           }}
         />

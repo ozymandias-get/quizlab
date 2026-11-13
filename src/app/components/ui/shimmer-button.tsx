@@ -48,7 +48,10 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
       >
         {/* spark container */}
         <div
-          className={cn('-z-30 blur-[2px]', '@container-[size] absolute inset-0 overflow-visible')}
+          className={cn(
+            '-z-30 blur-[2px] motion-reduce:hidden',
+            '@container-[size] absolute inset-0 overflow-visible'
+          )}
         >
           {/* spark */}
           <div className="animate-shimmer-slide absolute inset-0 aspect-[1] h-[100cqh] rounded-none [mask:none]">
