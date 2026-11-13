@@ -8,6 +8,7 @@ import {
   focusContentVariants
 } from '@app/ui/BottomBar/animations'
 import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
+import { useIsAnyDialogOpen } from '@shared/hooks'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import PanelLoadingPlaceholder from '@ui/components/PanelLoadingPlaceholder'
@@ -73,6 +74,8 @@ function FocusOverlay({
 }: FocusOverlayProps) {
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
+  const isDialogOpen = useIsAnyDialogOpen()
+  const overlayRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
   // `will-change` is a promise to the compositor, not a permanent style: it is
@@ -114,20 +117,29 @@ function FocusOverlay({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      // A dialog, menu or popover owns Escape while it is open. Yield before
+      // closing the focus workspace; dialogs use a capture listener, but menus
+      // may register their document listener after this one.
+      if (isDialogOpen) return
       const target = event.target as HTMLElement | null
-      if (
-        target &&
-        typeof target.closest === 'function' &&
-        target.closest('input, textarea, [contenteditable="true"]')
-      ) {
+      if (target && typeof target.closest === 'function') {
+        const nestedLayer = target.closest(
+          '[data-slot="menu-surface"], [role="menu"], [role="listbox"], [role="dialog"]'
+        )
+        if (nestedLayer && nestedLayer !== overlayRef.current) return
+        if (target.closest('input, textarea, [contenteditable="true"]')) {
+          return
+        }
+      }
+      if (document.querySelector('[data-slot="menu-surface"], [role="menu"], [role="listbox"]')) {
         return
       }
       onCloseRef.current()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [isDialogOpen])
 
   useEffect(() => {
     lastFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null
@@ -166,6 +178,7 @@ function FocusOverlay({
   return (
     <motion.div
       key="focus-backdrop"
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-label={focusTitle}

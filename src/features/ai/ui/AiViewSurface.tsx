@@ -2,7 +2,6 @@ import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceStat
 
 import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
-import { getElectronApi } from '@shared/lib/electronApi'
 import { DURATION } from '@shared/lib/motion'
 
 import { AnimatePresence, motion } from 'motion/react'
@@ -18,28 +17,6 @@ const PANEL_STYLE = {
   border: '1px solid oklch(var(--border) / 0.7)',
   borderRadius: 'var(--radius-2xl)'
 } as const
-
-const RECENT_URL_ATTEMPTS = 30
-const RECENT_URL_RETRY_MS = 150
-
-/**
- * Navigates a live view immediately when a history card is chosen.
- *
- * The declarative request passed to `AiSession` covers tabs whose view is
- * being created. This direct path is the one that moves an already-mounted
- * view; it waits for the view to appear (new tab) and skips the load when the
- * guest is already on the requested conversation.
- */
-async function navigateToRecentUrl(tabId: string, url: string): Promise<void> {
-  const api = getElectronApi()
-  if (!api) return
-  for (let attempt = 0; attempt < RECENT_URL_ATTEMPTS; attempt++) {
-    const currentUrl = await api.aiView.getUrl({ viewId: tabId }).catch(() => null)
-    if (currentUrl === url) return
-    if (await api.aiView.loadUrl({ viewId: tabId, url }).catch(() => false)) return
-    await new Promise((resolve) => setTimeout(resolve, RECENT_URL_RETRY_MS))
-  }
-}
 
 interface AiViewSurfaceProps {
   isResizing: boolean
@@ -88,7 +65,6 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
         ? openAiWorkspace(modelId, { tabId: matchingTab.id })
         : openAiWorkspace(modelId, { forceNew: true })
       requestTabUrl(tabId, modelId, url)
-      void navigateToRecentUrl(tabId, url)
     },
     [getRestoredUrl, openAiWorkspace, requestTabUrl, tabs]
   )

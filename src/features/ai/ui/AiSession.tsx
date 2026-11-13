@@ -93,11 +93,11 @@ const AiSession = memo(
         ? { url: urlRequest.url, seq: urlRequest.nonce }
         : null
     )
-    const pendingNavigationRef = useRef<string | null>(null)
+    const pendingNavigationRef = useRef<{ url: string; nonce: number } | null>(null)
 
     useEffect(() => {
       if (!urlRequest || urlRequest.modelId !== tab.modelId) return
-      pendingNavigationRef.current = urlRequest.url
+      pendingNavigationRef.current = { url: urlRequest.url, nonce: urlRequest.nonce }
       setEntryOverride((current) =>
         current?.seq === urlRequest.nonce ? current : { url: urlRequest.url, seq: urlRequest.nonce }
       )
@@ -164,18 +164,40 @@ const AiSession = memo(
       if (!pending || isSleeping || !canHostRemoteView || !hasLoadedOnce) return
 
       let cancelled = false
+      const isCurrentRequest = () =>
+        !cancelled && pendingNavigationRef.current?.nonce === pending.nonce
+
       void (async () => {
         const api = getElectronApi()
         if (!api) return
-        const currentUrl = await api.aiView.getUrl({ viewId: tab.id }).catch(() => null)
-        if (cancelled) return
-        if (currentUrl !== pending) {
-          await api.aiView.loadUrl({ viewId: tab.id, url: pending }).catch(() => false)
-        }
-        if (cancelled) return
-        pendingNavigationRef.current = null
-      })()
 
+        const loadPending = () =>
+          api.aiView.loadUrl({ viewId: tab.id, url: pending.url }).catch(() => false)
+
+        const currentUrl = await api.aiView.getUrl({ viewId: tab.id }).catch(() => null)
+        if (!isCurrentRequest()) return
+
+        if (currentUrl !== pending.url) {
+          let loaded = await loadPending()
+          if (!isCurrentRequest()) return
+
+          // One bounded retry for a transient failure. The request stays pending
+          // on the second failure; a later wake/request can retry it, but this
+          // effect must not spin.
+          if (!loaded) {
+            await new Promise((resolve) => setTimeout(resolve, 750))
+            if (!isCurrentRequest()) return
+            loaded = await loadPending()
+            if (!isCurrentRequest()) return
+          }
+
+          if (!loaded) return
+        }
+
+        // Only the request that is still current may clear the slot. A newer
+        // request that arrived during the await must keep its target.
+        if (isCurrentRequest()) pendingNavigationRef.current = null
+      })()
       return () => {
         cancelled = true
       }
