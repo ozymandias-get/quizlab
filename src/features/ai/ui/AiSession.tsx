@@ -3,6 +3,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import { useAiLifecycleSettings } from '@features/ai/hooks/useAiLifecycleSettings'
 import type { AiTabUrlRequest } from '@features/ai/hooks/useAiViewSurfaceState'
 
+import { BlurFade } from '@app/components/ui/blur-fade'
 import { useToastActions } from '@app/providers'
 import type { Tab } from '@app/providers/ai-context'
 import { useAiContentHostActions, useAiSites } from '@app/providers/ai-context'
@@ -202,7 +203,9 @@ const AiSession = memo(
           )}
 
           {isLoading && isActive && !isSleeping && !isApiChat && (
-            <AiSiteLoader modelId={tab.modelId} iconKey={siteConfig?.icon} />
+            <BlurFade duration={0.3} offset={4} blur="3px" className="absolute inset-0 z-10">
+              <AiSiteLoader modelId={tab.modelId} iconKey={siteConfig?.icon} />
+            </BlurFade>
           )}
 
           {error && isActive && !isSleeping && !isApiChat && (

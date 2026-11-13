@@ -10,6 +10,13 @@ html {
   font-size: 15px;
 }
 
+/* One stroke weight for every Lucide glyph, regardless of the size class the
+   call site picked. CSS wins over the SVG presentation attribute. */
+
+svg.lucide {
+  stroke-width: 1.75;
+}
+
 body {
   font-family: var(
     --font-sans,
@@ -43,11 +50,11 @@ body {
 }
 
 ::selection {
-  background-color: var(--selection-color-strong, rgba(99, 102, 241, 0.58));
+  background-color: var(--selection-color-strong, rgba(255, 255, 255, 0.15));
   color: #ffffff;
 }
 
 ::-moz-selection {
-  background-color: var(--selection-color-strong, rgba(99, 102, 241, 0.58));
+  background-color: var(--selection-color-strong, rgba(255, 255, 255, 0.15));
   color: #ffffff;
 }

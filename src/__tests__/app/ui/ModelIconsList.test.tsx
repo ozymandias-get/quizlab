@@ -27,7 +27,8 @@ vi.mock('@app/providers/ai-context', () => ({
     favoriteModels: mockFavorites,
     aiSites: WEB_AI_REGISTRY
   }),
-  useAiTabActions: () => ({ openAiWorkspace: mockOpenWorkspace })
+  useAiTabActions: () => ({ openAiWorkspace: mockOpenWorkspace }),
+  useAiTabsSliceState: () => ({ tabs: [], activeTabId: '' })
 }))
 vi.mock('@app/ui/BottomBar/FloatingDockIcon', () => ({
   FloatingDockIcon: ({

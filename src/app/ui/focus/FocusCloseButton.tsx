@@ -27,8 +27,8 @@ const FocusCloseButton = ({ label, className, ...rest }: FocusCloseButtonProps) 
         variant="outline"
         aria-label={label}
         className={cn(
-          'border-border bg-card/80 border shadow-xs backdrop-blur-md',
-          'text-muted-foreground hover:bg-muted hover:text-foreground',
+          'border border-white/10 bg-zinc-900/80 shadow-xs backdrop-blur-xl',
+          'text-muted-foreground hover:text-foreground hover:bg-white/5',
           className
         )}
         {...rest}

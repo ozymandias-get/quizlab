@@ -1,3 +1,5 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { Logger } from '@shared/lib/logger'
 import {
   Button,
@@ -128,105 +130,117 @@ function PdfRecentListItem({
       }
 
   return (
-    <ListItemCard
-      {...interactionProps}
-      active={isActive}
-      className={`pdf-recent-item group relative p-0 ${isActive ? 'ring-ring/20 ring-1' : ''} ${isInvalid ? 'border-destructive/30 bg-destructive/5 text-foreground' : ''}`}
-      interactive={!isInvalid}
-    >
-      {isActive && (
-        <span
-          aria-hidden
-          className="motion-slow absolute inset-y-2 left-0 w-0.5 rounded-full"
-          style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
-        />
-      )}
+    <BlurFade className="w-full">
+      <MagicCard
+        className={`w-full rounded-xl border-white/10 ${isActive ? 'ring-ring/30 ring-1' : ''}`}
+        gradientColor="#27272a"
+        gradientOpacity={0.45}
+        gradientFrom="#3f3f46"
+        gradientTo="#27272a"
+      >
+        <ListItemCard
+          {...interactionProps}
+          active={isActive}
+          className={`pdf-recent-item group relative border-0 bg-transparent p-0 shadow-none hover:bg-white/[0.03] ${isInvalid ? 'text-foreground border-destructive/30 bg-destructive/5' : ''}`}
+          interactive={!isInvalid}
+        >
+          {isActive && (
+            <span
+              aria-hidden
+              className="motion-slow absolute inset-y-2 left-0 w-0.5 rounded-full"
+              style={{ backgroundColor: 'var(--selection-color-source, oklch(var(--ring)))' }}
+            />
+          )}
 
-      <div className="flex w-full items-center gap-3 p-3">
-        <IconBadge
-          icon={FileText}
-          variant={isInvalid ? 'danger' : isActive ? 'primary' : 'ghost'}
-          size="md"
-          className="shrink-0"
-        />
+          <div className="flex w-full items-center gap-3 p-3">
+            <IconBadge
+              icon={FileText}
+              variant={isInvalid ? 'danger' : isActive ? 'primary' : 'ghost'}
+              size="md"
+              className="shrink-0"
+            />
 
-        <div className="min-w-0 flex-1">
-          <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
-          <div
-            className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
-          >
-            {showProgress ? (
-              <span
-                className="text-ql-10 border-primary/20 bg-primary/10 text-primary inline-flex items-center rounded-full border px-1.5 py-0.5 font-semibold tabular-nums"
-                data-testid="pdf-recent-progress-label"
+            <div className="min-w-0 flex-1">
+              <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
+              <div
+                className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
               >
-                {t('pdf_page_progress', {
-                  page: String(item.page),
-                  total: String(item.totalPages),
-                  percent: String(progressPercent)
-                })}
-              </span>
-            ) : (
-              <span>{pageMeta}</span>
-            )}
-            <span aria-hidden>&middot;</span>
-            <span>{openedMeta}</span>
+                {showProgress ? (
+                  <span
+                    className="text-ql-10 border-primary/20 bg-primary/10 text-primary inline-flex items-center rounded-full border px-1.5 py-0.5 font-semibold tabular-nums"
+                    data-testid="pdf-recent-progress-label"
+                  >
+                    {t('pdf_page_progress', {
+                      page: String(item.page),
+                      total: String(item.totalPages),
+                      percent: String(progressPercent)
+                    })}
+                  </span>
+                ) : (
+                  <span>{pageMeta}</span>
+                )}
+                <span aria-hidden>&middot;</span>
+                <span>{openedMeta}</span>
+              </div>
+              {isInvalid && (
+                <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              {isInvalid && onRelink ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleRelinkButtonClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+                  aria-label={t('choose_new_location')}
+                >
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  <span className="text-ql-12 hidden sm:inline">
+                    {t('choose_new_location_short')}
+                  </span>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleResumeButtonClick}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="text-muted-foreground hover:bg-accent hover:text-foreground size-8 shrink-0 p-0"
+                  aria-label={t('continue_reading')}
+                  title={t('continue_reading')}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                </Button>
+              )}
+
+              {canClear && (
+                <WithTooltip label={t('remove_from_history')}>
+                  <IconButton
+                    type="button"
+                    variant="ghost"
+                    size="compact"
+                    onClick={handleRemove}
+                    onPointerDown={handleRemovePointerDown}
+                    onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
+                    className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 opacity-60 transition-all hover:opacity-100 focus-visible:opacity-100 md:opacity-60 md:group-hover:hover:opacity-100"
+                    aria-label={t('remove_from_history')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </IconButton>
+                </WithTooltip>
+              )}
+            </div>
           </div>
-          {isInvalid && (
-            <div className="text-ql-12 text-destructive mt-1.5">{t('recent_invalid_hint')}</div>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1">
-          {isInvalid && onRelink ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={handleRelinkButtonClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
-              aria-label={t('choose_new_location')}
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              <span className="text-ql-12 hidden sm:inline">{t('choose_new_location_short')}</span>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={handleResumeButtonClick}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="text-muted-foreground hover:bg-accent hover:text-foreground size-8 shrink-0 p-0"
-              aria-label={t('continue_reading')}
-              title={t('continue_reading')}
-            >
-              <Play className="h-3.5 w-3.5" />
-            </Button>
-          )}
-
-          {canClear && (
-            <WithTooltip label={t('remove_from_history')}>
-              <IconButton
-                type="button"
-                variant="ghost"
-                size="compact"
-                onClick={handleRemove}
-                onPointerDown={handleRemovePointerDown}
-                onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => e.stopPropagation()}
-                className="text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 opacity-60 transition-all hover:opacity-100 focus-visible:opacity-100 md:opacity-60 md:group-hover:hover:opacity-100"
-                aria-label={t('remove_from_history')}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </IconButton>
-            </WithTooltip>
-          )}
-        </div>
-      </div>
-    </ListItemCard>
+        </ListItemCard>
+      </MagicCard>
+    </BlurFade>
   )
 }
 

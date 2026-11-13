@@ -1,5 +1,7 @@
 import type { GridDragReorderState } from '@features/ai/hooks/useGridDragReorder'
 
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowUpRight } from 'lucide-react'
@@ -60,46 +62,54 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
     <div className="grid gap-2.5 contain-content" style={gridStyle}>
       {tone === 'model' && showApiChat && (
         <div role="presentation">
-          <div className="relative rounded-xl">
-            <button
-              type="button"
-              onClick={() => onOpenModel('api-chat')}
-              className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-                isApiChatActive
-                  ? 'border-ring/50 bg-accent/35'
-                  : 'border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45'
-              }`}
+          <BlurFade className="h-full">
+            <MagicCard
+              className={`h-full rounded-xl ${isApiChatActive ? 'ring-ring/40 ring-1' : ''}`}
+              gradientColor="#27272a"
+              gradientOpacity={0.45}
+              gradientFrom="#3f3f46"
+              gradientTo="#27272a"
             >
-              <div className="flex w-full items-center gap-3">
-                <div
-                  className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
-                  style={{
-                    color: apiChatAccent,
-                    backgroundColor: `color-mix(in srgb, ${apiChatAccent} 13%, transparent)`
-                  }}
-                >
-                  {getAiIcon('api-chat')}
+              <button
+                type="button"
+                onClick={() => onOpenModel('api-chat')}
+                className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                  isApiChatActive
+                    ? 'border-ring/50 bg-accent/30'
+                    : 'border-transparent bg-transparent hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="flex w-full items-center gap-3">
+                  <div
+                    className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
+                    style={{
+                      color: apiChatAccent,
+                      backgroundColor: `color-mix(in srgb, ${apiChatAccent} 13%, transparent)`
+                    }}
+                  >
+                    {getAiIcon('api-chat')}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-ql-13 text-foreground truncate font-semibold">
+                      {t('api_chat_home_card_title')}
+                    </h3>
+                    <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">
+                      {t('api_chat_home_card_desc')}
+                    </p>
+                  </div>
+                  {isApiChatActive && (
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: apiChatAccent }}
+                    />
+                  )}
+                  <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
+                    <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-ql-13 text-foreground truncate font-semibold">
-                    {t('api_chat_home_card_title')}
-                  </h3>
-                  <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">
-                    {t('api_chat_home_card_desc')}
-                  </p>
-                </div>
-                {isApiChatActive && (
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: apiChatAccent }}
-                  />
-                )}
-                <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
-                  <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
-                </div>
-              </div>
-            </button>
-          </div>
+              </button>
+            </MagicCard>
+          </BlurFade>
         </div>
       )}
 

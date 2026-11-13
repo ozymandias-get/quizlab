@@ -14,7 +14,7 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
   const { t } = useTranslation()
 
   return (
-    <div className="animate-in fade-in zoom-in bg-background/95 motion-slower absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md">
+    <div className="animate-in fade-in zoom-in motion-slower absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/95">
       <div className="flex max-w-sm flex-col items-center gap-4 p-8 text-center">
         {/* The glyph is a quiet marker, not the message: a calmer 48px disc so
             the eye lands on the title first. */}

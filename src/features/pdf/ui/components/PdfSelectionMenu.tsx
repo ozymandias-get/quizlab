@@ -1,3 +1,5 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { BorderBeam } from '@app/components/ui/border-beam'
 import { DURATION } from '@shared/lib/motion'
 
 import { BookmarkPlus, Info, Loader2, Send } from 'lucide-react'
@@ -67,6 +69,7 @@ function PdfSelectionMenu({
 }: PdfSelectionMenuProps) {
   const { t } = useTranslation()
   const prefersReducedMotion = useReducedMotion()
+  const menuFadeVariant = prefersReducedMotion ? { hidden: { y: 0 }, visible: { y: 0 } } : undefined
   const isBusy = feedback === 'working' || disabled
   const surfaceRef = useRef<HTMLDivElement>(null)
   const [nudge, setNudge] = useState<{ x: number; y: number } | null>(null)
@@ -138,7 +141,7 @@ function PdfSelectionMenu({
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className={`border-border/55 bg-popover/92 text-popover-foreground shadow-ambient-lg z-tooltip motion-normal fixed rounded-2xl border p-1 backdrop-blur-2xl transition-opacity duration-150 ${
+      className={`z-tooltip motion-normal fixed rounded-2xl border border-white/15 bg-zinc-900/90 p-1.5 text-zinc-100 shadow-2xl backdrop-blur-xl transition-opacity duration-150 ${
         isScrolling ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
       onMouseDown={(e) => {
@@ -148,11 +151,11 @@ function PdfSelectionMenu({
       }}
     >
       {previewSrc && (
-        <div className="border-border/50 flex items-center gap-2 border-b px-2 py-1.5">
+        <div className="flex items-center gap-2 border-b border-white/10 px-2 py-1.5">
           <img
             src={previewSrc}
             alt=""
-            className="border-border/60 h-12 w-auto max-w-[5.5rem] shrink-0 rounded-md border object-contain shadow-2xs"
+            className="h-12 w-auto max-w-[5.5rem] shrink-0 rounded-md border border-white/10 object-contain shadow-2xs"
           />
           {previewLabel && (
             <span className="text-ql-11 text-muted-foreground min-w-0 truncate font-medium">
@@ -161,10 +164,12 @@ function PdfSelectionMenu({
           )}
         </div>
       )}
-      <motion.div
-        initial={{ opacity: 0, y: prefersReducedMotion ? 0 : -3 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: DURATION.fast, ease: [0.2, 0.8, 0.2, 1] }}
+      <BlurFade
+        duration={DURATION.fast}
+        offset={prefersReducedMotion ? 0 : 3}
+        blur={prefersReducedMotion ? '0px' : '4px'}
+        direction="up"
+        variant={menuFadeVariant}
       >
         <AnimatePresence mode="wait" initial={false}>
           {feedbackContent ? (
@@ -202,8 +207,15 @@ function PdfSelectionMenu({
                   backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
                   color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
                 }}
-                className="focus-visible:ring-ring/70 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring/70 group text-ql-12 relative flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
               >
+                <BorderBeam
+                  size={44}
+                  duration={9}
+                  borderWidth={1}
+                  colorFrom="#a1a1aa"
+                  colorTo="#3f3f46"
+                />
                 <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
                   {feedback === 'working' ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -220,7 +232,7 @@ function PdfSelectionMenu({
                 data-testid="pdf-selection-draft"
                 disabled={isBusy}
                 onClick={onAddToDraft}
-                className="hover:bg-muted/75 focus-visible:bg-muted/75 focus-visible:ring-ring/70 group text-ql-12 text-foreground flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring/70 group text-ql-12 flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2.5 font-semibold whitespace-nowrap text-zinc-200 transition-colors hover:bg-white/5 focus-visible:bg-white/5 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
               >
                 <span
                   style={{ color: 'var(--selection-color-source, oklch(var(--primary)))' }}
@@ -236,7 +248,7 @@ function PdfSelectionMenu({
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </BlurFade>
     </div>
   )
 }

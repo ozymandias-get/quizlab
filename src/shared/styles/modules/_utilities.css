@@ -1,11 +1,36 @@
+/* ── Electron window chrome ─────────────────────────────────────────── */
+
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-drag-region button,
+.app-drag-region a,
+.app-drag-region input,
+.app-drag-region select,
+.app-drag-region textarea,
+.app-drag-region [role='tab'],
+.app-drag-region [role='button'],
+.app-drag-region [draggable='true'] {
+  -webkit-app-region: no-drag;
+}
+
+/* Windows titleBarOverlay reserves the top-right corner for caption buttons. */
+
+html[data-platform='win32'] .window-controls-safe {
+  padding-right: 9.5rem;
+}
+
 .custom-scrollbar {
   content-visibility: auto;
   contain-intrinsic-size: 400px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {

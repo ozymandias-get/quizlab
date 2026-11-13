@@ -118,8 +118,8 @@ const AiModelRow = memo(function AiModelRow({
       transition={{ delay: animationDelay }}
     >
       <Field
-        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border p-4 transition-colors ${
-          isEnabled ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
+        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border border-white/10 p-3.5 transition-colors ${
+          isEnabled ? 'bg-zinc-900/80' : 'bg-zinc-900/45 hover:bg-white/5'
         } ${isLastModel ? 'opacity-80' : 'cursor-pointer'}`}
         onClick={() => !isLastModel && onToggle(modelKey)}
       >
@@ -153,12 +153,18 @@ const AiModelRow = memo(function AiModelRow({
               )}
             </div>
             <Description
-              className={`text-ql-11 transition-colors ${
+              className={`text-ql-10 inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 font-medium transition-colors ${
                 isEnabled
-                  ? 'font-medium text-emerald-600 dark:text-emerald-400'
-                  : 'text-muted-foreground'
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                  : 'text-muted-foreground border-white/10 bg-white/[0.03]'
               }`}
             >
+              <span
+                aria-hidden
+                className={`size-1.5 rounded-full ${
+                  isEnabled ? 'bg-emerald-400' : 'bg-muted-foreground/40'
+                }`}
+              />
               {isEnabled ? t('model_active') : t('model_inactive')}
             </Description>
           </div>

@@ -1,14 +1,15 @@
+import { DockIcon } from '@app/components/ui/dock'
 import { cn } from '@shared/lib/uiUtils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@shared/ui/components/primitives'
 
-import { motion, useSpring } from 'motion/react'
 import type { CSSProperties } from 'react'
-import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, type ReactNode, useCallback } from 'react'
 
 import { useDockTooltipAlign } from './DockTooltipPlacement'
 
 const DOCK_ICON_BASE = 32
-const DOCK_ICON_HOVER = 34
+/** Just over the base size: enough to read as a dock, never a jump. */
+const DOCK_ICON_HOVER = 35
 
 const ICON_CONTAINER_STYLE: CSSProperties = {
   width: '1.25rem',
@@ -22,6 +23,8 @@ interface FloatingDockIconProps {
   onClick: () => void
   /** Toggle-style tools keep a persistent active surface. */
   isActive?: boolean
+  /** Small session signal shown at the icon's trailing corner. */
+  status?: 'active' | 'generating' | 'sleeping' | 'attention'
 }
 
 export const FloatingDockIcon = memo(function FloatingDockIcon({
@@ -29,19 +32,10 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   children,
   id,
   onClick,
-  isActive = false
+  isActive = false,
+  status
 }: FloatingDockIconProps) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [isHovered, setIsHovered] = useState(false)
-  const isMountedRef = useRef(true)
   const tooltipAlign = useDockTooltipAlign()
-
-  const handleMouseEnter = useCallback(() => {
-    if (isMountedRef.current) setIsHovered(true)
-  }, [])
-  const handleMouseLeave = useCallback(() => {
-    if (isMountedRef.current) setIsHovered(false)
-  }, [])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -53,48 +47,50 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
     [onClick]
   )
 
-  const scale = useSpring(isHovered ? DOCK_ICON_HOVER / DOCK_ICON_BASE : 1, {
-    mass: 0.1,
-    stiffness: 200,
-    damping: 25
-  })
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false
-    }
-  }, [])
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <motion.div
-          ref={ref}
+        <DockIcon
           id={id}
           role="button"
           tabIndex={0}
           aria-label={title}
           aria-pressed={isActive || undefined}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
           onClick={onClick}
           onKeyDown={handleKeyDown}
-          style={{ width: DOCK_ICON_BASE, height: DOCK_ICON_BASE, scale }}
+          size={DOCK_ICON_BASE}
+          magnification={DOCK_ICON_HOVER}
+          distance={90}
           className={cn(
-            'group focus-visible:ring-ring/70 motion-normal relative flex shrink-0 origin-center cursor-pointer items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none',
-            isActive ? 'bg-primary/15 hover:bg-primary/20' : 'hover:bg-muted'
+            'group focus-visible:ring-ring/70 motion-normal relative shrink-0 rounded-lg ring-1 transition-colors focus-visible:ring-2 focus-visible:outline-none',
+            isActive
+              ? 'bg-white/10 text-zinc-100 ring-white/20 hover:bg-white/15'
+              : 'text-zinc-400 ring-transparent hover:bg-white/5 hover:text-zinc-200 hover:ring-white/10'
           )}
         >
           <div
             className={cn(
-              'flex items-center justify-center transition-colors',
-              isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+              'flex items-center justify-center rounded-md transition-colors',
+              isActive ? 'bg-white/[0.04] text-zinc-100' : 'text-zinc-400 group-hover:text-zinc-200'
             )}
             style={ICON_CONTAINER_STYLE}
           >
             {children}
           </div>
-        </motion.div>
+          {status && (
+            <span
+              aria-hidden
+              data-dock-status={status}
+              className={cn(
+                'absolute -right-0.5 -bottom-0.5 size-1.5 rounded-full ring-2 ring-zinc-900',
+                status === 'generating' && 'animate-pulse bg-amber-400',
+                status === 'attention' && 'animate-pulse bg-amber-400',
+                status === 'active' && 'animate-pulse bg-emerald-400',
+                status === 'sleeping' && 'bg-zinc-500'
+              )}
+            />
+          )}
+        </DockIcon>
       </TooltipTrigger>
       <TooltipContent side="top" sideOffset={12} align={tooltipAlign}>
         {title}

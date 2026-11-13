@@ -56,3 +56,16 @@
     transform: scaleX(0);
   }
 }
+
+/* Global courtesy pass: CSS animations, shimmer and decorative transitions
+   collapse for users who explicitly asked the OS for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

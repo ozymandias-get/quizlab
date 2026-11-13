@@ -8,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@shared/ui/components/primitives'
+import { TAB_ACTIVE_CLASS, TAB_IDLE_CLASS } from '@shared/ui/tabStripChrome'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { X } from 'lucide-react'
@@ -25,6 +26,9 @@ interface AiVisibleTabButtonProps {
   dropSide: AiTabDropSide | null
   tr: (key: string, fallback: string) => string
   iconKey?: string
+  /** Explicit session signals; callers that do not know them omit them. */
+  isStreaming?: boolean
+  isSleeping?: boolean
   onSelect: (tabId: string) => void
   onContextMenu: (event: ReactMouseEvent, tabId: string) => void
   onClose: (tabId: string) => void
@@ -38,6 +42,8 @@ function AiVisibleTabButton({
   dropSide,
   tr,
   iconKey,
+  isStreaming = false,
+  isSleeping = false,
   onSelect,
   onContextMenu,
   onClose
@@ -78,7 +84,9 @@ function AiVisibleTabButton({
           data-ai-tab=""
           data-tab-id={tab.id}
           draggable
-          className={`group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-45' : ''} ${
+          className={`group cursor-grab active:cursor-grabbing ${
+            isActive ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS
+          } ${isDragging ? 'opacity-45' : ''} ${
             dropSide === 'before'
               ? 'before:bg-primary before:absolute before:inset-y-1 before:-left-0.5 before:z-10 before:w-0.5 before:rounded-full'
               : ''
@@ -99,9 +107,24 @@ function AiVisibleTabButton({
           tabIndex={0}
           aria-label={label}
         >
-          <TabPillIcon>
-            {tabIcon || <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>}
-          </TabPillIcon>
+          <span className="relative flex shrink-0 items-center justify-center">
+            <TabPillIcon>
+              {tabIcon || <span className="text-ql-10 font-bold uppercase">{label.charAt(0)}</span>}
+            </TabPillIcon>
+            {(isStreaming || isActive || isSleeping) && (
+              <span
+                aria-hidden
+                data-ai-tab-status={isStreaming ? 'generating' : isSleeping ? 'sleeping' : 'active'}
+                className={`absolute -right-1 -bottom-1 size-1.5 rounded-full ring-2 ring-zinc-900 ${
+                  isStreaming
+                    ? 'animate-pulse bg-amber-400'
+                    : isSleeping
+                      ? 'bg-zinc-500'
+                      : 'animate-pulse bg-emerald-400'
+                }`}
+              />
+            )}
+          </span>
 
           <TabPillLabel isActive={isActive} data-ai-tab-label="">
             {label}
@@ -114,9 +137,9 @@ function AiVisibleTabButton({
               variant="ghost"
               aria-label={tr('tab_close', 'Close')}
               onClick={handleClose}
-              className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
+              className={`text-muted-foreground hover:bg-destructive/10 hover:text-destructive size-6 rounded-md border-0 bg-transparent p-0 transition-opacity focus-visible:opacity-100 ${
                 isActive
-                  ? 'opacity-70 hover:opacity-100'
+                  ? 'opacity-80 hover:opacity-100'
                   : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100'
               }`}
             >

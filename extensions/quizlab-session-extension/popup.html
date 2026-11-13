@@ -5,82 +5,46 @@
     <title>Quizlab site oturumları</title>
     <style>
       :root {
-        color-scheme: light dark;
+        color-scheme: dark;
 
         --font-sans:
           'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-        /* Quizlab OKLCH palette (hue ~260) - Light Mode */
-        --background: oklch(0.985 0.002 260);
-        --foreground: oklch(0.15 0.01 260);
-        --card: oklch(1 0 0);
-        --card-foreground: oklch(0.15 0.01 260);
-        --primary: oklch(0.2 0.015 260);
-        --primary-foreground: oklch(0.985 0 0);
-        --secondary: oklch(0.95 0.004 260);
-        --secondary-foreground: oklch(0.2 0.01 260);
-        --muted: oklch(0.96 0.004 260);
-        --muted-foreground: oklch(0.48 0.01 260);
-        --accent: oklch(0.935 0.005 260);
-        --accent-foreground: oklch(0.18 0.01 260);
-        --border: oklch(0.89 0.004 260);
-        --border-hover: oklch(0.76 0.008 260);
-        --input: oklch(0.89 0.004 260);
-        --ring: oklch(0.5 0.01 260);
+        /* Quizlab dark palette — mirrors desktop zinc surfaces */
+        --background: #09090b;
+        --foreground: #f4f4f5;
+        --card: #18181b;
+        --card-foreground: #f4f4f5;
+        --primary: #fafafa;
+        --primary-foreground: #18181b;
+        --secondary: #27272a;
+        --secondary-foreground: #f4f4f5;
+        --muted: #27272a;
+        --muted-foreground: #a1a1aa;
+        --accent: #3f3f46;
+        --accent-foreground: #fafafa;
+        --border: rgba(255, 255, 255, 0.1);
+        --border-hover: rgba(255, 255, 255, 0.22);
+        --input: rgba(255, 255, 255, 0.08);
+        --ring: rgba(255, 255, 255, 0.35);
 
         /* Status colors */
-        --granted-bg: oklch(0.95 0.04 150);
-        --granted-border: oklch(0.86 0.07 150);
-        --granted-text: oklch(0.36 0.12 150);
+        --granted-bg: rgba(16, 185, 129, 0.12);
+        --granted-border: rgba(16, 185, 129, 0.3);
+        --granted-text: #6ee7b7;
 
-        --missing-bg: oklch(0.96 0.04 70);
-        --missing-border: oklch(0.88 0.08 70);
-        --missing-text: oklch(0.44 0.14 65);
+        --missing-bg: rgba(245, 158, 11, 0.12);
+        --missing-border: rgba(245, 158, 11, 0.3);
+        --missing-text: #fcd34d;
 
-        --destructive-bg: oklch(0.96 0.04 25);
-        --destructive-border: oklch(0.88 0.08 25);
-        --destructive-text: oklch(0.44 0.16 25);
+        --destructive-bg: rgba(239, 68, 68, 0.12);
+        --destructive-border: rgba(239, 68, 68, 0.3);
+        --destructive-text: #fca5a5;
 
-        --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04), 0 0 0 1px oklch(var(--border) / 0.6);
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
         --shadow-card:
-          0 1px 3px oklch(0 0 0 / 0.04), 0 4px 12px -2px oklch(0 0 0 / 0.03),
+          0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.6),
           0 0 0 1px var(--border);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --background: oklch(0.13 0.006 260);
-          --foreground: oklch(0.965 0.003 260);
-          --card: oklch(0.165 0.007 260);
-          --card-foreground: oklch(0.965 0.003 260);
-          --primary: oklch(0.94 0.004 260);
-          --primary-foreground: oklch(0.13 0.008 260);
-          --secondary: oklch(0.22 0.008 260);
-          --secondary-foreground: oklch(0.95 0.004 260);
-          --muted: oklch(0.195 0.007 260);
-          --muted-foreground: oklch(0.68 0.008 260);
-          --accent: oklch(0.24 0.008 260);
-          --accent-foreground: oklch(0.965 0.003 260);
-          --border: oklch(0.25 0.008 260);
-          --border-hover: oklch(0.35 0.01 260);
-          --input: oklch(0.25 0.008 260);
-          --ring: oklch(0.65 0.01 260);
-
-          --granted-bg: oklch(0.22 0.05 150);
-          --granted-border: oklch(0.34 0.08 150);
-          --granted-text: oklch(0.85 0.1 150);
-
-          --missing-bg: oklch(0.24 0.05 70);
-          --missing-border: oklch(0.36 0.08 70);
-          --missing-text: oklch(0.88 0.12 70);
-
-          --destructive-bg: oklch(0.22 0.05 25);
-          --destructive-border: oklch(0.35 0.09 25);
-          --destructive-text: oklch(0.88 0.14 25);
-
-          --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.25), 0 0 0 1px oklch(var(--border) / 0.8);
-          --shadow-card: 0 1px 3px oklch(0 0 0 / 0.3), 0 0 0 1px var(--border);
-        }
       }
 
       *,
@@ -194,6 +158,7 @@
       /* Card Surface */
       .card {
         background: var(--card);
+        border: 1px solid var(--border);
         border-radius: 12px;
         padding: 12px;
         box-shadow: var(--shadow-card);
@@ -437,6 +402,48 @@
         font-size: 11px;
         line-height: 1.4;
         color: var(--muted-foreground);
+      }
+
+      /* Secondary Buttons */
+      #profile-name-btn,
+      #pair-btn {
+        width: 100%;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 14px;
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          background-color 150ms ease,
+          border-color 150ms ease,
+          transform 100ms ease;
+      }
+
+      #profile-name-btn:hover,
+      #pair-btn:hover {
+        background: var(--accent);
+        border-color: var(--border-hover);
+      }
+
+      #profile-name-btn:active,
+      #pair-btn:active {
+        transform: translateY(1px);
+      }
+
+      #profile-name-btn:focus-visible,
+      #pair-btn:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
       }
 
       /* Primary Button */

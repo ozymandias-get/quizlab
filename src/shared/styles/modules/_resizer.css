@@ -46,8 +46,8 @@
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(var(--border) / 0.55) 12%,
-    oklch(var(--border) / 0.55) 88%,
+    oklch(1 0 0 / 0.1) 12%,
+    oklch(1 0 0 / 0.1) 88%,
     transparent 100%
   );
   opacity: 1;
@@ -76,8 +76,8 @@
    tinted range. */
 
 .dock-surface {
-  background-color: oklch(var(--background) / calc(0.7 + (var(--bar-opacity-factor, 0.7) * 0.28)));
-  border-color: oklch(var(--border) / calc(0.2 + (var(--bar-opacity-factor, 0.7) * 0.65)));
+  background-color: oklch(0.21 0.006 285.9 / calc(0.55 + (var(--bar-opacity-factor, 0.7) * 0.35)));
+  border-color: oklch(1 0 0 / 0.1);
   box-shadow: var(--shadow-ambient-sm);
 }
 

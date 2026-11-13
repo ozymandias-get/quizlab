@@ -2,6 +2,7 @@ import { useAddCustomAi } from '@platform/electron/api/useSettingsAiApi'
 
 import { Input } from '@app/components/ui/input'
 import { Label } from '@app/components/ui/label'
+import { ShimmerButton } from '@app/components/ui/shimmer-button'
 import { useToastActions } from '@app/providers'
 import { Logger } from '@shared/lib/logger'
 import { DURATION } from '@shared/lib/motion'
@@ -141,7 +142,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setNameError(validateName(newAiName))}
                       placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
                       aria-invalid={!!nameError}
-                      className="text-ql-12"
+                      className="text-ql-12 border-white/10 bg-zinc-950/80 focus-visible:border-white/25"
                     />
                     {/* Reserved slot: validation never pushes the form down. */}
                     <span
@@ -165,7 +166,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setUrlError(validateUrl(newAiUrl))}
                       placeholder="https://..."
                       aria-invalid={!!urlError}
-                      className="text-ql-12"
+                      className="text-ql-12 border-white/10 bg-zinc-950/80 focus-visible:border-white/25"
                     />
                     <span
                       role="alert"
@@ -178,21 +179,33 @@ const AddAiModelForm = memo(function AddAiModelForm({
                 </div>
               </div>
               <div className="text-ql-12 flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={isAdding || !newAiName.trim() || !newAiUrl.trim()}
-                  size="sm"
-                  className="gap-1.5"
-                >
-                  {isAdding ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      <span>{t('adding')}</span>
-                    </>
-                  ) : (
+                {isAdding || !newAiName.trim() || !newAiUrl.trim() ? (
+                  <Button
+                    type="submit"
+                    disabled
+                    size="sm"
+                    className="gap-1.5 border-0 bg-zinc-800 text-zinc-500 opacity-100 hover:bg-zinc-800"
+                  >
+                    {isAdding ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>{t('adding')}</span>
+                      </>
+                    ) : (
+                      <span>{t('save_platform')}</span>
+                    )}
+                  </Button>
+                ) : (
+                  <ShimmerButton
+                    type="submit"
+                    borderRadius="12px"
+                    shimmerDuration="4s"
+                    background="linear-gradient(180deg, #fafafa, #d4d4d8)"
+                    className="text-ql-12 h-8 gap-1.5 px-3.5 font-semibold text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:brightness-105"
+                  >
                     <span>{t('save_platform')}</span>
-                  )}
-                </Button>
+                  </ShimmerButton>
+                )}
               </div>
             </form>
           </SettingsSection>

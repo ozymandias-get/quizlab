@@ -41,6 +41,13 @@ async function bootstrap() {
     window.electronAPI = createBrowserElectronApi()
   }
 
+  // Platform-aware chrome: the Windows title-bar overlay needs a right-side
+  // safe area on the tab strips so window controls never cover a tab.
+  const platform = window.electronAPI?.platform
+  if (platform) {
+    document.documentElement.dataset.platform = platform
+  }
+
   // Restore persisted preferences from the main process ConfigManager store
   // BEFORE React mounts so stores/hooks that read localStorage synchronously
   // pick up the saved values (appearance, prompts, selector settings, ...).

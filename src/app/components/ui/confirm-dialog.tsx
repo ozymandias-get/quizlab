@@ -28,7 +28,7 @@ export function ConfirmDialog({
       role="alertdialog"
       ariaLabelledBy={titleId}
       ariaDescribedBy={description ? descriptionId : undefined}
-      panelClassName="px-6 py-5"
+      panelClassName="border-white/15 bg-zinc-900/95 px-6 py-5 shadow-2xl backdrop-blur-xl"
     >
       <DialogTitle id={titleId}>{title}</DialogTitle>
       {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
@@ -37,9 +37,14 @@ export function ConfirmDialog({
           {resolvedCancelLabel}
         </Button>
         <Button
-          variant={variant === 'destructive' ? 'destructive' : 'default'}
+          variant={variant === 'destructive' ? 'ghost' : 'default'}
           size="sm"
           onClick={onConfirm}
+          className={
+            variant === 'destructive'
+              ? 'border border-red-500/30 bg-red-500/15 text-red-400 hover:bg-red-500/25'
+              : undefined
+          }
         >
           {resolvedConfirmLabel}
         </Button>

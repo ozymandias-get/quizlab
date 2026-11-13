@@ -16,9 +16,9 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
   return (
     // Container queries let the header collapse the label on a very narrow
     // message bubble without hiding the copy action itself.
-    <div className="border-border bg-muted/40 @container my-3 overflow-hidden rounded-lg border">
-      <div className="border-border bg-muted/80 flex items-center justify-between gap-2 border-b px-3 py-1.5">
-        <span className="text-ql-11 text-muted-foreground min-w-0 truncate font-mono uppercase">
+    <div className="@container my-3 overflow-hidden rounded-xl border border-white/10 bg-zinc-950">
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-zinc-900/80 px-3 py-1.5">
+        <span className="text-ql-11 min-w-0 truncate font-mono text-zinc-400 uppercase">
           {lang || 'code'}
         </span>
         <Button
@@ -27,15 +27,15 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
           size="xs"
           onClick={handleCopy}
           aria-label={t('copy_code')}
-          className={`text-ql-11 shrink-0 gap-1 ${
-            isCopied ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+          className={`text-ql-11 shrink-0 gap-1 rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/10 ${
+            isCopied ? 'text-emerald-400' : 'text-zinc-300'
           }`}
         >
           {isCopied ? <Check className="size-3" /> : <Copy className="size-3" />}
           <span className="@max-[360px]:hidden">{isCopied ? t('copied') : t('copy_code')}</span>
         </Button>
       </div>
-      <pre className="custom-scrollbar text-ql-13 text-foreground overflow-x-auto p-3 leading-relaxed">
+      <pre className="custom-scrollbar text-ql-13 overflow-x-auto p-3 leading-relaxed text-zinc-200">
         <code>{code}</code>
       </pre>
     </div>
@@ -44,16 +44,16 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
 
 export function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="border-border bg-card my-3 overflow-x-auto rounded-lg border">
+    <div className="my-3 overflow-x-auto rounded-xl border border-white/10 bg-zinc-900/60">
       <table className="text-ql-12 w-full">
         <thead>
-          <tr className="border-border bg-muted/40 border-b">
+          <tr className="border-b border-white/10 bg-white/[0.04]">
             {headers.map((h, i) => (
               <th
                 // Static headers — items never reorder
                 // eslint-disable-next-line react/no-array-index-key -- Static code snippet elements, no stable ids
                 key={i}
-                className="text-foreground px-3 py-2 text-left font-semibold whitespace-nowrap"
+                className="px-3 py-2 text-left font-semibold whitespace-nowrap text-zinc-100"
               >
                 {h.trim()}
               </th>
@@ -64,11 +64,11 @@ export function Table({ headers, rows }: { headers: string[]; rows: string[][] }
           {rows.map((row, ri) => (
             // Table rows have no stable id — index is safe for static markdown rendering
             // eslint-disable-next-line react/no-array-index-key -- Static aria label parts, stable order
-            <tr key={ri} className="border-border/50 border-b last:border-0">
+            <tr key={ri} className="border-b border-white/5 last:border-0">
               {row.map((cell, ci) => (
                 // Table cells have no stable id — index is safe for static markdown rendering
                 // eslint-disable-next-line react/no-array-index-key -- Static code elements, stable order
-                <td key={ci} className="text-muted-foreground px-3 py-1.5 whitespace-nowrap">
+                <td key={ci} className="px-3 py-1.5 whitespace-nowrap text-zinc-300">
                   {cell.trim()}
                 </td>
               ))}

@@ -31,7 +31,7 @@ export const EmptyState = ({
     <div
       className={cn(
         'flex flex-col items-center justify-center rounded-2xl text-center',
-        bare ? '' : 'border-border bg-card/50 border border-dashed',
+        bare ? '' : 'border border-dashed border-white/10 bg-zinc-900/55',
         sizeConfig.spacing,
         className
       )}
@@ -39,18 +39,16 @@ export const EmptyState = ({
       {Icon && (
         <div
           className={cn(
-            'bg-muted text-muted-foreground mb-3 flex items-center justify-center rounded-2xl',
+            'mb-3 flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-400',
             sizeConfig.iconSize
           )}
         >
           <Icon className={sizeConfig.iconInner} />
         </div>
       )}
-      <h3 className="text-foreground text-ql-14 mb-1 font-semibold">{title}</h3>
+      <h3 className="text-ql-14 mb-1 font-semibold tracking-tight text-zinc-100">{title}</h3>
       {description && (
-        <div className="text-muted-foreground text-ql-12 mb-4 max-w-sm leading-relaxed">
-          {description}
-        </div>
+        <div className="text-ql-12 mb-4 max-w-sm leading-relaxed text-zinc-400">{description}</div>
       )}
       {action && <div>{action}</div>}
     </div>

@@ -155,7 +155,7 @@ function DraftOverflowMenu({ onClearAll, totalItems, itemIds }: DraftOverflowMen
         aria-expanded={isOpen}
         aria-label={t('ai_send_more_actions')}
         data-testid="ai-draft-overflow"
-        className="text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground hover:bg-white/10"
       >
         <MoreHorizontal className="size-4" aria-hidden />
       </IconButton>

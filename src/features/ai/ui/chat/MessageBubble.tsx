@@ -2,6 +2,7 @@ import type { ApiChatMessage } from '@shared-core/types'
 
 import MessageContent from '@features/ai/lib/parseMessageContent'
 
+import { BlurFade } from '@app/components/ui/blur-fade'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
 import { useDialogBehavior } from '@shared/hooks'
@@ -180,17 +181,17 @@ const MessageBubble = memo(function MessageBubble({
   }
 
   return (
-    <div className="group animate-app-enter">
+    <BlurFade className="group" duration={0.3} offset={8} blur="4px">
       <div
         data-message-error={isError ? 'true' : undefined}
-        className={`w-fit ${isUser ? 'ml-auto' : ''} motion-normal relative rounded-xl border px-4 py-2.5 transition-colors ${
+        className={`motion-normal relative rounded-2xl border px-4 py-3 transition-colors ${
           isError
             ? 'border-destructive/40 bg-destructive/10 text-destructive'
             : isSpeaking
-              ? 'border-primary/40 bg-card text-foreground shadow-primary/10 shadow-md'
+              ? 'border-primary/40 text-foreground shadow-primary/10 bg-zinc-900/80 shadow-md'
               : isUser
-                ? 'border-primary/25 bg-primary/10 text-foreground border shadow-xs'
-                : 'border-border bg-card text-foreground border shadow-xs'
+                ? 'ml-auto w-fit max-w-[85%] rounded-br-md border-white/10 bg-zinc-800/90 text-zinc-100'
+                : 'text-foreground w-full rounded-bl-md border-white/10 bg-zinc-900/60'
         }`}
       >
         {message.images && message.images.length > 0 && (
@@ -378,7 +379,9 @@ const MessageBubble = memo(function MessageBubble({
           </div>
         ) : (
           <div
-            className={`text-ql-13 relative leading-relaxed ${isError ? 'text-destructive' : 'text-foreground'}`}
+            className={`relative ${isUser ? 'text-ql-13 leading-relaxed' : 'text-ql-14 leading-7'} ${
+              isError ? 'text-destructive' : 'text-foreground'
+            }`}
           >
             <MessageContent content={message.content} />
           </div>
@@ -448,7 +451,7 @@ const MessageBubble = memo(function MessageBubble({
           )}
         </>
       )}
-    </div>
+    </BlurFade>
   )
 })
 

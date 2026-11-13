@@ -9,6 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@shared/ui/components/primitives'
+import { TAB_ACTIVE_CLASS, TAB_IDLE_CLASS } from '@shared/ui/tabStripChrome'
 
 import { X } from 'lucide-react'
 import { memo, type MouseEvent as ReactMouseEvent, useCallback } from 'react'
@@ -92,6 +93,7 @@ function PdfTabItem({
             onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
             aria-label={label}
             withControls
+            className={isActive ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}
           >
             <TabPillIcon>{getTabIcon(tab)}</TabPillIcon>
             <TabPillLabel isActive={isActive} data-pdf-tab-label="">
@@ -112,9 +114,9 @@ function PdfTabItem({
             variant="ghost"
             aria-label={tr('tab_close', 'Close')}
             onClick={handleClose}
-            className={`border-border/50 bg-card/60 text-muted-foreground hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive motion-normal absolute inset-y-0 right-1 z-10 my-auto size-7 rounded-md border p-0 transition-opacity focus-visible:opacity-100 ${
+            className={`text-muted-foreground hover:bg-destructive/10 hover:text-destructive motion-normal absolute inset-y-0 right-1 z-10 my-auto size-6 rounded-md border-0 bg-transparent p-0 transition-opacity focus-visible:opacity-100 ${
               isActive
-                ? 'opacity-70 hover:opacity-100'
+                ? 'opacity-80 hover:opacity-100'
                 : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:opacity-100'
             }`}
           >

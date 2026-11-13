@@ -1,5 +1,6 @@
 import { useQuickAiPresets } from '@features/ai'
 
+import { BorderBeam } from '@app/components/ui/border-beam'
 import { useLocalStorage } from '@shared/hooks'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton } from '@shared/ui/components/primitives'
@@ -72,6 +73,8 @@ function AiSendComposer({
   const { t } = useTranslation()
   const [isStoredOpen, setStoredOpen] = useLocalStorage<boolean>(DRAFT_OPEN_PREF_KEY, false)
   const [isOpen, setIsOpen] = useState(isStoredOpen)
+  /** BorderBeam boşta dururken görünmez; yalnızca aktif düzenlemede yanar. */
+  const [isComposerFocused, setIsComposerFocused] = useState(false)
   /** Tıklama-dışı kapatmanın "içeride miyim" kontrolü için kök düğüm. */
   const dockRef = useRef<HTMLDivElement>(null)
 
@@ -105,6 +108,10 @@ function AiSendComposer({
   }, [items])
   const totalItems = textCount + imageCount
   const draftItemIds = useMemo(() => items.map((draft) => draft.id), [items])
+  // PDF alanından gelen görsel yakalamalar `type: 'image'` taşır. Böyle bir
+  // içerik kuyruktayken yakalama modu hâlâ aktiftir; border animasyonu bunu
+  // sessizce belli eder, odak yokken bile.
+  const hasCapturedVisual = useMemo(() => items.some((draft) => draft.type === 'image'), [items])
 
   const {
     sendFeedback,
@@ -162,6 +169,7 @@ function AiSendComposer({
   const handleClose = useCallback(() => {
     setIsOpen(false)
     setStoredOpen(false)
+    setIsComposerFocused(false)
   }, [setStoredOpen])
 
   /**
@@ -220,6 +228,7 @@ function AiSendComposer({
   }, [handleSend, noteText, quickActionValue, totalItems])
 
   const isSending = sendFeedback === 'sending' || isSubmitting
+  const showComposerBeam = isComposerFocused || hasCapturedVisual
 
   // Dock kapalıyken de görünür olması gereken kısa durum. Yalnızca hata ve
   // kısmi uygulama gösterilir: teslim edilen içerik sessizdir, çünkü kuyruk
@@ -394,8 +403,25 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="border-border/45 bg-muted/25 focus-within:border-border/80 focus-within:bg-background/75 @container mx-3 my-2 overflow-hidden rounded-xl border transition-all"
+                className="border-border/45 bg-muted/25 focus-within:border-border/80 focus-within:bg-background/75 @container relative mx-3 my-2 overflow-hidden rounded-xl border transition-all"
+                onFocusCapture={() => setIsComposerFocused(true)}
+                onBlurCapture={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
+                    setIsComposerFocused(false)
+                  }
+                }}
               >
+                {showComposerBeam && (
+                  <BorderBeam
+                    size={80}
+                    duration={11}
+                    borderWidth={1}
+                    colorFrom="#52525b"
+                    colorTo="#27272a"
+                    className="motion-reduce:hidden"
+                  />
+                )}
                 <DraftNoteField
                   value={noteText}
                   onChange={setNoteText}

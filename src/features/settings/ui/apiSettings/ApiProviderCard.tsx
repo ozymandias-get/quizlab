@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next'
 
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { DEFAULT_PLACEHOLDERS, PROVIDER_PLACEHOLDERS } from './constants'
+
+const FIELD_INPUT_CLASS = 'text-ql-12 border-white/10 bg-zinc-950/80 focus-visible:border-white/25'
 import {
   validateProviderBaseUrl as validateBaseUrl,
   validateProviderName as validateName
@@ -59,7 +61,7 @@ function ApiProviderCard({
   const placeholders = PROVIDER_PLACEHOLDERS[provider.providerType] || DEFAULT_PLACEHOLDERS
 
   return (
-    <div className="group border-border/60 bg-background/40 flex flex-col gap-4 rounded-xl border p-4">
+    <div className="group flex flex-col gap-4 rounded-xl border border-white/10 bg-zinc-900/75 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="muted" className="tracking-ql-label font-mono uppercase">
@@ -68,6 +70,12 @@ function ApiProviderCard({
           <span className="text-ql-13 text-foreground truncate font-semibold">
             {provider.name || t('unnamed_provider')}
           </span>
+          <Badge
+            variant={provider.enabled ? 'success' : 'muted'}
+            className="text-ql-10 shrink-0 px-2 py-0 font-medium"
+          >
+            {t(provider.enabled ? 'model_active' : 'model_inactive')}
+          </Badge>
         </div>
         <WithTooltip label={t('delete')}>
           <IconButton
@@ -98,7 +106,7 @@ function ApiProviderCard({
             onBlur={() => setNameError(validateName(provider.name))}
             placeholder={t('api_chat_placeholder_provider')}
             aria-invalid={!!nameError}
-            className="text-ql-12"
+            className={FIELD_INPUT_CLASS}
           />
           {/* Reserved slot: a validation message mutates this line, never the
               card's height, so the controls underneath stay put. */}
@@ -151,7 +159,7 @@ function ApiProviderCard({
               onChange={(e) => onUpdate(provider.id, { apiKey: e.target.value })}
               placeholder={placeholders.apiKey}
               size="sm"
-              className="pr-8 pl-8"
+              className={`${FIELD_INPUT_CLASS} pr-8 pl-8`}
             />
             <IconButton
               type="button"
@@ -178,14 +186,14 @@ function ApiProviderCard({
               id={defaultModelId}
               value={provider.defaultModel}
               onChange={(e) => onUpdate(provider.id, { defaultModel: e.target.value })}
-              className="text-ql-12 pl-8"
+              className={`${FIELD_INPUT_CLASS} pl-8`}
               placeholder={placeholders.model}
             />
           </InputGroup>
         </div>
       </div>
 
-      <div className="border-border/60 bg-muted/20 flex items-start gap-3 rounded-lg border p-3">
+      <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-zinc-950/40 p-3">
         <SettingsToggleSwitch
           id={localNetworkId}
           aria-describedby={localNetworkDescId}
@@ -239,9 +247,9 @@ function ApiProviderCard({
       </div>
 
       {(provider.models || []).length > 0 && (
-        <div className="border-border/60 flex flex-col gap-2 border-t pt-4">
+        <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
           <div className="flex items-center gap-2">
-            <label className="text-ql-11 text-muted-foreground shrink-0 font-medium">
+            <label className="text-ql-11 text-muted-foreground shrink-0 font-medium tabular-nums">
               {t('api_chat_models_count')} ({provider.models.length})
             </label>
             <InputGroup className="text-ql-12 flex-1">
@@ -252,12 +260,12 @@ function ApiProviderCard({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 size="sm"
-                className="pl-7"
+                className={`${FIELD_INPUT_CLASS} pl-7`}
                 placeholder={t('api_chat_search_models')}
               />
             </InputGroup>
           </div>
-          <div className="border-border/60 bg-muted/30 custom-scrollbar max-h-[140px] overflow-y-auto rounded-lg border p-1">
+          <div className="custom-scrollbar max-h-[140px] overflow-y-auto rounded-lg border border-white/10 bg-zinc-950/40 p-1">
             {filteredModels.length === 0 ? (
               <p className="text-ql-11 text-muted-foreground px-2 py-1">
                 {t('api_chat_no_models_found')}
@@ -271,7 +279,7 @@ function ApiProviderCard({
                   className={`w-full rounded-md px-2.5 py-1 text-left transition-colors ${
                     isDefaultModel(m)
                       ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
                 >
                   <span

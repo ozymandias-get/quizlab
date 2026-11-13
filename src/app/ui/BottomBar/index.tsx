@@ -68,7 +68,7 @@ const SparklesNode = memo(function SparklesNode({ paused = false }: { paused?: b
         particleDensity={5}
         paused={paused}
         className="motion-normal pointer-events-none absolute inset-0 h-full w-full opacity-20"
-        particleColor="#FFFFFF"
+        particleColor="#d4d4d8"
       />
     </Suspense>
   )

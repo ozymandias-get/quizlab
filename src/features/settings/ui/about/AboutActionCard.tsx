@@ -1,3 +1,4 @@
+import { MagicCard } from '@app/components/ui/magic-card'
 import { cn } from '@shared/lib/uiUtils'
 
 import { memo, type ReactNode } from 'react'
@@ -14,7 +15,7 @@ interface AboutActionCardProps {
   interactive?: boolean
 }
 
-function AboutActionCard({
+const AboutActionCard = memo(function AboutActionCard({
   title,
   description,
   leading,
@@ -26,7 +27,7 @@ function AboutActionCard({
   interactive = false
 }: AboutActionCardProps) {
   const content = (
-    <>
+    <div className="flex min-w-0 items-center justify-between gap-4 p-5">
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {leading}
         <div className="min-w-0">
@@ -36,27 +37,39 @@ function AboutActionCard({
       </div>
 
       {trailing}
-    </>
+    </div>
   )
 
-  const rootClassName = cn(
-    'flex min-w-0 items-center justify-between gap-4 rounded-2xl border p-5',
-    interactive
-      ? 'border-border/60 bg-card transition-colors hover:bg-muted/50'
-      : 'border-border/60 bg-card/30',
-    'focus-visible:ring-ring/70 focus-visible:ring-2 focus-visible:outline-none',
-    className
+  const card = (
+    <MagicCard
+      className={cn(
+        'rounded-2xl border-white/10',
+        interactive && 'transition-colors hover:bg-white/[0.02]',
+        className
+      )}
+      gradientColor="#27272a"
+      gradientOpacity={0.45}
+      gradientFrom="#3f3f46"
+      gradientTo="#27272a"
+    >
+      {content}
+    </MagicCard>
   )
 
   if (href) {
     return (
-      <a href={href} target={target} rel={rel} className={rootClassName}>
-        {content}
+      <a
+        href={href}
+        target={target}
+        rel={rel}
+        className="focus-visible:ring-ring/70 block rounded-2xl focus-visible:ring-2 focus-visible:outline-none"
+      >
+        {card}
       </a>
     )
   }
 
-  return <div className={rootClassName}>{content}</div>
-}
+  return card
+})
 
-export default memo(AboutActionCard)
+export default AboutActionCard

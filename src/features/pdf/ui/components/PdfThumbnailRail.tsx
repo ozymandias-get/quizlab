@@ -135,7 +135,7 @@ const PdfThumbnailRail = memo(function PdfThumbnailRail({ controller, t }: PdfTh
     <aside
       aria-label={t('pdf_thumbnails')}
       data-testid="pdf-thumbnail-rail"
-      className="border-border/60 bg-background/95 shadow-ambient-md absolute inset-y-0 left-0 z-20 flex w-[9.75rem] flex-col overflow-hidden border-r backdrop-blur-md"
+      className="shadow-ambient-md absolute inset-y-0 left-0 z-20 flex w-[9.75rem] flex-col overflow-hidden border-r border-white/10 bg-zinc-950/95"
     >
       <div
         ref={listRef}

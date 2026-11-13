@@ -30,6 +30,9 @@ export function resolvePickerIconPath(): string | undefined {
 }
 
 export function createMainBrowserWindow(windowState: WindowState): BrowserWindow {
+  const isWindows = process.platform === 'win32'
+  const isMac = process.platform === 'darwin'
+
   return new BrowserWindow({
     width: windowState.width,
     height: windowState.height,
@@ -39,10 +42,24 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
     minHeight: APP_CONFIG.WINDOW.MIN_HEIGHT,
     icon: resolveIconPath(),
     autoHideMenuBar: true,
-    backgroundColor: '#0c0a09',
+    backgroundColor: '#09090b',
     paintWhenInitiallyHidden: true,
     show: false,
     skipTaskbar: true,
+    // The app draws its own chrome so the zinc surface reaches the window edge.
+    // Linux keeps the native frame: a hidden bar without overlay controls would
+    // leave the window unclosable there.
+    ...(isWindows || isMac ? { titleBarStyle: 'hidden' as const } : {}),
+    ...(isWindows
+      ? {
+          titleBarOverlay: {
+            color: '#09090b',
+            symbolColor: '#a1a1aa',
+            height: 44
+          }
+        }
+      : {}),
+    ...(isMac ? { trafficLightPosition: { x: 16, y: 14 } } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../../preload/index.js'),
       nodeIntegration: false,

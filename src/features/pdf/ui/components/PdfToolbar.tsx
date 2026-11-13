@@ -336,7 +336,7 @@ function PdfToolbar({
       // açık tonunu (`bg-card/60`) korur: iki yüzey bitişik olduğunda bile tek
       // kart gibi okunmamalı, aralarında kalan hava ikisini ayırır. Araç çubuğunun
       // içindeki kontrollerin görünümü değişmemiştir.
-      className="border-border bg-card/60 @container relative flex w-full shrink-0 items-center justify-between gap-2 border-b px-2 py-2.5 select-none sm:gap-3 sm:px-4"
+      className="@container relative flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-zinc-950/80 px-2 py-2 select-none sm:gap-3 sm:px-4"
     >
       {/* Secondary controls yield first on narrow toolbars; page navigation,
           zoom and search stay reachable. Container queries follow the viewer
@@ -344,13 +344,13 @@ function PdfToolbar({
           the reader sits in a narrow split pane. */}
       <div
         className={cn(
-          'relative flex shrink-0 items-center gap-2',
+          'relative flex min-w-0 shrink-0 items-center gap-2',
           // While searching in a narrow panel, give the query the row instead
           // of competing with the secondary tool buttons.
           isSearchOpen && isNarrowToolbar && 'hidden'
         )}
       >
-        <ToolbarGroup className="@max-[560px]:hidden">
+        <ToolbarGroup className="rounded-full border border-white/10 bg-zinc-900/70 p-1 @max-[560px]:hidden">
           {onToggleThumbnailRail && (
             <WithTooltip label={t('pdf_thumbnails')}>
               <IconButton
@@ -547,7 +547,7 @@ function PdfToolbar({
                 <CurrentScale>
                   {(scaleProps) => (
                     <>
-                      <div role="separator" className="bg-border/40 mx-1.5 my-1 h-px" />
+                      <div role="separator" className="mx-1.5 my-1 h-px bg-white/10" />
                       {[50, 100, 150].map((preset) => (
                         <MenuItem
                           key={preset}
@@ -584,6 +584,8 @@ function PdfToolbar({
         </div>
       </div>
 
+      <div aria-hidden className="mx-0.5 hidden h-5 w-px shrink-0 bg-white/10 sm:block" />
+
       <div className="mx-1 flex min-w-0 flex-1 items-center justify-center sm:mx-2">
         <PdfSearchBar
           isOpen={isSearchOpen}
@@ -600,6 +602,8 @@ function PdfToolbar({
           onToggleWholeWord={toggleWholeWord}
         />
       </div>
+
+      <div aria-hidden className="mx-0.5 hidden h-5 w-px shrink-0 bg-white/10 sm:block" />
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         {!(isSearchOpen && isNarrowToolbar) && (
@@ -622,7 +626,7 @@ function PdfToolbar({
               const label = t('zoom_level', { value: pct }) || `${pct}%`
               return (
                 <span
-                  className="text-ql-10 text-foreground min-w-[32px] rounded-md px-1 py-0.5 text-center font-medium tabular-nums select-none"
+                  className="text-ql-10 text-foreground min-w-[36px] rounded-full border border-white/10 bg-zinc-900/80 px-1.5 py-0.5 text-center font-medium tabular-nums select-none"
                   aria-label={label}
                 >
                   {pct}%

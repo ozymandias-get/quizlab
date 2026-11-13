@@ -1,5 +1,7 @@
 import type { LastReadingInfo, ResumePdfResult } from '@features/pdf/hooks/types'
 
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { Button } from '@shared/ui/components/primitives'
 
 import { FileText, Upload } from 'lucide-react'
@@ -63,45 +65,55 @@ function PdfPlaceholder({
           {/* Hero — a compact drop surface, vertically centred against the
               reading history so the column does not read as a small card
               stranded above a dead half-panel. */}
-          <div className="group border-border/70 bg-muted/20 hover:border-primary/40 hover:bg-muted/30 motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 self-center rounded-2xl border border-dashed px-6 py-8 text-center transition-colors">
-            <span
-              aria-hidden
-              className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-300 group-hover:-translate-y-0.5"
-              style={{
-                color: 'var(--selection-color-source, oklch(var(--primary)))',
-                backgroundColor:
-                  'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 12%, transparent)',
-                borderColor:
-                  'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
-              }}
+          <BlurFade className="w-full self-center">
+            <MagicCard
+              className="w-full rounded-2xl border-white/10"
+              gradientColor="#27272a"
+              gradientOpacity={0.45}
+              gradientFrom="#3f3f46"
+              gradientTo="#27272a"
             >
-              <Upload className="h-6 w-6" />
-            </span>
+              <div className="group motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/10 bg-zinc-900/50 px-6 py-8 text-center transition-colors hover:border-white/25 hover:bg-zinc-900/65">
+                <span
+                  aria-hidden
+                  className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-300 group-hover:-translate-y-0.5"
+                  style={{
+                    color: 'var(--selection-color-source, oklch(var(--primary)))',
+                    backgroundColor:
+                      'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 12%, transparent)',
+                    borderColor:
+                      'color-mix(in srgb, var(--selection-color-source, oklch(var(--primary))) 25%, transparent)'
+                  }}
+                >
+                  <Upload className="h-6 w-6" />
+                </span>
 
-            <div className="space-y-1.5">
-              <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
-                {t('no_pdf_loaded')}
-              </h2>
-              <p className="text-ql-12 text-muted-foreground mx-auto max-w-[260px] leading-relaxed">
-                {t('drop_pdf_here')}
-              </p>
-            </div>
+                <div className="space-y-1.5">
+                  <h2 className="text-ql-16 text-foreground tracking-ql-tight font-semibold">
+                    {t('no_pdf_loaded')}
+                  </h2>
+                  <p className="text-ql-12 text-muted-foreground mx-auto max-w-[260px] leading-relaxed">
+                    {t('drop_pdf_here')}
+                  </p>
+                </div>
 
-            <Button
-              type="button"
-              variant="default"
-              size="lg"
-              onClick={onSelectPdf}
-              className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
-              aria-label={t('select_pdf')}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>{t('select_pdf')}</span>
-            </Button>
-          </div>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="lg"
+                  onClick={onSelectPdf}
+                  className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl px-4 shadow-xs"
+                  aria-label={t('select_pdf')}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{t('select_pdf')}</span>
+                </Button>
+              </div>
+            </MagicCard>
+          </BlurFade>
 
           {/* Recent Reading Section */}
-          <div className="border-border/40 flex min-h-0 w-full flex-col gap-4 border-t pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
+          <div className="flex min-h-0 w-full flex-col gap-4 border-t border-white/10 pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
             <PdfRecentControls
               t={t}
               recentCount={recentItems.length}

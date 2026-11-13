@@ -160,14 +160,14 @@ function OverflowMenu({
                   key={tab.id}
                   role="group"
                   aria-label={label}
-                  className="group hover:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+                  className="group flex min-h-8 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-white/10"
                   onContextMenu={(event) => onOpenContextMenu(event, tab.id)}
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         type="button"
-                        className="text-popover-foreground focus-visible:ring-ring/70 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                        className="focus-visible:ring-ring/70 flex min-w-0 flex-1 items-center gap-2 rounded-md text-left text-zinc-200 transition-colors focus-visible:ring-2 focus-visible:outline-none"
                         onClick={() => {
                           onSetActiveTab(tab.id)
                           setIsOpen(false)

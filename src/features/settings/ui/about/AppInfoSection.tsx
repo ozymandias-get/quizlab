@@ -13,7 +13,7 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
   const { copy, isCopied } = useClipboard()
 
   return (
-    <header className="border-border/60 bg-card/30 flex flex-col items-center rounded-2xl border p-5">
+    <header className="flex flex-col items-center rounded-2xl border border-white/10 bg-zinc-900/80 p-5">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -26,7 +26,7 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
           src={`${import.meta.env.BASE_URL}icon.png`}
           alt=""
           aria-hidden
-          className="border-border/60 size-16 rounded-xl border"
+          className="size-16 rounded-xl border border-white/10"
         />
       </motion.div>
 
@@ -46,7 +46,7 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
             disabled={!appVersion}
             title={t('copy_version')}
             aria-label={t('copy_version')}
-            className="text-ql-12 border-border/60 bg-muted text-foreground focus-visible:ring-ring/70 hover:border-border hover:bg-muted/80 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="text-ql-12 focus-visible:ring-ring/70 inline-flex items-center gap-1 rounded-md border border-white/10 bg-zinc-800 px-2 py-0.5 font-mono font-semibold text-zinc-200 transition-colors hover:bg-zinc-700 focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           >
             {appVersion}
             {isCopied && <Check className="size-3 text-emerald-500" aria-hidden />}

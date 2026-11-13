@@ -12,11 +12,14 @@
   top: 20px;
   right: 20px;
   padding: 8px 16px;
-  background: oklch(0 0 0 / 0.7);
-  color: oklch(0.6 0.01 60);
+  border: 1px solid oklch(1 0 0 / 0.15);
+  background: oklch(0.18 0.005 285.9 / 0.9);
+  color: oklch(0.71 0.008 285.9);
   font-size: 12px;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px -12px oklch(0 0 0 / 0.7);
+  backdrop-filter: blur(16px);
   pointer-events: none;
   animation: fadeInUp 0.2s ease-out;
 }
@@ -35,28 +38,31 @@
 
 .screenshot-selection {
   position: absolute;
-  border: 2px solid oklch(0.78 0.15 70);
+  border: 1px solid oklch(1 0 0 / 0.8);
   background: transparent;
   box-shadow:
-    0 0 0 1px oklch(0 0 0 / 0.3),
-    0 0 20px oklch(0.78 0.15 70 / 0.3),
-    inset 0 0 0 1px oklch(1 0 0 / 0.1);
+    0 0 0 1px oklch(0 0 0 / 0.35),
+    0 0 24px oklch(1 0 0 / 0.18),
+    inset 0 0 0 1px oklch(1 0 0 / 0.12);
   /* A soft white outer glow lifts the crop edge off the dimmed backdrop. */
-  filter: drop-shadow(0 0 6px oklch(1 0 0 / 0.35));
+  filter: drop-shadow(0 0 6px oklch(1 0 0 / 0.3));
 }
 
 .screenshot-size-indicator {
   position: absolute;
-  bottom: -28px;
+  bottom: -34px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 4px 10px;
-  background: oklch(0 0 0 / 0.85);
-  color: oklch(0.98 0 0);
+  padding: 5px 10px;
+  border: 1px solid oklch(1 0 0 / 0.15);
+  background: oklch(0.18 0.005 285.9 / 0.9);
+  color: oklch(0.985 0 0);
   font-size: 11px;
   font-weight: 500;
   font-family: 'SF Mono', Monaco, monospace;
-  border-radius: 4px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px -12px oklch(0 0 0 / 0.7);
+  backdrop-filter: blur(16px);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -65,10 +71,10 @@
   position: absolute;
   width: 10px;
   height: 10px;
-  background: oklch(0.78 0.15 70);
-  border: 2px solid oklch(1 0 0);
-  border-radius: 2px;
-  box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
+  background: oklch(0.985 0 0);
+  border: 1px solid oklch(0 0 0 / 0.45);
+  border-radius: 3px;
+  box-shadow: 0 2px 6px oklch(0 0 0 / 0.45);
 }
 
 .screenshot-handle.top-left {

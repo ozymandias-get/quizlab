@@ -25,7 +25,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
 
   return (
     <aside
-      className="border-border/45 bg-muted/10 relative flex min-w-0 shrink-0 flex-col border-r"
+      className="relative flex min-w-0 shrink-0 flex-col border-r border-white/10 bg-zinc-950/40"
       style={{ width: sidebarWidth }}
     >
       <div

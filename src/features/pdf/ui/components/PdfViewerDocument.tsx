@@ -207,7 +207,7 @@ function PdfViewerDocument(props: PdfViewerDocumentProps) {
                 data-testid="pdf-pan-mode-badge"
                 data-pan-mode={isPanMode ? 'persistent' : 'temporary'}
                 style={{ position: 'absolute', right: '0.75rem', bottom: '0.75rem', zIndex: 6 }}
-                className="border-border/60 bg-background/85 text-foreground text-ql-11 shadow-ambient-sm pointer-events-none flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium backdrop-blur-md"
+                className="text-foreground text-ql-11 shadow-ambient-sm pointer-events-none flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-900/90 px-2.5 py-1 font-medium"
               >
                 <Hand className="size-3.5 shrink-0" aria-hidden="true" />
                 <span>{tt(isPanMode ? 'pdf_pan_mode_active' : 'pdf_space_pan_active')}</span>

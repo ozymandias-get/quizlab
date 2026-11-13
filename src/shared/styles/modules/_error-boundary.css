@@ -14,7 +14,7 @@
   height: 100%;
   min-height: 280px;
   padding: 24px;
-  background: oklch(0 0 0);
+  background: #09090b;
   isolation: isolate;
   text-align: center;
 }
@@ -23,9 +23,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(60% 50% at 20% 20%, oklch(0.7 0.18 20 / 0.18) 0%, transparent 60%),
-    radial-gradient(50% 60% at 80% 80%, oklch(0.75 0.15 35 / 0.12) 0%, transparent 65%),
-    oklch(0 0 0);
+    radial-gradient(60% 50% at 20% 20%, oklch(0.7 0.18 20 / 0.12) 0%, transparent 60%),
+    radial-gradient(50% 60% at 80% 80%, oklch(0.75 0.15 35 / 0.08) 0%, transparent 65%), #09090b;
   z-index: var(--z-negative-2);
   pointer-events: none;
 }
@@ -52,13 +51,13 @@
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  background: oklch(0.12 0.02 10 / 0.78);
-  border: 1px solid oklch(0.7 0.1 20 / 0.18);
+  background: oklch(0.21 0.006 285.9 / 0.9);
+  border: 1px solid oklch(1 0 0 / 0.1);
   box-shadow:
-    0 32px 90px oklch(0.05 0.03 10 / 0.72),
+    0 32px 90px oklch(0 0 0 / 0.6),
     inset 0 1px 0 oklch(1 0 0 / 0.06);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   animation: errShellEntrance 0.55s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 
@@ -141,9 +140,9 @@
   color: oklch(0.98 0.01 10);
   background: linear-gradient(
     105deg,
-    oklch(1 0 0) 0%,
-    oklch(0.95 0.04 25) 50%,
-    oklch(0.88 0.08 40) 100%
+    oklch(0.99 0 0) 0%,
+    oklch(0.96 0 0) 55%,
+    oklch(0.82 0 0) 100%
   );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -242,8 +241,8 @@
   margin-top: 6px;
   padding: 12px 14px;
   border-radius: var(--radius-lg);
-  background: oklch(0 0 0 / 0.32);
-  border: 1px solid oklch(1 0 0 / 0.06);
+  background: oklch(0.12 0.005 285.9 / 0.6);
+  border: 1px solid oklch(1 0 0 / 0.1);
   text-align: left;
 }
 

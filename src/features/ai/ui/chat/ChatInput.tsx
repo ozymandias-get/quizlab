@@ -107,17 +107,19 @@ const ChatInput = memo(function ChatInput({
 
   const wordCount = countWords(inputValue)
   const charCount = inputValue.length
+  const canSend = inputValue.trim().length > 0 || attachments.length > 0
   // Deriving MIME/byte metadata scans the full data URL; do it only when the
   // attachment list changes, not on every keystroke that recreates this tree.
   const attachmentMetadata = useMemo(() => attachments.map(attachmentMeta), [attachments])
 
   return (
-    <div className="bg-background/80 shrink-0 px-4 pt-2 pb-4 backdrop-blur-md">
+    <div className="shrink-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent px-4 pt-2 pb-4">
       <div className="group relative mx-auto w-full max-w-4xl">
-        {/* Main Semantic Input Card */}
-        <div className="border-border/55 bg-card/85 shadow-ambient-sm focus-within:border-border focus-within:ring-foreground/10 motion-normal @container relative w-full overflow-hidden rounded-2xl border transition-all focus-within:ring-1">
+        {/* Floating glass composer — the single surface owns the border, blur
+            and focus ring so the textarea and toolbar read as one capsule. */}
+        <div className="shadow-ambient-lg motion-normal @container relative w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/90 transition-all focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/10">
           {attachments.length > 0 && (
-            <div className="border-border/50 flex flex-wrap gap-2.5 border-b px-4 pt-3 pb-2">
+            <div className="flex flex-wrap gap-2.5 border-b border-white/10 px-4 pt-3 pb-2">
               {attachments.map((data, i) => {
                 const meta = attachmentMetadata[i] ?? attachmentMeta(data)
                 return (
@@ -125,7 +127,7 @@ const ChatInput = memo(function ChatInput({
                   // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
                   <div key={i} className="group/attach animate-app-enter relative">
                     <div
-                      className="border-border/60 relative h-14 w-14 transform overflow-hidden rounded-lg border shadow-2xs"
+                      className="relative h-14 w-14 transform overflow-hidden rounded-lg border border-white/10 shadow-2xs"
                       title={`${meta.type} · ${formatBytes(meta.bytes)}`}
                     >
                       <img src={data} alt="" className="h-full w-full object-cover" />
@@ -167,7 +169,7 @@ const ChatInput = memo(function ChatInput({
           </div>
 
           {/* Clean Sub-divider */}
-          <div className="bg-border/45 mx-3 h-px" />
+          <div className="mx-3 h-px bg-white/5" />
 
           {/* Bottom action row: a single fixed-height toolbar. It never wraps
               into the textarea, so a long prompt grows upward while the
@@ -268,14 +270,11 @@ const ChatInput = memo(function ChatInput({
                     variant="default"
                     size="compact"
                     onClick={onSend}
-                    disabled={!inputValue.trim() && attachments.length === 0}
-                    style={
-                      inputValue.trim() || attachments.length > 0
-                        ? {
-                            backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
-                            color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
-                          }
-                        : undefined
+                    disabled={!canSend}
+                    className={
+                      canSend
+                        ? 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:text-zinc-950 disabled:opacity-100'
+                        : 'border-0 bg-zinc-800 text-zinc-500 opacity-100 hover:bg-zinc-800'
                     }
                     aria-label={t('api_chat_send')}
                   >

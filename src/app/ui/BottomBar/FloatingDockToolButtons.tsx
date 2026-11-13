@@ -9,7 +9,7 @@ import {
 import { usePdfTabStore } from '@features/pdf'
 
 import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/providers'
-import { useAiModelsCatalog, useAiTabActions } from '@app/providers/ai-context'
+import { useAiModelsCatalog, useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowLeftRight, Crosshair, Globe, Maximize2, Settings, Sparkles } from 'lucide-react'
@@ -135,6 +135,7 @@ export const GeminiToolButton = memo(function GeminiToolButton({
     <FloatingDockIcon
       title={needsAttention ? t('ws_toolbar_attention') : t('ws_toolbar_title')}
       onClick={handleClick}
+      status={needsAttention ? 'attention' : 'active'}
     >
       <Globe className="h-5 w-5" />
     </FloatingDockIcon>
@@ -159,7 +160,7 @@ export const ModelIconsList = memo(function ModelIconsList({
 
   return (
     <div
-      className="scrollbar-hidden flex w-full flex-col items-center gap-1 overflow-y-auto py-1"
+      className="scrollbar-hidden flex max-h-[calc(100dvh-12rem)]! min-h-0 w-full flex-col items-center gap-1 overflow-y-auto py-1"
       style={{ maxHeight: bottomBarMaxIcons * 36 + 8 }}
     >
       {displayModels.map((modelKey) => (
@@ -177,12 +178,18 @@ const ModelDockIcon = memo(function ModelDockIcon({
   site?: { displayName?: string; name?: string; icon?: string; color?: string }
 }) {
   const { openAiWorkspace } = useAiTabActions()
+  const { tabs, activeTabId } = useAiTabsSliceState()
+  const isActiveModel = tabs.some((tab) => tab.id === activeTabId && tab.modelId === modelKey)
   const handleClick = useCallback(() => openAiWorkspace(modelKey), [modelKey, openAiWorkspace])
 
   if (!site) return null
 
   return (
-    <FloatingDockIcon title={site.displayName || site.name || modelKey} onClick={handleClick}>
+    <FloatingDockIcon
+      title={site.displayName || site.name || modelKey}
+      onClick={handleClick}
+      status={isActiveModel ? 'active' : undefined}
+    >
       {getAiIcon(site.icon || modelKey) || (
         <span className="text-ql-10 flex h-5 w-5 items-center justify-center font-bold">
           {(site.displayName || modelKey).charAt(0)}

@@ -76,7 +76,7 @@ function DraftDockBar({
   return (
     <div
       data-testid="ai-draft-dock-bar"
-      className="border-border/50 bg-popover/88 dark:bg-background/92 hover:border-border/75 shadow-ambient-md hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border p-1 backdrop-blur-2xl transition-all"
+      className="hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border border-white/10 bg-zinc-900/80 p-1 shadow-xl backdrop-blur-xl transition-all hover:border-white/20"
     >
       <button
         type="button"
@@ -85,7 +85,7 @@ function DraftDockBar({
         aria-controls="ai-draft-dock-body"
         aria-label={isOpen ? t('ai_draft_close') : t('ai_draft_open')}
         data-testid="ai-draft-badge"
-        className="group hover:bg-muted/55 focus-visible:ring-ring/70 flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pr-2.5 pl-1 text-left transition-colors focus-visible:ring-1 focus-visible:outline-none"
+        className="group focus-visible:ring-ring/70 flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pr-2.5 pl-1 text-left transition-colors hover:bg-white/10 focus-visible:ring-1 focus-visible:outline-none"
       >
         <span
           style={
@@ -126,7 +126,7 @@ function DraftDockBar({
           }
           className={cn(
             'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
-            itemCount > 0 ? 'text-primary bg-primary/10' : 'bg-muted/70 text-muted-foreground'
+            itemCount > 0 ? 'text-primary bg-primary/10' : 'text-muted-foreground bg-white/10'
           )}
         >
           {t('ai_draft_content_count', { count: itemCount })}
@@ -164,18 +164,11 @@ function DraftDockBar({
             size="sm"
             aria-label={sendLabel}
             data-testid="ai-draft-pill-send"
-            style={
-              canSend
-                ? {
-                    backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
-                    color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
-                  }
-                : undefined
-            }
             className={cn(
-              'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98]',
-              !canSend &&
-                'bg-muted/70 text-muted-foreground hover:bg-muted/70 opacity-100 shadow-none'
+              'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold transition-all',
+              canSend
+                ? 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'
+                : 'border-0 bg-zinc-800 text-zinc-500 opacity-100 shadow-none hover:bg-zinc-800'
             )}
           >
             <SendIcon

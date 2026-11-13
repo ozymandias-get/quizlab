@@ -1,3 +1,5 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowUpRight } from 'lucide-react'
@@ -64,46 +66,54 @@ const GridCard = memo<GridCardProps>(function GridCard({
       onDragEnd={onDragEnd}
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
-      <div className="relative rounded-xl">
-        <button
-          type="button"
-          onClick={() => onClick(itemId)}
-          className={`group motion-normal focus-visible:ring-ring/70 relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-            isActive
-              ? 'border-ring/50 bg-accent/35'
-              : 'border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45'
-          }`}
+      <BlurFade className="h-full">
+        <MagicCard
+          className={`h-full rounded-xl ${isActive ? 'ring-ring/40 ring-1' : ''}`}
+          gradientColor="#27272a"
+          gradientOpacity={0.45}
+          gradientFrom="#3f3f46"
+          gradientTo="#27272a"
         >
-          <div className="flex items-center gap-3">
-            <div
-              className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
-              style={{
-                color: accent,
-                backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`
-              }}
-            >
-              {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-ql-13 text-foreground truncate font-semibold">{displayName}</h3>
-              {subtitle && (
-                <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
-              )}
-            </div>
-            {isActive && (
-              <span
-                className="size-2 shrink-0 rounded-full"
+          <button
+            type="button"
+            onClick={() => onClick(itemId)}
+            className={`group motion-normal focus-visible:ring-ring/70 relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+              isActive
+                ? 'border-ring/50 bg-accent/30'
+                : 'border-transparent bg-transparent hover:bg-white/[0.03]'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
                 style={{
-                  background: accent
+                  color: accent,
+                  backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`
                 }}
-              />
-            )}
-            <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
-              <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+              >
+                {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-ql-13 text-foreground truncate font-semibold">{displayName}</h3>
+                {subtitle && (
+                  <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+                )}
+              </div>
+              {isActive && (
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{
+                    background: accent
+                  }}
+                />
+              )}
+              <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
+                <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
+              </div>
             </div>
-          </div>
-        </button>
-      </div>
+          </button>
+        </MagicCard>
+      </BlurFade>
     </div>
   )
 })

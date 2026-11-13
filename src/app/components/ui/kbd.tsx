@@ -4,17 +4,17 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
 
 const kbdVariants = cva(
-  'inline-flex items-center justify-center font-mono font-medium select-none pointer-events-none rounded-xs border transition-colors shadow-2xs',
+  'inline-flex items-center justify-center rounded-md border border-white/10 bg-zinc-800 font-mono font-medium text-zinc-400 shadow-none select-none pointer-events-none transition-colors',
   {
     variants: {
       variant: {
-        default: 'border-border/80 bg-muted/80 text-muted-foreground',
-        outline: 'border-border bg-background text-foreground/80'
+        default: 'bg-zinc-800 text-zinc-400',
+        outline: 'border-white/15 bg-zinc-900 text-zinc-300'
       },
       size: {
-        xs: 'h-4 min-w-4 px-1 text-ql-10 leading-none rounded-xs',
-        sm: 'h-5 min-w-5 px-1.5 text-ql-11 leading-none rounded-xs',
-        default: 'h-5.5 min-w-5.5 px-2 text-ql-12 leading-none rounded-sm'
+        xs: 'h-4 min-w-4 px-1 text-ql-10 leading-none rounded-md',
+        sm: 'h-5 min-w-5 px-1.5 text-ql-11 leading-none rounded-md',
+        default: 'h-5.5 min-w-5.5 px-2 text-ql-12 leading-none rounded-md'
       }
     },
     defaultVariants: {

@@ -97,7 +97,7 @@ function PdfRecentList({
               className={`text-ql-10 text-muted-foreground flex items-center gap-2 font-semibold uppercase ${groupIndex > 0 ? 'mt-3' : ''}`}
             >
               <span className="tracking-ql-label shrink-0">{t(group.labelKey)}</span>
-              <span aria-hidden className="bg-border h-px flex-1" />
+              <span aria-hidden className="h-px flex-1 bg-white/10" />
             </div>
           )}
 

@@ -1,3 +1,5 @@
+import { DotPattern } from '@app/components/ui/dot-pattern'
+
 import { Globe, History, Pin, Sparkles, Star } from 'lucide-react'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -62,6 +64,13 @@ function AiHomePage({ onOpenModel, onOpenRecent, onOpenPinned }: AiHomePageProps
       className="custom-scrollbar absolute inset-0 overflow-y-auto overscroll-contain"
     >
       <div className="relative min-h-full px-4 py-5 sm:px-5 sm:py-6">
+        <DotPattern
+          aria-hidden
+          width={24}
+          height={24}
+          cr={1}
+          className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] text-zinc-500 opacity-20"
+        />
         <div className="relative z-10 flex flex-col gap-4">
           <AiHomeHero
             activeTabId={activeTabId}

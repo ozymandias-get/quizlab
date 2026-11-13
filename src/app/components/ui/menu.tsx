@@ -23,7 +23,7 @@ const MenuSurface = React.forwardRef<HTMLDivElement, MenuSurfaceProps>(function 
       ref={ref}
       data-slot="menu-surface"
       className={cn(
-        'z-dropdown border-border bg-popover text-popover-foreground shadow-ambient-lg rounded-xl border p-1 backdrop-blur-md',
+        'z-dropdown rounded-xl border border-white/15 bg-zinc-900/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-xl',
         className
       )}
       {...props}
@@ -44,8 +44,8 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       type="button"
       data-slot="menu-item"
       className={cn(
-        'text-ql-12 text-popover-foreground hover:bg-muted focus-visible:ring-ring/70 flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-        danger && 'text-destructive hover:bg-destructive/10',
+        'text-ql-12 focus-visible:ring-ring/70 flex min-h-8 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left font-medium text-zinc-200 transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+        danger && 'text-red-400 hover:bg-red-500/10',
         className
       )}
       {...props}
@@ -55,9 +55,9 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut && (
-        <span className="text-ql-10 text-muted-foreground tracking-ql-caps shrink-0 font-mono uppercase">
+        <kbd className="text-ql-10 shrink-0 rounded border border-white/10 bg-zinc-800 px-1.5 py-0.5 font-mono text-zinc-400">
           {shortcut}
-        </span>
+        </kbd>
       )}
     </button>
   )
@@ -65,7 +65,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
 
 function MenuSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div role="separator" className={cn('bg-border/40 mx-1.5 my-1 h-px', className)} {...props} />
+    <div role="separator" className={cn('mx-1.5 my-1 h-px bg-white/10', className)} {...props} />
   )
 }
 

@@ -109,10 +109,10 @@ const HistorySessionItem = memo(function HistorySessionItem({
 
   const icon = (
     <div
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
         isActive
           ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground'
+          : 'text-muted-foreground group-hover:text-foreground border-white/10 bg-white/[0.04]'
       }`}
     >
       {modelIcon ? (
@@ -124,8 +124,8 @@ const HistorySessionItem = memo(function HistorySessionItem({
   )
 
   const metadata = (
-    <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 select-none">
-      <span className="border-border/60 bg-muted/30 flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5">
+    <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 tabular-nums select-none">
+      <span className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5">
         <MessageSquare className="h-3 w-3 shrink-0" />
         {t('api_chat_msg_count', { count: String(msgCount) })}
       </span>
@@ -140,10 +140,10 @@ const HistorySessionItem = memo(function HistorySessionItem({
 
   return (
     <div
-      className={`group focus-within:ring-ring/40 motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-lg border p-3 shadow-xs transition-colors focus-within:ring-2 ${
+      className={`group focus-within:ring-ring/40 motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-xl border p-2.5 transition-colors focus-within:ring-2 ${
         isActive
-          ? 'border-ring/60 bg-accent/20'
-          : 'border-border bg-card hover:border-border hover:bg-muted/60'
+          ? 'border-white/10 bg-white/[0.07]'
+          : 'border-transparent hover:border-white/5 hover:bg-white/5'
       }`}
     >
       {isEditing ? (
@@ -164,7 +164,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
                 size="sm"
                 aria-invalid={isTitleEmpty || undefined}
                 aria-describedby={isTitleEmpty ? editErrorId : undefined}
-                className="min-w-0 flex-1 sm:max-w-64"
+                className="min-w-0 flex-1 rounded-md border border-white/25 bg-zinc-950/90 px-2 py-0.5 text-zinc-100 focus:outline-none sm:max-w-64"
               />
               <IconButton
                 type="button"
@@ -235,16 +235,20 @@ const HistorySessionItem = memo(function HistorySessionItem({
       {/* Action buttons are siblings of the selection button, never nested
           inside it: screen readers see one button to open the chat and separate
           buttons for rename/delete. */}
-      <div className="motion-normal absolute top-1/2 right-3 z-10 flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+      <div
+        className={`motion-normal absolute top-1/2 right-2 z-10 flex -translate-y-1/2 items-center gap-1 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 ${
+          isActive ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
         {!isEditing && (
           <WithTooltip label={t('api_chat_rename_tooltip')}>
             <IconButton
               type="button"
-              variant="outline"
+              variant="ghost"
               size="compact"
               onClick={() => onStartEdit(session.id, session.title)}
               disabled={isDeleting}
-              className="text-muted-foreground"
+              className="text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10"
               aria-label={t('api_chat_rename_tooltip')}
             >
               <Pencil />
@@ -254,14 +258,14 @@ const HistorySessionItem = memo(function HistorySessionItem({
         <WithTooltip label={t('api_chat_delete_tooltip')}>
           <IconButton
             type="button"
-            variant="outline"
+            variant="ghost"
             size="compact"
             onClick={() => onDelete(session.id)}
             // A rename for this row is in flight: deleting it now would race
             // the write and could resurrect or lose the session.
             disabled={isDeleting || isSavingEdit}
             aria-busy={isDeleting || undefined}
-            className="text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-full"
             aria-label={t('api_chat_delete_tooltip')}
           >
             {isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />}

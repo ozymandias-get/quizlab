@@ -47,16 +47,16 @@ interface FocusOverlayProps {
 
 const SHELL_STYLE: CSSProperties = {
   contain: 'layout paint size',
-  border: '1px solid oklch(var(--border))',
+  border: '1px solid oklch(1 0 0 / 0.1)',
   borderRadius: 'var(--radius-xl)',
   boxShadow: 'var(--shadow-ambient-xl)',
-  background: 'oklch(var(--background))'
+  background: 'oklch(0.145 0.005 285.8)'
 }
 
 const BACKDROP_STYLE: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'oklch(0 0 0 / 0.65)',
+  background: 'oklch(0.09 0.005 285.8 / 0.8)',
   display: 'flex',
   alignItems: 'stretch',
   justifyContent: 'stretch',
@@ -185,7 +185,7 @@ function FocusOverlay({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: reducedMotion ? 0 : 0.18 }}
-            className="border-border/60 bg-background/85 text-foreground shadow-ambient-md text-ql-11 pointer-events-none absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border px-3 py-1.5 font-medium backdrop-blur-md"
+            className="text-foreground shadow-ambient-md text-ql-11 pointer-events-none absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-zinc-900/80 px-3 py-1.5 font-medium backdrop-blur-xl"
           >
             <Kbd size="xs">ESC</Kbd>
             <span>{t('focus_esc_hint')}</span>
@@ -206,7 +206,7 @@ function FocusOverlay({
         {/* A real header row instead of a floating close button: the strip owns
             the top-right corner, so the PDF/AI toolbars underneath are neither
             covered nor unclickable. */}
-        <header className="border-border/60 flex h-12 shrink-0 items-center justify-between border-b px-4">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 bg-zinc-950/40 px-4 backdrop-blur-xl">
           <span className="text-ql-12 text-muted-foreground min-w-0 truncate font-medium">
             {focusTitle}
           </span>

@@ -227,21 +227,11 @@ export function DraftSendButton({
         // gelmezdi; `aria-label` adı her genişlikte korur.
         aria-label={label}
         data-testid="ai-draft-send"
-        style={
-          !isDisabled
-            ? {
-                backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
-                color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
-              }
-            : undefined
-        }
         className={cn(
-          'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold shadow-2xs transition-all hover:brightness-105 active:scale-[0.98] @max-[330px]:min-w-0 @max-[330px]:px-2.5',
-          // Devre dışıyken yarı saydam birincil blok kalmaz: dolu bir `muted`
-          // yüzey + okunur metin. Tüm düğmeyi `opacity` ile soldurmak koyu temada
-          // ıslak gri bir leke gibi okunuyordu.
-          isDisabled &&
-            'bg-muted/65 text-muted-foreground hover:bg-muted/65 opacity-100 shadow-none'
+          'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold transition-all @max-[330px]:min-w-0 @max-[330px]:px-2.5',
+          isDisabled
+            ? 'border-0 bg-zinc-800 text-zinc-500 opacity-100 shadow-none hover:bg-zinc-800'
+            : 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'
         )}
       >
         <SendIcon className={cn('size-3.5', intent === 'sending' && 'animate-spin')} aria-hidden />

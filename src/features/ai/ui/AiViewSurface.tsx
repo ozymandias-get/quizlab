@@ -186,6 +186,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
           onShowHome={showHideHome.show}
           onHideHome={showHideHome.hide}
           getTabUrl={getRestoredUrl}
+          sleepingTabIds={surfaceState.coldTabIds}
         />
 
         <div className="relative min-h-0 flex-1">
@@ -225,7 +226,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
                 // The veil only has to hide the outgoing native frame; a brand
                 // mark here duplicated the incoming site's loader icon and the
                 // two painted on top of each other.
-                className="bg-background/55 pointer-events-none absolute inset-0 z-20 backdrop-blur-[2px]"
+                className="pointer-events-none absolute inset-0 z-20 bg-zinc-950/60 backdrop-blur-sm"
               />
             )}
           </AnimatePresence>

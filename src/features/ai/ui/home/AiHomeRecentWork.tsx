@@ -1,3 +1,5 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Clock3, FileText, X } from 'lucide-react'
@@ -71,7 +73,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
 
   return (
     <div className="grid gap-2.5 sm:grid-cols-2">
-      {entries.map((entry) => {
+      {entries.map((entry, index) => {
         const site = aiSites[entry.modelId]
         const accent = safeAiAccentColor(site?.color)
         const displayName = site?.displayName || site?.name || entry.modelId
@@ -98,53 +100,72 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
 
         return (
           <div key={entry.id} className="group relative rounded-xl">
-            <button
-              type="button"
-              onClick={() => handleOpen(entry)}
-              aria-label={t('ai_home.recent_open', { name: displayName, document: documentName })}
-              className="focus-visible:ring-ring/70 border-border/45 bg-card/75 hover:border-border/90 hover:bg-muted/45 motion-normal flex w-full cursor-pointer items-center gap-3 rounded-xl border p-3 pr-12 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <div
-                className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
-                style={{
-                  color: accent,
-                  backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`
-                }}
+            <BlurFade delay={index * 0.04} className="h-full">
+              <MagicCard
+                className="h-full rounded-xl"
+                gradientColor="#27272a"
+                gradientOpacity={0.45}
+                gradientFrom="#3f3f46"
+                gradientTo="#27272a"
               >
-                {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <h3 className="text-ql-13 text-foreground truncate font-semibold">
-                    {displayName}
-                  </h3>
-                  <span
-                    title={lastUsed.absolute}
-                    className="text-ql-10 text-muted-foreground ml-auto flex shrink-0 items-center gap-0.5"
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => handleOpen(entry)}
+                    aria-label={t('ai_home.recent_open', {
+                      name: displayName,
+                      document: documentName
+                    })}
+                    className="focus-visible:ring-ring/70 motion-normal flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent bg-transparent p-3 pr-12 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
                   >
-                    <Clock3 aria-hidden className="h-3 w-3" />
-                    {lastUsed.relative}
-                  </span>
-                </div>
-                <p className="text-ql-11 text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5">
-                  <FileText aria-hidden className="h-3 w-3 shrink-0" />
-                  <span className="truncate" title={documentName}>
-                    {documentName}
-                  </span>
-                </p>
-              </div>
-            </button>
+                    <div
+                      className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
+                      style={{
+                        color: accent,
+                        backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`
+                      }}
+                    >
+                      {icon ? (
+                        <Suspense fallback={letterFallback}>{icon}</Suspense>
+                      ) : (
+                        letterFallback
+                      )}
+                    </div>
 
-            <button
-              type="button"
-              onClick={() => onRemove(entry.id)}
-              aria-label={t('ai_home.recent_remove', { document: documentName })}
-              title={t('ai_home.recent_remove', { document: documentName })}
-              className="motion-normal text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring/70 absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-[color,background-color] focus-visible:ring-2 focus-visible:outline-none"
-            >
-              <X aria-hidden className="h-3.5 w-3.5" />
-            </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <h3 className="text-ql-13 text-foreground truncate font-semibold">
+                          {displayName}
+                        </h3>
+                        <span
+                          title={lastUsed.absolute}
+                          className="text-ql-10 text-muted-foreground ml-auto flex shrink-0 items-center gap-0.5"
+                        >
+                          <Clock3 aria-hidden className="h-3 w-3" />
+                          {lastUsed.relative}
+                        </span>
+                      </div>
+                      <p className="text-ql-11 text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1.5">
+                        <FileText aria-hidden className="h-3 w-3 shrink-0" />
+                        <span className="truncate" title={documentName}>
+                          {documentName}
+                        </span>
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onRemove(entry.id)}
+                    aria-label={t('ai_home.recent_remove', { document: documentName })}
+                    title={t('ai_home.recent_remove', { document: documentName })}
+                    className="motion-normal text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring/70 absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-[color,background-color] focus-visible:ring-2 focus-visible:outline-none"
+                  >
+                    <X aria-hidden className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </MagicCard>
+            </BlurFade>
           </div>
         )
       })}

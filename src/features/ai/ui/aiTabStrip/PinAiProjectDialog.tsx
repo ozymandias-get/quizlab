@@ -110,7 +110,7 @@ const PinAiProjectDialog = function PinAiProjectDialog({
       size="sm"
       ariaLabelledBy={titleId}
       ariaDescribedBy={descriptionId}
-      panelClassName="px-6 py-5"
+      panelClassName="border-white/10 bg-zinc-900/95 px-6 py-5 shadow-2xl backdrop-blur-xl"
     >
       <DialogTitle id={titleId}>{t('ai_home.pin_dialog_title')}</DialogTitle>
       <DialogDescription id={descriptionId}>
@@ -131,13 +131,13 @@ const PinAiProjectDialog = function PinAiProjectDialog({
                 type="button"
                 onClick={() => setSelectedTabId(tab.id)}
                 aria-pressed={isSelected}
-                className={`motion-normal focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                className={`motion-normal focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                   isSelected
-                    ? 'border-ring/60 bg-accent/35'
-                    : 'border-border/45 bg-card/60 hover:bg-muted/45'
+                    ? 'border-white/15 bg-white/[0.07]'
+                    : 'border-transparent hover:bg-white/5'
                 }`}
               >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-md">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
                   {icon ?? (
                     <span className="text-primary text-ql-12 font-bold uppercase" aria-hidden>
                       {label.charAt(0)}
@@ -172,6 +172,7 @@ const PinAiProjectDialog = function PinAiProjectDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder={t('ai_home.pin_name_placeholder')}
             maxLength={80}
+            className="border-white/10 bg-zinc-950/60 focus-visible:border-white/20"
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()

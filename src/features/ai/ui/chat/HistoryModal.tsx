@@ -419,11 +419,11 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
         data-history-editing={isEditing ? '' : undefined}
         data-history-row-index={index}
         data-history-session-id={session.id}
-        className={`rounded-lg transition-colors ${
+        className={`rounded-xl transition-colors ${
           absoluteTop === undefined ? 'mb-2' : 'absolute right-0 left-0 z-10 mb-2'
         } ${
           keyboardIndex === index
-            ? 'border-primary bg-accent/40 border-l-2'
+            ? 'border-primary/60 border-l-2 bg-white/[0.06]'
             : 'border-l-2 border-transparent'
         }`}
         style={
@@ -471,7 +471,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   return (
     <>
-      <DialogBackdrop onClick={onClose}>
+      <DialogBackdrop onClick={onClose} className="bg-zinc-950/85 backdrop-blur-md">
         <motion.div
           ref={dialogRef}
           role="dialog"
@@ -481,10 +481,10 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: DURATION.normal }}
-          className="border-border bg-popover text-popover-foreground shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border"
+          className="shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/85 text-zinc-100 backdrop-blur-xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <PanelHeader>
+          <PanelHeader className="border-white/10 bg-zinc-950/40 px-4 py-3">
             <div className="flex items-center gap-3">
               <PanelHeaderIcon>
                 <Clock className="h-4 w-4 shrink-0" />
@@ -539,7 +539,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           {editingSessionIsFilteredOut && (
             <div
               role="status"
-              className="border-border bg-muted/20 text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-b px-5 py-2"
+              className="text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-2"
             >
               <span className="text-ql-11">{t('api_chat_edit_hidden_by_search')}</span>
               <Button
@@ -572,7 +572,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
               })
             }
             aria-busy={isSearchPending || undefined}
-            className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-4"
+            className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5"
           >
             {filteredSessions.length > 0 ? (
               <div className="relative">

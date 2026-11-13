@@ -10,8 +10,8 @@ import SettingsToggleSwitch from './shared/SettingsToggleSwitch'
 
 const ROW_BASE =
   'motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors'
-const ROW_ACTIVE = 'border-border/65 bg-accent/35'
-const ROW_IDLE = 'border-border/45 bg-card/55 hover:bg-muted/45'
+const ROW_ACTIVE = 'border-white/10 bg-zinc-900/80'
+const ROW_IDLE = 'border-white/10 bg-zinc-900/45 hover:bg-white/5'
 const HOVER_AFFORDANCE =
   'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 group-focus-visible:opacity-100 motion-reduce:opacity-100'
 

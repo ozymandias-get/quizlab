@@ -179,7 +179,7 @@ function NativePdfViewer({
     return (
       <div
         data-native-pdf-error
-        className="flex h-full items-center justify-center bg-stone-950/50 p-8 text-center text-red-500 backdrop-blur-sm"
+        className="flex h-full items-center justify-center bg-zinc-950/90 p-8 text-center text-red-400"
       >
         <p>
           {t('pdf_load_error')}: {errorMessage || t('error_unknown_error')}
@@ -192,7 +192,7 @@ function NativePdfViewer({
     return (
       <div
         data-native-pdf-loading
-        className="flex h-full min-h-[12rem] w-full items-center justify-center bg-transparent"
+        className="flex h-full min-h-[12rem] w-full items-center justify-center bg-zinc-950"
       >
         <InlineSpinner
           size="xl"
@@ -204,7 +204,10 @@ function NativePdfViewer({
   }
 
   return (
-    <div data-native-pdf-scroll className="pdf-canvas-container flex items-start overflow-auto">
+    <div
+      data-native-pdf-scroll
+      className="pdf-canvas-container flex items-start overflow-auto bg-zinc-950"
+    >
       {/*
         `m-auto` is the whole centering contract, and it lives on the page wrapper
         rather than on the canvas: an auto margin absorbs the free space only when there
@@ -215,10 +218,10 @@ function NativePdfViewer({
       */}
       <div
         data-native-pdf-page={currentPage}
-        className="shadow-ambient-md m-auto"
+        className="m-auto shadow-2xl ring-1 ring-white/10"
         style={totalScaleFactorStyle(scale, pageUserUnit)}
       >
-        <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-lg" />
+        <canvas ref={canvasRef} data-native-pdf-canvas className="block shadow-2xl" />
         <div
           ref={textLayerRef}
           data-native-pdf-text-layer

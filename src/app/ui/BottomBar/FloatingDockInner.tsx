@@ -1,8 +1,8 @@
+import { Dock } from '@app/components/ui/dock'
 import { useAppearance } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
 import { TooltipProvider } from '@shared/ui/components/primitives'
 
-import { motion } from 'motion/react'
 import { memo, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -45,9 +45,15 @@ const FloatingDockInner = memo(function FloatingDockInner({
   const tooltipAlign: DockTooltipAlign = isLayoutSwapped ? 'start' : 'end'
 
   return (
-    <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration={0}>
       <DockTooltipAlignProvider value={tooltipAlign}>
-        <motion.div className="dock-surface flex w-full flex-col items-center gap-1 rounded-2xl border p-1.5 py-3 backdrop-blur-md">
+        <Dock
+          orientation="vertical"
+          iconSize={32}
+          iconMagnification={34}
+          iconDistance={90}
+          className="dock-surface mt-0 h-auto max-h-[calc(100dvh-4rem)] w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 p-1.5 py-3 backdrop-blur-xl"
+        >
           <div className="flex w-full flex-col items-center gap-0.5">
             {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
               <SettingsToolButton onOpenSettings={onOpenSettings} />
@@ -73,7 +79,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
           <div className="bg-border/60 my-1 h-px w-5" role="separator" />
 
           <ModelIconsList visibleModels={visibleModels} />
-        </motion.div>
+        </Dock>
       </DockTooltipAlignProvider>
     </TooltipProvider>
   )

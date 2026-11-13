@@ -1,3 +1,5 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+
 import { Moon } from 'lucide-react'
 import { memo } from 'react'
 
@@ -18,24 +20,26 @@ function SleepPlaceholderViewImpl({ onWakeUp, t }: SleepPlaceholderViewProps) {
           onWakeUp()
         }
       }}
-      className="group bg-background/60 focus-visible:ring-ring/70 flex flex-1 cursor-pointer flex-col items-center justify-center backdrop-blur-sm select-none focus-visible:ring-2 focus-visible:outline-none"
+      className="group focus-visible:ring-ring/70 flex flex-1 cursor-pointer flex-col items-center justify-center bg-zinc-950/70 select-none focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="border-border bg-card group-hover:border-primary/40 group-hover:bg-card/95 flex max-w-sm flex-col items-center rounded-2xl border px-8 py-7 text-center shadow-xs transition-colors">
-        <div className="border-border bg-muted/50 relative mb-4 flex size-14 items-center justify-center rounded-full border">
-          <span
-            aria-hidden
-            className="bg-primary/20 absolute inset-0 rounded-full motion-safe:animate-ping"
-          />
-          <Moon className="text-primary/80 relative size-7" />
+      <BlurFade duration={0.35} offset={8} blur="5px">
+        <div className="flex max-w-sm flex-col items-center rounded-2xl border border-white/10 bg-zinc-900/90 px-8 py-7 text-center shadow-2xl transition-colors group-hover:border-white/20 group-hover:bg-zinc-900/95">
+          <div className="relative mb-4 flex size-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-full bg-white/10 motion-safe:animate-ping"
+            />
+            <Moon className="relative size-7 text-zinc-200" />
+          </div>
+          <p className="text-ql-17 text-foreground font-semibold">{t('ai_session.sleep_title')}</p>
+          <p className="text-ql-12 text-muted-foreground mt-1 max-w-xs leading-relaxed">
+            {t('ai_session.sleep_description')}
+          </p>
+          <span className="text-ql-12 motion-normal mt-4 inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-1.5 font-semibold text-zinc-100 transition-colors group-hover:bg-white/15">
+            {t('ai_session.wake_action')}
+          </span>
         </div>
-        <p className="text-ql-17 text-foreground font-semibold">{t('ai_session.sleep_title')}</p>
-        <p className="text-ql-12 text-muted-foreground mt-1 max-w-xs leading-relaxed">
-          {t('ai_session.sleep_description')}
-        </p>
-        <span className="border-primary/30 bg-primary/10 text-primary group-hover:bg-primary/15 motion-normal text-ql-12 mt-4 inline-flex items-center rounded-full border px-4 py-1.5 font-semibold transition-colors">
-          {t('ai_session.wake_action')}
-        </span>
-      </div>
+      </BlurFade>
     </div>
   )
 }

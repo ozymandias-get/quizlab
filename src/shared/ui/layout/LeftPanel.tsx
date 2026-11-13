@@ -9,6 +9,7 @@ import type {
 } from '@features/pdf/types'
 
 import { useSharedDragDrop } from '@shared/hooks/useSharedDragDrop'
+import { BorderBeam } from '@shared/ui/components/BorderBeam'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import { ImportIcon } from '@ui/components/Icons'
@@ -51,14 +52,23 @@ interface LeftPanelProps {
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
   if (!isVisible) return null
   return (
-    <div className="z-overlay bg-background/60 animate-in fade-in motion-normal absolute inset-0 flex items-center justify-center p-6 backdrop-blur-md">
-      <div className="border-ring/60 bg-card/90 shadow-ambient-lg flex w-full max-w-xs flex-col items-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center">
-        <div className="border-primary/20 bg-primary/10 text-primary flex h-12 w-12 items-center justify-center rounded-xl border">
+    <div className="z-overlay animate-in fade-in motion-normal absolute inset-0 flex items-center justify-center bg-zinc-950/85 p-6 backdrop-blur-xl">
+      <div className="relative flex w-full max-w-xs flex-col items-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-white/25 bg-zinc-900/80 p-6 text-center shadow-2xl backdrop-blur-xl">
+        <BorderBeam
+          size={100}
+          duration={10}
+          borderWidth={1}
+          colorFrom="#a1a1aa"
+          colorTo="#3f3f46"
+        />
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-200">
           <ImportIcon className="h-6 w-6" />
         </div>
         <div>
-          <h3 className="text-foreground text-ql-13 font-semibold">{t('drop_pdf_title')}</h3>
-          <p className="text-muted-foreground text-ql-11 mt-0.5">{t('drop_pdf_desc')}</p>
+          <h3 className="text-ql-13 font-semibold tracking-tight text-zinc-100">
+            {t('drop_pdf_title')}
+          </h3>
+          <p className="text-ql-11 mt-0.5 text-zinc-400">{t('drop_pdf_desc')}</p>
         </div>
       </div>
     </div>
@@ -98,7 +108,7 @@ function LeftPanel({
       <div
         ref={containerRef}
         {...dragHandlers}
-        className="glass-tier-1 panel-3d-left relative flex h-full w-full flex-col overflow-hidden"
+        className="glass-tier-1 panel-3d-left relative flex h-full w-full flex-col overflow-hidden transition-[opacity,background-color,border-color] duration-200 ease-out"
         style={GPU_STYLE}
       >
         <DropOverlay isVisible={isDragOver} t={t} />

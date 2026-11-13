@@ -5,6 +5,7 @@ import {
   useSiteSessionListQuery
 } from '@platform/electron/api/useSiteSessionApi'
 
+import { BlurFade } from '@app/components/ui/blur-fade'
 import { useAppearance } from '@app/providers'
 import { useAiModelActions, useAiModelsCatalog } from '@app/providers/ai-context'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
@@ -49,8 +50,8 @@ const ROW_BASE =
   'motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors'
 
 /** Enabled row uses the accent surface, disabled row the translucent card. */
-const ROW_ACTIVE = 'border-border/65 bg-accent/35'
-const ROW_IDLE = 'border-border/45 bg-card/55 hover:bg-muted/45'
+const ROW_ACTIVE = 'border-white/10 bg-zinc-900/80'
+const ROW_IDLE = 'border-white/10 bg-zinc-900/45 hover:bg-white/5'
 
 const BOTTOM_BAR_ICON = (
   <SettingsTabIcon>
@@ -170,38 +171,39 @@ const BottomBarSettingsTab = memo(() => {
               const isFirst = index === 0
               const isLast = index === visibleToolsFiltered.length - 1
               return (
-                <Field
-                  key={tool.id}
-                  className={`group ${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
-                  onClick={() => handleToggleTool(tool.id)}
-                >
-                  <div className="flex min-w-0 items-center gap-3 self-stretch">
-                    {/* Schematic dock rail: one dot per physical slot, joined by
+                <BlurFade key={tool.id} delay={index * 0.03} className="w-full">
+                  <Field
+                    className={`group ${ROW_BASE} ${isVisible ? ROW_ACTIVE : ROW_IDLE}`}
+                    onClick={() => handleToggleTool(tool.id)}
+                  >
+                    <div className="flex min-w-0 items-center gap-3 self-stretch">
+                      {/* Schematic dock rail: one dot per physical slot, joined by
                         a vertical guide so a hidden row maps to an empty slot. */}
-                    <span
-                      aria-hidden
-                      className="relative flex w-3 shrink-0 items-center justify-center self-stretch"
-                    >
-                      {!isFirst && <span className="bg-border/70 absolute top-0 h-1/2 w-px" />}
-                      {!isLast && <span className="bg-border/70 absolute bottom-0 h-1/2 w-px" />}
                       <span
-                        className={`ring-card relative z-10 size-2 rounded-full ring-2 transition-colors ${
-                          isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-                        }`}
+                        aria-hidden
+                        className="relative flex w-3 shrink-0 items-center justify-center self-stretch"
+                      >
+                        {!isFirst && <span className="bg-border/70 absolute top-0 h-1/2 w-px" />}
+                        {!isLast && <span className="bg-border/70 absolute bottom-0 h-1/2 w-px" />}
+                        <span
+                          className={`ring-card relative z-10 size-2 rounded-full ring-2 transition-colors ${
+                            isVisible ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                          }`}
+                        />
+                      </span>
+                      <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
+                        {t(tool.nameKey, { defaultValue: tool.id })}
+                      </Label>
+                    </div>
+                    <span role="presentation" onClick={(event) => event.stopPropagation()}>
+                      <SettingsToggleSwitch
+                        checked={isVisible}
+                        onChange={() => handleToggleTool(tool.id)}
+                        size="sm"
                       />
                     </span>
-                    <Label className="text-foreground text-ql-12 min-w-0 cursor-pointer truncate font-medium">
-                      {t(tool.nameKey, { defaultValue: tool.id })}
-                    </Label>
-                  </div>
-                  <span role="presentation" onClick={(event) => event.stopPropagation()}>
-                    <SettingsToggleSwitch
-                      checked={isVisible}
-                      onChange={() => handleToggleTool(tool.id)}
-                      size="sm"
-                    />
-                  </span>
-                </Field>
+                  </Field>
+                </BlurFade>
               )
             })}
           </div>
@@ -225,7 +227,7 @@ const BottomBarSettingsTab = memo(() => {
           title={t('bottom_bar_max_icons')}
           detail={t('bottom_bar_max_icons_desc')}
         >
-          <div className="border-border/45 bg-card/55 flex flex-col gap-3 rounded-xl border p-3.5">
+          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/55 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-foreground text-ql-12 font-medium">
                 {t('bottom_bar_max_icons_label')}
@@ -241,7 +243,7 @@ const BottomBarSettingsTab = memo(() => {
               value={bottomBarMaxIcons}
               onChange={(e) => setBottomBarMaxIcons(Number(e.target.value))}
               aria-label={t('bottom_bar_max_icons')}
-              className="accent-primary bg-muted h-2 w-full cursor-pointer rounded-lg"
+              className="accent-primary h-2 w-full cursor-pointer rounded-lg bg-white/10"
             />
             <p className="text-muted-foreground text-ql-11">
               {t('bottom_bar_max_icons_hint', { count: bottomBarMaxIcons })}

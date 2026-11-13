@@ -1,4 +1,7 @@
+import { BlurFade } from '@app/components/ui/blur-fade'
+import { BorderBeam } from '@app/components/ui/border-beam'
 import { DialogBackdrop } from '@app/components/ui/dialog'
+import { MagicCard } from '@app/components/ui/magic-card'
 import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
@@ -51,7 +54,7 @@ export function LanguageSelectionDialog() {
             animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
             exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 6, scale: 0.98 }) }}
             transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-            className="border-border bg-popover text-popover-foreground shadow-ambient-xl mx-4 w-full max-w-md rounded-2xl border p-6 text-center outline-none"
+            className="mx-4 w-full max-w-md rounded-2xl border border-white/15 bg-zinc-900/90 p-6 text-center text-zinc-100 shadow-2xl backdrop-blur-xl outline-none"
           >
             <h2 id={titleId} className="text-ql-20 text-foreground font-semibold">
               {t('onboarding_language_title', { lng: 'en' })}
@@ -65,36 +68,54 @@ export function LanguageSelectionDialog() {
               role="radiogroup"
               aria-label={t('onboarding_language_title', { lng: 'en' })}
             >
-              {Object.values(languages).map((lang) => {
+              {Object.values(languages).map((lang, index) => {
                 const isSelected = selectedLang === lang.code
                 return (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => setSelectedLang(lang.code)}
-                    className={`focus-visible:ring-ring/70 motion-normal group flex items-center gap-3.5 rounded-xl border p-3 text-left transition-all focus-visible:ring-2 focus-visible:outline-none ${
-                      isSelected
-                        ? 'border-primary/60 bg-primary/10 shadow-primary/15 shadow-lg'
-                        : 'border-border bg-card hover:border-primary/30 hover:bg-primary/5 hover:shadow-primary/10 hover:shadow-md'
-                    } `}
-                  >
-                    <span className="border-border/60 bg-muted text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border transition-transform group-hover:scale-105">
-                      {lang.flag}
-                    </span>
-                    <div className="flex flex-col">
-                      <span className="text-ql-13 text-foreground font-semibold">
-                        {lang.nativeName}
-                      </span>
-                      <span className="text-ql-12 text-muted-foreground">{lang.name}</span>
-                    </div>
-                    {isSelected && (
-                      <span className="bg-primary text-primary-foreground text-ql-11 ml-auto flex h-5 w-5 items-center justify-center rounded-full font-bold">
-                        ✓
-                      </span>
-                    )}
-                  </button>
+                  <BlurFade key={lang.code} delay={index * 0.06} className="w-full">
+                    <MagicCard
+                      className="w-full rounded-xl border-white/10"
+                      gradientColor="#27272a"
+                      gradientOpacity={0.45}
+                      gradientFrom="#3f3f46"
+                      gradientTo="#27272a"
+                    >
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setSelectedLang(lang.code)}
+                        className={`focus-visible:ring-ring/70 motion-normal group relative flex w-full items-center gap-3.5 overflow-hidden rounded-xl p-3 text-left transition-all focus-visible:ring-2 focus-visible:outline-none ${
+                          isSelected
+                            ? 'bg-primary/10 ring-primary/50 ring-1'
+                            : 'bg-transparent hover:bg-white/5'
+                        } `}
+                      >
+                        {isSelected && (
+                          <BorderBeam
+                            size={60}
+                            duration={10}
+                            borderWidth={1}
+                            colorFrom="#a1a1aa"
+                            colorTo="#3f3f46"
+                          />
+                        )}
+                        <span className="text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] transition-transform group-hover:scale-105">
+                          {lang.flag}
+                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-ql-13 text-foreground font-semibold">
+                            {lang.nativeName}
+                          </span>
+                          <span className="text-ql-12 text-muted-foreground">{lang.name}</span>
+                        </div>
+                        {isSelected && (
+                          <span className="bg-primary text-primary-foreground text-ql-11 ml-auto flex h-5 w-5 items-center justify-center rounded-full font-bold">
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    </MagicCard>
+                  </BlurFade>
                 )
               })}
             </div>

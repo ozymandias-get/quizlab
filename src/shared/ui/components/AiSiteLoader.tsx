@@ -28,11 +28,11 @@ const AiSiteLoader = memo(function AiSiteLoader({ modelId, iconKey }: AiSiteLoad
       role="status"
       aria-label={t('loading')}
       data-testid="ai-site-loader"
-      className="bg-background/95 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md"
+      className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/95 backdrop-blur-xl"
     >
       <span
         aria-hidden
-        className="border-border/50 bg-card shadow-ambient-lg flex size-16 items-center justify-center rounded-2xl border motion-safe:animate-pulse [&_svg]:size-9"
+        className="flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-zinc-900/90 shadow-2xl ring-1 ring-white/10 motion-safe:animate-pulse [&_svg]:size-9"
       >
         {icon ?? <span className="text-ql-18 text-foreground font-bold uppercase">{initial}</span>}
       </span>

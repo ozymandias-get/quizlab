@@ -150,7 +150,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          'z-tooltip animate-fade-in border-border bg-popover text-popover-foreground shadow-ambient-md text-ql-12 rounded-md border px-2.5 py-1 whitespace-nowrap',
+          'z-tooltip animate-fade-in rounded-md border border-white/15 bg-zinc-900/95 px-2.5 py-1 text-xs whitespace-nowrap text-zinc-200 shadow-lg backdrop-blur-xl',
           className
         )}
         {...props}

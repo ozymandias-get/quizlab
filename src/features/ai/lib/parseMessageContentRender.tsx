@@ -45,7 +45,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
     return (
       <div
         key={`l-${lineIndex}`}
-        className="border-primary/40 text-muted-foreground my-1.5 border-l-2 py-0.5 pl-3 italic"
+        className="my-2 rounded-r-lg border-l-2 border-white/15 bg-white/[0.03] py-1 pr-2 pl-3 text-zinc-300 italic"
       >
         {formatInline(text)}
       </div>
@@ -53,7 +53,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
   }
 
   if (HR_REGEX.test(trimmed)) {
-    return <div key={`l-${lineIndex}`} className="border-border my-3 border-t" />
+    return <div key={`l-${lineIndex}`} className="my-3 border-t border-white/10" />
   }
 
   if (TASK_LIST_REGEX.test(trimmed)) {

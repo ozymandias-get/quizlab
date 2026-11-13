@@ -141,13 +141,13 @@ const ModelSelector = memo(function ModelSelector({
               setIsOpen(!isOpen)
               setModelSearch('')
             }}
-            className="group/btn text-ql-12 border-border/80 bg-card/80 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground focus-visible:ring-ring/70 flex max-w-[190px] min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1 shadow-2xs transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="group/btn text-ql-11 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex max-w-[190px] min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-medium shadow-none transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:outline-none"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-controls={listboxId}
             data-state={isOpen ? 'open' : 'closed'}
           >
-            <Sparkles className="text-primary h-3.5 w-3.5 shrink-0" />
+            <Sparkles className="text-primary/80 h-3 w-3 shrink-0" />
 
             <span
               className="text-foreground max-w-[140px] min-w-0 truncate font-medium"
@@ -211,8 +211,8 @@ const ModelSelector = memo(function ModelSelector({
                     isSelected
                       ? 'bg-primary/10 text-primary font-semibold'
                       : isActive
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                        ? 'text-foreground bg-white/[0.07]'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
                 >
                   <span className="truncate">{model}</span>

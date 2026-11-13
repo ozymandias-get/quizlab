@@ -29,7 +29,7 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
     background = 'transparent',
     minSize = 0.4,
     maxSize = 0.9,
-    particleColor = '#FFFFFF',
+    particleColor = '#e4e4e7',
     particleDensity = 5,
     paused = false
   } = props
@@ -84,8 +84,8 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
           x: Math.random() * width,
           y: Math.random() * height,
           size: minSize + Math.random() * (maxSize - minSize),
-          alpha: 0.1 + Math.random() * 0.7,
-          alphaTarget: 0.1 + Math.random() * 0.7,
+          alpha: 0.06 + Math.random() * 0.34,
+          alphaTarget: 0.08 + Math.random() * 0.4,
           vx: (Math.random() - 0.5) * speed * 0.4,
           vy: (Math.random() - 0.5) * speed * 0.4
         })
@@ -112,7 +112,7 @@ const SparklesCore = memo((props: SparklesCoreProps) => {
 
         // Smooth twinkle
         if (Math.abs(p.alpha - p.alphaTarget) < 0.02) {
-          p.alphaTarget = 0.1 + Math.random() * 0.8
+          p.alphaTarget = 0.08 + Math.random() * 0.4
         } else {
           p.alpha += (p.alphaTarget - p.alpha) * 0.03
         }

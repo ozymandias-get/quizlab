@@ -3,19 +3,27 @@ import { memo } from 'react'
 const StreamingIndicator = memo(function StreamingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="border-primary/20 from-primary/[0.06] to-primary/[0.02] shadow-primary/5 relative rounded-xl border bg-gradient-to-br px-4 py-3 shadow-sm backdrop-blur-md">
-        <div className="flex gap-1.5">
+      <div className="relative rounded-xl border border-white/10 bg-zinc-900/85 px-4 py-3 shadow-2xl">
+        <div className="flex items-center gap-1.5">
           <span
-            className="bg-primary/60 h-2 w-2 animate-bounce rounded-full"
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400/70"
             style={{ animationDelay: '0ms' }}
           />
           <span
-            className="bg-primary/60 h-2 w-2 animate-bounce rounded-full"
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400/70"
             style={{ animationDelay: '150ms' }}
           />
           <span
-            className="bg-primary/60 h-2 w-2 animate-bounce rounded-full"
+            className="h-1.5 w-1.5 animate-bounce rounded-full bg-zinc-400/70"
             style={{ animationDelay: '300ms' }}
+          />
+          <span
+            className="ml-2 h-2 w-24 rounded-full bg-white/5 motion-safe:animate-pulse"
+            aria-hidden
+          />
+          <span
+            className="h-2 w-12 rounded-full bg-white/5 motion-safe:animate-pulse"
+            aria-hidden
           />
         </div>
       </div>

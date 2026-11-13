@@ -80,7 +80,9 @@ function MainWorkspace({
       <motion.div
         ref={leftPanelRef}
         variants={leftPanelVariants}
-        className="h-full will-change-transform"
+        className={`h-full will-change-transform ${
+          isPanelResizing ? '' : 'transition-[width,opacity] duration-200 ease-out'
+        }`}
         style={{
           transform: 'translateZ(0)',
           width: `${leftPanelWidth}%`,

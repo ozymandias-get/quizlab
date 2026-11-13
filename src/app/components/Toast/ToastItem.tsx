@@ -29,11 +29,14 @@ const ICONS: Record<ToastType, ReactNode> = {
   info: <Info className="h-4 w-4" />
 }
 
+const TOAST_SURFACE =
+  'border border-white/10 bg-zinc-900/90 text-zinc-100 shadow-xl backdrop-blur-xl'
+
 const STYLES: Record<ToastType, string> = {
-  success: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
-  error: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
-  warning: 'border-border bg-popover text-popover-foreground shadow-ambient-lg',
-  info: 'border-border bg-popover text-popover-foreground shadow-ambient-lg'
+  success: TOAST_SURFACE,
+  error: TOAST_SURFACE,
+  warning: TOAST_SURFACE,
+  info: TOAST_SURFACE
 }
 
 const ACCENT_COLORS: Record<ToastType, string> = {
@@ -96,7 +99,7 @@ function renderToastMessage(text: string): ReactNode {
         <code
           key={`${index}-path`}
           title={value}
-          className="bg-muted/60 text-ql-11 rounded px-1 py-0.5 font-mono break-all select-all"
+          className="text-ql-11 rounded border border-white/10 bg-white/[0.06] px-1 py-0.5 font-mono break-all select-all"
         >
           {value}
         </code>
@@ -308,7 +311,7 @@ const ToastItem = memo(
         </div>
 
         {!isPersistent && (
-          <div className="bg-border/40 absolute right-0 bottom-0 left-0 h-[2px]">
+          <div className="absolute right-0 bottom-0 left-0 h-[2px] bg-white/10">
             <div
               key={animationKey}
               className={cn('h-full', PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info)}

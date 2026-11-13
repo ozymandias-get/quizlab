@@ -39,7 +39,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
   if (items.length === 0) {
     return (
       <p
-        className="border-border/40 bg-muted/15 text-ql-11 text-muted-foreground mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed px-3 py-1.5 text-center"
+        className="text-ql-11 text-muted-foreground mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed border-white/10 bg-white/[0.03] px-3 py-1.5 text-center"
         data-testid="ai-draft-empty"
       >
         {t('ai_draft_empty_hint')}
@@ -93,11 +93,11 @@ function DraftItemChip({
       contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
     >
       <li
-        className="border-border/50 bg-muted/35 focus-within:border-border hover:border-border/80 hover:bg-muted/65 motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border pr-0.5 pl-2 transition-all"
+        className="group motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-zinc-800/90 pr-0.5 pl-2 transition-all focus-within:border-white/20 hover:border-white/20 hover:bg-zinc-800"
         data-testid="ai-draft-item"
       >
         <span
-          className="bg-background/80 text-muted-foreground text-ql-10 flex size-4 shrink-0 items-center justify-center rounded-md font-semibold tabular-nums"
+          className="text-muted-foreground text-ql-10 flex size-4 shrink-0 items-center justify-center rounded-md bg-zinc-950/80 font-semibold tabular-nums"
           aria-hidden
         >
           {order}
@@ -130,7 +130,7 @@ function DraftItemChip({
             className={cn(
               // A 24px box with its own padding keeps the delete target away
               // from the label; a mis-click no longer costs the user the draft.
-              'text-muted-foreground/85 hover:bg-destructive/12 hover:text-destructive ml-1 size-6 shrink-0 rounded-md p-1'
+              'text-muted-foreground/70 hover:bg-destructive/12 hover:text-destructive ml-1 size-6 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100'
             )}
           >
             <X className="size-3" aria-hidden />

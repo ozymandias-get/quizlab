@@ -18,6 +18,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import { createPinnedAiProject, savePinnedAiProject } from '../lib/pinnedProjects'
+import { useChatUiStore } from '../store/chatUiStore'
 import AiOverflowMenu from './aiTabStrip/AiOverflowMenu'
 import AiTabContextMenu from './aiTabStrip/AiTabContextMenu'
 import AiTabStripPinButton from './aiTabStrip/AiTabStripPinButton'
@@ -32,10 +33,19 @@ interface AiTabStripProps {
   onHideHome?: () => void
   /** Last known URL per tab; used by the pin dialog when the view is not live. */
   getTabUrl: (tabId: string, modelId: string) => string | undefined
+  /** Tabs whose native session has been put to sleep. */
+  sleepingTabIds?: ReadonlySet<string>
 }
 
-function AiTabStrip({ showHome, onShowHome, onHideHome, getTabUrl }: AiTabStripProps) {
+function AiTabStrip({
+  showHome,
+  onShowHome,
+  onHideHome,
+  getTabUrl,
+  sleepingTabIds
+}: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
+  const isStreamingByTab = useChatUiStore((s) => s.isStreamingByTab)
   const aiSites = useAiSites()
   const { hasActiveContent } = useAiContentPresence()
   const { setActiveTab, closeTab, moveTab } = useAiTabActions()
@@ -122,6 +132,8 @@ function AiTabStrip({ showHome, onShowHome, onHideHome, getTabUrl }: AiTabStripP
             }
             tr={helpers.tr}
             iconKey={aiSites[tab.modelId]?.icon || tab.modelId}
+            isStreaming={isStreamingByTab[tab.id] ?? false}
+            isSleeping={sleepingTabIds?.has(tab.id) ?? false}
             onSelect={handleSelectTab}
             onContextMenu={actions.handleOpenContextMenu}
             onClose={closeTab}

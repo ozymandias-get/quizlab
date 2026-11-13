@@ -67,9 +67,9 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border bg-card/90 relative flex items-center justify-between gap-4 border-b px-4 py-2.5">
+      <div className="relative flex items-center justify-between gap-4 border-b border-white/10 bg-zinc-950/80 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="border-border bg-muted/60 text-foreground flex h-9 w-9 items-center justify-center rounded-lg border shadow-xs">
+          <div className="text-foreground flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] shadow-xs">
             {getAiIcon('gdrive')}
           </div>
           <div className="min-w-0">
@@ -86,7 +86,7 @@ function GoogleDrivePanel({
         {/* Soft inner edge between the themed chrome and the embedded page. */}
         <div
           aria-hidden
-          className="from-background/70 pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-b to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-b from-zinc-950/70 to-transparent"
         />
       </div>
 
@@ -103,7 +103,7 @@ function GoogleDrivePanel({
             role="status"
             aria-busy="true"
             aria-live="polite"
-            className="bg-card pointer-events-none absolute inset-0 z-10 flex flex-col gap-5 p-5"
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col gap-5 bg-zinc-950/80 p-5"
           >
             <span className="sr-only">{t('loading')}</span>
             <div className="flex items-center gap-3">
@@ -118,7 +118,7 @@ function GoogleDrivePanel({
               {SKELETON_ROWS.map((row) => (
                 <div
                   key={row}
-                  className="border-border/50 bg-background/40 flex items-center gap-3 rounded-xl border p-3"
+                  className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 p-3"
                 >
                   <div className="bg-muted h-10 w-10 shrink-0 rounded-lg motion-safe:animate-pulse" />
                   <div className="min-w-0 flex-1 space-y-2">
@@ -132,7 +132,7 @@ function GoogleDrivePanel({
         )}
 
         {error && (
-          <div className="bg-card/95 absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-6 text-center backdrop-blur-sm">
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-zinc-950/85 p-6 text-center backdrop-blur-xl">
             <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden />
             <p className="text-ql-12 text-muted-foreground max-w-sm break-words">{error}</p>
             {handleRetry && (
