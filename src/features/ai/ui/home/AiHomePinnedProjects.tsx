@@ -3,7 +3,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Link2, Pin, X } from 'lucide-react'
-import { memo, Suspense, useCallback } from 'react'
+import { memo, Suspense, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { PinnedAiProject } from '../../lib/pinnedProjects'
@@ -24,6 +24,7 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
   onRemove
 }: AiHomePinnedProjectsProps) {
   const { t } = useTranslation()
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const handleOpen = useCallback(
     (project: PinnedAiProject) => {
@@ -32,8 +33,26 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
     [onOpen]
   )
 
+  const handleRemove = useCallback(
+    (id: string, index: number) => {
+      const remainingCount = projects.length - 1
+      onRemove(id)
+      requestAnimationFrame(() => {
+        const grid = gridRef.current
+        if (!grid) return
+        if (remainingCount > 0) {
+          const targetIndex = Math.min(index, remainingCount - 1)
+          grid.querySelectorAll<HTMLButtonElement>('[data-pinned-open]')[targetIndex]?.focus()
+          return
+        }
+        grid.closest('section')?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus()
+      })
+    },
+    [onRemove, projects.length]
+  )
+
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2">
+    <div ref={gridRef} className="grid gap-2.5 sm:grid-cols-2">
       {projects.map((project, index) => {
         const site = aiSites[project.modelId]
         const accent = safeAiAccentColor(site?.color)
@@ -61,6 +80,7 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
                 <div className="relative">
                   <button
                     type="button"
+                    data-pinned-open=""
                     onClick={() => handleOpen(project)}
                     aria-label={t('ai_home.pinned_open', { name: project.name })}
                     className="focus-visible:ring-ring/70 motion-normal flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent bg-transparent p-3 pr-12 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
@@ -95,7 +115,7 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
 
                   <button
                     type="button"
-                    onClick={() => onRemove(project.id)}
+                    onClick={() => handleRemove(project.id, index)}
                     aria-label={t('ai_home.pinned_remove', { name: project.name })}
                     title={t('ai_home.pinned_remove', { name: project.name })}
                     className="motion-normal text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring/70 absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-[color,background-color] focus-visible:ring-2 focus-visible:outline-none"

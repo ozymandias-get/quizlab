@@ -3,7 +3,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowUpRight } from 'lucide-react'
-import { type DragEvent, type KeyboardEvent, memo, Suspense } from 'react'
+import { type DragEvent, type KeyboardEvent, memo, Suspense, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../../model/home'
@@ -41,6 +41,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
   tone
 }: GridCardProps) {
   const { t } = useTranslation()
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const accent = safeAiAccentColor(site.color)
   const displayName = site.displayName || site.name || itemId
   const icon = getAiIcon(site.icon || itemId)
@@ -67,9 +68,19 @@ const GridCard = memo<GridCardProps>(function GridCard({
     if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
       event.preventDefault()
       onMove(itemId, -1)
+      requestAnimationFrame(() => {
+        if (buttonRef.current && document.activeElement !== buttonRef.current) {
+          buttonRef.current.focus()
+        }
+      })
     } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       event.preventDefault()
       onMove(itemId, 1)
+      requestAnimationFrame(() => {
+        if (buttonRef.current && document.activeElement !== buttonRef.current) {
+          buttonRef.current.focus()
+        }
+      })
     }
   }
 
@@ -95,6 +106,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
           gradientTo="#18181b"
         >
           <button
+            ref={buttonRef}
             type="button"
             onClick={() => onClick(itemId)}
             onKeyDown={handleKeyDown}

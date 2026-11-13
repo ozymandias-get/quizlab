@@ -3,7 +3,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Clock3, FileText, X } from 'lucide-react'
-import { memo, Suspense, useCallback } from 'react'
+import { memo, Suspense, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { RecentAiWorkEntry } from '../../lib/recentWork'
@@ -63,6 +63,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
 }: AiHomeRecentWorkProps) {
   const { t, i18n } = useTranslation()
   const language = i18n?.language ?? 'en'
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const handleOpen = useCallback(
     (entry: RecentAiWorkEntry) => {
@@ -71,8 +72,26 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
     [onOpen]
   )
 
+  const handleRemove = useCallback(
+    (id: string, index: number) => {
+      const remainingCount = entries.length - 1
+      onRemove(id)
+      requestAnimationFrame(() => {
+        const grid = gridRef.current
+        if (!grid) return
+        if (remainingCount > 0) {
+          const targetIndex = Math.min(index, remainingCount - 1)
+          grid.querySelectorAll<HTMLButtonElement>('[data-recent-open]')[targetIndex]?.focus()
+          return
+        }
+        grid.closest('section')?.querySelector<HTMLButtonElement>('button[aria-expanded]')?.focus()
+      })
+    },
+    [entries.length, onRemove]
+  )
+
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2">
+    <div ref={gridRef} className="grid gap-2.5 sm:grid-cols-2">
       {entries.map((entry, index) => {
         const site = aiSites[entry.modelId]
         const accent = safeAiAccentColor(site?.color)
@@ -111,6 +130,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
                 <div className="relative">
                   <button
                     type="button"
+                    data-recent-open=""
                     onClick={() => handleOpen(entry)}
                     aria-label={t('ai_home.recent_open', {
                       name: displayName,
@@ -156,7 +176,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
 
                   <button
                     type="button"
-                    onClick={() => onRemove(entry.id)}
+                    onClick={() => handleRemove(entry.id, index)}
                     aria-label={t('ai_home.recent_remove', { document: documentName })}
                     title={t('ai_home.recent_remove', { document: documentName })}
                     className="motion-normal text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring/70 absolute top-1/2 right-2 flex size-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md transition-[color,background-color] focus-visible:ring-2 focus-visible:outline-none"
