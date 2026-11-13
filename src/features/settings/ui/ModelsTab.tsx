@@ -177,7 +177,7 @@ const ModelsTab = memo(() => {
           </SettingsSection>
         }
         footer={
-          <div className="border-border/60 space-y-1 border-t px-1 pt-4">
+          <div className="space-y-1 border-t border-white/[0.07] px-1 pt-4">
             <p className="text-ql-12 text-muted-foreground">
               {t('active_models')}:{' '}
               <span className="text-foreground tabular-nums">

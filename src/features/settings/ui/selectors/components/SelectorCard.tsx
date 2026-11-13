@@ -89,7 +89,7 @@ export default memo(function SelectorCard({
       />
 
       {isExpanded && (
-        <div className="border-border/60 mt-4 space-y-4 border-t pt-4">
+        <div className="mt-4 space-y-4 border-t border-white/[0.07] pt-4">
           <SelectorCardDetails
             savedHost={savedHost}
             existingTab={existingTab}

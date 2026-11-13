@@ -403,7 +403,7 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="border-border/45 bg-muted/25 focus-within:border-border/80 focus-within:bg-background/75 @container relative mx-3 my-2 overflow-hidden rounded-xl border transition-all"
+                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-white/[0.07] bg-zinc-900/50 transition-all focus-within:border-white/20 focus-within:bg-zinc-950/90"
                 onFocusCapture={() => setIsComposerFocused(true)}
                 onBlurCapture={(event) => {
                   const nextTarget = event.relatedTarget as Node | null

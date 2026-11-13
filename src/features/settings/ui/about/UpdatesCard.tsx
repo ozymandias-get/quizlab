@@ -165,7 +165,7 @@ const UpdatesCard = memo(
           </AnimatePresence>
         }
       >
-        <div className="border-border/60 bg-background/40 rounded-xl border p-4">
+        <div className="rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
           <UpdateStatusMessage status={updateStatus} updateInfo={updateInfo} t={t} />
         </div>
 

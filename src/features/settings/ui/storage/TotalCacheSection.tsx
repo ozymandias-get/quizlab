@@ -157,7 +157,7 @@ export const TotalCacheSection = memo(function TotalCacheSection({
       )}
 
       {/* Auto-clean toggle */}
-      <div className="border-border/60 bg-background/40 flex items-center justify-between gap-3 rounded-xl border p-4">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
         <div className="flex min-w-0 items-start gap-2.5">
           <span
             aria-hidden

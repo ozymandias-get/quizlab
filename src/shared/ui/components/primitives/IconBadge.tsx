@@ -35,7 +35,7 @@ export const IconBadge = ({
     warning: 'bg-amber-500/10 text-amber-500 border border-amber-500/20',
     danger: 'bg-destructive/10 text-destructive border border-destructive/20',
     info: 'bg-sky-500/10 text-sky-500 border border-sky-500/20',
-    ghost: 'bg-muted text-muted-foreground border border-border'
+    ghost: 'bg-zinc-900/45 text-muted-foreground border border-white/[0.07]'
   }
 
   return (

@@ -28,7 +28,7 @@ const AiErrorView = memo(({ error, onRetry, aiName }: AiErrorViewProps) => {
         <Button
           type="button"
           variant="outline"
-          className="border-border text-foreground hover:bg-muted mt-2 flex items-center gap-2 rounded-full px-6 py-2"
+          className="text-foreground mt-2 flex items-center gap-2 rounded-full border border-white/12 bg-zinc-900/70 px-6 py-2 hover:bg-white/5"
           onClick={onRetry}
         >
           <RefreshCw className="h-4 w-4" />

@@ -159,7 +159,7 @@ const ModelSelector = memo(function ModelSelector({
           </button>
         }
       >
-        <div className="border-border/60 relative mb-1 border-b pb-1.5">
+        <div className="relative mb-1 border-b border-white/[0.07] pb-1.5">
           <InputGroup>
             <InputGroupAddon align="inline-start">
               <Search className="text-muted-foreground/60 h-3 w-3" />

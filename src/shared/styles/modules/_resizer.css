@@ -76,8 +76,8 @@
    tinted range. */
 
 .dock-surface {
-  background-color: oklch(0.21 0.006 285.9 / calc(0.55 + (var(--bar-opacity-factor, 0.7) * 0.35)));
-  border-color: oklch(1 0 0 / 0.1);
+  background-color: oklch(0.095 0.004 285.8 / calc(0.65 + (var(--bar-opacity-factor, 0.7) * 0.3)));
+  border-color: oklch(1 0 0 / 0.12);
   box-shadow: var(--shadow-ambient-sm);
 }
 

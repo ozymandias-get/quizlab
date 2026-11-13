@@ -9,8 +9,8 @@ interface SettingsRowProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses: Record<NonNullable<SettingsRowProps['variant']>, string> = {
-  default: 'border-border/45 bg-card/50',
-  muted: 'border-border/45 bg-muted/25',
+  default: 'border-white/[0.07] bg-zinc-950/80',
+  muted: 'border-white/[0.07] bg-zinc-900/45',
   accent: 'border-ring/35 bg-accent/25'
 }
 

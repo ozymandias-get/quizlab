@@ -14,7 +14,7 @@ function BrowserFallback() {
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-        className="border-border bg-card shadow-ambient-xl relative z-10 flex w-full max-w-md flex-col items-center rounded-2xl border p-8 text-center"
+        className="shadow-ambient-xl relative z-10 flex w-full max-w-md flex-col items-center rounded-2xl border border-white/[0.07] bg-zinc-950/90 p-8 text-center"
       >
         <div className="border-primary/20 bg-primary/10 text-primary relative mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border shadow-xs">
           <Monitor className="h-8 w-8" />

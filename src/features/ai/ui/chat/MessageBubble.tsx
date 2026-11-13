@@ -202,7 +202,7 @@ const MessageBubble = memo(function MessageBubble({
                 key={i}
                 type="button"
                 onClick={() => openPreview(img)}
-                className="border-border focus-visible:ring-ring/70 cursor-zoom-in overflow-hidden rounded-lg border focus-visible:ring-2 focus-visible:outline-none"
+                className="focus-visible:ring-ring/70 cursor-zoom-in overflow-hidden rounded-lg border border-white/[0.07] focus-visible:ring-2 focus-visible:outline-none"
                 aria-label={t('api_chat_open_image')}
               >
                 <img src={img} alt="" className="max-h-[200px] max-w-[200px] object-cover" />

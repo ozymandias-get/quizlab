@@ -23,7 +23,7 @@ export const AiAvatar = memo(function AiAvatar() {
 export const UserAvatar = memo(function UserAvatar() {
   return (
     <div className="relative shrink-0">
-      <Avatar className="border-border bg-muted size-7.5 rounded-lg border select-none [&>span]:rounded-lg">
+      <Avatar className="size-7.5 rounded-lg border border-white/[0.07] bg-zinc-900 select-none [&>span]:rounded-lg">
         <AvatarFallback className="text-muted-foreground rounded-lg bg-transparent">
           <User className="size-3.5" />
         </AvatarFallback>

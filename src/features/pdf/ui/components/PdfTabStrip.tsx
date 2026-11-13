@@ -2,6 +2,7 @@ import type { PdfTab } from '@features/pdf/hooks/types'
 
 import { useAppearance } from '@app/providers'
 import { useTabStripReorder } from '@shared/hooks'
+import { cn } from '@shared/lib/uiUtils'
 import { TabStripHomeButton, ToolbarButton } from '@shared/ui/components/primitives'
 import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
 
@@ -180,7 +181,7 @@ function PdfTabStrip({
 
   return (
     <div
-      className={`${TAB_STRIP_BAR_CLASS}${isLayoutSwapped ? 'window-controls-safe' : ''}`}
+      className={cn(TAB_STRIP_BAR_CLASS, isLayoutSwapped && 'window-controls-safe')}
       data-window-edge={isLayoutSwapped ? undefined : 'left'}
     >
       <div

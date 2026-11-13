@@ -131,7 +131,7 @@ function AiOverflowMenu({
                   key={tab.id}
                   role="group"
                   aria-label={label}
-                  className="group hover:bg-muted flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors"
+                  className="group flex min-h-8 w-full items-center gap-2 rounded-md px-2.5 py-1.5 transition-colors hover:bg-white/10"
                   onContextMenu={(event) => onContextMenu(event, tab.id)}
                 >
                   <button

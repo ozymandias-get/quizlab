@@ -47,7 +47,7 @@ const ProviderSelector = memo(function ProviderSelector({
             size="sm"
             data-state={showProviderSelector ? 'open' : 'closed'}
             onClick={() => setShowProviderSelector(!showProviderSelector)}
-            className="bg-card/80 text-ql-12 h-7 max-w-[220px] min-w-0 gap-1.5 rounded-lg px-2.5 font-medium shadow-2xs"
+            className="text-ql-12 h-7 max-w-[220px] min-w-0 gap-1.5 rounded-lg border-white/[0.07] bg-white/[0.04] px-2.5 font-medium shadow-2xs hover:border-white/20 hover:bg-white/[0.08]"
             aria-haspopup="listbox"
             aria-expanded={showProviderSelector}
           >
@@ -76,7 +76,7 @@ const ProviderSelector = memo(function ProviderSelector({
                 className={`text-ql-12 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors ${
                   isSelected
                     ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                 }`}
               >
                 <span className="truncate">{p.name || p.baseUrl}</span>

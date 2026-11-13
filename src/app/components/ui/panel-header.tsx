@@ -6,7 +6,7 @@ export function PanelHeader({ className, ...props }: React.HTMLAttributes<HTMLDi
   return (
     <div
       className={cn(
-        'border-border bg-card/80 flex shrink-0 items-center justify-between border-b px-5 py-3.5',
+        'flex shrink-0 items-center justify-between border-b border-white/[0.07] bg-zinc-950/60 px-5 py-3.5',
         className
       )}
       {...props}

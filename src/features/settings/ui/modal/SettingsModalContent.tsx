@@ -37,7 +37,10 @@ function SettingsTabSkeleton() {
         </div>
       </div>
       {[0, 1, 2].map((row) => (
-        <div key={row} className="border-border/60 bg-card/40 space-y-4 rounded-2xl border p-4">
+        <div
+          key={row}
+          className="space-y-4 rounded-2xl border border-white/[0.07] bg-zinc-950/60 p-4"
+        >
           <div className="bg-muted h-3 w-32 max-w-full rounded-full" />
           <div className="bg-muted/70 h-8 w-full rounded-lg" />
           <div className="flex gap-3">
@@ -115,7 +118,7 @@ export default memo(function SettingsModalContent({
               transition={{ duration: DURATION.normal }}
               className="flex h-full min-h-[300px] items-center justify-center"
             >
-              <div className="border-border/60 bg-card/40 relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border px-6 py-7 text-center">
+              <div className="relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-zinc-950/60 px-6 py-7 text-center">
                 <div className="bg-muted/40 motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full blur-2xl" />
                 <SettingsTabIcon>
                   <SettingsIcon className="h-5 w-5" />

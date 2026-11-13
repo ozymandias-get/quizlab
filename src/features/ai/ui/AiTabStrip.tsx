@@ -7,6 +7,7 @@ import {
   useAiTabsSliceState
 } from '@app/providers/ai-context'
 import { useTabStripReorder } from '@shared/hooks'
+import { cn } from '@shared/lib/uiUtils'
 import { TabStripHomeButton } from '@shared/ui/components/primitives'
 import {
   TAB_STRIP_BAR_CLASS,
@@ -105,7 +106,7 @@ function AiTabStrip({
 
   return (
     <div
-      className={`${TAB_STRIP_BAR_CLASS}${isLayoutSwapped ? '' : 'window-controls-safe'}`}
+      className={cn(TAB_STRIP_BAR_CLASS, !isLayoutSwapped && 'window-controls-safe')}
       data-window-edge={isLayoutSwapped ? 'left' : undefined}
     >
       <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>

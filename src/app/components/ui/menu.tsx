@@ -23,7 +23,7 @@ const MenuSurface = React.forwardRef<HTMLDivElement, MenuSurfaceProps>(function 
       ref={ref}
       data-slot="menu-surface"
       className={cn(
-        'z-dropdown rounded-xl border border-white/15 bg-zinc-900/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-xl',
+        'z-dropdown rounded-xl border border-white/12 bg-zinc-950/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-xl',
         className
       )}
       {...props}

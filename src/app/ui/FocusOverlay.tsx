@@ -47,16 +47,16 @@ interface FocusOverlayProps {
 
 const SHELL_STYLE: CSSProperties = {
   contain: 'layout paint size',
-  border: '1px solid oklch(1 0 0 / 0.1)',
+  border: '1px solid oklch(1 0 0 / 0.07)',
   borderRadius: 'var(--radius-xl)',
   boxShadow: 'var(--shadow-ambient-xl)',
-  background: 'oklch(0.145 0.005 285.8)'
+  background: '#060608'
 }
 
 const BACKDROP_STYLE: CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'oklch(0.09 0.005 285.8 / 0.8)',
+  background: 'oklch(0.04 0.003 285.8 / 0.85)',
   display: 'flex',
   alignItems: 'stretch',
   justifyContent: 'stretch',

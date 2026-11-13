@@ -201,7 +201,7 @@ const MessageList = memo(function MessageList({
           onClick={scrollToTop}
           aria-label={t('api_chat_scroll_to_top')}
           title={t('api_chat_scroll_to_top')}
-          className="text-ql-11 border-border bg-card/95 text-muted-foreground shadow-ambient-md absolute right-4 bottom-16 z-10 gap-1 rounded-full border"
+          className="text-ql-11 shadow-ambient-md absolute right-4 bottom-16 z-10 gap-1 rounded-full border border-white/12 bg-zinc-950/90 text-zinc-300 backdrop-blur-xl hover:bg-white/5 hover:text-zinc-100"
         >
           <ChevronUp className="h-3.5 w-3.5" />
           <span className="max-sm:sr-only">{t('api_chat_scroll_to_top')}</span>

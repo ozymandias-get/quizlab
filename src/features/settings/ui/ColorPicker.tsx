@@ -29,7 +29,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   const normalizedColor = color.toLowerCase()
 
   return (
-    <div className="border-border/60 bg-background/40 flex flex-col gap-3 rounded-xl border p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/80 p-4">
       {label && (
         <div className="text-muted-foreground flex items-center gap-2">
           <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
@@ -80,7 +80,9 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
             <PopoverButton
               className={cn(
                 'focus-visible:ring-ring/70 flex w-full items-center gap-3 rounded-lg border p-1.5 transition-colors outline-none focus-visible:ring-2',
-                open ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
+                open
+                  ? 'border-ring/50 bg-accent/30'
+                  : 'border-white/[0.07] bg-zinc-900/50 hover:bg-white/5'
               )}
             >
               <span
@@ -103,7 +105,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
               leaveTo="opacity-0 translate-y-1 scale-[0.98]"
             >
               <PopoverPanel className="z-overlay absolute bottom-full left-0 mb-3 outline-none">
-                <div className="border-border bg-popover text-popover-foreground shadow-ambient-xl rounded-xl border p-3.5">
+                <div className="text-popover-foreground shadow-ambient-xl rounded-xl border border-white/12 bg-zinc-950/95 p-3.5 backdrop-blur-xl">
                   <div className="custom-color-picker">
                     <HexColorPicker color={color} onChange={onChange} />
                   </div>

@@ -6,9 +6,9 @@ import * as React from 'react'
 const TAB_PILL_BASE =
   'focus-visible:ring-ring/70 motion-normal relative flex h-8 max-w-[240px] min-w-0 items-center gap-2 rounded-lg border px-3 transition-[color,background-color,border-color,box-shadow,transform] outline-none select-none focus-visible:ring-2 active:scale-[0.98]'
 
-const TAB_PILL_ACTIVE = 'border-border/70 bg-card text-foreground shadow-2xs'
+const TAB_PILL_ACTIVE = 'border-white/[0.07] bg-zinc-950/80 text-foreground shadow-2xs'
 const TAB_PILL_INACTIVE =
-  'text-muted-foreground border-transparent bg-transparent hover:border-border/45 hover:bg-muted/45 hover:text-foreground'
+  'text-muted-foreground border-transparent bg-zinc-900/45 hover:border-white/[0.07] hover:bg-zinc-900/50 hover:text-foreground'
 
 interface TabPillProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag'> {
   isActive?: boolean

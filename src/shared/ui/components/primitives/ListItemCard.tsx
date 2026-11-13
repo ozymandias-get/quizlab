@@ -18,13 +18,13 @@ interface SurfaceCardProps extends HTMLAttributes<HTMLDivElement> {
 const SurfaceCard = forwardRef<HTMLDivElement, SurfaceCardProps>(
   ({ className = '', children, variant = 'default', interactive = false, ...props }, ref) => {
     const variantClasses = {
-      default: 'border-border bg-card shadow-xs',
-      muted: 'border-border/60 bg-muted/40',
+      default: 'border-white/[0.07] bg-zinc-900/45 shadow-xs',
+      muted: 'border-white/[0.07] bg-zinc-900/45',
       accent: 'border-ring/30 bg-accent/20'
     }
 
     const interactiveClasses = interactive
-      ? 'cursor-pointer transition-[color,background-color,border-color,transform] motion-normal hover:bg-muted/70 hover:border-border active:scale-[0.99] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70'
+      ? 'cursor-pointer transition-[color,background-color,border-color,transform] motion-normal hover:bg-white/5 hover:border-white/12 active:scale-[0.99] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70'
       : ''
 
     return (
@@ -49,7 +49,7 @@ interface ListItemCardProps extends HTMLAttributes<HTMLDivElement> {
 const ListItemCardInner = forwardRef<HTMLDivElement, ListItemCardProps>(
   ({ className = '', children, active = false, interactive = true, ...props }, ref) => {
     const activeClasses = active
-      ? 'border-ring/60 bg-card text-foreground font-medium'
+      ? 'border-white/[0.07] bg-zinc-950/80 text-foreground font-medium'
       : 'text-muted-foreground'
 
     return (

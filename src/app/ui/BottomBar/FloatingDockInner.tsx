@@ -76,7 +76,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
             )}
           </div>
 
-          <div className="bg-border/60 my-1 h-px w-5" role="separator" />
+          <div className="my-1 h-px w-5 bg-white/[0.07]" role="separator" />
 
           <ModelIconsList visibleModels={visibleModels} />
         </Dock>

@@ -25,11 +25,11 @@ const AiHomeSection = memo(function AiHomeSection({
   const handleToggle = () => setIsOpen((current) => !current)
 
   return (
-    <section className="border-border/45 bg-muted/15 overflow-hidden rounded-2xl border">
+    <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
       <button
         type="button"
         aria-expanded={isOpen}
-        className="hover:bg-muted/35 focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none focus-visible:ring-1 focus-visible:outline-none"
+        className="focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none hover:bg-white/[0.03] focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
         <div className="bg-muted/80 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">

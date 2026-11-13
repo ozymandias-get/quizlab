@@ -10,7 +10,7 @@ export const TAB_STRIP_BAR_CLASS =
 // no longer need the row to hide horizontal overflow.
 export const TAB_STRIP_ROW_CLASS = 'flex h-full min-w-0 items-center gap-1.5 px-3'
 
-export const TAB_STRIP_DIVIDER_CLASS = 'h-4 w-px shrink-0 bg-white/10'
+export const TAB_STRIP_DIVIDER_CLASS = 'h-4 w-px shrink-0 bg-white/[0.07]'
 
 /** Active tab: a readable dark slab with a hairline edge. */
 export const TAB_ACTIVE_CLASS = 'border-white/[0.07] bg-zinc-800/90 text-zinc-100 shadow-sm'

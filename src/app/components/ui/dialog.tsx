@@ -88,7 +88,7 @@ export function Dialog({
             transition={{ duration: DURATION.normal }}
             className={cn(
               panelSizeClasses[size],
-              'border-border shadow-ambient-xl bg-background border',
+              'shadow-ambient-xl border border-white/12 bg-zinc-950/95 backdrop-blur-xl',
               size !== 'fullscreen' && 'rounded-2xl',
               panelClassName
             )}
