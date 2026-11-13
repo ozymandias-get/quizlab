@@ -3,6 +3,7 @@ import { setDockHovered } from '@shared/stores/dockHoverStore'
 
 import { GripVertical } from 'lucide-react'
 import {
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   lazy,
   memo,
@@ -11,6 +12,9 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
   useState
 } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -42,17 +46,26 @@ const RESIZE_KEY_STEP_PX = 32
 const HANDLE_CLASS =
   'resizer-handle pointer-events-none absolute left-1/2 flex h-10 w-5 -translate-x-1/2 items-center justify-center'
 
+/**
+ * The dock is scaled as a whole, so its visual box grows past the flex slot it
+ * occupies. The handles sit in the drag strips around that slot; the scale
+ * overflow (computed in BottomBar) moves them out to the real visual edge
+ * instead of leaving them underneath the dock surface.
+ */
 const handlebarAboveDock = (
-  <div className={`${HANDLE_CLASS} bottom-1.5`}>
+  <div className={`${HANDLE_CLASS} resizer-handle--above`}>
     <GripVertical className="text-muted-foreground h-3.5 w-3.5" />
   </div>
 )
 
 const handlebarBelowDock = (
-  <div className={`${HANDLE_CLASS} top-1.5`}>
+  <div className={`${HANDLE_CLASS} resizer-handle--below`}>
     <GripVertical className="text-muted-foreground h-3.5 w-3.5" />
   </div>
 )
+
+/** Vertical room a handle needs outside the visual dock: 40px pill + 6px gap + padding. */
+const DOCK_HANDLE_CLEARANCE = 48
 
 /** Single shared particles node — lightweight micro-canvas.
  *  Stays mounted across a resize and pauses in place,
@@ -107,7 +120,58 @@ function BottomBar({
     return () => mediaQuery.removeEventListener('change', handleMediaQuery)
   }, [])
 
-  const { shellStyle, stackStyle } = useBottomBarStyles(bottomBarOpacity, bottomBarScale)
+  const { shellStyle, stackStyle, clampedScale } = useBottomBarStyles(
+    bottomBarOpacity,
+    bottomBarScale
+  )
+  const shellRef = useRef<HTMLDivElement>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const [dockMetrics, setDockMetrics] = useState({ maxVisualHeight: 0, overflow: 0 })
+
+  // Measure the actual rail slot instead of assuming a fixed viewport inset.
+  // The main workspace padding changes at the md/lg breakpoints, and the dock
+  // itself is scaled, so the handles need both the shell height and the
+  // transform overflow to stay outside the dock surface.
+  useLayoutEffect(() => {
+    const shell = shellRef.current
+    const stack = stackRef.current
+    if (!shell || !stack) return
+
+    const measure = () => {
+      const shellHeight = shell.clientHeight
+      const layoutHeight = stack.offsetHeight
+      const overflow = Math.max(0, (layoutHeight * (clampedScale - 1)) / 2)
+      const maxVisualHeight =
+        shellHeight > 0 ? Math.max(120, shellHeight - DOCK_HANDLE_CLEARANCE * 2) : 0
+
+      setDockMetrics((previous) =>
+        previous.maxVisualHeight === maxVisualHeight && Math.abs(previous.overflow - overflow) < 0.5
+          ? previous
+          : { maxVisualHeight, overflow }
+      )
+    }
+
+    measure()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (observer) {
+      observer.observe(shell)
+      observer.observe(stack)
+    }
+
+    return () => observer?.disconnect()
+  }, [clampedScale])
+
+  const shellStyleWithDock = useMemo<CSSProperties>(
+    () =>
+      ({
+        ...shellStyle,
+        ...(dockMetrics.maxVisualHeight > 0
+          ? { '--dock-max-visual-height': `${dockMetrics.maxVisualHeight}px` }
+          : {}),
+        '--dock-visual-overflow': `${dockMetrics.overflow}px`
+      }) as CSSProperties,
+    [dockMetrics, shellStyle]
+  )
 
   const handleResizerMouseDown = useCallback(
     (e: ReactMouseEvent) => {
@@ -186,9 +250,10 @@ function BottomBar({
   return (
     <>
       <div
+        ref={shellRef}
         role="presentation"
         className="resizer-hub-container relative"
-        style={shellStyle}
+        style={shellStyleWithDock}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -215,6 +280,7 @@ function BottomBar({
         </div>
 
         <div
+          ref={stackRef}
           className="bottom-bar-stack relative flex w-full flex-col items-center"
           style={stackStyle}
         >

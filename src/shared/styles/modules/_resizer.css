@@ -94,6 +94,18 @@
     box-shadow var(--duration-normal) var(--ease-glass);
 }
 
+/* The dock is scaled as a whole, so its visual edge sits above/below the flex
+   slot the drag strips are laid out around. Offset each pill by that overflow
+   so a tall, magnified dock cannot paint over its own resize handles. */
+
+.resizer-handle--above {
+  bottom: calc(0.375rem + var(--dock-visual-overflow, 0px));
+}
+
+.resizer-handle--below {
+  top: calc(0.375rem + var(--dock-visual-overflow, 0px));
+}
+
 .resizer-drag-area:hover .resizer-handle,
 .resizer-drag-area:focus-visible .resizer-handle {
   opacity: 1;

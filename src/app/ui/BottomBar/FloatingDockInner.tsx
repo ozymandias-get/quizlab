@@ -55,10 +55,13 @@ const FloatingDockInner = memo(function FloatingDockInner({
           iconMagnification={34}
           iconDistance={56}
           disableMagnification={isResizing}
-          // The rail is scaled as a whole, so its height budget has to be
-          // divided by that scale; otherwise a 1.3x dock can grow past the
-          // viewport in a short window and lose its first and last icons.
-          style={{ maxHeight: 'calc((100dvh - 4rem) / var(--bar-scale-factor, 1))' }}
+          // BottomBar measures the available rail slot and reserves room for
+          // the resize handles; divide by the scale so the visual dock fits its
+          // slot instead of growing over the handles in a short window.
+          style={{
+            maxHeight:
+              'calc(var(--dock-max-visual-height, calc(100dvh - 4rem)) / var(--bar-scale-factor, 1))'
+          }}
           className="dock-surface mt-0 h-auto w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
         >
           <div className="flex w-full flex-col items-center gap-1">

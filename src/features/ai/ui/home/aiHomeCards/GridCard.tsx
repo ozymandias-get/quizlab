@@ -170,7 +170,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
                   <span className="size-2 rounded-full" style={{ background: accent }} />
                 )}
               </span>
-              <div className="text-muted-foreground/60 group-hover:text-foreground shrink-0 opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
+              <div className="text-muted-foreground/60 group-hover:text-foreground shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
                 <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
               </div>
             </div>

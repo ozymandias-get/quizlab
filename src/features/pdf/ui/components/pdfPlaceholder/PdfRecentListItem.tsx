@@ -181,7 +181,7 @@ function PdfRecentListItem({
                 >
                   {showProgress ? (
                     <span
-                      className="text-ql-10 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-semibold text-zinc-400 tabular-nums"
+                      className="text-ql-10 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-semibold whitespace-nowrap text-zinc-400 tabular-nums"
                       data-testid="pdf-recent-progress-label"
                     >
                       {t('pdf_page_progress', {
@@ -191,7 +191,7 @@ function PdfRecentListItem({
                       })}
                     </span>
                   ) : (
-                    <span>{pageMeta}</span>
+                    <span className="whitespace-nowrap">{pageMeta}</span>
                   )}
                   {/* A leading "·" on a wrapped second line reads as a list
                       bullet. Keep it only when the row is wide enough to stay

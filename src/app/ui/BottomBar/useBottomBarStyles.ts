@@ -33,5 +33,5 @@ export const useBottomBarStyles = (bottomBarOpacity: number, bottomBarScale: num
     [clampedScale]
   )
 
-  return { shellStyle, stackStyle }
+  return { shellStyle, stackStyle, clampedScale }
 }

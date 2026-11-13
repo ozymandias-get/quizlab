@@ -5,6 +5,7 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -138,22 +139,27 @@ export function usePanelResize({
     typeof window !== 'undefined' ? window.innerWidth : 1200
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return
+
+    const applyContainerWidth = () => {
+      const nextWidth = getPanelContainerWidth(leftPanelRef.current)
+      setContainerWidth((previous) => (Math.abs(previous - nextWidth) < 0.5 ? previous : nextWidth))
+    }
 
     let rafId: number | null = null
     const updateContainerWidth = () => {
       if (rafId !== null) cancelAnimationFrame(rafId)
       rafId = requestAnimationFrame(() => {
         rafId = null
-        const nextWidth = getPanelContainerWidth(leftPanelRef.current)
-        setContainerWidth((previous) =>
-          Math.abs(previous - nextWidth) < 0.5 ? previous : nextWidth
-        )
+        applyContainerWidth()
       })
     }
 
-    updateContainerWidth()
+    // Measure before the first paint: the initial state uses window.innerWidth,
+    // which includes the workspace gutter. A deferred measurement would let the
+    // first paint (and its width transition) land on a slightly wrong width.
+    applyContainerWidth()
     window.addEventListener('resize', updateContainerWidth)
 
     const parent = leftPanelRef.current?.parentElement
@@ -191,6 +197,26 @@ export function usePanelResize({
   const rafIdRef = useRef<number | null>(null)
   const leftPanelWidthRef = useRef(clampedPercentage)
   leftPanelWidthRef.current = clampedPercentage
+
+  // Any render during a drag (a window resize updating the container width, an
+  // app-level state change) re-applies the committed percentage as the style
+  // prop. The pending width lives only in a ref + direct DOM write, so restore
+  // it after that commit; otherwise the panel can jump back mid-drag.
+  useLayoutEffect(() => {
+    const node = leftPanelRef.current
+    if (!isResizingRef.current || !node) return
+
+    const width = getPanelContainerWidth(node)
+    const bounds = calculatePanelBounds(width, effectiveResizerWidth, minLeft, minRight)
+    const nextWidth = clampPanelPercentage(
+      pendingWidthRef.current,
+      width,
+      bounds.safeMinLeft,
+      bounds.safeMaxLeft
+    )
+    pendingWidthRef.current = nextWidth
+    node.style.width = `${nextWidth}%`
+  })
 
   const endResize = useCallback(() => {
     if (!isResizingRef.current) return
