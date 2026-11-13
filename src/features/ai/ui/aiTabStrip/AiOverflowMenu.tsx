@@ -30,6 +30,8 @@ interface AiOverflowMenuProps {
   getTabLabel: (tab: Tab) => string
   getIconKey: (tab: Tab) => string
   onToggleOpen: () => void
+  /** Explicitly close the menu; never a toggle, so a closing tab cannot reopen it. */
+  onCloseMenu: () => void
   onSelectTab: (tabId: string) => void
   onContextMenu: (event: ReactMouseEvent, tabId: string) => void
   onCloseTab: (tabId: string) => void
@@ -43,6 +45,7 @@ function AiOverflowMenu({
   getTabLabel,
   getIconKey,
   onToggleOpen,
+  onCloseMenu,
   onSelectTab,
   onContextMenu,
   onCloseTab
@@ -161,7 +164,7 @@ function AiOverflowMenu({
                           event.preventDefault()
                           event.stopPropagation()
                           onCloseTab(tab.id)
-                          onToggleOpen()
+                          onCloseMenu()
                         }}
                       >
                         <X className="h-3 w-3" />

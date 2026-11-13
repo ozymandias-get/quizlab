@@ -155,7 +155,8 @@ export function usePdfPlaceholderState({
     searchQuery,
     sortMode,
     isMobileSearchOpen,
-    shouldShowAdvancedControls: recentItems.length > 6,
+    shouldShowAdvancedControls:
+      recentItems.length > 6 || searchQuery.length > 0 || sortMode !== 'recent',
     setSearchQuery,
     setSortMode,
     toggleMobileSearch,

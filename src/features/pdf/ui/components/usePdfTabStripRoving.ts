@@ -32,6 +32,14 @@ export function usePdfTabStripRoving<T extends { id: string }>({
       }
       // Arrow keys stay inside the strip and only move tab focus.
       if (visibleTabs.length === 0) return
+      // The row also contains the home/add/overflow controls and each tab's
+      // close button. Only a real tab pill owns roving navigation; otherwise
+      // Arrow/Home/End on those controls would change the active tab.
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const targetTab = target.closest('[role="tab"]')
+      if (!targetTab || !event.currentTarget.contains(targetTab)) return
+
       event.preventDefault()
 
       const currentIndex = visibleTabs.findIndex((tab) => tab.id === activeTabId)

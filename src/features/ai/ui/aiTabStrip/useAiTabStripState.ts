@@ -186,6 +186,23 @@ export function useAiTabStripState({
     }
   }, [tabs, visibleTabIds])
 
+  // An overflow menu that loses its last tab (closed, or the panel grew enough
+  // to show every pill) must not stay latched open for the next overflow run.
+  const hadOverflowRef = useRef(false)
+  useEffect(() => {
+    const hadOverflow = hadOverflowRef.current
+    hadOverflowRef.current = overflowTabs.length > 0
+    if (overflowTabs.length > 0) return
+
+    if (isOverflowOpen) setIsOverflowOpen(false)
+    if (!hadOverflow) return
+
+    const active = document.activeElement
+    if (!active || active === document.body || !active.isConnected) {
+      rowRef.current?.querySelector<HTMLElement>('[data-ai-tab][aria-selected="true"]')?.focus()
+    }
+  }, [isOverflowOpen, overflowTabs.length])
+
   const tr = useCallback(
     (key: string, fallback: string) => {
       const translated = tRef.current(key)

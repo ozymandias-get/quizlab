@@ -63,6 +63,20 @@ function PdfTabStrip({
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [maxVisibleTabs, setMaxVisibleTabs] = useState(3)
+  const previousTabCountRef = useRef(tabs.length)
+
+  // Closing a tab unmounts the focused close/pill button. If the browser drops
+  // focus to the body, move it to the newly active tab instead of leaving the
+  // strip without a focus target.
+  useEffect(() => {
+    const previousCount = previousTabCountRef.current
+    previousTabCountRef.current = tabs.length
+    if (tabs.length >= previousCount) return
+
+    const active = document.activeElement
+    if (active && active !== document.body && active.isConnected) return
+    rowRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus()
+  }, [tabs.length])
 
   const getInitialCapacity = useCallback(
     (width: number) => {

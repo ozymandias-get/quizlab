@@ -85,6 +85,10 @@ function AiTabStrip({
     actions.setIsOverflowOpen((prev: boolean) => !prev)
   }, [actions])
 
+  const handleCloseOverflow = useCallback(() => {
+    actions.setIsOverflowOpen(false)
+  }, [actions])
+
   const getIconKey = useCallback(
     (tab: (typeof tabs)[number]) => aiSites[tab.modelId]?.icon || tab.modelId,
     [aiSites]
@@ -154,6 +158,7 @@ function AiTabStrip({
           getTabLabel={helpers.getTabLabel}
           getIconKey={getIconKey}
           onToggleOpen={handleToggleOverflow}
+          onCloseMenu={handleCloseOverflow}
           onSelectTab={handleOverflowSelectTab}
           onContextMenu={actions.handleOpenContextMenu}
           onCloseTab={closeTab}
