@@ -78,7 +78,8 @@ vi.mock('motion/react', () => {
       p: createMotionComponent('p'),
       span: createMotionComponent('span')
     },
-    AnimatePresence: ({ children }: any) => <>{children}</>
+    AnimatePresence: ({ children }: any) => <>{children}</>,
+    useReducedMotion: () => false
   }
 })
 

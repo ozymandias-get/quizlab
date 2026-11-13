@@ -35,7 +35,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
   } = controller
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4">
       <SettingsTabIntro icon={SELECTORS_ICON} description={t('selectors_description_simple')} />
 
       <SelectorsList

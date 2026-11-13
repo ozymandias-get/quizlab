@@ -46,7 +46,7 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
                   className={`flex flex-col ${isCompact ? 'gap-1' : 'gap-1.5'}`}
                 >
                   {!isCompact && (
-                    <div className="text-muted-foreground text-ql-10 tracking-ql-label px-2 font-semibold uppercase select-none">
+                    <div className="text-muted-foreground text-ql-10 tracking-ql-label px-2 leading-tight font-semibold uppercase select-none">
                       {section.label}
                     </div>
                   )}

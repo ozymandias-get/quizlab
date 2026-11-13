@@ -42,8 +42,8 @@ const NeverSleepSiteItem = memo(function NeverSleepSiteItem({
       className={cn(
         'flex items-center gap-3 rounded-xl border p-3 transition-colors',
         isNeverSleep
-          ? 'border-white/[0.07] bg-zinc-950/80'
-          : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
+          ? 'border-white/[0.09] bg-white/[0.03]'
+          : 'border-white/[0.07] bg-transparent hover:bg-white/[0.03]'
       )}
     >
       <span
@@ -81,7 +81,7 @@ const AiLifecycleTab = memo(() => {
   }, [sleepTimeoutMs, t])
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4">
       <SettingsTabIntro icon={AI_LIFECYCLE_ICON} description={t('ai_lifecycle_description')} />
 
       {/* Max Alive Tabs */}

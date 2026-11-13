@@ -142,7 +142,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setNameError(validateName(newAiName))}
                       placeholder={isSite ? t('placeholder_site_name') : t('placeholder_ai_name')}
                       aria-invalid={!!nameError}
-                      className="text-ql-12 border-white/[0.07] bg-zinc-950/80 focus-visible:border-white/25"
+                      className="text-ql-12"
                     />
                     {/* Reserved slot: validation never pushes the form down. */}
                     <span
@@ -166,7 +166,7 @@ const AddAiModelForm = memo(function AddAiModelForm({
                       onBlur={() => setUrlError(validateUrl(newAiUrl))}
                       placeholder="https://..."
                       aria-invalid={!!urlError}
-                      className="text-ql-12 border-white/[0.07] bg-zinc-950/80 focus-visible:border-white/25"
+                      className="text-ql-12"
                     />
                     <span
                       role="alert"

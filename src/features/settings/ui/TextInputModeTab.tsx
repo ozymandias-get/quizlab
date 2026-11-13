@@ -77,7 +77,7 @@ function FlowStep({
         'flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5',
         active
           ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'text-foreground border-white/[0.07] bg-zinc-900/45'
+          : 'text-foreground border-white/[0.07] bg-white/[0.04]'
       )}
     >
       <Icon className="size-3.5 shrink-0" aria-hidden />
@@ -115,7 +115,7 @@ const TextInputModeTab = memo(() => {
   const ActiveModeIcon = activeMode.icon
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsTabIntro
         icon={TEXT_INPUT_MODE_ICON}
         description={t('text_input_mode_description')}
@@ -142,8 +142,8 @@ const TextInputModeTab = memo(() => {
                   className={cn(
                     'focus-visible:ring-ring/70 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                     isActive
-                      ? 'border-white/[0.07] bg-zinc-950/80'
-                      : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
+                      ? 'border-white/[0.09] bg-white/[0.03]'
+                      : 'border-white/[0.07] bg-transparent hover:bg-white/[0.03]'
                   )}
                 >
                   <SettingsRowIcon>

@@ -13,7 +13,7 @@ const AppInfoSection = memo(({ t, appVersion }: AppInfoSectionProps) => {
   const { copy, isCopied } = useClipboard()
 
   return (
-    <header className="flex flex-col items-center rounded-2xl border border-white/[0.07] bg-zinc-950/80 p-5">
+    <header className="flex flex-col items-center rounded-2xl border border-white/[0.07] bg-zinc-950/70 p-5">
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

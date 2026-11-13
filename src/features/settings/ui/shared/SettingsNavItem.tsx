@@ -30,12 +30,12 @@ const SettingsNavItem = memo(function SettingsNavItem({
       type="button"
       aria-current={isActive ? 'page' : undefined}
       onClick={() => onSelect(tabId)}
-      className={`group focus-visible:ring-ring/70 motion-normal relative flex min-h-9 w-full items-center rounded-lg py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
+      className={`group focus-visible:ring-ring/70 motion-normal relative flex min-h-9 w-full items-center rounded-lg border border-transparent py-2 text-left transition-colors outline-none focus-visible:ring-2 ${
         compact ? 'justify-center px-0' : 'gap-2.5 px-3'
       } ${
         isActive
-          ? 'border border-white/[0.07] bg-white/[0.07] font-semibold text-zinc-100'
-          : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
+          ? 'bg-white/[0.04] text-zinc-100'
+          : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.03]'
       }`}
     >
       {isActive && (
@@ -49,19 +49,20 @@ const SettingsNavItem = memo(function SettingsNavItem({
         />
       )}
       {/* One icon contract for the whole rail: same 18px box, same 1.75
-          stroke. Active items get a soft solid fill behind the glyph in
-          addition to the accent line, so they read at a glance. */}
+          stroke. The active glyph takes the user's selection colour — the same
+          source as the tab-intro chip and the sliders — while the fill and
+          label weight stay quiet. */}
       <div
-        className={cn(
-          'flex size-[18px] shrink-0 items-center justify-center rounded-[5px] transition-colors',
-          isActive ? 'bg-primary/10 text-primary' : 'bg-transparent'
-        )}
+        className="flex size-[18px] shrink-0 items-center justify-center rounded-[5px] transition-colors"
+        style={
+          isActive ? { color: 'var(--selection-color-source, oklch(var(--primary)))' } : undefined
+        }
       >
         <Icon
           strokeWidth={1.75}
           className={cn(
             'size-[18px] transition-colors',
-            isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+            isActive ? '' : 'text-muted-foreground group-hover:text-foreground'
           )}
         />
       </div>
@@ -69,8 +70,10 @@ const SettingsNavItem = memo(function SettingsNavItem({
         className={
           compact
             ? 'sr-only'
-            : `motion-normal tracking-ql-label text-ql-12 min-w-0 truncate font-medium whitespace-nowrap transition-colors ${
-                isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+            : `motion-normal tracking-ql-label text-ql-12 min-w-0 truncate transition-colors ${
+                isActive
+                  ? 'text-foreground font-semibold'
+                  : 'text-muted-foreground group-hover:text-foreground font-medium'
               }`
         }
       >

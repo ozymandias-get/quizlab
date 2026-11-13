@@ -3,9 +3,14 @@ import { usePrompts } from '@features/ai'
 import { Label } from '@app/components/ui/label'
 import { Textarea } from '@app/components/ui/textarea'
 import { useToastActions } from '@app/providers'
-import { Button, EmptyState } from '@shared/ui/components/primitives'
+import {
+  Button,
+  EmptyState,
+  SettingsTabIcon,
+  SettingsTabIntro
+} from '@shared/ui/components/primitives'
 
-import { ChevronDown, Plus } from 'lucide-react'
+import { ChevronDown, Library, Plus, WandSparkles, Zap } from 'lucide-react'
 import { AnimatePresence, motion, Reorder } from 'motion/react'
 import { type FormEvent, memo, type MouseEvent, type ReactNode, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -90,15 +95,30 @@ const PromptsTab = memo(() => {
   ].filter((group) => group.items.length > 0)
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4">
+      <SettingsTabIntro
+        icon={
+          <SettingsTabIcon>
+            <WandSparkles className="h-5 w-5" />
+          </SettingsTabIcon>
+        }
+        description={t('prompts_description')}
+      />
+
       {/* AI Gönder taslağı — açılır/kapanır */}
-      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/80">
+      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
         <button
           type="button"
           onClick={() => setIsQuickOpen((v) => !v)}
           aria-expanded={isQuickOpen}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
+          className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
         >
+          <span
+            aria-hidden
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
+          >
+            <Zap className="h-4 w-4" />
+          </span>
           <div className="min-w-0 flex-1 text-left">
             <div className="text-ql-13 text-foreground truncate font-semibold">
               {t('prompts_quick_title')}
@@ -110,20 +130,26 @@ const PromptsTab = memo(() => {
           <SectionChevron isOpen={isQuickOpen} />
         </button>
         <DisclosureBody isOpen={isQuickOpen}>
-          <div className="border-t border-white/[0.07] px-5 py-5">
+          <div className="border-t border-white/[0.07] px-4 py-4">
             <QuickPresetsSection />
           </div>
         </DisclosureBody>
       </section>
 
       {/* Prompt Kütüphanesi — açılır/kapanır */}
-      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/80">
+      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
         <button
           type="button"
           onClick={() => setIsLibraryOpen((v) => !v)}
           aria-expanded={isLibraryOpen}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
+          className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03]"
         >
+          <span
+            aria-hidden
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
+          >
+            <Library className="h-4 w-4" />
+          </span>
           <div className="min-w-0 flex-1 text-left">
             <div className="flex items-center gap-2">
               <h3 className="text-ql-13 text-foreground truncate font-semibold">
@@ -145,7 +171,7 @@ const PromptsTab = memo(() => {
           <SectionChevron isOpen={isLibraryOpen} />
         </button>
         <DisclosureBody isOpen={isLibraryOpen}>
-          <div className="space-y-4 border-t border-white/[0.07] px-5 py-5">
+          <div className="space-y-4 border-t border-white/[0.07] px-4 py-4">
             <p className="text-ql-12 text-muted-foreground leading-relaxed">
               {t('prompts_auto_append_desc')}
             </p>

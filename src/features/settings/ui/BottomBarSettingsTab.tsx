@@ -16,6 +16,7 @@ import {
   SettingsTabIntro
 } from '@shared/ui/components/primitives'
 import { GridIcon, SliderIcon } from '@ui/components/Icons'
+import Slider from '@ui/components/Slider'
 
 import { Field, Label } from '@headlessui/react'
 import { motion, Reorder } from 'motion/react'
@@ -49,9 +50,9 @@ const TOOL_LIST: ToolItem[] = [
 const ROW_BASE =
   'motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors'
 
-/** Enabled row uses the accent surface, disabled row the translucent card. */
-const ROW_ACTIVE = 'border-white/[0.07] bg-zinc-950/80'
-const ROW_IDLE = 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
+/** Enabled row lifts off the flat section card; idle rows keep only a hairline. */
+const ROW_ACTIVE = 'border-white/[0.09] bg-white/[0.03]'
+const ROW_IDLE = 'border-white/[0.07] bg-transparent hover:bg-white/[0.03]'
 
 const BOTTOM_BAR_ICON = (
   <SettingsTabIcon>
@@ -152,7 +153,7 @@ const BottomBarSettingsTab = memo(() => {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsTabIntro icon={BOTTOM_BAR_ICON} description={t('bottom_bar_description')} />
 
       <motion.div
@@ -227,23 +228,22 @@ const BottomBarSettingsTab = memo(() => {
           title={t('bottom_bar_max_icons')}
           detail={t('bottom_bar_max_icons_desc')}
         >
-          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/55 p-3.5">
+          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
             <div className="flex items-center justify-between">
               <span className="text-foreground text-ql-12 font-medium">
                 {t('bottom_bar_max_icons_label')}
               </span>
-              <span className="text-primary border-primary/20 bg-primary/10 text-ql-12 shrink-0 rounded-md border px-2 py-0.5 font-semibold tabular-nums">
+              <span className="text-foreground text-ql-11 shrink-0 rounded-md border border-white/[0.07] bg-white/[0.04] px-2 py-0.5 font-semibold tabular-nums">
                 {bottomBarMaxIcons} {t('bottom_bar_max_icons_unit')}
               </span>
             </div>
-            <input
-              type="range"
+            <Slider
               min={1}
               max={50}
-              value={bottomBarMaxIcons}
-              onChange={(e) => setBottomBarMaxIcons(Number(e.target.value))}
+              step={1}
+              value={[bottomBarMaxIcons]}
+              onValueChange={(value) => setBottomBarMaxIcons(value[0] ?? 5)}
               aria-label={t('bottom_bar_max_icons')}
-              className="accent-primary h-2 w-full cursor-pointer rounded-lg bg-white/10"
             />
             <p className="text-muted-foreground text-ql-11">
               {t('bottom_bar_max_icons_hint', { count: bottomBarMaxIcons })}

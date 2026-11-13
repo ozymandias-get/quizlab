@@ -29,7 +29,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
   const normalizedColor = color.toLowerCase()
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/80 p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
       {label && (
         <div className="text-muted-foreground flex items-center gap-2">
           <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
@@ -82,7 +82,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                 'focus-visible:ring-ring/70 flex w-full items-center gap-3 rounded-lg border p-1.5 transition-colors outline-none focus-visible:ring-2',
                 open
                   ? 'border-ring/50 bg-accent/30'
-                  : 'border-white/[0.07] bg-zinc-900/50 hover:bg-white/5'
+                  : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.05]'
               )}
             >
               <span

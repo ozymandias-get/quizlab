@@ -16,9 +16,10 @@ interface SettingsSectionProps {
  * Lives in shared primitives rather than the settings feature so settings
  * tabs can share one surface without duplicating the recipe.
  *
- * Matches the section surface used by the AI home screen and the PDF
- * placeholder: translucent card, neutral icon chip, hairline-free but with a
- * consistent header rhythm.
+ * Surface: same near-black card as `AiHomeSection` (zinc-950/70 + 7% hairline)
+ * and the same 16px padding rhythm, so the modal reads as a sibling of the AI
+ * workspace instead of a separate module. Controls inside the card are the
+ * raised level (see `SettingsRow`); the card itself stays flat.
  */
 function SettingsSection({
   children,
@@ -30,7 +31,7 @@ function SettingsSection({
 }: SettingsSectionProps) {
   return (
     <section
-      className={`flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-900/55 p-5 ${className}`}
+      className={`flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-950/70 p-4 ${className}`}
     >
       <div className="flex items-center gap-2.5">
         {icon && (
@@ -43,8 +44,12 @@ function SettingsSection({
         )}
 
         <div className="min-w-0 flex-1">
-          <h3 className="text-ql-13 text-foreground truncate font-semibold">{title}</h3>
-          {detail && <p className="text-ql-12 text-muted-foreground mt-0.5">{detail}</p>}
+          <h3 className="text-ql-13 text-foreground truncate font-semibold" title={title}>
+            {title}
+          </h3>
+          {detail && (
+            <p className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2">{detail}</p>
+          )}
         </div>
 
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}

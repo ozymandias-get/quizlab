@@ -8,10 +8,17 @@ interface SettingsRowProps extends React.HTMLAttributes<HTMLDivElement> {
   interactive?: boolean
 }
 
+/**
+ * Three steps, one direction. The section card is flat (zinc-950/70), so a
+ * row can only read as "on" by lifting off it: `default` is the raised control
+ * surface used by active/selected rows and matches the hover fill on the AI
+ * home cards. `muted` is the idle/passive row, `accent` the explicit selection
+ * highlight shared with the home grid cards.
+ */
 const variantClasses: Record<NonNullable<SettingsRowProps['variant']>, string> = {
-  default: 'border-white/[0.07] bg-zinc-950/80',
-  muted: 'border-white/[0.07] bg-zinc-900/45',
-  accent: 'border-ring/35 bg-accent/25'
+  default: 'border-white/[0.07] bg-white/[0.03]',
+  muted: 'border-white/[0.06] bg-transparent',
+  accent: 'border-ring/35 bg-accent/30'
 }
 
 export function SettingsRow({
@@ -26,7 +33,7 @@ export function SettingsRow({
       className={cn(
         'rounded-xl border p-4',
         variantClasses[variant],
-        interactive && 'hover:bg-muted/50 cursor-pointer transition-colors',
+        interactive && 'cursor-pointer transition-colors hover:bg-white/[0.05]',
         className
       )}
       {...props}
@@ -36,6 +43,11 @@ export function SettingsRow({
   )
 }
 
+/**
+ * Leading icon tile for a settings row. Same 32px box, hairline and fill as the
+ * section header chip, so every leading icon in the modal sits on one scale
+ * (32px card/row, 40px page intro, 18px sidebar rail).
+ */
 export function SettingsRowIcon({
   className,
   children
@@ -46,7 +58,7 @@ export function SettingsRowIcon({
   return (
     <div
       className={cn(
-        'bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg',
+        'text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]',
         className
       )}
     >

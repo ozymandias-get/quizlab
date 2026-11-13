@@ -91,8 +91,8 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
                 }
                 className={`focus-visible:ring-ring/70 rounded-lg border px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                   isActive
-                    ? 'border-white/[0.07] bg-zinc-950/80'
-                    : 'text-muted-foreground hover:text-foreground border-white/[0.07] hover:bg-white/5'
+                    ? 'border-white/[0.09] bg-white/[0.04]'
+                    : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-white/[0.03]'
                 }`}
               >
                 <span

@@ -85,7 +85,7 @@ function SiteSessionCard({
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span
             aria-hidden="true"
-            className="text-muted-foreground flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.04]"
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.04]"
           >
             {icon ?? (
               <span className="text-ql-13 text-foreground font-bold uppercase">

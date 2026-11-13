@@ -44,9 +44,9 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
       >
         <div className="relative shrink-0">
           <div
-            className={`flex size-10 items-center justify-center rounded-xl border transition-colors ${tone.icon} `}
+            className={`flex size-8 items-center justify-center rounded-lg border transition-colors ${tone.icon} `}
           >
-            {getAiPlatformIcon(ai, key, <GlobeIcon className="h-5 w-5" />)}
+            {getAiPlatformIcon(ai, key, <GlobeIcon className="h-4 w-4" />)}
           </div>
 
           {hasSelectors && selectorHealth === 'ready' && (

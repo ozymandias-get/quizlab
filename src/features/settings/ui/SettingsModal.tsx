@@ -6,7 +6,7 @@ import { DURATION } from '@shared/lib/motion'
 import { Button } from '@shared/ui/components/primitives'
 import { CloseIcon, SettingsIcon } from '@ui/components/Icons'
 
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { memo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -69,6 +69,7 @@ const SettingsModal = memo(function SettingsModal({
   })
 
   const { sidebarWidth, handleSidebarResize, containerRef, isCompact } = useResizableColumns()
+  const prefersReducedMotion = useReducedMotion()
 
   if (!isOpen) {
     return null
@@ -87,12 +88,12 @@ const SettingsModal = memo(function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
-        className="flex h-[85vh] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
+        className="shadow-ambient-xl flex h-[85vh] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-zinc-950/95 backdrop-blur-xl"
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.98, y: 8 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: DURATION.normal }}
+          transition={{ duration: prefersReducedMotion ? 0 : DURATION.normal }}
           className="flex h-full min-h-0 flex-col"
         >
           <header className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">

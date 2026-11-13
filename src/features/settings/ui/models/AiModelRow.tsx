@@ -115,23 +115,18 @@ const AiModelRow = memo(function AiModelRow({
       transition={{ delay: animationDelay }}
     >
       <Field
-        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border border-white/[0.07] p-3.5 transition-colors ${
-          isEnabled ? 'bg-zinc-950/80' : 'bg-zinc-900/45 hover:bg-white/5'
+        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border p-3 transition-colors ${
+          isEnabled
+            ? 'border-white/[0.09] bg-white/[0.03]'
+            : 'border-white/[0.07] bg-transparent hover:bg-white/[0.03]'
         } ${isLastModel ? 'opacity-80' : 'cursor-pointer'}`}
         onClick={() => !isLastModel && onToggle(modelKey)}
       >
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <SettingsRowIcon className={isEnabled ? 'bg-primary/10 text-primary' : undefined}>
+            <SettingsRowIcon>
               {getAiPlatformIcon(site, modelKey, <GridIcon className="h-5 w-5" />)}
             </SettingsRowIcon>
-            {isEnabled && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="border-background absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border-2 bg-emerald-500"
-              />
-            )}
           </div>
 
           <div className="min-w-0 space-y-0.5">

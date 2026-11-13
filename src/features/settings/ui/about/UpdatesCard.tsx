@@ -44,7 +44,7 @@ function UpdatesActionButton({
       disabled={disabled}
       variant={UPDATE_ACTION_BUTTON_VARIANTS[tone]}
       size="sm"
-      className="w-full gap-2 border-white/[0.07] bg-zinc-900/70 text-zinc-200 hover:border-white/20 hover:bg-white/5 sm:flex-1"
+      className="w-full gap-2 border-white/[0.07] bg-white/[0.04] text-zinc-200 hover:border-white/20 hover:bg-white/[0.06] sm:flex-1"
     >
       {icon}
       <span className="text-ql-12 inline-flex items-center gap-1.5 font-medium">{children}</span>

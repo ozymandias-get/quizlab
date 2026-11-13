@@ -123,7 +123,7 @@ const NotificationsTab = memo(() => {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsTabIntro icon={NOTIFICATIONS_ICON} description={t('notifications_description')} />
 
       <SettingsSection icon={<Bell className="h-4 w-4" />} title={t('notification_settings')}>
@@ -133,13 +133,14 @@ const NotificationsTab = memo(() => {
             return (
               <SettingsRow
                 key={config.type}
-                className={`flex items-center gap-4 transition-colors ${
-                  enabled
-                    ? 'border-white/[0.07] bg-zinc-950/80'
-                    : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
-                }`}
+                variant={enabled ? 'default' : 'muted'}
+                className="flex items-center gap-4 transition-colors"
               >
-                <IconBadge icon={config.icon} variant={config.variant} />
+                <IconBadge
+                  icon={config.icon}
+                  variant={config.variant}
+                  className="size-8 rounded-lg [&>svg]:size-4"
+                />
 
                 <SettingsRowHeader>
                   <SettingsRowTitle>{t(config.testTitleKey)}</SettingsRowTitle>
@@ -148,7 +149,7 @@ const NotificationsTab = memo(() => {
                   </SettingsRowDescription>
                 </SettingsRowHeader>
 
-                <SettingsToggleSwitch checked={enabled} onChange={config.setIsEnabled} size="sm" />
+                <SettingsToggleSwitch checked={enabled} onChange={config.setIsEnabled} />
               </SettingsRow>
             )
           })}

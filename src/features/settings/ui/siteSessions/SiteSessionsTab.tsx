@@ -48,7 +48,7 @@ const SiteSessionsTab = memo(() => {
   } = useSiteSessionsState()
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4">
       <SettingsTabIntro icon={SITE_SESSIONS_ICON} description={t('ws_settings_desc')} />
 
       <ExtensionStatusCard t={t} onShowPairing={openPairing} />

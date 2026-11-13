@@ -28,7 +28,7 @@ interface SettingsModalContentProps {
  */
 function SettingsTabSkeleton() {
   return (
-    <div aria-busy="true" className="space-y-6 pb-4 motion-safe:animate-pulse">
+    <div aria-busy="true" className="space-y-4 pb-4 motion-safe:animate-pulse">
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 shrink-0 rounded-xl bg-zinc-900/60" />
         <div className="min-w-0 flex-1 space-y-2">
@@ -39,7 +39,7 @@ function SettingsTabSkeleton() {
       {[0, 1, 2].map((row) => (
         <div
           key={row}
-          className="space-y-4 rounded-2xl border border-white/[0.07] bg-zinc-950/60 p-4"
+          className="space-y-4 rounded-2xl border border-white/[0.07] bg-zinc-950/70 p-4"
         >
           <div className="h-3 w-32 max-w-full rounded-full bg-zinc-900/60" />
           <div className="h-8 w-full rounded-lg bg-zinc-900/60" />
@@ -107,7 +107,7 @@ export default memo(function SettingsModalContent({
       id={SETTINGS_MODAL_MAIN_PANEL_ID}
       className="flex min-w-0 flex-1 flex-col overflow-hidden"
     >
-      <ScrollArea className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8 lg:px-10">
+      <ScrollArea className="min-h-0 flex-1 px-4 py-4 sm:px-6 sm:py-5 md:px-7 md:py-5 lg:px-8">
         <AnimatePresence mode="wait">
           {visitedTabsList.length === 0 || !activeTabMeta ? (
             <motion.div
@@ -118,7 +118,7 @@ export default memo(function SettingsModalContent({
               transition={{ duration: DURATION.normal }}
               className="flex h-full min-h-[300px] items-center justify-center"
             >
-              <div className="relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-zinc-950/60 px-6 py-7 text-center">
+              <div className="relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-zinc-950/70 px-6 py-7 text-center">
                 <div className="motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full bg-white/[0.04] blur-2xl" />
                 <SettingsTabIcon>
                   <SettingsIcon className="h-5 w-5" />

@@ -13,8 +13,7 @@ import { useTranslation } from 'react-i18next'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { DEFAULT_PLACEHOLDERS, PROVIDER_PLACEHOLDERS } from './constants'
 
-const FIELD_INPUT_CLASS =
-  'text-ql-12 border-white/[0.07] bg-zinc-950/80 focus-visible:border-white/25'
+const FIELD_INPUT_CLASS = 'text-ql-12'
 import {
   validateProviderBaseUrl as validateBaseUrl,
   validateProviderName as validateName
@@ -62,7 +61,7 @@ function ApiProviderCard({
   const placeholders = PROVIDER_PLACEHOLDERS[provider.providerType] || DEFAULT_PLACEHOLDERS
 
   return (
-    <div className="group flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-zinc-900/50 p-4">
+    <div className="group flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="muted" className="tracking-ql-label font-mono uppercase">
@@ -194,7 +193,7 @@ function ApiProviderCard({
         </div>
       </div>
 
-      <div className="flex items-start gap-3 rounded-lg border border-white/[0.07] bg-zinc-950/40 p-3">
+      <div className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-3">
         <SettingsToggleSwitch
           id={localNetworkId}
           aria-describedby={localNetworkDescId}

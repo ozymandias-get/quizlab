@@ -28,8 +28,8 @@ export const PromptItem = memo(function PromptItem({
     <div
       className={`group relative flex w-full items-start rounded-lg border transition-colors ${
         isSelected
-          ? 'border-white/[0.07] bg-zinc-950/80'
-          : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
+          ? 'border-white/[0.09] bg-white/[0.03]'
+          : 'border-white/[0.07] bg-transparent hover:bg-white/[0.03]'
       }`}
     >
       <button

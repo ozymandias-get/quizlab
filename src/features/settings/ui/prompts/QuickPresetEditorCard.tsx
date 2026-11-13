@@ -49,8 +49,8 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/45 px-4 py-3',
-        preset.isCustomized && 'border-white/[0.07] bg-zinc-950/80'
+        'flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3',
+        preset.isCustomized && 'border-white/[0.09] bg-white/[0.04]'
       )}
     >
       <div className="flex items-center justify-between gap-2">

@@ -27,7 +27,7 @@ const PromptSettingsSection = memo(function PromptSettingsSection({
   const { t } = useTranslation()
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-950/60 p-5">
+    <section className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-950/70 p-4">
       <div className="text-ql-12 flex flex-col gap-2">
         <div className="flex items-start gap-3">
           <SettingsRowIcon>
