@@ -137,6 +137,11 @@ function AiVisibleTabButton({
               variant="ghost"
               aria-label={tr('tab_close', 'Close')}
               onClick={handleClose}
+              onKeyDown={(event) => {
+                // Enter/Space also activate the tab container's key handler;
+                // stop the bubble so closing never selects the tab first.
+                if (event.key === 'Enter' || event.key === ' ') event.stopPropagation()
+              }}
               className={`text-muted-foreground hover:bg-destructive/10 hover:text-destructive size-6 rounded-md border-0 bg-transparent p-0 transition-opacity focus-visible:opacity-100 ${
                 isActive
                   ? 'opacity-80 hover:opacity-100'

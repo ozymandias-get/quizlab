@@ -77,7 +77,23 @@ export function useAiHomeState() {
     (newOrder: string[]) => {
       setSiteOrder(newOrder)
       const current = enabledModelsRef.current
-      setEnabledModels([...current.filter((id) => aiSites[id] && !aiSites[id].isSite), ...newOrder])
+      const isKnownSite = (id: string) => aiSites[id]?.isSite === true
+      const currentSiteIds = current.filter(isKnownSite)
+      if (currentSiteIds.length === 0) return
+
+      // Reorder only the known site slots. Non-site entries and ids that are
+      // temporarily missing from the catalog stay exactly where they were, and
+      // only currently enabled sites are considered (reordering never enables).
+      const orderedSites = newOrder.filter((id) => isKnownSite(id) && current.includes(id))
+      for (const id of currentSiteIds) {
+        if (!orderedSites.includes(id)) orderedSites.push(id)
+      }
+      if (orderedSites.length !== currentSiteIds.length) return
+
+      let siteIndex = 0
+      const next = current.map((id) => (isKnownSite(id) ? orderedSites[siteIndex++] : id))
+      enabledModelsRef.current = next
+      setEnabledModels(next)
     },
     [aiSites, setEnabledModels]
   )
