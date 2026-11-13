@@ -18,6 +18,8 @@ export function useAiHomeState() {
   const layout = useAiHomeLayout(pageRef)
   const enabledModelsRef = useRef(enabledModels)
   enabledModelsRef.current = enabledModels
+  const favoriteModelsRef = useRef(favoriteModels)
+  favoriteModelsRef.current = favoriteModels
 
   const modelIds = useMemo(
     () =>
@@ -85,9 +87,10 @@ export function useAiHomeState() {
   )
   const handleFavoriteReorder = useCallback(
     (order: string[]) => {
-      setFavoriteModels([...order, ...favoriteModels.filter((id) => !order.includes(id))])
+      const current = favoriteModelsRef.current
+      setFavoriteModels([...order, ...current.filter((id) => !order.includes(id))])
     },
-    [favoriteModels, setFavoriteModels]
+    [setFavoriteModels]
   )
   const favoriteDrag = useGridDragReorder(favoriteOrder, handleFavoriteReorder)
   const enableModel = useCallback(

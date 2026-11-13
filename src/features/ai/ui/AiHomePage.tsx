@@ -98,7 +98,7 @@ function AiHomePage({ onOpenModel, onOpenTab, onOpenRecent, onOpenPinned }: AiHo
                 ids={favoriteOrder}
                 onOpenModel={onOpenModel}
                 tone="model"
-                showApiChat={favoriteOrder.includes('api-chat')}
+                showApiChat={false}
               />
             ) : (
               <p className="text-ql-12 text-muted-foreground py-2">

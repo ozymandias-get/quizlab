@@ -3,7 +3,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowUpRight } from 'lucide-react'
-import { type DragEvent, memo, Suspense } from 'react'
+import { type DragEvent, type KeyboardEvent, memo, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../../model/home'
@@ -12,12 +12,15 @@ import { safeAiAccentColor } from '../../../model/home'
 interface GridCardProps {
   isActive: boolean
   isDragging: boolean
+  isDropTarget?: boolean
   itemId: string
   onClick: (itemId: string) => void
   onDragEnd: () => void
+  onDragLeave?: (itemId: string, event: DragEvent) => void
   onDragOver: (itemId: string, event: DragEvent) => void
   onDragStart: (itemId: string) => void
   onDrop: (event: DragEvent) => void
+  onMove?: (itemId: string, delta: -1 | 1) => void
   site: NonNullable<AiSiteMap[string]>
   tone: SectionTone
 }
@@ -25,12 +28,15 @@ interface GridCardProps {
 const GridCard = memo<GridCardProps>(function GridCard({
   isActive,
   isDragging,
+  isDropTarget = false,
   itemId,
   onClick,
   onDragEnd,
+  onDragLeave,
   onDragOver,
   onDragStart,
   onDrop,
+  onMove,
   site,
   tone
 }: GridCardProps) {
@@ -56,19 +62,33 @@ const GridCard = memo<GridCardProps>(function GridCard({
     </span>
   )
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!onMove || !event.altKey || event.ctrlKey || event.metaKey) return
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      onMove(itemId, -1)
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      onMove(itemId, 1)
+    }
+  }
+
   return (
     <div
       role="presentation"
       draggable
       onDragStart={() => onDragStart(itemId)}
       onDragOver={(event) => onDragOver(itemId, event)}
+      onDragLeave={onDragLeave ? (event) => onDragLeave(itemId, event) : undefined}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       style={{ opacity: isDragging ? 0.4 : 1 }}
     >
       <BlurFade className="h-full">
         <MagicCard
-          className={`h-full rounded-xl ${isActive ? 'ring-ring/40 ring-1' : ''}`}
+          className={`h-full rounded-xl ${
+            isDropTarget ? 'ring-primary/70 ring-2' : isActive ? 'ring-ring/40 ring-1' : ''
+          }`}
           gradientColor="#18181b"
           gradientOpacity={0.35}
           gradientFrom="#27272a"
@@ -77,10 +97,16 @@ const GridCard = memo<GridCardProps>(function GridCard({
           <button
             type="button"
             onClick={() => onClick(itemId)}
+            onKeyDown={handleKeyDown}
+            aria-keyshortcuts={
+              onMove ? 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown' : undefined
+            }
             className={`group motion-normal focus-visible:ring-ring/70 relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
-              isActive
-                ? 'border-ring/50 bg-accent/30'
-                : 'border-transparent bg-transparent hover:bg-white/[0.03]'
+              isDropTarget
+                ? 'border-primary/40 bg-white/[0.04]'
+                : isActive
+                  ? 'border-ring/50 bg-accent/30'
+                  : 'border-transparent bg-transparent hover:bg-white/[0.03]'
             }`}
           >
             <div className="flex items-center gap-3">

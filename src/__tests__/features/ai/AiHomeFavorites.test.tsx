@@ -120,4 +120,25 @@ describe('AI Home favorites', () => {
     fireEvent.drop(claude)
     expect(mockReorder).toHaveBeenCalledWith(['claude', 'poe', 'grok'])
   })
+
+  it('renders API Chat consistently as a draggable card in favorites and supports keyboard reorder', () => {
+    mockEnabled = ['chatgpt', 'claude', 'api-chat']
+    mockFavorites = ['claude', 'api-chat']
+    render(<AiHomePage onOpenModel={vi.fn()} />)
+    const section = favoritesSection()
+    const cardButtons = section
+      .getAllByRole('button')
+      .filter((button) => !button.hasAttribute('aria-expanded'))
+    expect(cardButtons.map((b) => b.textContent?.trim())).toEqual(['Claude', 'API Chat'])
+    const apiChatDraggable = section
+      .getByRole('button', { name: 'API Chat' })
+      .closest('[draggable]')
+    expect(apiChatDraggable).not.toBeNull()
+
+    fireEvent.keyDown(section.getByRole('button', { name: 'API Chat' }), {
+      key: 'ArrowLeft',
+      altKey: true
+    })
+    expect(mockReorder).toHaveBeenCalledWith(['api-chat', 'claude'])
+  })
 })

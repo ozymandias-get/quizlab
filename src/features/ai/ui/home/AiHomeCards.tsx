@@ -58,6 +58,11 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
     [dragState]
   )
 
+  const handleCardDragLeave = useCallback(
+    (itemId: string, event: DragEvent<Element>) => dragState.handleDragLeave(event, itemId),
+    [dragState]
+  )
+
   return (
     <div className="grid gap-2.5 contain-content" style={gridStyle}>
       {tone === 'model' && showApiChat && (
@@ -114,7 +119,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
       )}
 
       {ids
-        .filter((id) => id !== 'api-chat')
+        .filter((id) => !(tone === 'model' && showApiChat && id === 'api-chat'))
         .map((id) => {
           const site = aiSites[id]
           if (!site) return null
@@ -123,12 +128,15 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
               key={id}
               isActive={activeModelIds.has(id)}
               isDragging={dragState.draggingId === id}
+              isDropTarget={dragState.dragOverId === id}
               itemId={id}
               onClick={onOpenModel}
               onDragEnd={dragState.handleDragEnd}
+              onDragLeave={handleCardDragLeave}
               onDragOver={handleCardDragOver}
               onDragStart={dragState.handleDragStart}
               onDrop={dragState.handleDrop}
+              onMove={dragState.moveItem}
               site={site}
               tone={tone}
             />

@@ -187,5 +187,68 @@ describe('useGridDragReorder', () => {
       // c is removed from index 0, then inserted at index 2
       expect(onReorder).toHaveBeenCalledWith(['a', 'b', 'c'])
     })
+
+    it('clears stale drag state if the dragged item is removed from order mid-drag', () => {
+      const { result, rerender } = renderHook(({ order }) => useGridDragReorder(order, vi.fn()), {
+        initialProps: { order: ['a', 'b', 'c'] }
+      })
+
+      act(() => {
+        result.current.handleDragStart('a')
+        result.current.handleDragOver(makeDragEvent(), 'b')
+      })
+      expect(result.current.draggingId).toBe('a')
+      expect(result.current.dragOverId).toBe('b')
+
+      rerender({ order: ['b', 'c'] })
+
+      expect(result.current.draggingId).toBeNull()
+      expect(result.current.dragOverId).toBeNull()
+      expect(result.current.dragItemRef.current).toBeNull()
+    })
+  })
+
+  describe('drop target feedback and keyboard reorder', () => {
+    it('tracks dragOverId only for other items during an active drag and clears on dragLeave', () => {
+      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], vi.fn()))
+
+      act(() => {
+        result.current.handleDragOver(makeDragEvent(), 'b')
+      })
+      expect(result.current.dragOverId).toBeNull()
+
+      act(() => {
+        result.current.handleDragStart('a')
+        result.current.handleDragOver(makeDragEvent(), 'a')
+      })
+      expect(result.current.dragOverId).toBeNull()
+
+      act(() => {
+        result.current.handleDragOver(makeDragEvent(), 'b')
+      })
+      expect(result.current.dragOverId).toBe('b')
+
+      act(() => {
+        result.current.handleDragLeave(makeDragEvent(), 'b')
+      })
+      expect(result.current.dragOverId).toBeNull()
+    })
+
+    it('moves items with moveItem and ignores out-of-bounds steps', () => {
+      const onReorder = vi.fn()
+      const { result } = renderHook(() => useGridDragReorder(['a', 'b', 'c'], onReorder))
+
+      act(() => {
+        result.current.moveItem('a', -1)
+        result.current.moveItem('c', 1)
+        result.current.moveItem('missing', 1)
+      })
+      expect(onReorder).not.toHaveBeenCalled()
+
+      act(() => {
+        result.current.moveItem('a', 1)
+      })
+      expect(onReorder).toHaveBeenCalledWith(['b', 'a', 'c'])
+    })
   })
 })
