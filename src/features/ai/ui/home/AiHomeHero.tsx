@@ -25,7 +25,7 @@ const AiHomeHero = memo(function AiHomeHero({
   const { t } = useTranslation()
 
   return (
-    <section className="flex flex-col gap-3 px-1 pt-1 pb-1">
+    <section className="flex flex-col gap-3 pt-1 pb-1">
       <div className={isCompact ? 'max-w-none' : 'max-w-2xl'}>
         <h1 className="text-foreground text-ql-18 tracking-ql-tight font-semibold">
           {t('ai_home.title')}

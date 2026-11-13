@@ -90,14 +90,14 @@ function PdfRecentControls({
             variant="outline"
             size="compact"
             onClick={onToggleMobileSearch}
-            className="text-muted-foreground sm:hidden"
+            className="text-muted-foreground @min-[440px]:hidden"
             aria-label={t('search_recent')}
           >
             <Search className="h-3.5 w-3.5" />
           </IconButton>
 
           <div
-            className={`${isMobileSearchOpen ? 'flex' : 'hidden'} text-ql-12 min-w-0 flex-1 sm:flex`}
+            className={`${isMobileSearchOpen ? 'flex' : 'hidden'} text-ql-12 min-w-0 flex-1 @min-[440px]:flex`}
           >
             <div className="relative w-full">
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2" />

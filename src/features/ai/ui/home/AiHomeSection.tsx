@@ -25,7 +25,11 @@ const AiHomeSection = memo(function AiHomeSection({
   const handleToggle = () => setIsOpen((current) => !current)
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70">
+    <section
+      className={`overflow-hidden rounded-2xl border transition-colors ${
+        isOpen ? 'border-white/[0.09] bg-zinc-950/70' : 'border-white/[0.07] bg-zinc-950/40'
+      }`}
+    >
       <button
         type="button"
         aria-expanded={isOpen}
@@ -36,15 +40,17 @@ const AiHomeSection = memo(function AiHomeSection({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-ql-13 text-foreground truncate font-semibold">{title}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-ql-13 text-foreground min-w-0 truncate font-semibold">
+              {title}
+            </span>
             {count > 0 && (
-              <span className="text-ql-11 rounded-full border border-white/[0.07] bg-white/[0.04] px-1.5 text-zinc-400 tabular-nums">
+              <span className="text-ql-11 shrink-0 rounded-full border border-white/[0.07] bg-white/[0.04] px-1.5 text-zinc-400 tabular-nums">
                 {count}
               </span>
             )}
           </div>
-          <div className="text-ql-12 text-muted-foreground mt-0.5">{detail}</div>
+          <div className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2">{detail}</div>
         </div>
         <div
           className="text-muted-foreground motion-slow flex size-6 shrink-0 items-center justify-center transition-transform"
@@ -64,7 +70,7 @@ const AiHomeSection = memo(function AiHomeSection({
             transition={{ duration: DURATION.slow, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div className="px-4 pt-1 pb-4">{children}</div>
+            <div className="px-4 pt-2 pb-4">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

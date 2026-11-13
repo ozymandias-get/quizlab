@@ -54,7 +54,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
           iconDistance={90}
           className="dock-surface mt-0 h-auto max-h-[calc(100dvh-4rem)] w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
         >
-          <div className="flex w-full flex-col items-center gap-0.5">
+          <div className="flex w-full flex-col items-center gap-1">
             {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
               <SettingsToolButton onOpenSettings={onOpenSettings} />
             )}
