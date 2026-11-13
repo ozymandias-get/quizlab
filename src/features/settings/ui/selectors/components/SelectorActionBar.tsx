@@ -15,6 +15,8 @@ interface SelectorActionBarProps {
   onTestSelectors: () => void
   onDeleteSelectors: (hostname: string) => void
   t: TranslateFn
+  /** Spacing lives with the caller: the validation panel owns its own gap. */
+  className?: string
 }
 
 const SelectorActionBar = memo(function SelectorActionBar({
@@ -26,10 +28,11 @@ const SelectorActionBar = memo(function SelectorActionBar({
   isDeleting,
   onTestSelectors,
   onDeleteSelectors,
-  t
+  t,
+  className = ''
 }: SelectorActionBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <Button
         type="button"
         variant="outline"

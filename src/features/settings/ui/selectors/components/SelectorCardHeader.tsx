@@ -93,7 +93,9 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
           aria-label={isExpanded ? t('ai_send_collapse') : t('ai_send_expand')}
           className="text-muted-foreground hover:text-foreground"
         >
-          <ChevronRightIcon className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+          <ChevronRightIcon
+            className={`motion-slow transition-transform ease-in-out motion-reduce:transition-none ${isExpanded ? 'rotate-90' : ''}`}
+          />
         </IconButton>
       </div>
     </div>

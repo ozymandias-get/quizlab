@@ -32,8 +32,18 @@ export const selectorsTabIconStubs = {
 
 export const selectorsTabMotionStubs = {
   motion: {
-    div: ({ children, layout: _layout, ...props }: any) => <div {...props}>{children}</div>
-  }
+    div: ({
+      children,
+      layout: _layout,
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      transition: _transition,
+      ...props
+    }: any) => <div {...props}>{children}</div>
+  },
+  AnimatePresence: ({ children }: any) => <>{children}</>,
+  useReducedMotion: () => false
 }
 
 export interface SelectorsTabStubOptions {
