@@ -57,7 +57,7 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
         <div className="flex min-w-0 items-center gap-2">
           <span
             aria-hidden
-            className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
           >
             <Icon className="h-4 w-4" />
           </span>

@@ -60,7 +60,7 @@ const ShellIntegrationCard = memo(() => {
           <span
             className={
               installed
-                ? 'text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400'
+                ? 'text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-400'
                 : 'text-ql-10 text-muted-foreground rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-0.5 font-semibold'
             }
           >

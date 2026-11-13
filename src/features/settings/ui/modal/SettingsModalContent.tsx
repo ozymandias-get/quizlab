@@ -30,9 +30,9 @@ function SettingsTabSkeleton() {
   return (
     <div aria-busy="true" className="space-y-6 pb-4 motion-safe:animate-pulse">
       <div className="flex items-center gap-3">
-        <div className="bg-muted h-10 w-10 shrink-0 rounded-xl" />
+        <div className="h-10 w-10 shrink-0 rounded-xl bg-zinc-900/60" />
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="bg-muted h-3.5 w-40 max-w-full rounded-full" />
+          <div className="h-3.5 w-40 max-w-full rounded-full bg-zinc-900/60" />
           <div className="h-2.5 w-72 max-w-full rounded-full bg-zinc-900/60" />
         </div>
       </div>
@@ -41,7 +41,7 @@ function SettingsTabSkeleton() {
           key={row}
           className="space-y-4 rounded-2xl border border-white/[0.07] bg-zinc-950/60 p-4"
         >
-          <div className="bg-muted h-3 w-32 max-w-full rounded-full" />
+          <div className="h-3 w-32 max-w-full rounded-full bg-zinc-900/60" />
           <div className="h-8 w-full rounded-lg bg-zinc-900/60" />
           <div className="flex gap-3">
             <div className="h-8 flex-1 rounded-lg bg-zinc-900/60" />
@@ -119,7 +119,7 @@ export default memo(function SettingsModalContent({
               className="flex h-full min-h-[300px] items-center justify-center"
             >
               <div className="relative flex w-full max-w-sm flex-col items-center gap-3.5 rounded-2xl border border-white/[0.07] bg-zinc-950/60 px-6 py-7 text-center">
-                <div className="bg-muted/40 motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full blur-2xl" />
+                <div className="motion-slow pointer-events-none absolute top-2 h-20 w-32 rounded-full bg-white/[0.04] blur-2xl" />
                 <SettingsTabIcon>
                   <SettingsIcon className="h-5 w-5" />
                 </SettingsTabIcon>

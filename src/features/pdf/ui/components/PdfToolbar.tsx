@@ -350,7 +350,7 @@ function PdfToolbar({
           isSearchOpen && isNarrowToolbar && 'hidden'
         )}
       >
-        <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/70 p-1 @max-[560px]:hidden">
+        <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/45 p-1 @max-[560px]:hidden">
           {onToggleThumbnailRail && (
             <WithTooltip label={t('pdf_thumbnails')}>
               <IconButton

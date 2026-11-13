@@ -31,7 +31,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
       <div className="flex min-h-[6.5rem] gap-2">
         {/* PDF side */}
         <div
-          className="bg-muted/30 relative flex flex-[3] items-center justify-center overflow-hidden rounded-lg border"
+          className="relative flex flex-[3] items-center justify-center overflow-hidden rounded-lg border bg-zinc-900/45"
           style={{
             borderColor: `color-mix(in oklch, ${selectionColor} 35%, transparent)`
           }}
@@ -46,12 +46,12 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
 
         {/* Chat side */}
         <div className="flex flex-[2] flex-col justify-end gap-1.5 rounded-lg border border-white/[0.07] bg-zinc-900/70 p-2">
-          <div className="bg-muted h-2 w-3/4 rounded-full" />
+          <div className="h-2 w-3/4 rounded-full bg-white/10" />
           <div
             className="h-2 w-2/3 self-end rounded-full"
             style={{ backgroundColor: `color-mix(in oklch, ${selectionColor} 45%, transparent)` }}
           />
-          <div className="bg-muted h-2 w-1/2 rounded-full" />
+          <div className="h-2 w-1/2 rounded-full bg-white/10" />
           <div className="mt-1 h-4 rounded-md border border-white/[0.07]" />
         </div>
       </div>

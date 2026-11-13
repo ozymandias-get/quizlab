@@ -107,9 +107,9 @@ function GoogleDrivePanel({
           >
             <span className="sr-only">{t('loading')}</span>
             <div className="flex items-center gap-3">
-              <div className="bg-muted h-9 w-9 shrink-0 rounded-lg motion-safe:animate-pulse" />
+              <div className="h-9 w-9 shrink-0 rounded-lg bg-zinc-900/60 motion-safe:animate-pulse" />
               <div className="min-w-0 flex-1 space-y-2">
-                <div className="bg-muted h-3 w-40 max-w-full rounded-full motion-safe:animate-pulse" />
+                <div className="h-3 w-40 max-w-full rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
                 <div className="h-2.5 w-64 max-w-full rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
               </div>
             </div>
@@ -120,9 +120,9 @@ function GoogleDrivePanel({
                   key={row}
                   className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/60 p-3"
                 >
-                  <div className="bg-muted h-10 w-10 shrink-0 rounded-lg motion-safe:animate-pulse" />
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900/60 motion-safe:animate-pulse" />
                   <div className="min-w-0 flex-1 space-y-2">
-                    <div className="bg-muted h-2.5 w-4/5 rounded-full motion-safe:animate-pulse" />
+                    <div className="h-2.5 w-4/5 rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
                     <div className="h-2 w-1/2 rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
                   </div>
                 </div>

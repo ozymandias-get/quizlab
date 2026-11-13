@@ -196,7 +196,7 @@ function PdfRecentListItem({
                   onClick={handleRelinkButtonClick}
                   onPointerDown={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
-                  className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+                  className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"
                   aria-label={t('choose_new_location')}
                 >
                   <FolderOpen className="h-3.5 w-3.5" />

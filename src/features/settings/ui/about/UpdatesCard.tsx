@@ -62,7 +62,7 @@ function renderUpdateStatusContent(
       return <p className="text-ql-12 text-muted-foreground">{t('update_not_available')}</p>
     case 'latest':
       return (
-        <div className="text-ql-12 flex items-center gap-2.5 font-semibold text-emerald-600 dark:text-emerald-400">
+        <div className="text-ql-12 flex items-center gap-2.5 font-semibold text-emerald-400">
           <div className="h-2 w-2 rounded-full bg-emerald-500" />
           {t('you_have_latest')}
         </div>
@@ -82,9 +82,7 @@ function renderUpdateStatusContent(
       return (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-ql-12 font-semibold text-emerald-600 dark:text-emerald-400">
-              {t('new_version')}:
-            </span>
+            <span className="text-ql-12 font-semibold text-emerald-400">{t('new_version')}:</span>
             <span className="text-ql-12 text-foreground font-mono font-medium">
               {updateInfo.version}
             </span>
@@ -157,7 +155,7 @@ const UpdatesCard = memo(
               <motion.span
                 initial={{ opacity: 0, x: 6 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400"
+                className="text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-400"
               >
                 {t('update_available')}
               </motion.span>

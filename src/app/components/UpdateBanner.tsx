@@ -29,7 +29,7 @@ const UpdateBanner = memo(function UpdateBanner({
   return (
     <div className="z-dropdown animate-in slide-in-from-bottom-4 fade-in motion-slower fixed bottom-4 left-4 w-[min(28rem,calc(100vw-2rem))]">
       <div className="flex items-start gap-3.5 rounded-xl border border-white/12 bg-zinc-950/95 p-4 text-zinc-100 shadow-xl backdrop-blur-xl">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
           <UpdateIcon className="h-5 w-5" />
         </div>
 
@@ -41,9 +41,7 @@ const UpdateBanner = memo(function UpdateBanner({
               </h3>
               <p className="text-ql-12 text-muted-foreground leading-relaxed">
                 {t('new_version')}{' '}
-                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                  {updateInfo.version}
-                </span>{' '}
+                <span className="font-semibold text-emerald-400">{updateInfo.version}</span>{' '}
                 {t('is_available')}
                 {updateInfo.releaseName && (
                   <span className="text-muted-foreground mt-0.5 block">

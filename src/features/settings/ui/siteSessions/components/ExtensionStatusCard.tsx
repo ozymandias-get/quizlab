@@ -90,7 +90,7 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
               // Any supported site makes the extension talk to the app; Gemini
               // is the one the button has always opened, and the label says so.
               onClick={() => getElectronApi()?.openExternal('https://gemini.google.com/app')}
-              className="text-amber-600 hover:text-amber-700 @max-[420px]:flex-1 dark:text-amber-400"
+              className="text-amber-400 hover:text-amber-300 @max-[420px]:flex-1"
             >
               <span className="text-ql-11 font-semibold">{t('ws_extension_wake_btn')}</span>
             </Button>

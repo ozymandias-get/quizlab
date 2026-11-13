@@ -20,15 +20,15 @@ import { pressureLabel } from './storageUtils'
 function pressureBadgeTone(level: CachePressureLevel): string {
   switch (level) {
     case 'critical':
-      return 'border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+      return 'border-rose-500/20 bg-rose-500/10 text-rose-400'
     case 'high':
-      return 'border-orange-500/20 bg-orange-500/10 text-orange-600 dark:text-orange-400'
+      return 'border-orange-500/20 bg-orange-500/10 text-orange-400'
     case 'warning':
-      return 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+      return 'border-amber-500/20 bg-amber-500/10 text-amber-400'
     case 'moderate':
-      return 'border-yellow-500/20 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+      return 'border-yellow-500/20 bg-yellow-500/10 text-yellow-400'
     default:
-      return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+      return 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
   }
 }
 
@@ -36,9 +36,9 @@ function pressureBadgeTone(level: CachePressureLevel): string {
 function pressureReadoutTone(level: CachePressureLevel, isOverLimit: boolean): string {
   if (isOverLimit) return 'text-destructive'
   if (level === 'warning' || level === 'high' || level === 'critical') {
-    return 'text-amber-600 dark:text-amber-400'
+    return 'text-amber-400'
   }
-  return 'text-emerald-600 dark:text-emerald-400'
+  return 'text-emerald-400'
 }
 
 /**
@@ -69,7 +69,7 @@ const CacheDistribution = memo(function CacheDistribution({
       <div
         role="img"
         aria-label={description}
-        className="bg-muted flex h-2.5 w-full overflow-hidden rounded-full"
+        className="flex h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06]"
       >
         {visible.map((segment) => (
           <div
@@ -151,9 +151,7 @@ export const TotalCacheSection = memo(function TotalCacheSection({
       {segments && <CacheDistribution segments={segments} />}
       {isOverLimit && <p className="text-ql-11 text-destructive">{t('storage_exceeds_limit')}</p>}
       {pressureLevel === 'warning' && !isOverLimit && (
-        <p className="text-ql-11 text-amber-600 dark:text-amber-400">
-          {t('storage_approaching_limit')}
-        </p>
+        <p className="text-ql-11 text-amber-400">{t('storage_approaching_limit')}</p>
       )}
 
       {/* Auto-clean toggle */}
@@ -161,7 +159,7 @@ export const TotalCacheSection = memo(function TotalCacheSection({
         <div className="flex min-w-0 items-start gap-2.5">
           <span
             aria-hidden
-            className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
           >
             <Sparkles className="h-4 w-4" />
           </span>

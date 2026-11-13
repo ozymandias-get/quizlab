@@ -175,7 +175,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
                 aria-busy={isSavingEdit || undefined}
                 aria-label={t('api_chat_save')}
                 title={t('api_chat_save')}
-                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 disabled:opacity-40 dark:text-emerald-400 dark:hover:text-emerald-400"
+                className="shrink-0 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 disabled:opacity-40"
               >
                 {isSavingEdit ? <Loader2 className="animate-spin" /> : <Check />}
               </IconButton>

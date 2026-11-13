@@ -39,10 +39,7 @@ function highlightMatch(text: string, query: string): ReactNode {
   while (index !== -1) {
     if (index > cursor) parts.push(text.slice(cursor, index))
     parts.push(
-      <mark
-        key={key}
-        className="text-foreground rounded-sm bg-amber-300/50 px-0.5 dark:bg-amber-400/30"
-      >
+      <mark key={key} className="text-foreground rounded-sm bg-amber-400/30 px-0.5">
         {text.slice(index, index + target.length)}
       </mark>
     )
@@ -179,9 +176,7 @@ const AiModelRow = memo(function AiModelRow({
                 variant="ghost"
                 aria-pressed={isFavorite}
                 aria-label={`${t(isFavorite ? 'remove_favorite_model' : 'add_favorite_model')} — ${getAiPlatformLabel(site, modelKey, t)}`}
-                className={
-                  isFavorite ? 'text-amber-500 dark:text-amber-400' : 'text-muted-foreground'
-                }
+                className={isFavorite ? 'text-amber-400' : 'text-muted-foreground'}
                 onClick={(event) => {
                   event.preventDefault()
                   event.stopPropagation()
@@ -205,7 +200,7 @@ const AiModelRow = memo(function AiModelRow({
                 }}
                 className={`group/star ${
                   isDefault
-                    ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400'
+                    ? 'text-amber-400 hover:text-amber-300'
                     : `text-muted-foreground ${HOVER_AFFORDANCE}`
                 }`}
                 aria-label={isDefault ? t('is_default_model') : t('set_as_default')}

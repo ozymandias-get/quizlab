@@ -24,8 +24,8 @@ const HOVER_AFFORDANCE =
 const BANNER_SURFACE = 'rounded-2xl border p-4'
 
 /** Alert banner tone. Kept semantic: sky = informational, amber = warning. */
-const TONE_INFO = 'border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400'
-const TONE_WARN = 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+const TONE_INFO = 'border-sky-500/20 bg-sky-500/10 text-sky-400'
+const TONE_WARN = 'border-amber-500/20 bg-amber-500/10 text-amber-400'
 
 function appLocale(): 'tr-TR' | 'en-US' {
   return i18next.language === 'tr' ? 'tr-TR' : 'en-US'
@@ -42,7 +42,7 @@ export const ProgressBar = memo(function ProgressBar({
 }) {
   const pct = Math.min((value / Math.max(max, 1)) * 100, 100)
   return (
-    <div className="bg-muted h-1 w-full overflow-hidden rounded-full">
+    <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
       <div
         className={cn('motion-deliberate h-full rounded-full transition-transform', color)}
         style={{ transform: `scaleX(${pct / 100})`, transformOrigin: 'left' }}
@@ -115,10 +115,10 @@ export const PartitionRow = memo(function PartitionRow({
                 className={cn(
                   'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-medium',
                   category === 'active'
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-emerald-500/10 text-emerald-400'
                     : category === 'passive'
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                      : 'bg-muted text-muted-foreground'
+                      ? 'bg-amber-500/10 text-amber-400'
+                      : 'text-muted-foreground bg-white/[0.04]'
                 )}
               >
                 {categoryLabel}
@@ -143,7 +143,7 @@ export const PartitionRow = memo(function PartitionRow({
             <button
               type="button"
               onClick={onClear}
-              className="group/clear text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground rounded-lg p-1.5 transition-colors"
+              className="group/clear text-muted-foreground hover:text-foreground focus-visible:text-foreground rounded-lg p-1.5 transition-colors hover:bg-white/5 focus-visible:bg-white/5"
               aria-label={t('partition_clear_aria', { name: label })}
             >
               <svg

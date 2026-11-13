@@ -108,9 +108,9 @@ const AiLifecycleTab = memo(() => {
             aria-label={t('max_alive_tabs')}
           />
           <div className="text-ql-10 mt-2.5 flex items-center justify-between gap-2 font-medium">
-            <span className="text-emerald-600 dark:text-emerald-400">{t('max_alive_low_ram')}</span>
-            <span className="text-amber-600 dark:text-amber-400">{t('max_alive_balanced')}</span>
-            <span className="text-sky-600 dark:text-sky-400">{t('max_alive_performance')}</span>
+            <span className="text-emerald-400">{t('max_alive_low_ram')}</span>
+            <span className="text-amber-400">{t('max_alive_balanced')}</span>
+            <span className="text-sky-400">{t('max_alive_performance')}</span>
           </div>
         </div>
       </SettingsSection>
@@ -121,7 +121,7 @@ const AiLifecycleTab = memo(() => {
         title={t('sleep_timeout')}
         detail={t('sleep_timeout_description')}
         action={
-          <span className="bg-muted text-muted-foreground text-ql-11 rounded-full px-2.5 py-1 font-medium">
+          <span className="text-muted-foreground text-ql-11 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 font-medium">
             {sleepLabel}
           </span>
         }

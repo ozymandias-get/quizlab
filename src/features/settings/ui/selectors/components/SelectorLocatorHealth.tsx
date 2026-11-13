@@ -58,10 +58,10 @@ function resolveHealthState(row: LocatorRow, configHealth: SelectorHealthState):
 }
 
 const STATE_STYLES: Record<string, string> = {
-  ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  ready: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
   migrated: 'border-primary/30 bg-primary/10 text-primary',
-  repaired: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-  needs_repick: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  repaired: 'border-sky-500/30 bg-sky-500/10 text-sky-400',
+  needs_repick: 'border-amber-500/30 bg-amber-500/10 text-amber-400',
   missing: 'border-white/[0.07] bg-zinc-900/45 text-muted-foreground'
 }
 

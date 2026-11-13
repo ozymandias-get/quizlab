@@ -160,7 +160,7 @@ function SiteSessionCard({
             {memberNames.map((name) => (
               <span
                 key={name}
-                className="bg-muted text-muted-foreground text-ql-11 rounded-full px-2.5 py-1 font-medium"
+                className="text-muted-foreground text-ql-11 rounded-full bg-white/[0.04] px-2.5 py-1 font-medium"
               >
                 {name}
               </span>

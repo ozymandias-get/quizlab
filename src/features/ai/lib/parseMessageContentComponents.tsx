@@ -44,7 +44,7 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
 
 export function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="my-3 overflow-x-auto rounded-xl border border-white/[0.07] bg-zinc-900/60">
+    <div className="my-3 overflow-x-auto rounded-xl border border-white/[0.07] bg-zinc-950/80">
       <table className="text-ql-12 w-full">
         <thead>
           <tr className="border-b border-white/[0.07] bg-white/[0.04]">

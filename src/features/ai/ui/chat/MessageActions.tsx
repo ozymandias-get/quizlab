@@ -37,7 +37,7 @@ export const CopyButton = memo(function CopyButton({ content }: { content: strin
         data-copied={isCopied || undefined}
         className={`text-ql-10 transition-colors ${
           isCopied
-            ? 'bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30 dark:text-emerald-400'
+            ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
             : 'text-muted-foreground'
         }`}
         aria-label={isCopied ? t('api_chat_copied') : t('api_chat_copy')}

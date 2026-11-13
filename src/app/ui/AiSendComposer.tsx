@@ -317,7 +317,7 @@ function AiSendComposer({
                   sendFeedback === 'error'
                     ? 'border-destructive/30 bg-destructive/12 text-destructive border'
                     : sendFeedback === 'incomplete'
-                      ? 'border border-amber-500/30 bg-amber-500/12 text-amber-600 dark:text-amber-400'
+                      ? 'border border-amber-500/30 bg-amber-500/12 text-amber-400'
                       : 'bg-primary/10 text-primary'
                 )}
                 aria-hidden
@@ -387,9 +387,7 @@ function AiSendComposer({
                   <p
                     className={cn(
                       'text-ql-11 leading-snug font-medium',
-                      sendFeedback === 'incomplete'
-                        ? 'text-amber-700 dark:text-amber-400'
-                        : 'text-destructive'
+                      sendFeedback === 'incomplete' ? 'text-amber-400' : 'text-destructive'
                     )}
                   >
                     {lastError}

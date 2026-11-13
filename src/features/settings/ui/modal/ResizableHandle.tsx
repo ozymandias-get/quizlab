@@ -84,16 +84,16 @@ const ResizableHandle = memo(function ResizableHandle({
       {/* Single track + a wider hover wash. */}
       <div
         className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${
-          isDragActive ? 'bg-primary/60' : 'bg-muted-foreground/45'
+          isDragActive ? 'bg-primary/60' : 'bg-white/[0.07]'
         }`}
       />
       <div className="group-hover:bg-ring/10 absolute inset-y-0 left-1/2 w-3 -translate-x-1/2 rounded-sm transition-colors" />
       {/* Grip dots: the divider's position stays legible even on low-contrast
           displays, and the accent guide line confirms an active drag. */}
       <div className="pointer-events-none absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 rounded-full p-0.5 opacity-50 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
-        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
-        <span className="bg-muted-foreground/70 size-0.5 rounded-full" />
+        <span className="size-0.5 rounded-full bg-white/25" />
+        <span className="size-0.5 rounded-full bg-white/25" />
+        <span className="size-0.5 rounded-full bg-white/25" />
       </div>
       {isDragActive && (
         <div

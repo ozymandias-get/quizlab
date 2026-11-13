@@ -93,7 +93,7 @@ function DraftItemChip({
       contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
     >
       <li
-        className="group motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border border-white/[0.07] bg-zinc-800/90 pr-0.5 pl-2 transition-all focus-within:border-white/20 hover:border-white/20 hover:bg-zinc-800"
+        className="group motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border border-white/[0.07] bg-zinc-900/85 pr-0.5 pl-2 transition-all focus-within:border-white/20 hover:border-white/20 hover:bg-zinc-900"
         data-testid="ai-draft-item"
       >
         <span

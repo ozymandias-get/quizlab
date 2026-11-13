@@ -9,8 +9,8 @@ export function getHealthTone(health: SelectorHealthState): HealthTone {
   switch (health) {
     case 'ready':
       return {
-        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-        icon: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+        icon: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
         border: 'border-emerald-500/30 bg-zinc-900/45 hover:bg-white/5'
       }
     case 'migrated':
@@ -21,8 +21,8 @@ export function getHealthTone(health: SelectorHealthState): HealthTone {
       }
     case 'repaired':
       return {
-        badge: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
-        icon: 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400',
+        badge: 'border-sky-500/30 bg-sky-500/10 text-sky-400',
+        icon: 'border-sky-500/30 bg-sky-500/10 text-sky-400',
         border: 'border-sky-500/30 bg-zinc-900/45 hover:bg-white/5'
       }
     case 'needs_repick':

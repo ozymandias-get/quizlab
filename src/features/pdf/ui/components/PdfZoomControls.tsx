@@ -44,7 +44,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
   const { t } = useTranslation()
 
   return (
-    <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/70 p-1">
+    <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/45 p-1">
       <ZoomOut>
         {(props: RenderChildProps) => {
           const atMin = typeof props.scale === 'number' && props.scale <= PDF_ZOOM_MIN_SCALE + 1e-6

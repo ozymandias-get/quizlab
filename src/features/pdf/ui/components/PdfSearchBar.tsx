@@ -219,7 +219,7 @@ function PdfSearchBar({
               asChild
               type="button"
               variant="outline"
-              className="group motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-full border border-white/[0.07] bg-zinc-900/70 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
+              className="group motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-full border border-white/[0.07] bg-zinc-900/45 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
             >
               <motion.button
                 type="button"

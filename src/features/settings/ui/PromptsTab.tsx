@@ -129,7 +129,7 @@ const PromptsTab = memo(() => {
               <h3 className="text-ql-13 text-foreground truncate font-semibold">
                 {t('prompts_title')}
               </h3>
-              <span className="bg-muted text-muted-foreground text-ql-10 rounded-full border px-2 py-0.5 font-medium">
+              <span className="text-muted-foreground text-ql-10 rounded-full border border-white/[0.07] bg-white/[0.04] px-2 py-0.5 font-medium">
                 {allPrompts.length}
               </span>
               {selectedPromptId && (

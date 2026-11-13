@@ -187,7 +187,7 @@ export function MagicCard(props: MagicCardProps) {
         <motion.div
           suppressHydrationWarning
           aria-hidden="true"
-          className="pointer-events-none absolute z-30 mix-blend-multiply dark:mix-blend-screen"
+          className="pointer-events-none absolute z-30 mix-blend-screen"
           style={{
             width: glowSize,
             height: glowSize,

@@ -71,7 +71,7 @@ function DraftSendControls({
   const StatusIcon = feedback === 'sending' ? Loader2 : isIncomplete ? TriangleAlert : AlertCircle
 
   const statusTone = isIncomplete
-    ? 'text-amber-600 dark:text-amber-400'
+    ? 'text-amber-400'
     : feedback === 'error'
       ? 'text-destructive'
       : feedback === 'sending'

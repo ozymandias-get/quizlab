@@ -55,7 +55,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
         </div>
 
         {selectorHealth === 'needs_repick' && (
-          <p className="text-ql-12 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 leading-relaxed text-amber-600 dark:text-amber-400">
+          <p className="text-ql-12 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 leading-relaxed text-amber-400">
             {t('selectors_repick_warning')}
           </p>
         )}

@@ -55,7 +55,7 @@ function MenuItem({ className, danger, icon, shortcut, children, ...props }: Men
       )}
       <span className="min-w-0 flex-1 truncate">{children}</span>
       {shortcut && (
-        <kbd className="text-ql-10 shrink-0 rounded border border-white/[0.07] bg-zinc-800 px-1.5 py-0.5 font-mono text-zinc-400">
+        <kbd className="text-ql-10 shrink-0 rounded border border-white/[0.07] bg-white/[0.06] px-1.5 py-0.5 font-mono text-zinc-400">
           {shortcut}
         </kbd>
       )}

@@ -17,7 +17,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
       <div className="flex flex-col gap-5 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
-            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-600 uppercase dark:text-amber-400">
+            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-400 uppercase">
               {t('ws_risk_list_title')}
             </span>
             <span aria-hidden className="h-px flex-1 bg-white/[0.07]" />
@@ -28,7 +28,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
               <li key={`risk-${item}`} className="flex items-start gap-2.5">
                 <span
                   aria-hidden
-                  className="text-ql-11 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 font-semibold text-amber-600 dark:text-amber-400"
+                  className="text-ql-11 flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 font-semibold text-amber-400"
                 >
                   {index + 1}
                 </span>
@@ -40,7 +40,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
 
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
-            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-emerald-600 uppercase dark:text-emerald-400">
+            <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-emerald-400 uppercase">
               {t('ws_mitigation_title')}
             </span>
             <span aria-hidden className="h-px flex-1 bg-white/[0.07]" />
@@ -51,7 +51,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
               <li key={`mitigation-${item}`} className="flex items-start gap-2.5">
                 <span
                   aria-hidden
-                  className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"
                 >
                   <CheckIcon className="h-3 w-3" />
                 </span>
