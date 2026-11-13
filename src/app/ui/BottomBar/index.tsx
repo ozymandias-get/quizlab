@@ -218,7 +218,7 @@ function BottomBar({
           className="bottom-bar-stack relative flex w-full flex-col items-center"
           style={stackStyle}
         >
-          <FloatingDockInner onOpenSettings={openSettings} />
+          <FloatingDockInner onOpenSettings={openSettings} isResizing={isResizing} />
         </div>
 
         <div

@@ -115,7 +115,12 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           )}
         </DockIcon>
       </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={12} align={tooltipAlign}>
+      <TooltipContent
+        side="top"
+        sideOffset={12}
+        align={tooltipAlign}
+        className="pointer-events-none"
+      >
         {title}
       </TooltipContent>
     </Tooltip>

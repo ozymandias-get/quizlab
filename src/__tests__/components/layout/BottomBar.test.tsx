@@ -105,8 +105,9 @@ vi.mock('motion/react', () => {
     AnimatePresence: ({ children }: any) => <>{children}</>,
     useAnimation: () => ({ start: vi.fn(), stop: vi.fn(), set: vi.fn() }),
     useMotionValue: (initial: any) => ({ get: () => initial, set: vi.fn(), onChange: vi.fn() }),
+    useReducedMotion: () => false,
     useSpring: (val: any) => val,
-    useTransform: () => ({ get: () => 32, set: vi.fn() })
+    useTransform: () => ({ get: () => 1, set: vi.fn() })
   }
 })
 

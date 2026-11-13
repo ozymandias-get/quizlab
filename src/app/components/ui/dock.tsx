@@ -10,7 +10,14 @@ import {
   useSpring,
   useTransform
 } from 'motion/react'
-import React, { type PropsWithChildren, useCallback, useContext, useRef } from 'react'
+import React, {
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef
+} from 'react'
 
 export interface DockProps extends VariantProps<typeof dockVariants> {
   className?: string
@@ -36,6 +43,8 @@ const dockVariants = cva(
 interface DockPointerState {
   mouseX: MotionValue<number>
   orientation: 'horizontal' | 'vertical'
+  scrollTick: MotionValue<number>
+  disableMagnification: boolean
 }
 
 /**
@@ -61,20 +70,38 @@ const Dock = React.forwardRef<HTMLDivElement, DockProps>(
     ref
   ) => {
     const mouseX = useMotionValue(Infinity)
+    const scrollTick = useMotionValue(0)
+
+    useEffect(() => {
+      if (disableMagnification) {
+        mouseX.set(Infinity)
+      }
+    }, [disableMagnification, mouseX])
 
     const handleMouseMove = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
+        if (disableMagnification) return
         // DockIcon measures distances against getBoundingClientRect(), which is
         // viewport-relative. pageX/pageY include document scroll, so a scrolled
         // page made the magnification point drift away from the cursor.
         mouseX.set(orientation === 'vertical' ? event.clientY : event.clientX)
       },
-      [mouseX, orientation]
+      [disableMagnification, mouseX, orientation]
     )
 
     const handleMouseLeave = useCallback(() => {
       mouseX.set(Infinity)
     }, [mouseX])
+
+    const handleScrollCapture = useCallback(() => {
+      if (disableMagnification || mouseX.get() === Infinity) return
+      scrollTick.set(scrollTick.get() + 1)
+    }, [disableMagnification, mouseX, scrollTick])
+
+    const pointerContextValue = useMemo(
+      () => ({ mouseX, orientation, scrollTick, disableMagnification }),
+      [mouseX, orientation, scrollTick, disableMagnification]
+    )
 
     const renderChildren = () => {
       return React.Children.map(children, (child) => {
@@ -94,11 +121,12 @@ const Dock = React.forwardRef<HTMLDivElement, DockProps>(
     }
 
     return (
-      <DockPointerContext.Provider value={{ mouseX, orientation }}>
+      <DockPointerContext.Provider value={pointerContextValue}>
         <motion.div
           ref={ref}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onScrollCapture={handleScrollCapture}
           {...props}
           className={cn(dockVariants({ className }), {
             'items-start': direction === 'top',
@@ -144,11 +172,15 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
   },
   forwardedRef
 ) {
+  const slotRef = useRef<HTMLDivElement>(null)
   const ref = useRef<HTMLDivElement>(null)
   const pointer = useContext(DockPointerContext)
   const axis = orientation ?? pointer?.orientation ?? 'horizontal'
   const activeMouseX = mouseX ?? pointer?.mouseX
+  const isMagnificationDisabled = disableMagnification ?? pointer?.disableMagnification ?? false
   const fallbackMouseX = useMotionValue(Infinity)
+  const fallbackScrollTick = useMotionValue(0)
+  const activeScrollTick = pointer?.scrollTick ?? fallbackScrollTick
   const padding = Math.max(6, size * 0.2)
   const prefersReducedMotion = useReducedMotion()
 
@@ -161,47 +193,53 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
     [forwardedRef]
   )
 
-  const distanceCalc = useTransform(activeMouseX ?? fallbackMouseX, (value: number) => {
-    const bounds = ref.current?.getBoundingClientRect() ?? {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0
+  const distanceCalc = useTransform(
+    [activeMouseX ?? fallbackMouseX, activeScrollTick],
+    ([value]: number[]) => {
+      const bounds = slotRef.current?.getBoundingClientRect() ?? {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0
+      }
+      return axis === 'vertical'
+        ? value - bounds.y - bounds.height / 2
+        : value - bounds.x - bounds.width / 2
     }
-    return axis === 'vertical'
-      ? value - bounds.y - bounds.height / 2
-      : value - bounds.x - bounds.width / 2
-  })
-
-  const targetSize = disableMagnification || prefersReducedMotion ? size : magnification
-
-  const sizeTransform = useTransform(
-    distanceCalc,
-    [-distance, 0, distance],
-    [size, targetSize, size]
   )
+
+  const targetSize = isMagnificationDisabled || prefersReducedMotion ? size : magnification
+  const targetScale = size > 0 ? targetSize / size : 1
+
+  const scaleTransform = useTransform(distanceCalc, [-distance, 0, distance], [1, targetScale, 1])
 
   // Soft, low-bounce spring: the icon grows a little as the pointer passes,
   // without the exaggerated bounce a stiff default produces.
-  const scaleSize = useSpring(sizeTransform, {
+  const scale = useSpring(scaleTransform, {
     mass: 0.1,
     stiffness: 150,
     damping: 24
   })
 
   return (
-    <motion.div
-      ref={setRefs}
-      style={{ width: scaleSize, height: scaleSize, padding }}
-      className={cn(
-        'flex aspect-square cursor-pointer items-center justify-center rounded-full transition-transform active:scale-[0.97]',
-        disableMagnification && 'hover:bg-muted-foreground transition-colors',
-        className
-      )}
-      {...props}
+    <div
+      ref={slotRef}
+      className="relative flex shrink-0 items-center justify-center"
+      style={{ width: size, height: size }}
     >
-      <div>{children}</div>
-    </motion.div>
+      <motion.div
+        ref={setRefs}
+        style={{ width: size, height: size, padding, scale, transformOrigin: 'center center' }}
+        className={cn(
+          'group flex aspect-square cursor-pointer items-center justify-center rounded-full',
+          isMagnificationDisabled && 'hover:bg-muted-foreground transition-colors',
+          className
+        )}
+        {...props}
+      >
+        <div className="transition-transform group-active:scale-[0.97]">{children}</div>
+      </motion.div>
+    </div>
   )
 })
 

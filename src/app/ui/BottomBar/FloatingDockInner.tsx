@@ -19,10 +19,12 @@ import {
 
 interface FloatingDockInnerProps {
   onOpenSettings: (tab?: string) => void
+  isResizing?: boolean
 }
 
 const FloatingDockInner = memo(function FloatingDockInner({
-  onOpenSettings
+  onOpenSettings,
+  isResizing = false
 }: FloatingDockInnerProps) {
   const {
     visibleTools: rawVisibleTools,
@@ -52,6 +54,7 @@ const FloatingDockInner = memo(function FloatingDockInner({
           iconSize={32}
           iconMagnification={34}
           iconDistance={90}
+          disableMagnification={isResizing}
           className="dock-surface mt-0 h-auto max-h-[calc(100dvh-4rem)] w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
         >
           <div className="flex w-full flex-col items-center gap-1">
