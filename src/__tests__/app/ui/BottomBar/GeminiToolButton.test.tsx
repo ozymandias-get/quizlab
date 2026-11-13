@@ -73,7 +73,7 @@ describe('GeminiToolButton', () => {
     const onOpenSettings = vi.fn()
 
     renderButton(onOpenSettings)
-    fireEvent.click(screen.getByRole('button', { name: 'ws_toolbar_title' }))
+    fireEvent.click(screen.getByRole('button', { name: /ws_toolbar_title/ }))
 
     expect(onOpenSettings).toHaveBeenCalledWith('site-sessions')
   })
@@ -83,7 +83,7 @@ describe('GeminiToolButton', () => {
 
     renderButton()
 
-    expect(screen.getByRole('button', { name: 'ws_toolbar_attention' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ws_toolbar_attention/ })).toBeInTheDocument()
   })
 
   it('asks for attention when Chrome has no session for the site', () => {
@@ -91,7 +91,7 @@ describe('GeminiToolButton', () => {
 
     renderButton()
 
-    expect(screen.getByRole('button', { name: 'ws_toolbar_attention' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ws_toolbar_attention/ })).toBeInTheDocument()
   })
 
   it('stays quiet about a site whose import is off', () => {
@@ -107,6 +107,6 @@ describe('GeminiToolButton', () => {
 
     renderButton()
 
-    expect(screen.getByRole('button', { name: 'ws_toolbar_title' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ws_toolbar_title/ })).toBeInTheDocument()
   })
 })

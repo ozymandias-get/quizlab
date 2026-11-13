@@ -77,7 +77,10 @@ describe('catalogue dock shortcuts', () => {
       screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))
     ).toEqual(['Poe', 'You.com', 'Lumo', 'Venice', 'Pi', 'Character.AI'])
     expect(container.firstElementChild).toHaveClass('overflow-y-auto')
-    expect(container.firstElementChild).toHaveStyle({ maxHeight: '188px' })
+    // The height cap follows the icon limit (5 * 36 + 8), not the longer
+    // favorites list; the viewport clamp comes second so the dock can never
+    // exceed the window.
+    expect((container.firstElementChild as HTMLElement).style.maxHeight).toContain('188px')
     fireEvent.click(screen.getByRole('button', { name: 'Character.AI' }))
     expect(mockOpenWorkspace).toHaveBeenCalledWith('character')
   })
