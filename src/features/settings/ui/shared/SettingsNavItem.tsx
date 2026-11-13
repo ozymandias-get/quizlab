@@ -34,8 +34,8 @@ const SettingsNavItem = memo(function SettingsNavItem({
         compact ? 'justify-center px-0' : 'gap-2.5 px-3'
       } ${
         isActive
-          ? 'bg-accent/40 text-foreground font-semibold'
-          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+          ? 'border border-white/[0.07] bg-white/[0.07] font-semibold text-zinc-100'
+          : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.04]'
       }`}
     >
       {isActive && (

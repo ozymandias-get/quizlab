@@ -141,7 +141,7 @@ function PdfSelectionMenu({
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className={`z-tooltip motion-normal fixed rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 text-zinc-100 shadow-2xl backdrop-blur-xl transition-opacity duration-150 ${
+      className={`z-tooltip motion-normal fixed rounded-xl border border-white/12 bg-zinc-950/95 p-1.5 text-zinc-100 shadow-2xl backdrop-blur-xl transition-opacity duration-150 ${
         isScrolling ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
       onMouseDown={(e) => {

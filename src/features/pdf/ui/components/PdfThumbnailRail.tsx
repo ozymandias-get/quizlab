@@ -89,17 +89,17 @@ const PdfThumbnail = memo(function PdfThumbnail({
         'group focus-visible:ring-ring/70 motion-normal flex w-full shrink-0 flex-col items-center gap-1 rounded-lg border p-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none',
         isActive
           ? 'border-primary/50 bg-primary/10'
-          : 'hover:border-border/60 hover:bg-muted/40 border-transparent'
+          : 'border-transparent hover:border-white/12 hover:bg-white/[0.04]'
       )}
     >
       <span
         className={cn(
-          'bg-muted/40 relative flex w-full items-center justify-center overflow-hidden rounded-[4px] shadow-xs',
+          'relative flex w-full items-center justify-center overflow-hidden rounded-[4px] bg-zinc-900/60 shadow-xs',
           !hasRendered && 'min-h-[5.5rem]'
         )}
       >
         {!hasRendered && !hasFailed && (
-          <span className="bg-muted/60 absolute inset-0 motion-safe:animate-pulse" aria-hidden />
+          <span className="absolute inset-0 bg-zinc-800/60 motion-safe:animate-pulse" aria-hidden />
         )}
         {hasFailed ? (
           <FileText className="text-muted-foreground/60 my-6 size-5" aria-hidden />

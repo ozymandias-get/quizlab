@@ -14,13 +14,13 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
       title={t('ws_warning_title')}
       detail={t('ws_warning_intro')}
     >
-      <div className="border-border/60 bg-background/40 flex flex-col gap-5 rounded-xl border p-4">
+      <div className="flex flex-col gap-5 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
         <div className="flex flex-col gap-2.5">
           <div className="text-muted-foreground flex items-center gap-2">
             <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-amber-600 uppercase dark:text-amber-400">
               {t('ws_risk_list_title')}
             </span>
-            <span aria-hidden className="bg-border h-px flex-1" />
+            <span aria-hidden className="h-px flex-1 bg-white/[0.07]" />
           </div>
 
           <ol className="flex flex-col gap-2">
@@ -43,7 +43,7 @@ function SiteSessionRiskNotice({ t, riskItems, mitigationItems }: SiteSessionRis
             <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold text-emerald-600 uppercase dark:text-emerald-400">
               {t('ws_mitigation_title')}
             </span>
-            <span aria-hidden className="bg-border h-px flex-1" />
+            <span aria-hidden className="h-px flex-1 bg-white/[0.07]" />
           </div>
 
           <ul className="flex flex-col gap-2">

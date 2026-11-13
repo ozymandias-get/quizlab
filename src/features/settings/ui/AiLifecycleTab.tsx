@@ -48,7 +48,7 @@ const NeverSleepSiteItem = memo(function NeverSleepSiteItem({
     >
       <span
         aria-hidden
-        className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+        className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
       >
         <AiIcon modelKey={site.id} className="h-4 w-4" />
       </span>

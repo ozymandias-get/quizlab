@@ -81,7 +81,7 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
           <span className="text-ql-12 text-foreground font-semibold">
             {t('ws_extension_pairing_code_label')}
           </span>
-          <div className="border-border/60 bg-muted/40 flex items-center justify-between gap-2 rounded-lg border p-2">
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.07] bg-zinc-950/80 p-2">
             <span className="text-ql-12 text-muted-foreground min-w-0 flex-1 truncate font-mono select-all">
               {isLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -100,7 +100,7 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
               }
             >
               {isCopied ? (
-                <span className="text-ql-11 flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="text-ql-11 flex items-center gap-1 font-semibold text-emerald-400">
                   <Check className="h-3 w-3" />
                   {t('ws_extension_pairing_copied')}
                 </span>

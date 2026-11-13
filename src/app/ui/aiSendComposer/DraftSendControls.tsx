@@ -106,7 +106,7 @@ function DraftSendControls({
           }
           className={cn(
             'text-ql-10 shrink-0 rounded-full px-1.5 py-0.5 font-semibold transition-colors',
-            autoSend ? 'bg-primary/10 text-primary' : 'bg-muted/60 text-muted-foreground'
+            autoSend ? 'bg-primary/10 text-primary' : 'text-muted-foreground bg-zinc-900/60'
           )}
         >
           {autoSend ? t('ai_send_auto_on') : t('ai_send_auto_off')}

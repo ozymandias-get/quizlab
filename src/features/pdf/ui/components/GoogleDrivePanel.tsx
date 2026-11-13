@@ -110,10 +110,10 @@ function GoogleDrivePanel({
               <div className="bg-muted h-9 w-9 shrink-0 rounded-lg motion-safe:animate-pulse" />
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="bg-muted h-3 w-40 max-w-full rounded-full motion-safe:animate-pulse" />
-                <div className="bg-muted/70 h-2.5 w-64 max-w-full rounded-full motion-safe:animate-pulse" />
+                <div className="h-2.5 w-64 max-w-full rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
               </div>
             </div>
-            <div className="bg-muted/70 h-9 w-full rounded-lg motion-safe:animate-pulse" />
+            <div className="h-9 w-full rounded-lg bg-zinc-900/60 motion-safe:animate-pulse" />
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {SKELETON_ROWS.map((row) => (
                 <div
@@ -123,7 +123,7 @@ function GoogleDrivePanel({
                   <div className="bg-muted h-10 w-10 shrink-0 rounded-lg motion-safe:animate-pulse" />
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="bg-muted h-2.5 w-4/5 rounded-full motion-safe:animate-pulse" />
-                    <div className="bg-muted/70 h-2 w-1/2 rounded-full motion-safe:animate-pulse" />
+                    <div className="h-2 w-1/2 rounded-full bg-zinc-900/60 motion-safe:animate-pulse" />
                   </div>
                 </div>
               ))}

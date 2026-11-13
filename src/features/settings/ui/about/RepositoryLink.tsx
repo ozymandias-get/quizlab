@@ -19,11 +19,11 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
       target="_blank"
       rel="noopener noreferrer"
       interactive
-      className="group bg-muted/30 hover:bg-muted/60"
+      className="group border-white/[0.07] bg-zinc-900/45 hover:bg-white/5"
       leading={
         <span
           aria-hidden
-          className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg"
+          className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
         >
           <GithubIcon className="h-4 w-4" />
         </span>

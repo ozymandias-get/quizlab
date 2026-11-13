@@ -160,7 +160,7 @@ export function MagicCard(props: MagicCardProps) {
           radial-gradient(${gradientSize}px circle at ${mouseX}px ${mouseY}px,
             ${gradientFrom},
             ${gradientTo},
-            var(--color-border) 100%
+            rgba(255, 255, 255, 0.07) 100%
           ) border-box
         `
       }}

@@ -257,7 +257,7 @@ function PdfPageNav({
             <span
               id={pageErrorId}
               role="alert"
-              className="border-destructive/30 bg-popover text-destructive text-ql-11 shadow-ambient-sm z-dropdown absolute bottom-full left-1/2 mb-2 w-max max-w-64 -translate-x-1/2 rounded-md border px-2 py-1 text-center"
+              className="border-destructive/30 text-destructive text-ql-11 shadow-ambient-sm z-dropdown absolute bottom-full left-1/2 mb-2 w-max max-w-64 -translate-x-1/2 rounded-md border bg-zinc-950/95 px-2 py-1 text-center"
             >
               {t('page_input_range', { max: String(totalPages) })}
             </span>
@@ -281,7 +281,7 @@ function PdfPageNav({
             <span
               id={revertNoticeId}
               role="alert"
-              className="border-destructive/30 bg-popover text-destructive text-ql-11 shadow-ambient-sm z-dropdown absolute bottom-full left-1/2 mb-2 w-max max-w-64 -translate-x-1/2 rounded-md border px-2 py-1 text-center"
+              className="border-destructive/30 text-destructive text-ql-11 shadow-ambient-sm z-dropdown absolute bottom-full left-1/2 mb-2 w-max max-w-64 -translate-x-1/2 rounded-md border bg-zinc-950/95 px-2 py-1 text-center"
             >
               {t('page_input_reverted', {
                 page: String(currentPage),

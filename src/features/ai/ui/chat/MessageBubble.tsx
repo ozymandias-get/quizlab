@@ -190,7 +190,7 @@ const MessageBubble = memo(function MessageBubble({
             : isSpeaking
               ? 'border-primary/40 text-foreground shadow-primary/10 bg-zinc-950/80 shadow-md'
               : isUser
-                ? 'ml-auto w-fit max-w-[85%] rounded-br-md border-white/[0.07] bg-zinc-800/90 text-zinc-100'
+                ? 'ml-auto w-fit max-w-[85%] rounded-br-md border-white/[0.07] bg-zinc-900/90 text-zinc-100'
                 : 'text-foreground w-full rounded-bl-md border-white/[0.07] bg-zinc-900/60'
         }`}
       >
@@ -350,7 +350,7 @@ const MessageBubble = memo(function MessageBubble({
               value={editVal}
               onChange={(e) => setEditVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="text-ql-13 border-ring bg-background text-foreground min-h-[60px] border"
+              className="text-ql-13 text-foreground min-h-[60px] border border-white/20 bg-zinc-950/90"
               aria-label={t('api_chat_edit')}
             />
             <div className="flex items-center justify-end gap-2">

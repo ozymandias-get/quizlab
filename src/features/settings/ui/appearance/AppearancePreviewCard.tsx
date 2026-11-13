@@ -52,7 +52,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
             style={{ backgroundColor: `color-mix(in oklch, ${selectionColor} 45%, transparent)` }}
           />
           <div className="bg-muted h-2 w-1/2 rounded-full" />
-          <div className="border-border/60 mt-1 h-4 rounded-md border" />
+          <div className="mt-1 h-4 rounded-md border border-white/[0.07]" />
         </div>
       </div>
 

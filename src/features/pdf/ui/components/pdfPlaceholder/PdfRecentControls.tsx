@@ -60,7 +60,7 @@ function PdfRecentControls({
           </h3>
           {recentCount > 0 && (
             <span
-              className="bg-muted text-muted-foreground text-ql-11 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 tabular-nums"
+              className="text-ql-11 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.04] px-1.5 text-zinc-400 tabular-nums"
               aria-label={t('recent_count_aria', { count: recentCount })}
             >
               {recentCount}
@@ -115,7 +115,7 @@ function PdfRecentControls({
           <Select value={sortMode} onValueChange={handleSortChange}>
             <SelectTrigger
               size="sm"
-              className="border-border bg-background/50 text-foreground gap-1.5 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
+              className="text-foreground gap-1.5 border-white/[0.07] bg-zinc-950/80 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
               aria-label={t('sort_recent_list')}
             >
               <ArrowUpDown className="text-muted-foreground pointer-events-none absolute left-2 h-3.5 w-3.5" />

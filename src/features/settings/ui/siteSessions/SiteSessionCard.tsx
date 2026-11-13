@@ -80,12 +80,12 @@ function SiteSessionCard({
   const switchLabel = `${t('ws_toggle_label')} — ${t(view.labelKey)} (${view.hostname})`
 
   return (
-    <div className="border-border/60 bg-background/40 flex flex-col gap-2.5 rounded-xl border p-4">
+    <div className="flex flex-col gap-2.5 rounded-xl border border-white/[0.07] bg-zinc-900/45 p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span
             aria-hidden="true"
-            className="border-border/50 bg-muted/50 text-muted-foreground flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border"
+            className="text-muted-foreground flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.04]"
           >
             {icon ?? (
               <span className="text-ql-13 text-foreground font-bold uppercase">
@@ -156,7 +156,7 @@ function SiteSessionCard({
         <>
           <p className="text-ql-12 text-muted-foreground">{t('ws_google_drive_note')}</p>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-lg bg-zinc-950/40 p-2">
             {memberNames.map((name) => (
               <span
                 key={name}

@@ -345,7 +345,7 @@ function AiSendComposer({
                   'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
                   totalItems > 0
                     ? 'bg-primary/10 text-primary'
-                    : 'bg-muted/70 text-muted-foreground'
+                    : 'text-muted-foreground bg-zinc-900/60'
                 )}
               >
                 {t('ai_draft_content_count', { count: totalItems })}
@@ -364,7 +364,7 @@ function AiSendComposer({
                 aria-label={t('ai_draft_close')}
                 aria-expanded
                 aria-controls="ai-draft-dock-body"
-                className="text-muted-foreground hover:bg-muted/70 hover:text-foreground size-6 rounded-full"
+                className="text-muted-foreground hover:text-foreground size-6 rounded-full hover:bg-white/5"
               >
                 <ChevronDown className="size-3.5" aria-hidden />
               </IconButton>

@@ -87,7 +87,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
             >
               <span
                 aria-hidden
-                className="border-border/60 h-8 w-8 shrink-0 rounded-lg border shadow-xs"
+                className="h-8 w-8 shrink-0 rounded-lg border border-white/[0.07] shadow-xs"
                 style={swatchStyle}
               />
               <span className="text-ql-12 text-foreground truncate font-mono font-medium">
@@ -110,7 +110,7 @@ const ColorPicker = memo(({ color, onChange, label }: ColorPickerProps) => {
                     <HexColorPicker color={color} onChange={onChange} />
                   </div>
 
-                  <div className="border-border/60 mt-3 flex items-center justify-between gap-3 border-t pt-2.5">
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.07] pt-2.5">
                     <span className="text-ql-10 text-muted-foreground tracking-ql-label shrink-0 font-semibold uppercase">
                       {t('value')}
                     </span>

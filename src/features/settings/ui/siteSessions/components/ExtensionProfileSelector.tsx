@@ -85,8 +85,8 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
               <div
                 key={profile.id}
                 role="listitem"
-                className={`border-border/60 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${
-                  selected ? 'bg-primary/5 border-primary/30' : 'bg-background/40'
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] p-3 ${
+                  selected ? 'bg-primary/5 border-primary/30' : 'bg-zinc-900/45'
                 }`}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2.5">

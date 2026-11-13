@@ -32,14 +32,14 @@ const AiHomeSection = memo(function AiHomeSection({
         className="focus-visible:ring-ring/70 flex w-full cursor-pointer items-center gap-2.5 px-4 py-3.5 text-left transition-colors select-none hover:bg-white/[0.03] focus-visible:ring-1 focus-visible:outline-none"
         onClick={handleToggle}
       >
-        <div className="bg-muted/80 text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
+        <div className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]">
           {icon}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-ql-13 text-foreground truncate font-semibold">{title}</span>
             {count > 0 && (
-              <span className="bg-muted/80 text-muted-foreground text-ql-11 rounded-full px-1.5 tabular-nums">
+              <span className="text-ql-11 rounded-full border border-white/[0.07] bg-white/[0.04] px-1.5 text-zinc-400 tabular-nums">
                 {count}
               </span>
             )}

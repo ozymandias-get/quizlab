@@ -52,7 +52,7 @@ const LanguageTab = memo(() => {
                 <>
                   <div
                     aria-hidden
-                    className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg"
+                    className="text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
                   >
                     <span className="text-ql-16 leading-none">{lang.flag}</span>
                   </div>
