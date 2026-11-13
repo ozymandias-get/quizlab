@@ -137,6 +137,7 @@ export const GeminiToolButton = memo(function GeminiToolButton({
       title={needsAttention ? t('ws_toolbar_attention') : t('ws_toolbar_title')}
       onClick={handleClick}
       status={needsAttention ? 'attention' : 'active'}
+      statusLabel={needsAttention ? t('dock_status_attention') : t('dock_status_active')}
     >
       <Globe className="h-5 w-5" />
     </FloatingDockIcon>
@@ -179,6 +180,7 @@ const ModelDockIcon = memo(function ModelDockIcon({
   site?: { displayName?: string; name?: string; icon?: string; color?: string }
 }) {
   const { openAiWorkspace } = useAiTabActions()
+  const { t } = useTranslation()
   const { tabs, activeTabId } = useAiTabsSliceState()
   const isActiveModel = tabs.some((tab) => tab.id === activeTabId && tab.modelId === modelKey)
   const handleClick = useCallback(() => openAiWorkspace(modelKey), [modelKey, openAiWorkspace])
@@ -190,6 +192,7 @@ const ModelDockIcon = memo(function ModelDockIcon({
       title={site.displayName || site.name || modelKey}
       onClick={handleClick}
       status={isActiveModel ? 'active' : undefined}
+      statusLabel={isActiveModel ? t('dock_status_active') : undefined}
     >
       {getAiIcon(site.icon || modelKey) || (
         <span className="text-ql-10 flex h-5 w-5 items-center justify-center font-bold">

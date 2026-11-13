@@ -126,8 +126,12 @@ export function MagicCard(props: MagicCardProps) {
       const rect = e.currentTarget.getBoundingClientRect()
       mouseX.set(e.clientX - rect.left)
       mouseY.set(e.clientY - rect.top)
+      // A window blur/visibility reset hides the orb without firing
+      // pointerenter again. Movement inside the card means the pointer is back,
+      // so restore visibility here as well.
+      if (modeRef.current === 'orb') orbVisible.set(glowOpacityRef.current)
     },
-    [mouseX, mouseY]
+    [mouseX, mouseY, orbVisible]
   )
 
   useEffect(() => {

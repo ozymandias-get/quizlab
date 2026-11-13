@@ -27,6 +27,15 @@ interface FloatingDockIconProps {
   disabled?: boolean
   /** Small session signal shown at the icon's trailing corner. */
   status?: 'active' | 'generating' | 'sleeping' | 'attention'
+  /** Localized spoken description of `status`; appended to the accessible name. */
+  statusLabel?: string
+}
+
+const STATUS_FALLBACK_LABELS: Record<NonNullable<FloatingDockIconProps['status']>, string> = {
+  active: 'Active',
+  generating: 'Generating',
+  sleeping: 'Sleeping',
+  attention: 'Needs attention'
 }
 
 export const FloatingDockIcon = memo(function FloatingDockIcon({
@@ -36,9 +45,14 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   onClick,
   isActive = false,
   disabled = false,
-  status
+  status,
+  statusLabel
 }: FloatingDockIconProps) {
   const tooltipAlign = useDockTooltipAlign()
+
+  const spokenStatus = statusLabel ?? (status ? STATUS_FALLBACK_LABELS[status] : null)
+  const accessibleLabel =
+    spokenStatus && !title.includes(spokenStatus) ? `${title}, ${spokenStatus}` : title
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -58,7 +72,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           id={id}
           role="button"
           tabIndex={disabled ? -1 : 0}
-          aria-label={title}
+          aria-label={accessibleLabel}
           aria-disabled={disabled || undefined}
           aria-busy={status === 'generating' || undefined}
           aria-current={status === 'active' ? 'true' : undefined}
