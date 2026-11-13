@@ -41,6 +41,7 @@
     "refresh_page": "Sayfayı yenile"
   },
   "ai_home_open_tabs_label": "Açık sekmeler",
+  "ai_home_more_tabs": "{total} sekme daha",
   "ai_session": {
     "sleep_title": "Sekme uyku modunda",
     "sleep_description": "Bellek kullanımını azaltmak için sekme uyutuldu. Devam etmek ve görünümü tazelemek için uyandırın.",

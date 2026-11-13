@@ -41,6 +41,7 @@
     "refresh_page": "Reload current AI page"
   },
   "ai_home_open_tabs_label": "Open tabs",
+  "ai_home_more_tabs": "{total} more open tabs",
   "ai_session": {
     "sleep_title": "Tab in sleep mode",
     "sleep_description": "This tab was put to sleep to reduce memory use. Wake it up to resume and refresh the view.",

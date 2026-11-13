@@ -76,7 +76,7 @@ const AiHomeSection = memo(function AiHomeSection({
             }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div id={contentId} className="px-4 pt-2 pb-4">
+            <div id={contentId} className="@container px-4 pt-2 pb-4">
               {children}
             </div>
           </motion.div>

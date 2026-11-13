@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../model/home'
 import { safeAiAccentColor } from '../../model/home'
-import GridCard from './aiHomeCards/GridCard'
+import GridCard, { AI_HOME_GRID_CARD_MIN_HEIGHT } from './aiHomeCards/GridCard'
 
 export { default as EmptySitesState } from './aiHomeCards/EmptySitesState'
 
@@ -110,6 +110,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
                 <button
                   type="button"
                   onClick={() => onOpenModel('api-chat')}
+                  style={AI_HOME_GRID_CARD_MIN_HEIGHT}
                   className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                     isApiChatActive
                       ? 'border-ring/50 bg-accent/30'
@@ -127,20 +128,28 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
                       {getAiIcon('api-chat')}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-ql-13 text-foreground truncate font-semibold">
+                      <h3
+                        className="text-ql-13 text-foreground truncate font-semibold"
+                        title={t('api_chat_home_card_title')}
+                      >
                         {t('api_chat_home_card_title')}
                       </h3>
-                      <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">
+                      <p
+                        className="text-ql-11 text-muted-foreground mt-0.5 truncate"
+                        title={t('api_chat_home_card_desc')}
+                      >
                         {t('api_chat_home_card_desc')}
                       </p>
                     </div>
-                    {isApiChatActive && (
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: apiChatAccent }}
-                      />
-                    )}
-                    <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
+                    <span className="flex size-2 shrink-0 items-center justify-center">
+                      {isApiChatActive && (
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: apiChatAccent }}
+                        />
+                      )}
+                    </span>
+                    <div className="text-muted-foreground/60 group-hover:text-foreground shrink-0 opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
                       <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
                     </div>
                   </div>

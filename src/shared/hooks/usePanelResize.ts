@@ -42,27 +42,63 @@ function setBodyResizingState(isResizing: boolean) {
 }
 
 function calculatePanelBounds(
-  windowWidth: number,
+  containerWidth: number,
   resizerWidth: number,
   minLeft: number,
   minRight: number
 ) {
   const effectiveResizerWidth = Math.max(28, resizerWidth)
-  const maxAvailable = Math.max(0, windowWidth - effectiveResizerWidth)
+  const maxAvailable = Math.max(0, containerWidth - effectiveResizerWidth)
   const safeMinLeft = Math.min(minLeft, maxAvailable)
-  const safeMaxLeft = Math.max(safeMinLeft, windowWidth - minRight - effectiveResizerWidth)
+  const safeMaxLeft = Math.max(safeMinLeft, containerWidth - minRight - effectiveResizerWidth)
   return { effectiveResizerWidth, safeMinLeft, safeMaxLeft }
 }
 
 function clampPanelPercentage(
   currentPercentage: number,
-  windowWidth: number,
+  containerWidth: number,
   safeMinLeft: number,
   safeMaxLeft: number
 ): number {
-  const desiredWidthPx = (currentPercentage / 100) * windowWidth
+  const desiredWidthPx = (currentPercentage / 100) * containerWidth
   const clampedWidthPx = Math.max(safeMinLeft, Math.min(desiredWidthPx, safeMaxLeft))
-  return windowWidth > 0 ? (clampedWidthPx / windowWidth) * 100 : currentPercentage
+  return containerWidth > 0 ? (clampedWidthPx / containerWidth) * 100 : currentPercentage
+}
+
+interface PanelContainerRect {
+  left: number
+  right: number
+  width: number
+}
+
+/**
+ * The panels are sized as a percentage of the flex container's *content box*,
+ * while pointer coordinates are viewport-relative. Measuring the parent (and
+ * removing its horizontal padding) keeps min-width clamps and drag deltas in
+ * the same coordinate space; using `window.innerWidth` made the outer gutter
+ * count as panel width, so a 300px minimum rendered as ~290px.
+ */
+function measurePanelContainer(leftPanel: HTMLElement | null): PanelContainerRect | null {
+  const parent = leftPanel?.parentElement
+  if (!parent || typeof window === 'undefined') return null
+
+  const rect = parent.getBoundingClientRect()
+  const style = window.getComputedStyle(parent)
+  const paddingLeft = Number.parseFloat(style.paddingLeft) || 0
+  const paddingRight = Number.parseFloat(style.paddingRight) || 0
+  const width = Math.max(0, rect.width - paddingLeft - paddingRight)
+
+  return {
+    left: rect.left + paddingLeft,
+    right: rect.right - paddingRight,
+    width
+  }
+}
+
+function getPanelContainerWidth(leftPanel: HTMLElement | null): number {
+  const measured = measurePanelContainer(leftPanel)
+  if (measured) return measured.width
+  return typeof window !== 'undefined' ? window.innerWidth : 1200
 }
 
 interface UsePanelResizeOptions {
@@ -97,29 +133,45 @@ export function usePanelResize({
 }: UsePanelResizeOptions): UsePanelResizeReturn {
   const [leftPanelWidth, setLeftPanelWidth] = useLocalStorage<number>(storageKey, initialWidth)
   const [isResizing, setIsResizing] = useState<boolean>(false)
-  const [windowWidth, setWindowWidth] = useState(() =>
+  const leftPanelRef = useRef<HTMLElement | null>(null)
+  const [containerWidth, setContainerWidth] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth : 1200
   )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+
     let rafId: number | null = null
-    const handleResize = () => {
+    const updateContainerWidth = () => {
       if (rafId !== null) cancelAnimationFrame(rafId)
       rafId = requestAnimationFrame(() => {
         rafId = null
-        setWindowWidth(window.innerWidth)
+        const nextWidth = getPanelContainerWidth(leftPanelRef.current)
+        setContainerWidth((previous) =>
+          Math.abs(previous - nextWidth) < 0.5 ? previous : nextWidth
+        )
       })
     }
-    window.addEventListener('resize', handleResize)
+
+    updateContainerWidth()
+    window.addEventListener('resize', updateContainerWidth)
+
+    const parent = leftPanelRef.current?.parentElement
+    const observer =
+      parent && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(updateContainerWidth)
+        : null
+    if (parent && observer) observer.observe(parent)
+
     return () => {
-      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('resize', updateContainerWidth)
+      observer?.disconnect()
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
 
   const { effectiveResizerWidth, safeMinLeft, safeMaxLeft } = calculatePanelBounds(
-    windowWidth,
+    containerWidth,
     resizerWidth,
     minLeft,
     minRight
@@ -127,12 +179,11 @@ export function usePanelResize({
 
   const clampedPercentage = clampPanelPercentage(
     leftPanelWidth,
-    windowWidth,
+    containerWidth,
     safeMinLeft,
     safeMaxLeft
   )
 
-  const leftPanelRef = useRef<HTMLElement | null>(null)
   const resizerRef = useRef<HTMLElement | null>(null)
   const pendingWidthRef = useRef<number>(clampedPercentage)
   const startWidthRef = useRef<number>(clampedPercentage)
@@ -189,17 +240,27 @@ export function usePanelResize({
     (e: ReactPointerEvent) => {
       if (!isResizingRef.current) return
 
-      const containerWidth = window.innerWidth
-      const bounds = calculatePanelBounds(containerWidth, effectiveResizerWidth, minLeft, minRight)
+      const container =
+        measurePanelContainer(leftPanelRef.current) ??
+        ({
+          left: 0,
+          right: window.innerWidth,
+          width: window.innerWidth
+        } satisfies PanelContainerRect)
+      const bounds = calculatePanelBounds(container.width, effectiveResizerWidth, minLeft, minRight)
+      // The drag handle is centred on the divider. Subtracting half of its
+      // width turns the pointer position into the panel edge, so grabbing the
+      // handle does not jump the panel by ~24px on the first move (the
+      // reversed branch already did this).
       const newWidthPx = isReversed
-        ? containerWidth - e.clientX - effectiveResizerWidth / 2
-        : e.clientX
+        ? container.right - e.clientX - effectiveResizerWidth / 2
+        : e.clientX - container.left - effectiveResizerWidth / 2
 
       const clampedWidthPxVal = Math.max(
         bounds.safeMinLeft,
         Math.min(newWidthPx, bounds.safeMaxLeft)
       )
-      const percentage = (clampedWidthPxVal / containerWidth) * 100
+      const percentage = container.width > 0 ? (clampedWidthPxVal / container.width) * 100 : 50
       pendingWidthRef.current = percentage
 
       if (rafIdRef.current) {
@@ -232,11 +293,16 @@ export function usePanelResize({
 
   const nudgeLeftPanelWidth = useCallback(
     (deltaPx: number) => {
-      const containerWidth = window.innerWidth
-      const bounds = calculatePanelBounds(containerWidth, effectiveResizerWidth, minLeft, minRight)
-      const currentPx = (leftPanelWidthRef.current / 100) * containerWidth
+      const currentContainerWidth = getPanelContainerWidth(leftPanelRef.current)
+      const bounds = calculatePanelBounds(
+        currentContainerWidth,
+        effectiveResizerWidth,
+        minLeft,
+        minRight
+      )
+      const currentPx = (leftPanelWidthRef.current / 100) * currentContainerWidth
       const nextPx = Math.max(bounds.safeMinLeft, Math.min(currentPx + deltaPx, bounds.safeMaxLeft))
-      const nextPercentage = containerWidth > 0 ? (nextPx / containerWidth) * 100 : 50
+      const nextPercentage = currentContainerWidth > 0 ? (nextPx / currentContainerWidth) * 100 : 50
       const diff = Math.abs(nextPercentage - leftPanelWidthRef.current)
       if (diff + Number.EPSILON < WIDTH_CHANGE_THRESHOLD) return
       leftPanelWidthRef.current = nextPercentage

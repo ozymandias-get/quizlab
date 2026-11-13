@@ -84,7 +84,10 @@ function PdfRecentControls({
       </div>
 
       {shouldShowAdvancedControls && recentCount > 0 && (
-        <div className="flex items-center gap-2">
+        /* The 440px query must describe the control row, not the whole
+           placeholder: in the two-column history layout this row can be much
+           narrower than its container. */
+        <div className="@container flex items-center gap-2">
           <IconButton
             type="button"
             variant="outline"
@@ -115,7 +118,7 @@ function PdfRecentControls({
           <Select value={sortMode} onValueChange={handleSortChange}>
             <SelectTrigger
               size="sm"
-              className="text-foreground gap-1.5 border-white/[0.07] bg-zinc-950/80 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
+              className="text-foreground shrink-0 gap-1.5 border-white/[0.07] bg-zinc-950/80 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
               aria-label={t('sort_recent_list')}
             >
               <ArrowUpDown className="text-muted-foreground pointer-events-none absolute left-2 h-3.5 w-3.5" />

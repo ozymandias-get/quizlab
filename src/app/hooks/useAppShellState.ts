@@ -12,30 +12,22 @@ export function useAppShellState() {
   useOnlineStatus()
 
   const { updateAvailable, updateInfo } = useUpdate()
-  const { bottomBarScale, isLayoutSwapped, focusMode, setFocusMode, toggleFocusMode } =
-    useAppearance(
-      useShallow((s) => ({
-        bottomBarScale: s.bottomBarScale,
-        isLayoutSwapped: s.isLayoutSwapped,
-        focusMode: s.focusMode,
-        setFocusMode: s.setFocusMode,
-        toggleFocusMode: s.toggleFocusMode
-      }))
-    )
+  const { isLayoutSwapped, focusMode, setFocusMode, toggleFocusMode } = useAppearance(
+    useShallow((s) => ({
+      isLayoutSwapped: s.isLayoutSwapped,
+      focusMode: s.focusMode,
+      setFocusMode: s.setFocusMode,
+      toggleFocusMode: s.toggleFocusMode
+    }))
+  )
   const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
-
-  const resizerShellWidth = useMemo(() => {
-    const clampedBarScale = Math.min(1.3, Math.max(0.7, bottomBarScale))
-    return Math.round(48 * clampedBarScale)
-  }, [bottomBarScale])
 
   const panelResize = usePanelResize({
     initialWidth: 50,
     minLeft: 300,
     minRight: 400,
     storageKey: STORAGE_KEYS.LEFT_PANEL_WIDTH,
-    isReversed: isLayoutSwapped,
-    resizerWidth: resizerShellWidth
+    isReversed: isLayoutSwapped
   })
 
   const animations = useAppAnimations(isLayoutSwapped)

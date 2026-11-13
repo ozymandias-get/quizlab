@@ -26,6 +26,7 @@ const AiHomeHero = memo(function AiHomeHero({
   tabs
 }: AiHomeHeroProps) {
   const { t } = useTranslation()
+  const hiddenTabCount = Math.max(0, tabs.length - 5)
 
   return (
     <section className="flex flex-col gap-3 pt-1 pb-1">
@@ -74,6 +75,18 @@ const AiHomeHero = memo(function AiHomeHero({
                 </Button>
               )
             })}
+            {hiddenTabCount > 0 && (
+              <span
+                className="text-ql-10 text-muted-foreground inline-flex h-6 shrink-0 items-center rounded-full border border-white/[0.07] bg-white/[0.04] px-2 font-semibold tabular-nums"
+                title={t('ai_home_more_tabs', { total: hiddenTabCount })}
+              >
+                +{hiddenTabCount}
+                <span className="sr-only">
+                  {' '}
+                  {t('ai_home_more_tabs', { total: hiddenTabCount })}
+                </span>
+              </span>
+            )}
           </div>
         </div>
       )}

@@ -110,6 +110,8 @@ describe('usePanelResize', () => {
     })
 
     expect(result.current.isResizing).toBe(false)
+    // The pointer lands below the 300px minimum once the 48px handle offset is
+    // removed, so the clamp holds the panel at 30% of the 1000px workspace.
     expect(result.current.leftPanelWidth).toBe(30)
   })
 

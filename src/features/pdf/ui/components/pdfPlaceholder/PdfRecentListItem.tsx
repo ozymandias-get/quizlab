@@ -130,7 +130,7 @@ function PdfRecentListItem({
       }
 
   return (
-    <BlurFade className="w-full">
+    <BlurFade className="@container w-full">
       <MagicCard
         className={`w-full rounded-xl border-white/[0.07] ${isActive ? 'ring-ring/30 ring-1' : ''}`}
         gradientColor="#18181b"
@@ -170,7 +170,12 @@ function PdfRecentListItem({
               />
 
               <div className="min-w-0 flex-1">
-                <div className="text-ql-13 text-foreground truncate font-semibold">{item.name}</div>
+                <div
+                  className="text-ql-13 text-foreground truncate font-semibold"
+                  title={item.name}
+                >
+                  {item.name}
+                </div>
                 <div
                   className={`text-ql-12 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-normal ${isInvalid ? 'text-destructive' : 'text-muted-foreground'}`}
                 >
@@ -188,8 +193,14 @@ function PdfRecentListItem({
                   ) : (
                     <span>{pageMeta}</span>
                   )}
-                  <span aria-hidden>&middot;</span>
-                  <span>{openedMeta}</span>
+                  {/* A leading "·" on a wrapped second line reads as a list
+                      bullet. Keep it only when the row is wide enough to stay
+                      on one line; the flex gap still separates the two values
+                      in narrow cards. */}
+                  <span aria-hidden className="text-muted-foreground/60 hidden @min-[420px]:inline">
+                    &middot;
+                  </span>
+                  <span className="min-w-0 truncate">{openedMeta}</span>
                 </div>
                 {isInvalid && (
                   <div className="text-ql-12 text-destructive mt-1.5">
@@ -211,9 +222,10 @@ function PdfRecentListItem({
                     onMouseDown={(e) => e.stopPropagation()}
                     className="text-foreground hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400"
                     aria-label={t('choose_new_location')}
+                    title={t('choose_new_location')}
                   >
                     <FolderOpen className="h-3.5 w-3.5" />
-                    <span className="text-ql-12 hidden sm:inline">
+                    <span className="text-ql-12 hidden @min-[440px]:inline">
                       {t('choose_new_location_short')}
                     </span>
                   </Button>

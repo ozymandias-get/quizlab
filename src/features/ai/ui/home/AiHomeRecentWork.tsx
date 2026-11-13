@@ -100,7 +100,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
   )
 
   return (
-    <div ref={gridRef} className="grid gap-2.5 sm:grid-cols-2">
+    <div ref={gridRef} className="grid grid-cols-1 gap-2.5 @min-[640px]:grid-cols-2">
       {entries.map((entry, index) => {
         const site = aiSites[entry.modelId]
         const accent = safeAiAccentColor(site?.color)
@@ -163,7 +163,10 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        <h3 className="text-ql-13 text-foreground truncate font-semibold">
+                        <h3
+                          className="text-ql-13 text-foreground truncate font-semibold"
+                          title={displayName}
+                        >
                           {displayName}
                         </h3>
                         <span

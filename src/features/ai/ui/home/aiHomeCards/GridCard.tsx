@@ -3,11 +3,29 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { ArrowUpRight } from 'lucide-react'
-import { type DragEvent, type KeyboardEvent, memo, Suspense, useRef } from 'react'
+import {
+  type CSSProperties,
+  type DragEvent,
+  type KeyboardEvent,
+  memo,
+  Suspense,
+  useRef
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiSiteMap, SectionTone } from '../../../model/home'
 import { safeAiAccentColor } from '../../../model/home'
+
+/**
+ * A card that carries a subtitle is two text lines tall, a model launcher is
+ * one. Reserving the two-line height for every card keeps the API-chat card,
+ * model cards and site cards on the same baseline grid instead of letting one
+ * row grow taller than the rest. `1.625rem` covers the vertical padding plus
+ * the subtitle's top margin; `38px` is the fixed two-line text stack and border.
+ */
+export const AI_HOME_GRID_CARD_MIN_HEIGHT: CSSProperties = {
+  minHeight: 'calc(1.625rem + 38px)'
+}
 
 interface GridCardProps {
   isActive: boolean
@@ -113,7 +131,8 @@ const GridCard = memo<GridCardProps>(function GridCard({
             aria-keyshortcuts={
               onMove ? 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown' : undefined
             }
-            className={`group motion-normal focus-visible:ring-ring/70 relative w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+            style={AI_HOME_GRID_CARD_MIN_HEIGHT}
+            className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
               isDropTarget
                 ? 'border-primary/40 bg-white/[0.04]'
                 : isActive
@@ -121,7 +140,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
                   : 'border-transparent bg-transparent hover:bg-white/[0.03]'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center gap-3">
               <div
                 className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"
                 style={{
@@ -132,20 +151,26 @@ const GridCard = memo<GridCardProps>(function GridCard({
                 {icon ? <Suspense fallback={letterFallback}>{icon}</Suspense> : letterFallback}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-ql-13 text-foreground truncate font-semibold">{displayName}</h3>
+                <h3
+                  className="text-ql-13 text-foreground truncate font-semibold"
+                  title={displayName}
+                >
+                  {displayName}
+                </h3>
                 {subtitle && (
-                  <p className="text-ql-11 text-muted-foreground mt-0.5 truncate">{subtitle}</p>
+                  <p className="text-ql-11 text-muted-foreground mt-0.5 truncate" title={subtitle}>
+                    {subtitle}
+                  </p>
                 )}
               </div>
-              {isActive && (
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{
-                    background: accent
-                  }}
-                />
-              )}
-              <div className="text-muted-foreground/60 group-hover:text-foreground opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
+              {/* Always reserve the status slot so activating a card never
+                  changes the text width or shifts the arrow. */}
+              <span className="flex size-2 shrink-0 items-center justify-center">
+                {isActive && (
+                  <span className="size-2 rounded-full" style={{ background: accent }} />
+                )}
+              </span>
+              <div className="text-muted-foreground/60 group-hover:text-foreground shrink-0 opacity-0 transition-opacity group-focus-visible:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100">
                 <ArrowUpRight className="motion-normal h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transform-none" />
               </div>
             </div>

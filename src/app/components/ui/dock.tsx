@@ -21,6 +21,7 @@ import React, {
 
 export interface DockProps extends VariantProps<typeof dockVariants> {
   className?: string
+  style?: React.CSSProperties
   iconSize?: number
   iconMagnification?: number
   disableMagnification?: boolean
