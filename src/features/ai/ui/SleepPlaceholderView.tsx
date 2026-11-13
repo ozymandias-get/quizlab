@@ -23,8 +23,8 @@ function SleepPlaceholderViewImpl({ onWakeUp, t }: SleepPlaceholderViewProps) {
       className="group focus-visible:ring-ring/70 flex flex-1 cursor-pointer flex-col items-center justify-center bg-zinc-950/70 select-none focus-visible:ring-2 focus-visible:outline-none"
     >
       <BlurFade duration={0.35} offset={8} blur="5px">
-        <div className="flex max-w-sm flex-col items-center rounded-2xl border border-white/10 bg-zinc-900/90 px-8 py-7 text-center shadow-2xl transition-colors group-hover:border-white/20 group-hover:bg-zinc-900/95">
-          <div className="relative mb-4 flex size-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
+        <div className="flex max-w-sm flex-col items-center rounded-2xl border border-white/[0.07] bg-zinc-950/90 px-8 py-7 text-center shadow-2xl transition-colors group-hover:border-white/20 group-hover:bg-zinc-900/95">
+          <div className="relative mb-4 flex size-14 items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.04]">
             <span
               aria-hidden
               className="absolute inset-0 rounded-full bg-white/10 motion-safe:animate-ping"

@@ -1,5 +1,6 @@
 import type { PdfTab } from '@features/pdf/hooks/types'
 
+import { useAppearance } from '@app/providers'
 import { useTabStripReorder } from '@shared/hooks'
 import { TabStripHomeButton, ToolbarButton } from '@shared/ui/components/primitives'
 import { TAB_STRIP_BAR_CLASS, TAB_STRIP_ROW_CLASS } from '@shared/ui/tabStripChrome'
@@ -53,6 +54,7 @@ function PdfTabStrip({
     tabs,
     activeTabId
   )
+  const isLayoutSwapped = useAppearance((s) => s.isLayoutSwapped)
   const rowRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLElement | null>(null)
   const tabsRef = useRef(tabs)
@@ -177,7 +179,10 @@ function PdfTabStrip({
   const contextMenuTab = contextMenu ? tabs.find((tab) => tab.id === contextMenu.tabId) : undefined
 
   return (
-    <div className={TAB_STRIP_BAR_CLASS}>
+    <div
+      className={`${TAB_STRIP_BAR_CLASS}${isLayoutSwapped ? 'window-controls-safe' : ''}`}
+      data-window-edge={isLayoutSwapped ? undefined : 'left'}
+    >
       <div
         ref={rowRef}
         role="tablist"

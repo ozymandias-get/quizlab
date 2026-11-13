@@ -77,7 +77,7 @@ function FlowStep({
         'flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5',
         active
           ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'border-border/60 bg-card text-foreground'
+          : 'text-foreground border-white/[0.07] bg-zinc-900/45'
       )}
     >
       <Icon className="size-3.5 shrink-0" aria-hidden />
@@ -142,8 +142,8 @@ const TextInputModeTab = memo(() => {
                   className={cn(
                     'focus-visible:ring-ring/70 flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                     isActive
-                      ? 'border-ring/50 bg-accent/30'
-                      : 'border-border/60 bg-card hover:bg-muted/50'
+                      ? 'border-white/[0.07] bg-zinc-950/80'
+                      : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
                   )}
                 >
                   <SettingsRowIcon>
@@ -157,7 +157,7 @@ const TextInputModeTab = memo(() => {
                     aria-hidden
                     className={cn(
                       'mt-1 size-4 shrink-0 rounded-full border-2 transition-colors',
-                      isActive ? 'border-primary bg-primary' : 'border-border bg-transparent'
+                      isActive ? 'border-primary bg-primary' : 'border-white/20 bg-transparent'
                     )}
                   />
                 </button>
@@ -168,7 +168,7 @@ const TextInputModeTab = memo(() => {
 
         {/* Two-step working model: the selected mode decides whether a PDF
             selection lands in the draft strip first or goes straight to chat. */}
-        <div className="border-border/60 bg-background/40 rounded-xl border p-3">
+        <div className="rounded-xl border border-white/[0.07] bg-zinc-950/40 p-3">
           <div className="flex flex-wrap items-center justify-center gap-2">
             <FlowStep icon={FileText} label={t('pdf_document')} />
             <ArrowRight className="text-muted-foreground/50 size-3.5 shrink-0" aria-hidden />

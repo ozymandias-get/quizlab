@@ -79,7 +79,7 @@ function DraftSendControls({
         : 'text-muted-foreground'
 
   return (
-    <div className="border-border/35 bg-muted/15 flex min-h-8 shrink-0 items-center gap-2 rounded-b-2xl border-t px-3.5 py-1.5">
+    <div className="flex min-h-8 shrink-0 items-center gap-2 rounded-b-2xl border-t border-white/[0.07] bg-zinc-950/40 px-3.5 py-1.5">
       <label className="flex shrink-0 cursor-pointer items-center gap-2 select-none">
         <Switch
           size="sm"

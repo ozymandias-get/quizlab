@@ -110,7 +110,7 @@ const PinAiProjectDialog = function PinAiProjectDialog({
       size="sm"
       ariaLabelledBy={titleId}
       ariaDescribedBy={descriptionId}
-      panelClassName="border-white/10 bg-zinc-900/95 px-6 py-5 shadow-2xl backdrop-blur-xl"
+      panelClassName="border-white/12 bg-zinc-950/95 px-6 py-5 shadow-2xl backdrop-blur-xl"
     >
       <DialogTitle id={titleId}>{t('ai_home.pin_dialog_title')}</DialogTitle>
       <DialogDescription id={descriptionId}>
@@ -137,7 +137,7 @@ const PinAiProjectDialog = function PinAiProjectDialog({
                     : 'border-transparent hover:bg-white/5'
                 }`}
               >
-                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]">
                   {icon ?? (
                     <span className="text-primary text-ql-12 font-bold uppercase" aria-hidden>
                       {label.charAt(0)}
@@ -172,7 +172,7 @@ const PinAiProjectDialog = function PinAiProjectDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder={t('ai_home.pin_name_placeholder')}
             maxLength={80}
-            className="border-white/10 bg-zinc-950/60 focus-visible:border-white/20"
+            className="border-white/[0.07] bg-zinc-950/60 focus-visible:border-white/20"
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()

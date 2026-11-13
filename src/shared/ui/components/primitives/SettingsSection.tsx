@@ -30,13 +30,13 @@ function SettingsSection({
 }: SettingsSectionProps) {
   return (
     <section
-      className={`flex flex-col gap-4 rounded-2xl border border-white/10 bg-zinc-900/55 p-5 ${className}`}
+      className={`flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-zinc-900/55 p-5 ${className}`}
     >
       <div className="flex items-center gap-2.5">
         {icon && (
           <span
             aria-hidden
-            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]"
+            className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
           >
             {icon}
           </span>

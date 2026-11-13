@@ -141,7 +141,7 @@ function PdfSelectionMenu({
         width: DEFAULT_SELECTION_MENU_SIZE.width,
         transform: nudge ? `translate(${nudge.x}px, ${nudge.y}px)` : undefined
       }}
-      className={`z-tooltip motion-normal fixed rounded-2xl border border-white/15 bg-zinc-900/90 p-1.5 text-zinc-100 shadow-2xl backdrop-blur-xl transition-opacity duration-150 ${
+      className={`z-tooltip motion-normal fixed rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 text-zinc-100 shadow-2xl backdrop-blur-xl transition-opacity duration-150 ${
         isScrolling ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
       onMouseDown={(e) => {
@@ -151,11 +151,11 @@ function PdfSelectionMenu({
       }}
     >
       {previewSrc && (
-        <div className="flex items-center gap-2 border-b border-white/10 px-2 py-1.5">
+        <div className="flex items-center gap-2 border-b border-white/[0.07] px-2 py-1.5">
           <img
             src={previewSrc}
             alt=""
-            className="h-12 w-auto max-w-[5.5rem] shrink-0 rounded-md border border-white/10 object-contain shadow-2xs"
+            className="h-12 w-auto max-w-[5.5rem] shrink-0 rounded-md border border-white/[0.07] object-contain shadow-2xs"
           />
           {previewLabel && (
             <span className="text-ql-11 text-muted-foreground min-w-0 truncate font-medium">

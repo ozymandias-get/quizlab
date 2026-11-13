@@ -174,7 +174,7 @@ function PdfPageNav({
   }, [announceRevert, cancelPageInput, clearRevertNotice, onJumpToPage, readPageInput])
 
   return (
-    <ToolbarGroup className="rounded-full border border-white/10 bg-zinc-900/70 p-1">
+    <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/70 p-1">
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
@@ -223,7 +223,7 @@ function PdfPageNav({
             onBlur={handleBlur}
             aria-invalid={isPageInvalid || undefined}
             aria-describedby={isPageInvalid ? pageErrorId : undefined}
-            className="text-ql-12 rounded-full border-white/10 bg-zinc-900/80 py-0.5 pr-4 pl-1.5 text-center font-medium tabular-nums"
+            className="text-ql-12 rounded-full border-white/[0.07] bg-zinc-950/80 py-0.5 pr-4 pl-1.5 text-center font-medium tabular-nums"
             style={{
               width: `${totalPages.toString().length + 2}ch`,
               minWidth: '58px'
@@ -272,7 +272,7 @@ function PdfPageNav({
             size="xs"
             onClick={startPageInput}
             aria-describedby={showRevertNotice ? revertNoticeId : undefined}
-            className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text rounded-full border border-white/10 bg-zinc-900/80 px-2.5 text-center font-medium tabular-nums"
+            className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text rounded-full border border-white/[0.07] bg-zinc-950/80 px-2.5 text-center font-medium tabular-nums"
           >
             {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
             <span className="text-muted-foreground">{totalPages}</span>

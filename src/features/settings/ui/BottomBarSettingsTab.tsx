@@ -50,8 +50,8 @@ const ROW_BASE =
   'motion-normal flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-colors'
 
 /** Enabled row uses the accent surface, disabled row the translucent card. */
-const ROW_ACTIVE = 'border-white/10 bg-zinc-900/80'
-const ROW_IDLE = 'border-white/10 bg-zinc-900/45 hover:bg-white/5'
+const ROW_ACTIVE = 'border-white/[0.07] bg-zinc-950/80'
+const ROW_IDLE = 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
 
 const BOTTOM_BAR_ICON = (
   <SettingsTabIcon>
@@ -227,7 +227,7 @@ const BottomBarSettingsTab = memo(() => {
           title={t('bottom_bar_max_icons')}
           detail={t('bottom_bar_max_icons_desc')}
         >
-          <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-zinc-900/55 p-3.5">
+          <div className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/55 p-3.5">
             <div className="flex items-center justify-between">
               <span className="text-foreground text-ql-12 font-medium">
                 {t('bottom_bar_max_icons_label')}

@@ -181,24 +181,24 @@
 
 @layer base {
   :root {
-    /* Zinc dark palette: #09090b base, #121215 panel, #18181b card. */
-    --background: 0.145 0.005 285.8;
+    /* Obsidian dark palette: #060608 base, #0c0c0e panel, #141416 card. */
+    --background: 0.095 0.004 285.8;
     --foreground: 0.985 0 0;
-    --card: 0.21 0.006 285.9;
-    --popover: 0.21 0.006 285.9;
+    --card: 0.135 0.005 285.9;
+    --popover: 0.145 0.005 285.9;
     --popover-foreground: 0.985 0 0;
     --primary: 0.96 0 0;
     --primary-foreground: 0.18 0.005 285.9;
-    --secondary: 0.18 0.005 285.9;
+    --secondary: 0.13 0.004 285.9;
     --secondary-foreground: 0.96 0 0;
-    --muted: 0.18 0.005 285.9;
+    --muted: 0.13 0.004 285.9;
     --muted-foreground: 0.71 0.008 285.9;
-    --accent: 0.27 0.006 285.9;
+    --accent: 0.18 0.005 285.9;
     --accent-foreground: 0.985 0 0;
     --destructive: 0.704 0.191 22.216;
     --destructive-foreground: 0.985 0 0;
-    --border: 0.23 0.005 285.9;
-    --input: 0.23 0.005 285.9;
+    --border: 0.17 0.004 285.9;
+    --input: 0.17 0.004 285.9;
     --ring: 0.62 0.005 285.9;
     --radius: 0.75rem;
     color-scheme: dark;

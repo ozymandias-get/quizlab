@@ -118,8 +118,8 @@ const AiModelRow = memo(function AiModelRow({
       transition={{ delay: animationDelay }}
     >
       <Field
-        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border border-white/10 p-3.5 transition-colors ${
-          isEnabled ? 'bg-zinc-900/80' : 'bg-zinc-900/45 hover:bg-white/5'
+        className={`group relative flex items-center justify-between gap-3 overflow-hidden rounded-xl border border-white/[0.07] p-3.5 transition-colors ${
+          isEnabled ? 'bg-zinc-950/80' : 'bg-zinc-900/45 hover:bg-white/5'
         } ${isLastModel ? 'opacity-80' : 'cursor-pointer'}`}
         onClick={() => !isLastModel && onToggle(modelKey)}
       >
@@ -156,7 +156,7 @@ const AiModelRow = memo(function AiModelRow({
               className={`text-ql-10 inline-flex w-fit items-center gap-1 rounded-full border px-1.5 py-0.5 font-medium transition-colors ${
                 isEnabled
                   ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-                  : 'text-muted-foreground border-white/10 bg-white/[0.03]'
+                  : 'text-muted-foreground border-white/[0.07] bg-white/[0.03]'
               }`}
             >
               <span

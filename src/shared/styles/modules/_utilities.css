@@ -21,9 +21,9 @@ html[data-platform='win32'] .window-controls-safe {
   padding-right: 9.5rem;
 }
 
-/* macOS traffic lights occupy the top-left corner of a hidden title bar. */
+/* macOS traffic lights only affect the strip touching the window's left edge. */
 
-html[data-platform='darwin'] .app-drag-region {
+html[data-platform='darwin'] [data-window-edge='left'] {
   padding-left: 5rem;
 }
 

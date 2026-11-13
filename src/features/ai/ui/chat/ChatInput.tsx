@@ -117,9 +117,9 @@ const ChatInput = memo(function ChatInput({
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Floating glass composer — the single surface owns the border, blur
             and focus ring so the textarea and toolbar read as one capsule. */}
-        <div className="shadow-ambient-lg motion-normal @container relative w-full overflow-hidden rounded-3xl border border-white/10 bg-zinc-900/90 transition-all focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/10">
+        <div className="shadow-ambient-lg motion-normal @container relative w-full overflow-hidden rounded-3xl border border-white/[0.07] bg-zinc-950/90 transition-all focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/10">
           {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2.5 border-b border-white/10 px-4 pt-3 pb-2">
+            <div className="flex flex-wrap gap-2.5 border-b border-white/[0.07] px-4 pt-3 pb-2">
               {attachments.map((data, i) => {
                 const meta = attachmentMetadata[i] ?? attachmentMeta(data)
                 return (
@@ -127,7 +127,7 @@ const ChatInput = memo(function ChatInput({
                   // eslint-disable-next-line react/no-array-index-key -- Static bottom tool buttons, stable order
                   <div key={i} className="group/attach animate-app-enter relative">
                     <div
-                      className="relative h-14 w-14 transform overflow-hidden rounded-lg border border-white/10 shadow-2xs"
+                      className="relative h-14 w-14 transform overflow-hidden rounded-lg border border-white/[0.07] shadow-2xs"
                       title={`${meta.type} · ${formatBytes(meta.bytes)}`}
                     >
                       <img src={data} alt="" className="h-full w-full object-cover" />

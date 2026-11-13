@@ -35,7 +35,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
 }: SelectorCardDetailsProps) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <div className="border-border/60 bg-background/40 flex flex-col gap-2 rounded-xl border p-4">
+      <div className="flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
         <div className="text-muted-foreground flex items-center gap-2">
           <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
             {t('selectors_saved_host_label')}
@@ -48,7 +48,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
             {savedHost || t('selectors_host_unavailable')}
           </span>
           {existingTab && (
-            <span className="text-ql-10 border-border/60 bg-muted text-muted-foreground shrink-0 rounded-full border px-2 py-0.5 font-medium">
+            <span className="text-ql-10 text-muted-foreground shrink-0 rounded-full border border-white/[0.07] bg-white/[0.04] px-2 py-0.5 font-medium">
               {t('selectors_tab_ready')}
             </span>
           )}
@@ -69,7 +69,7 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
 
       <SelectorLocatorHealth config={selectorConfig} t={t} />
 
-      <div className="border-border/60 bg-background/40 flex flex-col gap-2 rounded-xl border p-4 md:col-span-2">
+      <div className="flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4 md:col-span-2">
         <div className="text-muted-foreground flex items-center gap-2">
           <span className="text-ql-10 tracking-ql-label shrink-0 font-semibold uppercase">
             {t('selectors_submit_mode_label')}
@@ -91,8 +91,8 @@ const SelectorCardDetails = memo(function SelectorCardDetails({
                 }
                 className={`focus-visible:ring-ring/70 rounded-lg border px-3 py-1.5 transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                   isActive
-                    ? 'border-ring/50 bg-accent/30'
-                    : 'border-border/60 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    ? 'border-white/[0.07] bg-zinc-950/80'
+                    : 'text-muted-foreground hover:text-foreground border-white/[0.07] hover:bg-white/5'
                 }`}
               >
                 <span

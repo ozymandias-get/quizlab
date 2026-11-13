@@ -26,14 +26,14 @@ function buildPickerHtml(): { html: string; nonce: string } {
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'">
 <style nonce="${nonce}">
-  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 14px 16px; background: #09090b; color: #f4f4f5; -webkit-font-smoothing: antialiased; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 14px 16px; background: #060608; color: #f4f4f5; -webkit-font-smoothing: antialiased; }
   h1 { font-size: 15px; font-weight: 600; margin: 0 0 12px; letter-spacing: -0.01em; }
   .list { display: flex; flex-direction: column; gap: 8px; max-height: 56vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.16) transparent; }
   .list::-webkit-scrollbar { width: 5px; }
   .list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 9999px; }
   .row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #18181b; border-radius: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: background-color 150ms ease, border-color 150ms ease; }
   .row:hover { border-color: rgba(255,255,255,0.22); background: #1f1f23; }
-  .row img { width: 88px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: #09090b; border: 1px solid rgba(255,255,255,0.08); }
+  .row img { width: 88px; height: 50px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: #060608; border: 1px solid rgba(255,255,255,0.08); }
   .name { flex: 1; font-size: 13px; line-height: 1.35; word-break: break-word; color: #e4e4e7; }
   .footer { margin-top: 14px; display: flex; justify-content: flex-end; }
   button.cancel { padding: 8px 18px; font-size: 13px; font-weight: 500; background: #27272a; color: #f4f4f5; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: background-color 150ms ease, border-color 150ms ease; }
@@ -121,7 +121,7 @@ export async function showDisplayMediaPicker(
       fullscreenable: false,
       autoHideMenuBar: true,
       title: 'Screen share',
-      backgroundColor: '#09090b',
+      backgroundColor: '#060608',
       show: false,
       ...(iconPath ? { icon: iconPath } : {}),
       webPreferences: {

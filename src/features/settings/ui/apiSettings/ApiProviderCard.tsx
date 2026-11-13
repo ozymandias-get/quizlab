@@ -13,7 +13,8 @@ import { useTranslation } from 'react-i18next'
 import SettingsToggleSwitch from '../shared/SettingsToggleSwitch'
 import { DEFAULT_PLACEHOLDERS, PROVIDER_PLACEHOLDERS } from './constants'
 
-const FIELD_INPUT_CLASS = 'text-ql-12 border-white/10 bg-zinc-950/80 focus-visible:border-white/25'
+const FIELD_INPUT_CLASS =
+  'text-ql-12 border-white/[0.07] bg-zinc-950/80 focus-visible:border-white/25'
 import {
   validateProviderBaseUrl as validateBaseUrl,
   validateProviderName as validateName
@@ -61,7 +62,7 @@ function ApiProviderCard({
   const placeholders = PROVIDER_PLACEHOLDERS[provider.providerType] || DEFAULT_PLACEHOLDERS
 
   return (
-    <div className="group flex flex-col gap-4 rounded-xl border border-white/10 bg-zinc-900/75 p-4">
+    <div className="group flex flex-col gap-4 rounded-xl border border-white/[0.07] bg-zinc-900/50 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="muted" className="tracking-ql-label font-mono uppercase">
@@ -193,7 +194,7 @@ function ApiProviderCard({
         </div>
       </div>
 
-      <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-zinc-950/40 p-3">
+      <div className="flex items-start gap-3 rounded-lg border border-white/[0.07] bg-zinc-950/40 p-3">
         <SettingsToggleSwitch
           id={localNetworkId}
           aria-describedby={localNetworkDescId}
@@ -247,7 +248,7 @@ function ApiProviderCard({
       </div>
 
       {(provider.models || []).length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-white/10 pt-4">
+        <div className="flex flex-col gap-2 border-t border-white/[0.07] pt-4">
           <div className="flex items-center gap-2">
             <label className="text-ql-11 text-muted-foreground shrink-0 font-medium tabular-nums">
               {t('api_chat_models_count')} ({provider.models.length})
@@ -265,7 +266,7 @@ function ApiProviderCard({
               />
             </InputGroup>
           </div>
-          <div className="custom-scrollbar max-h-[140px] overflow-y-auto rounded-lg border border-white/10 bg-zinc-950/40 p-1">
+          <div className="custom-scrollbar max-h-[140px] overflow-y-auto rounded-lg border border-white/[0.07] bg-zinc-950/40 p-1">
             {filteredModels.length === 0 ? (
               <p className="text-ql-11 text-muted-foreground px-2 py-1">
                 {t('api_chat_no_models_found')}

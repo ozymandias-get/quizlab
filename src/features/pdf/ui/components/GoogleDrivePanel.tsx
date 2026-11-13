@@ -67,9 +67,9 @@ function GoogleDrivePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="relative flex items-center justify-between gap-4 border-b border-white/10 bg-zinc-950/80 px-4 py-2.5">
+      <div className="relative flex items-center justify-between gap-4 border-b border-white/[0.07] bg-zinc-950/80 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="text-foreground flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] shadow-xs">
+          <div className="text-foreground flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] shadow-xs">
             {getAiIcon('gdrive')}
           </div>
           <div className="min-w-0">
@@ -118,7 +118,7 @@ function GoogleDrivePanel({
               {SKELETON_ROWS.map((row) => (
                 <div
                   key={row}
-                  className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-900/60 p-3"
+                  className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-zinc-900/60 p-3"
                 >
                   <div className="bg-muted h-10 w-10 shrink-0 rounded-lg motion-safe:animate-pulse" />
                   <div className="min-w-0 flex-1 space-y-2">

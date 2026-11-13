@@ -16,8 +16,8 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
   return (
     // Container queries let the header collapse the label on a very narrow
     // message bubble without hiding the copy action itself.
-    <div className="@container my-3 overflow-hidden rounded-xl border border-white/10 bg-zinc-950">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 bg-zinc-900/80 px-3 py-1.5">
+    <div className="@container my-3 overflow-hidden rounded-xl border border-white/[0.07] bg-zinc-950">
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] bg-zinc-950/80 px-3 py-1.5">
         <span className="text-ql-11 min-w-0 truncate font-mono text-zinc-400 uppercase">
           {lang || 'code'}
         </span>
@@ -27,7 +27,7 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
           size="xs"
           onClick={handleCopy}
           aria-label={t('copy_code')}
-          className={`text-ql-11 shrink-0 gap-1 rounded-md border border-white/10 bg-white/[0.04] hover:bg-white/10 ${
+          className={`text-ql-11 shrink-0 gap-1 rounded-md border border-white/[0.07] bg-white/[0.04] hover:bg-white/10 ${
             isCopied ? 'text-emerald-400' : 'text-zinc-300'
           }`}
         >
@@ -44,10 +44,10 @@ export function CodeBlock({ code, lang }: { code: string; lang: string }) {
 
 export function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="my-3 overflow-x-auto rounded-xl border border-white/10 bg-zinc-900/60">
+    <div className="my-3 overflow-x-auto rounded-xl border border-white/[0.07] bg-zinc-900/60">
       <table className="text-ql-12 w-full">
         <thead>
-          <tr className="border-b border-white/10 bg-white/[0.04]">
+          <tr className="border-b border-white/[0.07] bg-white/[0.04]">
             {headers.map((h, i) => (
               <th
                 // Static headers — items never reorder

@@ -89,7 +89,7 @@ function PdfSearchBar({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -2 }}
             transition={{ duration: DURATION.normal }}
-            className="z-dropdown absolute top-[calc(100%+0.5rem)] left-1/2 flex w-[min(26rem,92vw)] -translate-x-1/2 items-center gap-1.5 rounded-xl border border-white/10 bg-zinc-900/90 p-2 text-zinc-100 shadow-2xl backdrop-blur-xl"
+            className="z-dropdown absolute top-[calc(100%+0.5rem)] left-1/2 flex w-[min(26rem,92vw)] -translate-x-1/2 items-center gap-1.5 rounded-xl border border-white/12 bg-zinc-950/95 p-2 text-zinc-100 shadow-2xl backdrop-blur-xl"
           >
             <BlurFade
               duration={DURATION.normal}
@@ -110,7 +110,7 @@ function PdfSearchBar({
                   placeholder={t('search_placeholder')}
                   aria-invalid={hasNoMatches}
                   aria-describedby="pdf-search-match-count"
-                  className="text-ql-12 border-white/10 bg-zinc-900/80 pr-32 pl-8 font-normal"
+                  className="text-ql-12 border-white/[0.07] bg-zinc-950/80 pr-32 pl-8 font-normal"
                   // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                   autoFocus
                 />
@@ -219,7 +219,7 @@ function PdfSearchBar({
               asChild
               type="button"
               variant="outline"
-              className="group motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-full border border-white/10 bg-zinc-900/70 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
+              className="group motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-full border border-white/[0.07] bg-zinc-900/70 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
             >
               <motion.button
                 type="button"
@@ -230,7 +230,7 @@ function PdfSearchBar({
                 whileTap={{ scale: 0.99 }}
                 onClick={onToggle}
               >
-                <div className="text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] transition-colors">
+                <div className="text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-md border border-white/[0.07] bg-white/[0.04] transition-colors">
                   <FileText className="h-3.5 w-3.5" />
                 </div>
 

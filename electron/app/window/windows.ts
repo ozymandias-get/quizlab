@@ -42,7 +42,7 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
     minHeight: APP_CONFIG.WINDOW.MIN_HEIGHT,
     icon: resolveIconPath(),
     autoHideMenuBar: true,
-    backgroundColor: '#09090b',
+    backgroundColor: '#060608',
     paintWhenInitiallyHidden: true,
     show: false,
     skipTaskbar: true,
@@ -53,7 +53,7 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
     ...(isWindows
       ? {
           titleBarOverlay: {
-            color: '#09090b',
+            color: '#060608',
             symbolColor: '#a1a1aa',
             height: 44
           }

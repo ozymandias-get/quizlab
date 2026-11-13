@@ -33,14 +33,14 @@ function HistorySearchField({
   const { t } = useTranslation()
 
   return (
-    <div className="shrink-0 border-b border-white/10 bg-zinc-950/40 px-4 py-2.5">
+    <div className="shrink-0 border-b border-white/[0.07] bg-zinc-950/40 px-4 py-2.5">
       <div className="group/modal-search relative">
         <Input
           ref={inputRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('api_chat_modal_search_placeholder')}
-          className="text-ql-13 h-10 rounded-xl border-white/10 bg-white/[0.04] pr-24 pl-9 shadow-none focus-visible:border-white/20 focus-visible:ring-white/10"
+          className="text-ql-13 h-10 rounded-xl border-white/[0.07] bg-white/[0.04] pr-24 pl-9 shadow-none focus-visible:border-white/20 focus-visible:ring-white/10"
           data-testid="history-search-input"
         />
         <Search className="text-muted-foreground group-focus-within/modal-search:text-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />

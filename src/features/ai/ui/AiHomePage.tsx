@@ -69,7 +69,7 @@ function AiHomePage({ onOpenModel, onOpenRecent, onOpenPinned }: AiHomePageProps
           width={24}
           height={24}
           cr={1}
-          className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] text-zinc-500 opacity-20"
+          className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] text-zinc-500 opacity-10"
         />
         <div className="relative z-10 flex flex-col gap-4">
           <AiHomeHero

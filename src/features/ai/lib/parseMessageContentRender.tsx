@@ -53,7 +53,7 @@ function renderLine(line: string, lineIndex: number): ReactNode {
   }
 
   if (HR_REGEX.test(trimmed)) {
-    return <div key={`l-${lineIndex}`} className="my-3 border-t border-white/10" />
+    return <div key={`l-${lineIndex}`} className="my-3 border-t border-white/[0.07]" />
   }
 
   if (TASK_LIST_REGEX.test(trimmed)) {

@@ -336,7 +336,7 @@ function PdfToolbar({
       // açık tonunu (`bg-card/60`) korur: iki yüzey bitişik olduğunda bile tek
       // kart gibi okunmamalı, aralarında kalan hava ikisini ayırır. Araç çubuğunun
       // içindeki kontrollerin görünümü değişmemiştir.
-      className="@container relative flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-zinc-950/80 px-2 py-2 select-none sm:gap-3 sm:px-4"
+      className="@container relative flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/[0.07] bg-zinc-950/80 px-2 py-2 select-none sm:gap-3 sm:px-4"
     >
       {/* Secondary controls yield first on narrow toolbars; page navigation,
           zoom and search stay reachable. Container queries follow the viewer
@@ -350,7 +350,7 @@ function PdfToolbar({
           isSearchOpen && isNarrowToolbar && 'hidden'
         )}
       >
-        <ToolbarGroup className="rounded-full border border-white/10 bg-zinc-900/70 p-1 @max-[560px]:hidden">
+        <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/70 p-1 @max-[560px]:hidden">
           {onToggleThumbnailRail && (
             <WithTooltip label={t('pdf_thumbnails')}>
               <IconButton
@@ -626,7 +626,7 @@ function PdfToolbar({
               const label = t('zoom_level', { value: pct }) || `${pct}%`
               return (
                 <span
-                  className="text-ql-10 text-foreground min-w-[36px] rounded-full border border-white/10 bg-zinc-900/80 px-1.5 py-0.5 text-center font-medium tabular-nums select-none"
+                  className="text-ql-10 text-foreground min-w-[36px] rounded-full border border-white/[0.07] bg-zinc-950/80 px-1.5 py-0.5 text-center font-medium tabular-nums select-none"
                   aria-label={label}
                 >
                   {pct}%

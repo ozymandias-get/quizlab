@@ -61,7 +61,7 @@ const ShellIntegrationCard = memo(() => {
             className={
               installed
                 ? 'text-ql-10 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 font-semibold text-emerald-600 dark:text-emerald-400'
-                : 'text-ql-10 text-muted-foreground border-border/60 bg-muted rounded-full border px-2.5 py-0.5 font-semibold'
+                : 'text-ql-10 text-muted-foreground rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-0.5 font-semibold'
             }
           >
             {installed ? t('on') : t('off')}
@@ -70,7 +70,7 @@ const ShellIntegrationCard = memo(() => {
       }
     >
       {!isLoading && installed && (
-        <p className="border-border/60 bg-background/40 text-ql-12 text-muted-foreground rounded-xl border p-4">
+        <p className="text-ql-12 text-muted-foreground rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
           {t('shell_integration_location')}
         </p>
       )}

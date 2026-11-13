@@ -296,12 +296,12 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="border-border/55 bg-popover/92 dark:bg-background/95 shadow-ambient-lg animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border"
+            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/12 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
                 gövdenin üstünde tutar. */}
-            <header className="border-border/35 relative z-[2] flex h-10 shrink-0 items-center gap-2 rounded-t-2xl border-b px-3.5">
+            <header className="relative z-[2] flex h-10 shrink-0 items-center gap-2 rounded-t-2xl border-b border-white/[0.07] px-3.5">
               <span
                 style={
                   sendFeedback !== 'error' && sendFeedback !== 'incomplete'

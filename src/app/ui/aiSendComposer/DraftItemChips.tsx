@@ -39,7 +39,7 @@ function DraftItemChips({ items, onRemoveItem }: DraftItemChipsProps) {
   if (items.length === 0) {
     return (
       <p
-        className="text-ql-11 text-muted-foreground mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed border-white/10 bg-white/[0.03] px-3 py-1.5 text-center"
+        className="text-ql-11 text-muted-foreground mx-3 mt-2.5 mb-0.5 truncate rounded-lg border border-dashed border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-center"
         data-testid="ai-draft-empty"
       >
         {t('ai_draft_empty_hint')}
@@ -93,7 +93,7 @@ function DraftItemChip({
       contentClassName="max-w-[min(22rem,80vw)] whitespace-normal break-words"
     >
       <li
-        className="group motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-zinc-800/90 pr-0.5 pl-2 transition-all focus-within:border-white/20 hover:border-white/20 hover:bg-zinc-800"
+        className="group motion-normal flex h-8 shrink-0 items-center gap-2 rounded-lg border border-white/[0.07] bg-zinc-800/90 pr-0.5 pl-2 transition-all focus-within:border-white/20 hover:border-white/20 hover:bg-zinc-800"
         data-testid="ai-draft-item"
       >
         <span

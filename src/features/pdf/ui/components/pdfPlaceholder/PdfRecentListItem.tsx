@@ -132,11 +132,11 @@ function PdfRecentListItem({
   return (
     <BlurFade className="w-full">
       <MagicCard
-        className={`w-full rounded-xl border-white/10 ${isActive ? 'ring-ring/30 ring-1' : ''}`}
-        gradientColor="#27272a"
-        gradientOpacity={0.45}
-        gradientFrom="#3f3f46"
-        gradientTo="#27272a"
+        className={`w-full rounded-xl border-white/[0.07] ${isActive ? 'ring-ring/30 ring-1' : ''}`}
+        gradientColor="#18181b"
+        gradientOpacity={0.35}
+        gradientFrom="#27272a"
+        gradientTo="#18181b"
       >
         <ListItemCard
           {...interactionProps}
@@ -167,7 +167,7 @@ function PdfRecentListItem({
               >
                 {showProgress ? (
                   <span
-                    className="text-ql-10 border-primary/20 bg-primary/10 text-primary inline-flex items-center rounded-full border px-1.5 py-0.5 font-semibold tabular-nums"
+                    className="text-ql-10 inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 font-semibold text-zinc-400 tabular-nums"
                     data-testid="pdf-recent-progress-label"
                   >
                     {t('pdf_page_progress', {

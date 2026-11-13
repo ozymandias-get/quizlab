@@ -1,3 +1,4 @@
+import { useAppearance } from '@app/providers'
 import {
   useAiContentHostActions,
   useAiContentPresence,
@@ -45,6 +46,7 @@ function AiTabStrip({
   sleepingTabIds
 }: AiTabStripProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
+  const isLayoutSwapped = useAppearance((s) => s.isLayoutSwapped)
   const isStreamingByTab = useChatUiStore((s) => s.isStreamingByTab)
   const aiSites = useAiSites()
   const { hasActiveContent } = useAiContentPresence()
@@ -102,7 +104,10 @@ function AiTabStrip({
   }, [])
 
   return (
-    <div className={`${TAB_STRIP_BAR_CLASS} window-controls-safe`}>
+    <div
+      className={`${TAB_STRIP_BAR_CLASS}${isLayoutSwapped ? '' : 'window-controls-safe'}`}
+      data-window-edge={isLayoutSwapped ? 'left' : undefined}
+    >
       <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 

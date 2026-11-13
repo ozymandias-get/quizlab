@@ -135,8 +135,8 @@ const NotificationsTab = memo(() => {
                 key={config.type}
                 className={`flex items-center gap-4 transition-colors ${
                   enabled
-                    ? 'border-ring/50 bg-accent/30'
-                    : 'border-border/60 bg-card hover:bg-muted/50'
+                    ? 'border-white/[0.07] bg-zinc-950/80'
+                    : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
                 }`}
               >
                 <IconBadge icon={config.icon} variant={config.variant} />
@@ -155,7 +155,7 @@ const NotificationsTab = memo(() => {
         </div>
 
         {/* One grouped preview surface instead of four loose debug buttons. */}
-        <div className="border-border/60 bg-background/40 mt-3 rounded-xl border p-3.5">
+        <div className="mt-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-3.5">
           <div className="mb-2.5 flex items-center gap-2">
             <span className="text-ql-10 text-muted-foreground tracking-ql-label font-semibold uppercase">
               {t('notification_preview_title')}

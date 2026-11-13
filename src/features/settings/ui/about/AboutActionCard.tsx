@@ -43,14 +43,14 @@ const AboutActionCard = memo(function AboutActionCard({
   const card = (
     <MagicCard
       className={cn(
-        'rounded-2xl border-white/10',
+        'rounded-2xl border-white/[0.07]',
         interactive && 'transition-colors hover:bg-white/[0.02]',
         className
       )}
-      gradientColor="#27272a"
-      gradientOpacity={0.45}
-      gradientFrom="#3f3f46"
-      gradientTo="#27272a"
+      gradientColor="#18181b"
+      gradientOpacity={0.35}
+      gradientFrom="#27272a"
+      gradientTo="#18181b"
     >
       {content}
     </MagicCard>

@@ -18,7 +18,7 @@ interface SettingsModalPortalProps {
 function SettingsModalFallback() {
   const { t } = useTranslation()
   return (
-    <div className="z-overlay bg-background/80 fixed inset-0 flex items-center justify-center backdrop-blur-sm">
+    <div className="z-overlay fixed inset-0 flex items-center justify-center bg-zinc-950/85 backdrop-blur-xl">
       <div className="flex flex-col items-center gap-3">
         <InlineSpinner size="xl" className="border-border border-t-primary" />
         <span className="text-ql-12 text-muted-foreground tracking-ql-caps font-medium uppercase">

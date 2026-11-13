@@ -30,7 +30,7 @@ const ICONS: Record<ToastType, ReactNode> = {
 }
 
 const TOAST_SURFACE =
-  'border border-white/10 bg-zinc-900/90 text-zinc-100 shadow-xl backdrop-blur-xl'
+  'border border-white/12 bg-zinc-950/95 text-zinc-100 shadow-xl backdrop-blur-xl'
 
 const STYLES: Record<ToastType, string> = {
   success: TOAST_SURFACE,
@@ -99,7 +99,7 @@ function renderToastMessage(text: string): ReactNode {
         <code
           key={`${index}-path`}
           title={value}
-          className="text-ql-11 rounded border border-white/10 bg-white/[0.06] px-1 py-0.5 font-mono break-all select-all"
+          className="text-ql-11 rounded border border-white/[0.07] bg-white/[0.06] px-1 py-0.5 font-mono break-all select-all"
         >
           {value}
         </code>

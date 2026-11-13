@@ -43,8 +43,8 @@ const LanguageTab = memo(() => {
                 cn(
                   'focus-visible:ring-ring/70 group motion-normal relative flex w-full cursor-pointer items-center gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                   checked
-                    ? 'border-ring/50 bg-accent/30'
-                    : 'border-border/60 bg-card hover:bg-muted/50'
+                    ? 'border-white/[0.07] bg-zinc-950/80'
+                    : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
                 )
               }
             >
@@ -70,7 +70,9 @@ const LanguageTab = memo(() => {
                     aria-hidden
                     className={cn(
                       'flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors',
-                      checked ? 'border-ring bg-accent/30' : 'border-border bg-card'
+                      checked
+                        ? 'border-white/[0.07] bg-zinc-950/80'
+                        : 'border-white/[0.07] bg-zinc-900/45'
                     )}
                   >
                     {checked && (
@@ -87,7 +89,7 @@ const LanguageTab = memo(() => {
           ))}
         </RadioGroup>
 
-        <div className="border-border/60 border-t pt-4">
+        <div className="border-t border-white/[0.07] pt-4">
           <p className="text-muted-foreground text-ql-12">
             {t('current_language')}:{' '}
             <span className="text-foreground font-semibold">

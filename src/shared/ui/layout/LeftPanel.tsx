@@ -53,7 +53,7 @@ const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) =>
   if (!isVisible) return null
   return (
     <div className="z-overlay animate-in fade-in motion-normal absolute inset-0 flex items-center justify-center bg-zinc-950/85 p-6 backdrop-blur-xl">
-      <div className="relative flex w-full max-w-xs flex-col items-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-white/25 bg-zinc-900/80 p-6 text-center shadow-2xl backdrop-blur-xl">
+      <div className="relative flex w-full max-w-xs flex-col items-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed border-white/25 bg-zinc-950/80 p-6 text-center shadow-2xl backdrop-blur-xl">
         <BorderBeam
           size={100}
           duration={10}
@@ -61,7 +61,7 @@ const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) =>
           colorFrom="#a1a1aa"
           colorTo="#3f3f46"
         />
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-200">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-zinc-200">
           <ImportIcon className="h-6 w-6" />
         </div>
         <div>

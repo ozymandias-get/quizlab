@@ -69,10 +69,10 @@ const GridCard = memo<GridCardProps>(function GridCard({
       <BlurFade className="h-full">
         <MagicCard
           className={`h-full rounded-xl ${isActive ? 'ring-ring/40 ring-1' : ''}`}
-          gradientColor="#27272a"
-          gradientOpacity={0.45}
-          gradientFrom="#3f3f46"
-          gradientTo="#27272a"
+          gradientColor="#18181b"
+          gradientOpacity={0.35}
+          gradientFrom="#27272a"
+          gradientTo="#18181b"
         >
           <button
             type="button"

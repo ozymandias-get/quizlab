@@ -15,7 +15,7 @@ import { groupPartitionCacheRows } from './cacheUsageSummary'
 import { PartitionRow, RootCacheRow } from './StorageComponents'
 
 /** Nested list surface: recessed inside a section card, so it never uses `bg-card`. */
-const INSET_LIST = 'border-border/60 bg-background/40 rounded-xl border'
+const INSET_LIST = 'border-white/[0.07] bg-zinc-950/40 rounded-xl border'
 
 export const RootCacheSection = memo(function RootCacheSection({
   chromiumCache,
@@ -57,7 +57,7 @@ export const PartitionCacheSection = memo(function PartitionCacheSection({
       icon={<Layers className="h-4 w-4" />}
       title={t('storage_services_count', { count: groups.length })}
     >
-      <div className={cn(INSET_LIST, 'divide-border/60 divide-y overflow-hidden')}>
+      <div className={cn(INSET_LIST, 'divide-y divide-white/5 overflow-hidden')}>
         {groups.map((group) =>
           group.rows.length === 1 ? (
             <PartitionRow
@@ -86,7 +86,7 @@ export const PartitionCacheSection = memo(function PartitionCacheSection({
                   {formatBytes(group.size)}
                 </span>
               </summary>
-              <div className="divide-border/60 border-border/60 divide-y border-t pl-4">
+              <div className="divide-y divide-white/5 border-t border-white/[0.07] pl-4">
                 {group.rows.map((row) => (
                   <PartitionRow
                     key={row.key}

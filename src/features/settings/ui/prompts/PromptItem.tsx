@@ -27,7 +27,9 @@ export const PromptItem = memo(function PromptItem({
   return (
     <div
       className={`group relative flex w-full items-start rounded-lg border transition-colors ${
-        isSelected ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
+        isSelected
+          ? 'border-white/[0.07] bg-zinc-950/80'
+          : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
       }`}
     >
       <button
@@ -47,7 +49,7 @@ export const PromptItem = memo(function PromptItem({
           className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors ${
             isSelected
               ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border/60 bg-muted/30 group-hover:border-border'
+              : 'border-white/[0.07] bg-white/[0.04] group-hover:border-white/20'
           }`}
         >
           {isSelected && <Check className="h-2.5 w-2.5" />}

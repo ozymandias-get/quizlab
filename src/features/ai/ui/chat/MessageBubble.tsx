@@ -188,10 +188,10 @@ const MessageBubble = memo(function MessageBubble({
           isError
             ? 'border-destructive/40 bg-destructive/10 text-destructive'
             : isSpeaking
-              ? 'border-primary/40 text-foreground shadow-primary/10 bg-zinc-900/80 shadow-md'
+              ? 'border-primary/40 text-foreground shadow-primary/10 bg-zinc-950/80 shadow-md'
               : isUser
-                ? 'ml-auto w-fit max-w-[85%] rounded-br-md border-white/10 bg-zinc-800/90 text-zinc-100'
-                : 'text-foreground w-full rounded-bl-md border-white/10 bg-zinc-900/60'
+                ? 'ml-auto w-fit max-w-[85%] rounded-br-md border-white/[0.07] bg-zinc-800/90 text-zinc-100'
+                : 'text-foreground w-full rounded-bl-md border-white/[0.07] bg-zinc-900/60'
         }`}
       >
         {message.images && message.images.length > 0 && (

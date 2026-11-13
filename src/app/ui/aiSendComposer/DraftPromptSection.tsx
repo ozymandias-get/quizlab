@@ -38,7 +38,7 @@ const NONE_VALUE = '__none__'
  * rozetindeki chevron görünmüyordu). Esneme, metni `line-clamp-1` ile kısaltır.
  */
 const TRIGGER_CLASS =
-  'border-border/50 bg-background/50 hover:bg-muted/65 hover:border-border/75 h-7 min-w-0 max-w-full shrink gap-1.5 rounded-full px-2.5 text-ql-11 font-medium shadow-none transition-colors'
+  'h-7 min-w-0 max-w-full shrink gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 text-ql-11 font-medium shadow-none transition-colors hover:border-white/20 hover:bg-white/[0.08]'
 
 /**
  * Kayıtlı prompt için kısa, güvenli bir görüntüleme etiketi.

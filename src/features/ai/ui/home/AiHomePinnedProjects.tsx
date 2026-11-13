@@ -53,10 +53,10 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
             <BlurFade delay={index * 0.04} className="h-full">
               <MagicCard
                 className="h-full rounded-xl"
-                gradientColor="#27272a"
-                gradientOpacity={0.45}
-                gradientFrom="#3f3f46"
-                gradientTo="#27272a"
+                gradientColor="#18181b"
+                gradientOpacity={0.35}
+                gradientFrom="#27272a"
+                gradientTo="#18181b"
               >
                 <div className="relative">
                   <button

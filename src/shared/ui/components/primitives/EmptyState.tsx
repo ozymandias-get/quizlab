@@ -31,7 +31,7 @@ export const EmptyState = ({
     <div
       className={cn(
         'flex flex-col items-center justify-center rounded-2xl text-center',
-        bare ? '' : 'border border-dashed border-white/10 bg-zinc-900/55',
+        bare ? '' : 'border border-dashed border-white/[0.07] bg-zinc-900/55',
         sizeConfig.spacing,
         className
       )}
@@ -39,7 +39,7 @@ export const EmptyState = ({
       {Icon && (
         <div
           className={cn(
-            'mb-3 flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-zinc-400',
+            'mb-3 flex items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.04] text-zinc-400',
             sizeConfig.iconSize
           )}
         >

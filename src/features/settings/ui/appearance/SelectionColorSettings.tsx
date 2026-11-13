@@ -36,7 +36,7 @@ const SelectionColorSettings = memo(
             color={selectionColor}
             onChange={setSelectionColor}
           />
-          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-zinc-950/40 p-4">
+          <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
             <div
               aria-hidden
               className="h-6 w-10 shrink-0 rounded-lg border border-white/15 shadow-xs"

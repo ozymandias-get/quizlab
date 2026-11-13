@@ -141,7 +141,7 @@ const ModelSelector = memo(function ModelSelector({
               setIsOpen(!isOpen)
               setModelSearch('')
             }}
-            className="group/btn text-ql-11 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex max-w-[190px] min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 font-medium shadow-none transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:outline-none"
+            className="group/btn text-ql-11 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex max-w-[190px] min-w-0 cursor-pointer items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 font-medium shadow-none transition-colors hover:border-white/20 hover:bg-white/[0.08] focus-visible:ring-2 focus-visible:outline-none"
             aria-haspopup="listbox"
             aria-expanded={isOpen}
             aria-controls={listboxId}

@@ -87,7 +87,7 @@ const SettingsModal = memo(function SettingsModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-dialog-title"
-        className="flex h-[85vh] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/90 shadow-2xl backdrop-blur-xl"
+        className="flex h-[85vh] max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.98, y: 8 }}
@@ -97,7 +97,7 @@ const SettingsModal = memo(function SettingsModal({
         >
           <header className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
-              <div className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+              <div className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]">
                 <SettingsIcon className="h-4 w-4" />
               </div>
               <div className="space-y-0.5">

@@ -481,10 +481,10 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: DURATION.normal }}
-          className="shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/85 text-zinc-100 backdrop-blur-xl"
+          className="shadow-ambient-xl relative flex h-[540px] max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 text-zinc-100 backdrop-blur-xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <PanelHeader className="border-white/10 bg-zinc-950/40 px-4 py-3">
+          <PanelHeader className="border-white/[0.07] bg-zinc-950/40 px-4 py-3">
             <div className="flex items-center gap-3">
               <PanelHeaderIcon>
                 <Clock className="h-4 w-4 shrink-0" />
@@ -539,7 +539,7 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
           {editingSessionIsFilteredOut && (
             <div
               role="status"
-              className="text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-white/[0.03] px-4 py-2"
+              className="text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.07] bg-white/[0.03] px-4 py-2"
             >
               <span className="text-ql-11">{t('api_chat_edit_hidden_by_search')}</span>
               <Button

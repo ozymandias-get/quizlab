@@ -44,7 +44,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
   const { t } = useTranslation()
 
   return (
-    <ToolbarGroup className="rounded-full border border-white/10 bg-zinc-900/70 p-1">
+    <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/70 p-1">
       <ZoomOut>
         {(props: RenderChildProps) => {
           const atMin = typeof props.scale === 'number' && props.scale <= PDF_ZOOM_MIN_SCALE + 1e-6
@@ -82,7 +82,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
             return (
               <Popover className="relative">
                 <PopoverButton
-                  className="text-ql-12 text-foreground @max-[430px]:text-ql-10 inline-flex min-w-[42px] items-center justify-center gap-1 rounded-full border border-white/10 bg-zinc-900/80 px-2 py-0.5 text-center font-medium tabular-nums transition-colors outline-none select-none hover:border-white/20 hover:bg-white/5"
+                  className="text-ql-12 text-foreground @max-[430px]:text-ql-10 inline-flex min-w-[42px] items-center justify-center gap-1 rounded-full border border-white/[0.07] bg-zinc-950/80 px-2 py-0.5 text-center font-medium tabular-nums transition-colors outline-none select-none hover:border-white/20 hover:bg-white/5"
                   aria-label={t('zoom_presets')}
                   title={label}
                 >
@@ -97,7 +97,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                   leaveFrom="opacity-100 translate-y-0 scale-100"
                   leaveTo="opacity-0 translate-y-1 scale-98"
                 >
-                  <PopoverPanel className="text-popover-foreground shadow-ambient-lg z-dropdown absolute top-full left-1/2 mt-2 w-44 -translate-x-1/2 rounded-xl border border-white/10 bg-zinc-900/95 p-1 backdrop-blur-xl">
+                  <PopoverPanel className="text-popover-foreground shadow-ambient-lg z-dropdown absolute top-full left-1/2 mt-2 w-44 -translate-x-1/2 rounded-xl border border-white/12 bg-zinc-950/95 p-1 backdrop-blur-xl">
                     {presets.map((preset) => (
                       <button
                         key={preset}

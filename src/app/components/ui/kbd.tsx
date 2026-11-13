@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
 
 const kbdVariants = cva(
-  'inline-flex items-center justify-center rounded-md border border-white/10 bg-zinc-800 font-mono font-medium text-zinc-400 shadow-none select-none pointer-events-none transition-colors',
+  'inline-flex items-center justify-center rounded-md border border-white/[0.07] bg-zinc-800 font-mono font-medium text-zinc-400 shadow-none select-none pointer-events-none transition-colors',
   {
     variants: {
       variant: {

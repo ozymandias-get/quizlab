@@ -185,7 +185,7 @@ const AiModelList = memo(function AiModelList({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('search_ai_placeholder')}
             aria-label={t('search_ai_placeholder')}
-            className="text-foreground placeholder:text-muted-foreground text-ql-12 h-9 w-full rounded-xl border border-white/10 bg-zinc-950/80 pr-3 pl-9 transition-colors focus:border-white/25 focus:ring-1 focus:ring-white/10 focus:outline-none"
+            className="text-foreground placeholder:text-muted-foreground text-ql-12 h-9 w-full rounded-xl border border-white/[0.07] bg-zinc-950/80 pr-3 pl-9 transition-colors focus:border-white/25 focus:ring-1 focus:ring-white/10 focus:outline-none"
           />
         </div>
       )}

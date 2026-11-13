@@ -54,7 +54,7 @@ export function LanguageSelectionDialog() {
             animate={{ opacity: 1, ...(prefersReducedMotion ? {} : { y: 0, scale: 1 }) }}
             exit={{ opacity: 0, ...(prefersReducedMotion ? {} : { y: 6, scale: 0.98 }) }}
             transition={{ duration: DURATION.slow, ease: 'easeOut' }}
-            className="mx-4 w-full max-w-md rounded-2xl border border-white/15 bg-zinc-900/90 p-6 text-center text-zinc-100 shadow-2xl backdrop-blur-xl outline-none"
+            className="mx-4 w-full max-w-md rounded-2xl border border-white/12 bg-zinc-950/95 p-6 text-center text-zinc-100 shadow-2xl backdrop-blur-xl outline-none"
           >
             <h2 id={titleId} className="text-ql-20 text-foreground font-semibold">
               {t('onboarding_language_title', { lng: 'en' })}
@@ -73,11 +73,11 @@ export function LanguageSelectionDialog() {
                 return (
                   <BlurFade key={lang.code} delay={index * 0.06} className="w-full">
                     <MagicCard
-                      className="w-full rounded-xl border-white/10"
-                      gradientColor="#27272a"
-                      gradientOpacity={0.45}
-                      gradientFrom="#3f3f46"
-                      gradientTo="#27272a"
+                      className="w-full rounded-xl border-white/[0.07]"
+                      gradientColor="#18181b"
+                      gradientOpacity={0.35}
+                      gradientFrom="#27272a"
+                      gradientTo="#18181b"
                     >
                       <button
                         type="button"
@@ -99,7 +99,7 @@ export function LanguageSelectionDialog() {
                             colorTo="#3f3f46"
                           />
                         )}
-                        <span className="text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] transition-transform group-hover:scale-105">
+                        <span className="text-ql-20 flex h-10 w-10 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] transition-transform group-hover:scale-105">
                           {lang.flag}
                         </span>
                         <div className="flex flex-col">

@@ -41,7 +41,9 @@ const NeverSleepSiteItem = memo(function NeverSleepSiteItem({
     <div
       className={cn(
         'flex items-center gap-3 rounded-xl border p-3 transition-colors',
-        isNeverSleep ? 'border-ring/50 bg-accent/30' : 'border-border/60 bg-card hover:bg-muted/50'
+        isNeverSleep
+          ? 'border-white/[0.07] bg-zinc-950/80'
+          : 'border-white/[0.07] bg-zinc-900/45 hover:bg-white/5'
       )}
     >
       <span
@@ -88,7 +90,7 @@ const AiLifecycleTab = memo(() => {
         title={t('max_alive_tabs')}
         detail={t('max_alive_tabs_description')}
       >
-        <div className="border-border/60 bg-background/40 rounded-xl border p-4">
+        <div className="rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <span className="text-ql-12 text-foreground font-medium">
               {t('max_alive_tabs_value', { count: maxAliveTabs })}

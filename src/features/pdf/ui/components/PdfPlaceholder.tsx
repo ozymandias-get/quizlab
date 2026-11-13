@@ -67,13 +67,13 @@ function PdfPlaceholder({
               stranded above a dead half-panel. */}
           <BlurFade className="w-full self-center">
             <MagicCard
-              className="w-full rounded-2xl border-white/10"
-              gradientColor="#27272a"
-              gradientOpacity={0.45}
-              gradientFrom="#3f3f46"
-              gradientTo="#27272a"
+              className="w-full rounded-2xl border-white/[0.07]"
+              gradientColor="#18181b"
+              gradientOpacity={0.35}
+              gradientFrom="#27272a"
+              gradientTo="#18181b"
             >
-              <div className="group motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/10 bg-zinc-900/50 px-6 py-8 text-center transition-colors hover:border-white/25 hover:bg-zinc-900/65">
+              <div className="group motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/[0.07] bg-zinc-950/80 px-6 py-8 text-center transition-colors hover:border-white/15 hover:bg-zinc-900/40">
                 <span
                   aria-hidden
                   className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-300 group-hover:-translate-y-0.5"
@@ -113,7 +113,7 @@ function PdfPlaceholder({
           </BlurFade>
 
           {/* Recent Reading Section */}
-          <div className="flex min-h-0 w-full flex-col gap-4 border-t border-white/10 pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
+          <div className="flex min-h-0 w-full flex-col gap-4 border-t border-white/[0.07] pt-5 text-left @min-[680px]:border-t-0 @min-[680px]:border-l @min-[680px]:pt-0 @min-[680px]:pl-6">
             <PdfRecentControls
               t={t}
               recentCount={recentItems.length}

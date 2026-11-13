@@ -32,7 +32,7 @@ const AiSiteLoader = memo(function AiSiteLoader({ modelId, iconKey }: AiSiteLoad
     >
       <span
         aria-hidden
-        className="flex size-16 items-center justify-center rounded-2xl border border-white/10 bg-zinc-900/90 shadow-2xl ring-1 ring-white/10 motion-safe:animate-pulse [&_svg]:size-9"
+        className="flex size-16 items-center justify-center rounded-2xl border border-white/[0.07] bg-zinc-950/90 shadow-2xl ring-1 ring-white/10 motion-safe:animate-pulse [&_svg]:size-9"
       >
         {icon ?? <span className="text-ql-18 text-foreground font-bold uppercase">{initial}</span>}
       </span>

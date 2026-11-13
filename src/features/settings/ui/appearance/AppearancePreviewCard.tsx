@@ -20,7 +20,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
   label
 }: AppearancePreviewCardProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/60 p-3">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/60 p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-ql-10 text-muted-foreground tracking-ql-label font-semibold uppercase">
           {label}
@@ -45,7 +45,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
         </div>
 
         {/* Chat side */}
-        <div className="flex flex-[2] flex-col justify-end gap-1.5 rounded-lg border border-white/10 bg-zinc-900/70 p-2">
+        <div className="flex flex-[2] flex-col justify-end gap-1.5 rounded-lg border border-white/[0.07] bg-zinc-900/70 p-2">
           <div className="bg-muted h-2 w-3/4 rounded-full" />
           <div
             className="h-2 w-2/3 self-end rounded-full"
@@ -59,7 +59,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
       {/* Dock preview */}
       <div className="mt-2 flex justify-center">
         <div
-          className="flex origin-bottom items-center gap-1 rounded-full border border-white/10 bg-zinc-900/80 px-2 py-1 shadow-sm"
+          className="flex origin-bottom items-center gap-1 rounded-full border border-white/[0.07] bg-zinc-950/80 px-2 py-1 shadow-sm"
           style={{ opacity: bottomBarOpacity, transform: `scale(${bottomBarScale})` }}
         >
           {[0, 1, 2, 3].map((index) => (

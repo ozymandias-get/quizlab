@@ -112,7 +112,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
         isActive
           ? 'border-primary/30 bg-primary/10 text-primary'
-          : 'text-muted-foreground group-hover:text-foreground border-white/10 bg-white/[0.04]'
+          : 'text-muted-foreground group-hover:text-foreground border-white/[0.07] bg-white/[0.04]'
       }`}
     >
       {modelIcon ? (
@@ -125,7 +125,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
 
   const metadata = (
     <div className="text-ql-11 text-muted-foreground mt-1 flex min-w-0 items-center gap-2 tabular-nums select-none">
-      <span className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5">
+      <span className="flex shrink-0 items-center gap-1 rounded-md border border-white/[0.07] bg-white/[0.04] px-1.5 py-0.5">
         <MessageSquare className="h-3 w-3 shrink-0" />
         {t('api_chat_msg_count', { count: String(msgCount) })}
       </span>
@@ -142,7 +142,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
     <div
       className={`group focus-within:ring-ring/40 motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-xl border p-2.5 transition-colors focus-within:ring-2 ${
         isActive
-          ? 'border-white/10 bg-white/[0.07]'
+          ? 'border-white/[0.07] bg-white/[0.07]'
           : 'border-transparent hover:border-white/5 hover:bg-white/5'
       }`}
     >

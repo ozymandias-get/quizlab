@@ -92,12 +92,12 @@ const PromptsTab = memo(() => {
   return (
     <div className="space-y-6 pb-4">
       {/* AI Gönder taslağı — açılır/kapanır */}
-      <section className="border-border/60 bg-card/30 overflow-hidden rounded-2xl border">
+      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/80">
         <button
           type="button"
           onClick={() => setIsQuickOpen((v) => !v)}
           aria-expanded={isQuickOpen}
-          className="hover:bg-muted/40 flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
         >
           <div className="min-w-0 flex-1 text-left">
             <div className="text-ql-13 text-foreground truncate font-semibold">
@@ -110,19 +110,19 @@ const PromptsTab = memo(() => {
           <SectionChevron isOpen={isQuickOpen} />
         </button>
         <DisclosureBody isOpen={isQuickOpen}>
-          <div className="border-border/60 border-t px-5 py-5">
+          <div className="border-t border-white/[0.07] px-5 py-5">
             <QuickPresetsSection />
           </div>
         </DisclosureBody>
       </section>
 
       {/* Prompt Kütüphanesi — açılır/kapanır */}
-      <section className="border-border/60 bg-card/30 overflow-hidden rounded-2xl border">
+      <section className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/80">
         <button
           type="button"
           onClick={() => setIsLibraryOpen((v) => !v)}
           aria-expanded={isLibraryOpen}
-          className="hover:bg-muted/40 flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
         >
           <div className="min-w-0 flex-1 text-left">
             <div className="flex items-center gap-2">
@@ -145,7 +145,7 @@ const PromptsTab = memo(() => {
           <SectionChevron isOpen={isLibraryOpen} />
         </button>
         <DisclosureBody isOpen={isLibraryOpen}>
-          <div className="border-border/60 space-y-4 border-t px-5 py-5">
+          <div className="space-y-4 border-t border-white/[0.07] px-5 py-5">
             <p className="text-ql-12 text-muted-foreground leading-relaxed">
               {t('prompts_auto_append_desc')}
             </p>
@@ -153,7 +153,7 @@ const PromptsTab = memo(() => {
             {/* Ekle — tek satır, projeye uygun minimal */}
             <form
               onSubmit={handleAddPrompt}
-              className="border-border/60 bg-background/40 @container flex flex-col gap-2 rounded-xl border p-4 @min-[520px]:flex-row"
+              className="@container flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-zinc-950/40 p-4 @min-[520px]:flex-row"
             >
               <div className="text-ql-13 min-w-0 flex-1">
                 <Label htmlFor="prompt-textarea" className="sr-only">
@@ -250,7 +250,7 @@ const PromptsTab = memo(() => {
                   title={t('prompts_empty')}
                   size="sm"
                   bare
-                  className="border-border/60 bg-background/40 rounded-xl border border-dashed py-6"
+                  className="rounded-xl border border-dashed border-white/[0.07] bg-zinc-950/40 py-6"
                 />
               )}
             </div>

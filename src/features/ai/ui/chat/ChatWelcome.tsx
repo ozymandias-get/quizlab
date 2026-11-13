@@ -51,7 +51,7 @@ const ChatWelcome = memo(function ChatWelcome({
           <div className="mb-4">
             <Badge
               variant="outline"
-              className="max-w-full min-w-0 gap-2 border-white/10 bg-white/[0.03] px-3 py-1 shadow-none"
+              className="max-w-full min-w-0 gap-2 border-white/[0.07] bg-white/[0.03] px-3 py-1 shadow-none"
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               <AnimatedShinyText
@@ -68,7 +68,7 @@ const ChatWelcome = memo(function ChatWelcome({
         )}
 
         {/* Main Logo/Icon */}
-        <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-zinc-900/80 shadow-[0_0_32px_-8px_rgba(255,255,255,0.15)]">
+        <div className="mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.07] bg-zinc-950/80 shadow-[0_0_32px_-8px_rgba(255,255,255,0.15)]">
           <AiIcon modelKey="api-chat" className="h-7 w-7" />
         </div>
 
@@ -93,11 +93,11 @@ const ChatWelcome = memo(function ChatWelcome({
                 className="h-full"
               >
                 <MagicCard
-                  className="h-full rounded-xl border-white/10"
-                  gradientColor="#27272a"
-                  gradientOpacity={0.45}
-                  gradientFrom="#3f3f46"
-                  gradientTo="#27272a"
+                  className="h-full rounded-xl border-white/[0.07]"
+                  gradientColor="#18181b"
+                  gradientOpacity={0.35}
+                  gradientFrom="#27272a"
+                  gradientTo="#18181b"
                 >
                   <button
                     type="button"
@@ -105,7 +105,7 @@ const ChatWelcome = memo(function ChatWelcome({
                     title={s.desc}
                     className="group focus-visible:ring-ring/70 motion-normal flex h-full w-full cursor-pointer items-start gap-2.5 rounded-xl border border-transparent bg-transparent p-3.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
                   >
-                    <span className="text-muted-foreground group-hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] transition-colors">
+                    <span className="text-muted-foreground group-hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] transition-colors">
                       {s.Icon && <s.Icon className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -124,7 +124,7 @@ const ChatWelcome = memo(function ChatWelcome({
         )}
 
         {!hasProvider && (
-          <div className="mt-4 flex max-w-sm items-center gap-2.5 rounded-xl border border-white/10 bg-zinc-900/60 p-3.5 text-left">
+          <div className="mt-4 flex max-w-sm items-center gap-2.5 rounded-xl border border-white/[0.07] bg-zinc-900/60 p-3.5 text-left">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
             <p className="text-ql-12 text-muted-foreground leading-normal">
               {t('api_chat_no_provider')}

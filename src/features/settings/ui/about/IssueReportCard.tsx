@@ -133,12 +133,12 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
         }
       />
 
-      <details className="border-border/60 bg-background/40 group mt-2 rounded-xl border">
+      <details className="group mt-2 rounded-xl border border-white/[0.07] bg-zinc-950/40">
         <summary className="text-ql-11 text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 font-medium select-none">
           {t('preview_report_data')}
           <ChevronDown className="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
         </summary>
-        <pre className="custom-scrollbar text-ql-11 text-muted-foreground border-border/50 max-h-56 overflow-auto border-t p-3 font-mono break-words whitespace-pre-wrap">
+        <pre className="custom-scrollbar text-ql-11 text-muted-foreground max-h-56 overflow-auto border-t border-white/[0.07] p-3 font-mono break-words whitespace-pre-wrap">
           {report}
         </pre>
       </details>
