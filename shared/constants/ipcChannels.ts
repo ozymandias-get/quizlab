@@ -76,6 +76,7 @@ export const IPC_CHANNELS = {
   // Native Messaging (Chrome Extension pairing)
   NATIVE_MESSAGING_STATUS: 'native-messaging-status',
   NATIVE_MESSAGING_PAIRING_CODE: 'native-messaging-pairing-code',
+  NATIVE_MESSAGING_EXTENSION_INSTALL: 'native-messaging-extension-install',
   NATIVE_MESSAGING_EXTENSION_CONNECTED: 'native-messaging-extension-connected',
   NATIVE_MESSAGING_EXTENSION_DISCONNECTED: 'native-messaging-extension-disconnected',
 

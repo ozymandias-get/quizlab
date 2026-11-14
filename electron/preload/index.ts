@@ -150,6 +150,8 @@ const electronApi: ElectronApi = {
   nativeMessaging: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_STATUS)),
     getPairingCode: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE)),
+    installExtension: () =>
+      unwrapIpcResult(typedInvoke(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_INSTALL)),
     onExtensionConnected: (callback) =>
       onEvent(IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_CONNECTED, () => callback()),
     onExtensionDisconnected: (callback) =>

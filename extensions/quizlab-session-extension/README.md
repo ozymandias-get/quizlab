@@ -4,24 +4,26 @@ The app's web chat services have local brand icons and Chrome session targets.
 Gemini, AI Studio, YouTube, Google Drive and NotebookLM share the **Google**
 target and partition. API Chat has no browser session to import.
 
-## Install the extension separately
+## Install the extension from the app
 
-The extension is no longer copied into the app. It is shipped as its own
-release artifact and installed by the user:
+The extension ships inside Quizlab Reader; there is no separate download.
 
-1. Download the extension package from the release page linked in the app's
-   **Settings → Site Sessions** card and unzip it.
-2. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**
-   and select the unzipped folder (version **1.4.0**). The extension key and
-   identity are unchanged.
-3. In Quizlab, open **Settings → Site Sessions** and press **Eşleştir**. Copy
-   the pairing code.
+1. In Quizlab, open **Settings → Site Sessions** and press **Install**
+   (**Eklentiyi kur**). The app copies the bundled extension to a stable
+   folder under its user-data directory and puts that folder's path on the
+   clipboard.
+2. Open `chrome://extensions`, enable Developer mode and choose **Load
+   unpacked**. Paste the copied path into the folder picker.
+3. In Quizlab press **Eşleştir** and copy the pairing code.
 4. Open the extension popup, paste the code and press **Eşleştir**.
 5. Sign in to the desired service in Chrome.
 6. In Quizlab, enable that service's switch. This is separate from enabling
    its launcher in **Models**.
 7. In the extension popup, press **İzin ver** for a new service and grant the
    requested site domains. Then import its session.
+
+An app update refreshes the copied folder under the same path. Reload the
+extension from `chrome://extensions` after an update.
 
 ## More than one Chrome profile
 

@@ -41,6 +41,7 @@ export type {
   ChromeExtensionCookie,
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo,
+  NativeMessagingExtensionInstallResult,
   NativeMessagingExtensionProfile
 } from './native-messaging.js'
 export type {

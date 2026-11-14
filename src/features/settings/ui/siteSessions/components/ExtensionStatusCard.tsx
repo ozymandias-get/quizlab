@@ -1,14 +1,17 @@
-import { QUIZLAB_EXTENSION_RELEASE_URL } from '@shared-core/constants/extensionRelease'
 import type { NativeMessagingExtensionInfo } from '@shared-core/types'
 
-import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
+import {
+  useInstallExtensionMutation,
+  useNativeMessagingStatusQuery
+} from '@platform/electron/api/useNativeMessagingApi'
 
+import { useClipboard } from '@shared/hooks/useClipboard'
 import { getElectronApi } from '@shared/lib/electronApi'
 import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
-import { Download, KeyRound } from 'lucide-react'
-import { memo } from 'react'
+import { Check, Copy, FolderInput, KeyRound, Loader2 } from 'lucide-react'
+import { memo, useCallback, useState } from 'react'
 
 interface ExtensionStatusCardProps {
   t: (key: string) => string
@@ -18,6 +21,11 @@ interface ExtensionStatusCardProps {
 function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
   // Polling + connect/disconnect invalidation live in the platform hook (STD-014).
   const { data: extensionInfo } = useNativeMessagingStatusQuery()
+  const { mutateAsync: installExtension, isPending: isInstalling } = useInstallExtensionMutation()
+  const { copy, isCopied } = useClipboard()
+  /** The folder the app prepared, once the user asked for it. */
+  const [installed, setInstalled] = useState<{ path: string; version: string } | null>(null)
+  const [installFailed, setInstallFailed] = useState(false)
 
   const statusKey = (info: NativeMessagingExtensionInfo | null): string => {
     if (!info) return 'ws_extension_status_disconnected'
@@ -54,9 +62,24 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
     return 'bg-muted-foreground'
   }
 
-  const openDownloadPage = () => {
-    getElectronApi()?.openExternal(QUIZLAB_EXTENSION_RELEASE_URL)
-  }
+  /**
+   * Prepares the bundled extension and copies its folder.
+   *
+   * Chrome only loads an unpacked extension from a folder the user picks, so
+   * the app cannot finish the install on its own. It copies the folder to a
+   * stable path and puts that path on the clipboard; the user pastes it into
+   * the folder picker.
+   */
+  const handleInstall = useCallback(async () => {
+    setInstallFailed(false)
+    try {
+      const result = await installExtension()
+      setInstalled({ path: result.path, version: result.version })
+      await copy(result.path)
+    } catch {
+      setInstallFailed(true)
+    }
+  }, [copy, installExtension])
 
   return (
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
@@ -99,11 +122,16 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
             type="button"
             variant="outline"
             size="xs"
-            onClick={openDownloadPage}
+            onClick={() => void handleInstall()}
+            disabled={isInstalling}
             className="gap-1.5 @max-[420px]:flex-1"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span className="text-ql-11 font-semibold">{t('ws_extension_download_btn')}</span>
+            {isInstalling ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FolderInput className="h-3.5 w-3.5" />
+            )}
+            <span className="text-ql-11 font-semibold">{t('ws_extension_install_btn')}</span>
           </Button>
           <Button
             type="button"
@@ -116,6 +144,43 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
           </Button>
         </div>
       </div>
+
+      {installed && (
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-ql-11 font-semibold text-emerald-400">
+              {t('ws_extension_install_ready')} · v{installed.version}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => void copy(installed.path)}
+              className="gap-1.5"
+            >
+              {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              <span className="text-ql-10 font-semibold">
+                {isCopied ? t('ws_extension_install_copied') : t('ws_extension_install_copy_btn')}
+              </span>
+            </Button>
+          </div>
+          <code
+            className="text-ql-10 text-muted-foreground truncate font-mono select-all"
+            title={installed.path}
+          >
+            {installed.path}
+          </code>
+          <p className="text-ql-11 text-muted-foreground leading-relaxed">
+            {t('ws_extension_install_hint')}
+          </p>
+        </div>
+      )}
+
+      {installFailed && (
+        <p role="alert" className="text-ql-11 text-destructive mt-2">
+          {t('ws_extension_install_error')}
+        </p>
+      )}
     </SettingsSection>
   )
 }

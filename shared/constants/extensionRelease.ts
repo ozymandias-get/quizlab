@@ -1,12 +1,10 @@
 /**
- * Where the user gets the Chrome site-session extension.
+ * The identity of the Chrome site-session extension.
  *
- * The extension is no longer shipped inside the app: it is a separate download
- * that the user loads into the browser themselves. The app only links to the
- * release page and shows the pairing code the extension needs.
+ * The extension ships inside the app and is loaded once as an unpacked
+ * extension from the folder the app prepares. The app only shows the folder
+ * path and the pairing code the extension needs.
  */
-export const QUIZLAB_EXTENSION_RELEASE_URL =
-  'https://github.com/ozymandias-get/quizlab/releases/latest'
 
 /**
  * The id Chrome derives from the public key pinned in the extension manifest.

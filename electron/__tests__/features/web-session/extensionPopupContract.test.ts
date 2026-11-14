@@ -430,6 +430,22 @@ describe('extension permission popup', () => {
     expect(manifest.optional_host_permissions).toEqual(OPTIONAL_HOST_PERMISSIONS)
   })
 
+  it('ships the extension inside the app bundle', () => {
+    // Settings → Site Sessions copies this folder out of the installed app; a
+    // missing entry would make "Install extension" fail only after packaging.
+    const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')) as {
+      build?: { extraResources?: Array<{ from?: string; to?: string }> }
+    }
+    expect(pkg.build?.extraResources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: 'extensions/quizlab-session-extension',
+          to: 'extension'
+        })
+      ])
+    )
+  })
+
   it('speaks about sites in general and not about Google alone', () => {
     expect(manifest.name).toBe('Quizlab Site Session Bridge')
     expect(manifest.description).not.toContain('Google')

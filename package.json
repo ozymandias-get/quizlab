@@ -73,6 +73,13 @@
           "icon.ico",
           "icon.png"
         ]
+      },
+      {
+        "from": "extensions/quizlab-session-extension",
+        "to": "extension",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {

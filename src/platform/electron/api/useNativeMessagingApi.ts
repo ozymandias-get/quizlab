@@ -1,8 +1,11 @@
-import type { NativeMessagingExtensionInfo } from '@shared-core/types'
+import type {
+  NativeMessagingExtensionInfo,
+  NativeMessagingExtensionInstallResult
+} from '@shared-core/types'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 const NATIVE_MESSAGING_STATUS_KEY = ['native-messaging', 'status'] as const
@@ -29,6 +32,24 @@ export function useNativeMessagingPairingCodeQuery(enabled: boolean) {
     enabled,
     staleTime: Infinity,
     retry: false
+  })
+}
+
+/**
+ * Copies the extension that ships with the app to a folder the user can load.
+ *
+ * The main process writes the folder; the caller decides whether to copy the
+ * path to the clipboard and how to explain the Chrome steps.
+ */
+export function useInstallExtensionMutation() {
+  return useMutation({
+    mutationFn: async (): Promise<NativeMessagingExtensionInstallResult> => {
+      const api = getElectronApi()
+      if (!api?.nativeMessaging?.installExtension) {
+        throw new Error('Electron API not available')
+      }
+      return api.nativeMessaging.installExtension()
+    }
   })
 }
 

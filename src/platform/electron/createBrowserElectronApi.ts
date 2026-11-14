@@ -218,6 +218,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
         selectedProfileId: null
       } as NativeMessagingExtensionInfo),
       getPairingCode: () => Promise.reject(new Error('web_dev_mode_only')),
+      installExtension: () => Promise.reject(new Error('web_dev_mode_only')),
       onExtensionConnected: () => () => {},
       onExtensionDisconnected: () => () => {}
     },

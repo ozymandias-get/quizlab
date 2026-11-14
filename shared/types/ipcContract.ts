@@ -24,6 +24,7 @@ import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automa
 import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi.js'
 import type {
   NativeMessagingExtensionInfo,
+  NativeMessagingExtensionInstallResult,
   NativeMessagingProfileSelectionResult
 } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
@@ -342,6 +343,11 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.NATIVE_MESSAGING_PAIRING_CODE]: {
     args: []
     result: IpcResult<{ code: string }>
+  }
+
+  [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_INSTALL]: {
+    args: []
+    result: IpcResult<NativeMessagingExtensionInstallResult>
   }
 }
 

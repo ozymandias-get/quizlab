@@ -1,14 +1,16 @@
 import ExtensionPairingDialog from '@features/settings/ui/siteSessions/components/ExtensionPairingDialog'
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const CODE = 'a'.repeat(64)
 const copy = vi.fn()
+const install = vi.hoisted(() => vi.fn())
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
   useNativeMessagingPairingCodeQuery: () => ({ data: CODE, isLoading: false }),
-  useNativeMessagingStatusQuery: () => ({ data: { status: 'connected', paired: false } })
+  useNativeMessagingStatusQuery: () => ({ data: { status: 'connected', paired: false } }),
+  useInstallExtensionMutation: () => ({ mutateAsync: install, isPending: false })
 }))
 
 vi.mock('@shared/hooks/useClipboard', () => ({
@@ -41,6 +43,12 @@ vi.mock('react-i18next', () => ({
 }))
 
 describe('ExtensionPairingDialog', () => {
+  beforeEach(() => {
+    copy.mockReset()
+    install.mockReset()
+    install.mockResolvedValue({ path: '/data/ext', version: '1.4.0', refreshed: true })
+  })
+
   it('shows the pairing code and copies it', () => {
     render(<ExtensionPairingDialog open onClose={vi.fn()} />)
 
@@ -54,5 +62,16 @@ describe('ExtensionPairingDialog', () => {
     render(<ExtensionPairingDialog open onClose={vi.fn()} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('ws_extension_pairing_status_unpaired')
+  })
+
+  it('prepares the bundled extension and copies its folder path', async () => {
+    render(<ExtensionPairingDialog open onClose={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'ws_extension_install_btn' }))
+
+    await waitFor(() => expect(install).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(copy).toHaveBeenCalledWith('/data/ext'))
+    expect(screen.getByText('/data/ext')).toBeInTheDocument()
+    expect(screen.getByText(/ws_extension_install_ready/)).toBeInTheDocument()
   })
 })

@@ -87,3 +87,22 @@ export interface ChromeExtensionCookie {
   sameSite?: 'strict' | 'lax' | 'no_restriction' | 'unspecified'
   expires?: number
 }
+
+/**
+ * The folder of the extension that ships inside the app.
+ *
+ * Chrome cannot install an unpacked extension silently. The app copies the
+ * bundled folder to a stable user location; the user loads that folder once
+ * from `chrome://extensions` and pastes the pairing code.
+ */
+export interface NativeMessagingExtensionInstallResult {
+  /** The absolute folder that contains `manifest.json`. */
+  path: string
+  /** The manifest version of the installed copy. */
+  version: string
+  /**
+   * Whether the folder was written now. False means the copy from this app
+   * version was already there and was reused.
+   */
+  refreshed: boolean
+}

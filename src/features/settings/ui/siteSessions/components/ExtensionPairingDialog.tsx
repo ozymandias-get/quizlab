@@ -1,17 +1,15 @@
-import { QUIZLAB_EXTENSION_RELEASE_URL } from '@shared-core/constants/extensionRelease'
-
 import {
+  useInstallExtensionMutation,
   useNativeMessagingPairingCodeQuery,
   useNativeMessagingStatusQuery
 } from '@platform/electron/api/useNativeMessagingApi'
 
 import { Dialog } from '@app/components/ui/dialog'
 import { useClipboard } from '@shared/hooks/useClipboard'
-import { getElectronApi } from '@shared/lib/electronApi'
 import { Button } from '@shared/ui/components/primitives'
 
-import { Check, Copy, Download, ExternalLink, Loader2 } from 'lucide-react'
-import { memo, useCallback, useId } from 'react'
+import { Check, Copy, FolderInput, Loader2 } from 'lucide-react'
+import { memo, useCallback, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ExtensionPairingDialogProps {
@@ -20,23 +18,38 @@ interface ExtensionPairingDialogProps {
 }
 
 /**
- * Explains the separate extension install and shows the pairing code.
+ * Installs and pairs the Chrome extension that ships with the app.
  *
- * The app no longer copies the extension into its own data directory. The user
- * downloads the release, loads it in the browser and pairs it once with the
- * code below.
+ * The user presses "Install", the app copies the bundled folder to a stable
+ * path and puts that path on the clipboard. The user loads it once from
+ * `chrome://extensions` and pastes the pairing code below.
  */
 function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) {
   const { t } = useTranslation()
   const titleId = useId()
   const { data: pairingCode, isLoading } = useNativeMessagingPairingCodeQuery(open)
   const { data: extensionInfo } = useNativeMessagingStatusQuery()
+  const { mutateAsync: installExtension, isPending: isInstalling } = useInstallExtensionMutation()
   const { copy, isCopied } = useClipboard()
+  const { copy: copyPath, isCopied: isPathCopied } = useClipboard()
+  const [installed, setInstalled] = useState<{ path: string; version: string } | null>(null)
+  const [installFailed, setInstallFailed] = useState(false)
 
   const handleCopy = useCallback(() => {
     if (!pairingCode) return
     void copy(pairingCode)
   }, [copy, pairingCode])
+
+  const handleInstall = useCallback(async () => {
+    setInstallFailed(false)
+    try {
+      const result = await installExtension()
+      setInstalled({ path: result.path, version: result.version })
+      await copyPath(result.path)
+    } catch {
+      setInstallFailed(true)
+    }
+  }, [copyPath, installExtension])
 
   const isConnected = extensionInfo?.status === 'connected'
   const isPaired = extensionInfo?.paired === true
@@ -50,6 +63,59 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
         <p className="text-ql-13 text-muted-foreground leading-relaxed">
           {t('ws_extension_pairing_desc')}
         </p>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void handleInstall()}
+            disabled={isInstalling}
+            className="w-full gap-2"
+          >
+            {isInstalling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FolderInput className="h-4 w-4" />
+            )}
+            <span className="text-ql-12 font-semibold">{t('ws_extension_install_btn')}</span>
+          </Button>
+
+          {installed && (
+            <div className="flex flex-col gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-2.5">
+              <span className="text-ql-11 font-semibold text-emerald-400">
+                {t('ws_extension_install_ready')} · v{installed.version}
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <code
+                  className="text-ql-10 text-muted-foreground min-w-0 flex-1 truncate font-mono select-all"
+                  title={installed.path}
+                >
+                  {installed.path}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => void copyPath(installed.path)}
+                  className="shrink-0 gap-1.5"
+                >
+                  {isPathCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  <span className="text-ql-10 font-semibold">
+                    {isPathCopied
+                      ? t('ws_extension_install_copied')
+                      : t('ws_extension_install_copy_btn')}
+                  </span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {installFailed && (
+            <p role="alert" className="text-ql-11 text-destructive">
+              {t('ws_extension_install_error')}
+            </p>
+          )}
+        </div>
 
         <ol className="flex flex-col gap-2">
           <li className="text-ql-12 text-muted-foreground leading-relaxed">
@@ -65,17 +131,6 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
             {t('ws_extension_pairing_step4')}
           </li>
         </ol>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => getElectronApi()?.openExternal(QUIZLAB_EXTENSION_RELEASE_URL)}
-          className="w-full gap-2"
-        >
-          <Download className="h-4 w-4" />
-          <span className="text-ql-12 font-semibold">{t('ws_extension_download_btn')}</span>
-          <ExternalLink className="text-muted-foreground ms-auto h-3.5 w-3.5" />
-        </Button>
 
         <div className="flex flex-col gap-2">
           <span className="text-ql-12 text-foreground font-semibold">

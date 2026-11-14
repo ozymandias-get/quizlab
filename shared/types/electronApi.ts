@@ -25,6 +25,7 @@ import type { ApiChatMessage, ApiConfig } from './apiChat.js'
 import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automation.js'
 import type {
   NativeMessagingExtensionInfo,
+  NativeMessagingExtensionInstallResult,
   NativeMessagingProfileSelectionResult
 } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
@@ -195,6 +196,11 @@ export interface ElectronApi {
     getStatus: () => Promise<NativeMessagingExtensionInfo | null>
     /** The code the user pastes into the separately installed extension. */
     getPairingCode: () => Promise<{ code: string }>
+    /**
+     * Copies the extension bundled inside the app to a stable user folder and
+     * returns its absolute path, so the user can load it in Chrome.
+     */
+    installExtension: () => Promise<NativeMessagingExtensionInstallResult>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
   }

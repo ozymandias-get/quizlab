@@ -1,6 +1,6 @@
 import ExtensionStatusCard from '@features/settings/ui/siteSessions/components/ExtensionStatusCard'
 
-import { render } from '@testing-library/react'
+import { fireEvent, render, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
@@ -8,11 +8,18 @@ const state = vi.hoisted(() => ({
     status: string
     paired: boolean
     userHint?: string
-  }
+  },
+  install: vi.fn(),
+  copy: vi.fn()
 }))
 
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
-  useNativeMessagingStatusQuery: () => ({ data: state.info })
+  useNativeMessagingStatusQuery: () => ({ data: state.info }),
+  useInstallExtensionMutation: () => ({ mutateAsync: state.install, isPending: false })
+}))
+
+vi.mock('@shared/hooks/useClipboard', () => ({
+  useClipboard: () => ({ copy: state.copy, isCopied: false })
 }))
 
 vi.mock('@shared/lib/electronApi', () => ({
@@ -22,6 +29,14 @@ vi.mock('@shared/lib/electronApi', () => ({
 describe('ExtensionStatusCard', () => {
   beforeEach(() => {
     state.info = { status: 'error', paired: true }
+    state.install.mockReset()
+    state.copy.mockReset()
+    state.install.mockResolvedValue({
+      path: '/home/user/.config/quizlab/extension/quizlab-session-extension',
+      version: '1.4.0',
+      refreshed: true
+    })
+    state.copy.mockResolvedValue(true)
   })
 
   it('uses the error colour for a connection error instead of the idle grey', () => {
@@ -77,5 +92,38 @@ describe('ExtensionStatusCard', () => {
 
     expect(getByText('ws_extension_status_waiting')).toBeInTheDocument()
     expect(container.querySelector('.bg-amber-500')).toBeInTheDocument()
+  })
+
+  it('prepares the bundled extension and copies its folder', async () => {
+    const { getByRole, findByText } = render(
+      <ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />
+    )
+
+    fireEvent.click(getByRole('button', { name: /ws_extension_install_btn/ }))
+
+    await waitFor(() => expect(state.install).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(state.copy).toHaveBeenCalledWith(
+        '/home/user/.config/quizlab/extension/quizlab-session-extension'
+      )
+    )
+    expect(
+      await findByText('/home/user/.config/quizlab/extension/quizlab-session-extension')
+    ).toBeInTheDocument()
+    expect(await findByText(/ws_extension_install_ready/)).toBeInTheDocument()
+    expect(await findByText('ws_extension_install_hint')).toBeInTheDocument()
+  })
+
+  it('reports a folder that could not be prepared', async () => {
+    state.install.mockRejectedValue(new Error('missing bundle'))
+
+    const { getByRole, findByRole } = render(
+      <ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />
+    )
+
+    fireEvent.click(getByRole('button', { name: /ws_extension_install_btn/ }))
+
+    expect(await findByRole('alert')).toHaveTextContent('ws_extension_install_error')
+    expect(state.copy).not.toHaveBeenCalled()
   })
 })
