@@ -2,13 +2,24 @@ import { AiDraftLayer } from '@app/ui/AiDraftLayer'
 import { AI_DRAFT_SLOT_ID } from '@features/pdf'
 import { registerDomSlot, unregisterDomSlot } from '@shared/lib/domSlot'
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 function makeSlot(): HTMLElement {
   const el = document.createElement('div')
   document.body.appendChild(el)
   return el
+}
+
+/** Portal hedefi değişirken durumun korunup korunmadığını ölçen sayaç. */
+function StatefulDraft({ placement }: { placement: string }) {
+  const [count, setCount] = useState(0)
+  return (
+    <button data-testid="draft" type="button" onClick={() => setCount((value) => value + 1)}>
+      {placement}:{count}
+    </button>
+  )
 }
 
 afterEach(() => {
@@ -74,5 +85,33 @@ describe('AiDraftLayer', () => {
     // Taslak da boşalınca kontrol tamamen kaybolur.
     rerender(view(false))
     expect(screen.queryByTestId('draft')).not.toBeInTheDocument()
+  })
+
+  it('keeps the composer state when moving between the PDF slot and the floating host', () => {
+    const slot = makeSlot()
+    registerDomSlot(AI_DRAFT_SLOT_ID, slot)
+
+    const view = (
+      <AiDraftLayer hasContent>
+        {(placement) => <StatefulDraft placement={placement} />}
+      </AiDraftLayer>
+    )
+
+    const { rerender } = render(view)
+    fireEvent.click(screen.getByTestId('draft'))
+    expect(screen.getByTestId('draft')).toHaveTextContent('inline:1')
+    expect(slot.contains(screen.getByTestId('draft'))).toBe(true)
+
+    // PDF paneli kapanır: aynı composer örneği yüzen konuma taşınır.
+    unregisterDomSlot(AI_DRAFT_SLOT_ID, slot)
+    rerender(view)
+    expect(screen.getByTestId('draft')).toHaveTextContent('floating:1')
+
+    // Panel geri gelir: yerel durum hâlâ korunur.
+    const nextSlot = makeSlot()
+    registerDomSlot(AI_DRAFT_SLOT_ID, nextSlot)
+    rerender(view)
+    expect(screen.getByTestId('draft')).toHaveTextContent('inline:1')
+    expect(nextSlot.contains(screen.getByTestId('draft'))).toBe(true)
   })
 })

@@ -33,6 +33,11 @@ import { useScreenshotPipeline } from './app-tool/useScreenshotPipeline'
 interface AppToolQueueState {
   pendingAiItems: AiDraftItem[]
   autoSend: boolean
+  /**
+   * Kısmen gönderilmiş öğe kimlikleri. Composer unmount olsa da kuyrukla
+   * birlikte yaşar; composer bunları yalnızca okur.
+   */
+  unsafeSendIdsRef: { current: Set<string> }
 }
 
 interface AppToolScreenshotState {
@@ -111,6 +116,8 @@ interface AppToolActionsType {
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => boolean
   removePendingAiItem: (id: string) => void
   clearPendingAiItems: () => void
+  /** Kısmi teslimat sonucu alınan öğe kimliklerini güvenlik kaydına ekler. */
+  markUnsafeSendIds: (ids: Iterable<string>) => void
   sendPendingAiItems: (options?: AiSendOptions) => Promise<AiSendResult>
   /** Doğrudan gönderim: taslak kuyruğuna dokunmadan mevcut AI pipeline'ına iletir. */
   sendTextDirectToAi: (text: string, options?: AiSendOptions) => Promise<AiSendResult>
@@ -149,7 +156,9 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     queueTextForAi,
     queueImageForAi,
     removePendingAiItem,
-    clearPendingAiItems: clearPendingAiItemsRaw
+    clearPendingAiItems: clearPendingAiItemsRaw,
+    unsafeSendIdsRef,
+    markUnsafeSendIds
   } = useAiDraftQueue(() => showError('draft_queue_full'))
   const {
     isScreenshotMode,
@@ -193,8 +202,8 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     useElementPickerLifecycle(getContentController, activeTabId, hasActiveContent)
 
   const queueValue = useMemo<AppToolQueueState>(
-    () => ({ pendingAiItems, autoSend }),
-    [pendingAiItems, autoSend]
+    () => ({ pendingAiItems, autoSend, unsafeSendIdsRef }),
+    [pendingAiItems, autoSend, unsafeSendIdsRef]
   )
 
   const screenshotValue = useMemo<AppToolScreenshotState>(
@@ -228,6 +237,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       queueImageForAi,
       removePendingAiItem,
       clearPendingAiItems,
+      markUnsafeSendIds,
       sendPendingAiItems,
       sendTextDirectToAi: sendTextToAI,
       sendImageDirectToAi: sendImageToAI,
@@ -255,6 +265,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       queueImageForAi,
       removePendingAiItem,
       clearPendingAiItems,
+      markUnsafeSendIds,
       sendPendingAiItems,
       sendTextToAI,
       sendImageToAI,

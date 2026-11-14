@@ -35,7 +35,7 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
   const rootRef = useRef<HTMLDivElement>(null)
   const stripRef = useRef<HTMLDivElement>(null)
   const triggersRef = useRef(new Map<string, HTMLButtonElement>())
-  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [scrollEdges, setScrollEdges] = useState({ left: false, right: false })
   const previewItem = items.find((item) => item.id === previewId) ?? null
 
   const focusTrigger = (id: string) => {
@@ -62,11 +62,19 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
   const updateScrollHint = useCallback(() => {
     const el = stripRef.current
     if (!el) return
-    setCanScrollRight(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    // Her iki kenar ayrı raporlanır: liste ortasında iki ipucu da görünür,
+    // başında yalnızca sağ, sonunda yalnızca sol kalır.
+    const next = {
+      left: el.scrollLeft > 1,
+      right: el.scrollWidth - el.clientWidth - el.scrollLeft > 1
+    }
+    setScrollEdges((current) =>
+      current.left === next.left && current.right === next.right ? current : next
+    )
   }, [])
 
-  // Yatay şeritte devam eden içerik varsa sağ kenarda hafif bir gradyan
-  // gösterilir; kaydırma çubuğu gizli kaldığı için keşfedilebilirlik korunur.
+  // Yatay şeritte gizli içerik varsa kenarda hafif bir gradyan gösterilir;
+  // kaydırma çubuğu gizli kaldığı için keşfedilebilirlik korunur.
   useEffect(() => {
     updateScrollHint()
     const el = stripRef.current
@@ -74,7 +82,21 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
     const observer = new ResizeObserver(updateScrollHint)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [items.length, updateScrollHint])
+  }, [items, updateScrollHint])
+
+  // Önizleme açıkken öğe başka bir işlemle (temizleme, dış kuyruk güncellemesi)
+  // kaldırılabilir. `previewId` bayat bırakılırsa "geri al" aynı öğeyi geri
+  // getirdiğinde önizleme kendiliğinden açılırdı; kimlik burada bırakılır.
+  useEffect(() => {
+    if (!previewId) return
+    if (items.some((item) => item.id === previewId)) return
+    setPreviewId(null)
+    // Odak, silinen chip'te kaldıysa boşluğa düşmesin. Kullanıcı başka bir
+    // yerdeyse odağı çalma.
+    if (document.activeElement === document.body) {
+      document.getElementById(NOTE_FIELD_ID)?.focus()
+    }
+  }, [items, previewId])
 
   // Escape — odak chip şeridinin içindeyken önizlemeyi kapatır ve odağı
   // açan chip'e geri verir. Odak not alanındaysa tetiklenmez.
@@ -107,6 +129,7 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
       <div className="relative">
         <div
           ref={stripRef}
+          data-testid="ai-draft-chip-strip"
           onScroll={updateScrollHint}
           className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5"
         >
@@ -128,9 +151,17 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
             ))}
           </ul>
         </div>
-        {canScrollRight && (
+        {scrollEdges.left && (
           <span
             aria-hidden
+            data-testid="ai-draft-scroll-left"
+            className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-zinc-950 to-transparent"
+          />
+        )}
+        {scrollEdges.right && (
+          <span
+            aria-hidden
+            data-testid="ai-draft-scroll-right"
             className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent"
           />
         )}
@@ -235,9 +266,10 @@ function DraftItemChip({
             onClick={() => onRemove(item.id)}
             aria-label={`${t('ai_send_remove_item')} — ${accessibleName}`}
             className={cn(
-              // A 24px box with its own padding keeps the delete target away
-              // from the label; a mis-click no longer costs you the draft.
-              'text-muted-foreground/70 hover:bg-destructive/12 hover:text-destructive size-6 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100 pointer-coarse:opacity-100'
+              // Görsel kutu 24px kalır (chip yüksekliği büyümez), ancak görünmez
+              // `after` alanı dikeyde 32px'e ve sağa doğru genişletir: dokunmatik
+              // hedef büyür, yanlışlıkla önizleme açma riski artmaz.
+              'text-muted-foreground/70 hover:bg-destructive/12 hover:text-destructive relative size-6 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 after:absolute after:-inset-y-1 after:right-0 after:left-0 after:content-[""] focus-visible:opacity-100 motion-reduce:opacity-100 pointer-coarse:opacity-100'
             )}
           >
             <X className="size-3" aria-hidden />
@@ -252,15 +284,17 @@ function DraftItemChip({
 function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
   const { t } = useTranslation()
   const imageSrc = item.type === 'image' ? item.blobUrl || item.dataUrl || null : null
-  const [imageState, setImageState] = useState<'loading' | 'ready' | 'failed'>(
-    imageSrc ? 'loading' : 'failed'
-  )
-
-  // Kaynak değişirse (blob geç gelirse veya öğe yenilenirse) gerçek yükleme
-  // durumuna dönülür; zamanlayıcı tahmini yoktur.
-  useEffect(() => {
-    setImageState(imageSrc ? 'loading' : 'failed')
-  }, [imageSrc])
+  /**
+   * Yükleme durumu **kaynağa bağlı** tutulur. A öğesinden B'ye geçildiğinde
+   * aynı bileşen örneği kullanılsa bile B, A'nın `ready` durumunu bir kare
+   * bile devralmaz: kaynak eşleşmiyorsa durum yeniden `loading`dir.
+   */
+  const [imageStatus, setImageStatus] = useState<{
+    src: string | null
+    status: 'loading' | 'ready' | 'failed'
+  }>(() => ({ src: imageSrc, status: imageSrc ? 'loading' : 'failed' }))
+  const imageState: 'loading' | 'ready' | 'failed' =
+    imageStatus.src !== imageSrc ? (imageSrc ? 'loading' : 'failed') : imageStatus.status
 
   const pageLabel = item.source
     ? formatSourcePages(item.source)
@@ -292,7 +326,7 @@ function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
       </div>
 
       {item.type === 'text' ? (
-        <p className="custom-scrollbar text-ql-12 text-foreground max-h-[min(10rem,28dvh)] overflow-y-auto leading-relaxed break-words whitespace-pre-wrap">
+        <p className="text-ql-12 text-foreground leading-relaxed break-words whitespace-pre-wrap">
           {item.text}
         </p>
       ) : (
@@ -310,8 +344,8 @@ function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
             <img
               src={imageSrc}
               alt=""
-              onLoad={() => setImageState('ready')}
-              onError={() => setImageState('failed')}
+              onLoad={() => setImageStatus({ src: imageSrc, status: 'ready' })}
+              onError={() => setImageStatus({ src: imageSrc, status: 'failed' })}
               className={cn(
                 'max-h-[min(10rem,28dvh)] w-fit max-w-full rounded-lg border border-white/[0.07] object-contain',
                 imageState !== 'ready' && 'hidden'

@@ -6,7 +6,7 @@ import { IconButton } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Loader2, Sparkles } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { composeDraftInstruction } from './aiSendComposer/composeDraftInstruction'
@@ -21,8 +21,8 @@ import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
 import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 
 const DRAFT_OPEN_PREF_KEY = 'aiDraftOpen'
-/** Panel çıkış animasyonu ile aynı süre (motion-fast + küçük pay). */
-const CLOSE_ANIM_MS = 90
+/** Panel çıkış animasyonu ile aynı süre (duration-150 + küçük pay). */
+const CLOSE_ANIM_MS = 160
 
 /**
  * Dock'a ait, DOM'u dock'un dışında render edilen yüzeyler.
@@ -70,7 +70,8 @@ function AiSendComposer({
   onSend,
   autoSend = false,
   onToggleAutoSend,
-  placement = 'inline'
+  placement = 'inline',
+  unsafeSendIdsRef
 }: ExtendedComposerProps) {
   const { t } = useTranslation()
   const [isStoredOpen, setStoredOpen] = useLocalStorage<boolean>(DRAFT_OPEN_PREF_KEY, false)
@@ -97,6 +98,85 @@ function AiSendComposer({
 
   const onClearAllRef = useRef(onClearAll)
   onClearAllRef.current = onClearAll
+
+  const prefersReducedMotion = useReducedMotion()
+  /**
+   * Kapanışta panel hemen kaybolmaz: kısa bir çıkış animasyonu tamamlanır.
+   * Açılma isteği (**hata sonrası otomatik yeniden açma dahil**) bekleyen
+   * kapanışı geçersiz kılar; aksi halde eski zamanlayıcı hata panelini
+   * kullanıcı görmeden kapatırdı.
+   */
+  const [isClosing, setIsClosing] = useState(false)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restoreFocusOnCloseRef = useRef(false)
+  const focusNoteOnOpenRef = useRef(false)
+
+  const clearCloseTimer = useCallback(() => {
+    if (!closeTimerRef.current) return
+    clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }, [])
+
+  const finishClose = useCallback(
+    (restoreFocus: boolean) => {
+      clearCloseTimer()
+      restoreFocusOnCloseRef.current = restoreFocus
+      focusNoteOnOpenRef.current = false
+      setIsOpen(false)
+      setStoredOpen(false)
+      setIsClosing(false)
+    },
+    [clearCloseTimer, setStoredOpen]
+  )
+
+  const requestOpen = useCallback(
+    (focusNote: boolean) => {
+      clearCloseTimer()
+      setIsClosing(false)
+      setIsOpen(true)
+      setStoredOpen(true)
+      focusNoteOnOpenRef.current = focusNote
+    },
+    [clearCloseTimer, setStoredOpen]
+  )
+
+  // Odak, DOM güncellemesinden sonra taşınır: açılan panelde not alanı, kapanan
+  // panelde hap. Fareyle dışarı tıklama odağı çalmaz (`restoreFocus=false`).
+  useEffect(() => {
+    if (isOpen) {
+      if (!focusNoteOnOpenRef.current) return
+      focusNoteOnOpenRef.current = false
+      document.getElementById('ai-draft-note')?.focus()
+      return
+    }
+    if (!restoreFocusOnCloseRef.current) return
+    restoreFocusOnCloseRef.current = false
+    document.querySelector<HTMLElement>('[data-testid="ai-draft-badge"]')?.focus()
+  }, [isOpen])
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer])
+
+  /**
+   * Kapatma — **yalnızca görünümü** kapatır.
+   *
+   * Kuyruk, ek not ve hızlı işlem seçimi dokunulmadan kalır; taslak bir defter
+   * notu gibi kapatılıp yeniden açılabilir bir şeydir. Tıklama-dışı davranışı
+   * da aynı yolu izler (aşağıdaki efekt), böylece "dışarı tıkladım" ile "ok
+   * okuna bastım" aynı sonucu verir ve `isOpen` ile kayıtlı tercih ayrışmaz.
+   * Reduced-motion'da bekleme yoktur.
+   */
+  const handleClose = useCallback(
+    (restoreFocus = true) => {
+      if (isClosing) return
+      if (prefersReducedMotion) {
+        finishClose(restoreFocus)
+        return
+      }
+      setIsClosing(true)
+      closeTimerRef.current = setTimeout(() => finishClose(restoreFocus), CLOSE_ANIM_MS)
+    },
+    [finishClose, isClosing, prefersReducedMotion]
+  )
 
   const { textCount, imageCount } = useMemo(() => {
     let text = 0
@@ -131,8 +211,8 @@ function AiSendComposer({
       // Gönderim sırasında dock otomatik kapanmaz: ilerleme ve hata görünür
       // kalmalı, yükseklik zıplamamalı. Yalnızca açık talebini uygula.
       if (next === false) return
-      setIsOpen(next)
-      setStoredOpen(next)
+      // Hata sonrası yeniden açma, bekleyen kapanış animasyonunu iptal eder.
+      requestOpen(false)
     },
     setStoredExpanded: (v) => {
       if (v === false) return
@@ -143,58 +223,17 @@ function AiSendComposer({
     // korunur (kullanıcının tek kopyası).
     onSendSucceeded: () => {
       clearNote()
-      setIsOpen(false)
-      setStoredOpen(false)
+      finishClose(true)
     }
   })
 
   const handleToggleOpen = useCallback(() => {
-    setIsOpen((prev) => {
-      const next = !prev
-      setStoredOpen(next)
-      return next
-    })
-  }, [setStoredOpen])
-
-  const prefersReducedMotion = useReducedMotion()
-  /** Kapanışta panel hemen kaybolmaz: kısa bir çıkış animasyonu tamamlanır. */
-  const [isClosing, setIsClosing] = useState(false)
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const finishClose = useCallback(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
-    setIsOpen(false)
-    setStoredOpen(false)
-    setIsClosing(false)
-  }, [setStoredOpen])
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
-    }
-  }, [])
-
-  /**
-   * Kapatma — **yalnızca görünümü** kapatır.
-   *
-   * Kuyruk, ek not ve hızlı işlem seçimi dokunulmadan kalır; taslak bir defter
-   * notu gibi kapatılıp yeniden açılabilir bir şeydir. Tıklama-dışı davranışı
-   * da aynı yolu izler (aşağıdaki efekt), böylece "dışarı tıkladım" ile "ok
-   * okuna bastım" aynı sonucu verir ve `isOpen` ile kayıtlı tercih ayrışmaz.
-   * Reduced-motion'da bekleme yoktur.
-   */
-  const handleClose = useCallback(() => {
-    if (isClosing) return
-    if (prefersReducedMotion) {
-      finishClose()
+    if (isOpen) {
+      handleClose(true)
       return
     }
-    setIsClosing(true)
-    closeTimerRef.current = setTimeout(finishClose, CLOSE_ANIM_MS)
-  }, [finishClose, isClosing, prefersReducedMotion])
+    requestOpen(true)
+  }, [handleClose, isOpen, requestOpen])
 
   /**
    * Tıklama-dışı kapatma.
@@ -216,7 +255,12 @@ function AiSendComposer({
       const target = event.target as Element | null
       if (!target || dockRef.current?.contains(target)) return
       if (target.closest(PORTAL_SURFACE_SELECTOR)) return
-      handleClose()
+      // Açık bir modal (ör. temizleme onayı) kendi katmanını yönetir. Dock'un
+      // kapanış animasyonu bu katmanı yarıda kaldırmamalı.
+      if (document.querySelector('[aria-modal="true"]')) return
+      // Dışarı tıklama kullanıcının odağını çalmasın: hap yalnızca görünür,
+      // odak zorla taşınmaz.
+      handleClose(false)
     }
 
     document.addEventListener('pointerdown', handlePointerDown, true)
@@ -241,46 +285,49 @@ function AiSendComposer({
   }, [clearNote, resetOutcome, selectQuickAction])
 
   /**
-   * Kısmi teslimat kilidi, **gönderilen öğe kimliklerine** bağlıdır ve bu
-   * kimlikler composer yaşamı boyunca hatırlanır.
+   * Kısmi teslimat kilidi, **gönderilen öğe kimliklerine** bağlıdır.
    *
    * - Gönderim anındaki kimlikler `pendingSendIdsRef`'e yazılır.
-   * - `incomplete` sonucunda bu kimlikler `unsafeSendIdsRef`'e eklenir.
+   * - `incomplete` sonucunda bu kimlikler güvenlik kümesine eklenir.
    * - Kilit, kuyrukta bu kimliklerden hiçbiri kalmayınca bırakılır.
    * - Bırakıldıktan sonra "geri al" eski öğeyi geri getirirse kilit **yeniden**
    *   kurulur; yeni içerik gönderilebilir kalır, eski içerik gönderilemez.
-   * - Kimlikler composer yaşamı boyunca hatırlanır: temizleme bile eski bir
-   *   öğenin undo ile geri gelmesini güvenli tutar. Yeni yakalamalar yeni
-   *   kimlik aldığı için bu kayıt onları engellemez.
+   *
+   * Küme uygulamada `useAiDraftQueue` tarafından sağlanır; composer yalnızca
+   * onu okur/günceller. Böylece PDF paneli kapanıp composer unmount olsa da
+   * güvenlik bilgisi kaybolmaz. Prop verilmediğinde (izole kullanım/test)
+   * composer kendi yerel kümesini kullanır.
    */
   const pendingSendIdsRef = useRef<Set<string>>(new Set())
-  const unsafeSendIdsRef = useRef<Set<string>>(new Set())
+  const localUnsafeSendIdsRef = useRef<Set<string>>(new Set())
+  const unsafeIdsRef = unsafeSendIdsRef ?? localUnsafeSendIdsRef
 
   useEffect(() => {
     if (sendFeedback !== 'incomplete') return
-    for (const id of pendingSendIdsRef.current) unsafeSendIdsRef.current.add(id)
-  }, [sendFeedback])
+    for (const id of pendingSendIdsRef.current) unsafeIdsRef.current.add(id)
+  }, [sendFeedback, unsafeIdsRef])
 
   // Kilit bırakıldıktan sonra eski (kısmen gönderilmiş) bir öğe kuyruğa
-  // dönerse gönderim yeniden kilitlenir.
-  useEffect(() => {
+  // dönerse gönderim yeniden kilitlenir. Layout effect: remount sonrası ilk
+  // boyamada düğme yanlışlıkla etkin görünmesin.
+  useLayoutEffect(() => {
     if (sendFeedback === 'sending' || isSubmitting) return
     if (sendFeedback === 'incomplete') return
-    if (!items.some((item) => unsafeSendIdsRef.current.has(item.id))) return
+    if (!items.some((item) => unsafeIdsRef.current.has(item.id))) return
     relockOutcome()
-  }, [items, isSubmitting, relockOutcome, sendFeedback])
+  }, [items, isSubmitting, relockOutcome, sendFeedback, unsafeIdsRef])
 
   useEffect(() => {
     if (sendFeedback !== 'incomplete' || items.length === 0) return
-    const unsafeIds = unsafeSendIdsRef.current
+    const unsafeIds = unsafeIdsRef.current
     if (unsafeIds.size === 0) return
     if (items.some((item) => unsafeIds.has(item.id))) return
     resetOutcome()
-  }, [items, resetOutcome, sendFeedback])
+  }, [items, resetOutcome, sendFeedback, unsafeIdsRef])
 
   const hasUnsafeItem = useCallback(
-    () => items.some((item) => unsafeSendIdsRef.current.has(item.id)),
-    [items]
+    () => items.some((item) => unsafeIdsRef.current.has(item.id)),
+    [items, unsafeIdsRef]
   )
 
   // Gönderim anında tek bir deterministik talimat metni kurulur:
@@ -312,6 +359,19 @@ function AiSendComposer({
   const isSending = sendFeedback === 'sending' || isSubmitting
   const isOutcomeVisible = !isOutcomeDismissed
 
+  // Hata/kısmi teslimat, kaydırılabilir içerik alanının üstünde kalabilir.
+  // Yeni sonuç geldiğinde açıklama görünür alana getirilir; alt durum satırı ve
+  // gönderim kontrolleri zaten sabittir.
+  const alertRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!isOutcomeVisible || !lastError) return
+    if (sendFeedback !== 'error' && sendFeedback !== 'incomplete') return
+    const node = alertRef.current
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ block: 'nearest' })
+    }
+  }, [isOutcomeVisible, lastError, sendFeedback])
+
   // Kapalı hap için tek, kompakt "talimat var" göstergesi: hızlı işlem ve ek
   // not ayrı ayrı etiketlerle satırı doldurmaz; tamamı tooltip'te okunur.
   const instructionLabels = useMemo(() => {
@@ -341,7 +401,7 @@ function AiSendComposer({
         'pointer-events-none flex w-full',
         placement === 'inline'
           ? 'justify-center'
-          : 'z-modal fixed bottom-4 left-4 w-full max-w-[38rem]'
+          : 'z-modal fixed bottom-4 left-4 w-[calc(100vw-2rem)] max-w-[38rem]'
       )}
       data-testid="ai-draft-root"
       data-placement={placement}
@@ -391,8 +451,8 @@ function AiSendComposer({
             className={cn(
               'flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl motion-reduce:animate-none',
               isClosing
-                ? 'motion-fast animate-out fade-out slide-out-to-bottom-1'
-                : 'motion-slow animate-in fade-in slide-in-from-bottom-2'
+                ? 'animate-out fade-out slide-out-to-bottom-1 duration-150'
+                : 'animate-in fade-in slide-in-from-bottom-2 duration-150'
             )}
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
@@ -458,7 +518,7 @@ function AiSendComposer({
                 type="button"
                 variant="ghost"
                 size="compact"
-                onClick={handleClose}
+                onClick={() => handleClose(true)}
                 aria-label={t('ai_draft_close')}
                 aria-expanded
                 aria-controls="ai-draft-dock-body"
@@ -476,6 +536,7 @@ function AiSendComposer({
                 (sendFeedback === 'error' || sendFeedback === 'incomplete') &&
                 lastError && (
                   <div
+                    ref={alertRef}
                     role="alert"
                     className={cn(
                       'mx-3 mb-2 rounded-xl border px-3 py-2',

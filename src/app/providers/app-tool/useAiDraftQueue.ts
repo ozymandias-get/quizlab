@@ -135,6 +135,21 @@ export function useAiDraftQueue(onReject?: () => void) {
   /** Tek doğruluk kaynağı — `useEffect` ile senkronlanmaz, tam tersi. */
   const itemsRef = useRef<AiDraftItem[]>([])
 
+  /**
+   * Kısmen gönderilmiş öğe kimlikleri — kuyruğun sahipliğinde tutulur.
+   *
+   * Bu küme composer'ın içinde yaşasaydı, PDF paneli kapanıp composer
+   * unmount olduğunda unutulurdu; "geri al" ile dönen eski öğe yeniden
+   * gönderilebilir hâle gelirdi. Kuyruk uygulama ömrü boyunca yaşadığı için
+   * güvenlik bilgisi de aynı katmanda durur. Yeni yakalamalar yeni kimlik
+   * aldığından bu kayıt onları engellemez.
+   */
+  const unsafeSendIdsRef = useRef<Set<string>>(new Set())
+
+  const markUnsafeSendIds = useCallback((ids: Iterable<string>) => {
+    for (const id of ids) unsafeSendIdsRef.current.add(id)
+  }, [])
+
   const onRejectRef = useRef(onReject)
   onRejectRef.current = onReject
 
@@ -437,6 +452,8 @@ export function useAiDraftQueue(onReject?: () => void) {
     queueTextForAi,
     queueImageForAi,
     removePendingAiItem,
-    clearPendingAiItems
+    clearPendingAiItems,
+    unsafeSendIdsRef,
+    markUnsafeSendIds
   }
 }

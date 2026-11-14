@@ -9,6 +9,7 @@
   "ai_send_collapse": "Detayları daralt",
   "ai_send_error": "Gönderim hatası",
   "ai_send_incomplete": "İçerik AI kutusunda hazır, ancak gönderildiği doğrulanamadı. Mükerrer mesaj oluşmaması için otomatik tekrar yapılmadı — AI sekmesinden gönderin.",
+  "ai_send_relock_notice": "Bu içerik daha önce kısmen gönderildi. Mükerrer mesaj oluşmaması için yeniden gönderilemez; yalnızca yeni içerikleri göndermek için bu öğeyi kaldırın.",
   "ai_send_dismiss": "Kapat",
   "ai_send_awaiting_submit": "Sitede gönderin",
   "error_send_in_progress": "Başka bir gönderim devam ediyor, lütfen bekleyin.",

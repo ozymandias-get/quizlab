@@ -62,7 +62,9 @@ const FEEDBACK_TIMEOUT_MS = { error: 6000 } as const
  * set edilir, böylece aynı olay içindeki iki tıklama (açık panel, kapalı dock,
  * Ctrl+Enter, hızlı çift tık) yalnızca birini başlatır. Alt katmandaki
  * orkestrasyon kilidi ise ikinci savunma hattıdır; `send_in_progress` sonucu
- * hata olarak gösterilmez, mevcut durum korunur.
+ * hata olarak gösterilmez. Bu composer'da gerçekten süren bir iş yoksa (varsa
+ * `sendingRef` çağrıyı zaten reddederdi) durum `idle`a döner: sonsuz bir
+ * yükleme göstergesi bırakmak, hiç başlamamış bir işi sürüyor gibi gösterirdi.
  */
 export function useComposerSendAction({
   isSubmitting,
@@ -176,8 +178,13 @@ export function useComposerSendAction({
         const outcome = resolveSendOutcome(result)
 
         if (outcome.kind === 'busy') {
-          // Eşzamanlı çağrı reddedildi: süren gönderimin durumunu bozma.
-          setSendFeedback('sending')
+          // Eşzamanlı çağrı reddedildi. Bu composer'da gerçekten süren bir
+          // gönderim yok (varsa `sendingRef` yukarıda reddederdi); bu yüzden
+          // 'sending' durumunda kalmak sonsuz bir yükleme göstergesi bırakırdı.
+          // Hata da gösterme: istek hiç başlamadı.
+          clearFeedbackTimer()
+          setSendFeedback('idle')
+          setLastError(null)
           return
         }
 
@@ -317,7 +324,10 @@ export function useComposerSendAction({
     setSendFeedback('incomplete')
     setIsResendSafe(false)
     setIsOutcomeDismissed(false)
-  }, [clearFeedbackTimer])
+    // Kullanıcı neden gönderemediğini görmeli: bu bir gönderim hatası değil,
+    // daha önce kısmen gönderilmiş içeriğin ikinci kez gönderilmemesidir.
+    setLastError(t('ai_send_relock_notice'))
+  }, [clearFeedbackTimer, t])
 
   // Every composer affordance — the panel's send button and the collapsed
   // pill's send button — goes through `handleSend`. With auto-send off that

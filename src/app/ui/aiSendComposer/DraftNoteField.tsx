@@ -30,8 +30,9 @@ function DraftNoteField({ value, onChange, onSubmit, disabled }: DraftNoteFieldP
       <label htmlFor="ai-draft-note" className="sr-only">
         {t('ai_draft_note_label')}
       </label>
-      {/* Four-ish lines stay visible before the field scrolls, and the native
-          vertical grip lets the user pull it taller for a long prompt. */}
+      {/* Four-ish lines stay visible before the field scrolls. A manual resize
+          grip is deliberately absent: it fought the automatic growth and could
+          clip the content inside the panel's own scroll surface. */}
       <Textarea
         id="ai-draft-note"
         rows={1}

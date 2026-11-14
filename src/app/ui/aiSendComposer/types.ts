@@ -30,4 +30,11 @@ export interface AiSendComposerProps {
   onSend: (payload: ComposerPayload) => Promise<unknown>
   autoSend?: boolean
   onToggleAutoSend?: () => void
+  /**
+   * Kısmen gönderilmiş öğe kimlikleri. Verildiğinde composer bu kümeyi
+   * **okur ve günceller**; sahiplik uygulama katmanındadır, böylece composer
+   * unmount/remount olsa da güvenlik bilgisi kaybolmaz. Verilmezse (izole
+   * kullanım/test) composer kendi yerel kümesini kullanır.
+   */
+  unsafeSendIdsRef?: { current: Set<string> }
 }

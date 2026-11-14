@@ -278,7 +278,9 @@ describe('useComposerSendAction', () => {
       })
 
       // Eşzamanlılık bir hata değildir: süren gönderimin durumu bozulmaz.
-      expect(result.current.sendFeedback).not.toBe('error')
+      // Bu composer'da süren bir iş yoksa 'sending' de kalmaz — aksi halde
+      // spinner sonsuza dek ekranda kalırdı.
+      expect(result.current.sendFeedback).toBe('idle')
       expect(result.current.lastError).toBeNull()
     })
   })
@@ -468,6 +470,23 @@ describe('useComposerSendAction', () => {
       })
       expect(result.current.sendFeedback).toBe('idle')
       expect(result.current.isOutcomeDismissed).toBe(false)
+    })
+
+    it('explains a re-lock without pretending a new send failed', () => {
+      const { result } = setupWith({ onSend: vi.fn(async () => ({ success: true })) })
+
+      act(() => {
+        result.current.relockOutcome()
+      })
+
+      expect(result.current.sendFeedback).toBe('incomplete')
+      expect(result.current.isResendSafe).toBe(false)
+      expect(result.current.lastError).toMatch(/partly sent/)
+      // Kullanıcı bildirimi kapatabilir; güvenlik kilidi kalır.
+      act(() => {
+        result.current.dismissOutcome()
+      })
+      expect(result.current.sendFeedback).toBe('incomplete')
     })
   })
 })

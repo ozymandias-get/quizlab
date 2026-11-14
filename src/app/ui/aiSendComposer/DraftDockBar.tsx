@@ -130,7 +130,10 @@ function DraftDockBar({
           )}
         </span>
 
-        <span className="text-ql-12 text-foreground tracking-ql-tight shrink-0 font-semibold">
+        <span
+          data-testid="ai-draft-dock-title"
+          className="text-ql-12 text-foreground tracking-ql-tight shrink-0 font-semibold @max-[20rem]:hidden"
+        >
           {t('ai_draft_badge')}
         </span>
 
@@ -145,7 +148,7 @@ function DraftDockBar({
               : undefined
           }
           className={cn(
-            'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors',
+            'text-ql-10 shrink-0 rounded-full px-2 py-0.5 font-semibold tabular-nums transition-colors @max-[15rem]:hidden',
             itemCount > 0 ? 'text-primary bg-primary/10' : 'text-muted-foreground bg-white/10'
           )}
         >
@@ -157,7 +160,7 @@ function DraftDockBar({
             id={instructionsId}
             title={instructionLabel}
             data-testid="ai-draft-instruction-hint"
-            className="text-muted-foreground/70 flex size-4 shrink-0 items-center justify-center"
+            className="text-muted-foreground/70 flex size-4 shrink-0 items-center justify-center @max-[22rem]:hidden"
           >
             <FileText className="size-3" aria-hidden />
             <span className="sr-only">{instructionLabel}</span>

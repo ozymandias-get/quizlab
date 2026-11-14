@@ -35,6 +35,21 @@ describe('useAiDraftQueue', () => {
     vi.unstubAllGlobals()
   })
 
+  it('keeps the partial-send id set at the queue layer', () => {
+    const { result } = renderHook(() => useAiDraftQueue())
+
+    act(() => {
+      result.current.markUnsafeSendIds(['a', 'b'])
+    })
+    expect([...result.current.unsafeSendIdsRef.current]).toEqual(['a', 'b'])
+
+    // Yeni sonuçlar eklenir; eski kimlikler unutulmaz.
+    act(() => {
+      result.current.markUnsafeSendIds(['b', 'c'])
+    })
+    expect([...result.current.unsafeSendIdsRef.current]).toEqual(['a', 'b', 'c'])
+  })
+
   it('revokes image preview URLs when items are cleared', () => {
     const { result } = renderHook(() => useAiDraftQueue())
 

@@ -9,6 +9,7 @@
   "ai_send_collapse": "Collapse details",
   "ai_send_error": "Send error",
   "ai_send_incomplete": "The content is ready in the AI box, but delivery could not be confirmed. Nothing was re-sent automatically to avoid a duplicate message — press Send in the AI tab.",
+  "ai_send_relock_notice": "This item was already partly sent. It cannot be sent again to avoid a duplicate message; remove it to send only the new items.",
   "ai_send_dismiss": "Dismiss",
   "ai_send_awaiting_submit": "Send on the site",
   "error_send_in_progress": "Another send is already in progress, please wait.",

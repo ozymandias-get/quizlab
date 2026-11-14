@@ -2,7 +2,7 @@ import { AI_DRAFT_SLOT_ID } from '@features/pdf'
 
 import { subscribeDomSlot } from '@shared/lib/domSlot'
 
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 type AiDraftPlacement = 'inline' | 'floating'
@@ -28,6 +28,16 @@ type AiDraftPlacement = 'inline' | 'floating'
  * Yazılımın sahibi burada değil: bu katman yalnızca yuvayı bulur ve içeriği
  * oraya taşır. Kimliğin/aksiyonların sahibi app katmanındaki taslak kontrolüdür,
  * yuva ise PDF özelliğine aittir — ikisi de birbirini tanımak zorunda değildir.
+ *
+ * ## Kararlı portal kabı
+ *
+ * `inline ↔ floating` geçişinde portal hedefi değişse bile React ağacı
+ * **yeniden kurulmaz**. Katman tek bir `div` üretir ve onu PDF yuvasına ya da
+ * `<body>`ye taşır; `createPortal` her zaman aynı kaba yazar. Doğrudan
+ * `createPortal` ↔ fragment arasında geçiş yapmak, composer'ı (ve ek notu,
+ * hızlı işlem seçimini, gönderim durumunu) her geçişte unmount ederdi.
+ * `display: contents` kabın kendisi yerleşim üretmediği için PDF yuvasındaki
+ * konumlanma eskisiyle aynı kalır.
  */
 export function AiDraftLayer({
   hasContent,
@@ -37,14 +47,23 @@ export function AiDraftLayer({
   children: (placement: AiDraftPlacement) => ReactNode
 }) {
   const [slot, setSlot] = useState<HTMLElement | null>(null)
+  // Kararlı portal kabı: kimliği render'lar arasında değişmez.
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  if (containerRef.current === null) containerRef.current = document.createElement('div')
+  const container = containerRef.current
 
   useEffect(() => subscribeDomSlot(AI_DRAFT_SLOT_ID, setSlot), [])
 
-  if (slot) {
-    return createPortal(children('inline'), slot)
-  }
+  useLayoutEffect(() => {
+    container.style.display = 'contents'
+    if (slot) slot.appendChild(container)
+    else if (hasContent) document.body.appendChild(container)
+    else container.remove()
 
-  if (!hasContent) return null
+    return () => container.remove()
+  }, [container, hasContent, slot])
 
-  return <>{children('floating')}</>
+  if (!slot && !hasContent) return null
+
+  return createPortal(children(slot ? 'inline' : 'floating'), container)
 }

@@ -29,6 +29,7 @@ import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
 import { useAiTabsSliceState, useAiViewRequestNonce } from '@app/providers/ai-context'
+import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
 import { useManagedViewRetirement } from '@shared/hooks/aiContent/managedViewLifecycle'
 
 function App() {
@@ -201,14 +202,34 @@ function App() {
 }
 
 const PendingAiSendLayer = memo(function PendingAiSendLayer() {
-  const { pendingAiItems, autoSend } = useAppToolQueueState()
-  const { clearPendingAiItems, removePendingAiItem, sendPendingAiItems, toggleAutoSend } =
-    useAppToolActions()
+  const { pendingAiItems, autoSend, unsafeSendIdsRef } = useAppToolQueueState()
+  const {
+    clearPendingAiItems,
+    removePendingAiItem,
+    sendPendingAiItems,
+    toggleAutoSend,
+    markUnsafeSendIds
+  } = useAppToolActions()
 
   const handleSend = useCallback(
-    ({ noteText, autoSend }: { noteText?: string; autoSend?: boolean }) =>
-      sendPendingAiItems({ promptText: noteText, autoSend }),
-    [sendPendingAiItems]
+    async ({ noteText, autoSend }: { noteText?: string; autoSend?: boolean }) => {
+      // Gönderime giren kimlikler, sonuç gelmeden **önce** sabitlenir. Sonuç
+      // kısmi/belirsizse bu kimlikler kuyruğun güvenlik kaydına yazılır.
+      // Kayıt composer'da değil burada tutulduğu için panel unmount olsa bile
+      // "geri al" ile dönen içerik yeniden gönderilebilir hâle gelmez.
+      const sentIds = pendingAiItems.map((item) => item.id)
+      try {
+        const result = await sendPendingAiItems({ promptText: noteText, autoSend })
+        if (resolveSendOutcome(result).kind === 'incomplete') markUnsafeSendIds(sentIds)
+        return result
+      } catch (error) {
+        // İstisna, hedefe dokunulmadığının kanıtı değildir: composer da aynı
+        // sonucu "incomplete" sayar, kayıt burada da güvenli tarafta kalır.
+        markUnsafeSendIds(sentIds)
+        throw error
+      }
+    },
+    [markUnsafeSendIds, pendingAiItems, sendPendingAiItems]
   )
 
   // PDF panelindeki yuvaya portal ile yerleşir (bkz. AiDraftLayer).
@@ -225,6 +246,7 @@ const PendingAiSendLayer = memo(function PendingAiSendLayer() {
           autoSend={autoSend}
           onToggleAutoSend={toggleAutoSend}
           placement={placement}
+          unsafeSendIdsRef={unsafeSendIdsRef}
         />
       )}
     </AiDraftLayer>
