@@ -1162,19 +1162,24 @@ describe('extension pairing', () => {
 })
 
 describe('extension account snapshots', () => {
-  it('uses the single session for non-Google imports and pauses automatic writes across restarts', async () => {
-    const harness = createHarness()
+  it('uses the single session for non-Google imports and keeps automatic sync after a manual transfer', async () => {
+    const harness = createHarness({ storage: { autoSync: true } })
     await harness.settle()
     const response = await harness.message({ type: 'sync_now', targetId: 'claude' })
     expect(response.success).toBe(true)
     expect(harness.packets.at(-1)).toMatchObject({ targetId: 'claude' })
+    // A manual transfer is a one-off action, not a preference change.
+    expect(harness.storage.get('autoSync')).toBe(true)
+
+    // Automatic sync therefore still runs: a cookie change of the site is
+    // pushed without another manual action.
     const count = harness.packets.length
     harness.fireCookieChanged(DEFAULT_COOKIES['.claude.ai'][0])
     await harness.runTimers()
     harness.fireAlarm(HEARTBEAT_ALARM)
     await harness.settle()
-    expect(harness.packets).toHaveLength(count)
-    expect(harness.storage.get('autoSync')).toBe(false)
+    expect(harness.packets).toHaveLength(count + 1)
+
     const restarted = createHarness({ storage: Object.fromEntries(harness.storage) })
     await restarted.settle()
     expect(restarted.packets).toHaveLength(0)

@@ -95,16 +95,16 @@ describe('extension popup import feedback', () => {
     expect(document.getElementById('sync-feedback')?.textContent).toContain('Oturumlar aktarıldı')
   })
 
-  it('shows the preference the worker reports after a manual transfer', async () => {
-    // The product contract: a delivered manual transfer stops the automatic
-    // mirror, and the popup shows the value the worker really persisted.
-    const { sendMessage } = await popup({ response: { success: true, autoSync: false } })
+  it('does not switch the automatic preference off after a manual transfer', async () => {
+    // "Sync now" is a one-off transfer, not a setting: the popup shows the
+    // preference the worker still holds after the transfer.
+    const { sendMessage } = await popup({ response: { success: true, autoSync: true } })
     expect(autoCheckbox().checked).toBe(true)
 
     document.getElementById('sync-btn')!.click()
 
     expect(sendMessage).toHaveBeenCalledTimes(1)
-    expect(autoCheckbox().checked).toBe(false)
+    expect(autoCheckbox().checked).toBe(true)
   })
 
   it('does not stop the automatic mirror when the manual transfer failed', async () => {

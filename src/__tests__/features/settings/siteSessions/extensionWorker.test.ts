@@ -132,6 +132,7 @@ function createHarness(options: HarnessOptions = {}) {
   const listeners = {
     alarm: [] as Array<(alarm: { name: string }) => void>,
     cookie: [] as Array<(change: { cookie: Partial<FakeCookie> }) => void>,
+    navigation: [] as Array<() => void>,
     message: [] as Array<
       (
         message: Record<string, unknown>,
@@ -243,7 +244,13 @@ function createHarness(options: HarnessOptions = {}) {
       setBadgeBackgroundColor: async () => {}
     },
     webNavigation: {
-      onCompleted: { addListener: () => {}, removeListener: () => {} }
+      onCompleted: {
+        addListener: (fn: () => void) => listeners.navigation.push(fn),
+        removeListener: (fn: () => void) => {
+          const index = listeners.navigation.indexOf(fn)
+          if (index >= 0) listeners.navigation.splice(index, 1)
+        }
+      }
     }
   }
 
@@ -368,6 +375,9 @@ function createHarness(options: HarnessOptions = {}) {
     },
     fireCookieChange(cookie: Partial<FakeCookie>): void {
       for (const listener of listeners.cookie) listener({ cookie })
+    },
+    fireNavigation(): void {
+      for (const listener of listeners.navigation) listener()
     },
     send(message: Record<string, unknown>): Promise<Record<string, unknown>> {
       return new Promise((resolve) => {
@@ -702,6 +712,52 @@ describe('the extension worker', () => {
     expect(worker.storage.local.autoSync).toBeUndefined()
   })
 
+  it('never changes the automatic sync preference on a manual transfer', async () => {
+    const worker = createHarness()
+    await worker.settle()
+    worker.storage.local.autoSync = true
+
+    const delivered = await worker.send({ type: 'sync_now' })
+
+    // "Sync now" is a one-off transfer; it is not a setting.
+    expect(delivered).toMatchObject({ success: true, autoSync: true })
+    expect(worker.read<boolean>('autoSync')).toBe(true)
+    expect(worker.storage.local.autoSync).toBe(true)
+  })
+
+  it('keeps automatic syncing off after a manual transfer', async () => {
+    const worker = createHarness()
+    await worker.settle()
+    worker.storage.local.autoSync = false
+    const restarted = createHarness({ storage: worker.storage })
+    await restarted.settle()
+
+    const response = await restarted.send({ type: 'sync_now' })
+
+    expect(response).toMatchObject({ success: true, autoSync: false })
+    expect(restarted.read<boolean>('autoSync')).toBe(false)
+    expect(restarted.storage.local.autoSync).toBe(false)
+  })
+
+  it('keeps the automatic preference after a partial transfer', async () => {
+    const worker = createHarness({
+      cookies: [createCookie()],
+      bridge: {
+        targets: [
+          { siteId: 'chatgpt', label: 'ChatGPT', cookieDomains: ['.chatgpt.com'] },
+          { siteId: 'claude', label: 'Claude', cookieDomains: ['.claude.ai'] }
+        ]
+      }
+    })
+    await worker.settle()
+    worker.storage.local.autoSync = true
+
+    const response = await worker.send({ type: 'sync_now' })
+
+    expect(response).toMatchObject({ success: false, result: 'partial', autoSync: true })
+    expect(worker.storage.local.autoSync).toBe(true)
+  })
+
   it('keeps automatic syncing on when a manual transfer fails', async () => {
     const worker = createHarness()
     await worker.settle()
@@ -715,23 +771,6 @@ describe('the extension worker', () => {
 
     expect(failed).toMatchObject({ success: false, autoSync: true })
     expect(worker.storage.local.autoSync).toBe(true)
-
-    // The product contract still holds for a delivered manual transfer: it is
-    // a one-off action that stops the automatic mirror.
-    worker.bridge.answerPacket = (packet) => ({
-      status: 200,
-      body: {
-        success: true,
-        accepted: true,
-        importSucceeded: true,
-        imported: packet.cookies,
-        failed: 0,
-        retryable: false
-      }
-    })
-    const delivered = await worker.send({ type: 'sync_now' })
-    expect(delivered).toMatchObject({ success: true, autoSync: false })
-    expect(worker.storage.local.autoSync).toBe(false)
   })
 
   it('reports a manual transfer that found no browser session as such', async () => {
@@ -828,6 +867,127 @@ describe('the extension worker', () => {
     await expect(pairing).resolves.toMatchObject({ success: true })
     await worker.settle()
 
+    expect(worker.read<boolean>('pairingInvalid')).toBe(false)
+    expect(worker.read<boolean>('connected')).toBe(true)
+    expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+    expect(worker.alarms.has(SCAN_ALARM)).toBe(false)
+  })
+
+  it('does not adopt a probe’s app instance before the code is verified', async () => {
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    let gateArmed = false
+    let gated = false
+    const worker = createHarness({
+      bridge: {
+        beforeSiteList: async () => {
+          if (!gateArmed || gated) return
+          gated = true
+          await probeGate
+        }
+      }
+    })
+    await worker.settle()
+    expect(worker.read<string>('bridgeInstanceId')).toBe('instance-1')
+
+    // The app restarted between the last poll and this pairing attempt.
+    worker.bridge.instanceId = 'instance-2'
+    gateArmed = true
+    const pairing = worker.send({ type: 'pair', secret: OTHER_SECRET })
+    await worker.settle()
+
+    // The candidate instance is not the active connection until the app
+    // proved that it holds the candidate code.
+    expect(worker.read<string>('bridgeInstanceId')).toBe('instance-1')
+    expect(worker.read<number>('bridgePort')).toBe(PORT)
+
+    // A navigation wake-up joins the probe instead of opening a second
+    // connection attempt with the unverified candidate.
+    const healthCalls = worker.bridge.healthCalls
+    worker.fireNavigation()
+    await worker.settle()
+    expect(worker.bridge.healthCalls).toBe(healthCalls)
+
+    releaseProbe()
+    await expect(pairing).resolves.toMatchObject({ success: false, error: 'invalid_code' })
+    await worker.settle()
+
+    expect(worker.read<string>('bridgeInstanceId')).toBe('instance-1')
+    expect(worker.read<number>('bridgePort')).toBe(PORT)
+    expect(worker.read<boolean>('connected')).toBe(true)
+    expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+    expect(worker.alarms.has(SCAN_ALARM)).toBe(false)
+  })
+
+  it('keeps the committed instance when a manual sync overlaps a pairing probe', async () => {
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    let gateArmed = false
+    let gated = false
+    const worker = createHarness({
+      bridge: {
+        beforeSiteList: async () => {
+          if (!gateArmed || gated) return
+          gated = true
+          await probeGate
+        }
+      }
+    })
+    await worker.settle()
+    worker.bridge.instanceId = 'instance-2'
+    gateArmed = true
+
+    const pairing = worker.send({ type: 'pair', secret: OTHER_SECRET })
+    await worker.settle()
+    const manual = worker.send({ type: 'sync_now' })
+    releaseProbe()
+
+    const [pairingResponse, manualResponse] = await Promise.all([pairing, manual])
+    await worker.settle()
+
+    expect(pairingResponse).toMatchObject({ success: false, error: 'invalid_code' })
+    expect(manualResponse).toMatchObject({ success: true })
+    expect(worker.read<{ instanceId: string }>('lastPush').instanceId).toBe('instance-1')
+    expect(worker.read<string>('bridgeInstanceId')).toBe('instance-1')
+  })
+
+  it('keeps a successful pairing when a wrong request overlaps it', async () => {
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    const worker = createHarness({
+      bridge: {
+        beforeSiteList: async () => {
+          // The initial scan and the correct request are calls 1 and 2; hold
+          // the wrong request that follows the successful pairing.
+          if (worker.bridge.siteListCalls !== 3) return
+          await probeGate
+        }
+      }
+    })
+    await worker.settle()
+    worker.bridge.instanceId = 'instance-2'
+
+    const correct = worker.send({ type: 'pair', secret: SECRET })
+    const wrong = worker.send({ type: 'pair', secret: OTHER_SECRET })
+    await worker.settle()
+
+    // The first request is done; the second is the only pairing in flight.
+    expect(worker.read<boolean>('pairingInFlight')).toBe(true)
+
+    releaseProbe()
+    await expect(correct).resolves.toMatchObject({ success: true })
+    await expect(wrong).resolves.toMatchObject({ success: false, error: 'invalid_code' })
+    await worker.settle()
+
+    // The wrong request may not undo the successful one.
+    expect(worker.storage.local.bridgeSecret).toBe(SECRET)
+    expect(worker.read<string>('bridgeInstanceId')).toBe('instance-2')
     expect(worker.read<boolean>('pairingInvalid')).toBe(false)
     expect(worker.read<boolean>('connected')).toBe(true)
     expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)

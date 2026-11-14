@@ -135,6 +135,8 @@ let alarmSwitch = Promise.resolve()
 let retryTimer = null
 /** Whether the pairing probe is running with a code the worker does not own yet. */
 let pairingInFlight = false
+/** The pairing requests that are running, one at a time. */
+let pairingQueue = Promise.resolve()
 /** The last write of the changed-domain queue. */
 let changedDomainsWrite = Promise.resolve()
 
@@ -796,10 +798,10 @@ function isKnownDomain(domain) {
  * The app only has to be told once: a second push of the same state would
  * rewrite every session of the app for nothing.
  */
-function statePushedTo(list, fingerprint) {
+function statePushedTo(list, fingerprint, instanceId) {
   return (
     lastPush !== null &&
-    lastPush.instanceId === bridgeInstanceId &&
+    lastPush.instanceId === instanceId &&
     lastPush.configVersion === list.configVersion &&
     lastPush.fingerprint === fingerprint
   )
@@ -941,6 +943,8 @@ async function sendCookiesToApp(options) {
 
   const port = typeof settings.port === 'number' ? settings.port : bridgePort
   if (!port) return SYNC_UNREACHABLE
+  const instanceId =
+    typeof settings.instanceId === 'string' ? settings.instanceId : bridgeInstanceId
 
   // Without the pairing code the site list is signed wrong and refused; the
   // popup is where the user enters it. A pairing probe passes its candidate
@@ -1059,7 +1063,7 @@ async function sendCookiesToApp(options) {
     }
   }
   if (
-    (settings.connect === true && !statePushedTo(list, fingerprint)) ||
+    (settings.connect === true && !statePushedTo(list, fingerprint, instanceId)) ||
     settings.forceAll === true ||
     settings.resync === true
   ) {
@@ -1119,22 +1123,10 @@ async function sendCookiesToApp(options) {
   const incomplete = summary.refused > 0 || summary.retry > 0 || summary.tooLarge > 0
   if (!incomplete && targets.length === list.targets.length) {
     // The whole state reached the bridge: it does not have to be sent again.
-    lastPush = { instanceId: bridgeInstanceId, configVersion: list.configVersion, fingerprint }
-  }
-
-  // A manual "sync now" is a one-off action that stops the automatic mirror —
-  // but only when it really delivered something. A failed attempt must not
-  // change a preference the user set for the automatic path. The preference is
-  // written before the worker reports it; a failed write leaves it as it was.
-  if (settings.forceAll === true && summary.imported > 0 && autoSync) {
-    try {
-      await chrome.storage.local.set({ autoSync: false })
-      autoSync = false
-    } catch (error) {
-      console.warn(
-        '[Quizlab Bridge] The automatic sync preference could not be turned off:',
-        errorMessage(error)
-      )
+    lastPush = {
+      instanceId,
+      configVersion: list.configVersion,
+      fingerprint
     }
   }
 
@@ -1178,6 +1170,24 @@ function queueSend(options) {
       return SYNC_UNREACHABLE
     })
   return pendingSend
+}
+
+/**
+ * Runs one pairing after the previous one finished.
+ *
+ * Two pairing dialogs can send two requests at once. Each request has to
+ * validate its own code against an unchanged connection, and a later request
+ * must not restore the port or the instance a successful earlier one
+ * committed. Serializing the whole task — not only the scan it uses — keeps
+ * `pairingInFlight` truthful and each response tied to its own code.
+ */
+function runPairing(task) {
+  const run = pairingQueue.catch(() => undefined).then(task)
+  pairingQueue = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run
 }
 
 /**
@@ -1285,13 +1295,18 @@ async function performScan(settings) {
       // with another id is a new one, and the app may have lost its session in
       // the meantime. A bridge that could not be reached for a moment does not
       // make the next one a new one.
-      const justConnected =
-        typeof health.instanceId === 'string' && health.instanceId !== bridgeInstanceId
-      if (typeof health.instanceId === 'string') bridgeInstanceId = health.instanceId
-      bridgePort = port
+      //
+      // The candidate is kept local until the app proved that it is talking to
+      // this worker: a wrong pairing code must never change the port or the
+      // instance every other flow is using.
+      const candidatePort = port
+      const candidateInstanceId =
+        typeof health.instanceId === 'string' ? health.instanceId : bridgeInstanceId
+      const justConnected = candidateInstanceId !== bridgeInstanceId
 
       const result = await queueSend({
-        port,
+        port: candidatePort,
+        instanceId: candidateInstanceId,
         connect: justConnected,
         secret,
         // A pairing is the user asking for the sessions: it pushes the sites
@@ -1314,8 +1329,10 @@ async function performScan(settings) {
         return result
       }
 
-      // The bridge answered with a signed list, so the port and the instance
-      // are worth remembering. A probe does not write them on failure.
+      // The app answered with a signed list, so the port and the instance it
+      // named are now the active connection.
+      bridgeInstanceId = candidateInstanceId
+      bridgePort = candidatePort
       await persistState({ bridgePort, bridgeInstanceId })
       await setPairingInvalid(false)
       await setupHeartbeat()
@@ -1523,51 +1540,44 @@ if (chrome.runtime?.onMessage?.addListener) {
         return false
       }
       stateReady
-        .then(async () => {
-          // The candidate is only ever passed to the probe; it is not put into
-          // the state every other flow signs with. A wrong code must never
-          // replace the working one, and a heartbeat that overlaps the probe
-          // must not sign with an unverified code. The code is saved only after
-          // the app answered the signed site list request — which is the proof
-          // that it holds this code. Whether the following import succeeds is a
-          // separate result: pairing and transfer are not the same success.
-          const previousInstanceId = bridgeInstanceId
-          const previousPort = bridgePort
-          pairingInFlight = true
-          try {
-            const result = await scanForBridge({
-              force: true,
-              probe: true,
-              resync: true,
-              secret: code
-            })
-            if (result === SYNC_UNAUTHORIZED) {
-              bridgeInstanceId = previousInstanceId
-              bridgePort = previousPort
-              return { success: false, error: 'invalid_code' }
+        .then(() =>
+          runPairing(async () => {
+            // The candidate is only ever passed to the probe; it is not put
+            // into the state every other flow signs with. A wrong code must
+            // never replace the working one, and a heartbeat that overlaps the
+            // probe must not sign with an unverified code. The code is saved
+            // only after the app answered the signed site list request — which
+            // is the proof that it holds this code. Whether the following
+            // import succeeds is a separate result: pairing and transfer are
+            // not the same success.
+            pairingInFlight = true
+            try {
+              const result = await scanForBridge({
+                force: true,
+                probe: true,
+                resync: true,
+                secret: code
+              })
+              if (result === SYNC_UNAUTHORIZED) {
+                return { success: false, error: 'invalid_code' }
+              }
+              if (result === SYNC_UNREACHABLE) {
+                return { success: false, error: 'bridge_unreachable' }
+              }
+              const settingsSaved = await rememberSecret(code)
+              return {
+                success: true,
+                result,
+                settingsSaved,
+                // Pairing worked, but the app intends to import from another
+                // Chrome profile. The popup tells the user to select this one.
+                notSelected: lastSelectionWasSource === false
+              }
+            } finally {
+              pairingInFlight = false
             }
-            if (result === SYNC_UNREACHABLE) {
-              bridgeInstanceId = previousInstanceId
-              bridgePort = previousPort
-              return { success: false, error: 'bridge_unreachable' }
-            }
-            const settingsSaved = await rememberSecret(code)
-            return {
-              success: true,
-              result,
-              settingsSaved,
-              // Pairing worked, but the app intends to import from another
-              // Chrome profile. The popup tells the user to select this one.
-              notSelected: lastSelectionWasSource === false
-            }
-          } catch (error) {
-            bridgeInstanceId = previousInstanceId
-            bridgePort = previousPort
-            throw error
-          } finally {
-            pairingInFlight = false
-          }
-        })
+          })
+        )
         .then(
           (response) => sendResponse(response),
           (error) => sendResponse({ success: false, error: errorMessage(error) })
