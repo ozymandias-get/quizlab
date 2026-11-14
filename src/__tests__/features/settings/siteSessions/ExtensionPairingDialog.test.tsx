@@ -73,5 +73,9 @@ describe('ExtensionPairingDialog', () => {
     await waitFor(() => expect(copy).toHaveBeenCalledWith('/data/ext'))
     expect(screen.getByText('/data/ext')).toBeInTheDocument()
     expect(screen.getByText(/ws_extension_install_ready/)).toBeInTheDocument()
+    // Files ready is not the same as connected: the extension is loaded but
+    // still unpaired, and the new files may need a Chrome reload.
+    expect(screen.getByText('ws_extension_install_status_unpaired')).toBeInTheDocument()
+    expect(screen.getByText('ws_extension_install_reload_hint')).toBeInTheDocument()
   })
 })

@@ -14,7 +14,7 @@ import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { Check, Laptop, Trash2 } from 'lucide-react'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useRef, useState } from 'react'
 
 interface ExtensionProfileSelectorProps {
   t: (key: string) => string
@@ -64,13 +64,42 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
   const selectMutation = useSelectExtensionProfileMutation()
   const removeMutation = useRemoveExtensionProfileMutation()
   const { confirm, props: confirmProps } = useConfirmDialog()
-  const { showError, showSuccess } = useToastActions()
+  const { showError, showSuccess, showWarning } = useToastActions()
 
   const profiles = data?.profiles ?? []
   const selectedProfileId = data?.selectedProfileId ?? null
 
+  // The confirmation and the action are two awaits apart. These refs hold the
+  // latest list and source, so a removal never acts on a decision the user made
+  // against an older state.
+  const latestProfiles = useRef(profiles)
+  latestProfiles.current = profiles
+  const latestSelection = useRef(selectedProfileId)
+  latestSelection.current = selectedProfileId
+
+  // One action at a time: selecting and removing both change the source and
+  // the rows, and a second click before the first request settled would use a
+  // stale selection.
+  const [actionPending, setActionPending] = useState(false)
+  const actionInFlight = useRef(false)
+  const isProfileActionPending =
+    actionPending || selectMutation.isPending || removeMutation.isPending
+
+  const beginAction = useCallback(() => {
+    if (actionInFlight.current) return false
+    actionInFlight.current = true
+    setActionPending(true)
+    return true
+  }, [])
+
+  const endAction = useCallback(() => {
+    actionInFlight.current = false
+    setActionPending(false)
+  }, [])
+
   const onSelect = useCallback(
     (profileId: string) => {
+      if (!beginAction()) return
       void selectMutation
         .mutateAsync({ profileId })
         .then((result) => {
@@ -81,27 +110,68 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
         .catch(() => {
           // The mutation hook already surfaced the transport error.
         })
+        .finally(endAction)
     },
-    [selectMutation, showError, t]
+    [beginAction, endAction, selectMutation, showError, t]
   )
 
   const onRemove = useCallback(
     async (profile: NativeMessagingExtensionProfile) => {
-      if (removeMutation.isPending) return
-      const isSource = profile.id === selectedProfileId
-      const confirmed = await confirm({
-        title: t('ws_profile_remove_confirm_title'),
-        description: isSource
-          ? t('ws_profile_remove_confirm_selected')
-          : t('ws_profile_remove_confirm_other'),
-        confirmLabel: t('ws_profile_remove_btn'),
-        variant: 'destructive'
-      })
-      if (!confirmed) return
-
+      if (!beginAction()) return
       try {
+        let isSource = profile.id === latestSelection.current
+        let confirmed = await confirm({
+          title: t('ws_profile_remove_confirm_title'),
+          description: isSource
+            ? t('ws_profile_remove_confirm_selected')
+            : t('ws_profile_remove_confirm_other'),
+          confirmLabel: t('ws_profile_remove_btn'),
+          variant: 'destructive'
+        })
+        if (!confirmed) return
+
+        // The source can change while the dialog is open (another window, the
+        // extension itself). The wipe a removal performs depends on it, so the
+        // user confirms the current wording before anything is cleared.
+        const latest = latestProfiles.current.find((candidate) => candidate.id === profile.id)
+        if (!latest) {
+          showError(t('ws_profile_remove_error'))
+          return
+        }
+        const sourceNow = latest.id === latestSelection.current
+        if (sourceNow !== isSource) {
+          isSource = sourceNow
+          confirmed = await confirm({
+            title: t('ws_profile_remove_confirm_title'),
+            description: isSource
+              ? t('ws_profile_remove_confirm_selected')
+              : t('ws_profile_remove_confirm_other'),
+            confirmLabel: t('ws_profile_remove_btn'),
+            variant: 'destructive'
+          })
+          if (!confirmed) return
+        }
+
         const result = await removeMutation.mutateAsync({ profileId: profile.id })
         if (!result.success) {
+          const partial =
+            result.partial === true ||
+            (result.clearedSiteIds?.length ?? 0) > 0 ||
+            (result.failedSiteIds?.length ?? 0) > 0
+          if (partial) {
+            // The profile is still there and part of the sessions are gone:
+            // the user has to see exactly that, not a plain failure.
+            showWarning(
+              result.reimportRequested
+                ? t('ws_profile_remove_partial_reimport')
+                : t('ws_profile_remove_partial')
+            )
+            return
+          }
+          if (result.error === 'wipe_failed') {
+            showError(t('ws_profile_remove_failed'))
+            return
+          }
           const errorKey =
             result.error && REMOVAL_ERRORS.has(result.error)
               ? `ws_error_${result.error}`
@@ -112,9 +182,11 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
         showSuccess(t('ws_profile_remove_success'))
       } catch {
         showError(t('ws_profile_remove_error'))
+      } finally {
+        endAction()
       }
     },
-    [confirm, removeMutation, selectedProfileId, showError, showSuccess, t]
+    [beginAction, confirm, endAction, removeMutation, showError, showSuccess, showWarning, t]
   )
 
   if (profiles.length === 0) return null
@@ -165,7 +237,7 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
                     variant="ghost"
                     size="xs"
                     onClick={() => void onRemove(profile)}
-                    disabled={removeMutation.isPending}
+                    disabled={isProfileActionPending}
                     aria-label={`${t('ws_profile_remove_btn')} ${profile.name}`}
                     title={t('ws_profile_remove_btn')}
                   >
@@ -176,7 +248,7 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
                     variant={selected ? 'outline' : 'default'}
                     size="xs"
                     onClick={() => onSelect(profile.id)}
-                    disabled={selected || selectMutation.isPending}
+                    disabled={selected || isProfileActionPending}
                     className="shrink-0"
                   >
                     <span className="text-ql-11 font-semibold">

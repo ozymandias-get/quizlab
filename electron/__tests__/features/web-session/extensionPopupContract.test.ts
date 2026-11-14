@@ -434,7 +434,10 @@ describe('extension permission popup', () => {
     // Settings → Site Sessions copies this folder out of the installed app; a
     // missing entry would make "Install extension" fail only after packaging.
     const pkg = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')) as {
-      build?: { extraResources?: Array<{ from?: string; to?: string }> }
+      build?: {
+        extraResources?: Array<{ from?: string; to?: string }>
+        nsis?: { deleteAppDataOnUninstall?: boolean }
+      }
     }
     expect(pkg.build?.extraResources).toEqual(
       expect.arrayContaining([
@@ -444,6 +447,9 @@ describe('extension permission popup', () => {
         })
       ])
     )
+    // The installed copy lives in the user data folder; an uninstall must not
+    // delete the folder Chrome loads.
+    expect(pkg.build?.nsis?.deleteAppDataOnUninstall).toBe(false)
   })
 
   it('speaks about sites in general and not about Google alone', () => {

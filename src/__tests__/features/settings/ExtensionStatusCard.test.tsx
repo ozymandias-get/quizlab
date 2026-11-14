@@ -1,6 +1,6 @@
 import ExtensionStatusCard from '@features/settings/ui/siteSessions/components/ExtensionStatusCard'
 
-import { fireEvent, render, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
@@ -112,6 +112,33 @@ describe('ExtensionStatusCard', () => {
     ).toBeInTheDocument()
     expect(await findByText(/ws_extension_install_ready/)).toBeInTheDocument()
     expect(await findByText('ws_extension_install_hint')).toBeInTheDocument()
+  })
+
+  it('does not call a prepared folder a connected extension', async () => {
+    state.info = { status: 'disconnected', paired: false }
+    const { getByRole, findByText, container } = render(
+      <ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />
+    )
+
+    fireEvent.click(getByRole('button', { name: /ws_extension_install_btn/ }))
+
+    expect(await findByText(/ws_extension_install_ready/)).toBeInTheDocument()
+    expect(await findByText('ws_extension_install_status_load')).toBeInTheDocument()
+    expect(container.querySelector('.border-amber-500\\/25')).toBeInTheDocument()
+    expect(container.querySelector('.border-emerald-500\\/20')).not.toBeInTheDocument()
+    expect(screen.queryByText('ws_extension_install_reload_hint')).not.toBeInTheDocument()
+  })
+
+  it('asks for a Chrome reload after replacing files of a loaded extension', async () => {
+    state.info = { status: 'connected', paired: false }
+    const { getByRole, findByText } = render(
+      <ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />
+    )
+
+    fireEvent.click(getByRole('button', { name: /ws_extension_install_btn/ }))
+
+    expect(await findByText('ws_extension_install_status_unpaired')).toBeInTheDocument()
+    expect(await findByText('ws_extension_install_reload_hint')).toBeInTheDocument()
   })
 
   it('reports a folder that could not be prepared', async () => {

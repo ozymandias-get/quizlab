@@ -75,9 +75,29 @@ export interface SiteSessionServiceDeps {
 
 export class SiteSessionService {
   private readonly deps: SiteSessionServiceDeps
+  /**
+   * The source change that is running.
+   *
+   * Selecting a source and removing one both close the bridge, wipe the
+   * sessions and change the selection file. Running them one at a time keeps
+   * the decision of the second operation current: it sees the profile list and
+   * the selection the first one committed, instead of a snapshot taken before
+   * the wipe started.
+   */
+  private sourceOperation: Promise<unknown> = Promise.resolve()
 
   constructor(deps: SiteSessionServiceDeps) {
     this.deps = deps
+  }
+
+  /** Runs a source change after the previous one finished. */
+  private runSourceOperation<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.sourceOperation.catch(() => undefined).then(task)
+    this.sourceOperation = run.then(
+      () => undefined,
+      () => undefined
+    )
+    return run
   }
 
   /**
@@ -224,6 +244,12 @@ export class SiteSessionService {
    * whether the selected profile is connected and paired.
    */
   async selectExtensionProfile(profileId: string): Promise<NativeMessagingProfileSelectionResult> {
+    return this.runSourceOperation(() => this.selectExtensionProfileLocked(profileId))
+  }
+
+  private async selectExtensionProfileLocked(
+    profileId: string
+  ): Promise<NativeMessagingProfileSelectionResult> {
     if (!nativeMessagingManager.hasProfile(profileId)) {
       return { success: false, error: 'unknown_profile' }
     }
@@ -292,6 +318,12 @@ export class SiteSessionService {
    * was cleared, exactly like a failed source switch.
    */
   async removeExtensionProfile(profileId: string): Promise<NativeMessagingProfileRemovalResult> {
+    return this.runSourceOperation(() => this.removeExtensionProfileLocked(profileId))
+  }
+
+  private async removeExtensionProfileLocked(
+    profileId: string
+  ): Promise<NativeMessagingProfileRemovalResult> {
     if (!nativeMessagingManager.hasProfile(profileId)) {
       return { success: false, error: 'unknown_profile' }
     }

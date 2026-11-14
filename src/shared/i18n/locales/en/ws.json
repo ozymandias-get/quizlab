@@ -119,6 +119,10 @@
   "ws_extension_install_copy_btn": "Copy path",
   "ws_extension_install_copied": "Path copied",
   "ws_extension_install_hint": "Open chrome://extensions, enable Developer mode, choose Load unpacked and paste this path.",
+  "ws_extension_install_status_load": "The files are ready; Chrome is not connected with this folder yet.",
+  "ws_extension_install_status_unpaired": "The files are ready and Chrome loaded the extension; pairing is pending.",
+  "ws_extension_install_status_paired": "The files are ready and the extension is paired.",
+  "ws_extension_install_reload_hint": "If the extension was already loaded, press Reload in chrome://extensions so Chrome runs the new files.",
   "ws_extension_install_error": "The extension could not be prepared. Restart Quizlab and try again.",
   "ws_extension_pair_btn": "Pair",
   "ws_extension_pairing_title": "Pair the Chrome extension",
@@ -150,6 +154,9 @@
   "ws_profile_remove_confirm_other": "The profile is removed from the list. If its extension is still running, it registers itself again on its next poll.",
   "ws_profile_remove_confirm_selected": "This profile is the selected session source. Removing it also clears the sessions imported from it. If its extension is still running, it registers itself again on its next poll.",
   "ws_profile_remove_success": "The Chrome profile was removed.",
+  "ws_profile_remove_failed": "The Chrome profile was not removed and its sessions were left alone.",
+  "ws_profile_remove_partial": "The Chrome profile was not removed. Some imported sessions were cleared; the others could not be.",
+  "ws_profile_remove_partial_reimport": "The Chrome profile was not removed. Some imported sessions were cleared and the old profile was asked to import them again.",
   "ws_profile_remove_error": "The Chrome profile could not be removed.",
   "ws_profile_hint": "To add another profile, install the same extension in that Chrome profile, open its popup and give it a name you recognize."
 }

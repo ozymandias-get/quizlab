@@ -32,7 +32,11 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
   const { mutateAsync: installExtension, isPending: isInstalling } = useInstallExtensionMutation()
   const { copy, isCopied } = useClipboard()
   const { copy: copyPath, isCopied: isPathCopied } = useClipboard()
-  const [installed, setInstalled] = useState<{ path: string; version: string } | null>(null)
+  const [installed, setInstalled] = useState<{
+    path: string
+    version: string
+    refreshed: boolean
+  } | null>(null)
   const [installFailed, setInstallFailed] = useState(false)
 
   const handleCopy = useCallback(() => {
@@ -44,7 +48,7 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
     setInstallFailed(false)
     try {
       const result = await installExtension()
-      setInstalled({ path: result.path, version: result.version })
+      setInstalled({ path: result.path, version: result.version, refreshed: result.refreshed })
       await copyPath(result.path)
     } catch {
       setInstallFailed(true)
@@ -53,6 +57,15 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
 
   const isConnected = extensionInfo?.status === 'connected'
   const isPaired = extensionInfo?.paired === true
+  const installStatusKey = installed
+    ? isConnected && isPaired
+      ? 'ws_extension_install_status_paired'
+      : isConnected
+        ? 'ws_extension_install_status_unpaired'
+        : 'ws_extension_install_status_load'
+    : null
+  const installedPaired = isConnected && isPaired
+  const installedLoaded = isConnected || isPaired
 
   return (
     <Dialog isOpen={open} onClose={onClose} size="md" ariaLabelledBy={titleId}>
@@ -80,9 +93,19 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
             <span className="text-ql-12 font-semibold">{t('ws_extension_install_btn')}</span>
           </Button>
 
-          {installed && (
-            <div className="flex flex-col gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-2.5">
-              <span className="text-ql-11 font-semibold text-emerald-400">
+          {installed && installStatusKey && (
+            <div
+              className={`flex flex-col gap-2 rounded-lg border p-2.5 ${
+                installedPaired
+                  ? 'border-emerald-500/20 bg-emerald-500/[0.04]'
+                  : 'border-amber-500/25 bg-amber-500/[0.04]'
+              }`}
+            >
+              <span
+                className={`text-ql-11 font-semibold ${
+                  installedPaired ? 'text-emerald-400' : 'text-amber-400'
+                }`}
+              >
                 {t('ws_extension_install_ready')} · v{installed.version}
               </span>
               <div className="flex items-center justify-between gap-2">
@@ -107,6 +130,14 @@ function ExtensionPairingDialog({ open, onClose }: ExtensionPairingDialogProps) 
                   </span>
                 </Button>
               </div>
+              <p className="text-ql-11 text-muted-foreground leading-relaxed">
+                {t(installStatusKey)}
+              </p>
+              {installed.refreshed && installedLoaded && (
+                <p className="text-ql-11 leading-relaxed text-amber-400">
+                  {t('ws_extension_install_reload_hint')}
+                </p>
+              )}
             </div>
           )}
 

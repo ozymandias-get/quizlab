@@ -566,6 +566,30 @@ describe('NativeMessagingManager', () => {
         'profile-c-1234'
       ])
     })
+
+    it('re-adds a removed profile when its extension talks again', async () => {
+      // "Remove" forgets the entry; it is not a blocklist. The confirmation
+      // text in the settings page says so.
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+      await manager.removeProfile('profile-b-1234')
+
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+
+      const info = manager.getExtensionInfo()
+      expect(info.profiles.map((profile) => profile.id).sort()).toEqual([
+        'profile-a-1234',
+        'profile-b-1234'
+      ])
+      expect(info.profiles.find((profile) => profile.id === 'profile-b-1234')).toMatchObject({
+        connected: true,
+        paired: false
+      })
+      // The forgotten profile did not become the source again.
+      expect(info.selectedProfileId).toBe('profile-a-1234')
+    })
   })
 
   describe('stopServer', () => {

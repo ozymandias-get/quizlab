@@ -24,7 +24,11 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
   const { mutateAsync: installExtension, isPending: isInstalling } = useInstallExtensionMutation()
   const { copy, isCopied } = useClipboard()
   /** The folder the app prepared, once the user asked for it. */
-  const [installed, setInstalled] = useState<{ path: string; version: string } | null>(null)
+  const [installed, setInstalled] = useState<{
+    path: string
+    version: string
+    refreshed: boolean
+  } | null>(null)
   const [installFailed, setInstallFailed] = useState(false)
 
   const statusKey = (info: NativeMessagingExtensionInfo | null): string => {
@@ -74,12 +78,25 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
     setInstallFailed(false)
     try {
       const result = await installExtension()
-      setInstalled({ path: result.path, version: result.version })
+      setInstalled({ path: result.path, version: result.version, refreshed: result.refreshed })
       await copy(result.path)
     } catch {
       setInstallFailed(true)
     }
   }, [copy, installExtension])
+
+  // The files being ready is not the same as Chrome loading them, and loading
+  // is not the same as pairing. The block only turns green when the extension
+  // really paired; otherwise it says what the user still has to do.
+  const installStatusKey = installed
+    ? extensionInfo?.status === 'connected' && extensionInfo.paired === true
+      ? 'ws_extension_install_status_paired'
+      : extensionInfo?.status === 'connected'
+        ? 'ws_extension_install_status_unpaired'
+        : 'ws_extension_install_status_load'
+    : null
+  const installedPaired = extensionInfo?.status === 'connected' && extensionInfo?.paired === true
+  const installedLoaded = extensionInfo?.status === 'connected' || extensionInfo?.paired === true
 
   return (
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
@@ -145,10 +162,20 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
         </div>
       </div>
 
-      {installed && (
-        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+      {installed && installStatusKey && (
+        <div
+          className={`mt-3 flex flex-col gap-2 rounded-xl border p-3 ${
+            installedPaired
+              ? 'border-emerald-500/20 bg-emerald-500/[0.04]'
+              : 'border-amber-500/25 bg-amber-500/[0.04]'
+          }`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-ql-11 font-semibold text-emerald-400">
+            <span
+              className={`text-ql-11 font-semibold ${
+                installedPaired ? 'text-emerald-400' : 'text-amber-400'
+              }`}
+            >
               {t('ws_extension_install_ready')} · v{installed.version}
             </span>
             <Button
@@ -173,6 +200,12 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
           <p className="text-ql-11 text-muted-foreground leading-relaxed">
             {t('ws_extension_install_hint')}
           </p>
+          <p className="text-ql-11 text-muted-foreground leading-relaxed">{t(installStatusKey)}</p>
+          {installed.refreshed && installedLoaded && (
+            <p className="text-ql-11 leading-relaxed text-amber-400">
+              {t('ws_extension_install_reload_hint')}
+            </p>
+          )}
         </div>
       )}
 

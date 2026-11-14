@@ -119,6 +119,10 @@
   "ws_extension_install_copy_btn": "Yolu kopyala",
   "ws_extension_install_copied": "Yol kopyalandı",
   "ws_extension_install_hint": "chrome://extensions sayfasını açın, Geliştirici modunu etkinleştirin, Paketlenmemiş öğe yükle seçeneğini seçin ve bu yolu yapıştırın.",
+  "ws_extension_install_status_load": "Dosyalar hazır; Chrome henüz bu klasörle bağlantı kurmadı.",
+  "ws_extension_install_status_unpaired": "Dosyalar hazır ve Chrome eklentiyi yükledi; eşleştirme bekleniyor.",
+  "ws_extension_install_status_paired": "Dosyalar hazır ve eklenti eşleştirildi.",
+  "ws_extension_install_reload_hint": "Eklenti zaten yüklüyse Chrome'un yeni dosyaları çalıştırması için chrome://extensions sayfasında Yeniden yükle düğmesine basın.",
   "ws_extension_install_error": "Eklenti hazırlanamadı. Quizlab'ı yeniden başlatıp tekrar deneyin.",
   "ws_extension_pair_btn": "Eşleştir",
   "ws_extension_pairing_title": "Chrome eklentisini eşleştir",
@@ -150,6 +154,9 @@
   "ws_profile_remove_confirm_other": "Profil listeden kaldırılır. Eklentisi hâlâ çalışıyorsa bir sonraki sorgusunda kendini yeniden kaydeder.",
   "ws_profile_remove_confirm_selected": "Bu profil seçili oturum kaynağı. Kaldırılırsa bu profilden aktarılan oturumlar da silinir. Eklentisi hâlâ çalışıyorsa bir sonraki sorgusunda kendini yeniden kaydeder.",
   "ws_profile_remove_success": "Chrome profili kaldırıldı.",
+  "ws_profile_remove_failed": "Chrome profili kaldırılmadı; oturumlarına dokunulmadı.",
+  "ws_profile_remove_partial": "Chrome profili kaldırılmadı. Aktarılan oturumların bir kısmı silindi, kalanı silinemedi.",
+  "ws_profile_remove_partial_reimport": "Chrome profili kaldırılmadı. Aktarılan oturumların bir kısmı silindi ve eski profilden yeniden aktarım istendi.",
   "ws_profile_remove_error": "Chrome profili kaldırılamadı.",
   "ws_profile_hint": "Başka bir profil eklemek için aynı eklentiyi o Chrome profiline kurun, eklenti penceresini açın ve tanıyacağınız bir ad verin."
 }

@@ -15,9 +15,11 @@ const fakeSession = {
 const extensionProtocolVersion = { value: 3 as number | null }
 /** The profile selection the mocked native-messaging manager exposes. */
 const profileSelection = vi.hoisted(() => ({
-  hasProfile: vi.fn((profileId: string) => profileId === 'known-profile-1234'),
+  hasProfile: vi.fn(
+    (profileId: string) => profileId === 'known-profile-1234' || profileId === 'other-profile-1234'
+  ),
   getSelectedProfileId: vi.fn((): string | null => null),
-  selectProfile: vi.fn(async () => true),
+  selectProfile: vi.fn(async (_profileId: string) => true),
   removeProfile: vi.fn(async () => true),
   beginSelectionChange: vi.fn(),
   endSelectionChange: vi.fn()
@@ -804,6 +806,54 @@ describe('the Chrome profile removal', () => {
       reimportRequested: true
     })
     expect(config.requestResync).toHaveBeenCalledTimes(1)
+  })
+
+  it('serializes a removal and a selection that start together', async () => {
+    let selected: string | null = 'known-profile-1234'
+    const selectionsSeen: Array<string | null> = []
+    let releaseWipe!: () => void
+    const wipeGate = new Promise<void>((resolve) => {
+      releaseWipe = resolve
+    })
+    profileSelection.getSelectedProfileId.mockImplementation(() => {
+      selectionsSeen.push(selected)
+      return selected
+    })
+    profileSelection.removeProfile.mockImplementation(async () => {
+      selected = null
+      return true
+    })
+    profileSelection.selectProfile.mockImplementation(async (id: string) => {
+      selected = id
+      return true
+    })
+    const { service, clearStorageData } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+    // The first wipe — the removal of the selected source — is held open.
+    clearStorageData.mockImplementationOnce(() => wipeGate)
+
+    const removing = service.removeExtensionProfile('known-profile-1234')
+    const selecting = service.selectExtensionProfile('other-profile-1234')
+    await vi.waitFor(() => expect(clearStorageData).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // The selection waits for the removal: no second wipe and no write while
+    // the first operation is still deciding over the source.
+    expect(clearStorageData).toHaveBeenCalledTimes(1)
+    expect(profileSelection.selectProfile).not.toHaveBeenCalled()
+
+    releaseWipe()
+    await Promise.all([removing, selecting])
+
+    // The selection read the source only after the removal committed it: it
+    // planned the switch against "no source", never against the removed
+    // profile.
+    expect(selectionsSeen).toEqual(['known-profile-1234', null])
+    expect(profileSelection.removeProfile).toHaveBeenCalledWith('known-profile-1234')
+    expect(profileSelection.selectProfile).toHaveBeenCalledWith('other-profile-1234')
+    expect(selected).toBe('other-profile-1234')
   })
 })
 
