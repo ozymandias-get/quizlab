@@ -5,6 +5,7 @@ import { cn } from '@shared/lib/uiUtils'
 import { IconButton } from '@shared/ui/components/primitives'
 
 import { ChevronDown, Loader2, Sparkles } from 'lucide-react'
+import { useReducedMotion } from 'motion/react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +21,8 @@ import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
 import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 
 const DRAFT_OPEN_PREF_KEY = 'aiDraftOpen'
+/** Panel çıkış animasyonu ile aynı süre (motion-fast + küçük pay). */
+const CLOSE_ANIM_MS = 90
 
 /**
  * Dock'a ait, DOM'u dock'un dışında render edilen yüzeyler.
@@ -115,7 +118,8 @@ function AiSendComposer({
     handleSend,
     handleRetry,
     dismissOutcome,
-    resetOutcome
+    resetOutcome,
+    relockOutcome
   } = useComposerSendAction({
     isSubmitting,
     setIsSubmitting,
@@ -152,6 +156,27 @@ function AiSendComposer({
     })
   }, [setStoredOpen])
 
+  const prefersReducedMotion = useReducedMotion()
+  /** Kapanışta panel hemen kaybolmaz: kısa bir çıkış animasyonu tamamlanır. */
+  const [isClosing, setIsClosing] = useState(false)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const finishClose = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setIsOpen(false)
+    setStoredOpen(false)
+    setIsClosing(false)
+  }, [setStoredOpen])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
   /**
    * Kapatma — **yalnızca görünümü** kapatır.
    *
@@ -159,11 +184,17 @@ function AiSendComposer({
    * notu gibi kapatılıp yeniden açılabilir bir şeydir. Tıklama-dışı davranışı
    * da aynı yolu izler (aşağıdaki efekt), böylece "dışarı tıkladım" ile "ok
    * okuna bastım" aynı sonucu verir ve `isOpen` ile kayıtlı tercih ayrışmaz.
+   * Reduced-motion'da bekleme yoktur.
    */
   const handleClose = useCallback(() => {
-    setIsOpen(false)
-    setStoredOpen(false)
-  }, [setStoredOpen])
+    if (isClosing) return
+    if (prefersReducedMotion) {
+      finishClose()
+      return
+    }
+    setIsClosing(true)
+    closeTimerRef.current = setTimeout(finishClose, CLOSE_ANIM_MS)
+  }, [finishClose, isClosing, prefersReducedMotion])
 
   /**
    * Tıklama-dışı kapatma.
@@ -210,25 +241,34 @@ function AiSendComposer({
   }, [clearNote, resetOutcome, selectQuickAction])
 
   /**
-   * Kısmi teslimat kilidi, **gönderilen öğe kimliklerine** bağlıdır.
+   * Kısmi teslimat kilidi, **gönderilen öğe kimliklerine** bağlıdır ve bu
+   * kimlikler composer yaşamı boyunca hatırlanır.
    *
-   * Kuyruk boşalınca körlemesine sıfırlamak, "geri al" ile eski öğeyi geri
-   * getirip aynı mesajı ikinci kez göndermeye yol açabilirdi. Bu yüzden:
-   * - gönderim anındaki kimlik kümesi saklanır,
-   * - kilit yalnızca o kümeden hiçbir öğe kuyrukta kalmadığında ve kuyrukta
-   *   yeni bir içerik varken bırakılır,
-   * - boş kuyrukta kilit korunur (bekleyen undo eski öğeyi geri getirebilir).
+   * - Gönderim anındaki kimlikler `pendingSendIdsRef`'e yazılır.
+   * - `incomplete` sonucunda bu kimlikler `unsafeSendIdsRef`'e eklenir.
+   * - Kilit, kuyrukta bu kimliklerden hiçbiri kalmayınca bırakılır.
+   * - Bırakıldıktan sonra "geri al" eski öğeyi geri getirirse kilit **yeniden**
+   *   kurulur; yeni içerik gönderilebilir kalır, eski içerik gönderilemez.
+   * - Kimlikler composer yaşamı boyunca hatırlanır: temizleme bile eski bir
+   *   öğenin undo ile geri gelmesini güvenli tutar. Yeni yakalamalar yeni
+   *   kimlik aldığı için bu kayıt onları engellemez.
    */
   const pendingSendIdsRef = useRef<Set<string>>(new Set())
   const unsafeSendIdsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    if (sendFeedback === 'incomplete') {
-      unsafeSendIdsRef.current = pendingSendIdsRef.current
-      return
-    }
-    unsafeSendIdsRef.current = new Set()
+    if (sendFeedback !== 'incomplete') return
+    for (const id of pendingSendIdsRef.current) unsafeSendIdsRef.current.add(id)
   }, [sendFeedback])
+
+  // Kilit bırakıldıktan sonra eski (kısmen gönderilmiş) bir öğe kuyruğa
+  // dönerse gönderim yeniden kilitlenir.
+  useEffect(() => {
+    if (sendFeedback === 'sending' || isSubmitting) return
+    if (sendFeedback === 'incomplete') return
+    if (!items.some((item) => unsafeSendIdsRef.current.has(item.id))) return
+    relockOutcome()
+  }, [items, isSubmitting, relockOutcome, sendFeedback])
 
   useEffect(() => {
     if (sendFeedback !== 'incomplete' || items.length === 0) return
@@ -237,6 +277,11 @@ function AiSendComposer({
     if (items.some((item) => unsafeIds.has(item.id))) return
     resetOutcome()
   }, [items, resetOutcome, sendFeedback])
+
+  const hasUnsafeItem = useCallback(
+    () => items.some((item) => unsafeSendIdsRef.current.has(item.id)),
+    [items]
+  )
 
   // Gönderim anında tek bir deterministik talimat metni kurulur:
   // hızlı işlem talimatı + kullanıcının ek notu. Kayıtlı prompt burada değil —
@@ -251,16 +296,18 @@ function AiSendComposer({
   }, [noteText, quickActionValue])
 
   const handleSubmit = useCallback(() => {
-    if (totalItems === 0) return
+    // Enter/Ctrl+Enter ve düğme aynı kapı: eski (kısmen gönderilmiş) bir öğe
+    // kuyrukta döndüyse gönderim başlamaz.
+    if (totalItems === 0 || hasUnsafeItem()) return
     pendingSendIdsRef.current = new Set(items.map((item) => item.id))
     void handleSend(buildDraftPayload())
-  }, [buildDraftPayload, handleSend, items, totalItems])
+  }, [buildDraftPayload, handleSend, hasUnsafeItem, items, totalItems])
 
   const handleRetryCurrentDraft = useCallback(() => {
-    if (totalItems === 0) return
+    if (totalItems === 0 || hasUnsafeItem()) return
     pendingSendIdsRef.current = new Set(items.map((item) => item.id))
     handleRetry(buildDraftPayload())
-  }, [buildDraftPayload, handleRetry, items, totalItems])
+  }, [buildDraftPayload, handleRetry, hasUnsafeItem, items, totalItems])
 
   const isSending = sendFeedback === 'sending' || isSubmitting
   const isOutcomeVisible = !isOutcomeDismissed
@@ -341,7 +388,12 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl motion-reduce:animate-none"
+            className={cn(
+              'flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl motion-reduce:animate-none',
+              isClosing
+                ? 'motion-fast animate-out fade-out slide-out-to-bottom-1'
+                : 'motion-slow animate-in fade-in slide-in-from-bottom-2'
+            )}
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
@@ -406,7 +458,7 @@ function AiSendComposer({
                 type="button"
                 variant="ghost"
                 size="compact"
-                onClick={handleToggleOpen}
+                onClick={handleClose}
                 aria-label={t('ai_draft_close')}
                 aria-expanded
                 aria-controls="ai-draft-dock-body"
@@ -428,8 +480,8 @@ function AiSendComposer({
                     className={cn(
                       'mx-3 mb-2 rounded-xl border px-3 py-2',
                       sendFeedback === 'incomplete'
-                        ? 'border-amber-500/25 bg-amber-500/8'
-                        : 'border-destructive/25 bg-destructive/8'
+                        ? 'border-amber-500/25 bg-amber-500/10'
+                        : 'border-destructive/25 bg-destructive/10'
                     )}
                   >
                     <p
@@ -464,6 +516,7 @@ function AiSendComposer({
                   <DraftPromptSection
                     quickActionKey={quickActionKey}
                     onQuickActionChange={selectQuickAction}
+                    disabled={isSending}
                   />
                   <span className="flex-1" />
                   <div className="ml-auto shrink-0">
@@ -487,7 +540,6 @@ function AiSendComposer({
               onRetry={handleRetryCurrentDraft}
               onDismiss={dismissOutcome}
               feedback={sendFeedback}
-              lastError={lastError}
               isSubmitting={isSubmitting}
               isResendSafe={isResendSafe}
               showOutcome={isOutcomeVisible}

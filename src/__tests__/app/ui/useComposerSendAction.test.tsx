@@ -355,6 +355,25 @@ describe('useComposerSendAction', () => {
    *    bilgilendirilir ve durumu kapatabilir (mükerrer mesaj koruması).
    */
   describe('retry contract', () => {
+    it('refuses handleSend itself after an incomplete outcome', async () => {
+      const onSend = vi
+        .fn<(payload: Payload) => Promise<unknown>>()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      const { result } = setupWith({ onSend })
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'first' })
+      })
+      expect(result.current.sendFeedback).toBe('incomplete')
+
+      // Enter/programatik çağrı: düğme disabled olsa da fonksiyon reddeder.
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'second' })
+        result.current.handleSend({ noteText: 'third' })
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+
     it('retries with the payload the caller provides, not a stale one', async () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()

@@ -516,14 +516,10 @@ describe('AiSendComposer (compact draft)', () => {
       await act(async () => {
         fireEvent.click(screen.getByTestId('ai-draft-send'))
       })
-      // Çözülemeyen hata anahtarı ham koda düşer; boş bir mesaj gösterilmez.
-      expect(screen.getByRole('status')).toHaveTextContent('paste_failed')
-
-      // The error text itself is expandable without changing the success state.
-      const errorToggle = screen.getByRole('button', { name: 'paste_failed' })
-      expect(errorToggle).toHaveAttribute('aria-expanded', 'false')
-      fireEvent.click(errorToggle)
-      expect(errorToggle).toHaveAttribute('aria-expanded', 'true')
+      // Uzun hata metni tek yerde — içerik alanındaki `role="alert"` — yaşar.
+      expect(screen.getByRole('alert')).toHaveTextContent('paste_failed')
+      // Alt satır yalnızca kısa durum + eylem taşır (metin tekrarı yok).
+      expect(screen.getByRole('status')).toHaveTextContent('ai_send_error')
 
       const retry = screen.getByRole('button', { name: 'ai_send_retry' })
       await act(async () => {
@@ -533,6 +529,132 @@ describe('AiSendComposer (compact draft)', () => {
       // Düğmenin etiketiyle yaptığı eylem aynı: ikinci deneme gerçekten çalıştı.
       expect(onSend).toHaveBeenCalledTimes(2)
       expect(onSend.mock.calls[1][0]).toEqual(onSend.mock.calls[0][0])
+    })
+
+    it('refuses keyboard and programmatic sends after an incomplete outcome', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+
+      // Buton disabled olsa bile Enter aynı gönderim kapısından geçer ve reddedilir.
+      const note = screen.getByLabelText('ai_draft_note_label')
+      await act(async () => {
+        fireEvent.keyDown(note, { key: 'Enter' })
+        fireEvent.keyDown(note, { key: 'Enter', ctrlKey: true })
+        fireEvent.keyDown(note, { key: 'Enter', metaKey: true })
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+
+    it('disables the prompt selectors while a send is in flight', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      openPanel(onSend)
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+      const quickTrigger = document.getElementById('ai-draft-quick-action') as HTMLButtonElement
+      const promptTrigger = document.getElementById('ai-draft-prompt') as HTMLButtonElement
+      expect(quickTrigger).toBeDisabled()
+      expect(promptTrigger).toBeDisabled()
+
+      await act(async () => {
+        release({ success: true })
+      })
+      // Başarılı gönderim paneli kapatır; yeniden açıldığında seçiciler etkindir.
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      expect(document.getElementById('ai-draft-quick-action')).not.toBeDisabled()
+    })
+
+    it('re-locks when the sent item is restored after the lock was released', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+
+      renderComposer(<DraftHarness initial={[textItem('t1', 'first')]} onSend={onSend} />)
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      const sendButton = () => screen.getByTestId('ai-draft-send')
+
+      // A kaldırılır, B eklenir: kilit bırakılır (yeni içerik gönderilebilir).
+      fireEvent.click(screen.getAllByRole('button', { name: /ai_send_remove_item/ })[0])
+      fireEvent.click(screen.getByRole('button', { name: 'add-item' }))
+      expect(sendButton()).not.toBeDisabled()
+
+      // A "geri al" ile dönerse kilit yeniden kurulur: A+B gönderilemez.
+      fireEvent.click(screen.getByRole('button', { name: 'restore-item' }))
+      expect(sendButton()).toBeDisabled()
+      expect(sendButton()).toHaveAccessibleName('ai_send_awaiting_submit')
+
+      // A yeniden çıkarılınca yalnızca B kalır ve gönderim yeniden açılır.
+      fireEvent.click(screen.getAllByRole('button', { name: /ai_send_remove_item/ })[0])
+      expect(sendButton()).not.toBeDisabled()
+    })
+
+    it('does not start a send from an open clear confirmation', async () => {
+      const onClearAll = vi.fn()
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={onClearAll}
+          onSend={onSend}
+          autoSend
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByTestId('ai-draft-overflow'))
+      fireEvent.click(screen.getByTestId('ai-draft-clear-all'))
+
+      // Onay açıkken gönderim başlar…
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+      // …ve eski onay kabul edilse bile kuyruk temizlenmez.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'ai_send_clear_all' }))
+      })
+      expect(onClearAll).not.toHaveBeenCalled()
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
+
+    it('returns focus to the note field when the last chip is removed', () => {
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onRemoveItem={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByRole('button', { name: /ai_send_remove_item/ }))
+
+      expect(document.getElementById('ai-draft-note')).toHaveFocus()
     })
 
     it('does not start a second send from two rapid clicks', async () => {
@@ -968,43 +1090,80 @@ describe('AiSendComposer (compact draft)', () => {
       expect(container.innerHTML).not.toContain('data:image/png')
     })
 
-    it('separates a preparing preview from one that could not be created', () => {
-      vi.useFakeTimers()
-      try {
-        renderComposer(
+    it('shows real preview loading, success and failure states', () => {
+      renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 'i1',
+                type: 'image',
+                dataUrl: 'data:image/png;base64,AAA',
+                blobUrl: '',
+                source: null,
+                createdAt: 1
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+
+      // Gerçek yükleme durumu: görsel yüklenene kadar "hazırlanıyor".
+      const preview = screen.getByTestId('ai-draft-preview')
+      const image = preview.querySelector('img')
+      expect(preview).toHaveTextContent('ai_draft_preview_preparing')
+      expect(image).toHaveAttribute('src', 'data:image/png;base64,AAA')
+
+      // Yükleme başarılı: hazırlık metni kaybolur, görsel görünür.
+      fireEvent.load(image as HTMLImageElement)
+      expect(preview).not.toHaveTextContent('ai_draft_preview_preparing')
+      expect(image).not.toHaveClass('hidden')
+
+      // Bozuk kaynak: gerçek hata durumu.
+      fireEvent.error(image as HTMLImageElement)
+      expect(preview).toHaveTextContent('ai_draft_preview_unavailable')
+    })
+
+    it('shows a late-arriving blob preview when the source updates', () => {
+      const baseItem = {
+        id: 'i1',
+        type: 'image',
+        dataUrl: 'data:image/png;base64,AAA',
+        blobUrl: '',
+        source: null,
+        createdAt: 1
+      }
+      const { rerender } = renderComposer(
+        <AiSendComposer items={[baseItem] as never} onClearAll={vi.fn()} onSend={vi.fn()} />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+
+      const preview = () => screen.getByTestId('ai-draft-preview')
+      expect(preview()).toHaveTextContent('ai_draft_preview_preparing')
+
+      // Blob sonradan gelir: kaynak değişir, gerçek yükleme yeniden başlar.
+      rerender(
+        <TooltipProvider delayDuration={0}>
           <AiSendComposer
-            items={
-              [
-                {
-                  id: 'i1',
-                  type: 'image',
-                  dataUrl: 'data:image/png;base64,AAA',
-                  blobUrl: '',
-                  source: null,
-                  createdAt: 1
-                }
-              ] as never
-            }
+            items={[{ ...baseItem, blobUrl: 'blob:quizlab/late-preview' }] as never}
             onClearAll={vi.fn()}
             onSend={vi.fn()}
           />
-        )
-        fireEvent.click(screen.getByTestId('ai-draft-badge'))
-        fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+        </TooltipProvider>
+      )
 
-        // Blob üretimi bir görev sınırından sonra gelir: ilk durum "hazırlanıyor".
-        const preview = screen.getByTestId('ai-draft-preview')
-        expect(preview.querySelector('img')).toBeNull()
-        expect(preview).toHaveTextContent('ai_draft_preview_preparing')
+      const lateImage = preview().querySelector('img') as HTMLImageElement
+      expect(lateImage).toHaveAttribute('src', 'blob:quizlab/late-preview')
+      expect(preview()).toHaveTextContent('ai_draft_preview_preparing')
 
-        // Pencere kapanınca aynı belirsiz mesajda kalmaz: oluşturulamadı der.
-        act(() => {
-          vi.advanceTimersByTime(1600)
-        })
-        expect(preview).toHaveTextContent('ai_draft_preview_unavailable')
-      } finally {
-        vi.useRealTimers()
-      }
+      fireEvent.load(lateImage)
+      expect(preview()).not.toHaveTextContent('ai_draft_preview_preparing')
+      expect(lateImage).not.toHaveClass('hidden')
     })
 
     it('closes the preview with Escape and returns focus to the chip', () => {

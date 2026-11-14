@@ -9,7 +9,6 @@ import {
   SelectValue
 } from '@app/components/ui/select'
 import { cn } from '@shared/lib/uiUtils'
-import { WithTooltip } from '@shared/ui/components/primitives'
 
 import { Check, FileText, Zap } from 'lucide-react'
 import { memo } from 'react'
@@ -19,6 +18,8 @@ interface DraftPromptSectionProps {
   /** Seçili hızlı işlemin anahtarı (yoksa `null`). */
   quickActionKey: QuickPresetKey | null
   onQuickActionChange: (key: QuickPresetKey | null) => void
+  /** Gönderim sürerken seçimler kilitlidir: snapshot zaten alınmıştır. */
+  disabled?: boolean
 }
 
 /** Radix `Select` boş string değerini "seçim yok" sayar; ayrı bir sentinel kullanılır. */
@@ -72,7 +73,11 @@ function toPromptLabel(text: string): string {
  * Kullanıcı ikisini birlikte seçebilir; ikisi sessizce birbirini geçersiz
  * kılmaz, ikisi de kompozisyonda ayrı parçalar olarak sırayla birleşir.
  */
-function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPromptSectionProps) {
+function DraftPromptSection({
+  quickActionKey,
+  onQuickActionChange,
+  disabled = false
+}: DraftPromptSectionProps) {
   const { t } = useTranslation()
   const { presets } = useQuickAiPresets()
   const { allPrompts, selectedPromptId, selectPrompt, clearSelection } = usePrompts()
@@ -93,14 +98,15 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
 
   const selectedPreset = presets.find((preset) => preset.key === quickActionKey)
   const selectedPrompt = allPrompts.find((prompt) => prompt.id === selectedPromptId)
-  const promptTooltip = selectedPrompt
-    ? `${toPromptLabel(selectedPrompt.text)}\n${selectedPrompt.text}`
-    : undefined
+  const promptLabel = selectedPrompt
+    ? toPromptLabel(selectedPrompt.text)
+    : t('ai_draft_prompt_placeholder')
 
   return (
     <div className="flex min-w-0 shrink items-center gap-1.5">
       <Select
         value={quickActionKey ?? NONE_VALUE}
+        disabled={disabled}
         onValueChange={(value) =>
           onQuickActionChange(value === NONE_VALUE ? null : (value as QuickPresetKey))
         }
@@ -164,43 +170,43 @@ function DraftPromptSection({ quickActionKey, onQuickActionChange }: DraftPrompt
         </SelectContent>
       </Select>
 
-      <Select value={selectedPromptId ?? NONE_VALUE} onValueChange={handlePromptChange}>
-        <WithTooltip
-          label={promptTooltip}
-          contentClassName="max-w-[22rem] whitespace-pre-wrap break-words"
+      <Select
+        value={selectedPromptId ?? NONE_VALUE}
+        disabled={disabled}
+        onValueChange={handlePromptChange}
+      >
+        <SelectTrigger
+          id="ai-draft-prompt"
+          aria-label={t('ai_draft_prompt_label')}
+          size="sm"
+          style={
+            selectedPromptId
+              ? {
+                  borderColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
+                  backgroundColor:
+                    'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
+                }
+              : undefined
+          }
+          className={cn(
+            TRIGGER_CLASS,
+            'max-w-[16rem]',
+            selectedPromptId ? 'text-foreground font-semibold' : 'text-muted-foreground'
+          )}
         >
-          <SelectTrigger
-            id="ai-draft-prompt"
-            aria-label={t('ai_draft_prompt_label')}
-            size="sm"
+          <FileText
             style={
               selectedPromptId
-                ? {
-                    borderColor:
-                      'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 40%, transparent)',
-                    backgroundColor:
-                      'color-mix(in oklch, var(--selection-color-source, oklch(var(--primary))) 10%, transparent)'
-                  }
+                ? { color: 'var(--selection-color-source, oklch(var(--primary)))' }
                 : undefined
             }
-            className={cn(
-              TRIGGER_CLASS,
-              'max-w-[16rem]',
-              selectedPromptId ? 'text-foreground font-semibold' : 'text-muted-foreground'
-            )}
-          >
-            <FileText
-              style={
-                selectedPromptId
-                  ? { color: 'var(--selection-color-source, oklch(var(--primary)))' }
-                  : undefined
-              }
-              className="text-muted-foreground size-3.5 shrink-0"
-              aria-hidden
-            />
-            <SelectValue placeholder={t('ai_draft_prompt_placeholder')} />
-          </SelectTrigger>
-        </WithTooltip>
+            className="text-muted-foreground size-3.5 shrink-0"
+            aria-hidden
+          />
+          {/* Tetikleyici yalnızca kısa etiketi taşır; tam prompt menüde okunur. */}
+          <span className="text-ql-11 min-w-0 truncate">{promptLabel}</span>
+        </SelectTrigger>
         <SelectContent
           position="popper"
           align="start"

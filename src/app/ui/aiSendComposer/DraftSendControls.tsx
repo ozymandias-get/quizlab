@@ -3,7 +3,7 @@ import { cn } from '@shared/lib/uiUtils'
 import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
 import { AlertCircle, Loader2, RotateCcw, Send, TriangleAlert } from 'lucide-react'
-import { memo, useState } from 'react'
+import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -21,7 +21,6 @@ interface DraftSendControlsProps {
   /** Kısmi uygulanmış gönderimde durumu dinleme (güvenli manuel devam). */
   onDismiss: () => void
   feedback: SendFeedback
-  lastError: string | null
   isSubmitting: boolean
   isResendSafe: boolean
   /** Bildirim kapatıldıysa yalnızca görünürlük gizlenir; gönderim kilidi kalır. */
@@ -51,25 +50,25 @@ function DraftSendControls({
   onRetry,
   onDismiss,
   feedback,
-  lastError,
   isSubmitting,
   isResendSafe,
   showOutcome = true
 }: DraftSendControlsProps) {
   const { t } = useTranslation()
-  const [isStatusExpanded, setIsStatusExpanded] = useState(false)
 
   const isIncomplete = showOutcome && feedback === 'incomplete'
   const canRetry = showOutcome && feedback === 'error' && isResendSafe
 
+  // Alt satır yalnızca **kısa durum** taşır; uzun hata metni içerik alanındaki
+  // tek `role="alert"` yüzeyinde kalır (görsel tekrar ve satır büyümesi yok).
   const statusLabel = !showOutcome
     ? null
     : feedback === 'sending'
       ? t('sending_to_ai')
       : isIncomplete
-        ? (lastError ?? t('ai_send_incomplete'))
+        ? t('ai_send_awaiting_submit')
         : feedback === 'error'
-          ? (lastError ?? t('ai_send_error'))
+          ? t('ai_send_error')
           : null
 
   const StatusIcon = feedback === 'sending' ? Loader2 : isIncomplete ? TriangleAlert : AlertCircle
@@ -115,7 +114,7 @@ function DraftSendControls({
               : undefined
           }
           className={cn(
-            'text-ql-10 shrink-0 rounded-full px-1.5 py-0.5 font-semibold transition-colors',
+            'text-ql-10 shrink-0 rounded-full px-1.5 py-0.5 font-semibold transition-colors @max-[24rem]:hidden',
             autoSend ? 'bg-primary/10 text-primary' : 'text-muted-foreground bg-zinc-900/60'
           )}
         >
@@ -160,25 +159,12 @@ function DraftSendControls({
             )}
             aria-hidden
           />
-          {isIncomplete || feedback === 'error' ? (
-            <button
-              type="button"
-              // Long localised errors get two lines first; clicking reveals the
-              // whole message without changing the compact success state.
-              className={cn(
-                'text-ql-11 cursor-pointer text-left font-medium hover:underline',
-                isStatusExpanded ? 'break-words whitespace-normal' : 'line-clamp-2',
-                statusTone
-              )}
-              aria-expanded={isStatusExpanded}
-              title={isStatusExpanded ? undefined : statusLabel}
-              onClick={() => setIsStatusExpanded((expanded) => !expanded)}
-            >
-              {statusLabel}
-            </button>
-          ) : (
-            <span className={cn('text-ql-11 truncate font-medium', statusTone)}>{statusLabel}</span>
-          )}
+          <span
+            className={cn('text-ql-11 max-w-[12rem] truncate font-medium', statusTone)}
+            title={statusLabel}
+          >
+            {statusLabel}
+          </span>
         </div>
       )}
     </div>

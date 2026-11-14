@@ -4,7 +4,7 @@ import { cn } from '@shared/lib/uiUtils'
 import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
 import { Image as ImageIcon, Loader2, Type, X } from 'lucide-react'
-import { memo, useEffect, useId, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface DraftItemChipsProps {
@@ -14,8 +14,8 @@ interface DraftItemChipsProps {
   disabled?: boolean
 }
 
-/** Büyük yakalamanın blob önizlemesi bu süre içinde gelmezse "oluşturulamadı". */
-const PREVIEW_WAIT_MS = 1500
+/** Son öğe silindiğinde odak bu düzenleme yüzeyine döner. */
+const NOTE_FIELD_ID = 'ai-draft-note'
 
 /**
  * Taslak içerikleri — yatay kaydırılabilen kompakt chip şeridi + isteğe bağlı
@@ -24,15 +24,18 @@ const PREVIEW_WAIT_MS = 1500
  * Varsayılan görünüm değişmedi: tür + sıra + kaynak sayfa. Bir chip'e
  * tıklamak (veya Enter/Space) **yalnızca o öğenin** hafif önizlemesini açar;
  * aynı anda tek önizleme vardır ve varsayılan olarak kapalıdır. Görsel
- * önizlemesi yalnızca kuyruğun zaten ürettiği `blobUrl`'i kullanır — base64
- * dönüşümü, yeniden encode veya yeni bir kopya yoktur.
+ * önizlemesi kuyruğun ürettiği `blobUrl`'i tercih eder; blob henüz yoksa
+ * bellekteki `dataUrl` doğrudan `src` olarak kullanılır — base64 dönüşümü,
+ * yeniden encode veya yeni bir kopya üretilmez.
  */
 function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChipsProps) {
   const { t } = useTranslation()
   const [previewId, setPreviewId] = useState<string | null>(null)
   const previewPanelId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
   const triggersRef = useRef(new Map<string, HTMLButtonElement>())
+  const [canScrollRight, setCanScrollRight] = useState(false)
   const previewItem = items.find((item) => item.id === previewId) ?? null
 
   const focusTrigger = (id: string) => {
@@ -52,7 +55,26 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
     if (previewId === id) setPreviewId(null)
     onRemoveItem(id)
     if (nextId) focusTrigger(nextId)
+    // Son öğe silindi: odak boşluğa düşmesin, panelin not alanına dönsün.
+    else document.getElementById(NOTE_FIELD_ID)?.focus()
   }
+
+  const updateScrollHint = useCallback(() => {
+    const el = stripRef.current
+    if (!el) return
+    setCanScrollRight(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+  }, [])
+
+  // Yatay şeritte devam eden içerik varsa sağ kenarda hafif bir gradyan
+  // gösterilir; kaydırma çubuğu gizli kaldığı için keşfedilebilirlik korunur.
+  useEffect(() => {
+    updateScrollHint()
+    const el = stripRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(updateScrollHint)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [items.length, updateScrollHint])
 
   // Escape — odak chip şeridinin içindeyken önizlemeyi kapatır ve odağı
   // açan chip'e geri verir. Odak not alanındaysa tetiklenmez.
@@ -82,24 +104,36 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
 
   return (
     <div ref={rootRef}>
-      <div className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5">
-        <ul className="flex w-max items-center gap-2" aria-label={t('ai_send_panel_title')}>
-          {items.map((item, index) => (
-            <DraftItemChip
-              key={item.id}
-              item={item}
-              order={index + 1}
-              onRemove={disabled ? undefined : handleRemove}
-              isPreviewOpen={previewId === item.id}
-              previewControlsId={previewPanelId}
-              onTogglePreview={() => handleTogglePreview(item.id)}
-              registerTrigger={(node) => {
-                if (node) triggersRef.current.set(item.id, node)
-                else triggersRef.current.delete(item.id)
-              }}
-            />
-          ))}
-        </ul>
+      <div className="relative">
+        <div
+          ref={stripRef}
+          onScroll={updateScrollHint}
+          className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5"
+        >
+          <ul className="flex w-max items-center gap-2" aria-label={t('ai_send_panel_title')}>
+            {items.map((item, index) => (
+              <DraftItemChip
+                key={item.id}
+                item={item}
+                order={index + 1}
+                onRemove={disabled ? undefined : handleRemove}
+                isPreviewOpen={previewId === item.id}
+                previewControlsId={previewPanelId}
+                onTogglePreview={() => handleTogglePreview(item.id)}
+                registerTrigger={(node) => {
+                  if (node) triggersRef.current.set(item.id, node)
+                  else triggersRef.current.delete(item.id)
+                }}
+              />
+            ))}
+          </ul>
+        </div>
+        {canScrollRight && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent"
+          />
+        )}
       </div>
 
       {previewItem && <DraftItemPreview id={previewPanelId} item={previewItem} />}
@@ -203,7 +237,7 @@ function DraftItemChip({
             className={cn(
               // A 24px box with its own padding keeps the delete target away
               // from the label; a mis-click no longer costs you the draft.
-              'text-muted-foreground/70 hover:bg-destructive/12 hover:text-destructive size-6 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100'
+              'text-muted-foreground/70 hover:bg-destructive/12 hover:text-destructive size-6 shrink-0 rounded-md p-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:opacity-100 pointer-coarse:opacity-100'
             )}
           >
             <X className="size-3" aria-hidden />
@@ -217,17 +251,16 @@ function DraftItemChip({
 /** Açık tek öğenin hafif önizlemesi: metin veya mevcut blob önizlemesi. */
 function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
   const { t } = useTranslation()
-  const [previewTimedOut, setPreviewTimedOut] = useState(false)
+  const imageSrc = item.type === 'image' ? item.blobUrl || item.dataUrl || null : null
+  const [imageState, setImageState] = useState<'loading' | 'ready' | 'failed'>(
+    imageSrc ? 'loading' : 'failed'
+  )
 
-  // Büyük yakalamanın blob'u bir görev sınırından sonra üretilir. Kısa bir
-  // bekleme penceresinde "hazırlanıyor", sonrasında "oluşturulamadı" demek
-  // belirsiz tek bir mesajdan daha dürüsttür; yeni dönüşüm üretmez.
+  // Kaynak değişirse (blob geç gelirse veya öğe yenilenirse) gerçek yükleme
+  // durumuna dönülür; zamanlayıcı tahmini yoktur.
   useEffect(() => {
-    setPreviewTimedOut(false)
-    if (item.type !== 'image' || item.blobUrl || !item.dataUrl) return
-    const timer = setTimeout(() => setPreviewTimedOut(true), PREVIEW_WAIT_MS)
-    return () => clearTimeout(timer)
-  }, [item])
+    setImageState(imageSrc ? 'loading' : 'failed')
+  }, [imageSrc])
 
   const pageLabel = item.source
     ? formatSourcePages(item.source)
@@ -262,19 +295,30 @@ function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
         <p className="custom-scrollbar text-ql-12 text-foreground max-h-[min(10rem,28dvh)] overflow-y-auto leading-relaxed break-words whitespace-pre-wrap">
           {item.text}
         </p>
-      ) : item.blobUrl ? (
-        <img
-          src={item.blobUrl}
-          alt=""
-          className="max-h-[min(10rem,28dvh)] w-fit max-w-full rounded-lg border border-white/[0.07] object-contain"
-        />
-      ) : item.dataUrl && !previewTimedOut ? (
-        <p className="text-ql-11 text-muted-foreground flex items-center gap-1.5">
-          <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
-          {t('ai_draft_preview_preparing')}
-        </p>
       ) : (
-        <p className="text-ql-11 text-muted-foreground">{t('ai_draft_preview_unavailable')}</p>
+        <>
+          {imageState === 'loading' && (
+            <p className="text-ql-11 text-muted-foreground flex items-center gap-1.5">
+              <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+              {t('ai_draft_preview_preparing')}
+            </p>
+          )}
+          {imageState === 'failed' && (
+            <p className="text-ql-11 text-muted-foreground">{t('ai_draft_preview_unavailable')}</p>
+          )}
+          {imageSrc && (
+            <img
+              src={imageSrc}
+              alt=""
+              onLoad={() => setImageState('ready')}
+              onError={() => setImageState('failed')}
+              className={cn(
+                'max-h-[min(10rem,28dvh)] w-fit max-w-full rounded-lg border border-white/[0.07] object-contain',
+                imageState !== 'ready' && 'hidden'
+              )}
+            />
+          )}
+        </>
       )}
     </div>
   )

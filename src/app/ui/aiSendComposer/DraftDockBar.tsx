@@ -102,7 +102,6 @@ function DraftDockBar({
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
-        aria-controls="ai-draft-dock-body"
         aria-label={isOpen ? t('ai_draft_close') : t('ai_draft_open')}
         aria-describedby={instructionLabel ? instructionsId : undefined}
         data-testid="ai-draft-badge"
@@ -166,7 +165,12 @@ function DraftDockBar({
         )}
 
         {statusLabel && (
-          <span role="status" aria-live="polite" className="flex min-w-0 shrink items-center gap-1">
+          <span
+            role="status"
+            aria-live="polite"
+            title={statusLabel}
+            className="flex min-w-0 shrink items-center gap-1"
+          >
             <StatusIcon
               aria-hidden
               className={cn(

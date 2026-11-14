@@ -52,6 +52,10 @@ function DraftOverflowMenu({
   // now instead of blindly clearing everything.
   const itemIdsRef = useRef(itemIds)
   itemIdsRef.current = itemIds
+  // Gönderim, onay penceresi açıkken başlayabilir; karar anında güncel değeri
+  // okumak için ref tutulur (menü öğesinin disabled'ı yalnızca o anı gösterir).
+  const disabledRef = useRef(disabled)
+  disabledRef.current = disabled
   const { props: confirmProps, confirm } = useConfirmDialog()
 
   const closeMenu = useCallback((returnFocus = false) => {
@@ -120,6 +124,8 @@ function DraftOverflowMenu({
 
   const handleRequestClear = useCallback(async () => {
     closeMenu()
+    // Gönderim sürerken kuyruk temizlenmez: snapshot sabit kalmalı.
+    if (disabledRef.current) return
     // Yalnızca onay VERİLDİĞİNDE temizle; iptal hiçbir içeriğe dokunmaz.
     let snapshot = [...itemIdsRef.current]
 
@@ -127,7 +133,7 @@ function DraftOverflowMenu({
     // longer covers it. Ask again for the new snapshot instead of deleting
     // drafts the user never saw in the confirmation.
     for (;;) {
-      if (snapshot.length === 0) return
+      if (snapshot.length === 0 || disabledRef.current) return
 
       const confirmed = await confirm({
         title: t('ai_send_clear_all'),
@@ -137,6 +143,8 @@ function DraftOverflowMenu({
         variant: 'destructive'
       })
       if (!confirmed) return
+      // Onay penceresi açıkken bir gönderim başladıysa temizleme yapılmaz.
+      if (disabledRef.current) return
 
       const current = itemIdsRef.current
       const unchanged =

@@ -132,6 +132,13 @@ export function useComposerSendAction({
    * içindeki ikinci tıklama eski değeri görür ve gönderimi yeniden başlatırdı.
    */
   const sendingRef = useRef(false)
+  /**
+   * Kısmi teslimat kilidi **yalnızca UI'da** değil, gönderim fonksiyonunun
+   * kendisinde de uygulanır. Enter/Ctrl+Enter/programatik çağrı aynı kapıdan
+   * geçtiği için disabled düğme atlatılamaz.
+   */
+  const sendFeedbackRef = useRef(sendFeedback)
+  sendFeedbackRef.current = sendFeedback
 
   /**
    * Gönderim — `options` verilmezse güncel not ve auto-send kullanılır.
@@ -143,6 +150,9 @@ export function useComposerSendAction({
       // `isSubmitting` ise render'ı takip eden güvenlik ağıdır. Tek başına
       // state'e güvenmek, aynı olay içindeki ikinci tıklamayı geçirirdi.
       if (sendingRef.current || isSubmitting) return
+      // Kısmi teslimat: düğme disabled olsa da Enter/programatik çağrı
+      // gelebilir. Gönderim fonksiyonu kendisi reddeder.
+      if (sendFeedbackRef.current === 'incomplete') return
       sendingRef.current = true
       setIsSubmitting(true)
       // Yeni gönderim başladı: önceki başarı/hazırlandı sayacı **önce** iptal
@@ -297,6 +307,18 @@ export function useComposerSendAction({
     setIsResendSafe(true)
   }, [clearFeedbackTimer])
 
+  /**
+   * Daha önce kısmen gönderilmiş bir öğe "geri al" ile kuyruğa dönerse
+   * gönderim yeniden kilitlenir: yeni içerik gönderilebilir kalır, eski
+   * içerik kazara ikinci kez gönderilemez.
+   */
+  const relockOutcome = useCallback(() => {
+    clearFeedbackTimer()
+    setSendFeedback('incomplete')
+    setIsResendSafe(false)
+    setIsOutcomeDismissed(false)
+  }, [clearFeedbackTimer])
+
   // Every composer affordance — the panel's send button and the collapsed
   // pill's send button — goes through `handleSend`. With auto-send off that
   // stages the content (paste the image, fill the prompt) and the user submits
@@ -312,6 +334,7 @@ export function useComposerSendAction({
     handleSend,
     handleRetry,
     dismissOutcome,
-    resetOutcome
+    resetOutcome,
+    relockOutcome
   }
 }
