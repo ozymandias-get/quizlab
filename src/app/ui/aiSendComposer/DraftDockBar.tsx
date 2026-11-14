@@ -1,7 +1,16 @@
 import { cn } from '@shared/lib/uiUtils'
 import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
-import { ChevronUp, FileText, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
+import {
+  AlertCircle,
+  ChevronUp,
+  FileText,
+  Loader2,
+  RotateCcw,
+  Send,
+  Sparkles,
+  TriangleAlert
+} from 'lucide-react'
 import { memo, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -72,6 +81,10 @@ function DraftDockBar({
   const instructionsId = useId()
 
   const SendIcon = intent === 'sending' ? Loader2 : intent === 'retry' ? RotateCcw : Send
+  // Dar hapta durum metni ikona iner; ikon her genişlikte görünür kalır ve
+  // metin `sr-only` olarak duyurulmaya devam eder (kritik hata kaybolmaz).
+  const StatusIcon =
+    statusTone === 'error' ? AlertCircle : statusTone === 'warning' ? TriangleAlert : Loader2
 
   const toneClasses =
     statusTone === 'error'
@@ -145,7 +158,7 @@ function DraftDockBar({
             id={instructionsId}
             title={instructionLabel}
             data-testid="ai-draft-instruction-hint"
-            className="text-muted-foreground/70 flex size-4 shrink-0 items-center justify-center @max-[26rem]:hidden"
+            className="text-muted-foreground/70 flex size-4 shrink-0 items-center justify-center"
           >
             <FileText className="size-3" aria-hidden />
             <span className="sr-only">{instructionLabel}</span>
@@ -153,17 +166,27 @@ function DraftDockBar({
         )}
 
         {statusLabel && (
-          <span
-            role="status"
-            aria-live="polite"
-            className={cn(
-              'text-ql-11 max-w-[12rem] truncate font-medium @max-[24rem]:hidden',
-              statusTone === 'error' && 'text-destructive',
-              statusTone === 'warning' && 'text-amber-400',
-              statusTone === 'neutral' && 'text-muted-foreground'
-            )}
-          >
-            {statusLabel}
+          <span role="status" aria-live="polite" className="flex min-w-0 shrink items-center gap-1">
+            <StatusIcon
+              aria-hidden
+              className={cn(
+                'size-3.5 shrink-0 @min-[24rem]:hidden',
+                statusTone === 'neutral' && isSending && 'animate-spin',
+                statusTone === 'error' && 'text-destructive',
+                statusTone === 'warning' && 'text-amber-400',
+                statusTone === 'neutral' && 'text-muted-foreground'
+              )}
+            />
+            <span
+              className={cn(
+                'text-ql-11 max-w-[12rem] truncate font-medium @max-[24rem]:sr-only',
+                statusTone === 'error' && 'text-destructive',
+                statusTone === 'warning' && 'text-amber-400',
+                statusTone === 'neutral' && 'text-muted-foreground'
+              )}
+            >
+              {statusLabel}
+            </span>
           </span>
         )}
 
@@ -188,7 +211,7 @@ function DraftDockBar({
               'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold transition-all',
               canSend
                 ? 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'
-                : 'border-0 bg-zinc-800 text-zinc-500 opacity-100 shadow-none hover:bg-zinc-800'
+                : 'border-0 bg-zinc-800 text-zinc-400 opacity-100 shadow-none hover:bg-zinc-800'
             )}
           >
             <SendIcon

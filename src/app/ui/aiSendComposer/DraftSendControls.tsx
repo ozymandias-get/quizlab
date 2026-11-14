@@ -84,11 +84,17 @@ function DraftSendControls({
 
   return (
     <div className="flex min-h-8 shrink-0 items-center gap-2 rounded-b-2xl border-t border-white/[0.07] bg-zinc-950/40 px-3.5 py-1.5">
-      <label className="flex shrink-0 cursor-pointer items-center gap-2 select-none">
+      <label
+        className={cn(
+          'flex shrink-0 items-center gap-2 select-none',
+          isSubmitting ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+        )}
+      >
         <Switch
           size="sm"
           checked={!!autoSend}
           onCheckedChange={onToggleAutoSend}
+          disabled={isSubmitting}
           // Erişilebilir ad açık/kapalı olmayı da söyler; görünen kısa etiket
           // ekran okuyucu için tek başına yetersiz.
           aria-label={autoSend ? t('auto_send_on') : t('auto_send_off')}
@@ -234,7 +240,7 @@ export function DraftSendButton({
         className={cn(
           'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold transition-all @max-[330px]:min-w-0 @max-[330px]:px-2.5',
           isDisabled
-            ? 'border-0 bg-zinc-800 text-zinc-500 opacity-100 shadow-none hover:bg-zinc-800'
+            ? 'border-0 bg-zinc-800 text-zinc-400 opacity-100 shadow-none hover:bg-zinc-800'
             : 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'
         )}
       >

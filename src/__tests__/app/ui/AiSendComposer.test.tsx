@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ComposerPayload } from '@app/ui/aiSendComposer/types'
 import AiSendComposer from '@app/ui/AiSendComposer'
@@ -69,6 +70,45 @@ function textItem(id: string, text: string) {
 /** Uygulamada `AppProviders` global bir TooltipProvider sağlar; testte de öyle. */
 const renderComposer = (ui: React.ReactElement) =>
   render(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>)
+
+/**
+ * Kuyruğu gerçekten mutasyona uğratan sarmalayıcı: kaldırma/ekleme sonrası
+ * güvenlik kilidinin yaşam döngüsünü sınamak için gerekir.
+ */
+function DraftHarness({
+  initial,
+  onSend
+}: {
+  initial: Array<ReturnType<typeof textItem>>
+  onSend: (payload: ComposerPayload) => Promise<unknown>
+}) {
+  const [items, setItems] = useState(initial)
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setItems((prev) => [...prev, textItem(`added-${prev.length + 1}`, 'new')])}
+      >
+        add-item
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          setItems((prev) => (prev.some((item) => item.id === 't1') ? prev : [initial[0], ...prev]))
+        }
+      >
+        restore-item
+      </button>
+      <AiSendComposer
+        items={items}
+        onClearAll={() => setItems([])}
+        onRemoveItem={(id) => setItems((prev) => prev.filter((item) => item.id !== id))}
+        onSend={onSend}
+        autoSend
+      />
+    </div>
+  )
+}
 
 describe('AiSendComposer (compact draft)', () => {
   it('always renders the small badge control, even with items', () => {
@@ -256,6 +296,29 @@ describe('AiSendComposer (compact draft)', () => {
       expect(screen.queryByTestId('ai-draft-panel')).not.toBeInTheDocument()
       expect(screen.getByTestId('ai-draft-badge')).toBeInTheDocument()
       expect(onClearAll).not.toHaveBeenCalled()
+    })
+    it('keeps the critical status text in the collapsed dock DOM', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+          autoSend
+        />
+      )
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+      })
+      // Kısmi teslimatta panel açılır; daraltınca durum hapta kalmalı.
+      fireEvent.click(screen.getByRole('button', { name: 'ai_draft_close' }))
+
+      const status = screen.getByRole('status')
+      expect(status).toHaveTextContent('ai_send_awaiting_submit')
+      expect(screen.getByTestId('ai-draft-pill-send')).toBeDisabled()
     })
   })
 
@@ -579,6 +642,133 @@ describe('AiSendComposer (compact draft)', () => {
       expect(onSend).toHaveBeenCalledTimes(1)
     })
 
+    it('retries with the instruction currently on screen', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+        .mockResolvedValueOnce({ success: true })
+      openPanel(onSend)
+
+      const note = screen.getByLabelText('ai_draft_note_label')
+      fireEvent.change(note, { target: { value: 'explain' } })
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      // Hata sonrası kullanıcı talimatı değiştirdi; tekrar deneme güncel metni
+      // gönderir, ilk denemenin gizli kopyasını değil.
+      fireEvent.change(screen.getByLabelText('ai_draft_note_label'), {
+        target: { value: 'explain briefly' }
+      })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'ai_send_retry' }))
+      })
+
+      expect(onSend).toHaveBeenCalledTimes(2)
+      expect(onSend.mock.calls[1][0].noteText).toBe('explain briefly')
+    })
+
+    it('does not unlock when new content is added next to the sent items', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+
+      renderComposer(
+        <DraftHarness
+          initial={[textItem('t1', 'first'), textItem('t2', 'second')]}
+          onSend={onSend}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      const sendButton = () => screen.getByTestId('ai-draft-send')
+      const removeFirst = () =>
+        fireEvent.click(screen.getAllByRole('button', { name: /ai_send_remove_item/ })[0])
+
+      expect(sendButton()).toBeDisabled()
+
+      // Gönderilen iki öğe dururken yeni içerik eklemek kilidi açmaz.
+      fireEvent.click(screen.getByRole('button', { name: 'add-item' }))
+      expect(sendButton()).toBeDisabled()
+
+      // Gönderilen öğeler gidince yalnızca yeni içerik kalır: kilit bırakılır.
+      removeFirst()
+      removeFirst()
+      expect(sendButton()).toHaveAccessibleName('send_to_ai')
+      expect(sendButton()).not.toBeDisabled()
+    })
+
+    it('does not unlock when a removed sent item is restored (undo)', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+
+      renderComposer(
+        <DraftHarness
+          initial={[textItem('t1', 'first'), textItem('t2', 'second')]}
+          onSend={onSend}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      const sendButton = () => screen.getByTestId('ai-draft-send')
+      const removeFirst = () =>
+        fireEvent.click(screen.getAllByRole('button', { name: /ai_send_remove_item/ })[0])
+
+      // Gönderilen öğelerin hepsi kaldırılır; boş kuyrukta kilit korunur.
+      removeFirst()
+      removeFirst()
+      expect(sendButton()).toBeDisabled()
+
+      // "Geri al" eski öğeyi geri getirirse yeniden gönderim açılmamalı.
+      fireEvent.click(screen.getByRole('button', { name: 'restore-item' }))
+      expect(sendButton()).toBeDisabled()
+
+      // Yeni içerik eklemek de eski öğe kuyrukta olduğu sürece kilidi açmaz.
+      fireEvent.click(screen.getByRole('button', { name: 'add-item' }))
+      expect(sendButton()).toBeDisabled()
+
+      // Eski öğe çıkıp yerine yalnızca yeni içerik kalınca kilit bırakılır.
+      removeFirst()
+      expect(sendButton()).toHaveAccessibleName('send_to_ai')
+      expect(sendButton()).not.toBeDisabled()
+    })
+
+    it('disables the auto-send switch while a send is in flight', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+          autoSend
+        />
+      )
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+      })
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+
+      expect(screen.getByRole('switch')).toBeDisabled()
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
+
     it('disables draft removal and clear-all while a send is in flight', async () => {
       let release!: (v: unknown) => void
       const onSend = vi.fn(
@@ -778,31 +968,82 @@ describe('AiSendComposer (compact draft)', () => {
       expect(container.innerHTML).not.toContain('data:image/png')
     })
 
-    it('uses a safe placeholder when the image preview is not ready', () => {
+    it('separates a preparing preview from one that could not be created', () => {
+      vi.useFakeTimers()
+      try {
+        renderComposer(
+          <AiSendComposer
+            items={
+              [
+                {
+                  id: 'i1',
+                  type: 'image',
+                  dataUrl: 'data:image/png;base64,AAA',
+                  blobUrl: '',
+                  source: null,
+                  createdAt: 1
+                }
+              ] as never
+            }
+            onClearAll={vi.fn()}
+            onSend={vi.fn()}
+          />
+        )
+        fireEvent.click(screen.getByTestId('ai-draft-badge'))
+        fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+
+        // Blob üretimi bir görev sınırından sonra gelir: ilk durum "hazırlanıyor".
+        const preview = screen.getByTestId('ai-draft-preview')
+        expect(preview.querySelector('img')).toBeNull()
+        expect(preview).toHaveTextContent('ai_draft_preview_preparing')
+
+        // Pencere kapanınca aynı belirsiz mesajda kalmaz: oluşturulamadı der.
+        act(() => {
+          vi.advanceTimersByTime(1600)
+        })
+        expect(preview).toHaveTextContent('ai_draft_preview_unavailable')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('closes the preview with Escape and returns focus to the chip', () => {
       renderComposer(
         <AiSendComposer
-          items={
-            [
-              {
-                id: 'i1',
-                type: 'image',
-                dataUrl: 'data:image/png;base64,AAA',
-                blobUrl: '',
-                source: null,
-                createdAt: 1
-              }
-            ] as never
-          }
+          items={[textItem('t1', 'hello'), textItem('t2', 'second')]}
           onClearAll={vi.fn()}
           onSend={vi.fn()}
         />
       )
       fireEvent.click(screen.getByTestId('ai-draft-badge'))
-      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+      const toggle = screen.getAllByRole('button', { name: /ai_draft_preview_show/ })[0]
+      toggle.focus()
+      fireEvent.click(toggle)
+      expect(screen.getByTestId('ai-draft-preview')).toBeInTheDocument()
 
-      const preview = screen.getByTestId('ai-draft-preview')
-      expect(preview.querySelector('img')).toBeNull()
-      expect(preview).toHaveTextContent('ai_draft_preview_unavailable')
+      fireEvent.keyDown(toggle, { key: 'Escape' })
+
+      expect(screen.queryByTestId('ai-draft-preview')).not.toBeInTheDocument()
+      expect(toggle).toHaveFocus()
+    })
+
+    it('closes the preview when its item is removed and focuses the next chip', () => {
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello'), textItem('t2', 'second')]}
+          onClearAll={vi.fn()}
+          onRemoveItem={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getAllByRole('button', { name: /ai_draft_preview_show/ })[0])
+      expect(screen.getByTestId('ai-draft-preview')).toBeInTheDocument()
+
+      fireEvent.click(screen.getAllByRole('button', { name: /ai_send_remove_item/ })[0])
+
+      expect(screen.queryByTestId('ai-draft-preview')).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: /ai_draft_preview_show/ })[1]).toHaveFocus()
     })
 
     it('surfaces active instructions as one compact hint in the collapsed dock', () => {

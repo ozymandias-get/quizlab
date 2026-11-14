@@ -355,7 +355,7 @@ describe('useComposerSendAction', () => {
    *    bilgilendirilir ve durumu kapatabilir (mükerrer mesaj koruması).
    */
   describe('retry contract', () => {
-    it('re-runs the last send intent for a safely repeatable failure', async () => {
+    it('retries with the payload the caller provides, not a stale one', async () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()
         .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
@@ -367,16 +367,38 @@ describe('useComposerSendAction', () => {
       })
       expect(result.current.sendFeedback).toBe('error')
 
+      // Kullanıcı hata sonrası notu değiştirdi: düğme güncel talimatı gönderir.
+      await act(async () => {
+        result.current.handleRetry({ noteText: 'Explain this briefly', autoSend: false })
+      })
+
+      expect(onSend).toHaveBeenCalledTimes(2)
+      expect(onSend.mock.calls[1][0]).toEqual({
+        noteText: 'Explain this briefly',
+        autoSend: false
+      })
+      // The successful retry is silent, like any other successful send.
+      expect(result.current.sendFeedback).toBe('idle')
+      expect(result.current.lastError).toBeNull()
+    })
+
+    it('falls back to the current note and auto-send when no payload is given', async () => {
+      const onSend = vi
+        .fn<(payload: Payload) => Promise<unknown>>()
+        .mockResolvedValueOnce({ success: false, error: 'paste_failed' })
+        .mockResolvedValueOnce({ success: true })
+      const { result } = setupWith({ onSend, effectiveAutoSend: false })
+
+      await act(async () => {
+        await result.current.handleSend({ noteText: 'first attempt' })
+      })
       await act(async () => {
         result.current.handleRetry()
       })
 
-      expect(onSend).toHaveBeenCalledTimes(2)
-      // Aynı niyet, aynı içerik: veri kaybı yok.
-      expect(onSend.mock.calls[1][0]).toEqual(onSend.mock.calls[0][0])
-      // The successful retry is silent, like any other successful send.
-      expect(result.current.sendFeedback).toBe('idle')
-      expect(result.current.lastError).toBeNull()
+      // setupWith keeps noteText empty and auto-send off: the retry follows the
+      // current fields, never a hidden earlier payload.
+      expect(onSend.mock.calls[1][0]).toEqual({ noteText: undefined, autoSend: false })
     })
 
     it('never auto-resends when the content already reached the target', async () => {

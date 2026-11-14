@@ -3,8 +3,8 @@ import type { AiDraftItem } from '@app/providers/ai/types'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton, WithTooltip } from '@shared/ui/components/primitives'
 
-import { Image as ImageIcon, Type, X } from 'lucide-react'
-import { memo, useId, useState } from 'react'
+import { Image as ImageIcon, Loader2, Type, X } from 'lucide-react'
+import { memo, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface DraftItemChipsProps {
@@ -14,6 +14,9 @@ interface DraftItemChipsProps {
   disabled?: boolean
 }
 
+/** Büyük yakalamanın blob önizlemesi bu süre içinde gelmezse "oluşturulamadı". */
+const PREVIEW_WAIT_MS = 1500
+
 /**
  * Taslak içerikleri — yatay kaydırılabilen kompakt chip şeridi + isteğe bağlı
  * tek öğe önizlemesi.
@@ -22,14 +25,49 @@ interface DraftItemChipsProps {
  * tıklamak (veya Enter/Space) **yalnızca o öğenin** hafif önizlemesini açar;
  * aynı anda tek önizleme vardır ve varsayılan olarak kapalıdır. Görsel
  * önizlemesi yalnızca kuyruğun zaten ürettiği `blobUrl`'i kullanır — base64
- * dönüşümü, yeniden encode veya yeni bir kopya yoktur. Kaynak hazır değilse
- * metin yer tutucu gösterilir.
+ * dönüşümü, yeniden encode veya yeni bir kopya yoktur.
  */
 function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChipsProps) {
   const { t } = useTranslation()
   const [previewId, setPreviewId] = useState<string | null>(null)
   const previewPanelId = useId()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggersRef = useRef(new Map<string, HTMLButtonElement>())
   const previewItem = items.find((item) => item.id === previewId) ?? null
+
+  const focusTrigger = (id: string) => {
+    // Öğe kaldırıldığında/kapatıldığında odak kaybolmaz: bir sonraki chip'in
+    // gerçek düğmesine döner.
+    triggersRef.current.get(id)?.focus()
+  }
+
+  const handleTogglePreview = (id: string) => {
+    setPreviewId((current) => (current === id ? null : id))
+  }
+
+  const handleRemove = (id: string) => {
+    if (!onRemoveItem) return
+    const index = items.findIndex((item) => item.id === id)
+    const nextId = items[index + 1]?.id ?? items[index - 1]?.id ?? null
+    if (previewId === id) setPreviewId(null)
+    onRemoveItem(id)
+    if (nextId) focusTrigger(nextId)
+  }
+
+  // Escape — odak chip şeridinin içindeyken önizlemeyi kapatır ve odağı
+  // açan chip'e geri verir. Odak not alanındaysa tetiklenmez.
+  useEffect(() => {
+    if (!previewId) return
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (!rootRef.current?.contains(document.activeElement)) return
+      const id = previewId
+      setPreviewId(null)
+      triggersRef.current.get(id)?.focus()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [previewId])
 
   if (items.length === 0) {
     return (
@@ -43,7 +81,7 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
   }
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div className="custom-scrollbar scrollbar-hidden overflow-x-auto overflow-y-hidden px-3 pt-2.5 pb-0.5">
         <ul className="flex w-max items-center gap-2" aria-label={t('ai_send_panel_title')}>
           {items.map((item, index) => (
@@ -51,12 +89,14 @@ function DraftItemChips({ items, onRemoveItem, disabled = false }: DraftItemChip
               key={item.id}
               item={item}
               order={index + 1}
-              onRemove={disabled ? undefined : onRemoveItem}
+              onRemove={disabled ? undefined : handleRemove}
               isPreviewOpen={previewId === item.id}
               previewControlsId={previewPanelId}
-              onTogglePreview={() =>
-                setPreviewId((current) => (current === item.id ? null : item.id))
-              }
+              onTogglePreview={() => handleTogglePreview(item.id)}
+              registerTrigger={(node) => {
+                if (node) triggersRef.current.set(item.id, node)
+                else triggersRef.current.delete(item.id)
+              }}
             />
           ))}
         </ul>
@@ -74,7 +114,8 @@ function DraftItemChip({
   onRemove,
   isPreviewOpen,
   previewControlsId,
-  onTogglePreview
+  onTogglePreview,
+  registerTrigger
 }: {
   item: AiDraftItem
   order: number
@@ -82,6 +123,7 @@ function DraftItemChip({
   isPreviewOpen: boolean
   previewControlsId: string
   onTogglePreview: () => void
+  registerTrigger: (node: HTMLButtonElement | null) => void
 }) {
   const { t } = useTranslation()
 
@@ -110,14 +152,15 @@ function DraftItemChip({
     >
       <li
         className={cn(
-          'group motion-normal flex h-8 shrink-0 items-center gap-1 rounded-lg border bg-zinc-900/85 pr-0.5 pl-1 transition-all',
+          'group motion-normal flex h-8 shrink-0 items-center gap-1 rounded-lg border pr-0.5 pl-1 transition-all',
           isPreviewOpen
-            ? 'border-white/20 bg-zinc-900'
-            : 'border-white/[0.07] hover:border-white/20 hover:bg-zinc-900'
+            ? 'border-white/20 bg-white/[0.07]'
+            : 'border-white/[0.07] bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.06]'
         )}
         data-testid="ai-draft-item"
       >
         <button
+          ref={registerTrigger}
           type="button"
           onClick={onTogglePreview}
           aria-label={`${previewLabel} — ${accessibleName}`}
@@ -174,6 +217,18 @@ function DraftItemChip({
 /** Açık tek öğenin hafif önizlemesi: metin veya mevcut blob önizlemesi. */
 function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
   const { t } = useTranslation()
+  const [previewTimedOut, setPreviewTimedOut] = useState(false)
+
+  // Büyük yakalamanın blob'u bir görev sınırından sonra üretilir. Kısa bir
+  // bekleme penceresinde "hazırlanıyor", sonrasında "oluşturulamadı" demek
+  // belirsiz tek bir mesajdan daha dürüsttür; yeni dönüşüm üretmez.
+  useEffect(() => {
+    setPreviewTimedOut(false)
+    if (item.type !== 'image' || item.blobUrl || !item.dataUrl) return
+    const timer = setTimeout(() => setPreviewTimedOut(true), PREVIEW_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [item])
+
   const pageLabel = item.source
     ? formatSourcePages(item.source)
     : item.type === 'image' && item.page
@@ -204,15 +259,20 @@ function DraftItemPreview({ id, item }: { id: string; item: AiDraftItem }) {
       </div>
 
       {item.type === 'text' ? (
-        <p className="custom-scrollbar text-ql-12 text-foreground max-h-40 overflow-y-auto leading-relaxed break-words whitespace-pre-wrap">
+        <p className="custom-scrollbar text-ql-12 text-foreground max-h-[min(10rem,28dvh)] overflow-y-auto leading-relaxed break-words whitespace-pre-wrap">
           {item.text}
         </p>
       ) : item.blobUrl ? (
         <img
           src={item.blobUrl}
           alt=""
-          className="max-h-40 w-fit max-w-full rounded-lg border border-white/[0.07] object-contain"
+          className="max-h-[min(10rem,28dvh)] w-fit max-w-full rounded-lg border border-white/[0.07] object-contain"
         />
+      ) : item.dataUrl && !previewTimedOut ? (
+        <p className="text-ql-11 text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+          {t('ai_draft_preview_preparing')}
+        </p>
       ) : (
         <p className="text-ql-11 text-muted-foreground">{t('ai_draft_preview_unavailable')}</p>
       )}

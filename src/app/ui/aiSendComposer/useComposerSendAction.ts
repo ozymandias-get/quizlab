@@ -133,9 +133,10 @@ export function useComposerSendAction({
    */
   const sendingRef = useRef(false)
 
-  /** Son gönderim niyeti — "Tekrar dene" bunu birebir yeniden yürütür. */
-  const lastIntentRef = useRef<ComposerPayload | undefined>(undefined)
-
+  /**
+   * Gönderim — `options` verilmezse güncel not ve auto-send kullanılır.
+   * Açık panel, kapalı hap ve "tekrar dene" aynı yoldan geçer.
+   */
   const handleSend = useCallback(
     async (options?: ComposerPayload) => {
       // İki katmanlı kilit: `sendingRef` aynı olaydaki ikinci tıklamayı yakalar,
@@ -153,7 +154,6 @@ export function useComposerSendAction({
       setIsOutcomeDismissed(false)
       setIsExpanded(false)
       setStoredExpanded(false)
-      lastIntentRef.current = options
       try {
         const result = await onSend({
           noteText:
@@ -248,22 +248,25 @@ export function useComposerSendAction({
   /**
    * "Tekrar dene" — **düğmenin etiketiyle yaptığı eylem aynıdır.**
    *
-   * Güvenle tekrarlanabilen hatalarda son gönderim niyetini yeniden yürütür.
-   * İş kısmen uygulandıysa (`incomplete`) **yeniden göndermez**: bunun yerine
-   * durumu dinlenir ve kullanıcıya güvenli manuel devam yolu (paneli açık
-   * tutup siteye geçmek) bırakılır. `handleSend` zaten `incomplete` durumunda
-   * "sending"e düşmez; burada da koruma var.
+   * Güvenle tekrarlanabilen hatalarda çağıranın verdiği güncel taslak
+   * yükünü (`options`) yeniden gönderir; verilmezse hook'un bildiği güncel not
+   * ve auto-send kullanılır. Eski, saklanmış bir payload yeniden yürütülmez:
+   * kullanıcı notu/talimatı değiştirdiyse düğme ekranda gördüğünü gönderir.
+   * `incomplete` durumunda ise **yeniden göndermez**.
    */
-  const handleRetry = useCallback(() => {
-    if (sendingRef.current) return
-    if (!isResendSafe || sendFeedback === 'incomplete') {
-      // Güvenli tekrar yok: bildirim gizlenebilir, ama gönderim kilidi kalır.
-      clearFeedbackTimer()
-      setIsOutcomeDismissed(true)
-      return
-    }
-    void handleSend(lastIntentRef.current)
-  }, [clearFeedbackTimer, handleSend, isResendSafe, sendFeedback])
+  const handleRetry = useCallback(
+    (options?: ComposerPayload) => {
+      if (sendingRef.current) return
+      if (!isResendSafe || sendFeedback === 'incomplete') {
+        // Güvenli tekrar yok: bildirim gizlenebilir, ama gönderim kilidi kalır.
+        clearFeedbackTimer()
+        setIsOutcomeDismissed(true)
+        return
+      }
+      void handleSend(options)
+    },
+    [clearFeedbackTimer, handleSend, isResendSafe, sendFeedback]
+  )
 
   /**
    * Bildirimi gizler — **güvenlik durumunu sıfırlamaz.**

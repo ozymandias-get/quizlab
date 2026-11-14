@@ -15,7 +15,7 @@ import DraftNoteField from './aiSendComposer/DraftNoteField'
 import DraftOverflowMenu from './aiSendComposer/DraftOverflowMenu'
 import DraftPromptSection from './aiSendComposer/DraftPromptSection'
 import DraftSendControls, { DraftSendButton } from './aiSendComposer/DraftSendControls'
-import type { AiSendComposerProps } from './aiSendComposer/types'
+import type { AiSendComposerProps, ComposerPayload } from './aiSendComposer/types'
 import { useAiSendComposerState } from './aiSendComposer/useAiSendComposerState'
 import { useComposerSendAction } from './aiSendComposer/useComposerSendAction'
 
@@ -200,32 +200,67 @@ function AiSendComposer({
    *    `usePrompts` deposunda yaşar, taslakla ilgisi yoktur.
    */
   const handleClearAll = useCallback(() => {
+    // Kuyruk mutasyonu başarılı kullanıcı eyleminin parçası: önce kuyruk,
+    // sonra yerel taslak durumu. Temizleme gerçekleşmezse hiçbir state
+    // sıfırlanmaz (iptal zaten buraya hiç gelmez).
+    onClearAllRef.current()
     clearNote()
     selectQuickAction(null)
-    // Kuyruk boşalacağı için kısmi teslimat kilidi de bırakılır.
     resetOutcome()
-    onClearAllRef.current()
   }, [clearNote, resetOutcome, selectQuickAction])
 
-  // Kuyruk tamamen boşaldığında (öğeler tek tek kaldırıldı ya da başarılı
-  // gönderim kuyruğu tüketti) yeniden gönderilecek içerik yoktur; eski
-  // 'incomplete' kilidi yeni bir taslağı bloklamamalı.
+  /**
+   * Kısmi teslimat kilidi, **gönderilen öğe kimliklerine** bağlıdır.
+   *
+   * Kuyruk boşalınca körlemesine sıfırlamak, "geri al" ile eski öğeyi geri
+   * getirip aynı mesajı ikinci kez göndermeye yol açabilirdi. Bu yüzden:
+   * - gönderim anındaki kimlik kümesi saklanır,
+   * - kilit yalnızca o kümeden hiçbir öğe kuyrukta kalmadığında ve kuyrukta
+   *   yeni bir içerik varken bırakılır,
+   * - boş kuyrukta kilit korunur (bekleyen undo eski öğeyi geri getirebilir).
+   */
+  const pendingSendIdsRef = useRef<Set<string>>(new Set())
+  const unsafeSendIdsRef = useRef<Set<string>>(new Set())
+
   useEffect(() => {
-    if (totalItems === 0 && !isSubmitting) resetOutcome()
-  }, [isSubmitting, resetOutcome, totalItems])
+    if (sendFeedback === 'incomplete') {
+      unsafeSendIdsRef.current = pendingSendIdsRef.current
+      return
+    }
+    unsafeSendIdsRef.current = new Set()
+  }, [sendFeedback])
+
+  useEffect(() => {
+    if (sendFeedback !== 'incomplete' || items.length === 0) return
+    const unsafeIds = unsafeSendIdsRef.current
+    if (unsafeIds.size === 0) return
+    if (items.some((item) => unsafeIds.has(item.id))) return
+    resetOutcome()
+  }, [items, resetOutcome, sendFeedback])
 
   // Gönderim anında tek bir deterministik talimat metni kurulur:
   // hızlı işlem talimatı + kullanıcının ek notu. Kayıtlı prompt burada değil —
-  // pipeline onu kendisi ekler. İçerik yokken (yalnızca boş not) gönderilecek
-  // bir şey yoktur; düğme de bu durumda zaten kapalıdır.
-  const handleSubmit = useCallback(() => {
-    if (totalItems === 0) return
+  // pipeline onu kendisi ekler. Aynı yük hem ana gönderimde hem de "tekrar
+  // dene"de kullanılır; böylece düğme her zaman ekrandaki güncel taslağı gönderir.
+  const buildDraftPayload = useCallback((): ComposerPayload | undefined => {
     const instruction = composeDraftInstruction({
       quickActionText: quickActionValue,
       noteText
     })
-    void handleSend(instruction !== undefined ? { noteText: instruction } : undefined)
-  }, [handleSend, noteText, quickActionValue, totalItems])
+    return instruction !== undefined ? { noteText: instruction } : undefined
+  }, [noteText, quickActionValue])
+
+  const handleSubmit = useCallback(() => {
+    if (totalItems === 0) return
+    pendingSendIdsRef.current = new Set(items.map((item) => item.id))
+    void handleSend(buildDraftPayload())
+  }, [buildDraftPayload, handleSend, items, totalItems])
+
+  const handleRetryCurrentDraft = useCallback(() => {
+    if (totalItems === 0) return
+    pendingSendIdsRef.current = new Set(items.map((item) => item.id))
+    handleRetry(buildDraftPayload())
+  }, [buildDraftPayload, handleRetry, items, totalItems])
 
   const isSending = sendFeedback === 'sending' || isSubmitting
   const isOutcomeVisible = !isOutcomeDismissed
@@ -306,7 +341,7 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
+            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl motion-reduce:animate-none"
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
@@ -414,7 +449,7 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-zinc-900/50 transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
+                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-white/[0.05] transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
               >
                 <DraftNoteField
                   value={noteText}
@@ -449,7 +484,7 @@ function AiSendComposer({
             <DraftSendControls
               autoSend={autoSend}
               onToggleAutoSend={() => onToggleAutoSend?.()}
-              onRetry={handleRetry}
+              onRetry={handleRetryCurrentDraft}
               onDismiss={dismissOutcome}
               feedback={sendFeedback}
               lastError={lastError}
