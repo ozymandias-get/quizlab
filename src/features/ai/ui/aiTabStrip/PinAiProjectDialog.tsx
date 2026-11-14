@@ -172,7 +172,6 @@ const PinAiProjectDialog = function PinAiProjectDialog({
             onChange={(event) => setName(event.target.value)}
             placeholder={t('ai_home.pin_name_placeholder')}
             maxLength={80}
-            className="border-white/[0.07] bg-zinc-950/60 focus-visible:border-white/20"
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault()

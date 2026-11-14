@@ -140,7 +140,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
 
   return (
     <div
-      className={`group focus-within:ring-ring/40 motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-xl border p-2.5 transition-colors focus-within:ring-2 ${
+      className={`group motion-normal relative flex h-full items-center justify-between overflow-hidden rounded-xl border p-2.5 transition-colors ${
         isActive
           ? 'border-white/[0.07] bg-white/[0.07]'
           : 'border-transparent hover:border-white/5 hover:bg-white/5'
@@ -164,7 +164,7 @@ const HistorySessionItem = memo(function HistorySessionItem({
                 size="sm"
                 aria-invalid={isTitleEmpty || undefined}
                 aria-describedby={isTitleEmpty ? editErrorId : undefined}
-                className="min-w-0 flex-1 rounded-md border border-white/25 bg-zinc-950/90 px-2 py-0.5 text-zinc-100 focus:outline-none sm:max-w-64"
+                className="min-w-0 flex-1 px-2 py-0.5 text-zinc-100 sm:max-w-64"
               />
               <IconButton
                 type="button"

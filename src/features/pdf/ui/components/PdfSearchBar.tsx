@@ -110,7 +110,7 @@ function PdfSearchBar({
                   placeholder={t('search_placeholder')}
                   aria-invalid={hasNoMatches}
                   aria-describedby="pdf-search-match-count"
-                  className="text-ql-12 border-white/[0.07] bg-zinc-950/80 pr-32 pl-8 font-normal"
+                  className="text-ql-12 pr-32 pl-8 font-normal"
                   // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                   autoFocus
                 />

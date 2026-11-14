@@ -401,7 +401,7 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-white/[0.07] bg-zinc-900/50 transition-all focus-within:border-white/20 focus-within:bg-zinc-950/90"
+                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-zinc-900/50 transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
                 onFocusCapture={() => setIsComposerFocused(true)}
                 onBlurCapture={(event) => {
                   const nextTarget = event.relatedTarget as Node | null

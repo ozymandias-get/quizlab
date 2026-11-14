@@ -350,7 +350,7 @@ const MessageBubble = memo(function MessageBubble({
               value={editVal}
               onChange={(e) => setEditVal(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="text-ql-13 text-foreground min-h-[60px] border border-white/20 bg-zinc-950/90"
+              className="text-ql-13 text-foreground min-h-[60px]"
               aria-label={t('api_chat_edit')}
             />
             <div className="flex items-center justify-end gap-2">
