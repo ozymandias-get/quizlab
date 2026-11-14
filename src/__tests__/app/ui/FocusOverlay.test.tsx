@@ -1,5 +1,7 @@
 import FocusOverlay from '@app/ui/FocusOverlay'
 
+import { useAppearance } from '@shared/stores/appearanceStore'
+
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -134,10 +136,14 @@ describe('FocusOverlay', () => {
     mockAiViewSurface.mockClear()
     mockUsePdfSelection.mockReturnValue({ ...defaultPdfSelection })
     motionHandle.onAnimationComplete = null
+    // The overlay reads the open session from the appearance store; App renders
+    // it while a focus mode is set.
+    useAppearance.setState({ focusMode: 'ai' })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    useAppearance.setState({ focusMode: null })
   })
 
   it('renders the AI content when mode is "ai" and the content is mounted', async () => {
@@ -247,13 +253,22 @@ describe('FocusOverlay', () => {
   })
 
   it('reveals the view through the fallback when the animation never completes', async () => {
+    // This is the >1s / suspended-animation case: completion never arrives, so
+    // the gate holds for exactly REVEAL_FALLBACK_MS and then lifts, instead of
+    // leaving a blank panel. The shipped reveal is ~0.5s, so in practice the
+    // timer only fires when the completion is genuinely lost.
     vi.useFakeTimers()
     renderOverlay()
     await settleLazyLoad()
     expect(lastSurfaceProps().isRevealInProgress).toBe(true)
 
     act(() => {
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(999)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      vi.advanceTimersByTime(1)
     })
     expect(lastSurfaceProps().isRevealInProgress).toBe(false)
   })
@@ -317,6 +332,37 @@ describe('FocusOverlay', () => {
 
     act(() => {
       vi.advanceTimersByTime(800)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+  })
+
+  it('starts a fresh reveal session when focus reopens on the same instance', async () => {
+    // AnimatePresence keeps the exiting overlay mounted with its old props, so a
+    // reopen inside the exit animation reuses this component instance. The store
+    // is the only thing that tells it a new session started; without that the
+    // previous close's state made the native view stay hidden for good.
+    vi.useFakeTimers()
+    renderOverlay()
+    await settleLazyLoad()
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+
+    fireEvent.click(closeButton())
+    act(() => {
+      useAppearance.setState({ focusMode: null })
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    // Reopened before the exit finished: same instance, no remount.
+    act(() => {
+      useAppearance.setState({ focusMode: 'ai' })
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
     })
     expect(lastSurfaceProps().isRevealInProgress).toBe(false)
   })

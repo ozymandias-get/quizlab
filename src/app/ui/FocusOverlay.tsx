@@ -9,6 +9,7 @@ import {
 } from '@app/ui/BottomBar/animations'
 import { OVERLAY_FOCUS_TRANSFER_MS } from '@shared/constants/timingConstants'
 import { useIsAnyDialogOpen } from '@shared/hooks'
+import { useAppearance } from '@shared/stores/appearanceStore'
 import { InlineSpinner } from '@shared/ui/components/primitives'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
 import PanelLoadingPlaceholder from '@ui/components/PanelLoadingPlaceholder'
@@ -86,6 +87,17 @@ function FocusOverlay({
   const { t } = useTranslation()
   const reducedMotion = useReducedMotion()
   const isDialogOpen = useIsAnyDialogOpen()
+  /**
+   * Whether the overlay is still the open focus session.
+   *
+   * Read from the same store that renders this overlay rather than inferred from
+   * `mode`, because an exiting overlay keeps its last props: when focus closes,
+   * AnimatePresence keeps this component mounted for the exit animation with
+   * `mode` still `"ai"`. Subscribing is what lets the component see the close —
+   * and a reopen of the same instance — while it is animating out.
+   */
+  const focusMode = useAppearance((state) => state.focusMode)
+  const isOpen = focusMode !== null
   const overlayRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const lastFocusedRef = useRef<HTMLElement | null>(null)
@@ -105,6 +117,13 @@ function FocusOverlay({
   }, [])
 
   useEffect(() => {
+    // Closing owns the reveal state: cancel the pending fallback and keep the
+    // native view hidden while the shell animates out.
+    if (!isOpen) {
+      clearRevealFallback()
+      setIsRevealSettled(false)
+      return
+    }
     setIsRevealSettled(false)
     setShowEscHint(true)
     isClosingRef.current = false
@@ -117,14 +136,18 @@ function FocusOverlay({
       setIsRevealSettled(true)
     }, REVEAL_FALLBACK_MS)
     return () => clearRevealFallback()
-  }, [mode, clearRevealFallback])
+    // `isOpen` is what makes a reopen that reuses this instance (a close and an
+    // open inside the same exit animation) start a fresh session instead of
+    // inheriting the previous close's state.
+  }, [isOpen, mode, clearRevealFallback])
 
   // The shortcut is discoverable for the first two seconds, then gets out of
   // the way; the close button remains for anyone who missed it.
   useEffect(() => {
+    if (!isOpen) return
     const timer = window.setTimeout(() => setShowEscHint(false), 2000)
     return () => window.clearTimeout(timer)
-  }, [mode])
+  }, [isOpen, mode])
 
   const shellStyle = useMemo<CSSProperties>(
     () => ({
@@ -296,7 +319,7 @@ function FocusOverlay({
                 <AiViewSurface
                   isResizing={isResizing}
                   isSurfaceActive={isAiSurfaceActive}
-                  isRevealInProgress={!isRevealSettled}
+                  isRevealInProgress={!isOpen || !isRevealSettled}
                   surfaceState={aiViewSurfaceState}
                 />
               ) : (

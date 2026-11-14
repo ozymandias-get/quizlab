@@ -271,6 +271,12 @@ export function useAiViewHost({
   const motionFrameRef = useRef<number | null>(null)
   const motionFramesLeftRef = useRef(0)
   const motionEventsRef = useRef(0)
+  /**
+   * True once this motion session has spent its budget. The session ends when
+   * every started motion has reported its end, which is what allows the next one
+   * to be followed with a fresh budget.
+   */
+  const motionExhaustedRef = useRef(false)
 
   const measure = useCallback((): AiViewBounds | null => {
     if (!element) return null
@@ -347,18 +353,29 @@ export function useAiViewHost({
     // remaining budget instead of re-arming it. Resetting here let a stream of
     // overlapping events — one `transitionrun` per animated property, a class
     // toggled on a timer — keep the follow alive indefinitely, which is the one
-    // thing the cap exists to prevent. A motion that starts after the previous
-    // follow has ended is a new session and gets a fresh budget.
+    // thing the cap exists to prevent.
     if (motionFrameRef.current !== null) return
+    // The budget is spent and the session has not ended yet: a later start event
+    // is another property of the same motion, not a new session. Its end event
+    // still publishes the settled rectangle.
+    if (motionExhaustedRef.current) return
     motionFramesLeftRef.current = MOTION_WATCH_MAX_FRAMES
     const tick = () => {
       motionFrameRef.current = null
-      if (motionFramesLeftRef.current <= 0) return
+      if (motionFramesLeftRef.current <= 0) {
+        motionExhaustedRef.current = true
+        return
+      }
       motionFramesLeftRef.current -= 1
       publish(false)
-      if (motionFramesLeftRef.current > 0 && motionEventsRef.current > 0) {
-        motionFrameRef.current = requestFrame(tick)
+      if (motionFramesLeftRef.current === 0) {
+        // The budget is spent. Cap the session only while motion is still
+        // running; a motion that ended exactly here already reset the cap, and
+        // the next one must be free to start.
+        motionExhaustedRef.current = motionEventsRef.current > 0
+        return
       }
+      if (motionEventsRef.current > 0) motionFrameRef.current = requestFrame(tick)
     }
     motionFrameRef.current = requestFrame(tick)
   }, [publish])
@@ -442,7 +459,12 @@ export function useAiViewHost({
       // Publish the settled rectangle on this frame even if the watch was
       // between ticks, then stop: motion never leaves a frame running.
       schedule()
-      if (motionEventsRef.current === 0) stopMotionWatch()
+      if (motionEventsRef.current === 0) {
+        // Every motion this session started has ended; the next one gets a
+        // fresh budget.
+        motionExhaustedRef.current = false
+        stopMotionWatch()
+      }
     }
 
     window.addEventListener('resize', schedule)
@@ -469,6 +491,7 @@ export function useAiViewHost({
       }
       stopMotionWatch()
       motionEventsRef.current = 0
+      motionExhaustedRef.current = false
       reassertFramesRef.current = 0
       if (frameRef.current !== null) {
         cancelFrame(frameRef.current)

@@ -647,13 +647,77 @@ describe('AiWebContentsViewManager - host geometry', () => {
     expect(FakeWebContentsView.radiusHistory).toHaveLength(1)
   })
 
-  it('hides the view when the host reports visible=false without moving it', async () => {
+  it('hides the view and releases the claim when the host reports visible=false', async () => {
     await reset()
     await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 300, height: 400 }, true)
+    const entry = manager.getManagedAiView('tab-1')!
+
     manager.syncAiViewHost('tab-1', 'h1', { x: 0, y: 0, width: 300, height: 400 }, false)
 
     expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(false)
+    expect(entry.hostToken).toBeNull()
+    expect(entry.bounds).toBeNull()
+  })
+
+  it('lets the next host claim immediately after the previous one hides', async () => {
+    // The focus-mode handoff: the exiting overlay keeps its props for the exit
+    // animation, so it must give the token up on its hide message instead of
+    // holding it until unmount — otherwise every claim from the workspace lands
+    // in a rejection and the panel comes back blank.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    manager.syncAiViewHost('tab-1', 'overlay-host', { x: 2, y: 88, width: 1916, height: 942 }, true)
+    manager.syncAiViewHost(
+      'tab-1',
+      'overlay-host',
+      { x: 2, y: 88, width: 1916, height: 942 },
+      false
+    )
+
+    expect(
+      manager.syncAiViewHost(
+        'tab-1',
+        'workspace-host',
+        { x: 903, y: 65, width: 997, height: 944 },
+        true
+      )
+    ).toBe(true)
+
+    const entry = manager.getManagedAiView('tab-1')!
+    expect(entry.hostToken).toBe('workspace-host')
+    expect(FakeWebContentsView.boundsHistory.at(-1)?.bounds).toMatchObject({
+      x: 903,
+      y: 65,
+      width: 997,
+      height: 944
+    })
+    expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(true)
+  })
+
+  it('does not let a stale host release the current claim by hiding', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    manager.syncAiViewHost('tab-1', 'owner', { x: 0, y: 0, width: 100, height: 100 }, true)
+
+    expect(
+      manager.syncAiViewHost('tab-1', 'impostor', { x: 0, y: 0, width: 100, height: 100 }, false)
+    ).toBe(false)
+
+    expect(manager.getManagedAiView('tab-1')!.hostToken).toBe('owner')
+    expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(true)
+  })
+
+  it('re-claims the view when a hidden host shows it again', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const bounds = { x: 0, y: 0, width: 300, height: 400 }
+    manager.syncAiViewHost('tab-1', 'h1', bounds, true)
+    manager.syncAiViewHost('tab-1', 'h1', bounds, false)
+
+    expect(manager.syncAiViewHost('tab-1', 'h1', bounds, true)).toBe(true)
+    expect(FakeWebContentsView.visibleHistory.at(-1)?.visible).toBe(true)
+    expect(manager.getManagedAiView('tab-1')!.hostToken).toBe('h1')
   })
 
   it('never shows the view for a collapsed host rectangle', async () => {

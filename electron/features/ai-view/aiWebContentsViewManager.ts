@@ -505,13 +505,40 @@ export function syncAiViewHost(
   // platform already accepted this value.
   ensureBorderRadius(entry, nextRadius)
 
+  if (!visible || !isUsableBounds(bounds)) {
+    /*
+     * A host that is not showing the view gives up its claim instead of keeping
+     * it warm.
+     *
+     * Keeping the token while hidden is what stranded the view on a focus-mode
+     * handoff: the exiting overlay keeps its props for the whole exit animation,
+     * so its host stays "visible" from its own point of view and owns the token,
+     * while the workspace that is already mounted keeps publishing into a
+     * rejection. Its ready re-assertion is a few frames, all spent inside the
+     * exit, and the host dedupes whatever comes after — so when the overlay
+     * finally unmounted and released, nothing was left to claim the view and the
+     * AI panel came back blank.
+     *
+     * Releasing here, on the hide that the closing overlay now sends in its first
+     * frame, frees the token before the workspace's attach can resolve. A host
+     * that wants the view again simply publishes visible:true, which re-claims
+     * it; the manager already compares rectangles, so a hidden-and-restored host
+     * pays one message.
+     */
+    entry.hostToken = null
+    entry.bounds = null
+    entry.visible = false
+    applyVisibility(entry)
+    return true
+  }
+
   if (!boundsEqual(entry.bounds, bounds)) {
     entry.bounds = bounds
     entry.view.setBounds(bounds)
   }
 
   entry.hostToken = hostToken
-  entry.visible = visible && isUsableBounds(bounds)
+  entry.visible = true
   applyVisibility(entry)
   return true
 }

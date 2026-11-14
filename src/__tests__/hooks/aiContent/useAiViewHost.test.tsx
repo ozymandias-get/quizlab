@@ -576,6 +576,74 @@ describe('useAiViewHost - bounded motion follow', () => {
     expect(syncHost.mock.calls.length).toBe(followed)
   })
 
+  it('publishes the settled rectangle when the transition ends after the budget', () => {
+    // A long animation exhausts the 180-frame follow. The end event must still
+    // correct the final rectangle, or the view would stay wherever the budget
+    // ran out.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const created = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    for (let step = 0; step < 220; step += 1) {
+      rect.x = 900 - step
+      flushFrames()
+    }
+    const followed = syncHost.mock.calls.length
+    expect(followed).toBeGreaterThan(0)
+
+    act(() => {
+      Object.assign(rect, { x: 300 })
+      created.frame.dispatchEvent(new Event('transitionend', { bubbles: true }))
+    })
+    flushFrames()
+
+    expect(syncHost.mock.calls.length).toBe(followed + 1)
+    expect(syncHost.mock.calls.at(-1)?.[0]?.bounds.x).toBe(300)
+  })
+
+  it('does not restart the follow when an event arrives after the budget is spent', () => {
+    // The budget is a hard cap for one motion session. A second transition that
+    // starts while the first is still running must not re-arm it, or a stream of
+    // events could keep the follow (and its IPC) alive indefinitely.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const created = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    for (let step = 0; step < 200; step += 1) {
+      rect.x = 900 - step
+      flushFrames()
+    }
+    const followed = syncHost.mock.calls.length
+    expect(followed).toBeLessThanOrEqual(180)
+
+    // The previous transition never ended; another property starts animating.
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    for (let step = 0; step < 40; step += 1) {
+      rect.x = 700 - step
+      flushFrames()
+    }
+
+    expect(syncHost.mock.calls.length).toBe(followed)
+  })
+
   it('shares the remaining budget with overlapping motion events', () => {
     // A second transition starting mid-follow must not re-arm the cap: a stream
     // of overlapping events would otherwise keep the follow alive forever.
