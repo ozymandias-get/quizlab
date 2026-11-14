@@ -32,6 +32,9 @@ export function extractStructuredPdfText(
   items: PdfTextItem[],
   options: ExtractStructuredPdfTextOptions = {}
 ): string {
-  const blocks = buildPdfFlow(items, { detectTables: true })
+  const blocks = buildPdfFlow(items, {
+    detectTables: true,
+    mode: options.mode === 'selection' ? 'selection' : 'page'
+  })
   return serializePdfFlow(blocks, { inferHeadings: options.mode !== 'selection' })
 }

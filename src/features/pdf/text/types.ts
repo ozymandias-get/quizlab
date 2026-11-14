@@ -78,6 +78,14 @@ export interface PdfTableBlock {
    * serializer preserves the rows as labelled/tabular plain text instead.
    */
   confident: boolean
+  /**
+   * True when the first row is the table's real header rather than merely its
+   * first data row. A partial selection cannot prove the header was included,
+   * so this stays false there and the serializer keeps every source row.
+   */
+  headerTrusted: boolean
+  /** Median font size of the table's cells, used for the page's body baseline. */
+  fontSize: number
 }
 
 /** A group of lines that belong to the same reading block (one column). */

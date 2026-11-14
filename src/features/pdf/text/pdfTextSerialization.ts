@@ -58,7 +58,7 @@ function matchListMarker(text: string): ListMarker | null {
  * have one heading and fifty body lines, and the heading must not drag the
  * baseline upward: the weight makes the answer follow the bulk of the text.
  */
-function estimateBodyFontSize(lines: PdfTextLine[]): number {
+function estimateBodyFontSize(lines: Array<{ text: string; fontSize: number }>): number {
   const entries = lines
     .map((line) => ({
       size: line.fontSize,
@@ -354,10 +354,12 @@ function formatTable(block: PdfTableBlock): string {
     return [headerLine, separator, ...dataLines].join('\n')
   }
 
-  // Markdown needs a header line. When the first row is not a usable header
-  // (all numbers, an empty cell, a merged cell), inventing one would change the
-  // meaning, so the cell relationships are preserved as labelled plain text.
+  // Markdown needs a header line. When the first row is not a trusted header
+  // (a partial selection, all numbers, a merged cell), using it as one would
+  // relabel source data. The rows are then kept as pipe text, including the
+  // first row, so no source cell disappears.
   if (
+    block.headerTrusted &&
     header.length >= 2 &&
     header.every((cell) => cell.length > 0) &&
     rows.length > 0 &&
@@ -483,7 +485,21 @@ export function serializePdfFlow(
     if (block.kind === 'spanner') return [block.line]
     return []
   })
-  const documentBodySize = estimateBodyFontSize(allLines)
+  // Table text is part of the page's body even though it is not serialized as
+  // lines. Leaving it out made a page whose only other line is a heading
+  // estimate the heading's own size as body size, so `## Adjuvan Analjezikler`
+  // was emitted as plain text.
+  const tableBody = blocks.flatMap((block) =>
+    block.kind === 'table'
+      ? [
+          {
+            text: [block.header, ...block.rows].flat().join(' '),
+            fontSize: block.fontSize
+          }
+        ]
+      : []
+  )
+  const documentBodySize = estimateBodyFontSize([...allLines, ...tableBody])
 
   for (const block of blocks) {
     if (block.kind === 'table') {

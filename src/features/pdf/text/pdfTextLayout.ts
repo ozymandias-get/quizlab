@@ -18,7 +18,7 @@
  * worse than leaving a two-column page in its original order.
  */
 import { groupByRow, median } from './pdfTextGeometry'
-import { detectTables, isCandidateTableRow } from './pdfTextTableDetection'
+import { type DetectedTable, detectTables } from './pdfTextTableDetection'
 import type { PdfFlowBlock, PdfTextFragment, PdfTextItem, PdfTextLine } from './types'
 
 const EPSILON = 0.5
@@ -57,6 +57,11 @@ interface FlowAnchor {
 interface BuildPdfFlowOptions {
   /** Turn reliable row/cell geometry into table blocks. Defaults to true. */
   detectTables?: boolean
+  /**
+   * Selection mode cannot see the rows above the selection, so a short first
+   * row is not proof that the selection starts at a table header.
+   */
+  mode?: 'page' | 'selection'
 }
 
 function itemFontSize(item: PdfTextItem): number {
@@ -430,14 +435,59 @@ function buildPdfFlowForItems(items: PdfTextItem[], options: BuildPdfFlowOptions
   const fragments = buildTextFragments(items)
   if (fragments.length === 0) return []
 
+  // Tables are found before the page is cut into regions. A table's rows can be
+  // far apart (banded rows, tall cells), which would otherwise make the region
+  // segmenter treat every row as its own layout. Detection also sees the header
+  // and the body together even when a visible header separator widens the gap.
+  const tables =
+    options.detectTables === false
+      ? []
+      : detectTables(fragments, { requireExplicitHeader: options.mode === 'selection' })
+  const tableFragments = new Set(tables.flatMap((table) => table.fragments))
+  const freeFragments = fragments.filter((fragment) => !tableFragments.has(fragment))
+
+  if (freeFragments.length === 0) {
+    return tables.sort((a, b) => a.top - b.top).map((table) => table.block)
+  }
+
   // A page can change layout more than once: a two-column body, a full-width
   // section, then three columns. A single global gutter cannot describe that.
   // Large vertical gaps are the reliable separator between such regions; each
-  // region then gets its own column/table analysis. Normal paragraph gaps are
+  // region then gets its own column analysis. Normal paragraph gaps are
   // smaller than the cut threshold, so prose is not split unnecessarily.
-  const segments = segmentFragmentsByVerticalGaps(fragments)
-  if (segments.length <= 1) return buildPdfFlowForFragments(fragments, options)
-  return segments.flatMap((segment) => buildPdfFlowForFragments(segment, options))
+  const segments = segmentFragmentsByVerticalGaps(freeFragments)
+  const freeBlocks = segments.flatMap((segment) => buildPdfFlowForFragments(segment))
+  return mergeTableAnchors(tables, freeBlocks)
+}
+
+/** The first visual line of a block, used to interleave tables with text. */
+function flowBlockTop(block: PdfFlowBlock): number {
+  if (block.kind === 'lines') {
+    return block.lines.length > 0
+      ? Math.min(...block.lines.map((line) => line.top))
+      : Number.POSITIVE_INFINITY
+  }
+  if (block.kind === 'spanner') return block.line.top
+  return Number.POSITIVE_INFINITY
+}
+
+/**
+ * Puts detected tables back into the reading sequence.
+ *
+ * Free text around a table was analysed without the table's fragments, so it is
+ * already grouped into blocks. Sorting those blocks by their first line against
+ * the table tops keeps the table between the regions above and below it without
+ * re-reading geometry.
+ */
+function mergeTableAnchors(tables: DetectedTable[], freeBlocks: PdfFlowBlock[]): PdfFlowBlock[] {
+  if (tables.length === 0) return freeBlocks
+
+  const positioned = [
+    ...tables.map((table) => ({ top: table.top, block: table.block })),
+    ...freeBlocks.map((block) => ({ top: flowBlockTop(block), block }))
+  ]
+  positioned.sort((a, b) => a.top - b.top)
+  return positioned.map((entry) => entry.block)
 }
 
 /**
@@ -471,7 +521,6 @@ interface MeasuredRow {
   top: number
   bottom: number
   signature: string
-  isTableLike: boolean
 }
 
 /**
@@ -483,9 +532,12 @@ interface MeasuredRow {
  *    becoming three without a large gap).
  *
  * A one-row signature change is ignored: a missing line in one column or a
- * single indented line must not split a paragraph. Consecutive table-like rows
- * are kept together so a header/data cell-count change does not cut a table in
- * half.
+ * single indented line must not split a paragraph.
+ *
+ * Tables are detected and removed before this runs, so a table can no longer
+ * bridge two different column layouts. The old "both rows look table-like"
+ * exemption is gone for that reason: once long cells stopped being rejected by
+ * length, prose rows looked table-like too and a real layout change was missed.
  */
 function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFragment[][] {
   const rows = [...groupByRow(fragments).entries()].sort((a, b) => a[0] - b[0])
@@ -501,22 +553,8 @@ function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFr
     fragments: rowFragments,
     top: Math.min(...rowFragments.map((fragment) => fragment.top)),
     bottom: Math.max(...rowFragments.map((fragment) => fragment.bottom)),
-    signature: rowLayoutSignature(rowFragments, overallWidth, tolerance),
-    isTableLike: isCandidateTableRow(rowFragments)
+    signature: rowLayoutSignature(rowFragments, overallWidth, tolerance)
   }))
-
-  // A merged table cell is one fragment between two normal table rows. It is not
-  // a layout change: borrowing the neighbours' signature keeps the table in one
-  // region instead of cutting it after the merged row.
-  for (let index = 1; index < measured.length - 1; index += 1) {
-    const row = measured[index]
-    if (row.fragments.length !== 1) continue
-    const previous = measured[index - 1]
-    const next = measured[index + 1]
-    if (previous.isTableLike && next.isTableLike && previous.signature === next.signature) {
-      row.signature = previous.signature
-    }
-  }
 
   const segments: PdfTextFragment[][] = []
   let current: PdfTextFragment[] = []
@@ -538,8 +576,7 @@ function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFr
         // single missing column line, an indented list continuation or the last
         // row of a region would be treated as a new region.
         const persists = next !== undefined && next.signature === row.signature
-        const tableContinuation = row.isTableLike && previous.isTableLike
-        cut = changed && persists && !tableContinuation
+        cut = changed && persists
       }
     }
 
@@ -557,36 +594,21 @@ function segmentFragmentsByVerticalGaps(fragments: PdfTextFragment[]): PdfTextFr
   return segments.length > 0 ? segments : [fragments]
 }
 
-function buildPdfFlowForFragments(
-  fragments: PdfTextFragment[],
-  options: BuildPdfFlowOptions
-): PdfFlowBlock[] {
+function buildPdfFlowForFragments(fragments: PdfTextFragment[]): PdfFlowBlock[] {
   if (fragments.length === 0) return []
-
-  const detectedTables = options.detectTables === false ? [] : detectTables(fragments)
-  const tableFragments = new Set(detectedTables.flatMap((table) => table.fragments))
-  const freeFragments = fragments.filter((fragment) => !tableFragments.has(fragment))
-
-  const anchors: FlowAnchor[] = detectedTables.map((table) => ({
-    top: table.top,
-    block: table.block
-  }))
-
-  if (freeFragments.length === 0) {
-    return anchors.sort((a, b) => a.top - b.top).map((anchor) => anchor.block)
-  }
 
   const allBounds = boundsOf(fragments)
   const overallWidth = Math.max(allBounds.right - allBounds.left, 1)
-  const narrow = freeFragments.filter(
+  const narrow = fragments.filter(
     (fragment) => fragment.right - fragment.left < overallWidth * SPANNER_WIDTH_RATIO
   )
-  const wide = freeFragments.filter(
+  const wide = fragments.filter(
     (fragment) => fragment.right - fragment.left >= overallWidth * SPANNER_WIDTH_RATIO
   )
 
   const tentativeColumns = groupByColumns(narrow)
   if (tentativeColumns.length > 1) {
+    const anchors: FlowAnchor[] = []
     const wideLines = linesFromFragments(wide)
     for (const line of wideLines) {
       anchors.push({ top: line.top, block: { kind: 'spanner', line } })
@@ -595,5 +617,5 @@ function buildPdfFlowForFragments(
     return assembleFlow(columns, anchors)
   }
 
-  return assembleFlow([linesFromFragments(freeFragments)], anchors)
+  return assembleFlow([linesFromFragments(fragments)], [])
 }
