@@ -1,5 +1,6 @@
 import {
   createRecentAiWorkEntry,
+  isValidLastUsedAt,
   readRecentAiWork,
   recordRecentAiWork,
   RECENT_AI_WORK_LIMIT,
@@ -122,5 +123,100 @@ describe('recent AI work', () => {
 
     const stored = readRecentAiWork()
     expect(stored.map((item) => item.id)).toEqual([conversation.id])
+  })
+
+  it('treats a legacy provider host as the same conversation', () => {
+    const legacy = entry('chatgpt', 'https://chat.openai.com/c/abc', 10)
+    const canonical = entry('chatgpt', 'https://chatgpt.com/c/abc', 20)
+
+    expect(legacy.id).toBe(canonical.id)
+    expect(upsertRecentAiWork([legacy], canonical)).toHaveLength(1)
+  })
+
+  it('shows the most recent PDF when one chat was used with two documents', () => {
+    const first = createRecentAiWorkEntry(
+      'chatgpt',
+      'https://chatgpt.com/c/abc',
+      10,
+      'Biyoloji.pdf'
+    )
+    const second = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/abc', 20, 'Fizik.pdf')
+    if (!first || !second) throw new Error('entries expected')
+
+    const [stored] = upsertRecentAiWork([first], second)
+
+    expect(stored.documentName).toBe('Fizik.pdf')
+  })
+
+  it('keeps the PDF of an existing conversation when a swap lands on it', () => {
+    const existing = createRecentAiWorkEntry(
+      'chatgpt',
+      'https://chatgpt.com/c/actual',
+      10,
+      'Biyoloji.pdf'
+    )
+    const landing = entry('chatgpt', 'https://chatgpt.com/', 20)
+    if (!existing) throw new Error('entry expected')
+    recordRecentAiWork(existing)
+    recordRecentAiWork(landing)
+
+    const next = entry('chatgpt', 'https://chatgpt.com/c/actual', 30)
+    replaceRecentAiWork(landing, next)
+
+    const stored = readRecentAiWork()
+    expect(stored).toHaveLength(1)
+    expect(stored[0].id).toBe(next.id)
+    expect(stored[0].documentName).toBe('Biyoloji.pdf')
+  })
+
+  it('keeps the other conversations when a provisional entry is replaced', () => {
+    const other = entry('claude', 'https://claude.ai/chat/2', 5)
+    const landing = entry('chatgpt', 'https://chatgpt.com/', 10)
+    recordRecentAiWork(other)
+    recordRecentAiWork(landing)
+
+    const conversation = entry('chatgpt', 'https://chatgpt.com/c/actual', 20)
+    replaceRecentAiWork(landing, conversation)
+
+    expect(readRecentAiWork().map((item) => item.id)).toEqual([conversation.id, other.id])
+  })
+
+  it('keeps both conversations when two new chats share a landing page', () => {
+    const landing = entry('chatgpt', 'https://chatgpt.com/', 10)
+    recordRecentAiWork(landing)
+    // The second send reuses the same landing URL, so it overwrites the row.
+    recordRecentAiWork({ ...landing, lastUsedAt: 11 })
+
+    const first = entry('chatgpt', 'https://chatgpt.com/c/a', 20)
+    const second = entry('chatgpt', 'https://chatgpt.com/c/b', 21)
+    replaceRecentAiWork(landing, first)
+    replaceRecentAiWork(landing, second)
+
+    expect(readRecentAiWork().map((item) => item.id)).toEqual([second.id, first.id])
+  })
+
+  it('does not lose a conversation when two sites resolve in sequence', () => {
+    const landingA = entry('chatgpt', 'https://chatgpt.com/', 10)
+    const landingB = entry('claude', 'https://claude.ai/', 11)
+    recordRecentAiWork(landingA)
+    recordRecentAiWork(landingB)
+
+    const finalA = entry('chatgpt', 'https://chatgpt.com/c/a', 12)
+    const finalB = entry('claude', 'https://claude.ai/chat/b', 13)
+    replaceRecentAiWork(landingA, finalA)
+    replaceRecentAiWork(landingB, finalB)
+
+    expect(readRecentAiWork().map((item) => item.id)).toEqual([finalB.id, finalA.id])
+  })
+
+  it('replaces a timestamp that no date formatter could render', () => {
+    const [stored] = sanitizeRecentAiWork([
+      { modelId: 'chatgpt', url: 'https://chatgpt.com/c/abc', lastUsedAt: Number.MAX_VALUE }
+    ])
+
+    expect(isValidLastUsedAt(stored.lastUsedAt)).toBe(true)
+    expect(() =>
+      new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(stored.lastUsedAt))
+    ).not.toThrow()
   })
 })

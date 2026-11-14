@@ -67,4 +67,44 @@ describe('pinned AI projects', () => {
     removePinnedAiProject(valid.id)
     expect(readPinnedAiProjects()).toEqual([])
   })
+
+  it('keeps the original creation time and position when a pin is renamed', () => {
+    const older = createPinnedAiProject('chatgpt', 'Eski ad', 'https://chatgpt.com/c/1', 1_000)
+    const newer = createPinnedAiProject('chatgpt', 'Diğer', 'https://chatgpt.com/c/2', 2_000)
+    if (!older || !newer) throw new Error('projects expected')
+    savePinnedAiProject(older)
+    savePinnedAiProject(newer)
+
+    const renamed = createPinnedAiProject('chatgpt', 'Yeni ad', 'https://chatgpt.com/c/1', 3_000)
+    if (!renamed) throw new Error('project expected')
+    savePinnedAiProject(renamed)
+
+    const stored = readPinnedAiProjects()
+    expect(stored.map((item) => item.name)).toEqual(['Diğer', 'Yeni ad'])
+    expect(stored[1].createdAt).toBe(1_000)
+  })
+
+  it('collapses a pin saved through a legacy provider host', () => {
+    const legacy = createPinnedAiProject('chatgpt', 'Sohbet', 'https://chat.openai.com/c/1')
+    const canonical = createPinnedAiProject('chatgpt', 'Sohbet 2', 'https://chatgpt.com/c/1')
+    if (!legacy || !canonical) throw new Error('projects expected')
+
+    savePinnedAiProject(legacy)
+    savePinnedAiProject(canonical)
+
+    const stored = readPinnedAiProjects()
+    expect(stored).toHaveLength(1)
+    expect(stored[0].name).toBe('Sohbet 2')
+  })
+
+  it('removes only the requested pin', () => {
+    const first = project('Bir', 'https://chatgpt.com/c/1')
+    const second = project('İki', 'https://chatgpt.com/c/2')
+    savePinnedAiProject(first)
+    savePinnedAiProject(second)
+
+    removePinnedAiProject(first.id)
+
+    expect(readPinnedAiProjects().map((item) => item.name)).toEqual(['İki'])
+  })
 })

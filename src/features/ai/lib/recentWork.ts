@@ -24,6 +24,18 @@ export interface RecentAiWorkEntry {
 
 const MAX_DOCUMENT_NAME_LENGTH = 180
 
+/** Largest instant `Date` can represent; `Intl` throws beyond it. */
+const MAX_VALID_TIMESTAMP = 8_640_000_000_000_000
+
+/**
+ * Storage is user-writable, so a corrupt row must not reach a formatter that
+ * throws on an out-of-range date. Rows outside this range are treated as having
+ * an unknown time, the same as a missing number.
+ */
+export function isValidLastUsedAt(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value <= MAX_VALID_TIMESTAMP
+}
+
 function normalizeDocumentName(rawName: string | undefined): string | undefined {
   if (!rawName) return undefined
   const name = rawName.replaceAll(/\s+/g, ' ').trim()
@@ -82,7 +94,7 @@ export function sanitizeRecentAiWork(value: unknown): RecentAiWorkEntry[] {
     const row = candidate as Partial<RecentAiWorkEntry>
     if (typeof row.modelId !== 'string' || typeof row.url !== 'string') continue
     const lastUsedAt =
-      typeof row.lastUsedAt === 'number' && Number.isFinite(row.lastUsedAt)
+      typeof row.lastUsedAt === 'number' && isValidLastUsedAt(row.lastUsedAt)
         ? row.lastUsedAt
         : Date.now()
     const entry = createRecentAiWorkEntry(

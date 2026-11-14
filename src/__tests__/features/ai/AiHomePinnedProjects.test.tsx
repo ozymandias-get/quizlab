@@ -68,4 +68,24 @@ describe('AI Home pinned projects', () => {
     await new Promise((resolve) => requestAnimationFrame(resolve))
     expect(screen.getByRole('button', { name: /ai_home.pinned_title/ })).toHaveFocus()
   })
+
+  it('shows the pin count and removes only the chosen card with the keyboard', async () => {
+    const first = createPinnedAiProject('chatgpt', 'Birinci', 'https://chatgpt.com/c/1')
+    const second = createPinnedAiProject('claude', 'İkinci', 'https://claude.ai/chat/2')
+    if (!first || !second) throw new Error('projects expected')
+    savePinnedAiProject(first)
+    savePinnedAiProject(second)
+
+    render(<AiHomePage onOpenModel={vi.fn()} />)
+    const section = pinnedSection()
+    expect(section.getByText('2')).toBeInTheDocument()
+
+    section.getAllByRole('button', { name: 'ai_home.pinned_remove' })[0].focus()
+    fireEvent.click(section.getAllByRole('button', { name: 'ai_home.pinned_remove' })[0])
+
+    expect(section.queryByText('İkinci')).not.toBeInTheDocument()
+    expect(section.getByText('Birinci')).toBeInTheDocument()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(section.getAllByRole('button', { name: 'ai_home.pinned_open' })[0]).toHaveFocus()
+  })
 })

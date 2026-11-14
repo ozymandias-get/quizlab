@@ -3,10 +3,18 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { getAiIcon } from '@ui/components/Icons'
 
 import { Clock3, FileText, X } from 'lucide-react'
-import { memo, type MouseEvent as ReactMouseEvent, Suspense, useCallback, useRef } from 'react'
+import {
+  memo,
+  type MouseEvent as ReactMouseEvent,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { RecentAiWorkEntry } from '../../lib/recentWork'
+import { isValidLastUsedAt, type RecentAiWorkEntry } from '../../lib/recentWork'
 import type { AiSiteMap } from '../../model/home'
 import { safeAiAccentColor } from '../../model/home'
 
@@ -18,13 +26,18 @@ interface AiHomeRecentWorkProps {
 }
 
 /** "az önce", "5 dk önce", "3 sa önce", "2 gün önce" or a short date. */
-function formatLastUsed(
+export function formatLastUsed(
   timestamp: number,
+  now: number,
   language: string,
   justNow: string,
   absoluteLabel: (value: number) => string
-): { relative: string; absolute: string } {
-  const diff = timestamp - Date.now()
+): { relative: string; absolute: string | null } {
+  if (!isValidLastUsedAt(timestamp)) return { relative: justNow, absolute: null }
+
+  // A future timestamp is a clock skew, not a scheduled chat: show it as recent
+  // instead of "in 5 minutes".
+  const diff = Math.min(0, timestamp - now)
   const absolute = Math.abs(diff)
   if (absolute < 60_000) return { relative: justNow, absolute: absoluteLabel(timestamp) }
 
@@ -55,6 +68,9 @@ function formatLastUsed(
   return { relative: shortDate, absolute: absoluteLabel(timestamp) }
 }
 
+/** Keeps the relative labels honest while the section stays open. */
+const CLOCK_TICK_MS = 60_000
+
 const AiHomeRecentWork = memo(function AiHomeRecentWork({
   aiSites,
   entries,
@@ -64,6 +80,23 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
   const { t, i18n } = useTranslation()
   const language = i18n?.language ?? 'en'
   const gridRef = useRef<HTMLDivElement>(null)
+  // The body only exists while the section is open, so this timer never runs
+  // for a collapsed section. One tick per minute is enough for "5 min ago".
+  const [now, setNow] = useState(Date.now)
+
+  useEffect(() => {
+    const syncClock = () => setNow(Date.now())
+    const interval = window.setInterval(syncClock, CLOCK_TICK_MS)
+    // Background timers are throttled or frozen; refresh on return to the window.
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') syncClock()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
 
   const handleOpen = useCallback(
     (entry: RecentAiWorkEntry) => {
@@ -108,6 +141,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
         const documentName = entry.documentName || t('ai_home.recent_no_document')
         const lastUsed = formatLastUsed(
           entry.lastUsedAt,
+          now,
           language,
           t('ai_home.recent_just_now'),
           (value) =>
@@ -170,7 +204,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
                           {displayName}
                         </h3>
                         <span
-                          title={lastUsed.absolute}
+                          title={lastUsed.absolute ?? undefined}
                           className="text-ql-10 text-muted-foreground ml-auto flex shrink-0 items-center gap-0.5"
                         >
                           <Clock3 aria-hidden className="h-3 w-3" />
