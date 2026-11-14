@@ -69,6 +69,12 @@ interface ManagedAiView {
    * would stay square for its whole lifetime.
    */
   appliedBorderRadius: number | null
+  /**
+   * Radius whose failure was already logged, so a platform that rejects the API
+   * outright does not emit one warning per geometry message — the host now
+   * publishes on every frame of a move, not just on resize.
+   */
+  radiusFailureLogged: number | null
   /** Token of the host placeholder currently allowed to move this view. */
   hostToken: string | null
   disposeBridge: () => void
@@ -297,6 +303,7 @@ function attachResolved(
     shown: false,
     bounds: null,
     appliedBorderRadius: null,
+    radiusFailureLogged: null,
     hostToken: null,
     disposeBridge: () => {}
   }
@@ -493,19 +500,14 @@ export function syncAiViewHost(
   if (!bounds) return false
 
   const nextRadius = bounds.borderRadius ?? 0
-  const radiusChanged = entry.appliedBorderRadius !== nextRadius
+  // Radius first: the clip has to exist before the first frame painted at the
+  // new geometry, otherwise the corner is square for one frame. A no-op when the
+  // platform already accepted this value.
+  ensureBorderRadius(entry, nextRadius)
+
   if (!boundsEqual(entry.bounds, bounds)) {
     entry.bounds = bounds
-    // Radius first: the clip has to exist before the first frame painted at the
-    // new geometry, otherwise the corner is square for one frame.
-    if (radiusChanged && applyBorderRadius(entry.view, nextRadius)) {
-      entry.appliedBorderRadius = nextRadius
-    }
     entry.view.setBounds(bounds)
-  } else if (radiusChanged && applyBorderRadius(entry.view, nextRadius)) {
-    // A rectangle that did not move can still need its clip: this is the retry
-    // path for a radius the platform rejected the first time.
-    entry.appliedBorderRadius = nextRadius
   }
 
   entry.hostToken = hostToken
@@ -522,22 +524,32 @@ export function syncAiViewHost(
  * `WebContentsView` is composited above the DOM instead, so without this it
  * paints square corners straight over the rounded frame.
  *
- * `View.setBorderRadius` is new in Electron 42 and is the only per-view
- * rounding API; `BrowserWindow.setShape` would clip the whole window, including
- * the title bar and the other panels. It takes an *integer*, so a fractional
- * radius is rejected by the argument converter before the call ever reaches the
- * platform; `parseBounds` rounds it at the trust boundary for that reason.
+ * `View.setBorderRadius` is new in Electron 42 and is the only per-view rounding
+ * API; `BrowserWindow.setShape` would clip the whole window, including the title
+ * bar and the other panels. It takes an *integer*, so a fractional radius is
+ * rejected by the argument converter before the call ever reaches the platform;
+ * `parseBounds` rounds it at the trust boundary for that reason.
  *
- * Returns whether the radius was accepted, because the caller stores that result
- * rather than the request: a rejected call must be retried on the next message
- * instead of being remembered as applied.
+ * Two things happen on failure, and both matter:
+ *
+ * - The value is *not* stored as applied, so the next geometry message retries
+ *   it. Storing the request instead made a rejected call permanent.
+ * - The warning is emitted once per rejected value. Geometry now arrives on
+ *   every frame of a move, so a platform without the API would otherwise write a
+ *   warning per frame for the whole session.
  */
-function applyBorderRadius(view: WebContentsView, radius: number): boolean {
+function ensureBorderRadius(entry: ManagedAiView, radius: number): boolean {
+  if (entry.appliedBorderRadius === radius) return true
   try {
-    view.setBorderRadius(radius)
+    entry.view.setBorderRadius(radius)
+    entry.appliedBorderRadius = radius
+    entry.radiusFailureLogged = null
     return true
   } catch (error) {
-    Logger.warn('[AiView] setBorderRadius failed:', error)
+    if (entry.radiusFailureLogged !== radius) {
+      entry.radiusFailureLogged = radius
+      Logger.warn('[AiView] setBorderRadius failed:', error)
+    }
     return false
   }
 }

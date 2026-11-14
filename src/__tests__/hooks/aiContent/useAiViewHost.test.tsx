@@ -269,6 +269,117 @@ describe('useAiViewHost - corner radius', () => {
 })
 
 /**
+ * Position-only moves.
+ *
+ * A `WebContentsView` mirrors `getBoundingClientRect()`, and the sources that
+ * used to feed it — `ResizeObserver`, `resize`, `scroll` — all describe *size*
+ * or scroll. A host that is translated keeps its width and height, so none of
+ * them fire: swapping the two workspaces (a single class flip on `main`) moved
+ * the AI panel across the window while the native view stayed exactly where it
+ * was, painting over the PDF panel and the divider.
+ */
+describe('useAiViewHost - position-only moves', () => {
+  beforeEach(() => {
+    syncHost.mockClear()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  function mountHost(rect: { x: number; y: number; width: number; height: number }) {
+    const created = createRoundedHost(rect, { radius: '18.75px', borderWidth: '1px' })
+    // The panel wrapper whose class the layout swap flips.
+    created.frame.className = 'flex-row'
+    const rendered = renderHook(() => useAiViewHost(defaultOptions))
+    act(() => {
+      rendered.result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+    return { ...created, rect, ...rendered }
+  }
+
+  it('republishes when an ancestor class swap moves the host without resizing it', async () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      frame.className = 'flex-row-reverse'
+      Object.assign(rect, { x: 20 })
+    })
+
+    await vi.waitFor(() => expect(syncHost).toHaveBeenCalledTimes(1))
+    expect(syncHost.mock.calls[0][0].bounds).toEqual({
+      x: 20,
+      y: 150,
+      width: 800,
+      height: 600,
+      borderRadius: 18
+    })
+  })
+
+  it('follows an ancestor transform that is rewritten while an animation runs', async () => {
+    // A JS-driven animation writes the wrapper's inline style on every frame and
+    // never touches the host, so only the attribute watch can see it.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      frame.style.transform = 'translateX(-50px)'
+      Object.assign(rect, { x: 850 })
+    })
+
+    await vi.waitFor(() => expect(syncHost).toHaveBeenCalledTimes(1))
+    expect(syncHost.mock.calls[0][0].bounds.x).toBe(850)
+  })
+
+  it('publishes the settled rectangle when a CSS animation ends', async () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      Object.assign(rect, { y: 90 })
+      frame.dispatchEvent(new Event('animationend', { bubbles: true }))
+    })
+
+    await vi.waitFor(() => expect(syncHost).toHaveBeenCalledTimes(1))
+    expect(syncHost.mock.calls[0][0].bounds.y).toBe(90)
+  })
+
+  it('republishes when a scrolling ancestor carries the host with it', async () => {
+    // Capture-phase scroll is the only signal for this: the host is not the
+    // scrolled element and its own size does not change.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      Object.assign(rect, { y: 120 })
+      frame.dispatchEvent(new Event('scroll'))
+    })
+
+    await vi.waitFor(() => expect(syncHost).toHaveBeenCalledTimes(1))
+    expect(syncHost.mock.calls[0][0].bounds.y).toBe(120)
+  })
+
+  it('stays silent when an ancestor changes but the host does not move', async () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      frame.className = 'flex-row-reverse'
+      frame.dispatchEvent(new Event('transitionend', { bubbles: true }))
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+    expect(syncHost).not.toHaveBeenCalled()
+  })
+})
+
+/**
  * `republish` re-asserts a rectangle the main process may never have received.
  *
  * The sync channel is fire-and-forget with no acknowledgement, and the manager

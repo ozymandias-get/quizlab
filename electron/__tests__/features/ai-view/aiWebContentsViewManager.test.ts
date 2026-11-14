@@ -4,6 +4,11 @@ const WebContentsViewMock = vi.fn()
 const addChildView = vi.fn()
 const removeChildView = vi.fn()
 const setIgnoreMouseEvents = vi.fn()
+const warn = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../core/logger.js', () => ({
+  Logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }
+}))
 
 let createdViews: Array<Record<string, unknown>> = []
 
@@ -11,8 +16,8 @@ class FakeWebContentsView {
   static boundsHistory: Array<{ viewId: string; bounds: unknown }> = []
   static radiusHistory: Array<{ viewId: string; radius: number }> = []
   static visibleHistory: Array<{ viewId: string; visible: boolean }> = []
-  /** Makes the next `setBorderRadius` fail the way Electron rejects a non-integer. */
-  static rejectNextRadius = false
+  /** Number of upcoming `setBorderRadius` calls that fail the way Electron rejects. */
+  static radiusFailuresRemaining = 0
 
   viewId: string
   bounds: unknown
@@ -34,8 +39,8 @@ class FakeWebContentsView {
 
   setBorderRadius(radius: number) {
     FakeWebContentsView.radiusHistory.push({ viewId: this.viewId, radius })
-    if (FakeWebContentsView.rejectNextRadius) {
-      FakeWebContentsView.rejectNextRadius = false
+    if (FakeWebContentsView.radiusFailuresRemaining > 0) {
+      FakeWebContentsView.radiusFailuresRemaining -= 1
       // Electron's converter throws on a fractional radius; a fake that never
       // fails cannot cover the retry path.
       throw new Error('Error processing argument at index 0, conversion failure')
@@ -226,7 +231,8 @@ async function reset() {
   FakeWebContentsView.boundsHistory = []
   FakeWebContentsView.radiusHistory = []
   FakeWebContentsView.visibleHistory = []
-  FakeWebContentsView.rejectNextRadius = false
+  FakeWebContentsView.radiusFailuresRemaining = 0
+  warn.mockClear()
   nextWebContentsId = 1
 }
 
@@ -591,7 +597,7 @@ describe('AiWebContentsViewManager - host geometry', () => {
     FakeWebContentsView.radiusHistory = []
     const bounds = { x: 0, y: 0, width: 300, height: 400, borderRadius: 18 }
 
-    FakeWebContentsView.rejectNextRadius = true
+    FakeWebContentsView.radiusFailuresRemaining = 1
     manager.syncAiViewHost('tab-1', 'h1', bounds, true)
     expect(FakeWebContentsView.radiusHistory).toHaveLength(1)
 
@@ -600,6 +606,24 @@ describe('AiWebContentsViewManager - host geometry', () => {
 
     expect(FakeWebContentsView.radiusHistory).toHaveLength(2)
     expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(18)
+  })
+
+  it('logs a rejected radius once per value, not once per geometry message', async () => {
+    // The host publishes on every frame of a move now, so a platform without
+    // `setBorderRadius` would otherwise write a warning per frame for the whole
+    // session.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    FakeWebContentsView.radiusHistory = []
+    FakeWebContentsView.radiusFailuresRemaining = 3
+    const bounds = { x: 0, y: 0, width: 300, height: 400, borderRadius: 18 }
+
+    manager.syncAiViewHost('tab-1', 'h1', bounds, true)
+    manager.syncAiViewHost('tab-1', 'h1', bounds, true)
+    manager.syncAiViewHost('tab-1', 'h1', { ...bounds, x: 10 }, true)
+
+    expect(FakeWebContentsView.radiusHistory).toHaveLength(3)
+    expect(warn).toHaveBeenCalledTimes(1)
   })
 
   it('does not re-apply an accepted radius when only the rectangle moves', async () => {

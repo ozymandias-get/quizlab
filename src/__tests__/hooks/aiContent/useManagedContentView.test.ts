@@ -192,6 +192,35 @@ describe('useManagedContentView - view lifecycle', () => {
     expect(generations.size).toBe(1)
   })
 
+  it('publishes bounds again once attach confirms the view exists', async () => {
+    // A fast host publishes before the attach round trip resolves. The manager
+    // rejects a message naming a view it does not own, and the host already
+    // recorded the rectangle as sent — so the ready notification is the only
+    // thing that turns a permanently rejected first message into a corrected one.
+    let resolveAttach: (value: ReturnType<typeof freshAttachResponse>) => void = () => {}
+    aiViewClient.attach.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAttach = resolve
+      })
+    )
+
+    await mount()
+    expect(aiViewClient.attach).toHaveBeenCalledTimes(1)
+    expect(aiViewClient.syncHost).toHaveBeenCalledTimes(1)
+
+    aiViewClient.syncHost.mockClear()
+    await act(async () => {
+      resolveAttach(freshAttachResponse())
+      await Promise.resolve()
+      await Promise.resolve()
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    const republished = aiViewClient.syncHost.mock.calls.at(-1)?.[0]
+    expect(republished?.bounds).toMatchObject({ x: 12, y: 20, width: 300, height: 400 })
+    expect(republished?.visible).toBe(true)
+  })
+
   it('destroys the view on a real content close, not on a host swap', async () => {
     // `isEnabled: false` is the lifecycle owner's signal (sleep, api-chat, no
     // site); unmount is only the host owner's, so the two must not be confused.

@@ -8,7 +8,7 @@ import { getAiViewClient } from './aiViewClient'
  * Keeps a main-process `WebContentsView` aligned with a React host placeholder.
  *
  * A native view is not in the DOM, so its geometry has to be mirrored from
- * `getBoundingClientRect()`. Three rules keep this cheap and deterministic:
+ * `getBoundingClientRect()`. Four rules keep this cheap and deterministic:
  *
  * 1. Exactly one host writes. `isHostOwner` is true only for the host that
  *    currently owns the view (active surface + active tab), so a placeholder
@@ -19,7 +19,26 @@ import { getAiViewClient } from './aiViewClient'
  * 3. Identical messages are dropped, so React re-renders that do not change the
  *    host produce no traffic at all. Everything the main process would act on —
  *    rectangle, corner radius, visibility — is part of that identity.
+ * 4. Every source of movement is observed, not just size. `ResizeObserver`,
+ *    `resize` and `scroll` all miss a host that is *translated*: a layout swap
+ *    flips a class on `main`, and a JS-driven transform animation rewrites an
+ *    ancestor's inline style every frame, while the host's border box keeps its
+ *    width and height and no scroll or resize happens. The host therefore
+ *    watches its ancestor chain for class/style mutations and the document for
+ *    CSS animation/transition events, and re-measures on the next frame. Each
+ *    of those is an event, not a timer: nothing runs between changes, and the
+ *    dedupe above means a watched frame that measures the same rectangle still
+ *    sends nothing.
  */
+
+const MOTION_EVENTS = [
+  'transitionrun',
+  'transitionend',
+  'transitioncancel',
+  'animationstart',
+  'animationend',
+  'animationcancel'
+] as const
 
 interface UseAiViewHostOptions {
   viewId: string
@@ -294,7 +313,43 @@ export function useAiViewHost({
       typeof ResizeObserver === 'function' ? new ResizeObserver(() => schedule()) : null
     observer?.observe(element)
 
+    /**
+     * Moves that keep the host's size.
+     *
+     * A layout swap changes a class on `main` and a motion transform rewrites an
+     * ancestor's inline style on every frame; neither resizes the host, so the
+     * `ResizeObserver` above stays silent and the view would keep the rectangle
+     * it happened to publish first. Watching the ancestor chain for `class` and
+     * `style` turns both into one measurement on the next frame, and observes
+     * nothing that is not already an ancestor of the host.
+     *
+     * `class` is in the filter on purpose: the swap is a single class flip, not
+     * an animation, so there is no motion event to wait for.
+     */
+    const attributeObserver =
+      typeof MutationObserver === 'function' ? new MutationObserver(() => schedule()) : null
+    for (let node: Node | null = element; node; node = node.parentNode) {
+      // A test double for the host is not a real `Node`; it has no ancestors to
+      // watch, and `MutationObserver.observe` would reject it.
+      if (node.nodeType === 1) {
+        attributeObserver?.observe(node, { attributes: true, attributeFilter: ['class', 'style'] })
+      }
+    }
+
     const handleScroll = (event: Event) => {
+      if (event.target instanceof Node && !event.target.contains(element)) {
+        return
+      }
+      schedule()
+    }
+
+    /**
+     * CSS keyframe animations and transitions are not attribute mutations, so
+     * they get their own signal. `animationend` / `transitionend` is what
+     * guarantees the settled rectangle is published even when the element never
+     * changed its class or style mid-flight.
+     */
+    const handleMotionEvent = (event: Event) => {
       if (event.target instanceof Node && !event.target.contains(element)) {
         return
       }
@@ -305,11 +360,18 @@ export function useAiViewHost({
     // Panels animate their bounds, so scroll/resize ancestors move the host
     // without firing a ResizeObserver entry on the host itself.
     window.addEventListener('scroll', handleScroll, true)
+    for (const type of MOTION_EVENTS) {
+      window.addEventListener(type, handleMotionEvent, true)
+    }
 
     return () => {
       observer?.disconnect()
+      attributeObserver?.disconnect()
       window.removeEventListener('resize', schedule)
       window.removeEventListener('scroll', handleScroll, true)
+      for (const type of MOTION_EVENTS) {
+        window.removeEventListener(type, handleMotionEvent, true)
+      }
       reassertFramesRef.current = 0
       if (frameRef.current !== null) {
         cancelFrame(frameRef.current)
