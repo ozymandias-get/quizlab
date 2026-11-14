@@ -129,6 +129,18 @@ function storageArea() {
   }
 }
 
+/** Whether the app told the worker that the stored pairing code is not its own. */
+async function readPairingRejected() {
+  const area = storageArea()
+  if (!area) return false
+  try {
+    const stored = await area.get(['pairingInvalid'])
+    return stored?.pairingInvalid === true
+  } catch {
+    return false
+  }
+}
+
 /**
  * The site list the service worker persisted, or null when there is none.
  *
@@ -357,6 +369,7 @@ async function initProfileControls() {
       showFeedback('Profil adı boş olamaz.', false)
       return
     }
+    if (button.disabled) return
     button.disabled = true
     new Promise((resolve) => {
       chrome.runtime.sendMessage({ type: 'set_profile_name', name }, (response) => {
@@ -366,6 +379,8 @@ async function initProfileControls() {
       .then((response) => {
         button.disabled = false
         if (response && response.success) {
+          storedName = name
+          hasStoredName = true
           input.value = name
           applyProfileLabel(name)
           if (state) {
@@ -374,11 +389,19 @@ async function initProfileControls() {
           }
           showFeedback('Profil adı kaydedildi.', true)
         } else {
+          // The worker persists before it renames itself, so the name it still
+          // uses is the one that was stored. The header keeps saying it.
+          applyProfileLabel(storedName)
+          if (state) {
+            state.textContent = hasStoredName ? 'Kaydedildi' : 'Kaydedilmedi'
+            state.dataset.saved = hasStoredName ? 'true' : 'false'
+          }
           showFeedback('Profil adı kaydedilemedi.', false)
         }
       })
       .catch((error) => {
         button.disabled = false
+        applyProfileLabel(storedName)
         console.warn('[Quizlab Popup] The profile name could not be saved:', errorMessage(error))
         showFeedback('Profil adı kaydedilemedi.', false)
       })
@@ -409,7 +432,8 @@ async function initPairingControls() {
   button.dataset.initialized = 'true'
 
   const existing = await readPairingCode()
-  if (existing && state) {
+  const rejected = await readPairingRejected()
+  if (existing && !rejected && state) {
     state.textContent = 'Eşleştirildi'
     state.dataset.paired = 'true'
   }
@@ -420,12 +444,20 @@ async function initPairingControls() {
     feedback.dataset.state = isSuccess ? 'success' : 'error'
   }
 
+  if (rejected) {
+    showFeedback(
+      'Quizlab bu eklentinin eşleştirme kodunu kabul etmiyor. Uygulamadaki yeni kodu yapıştırın.',
+      false
+    )
+  }
+
   button.addEventListener('click', () => {
     const code = typeof input.value === 'string' ? input.value.trim().toLowerCase() : ''
     if (!isPairingCode(code)) {
       showFeedback('Kod 64 karakterlik olmalı. Kodu uygulamadan kopyalayın.', false)
       return
     }
+    if (button.disabled) return
     button.disabled = true
     showFeedback('Eşleştiriliyor...', true)
     new Promise((resolve) => {
@@ -440,13 +472,40 @@ async function initPairingControls() {
             state.textContent = 'Eşleştirildi'
             state.dataset.paired = 'true'
           }
-          showFeedback('Eşleştirildi. Oturumlar aktarılabilir.', true)
+          if (response.settingsSaved === false) {
+            // The code works for this worker but could not be written to the
+            // store: after a browser restart the user has to pair again.
+            showFeedback(
+              'Eşleştirildi ancak kod kalıcı olarak kaydedilemedi. Tarayıcı yeniden başlarsa yeniden eşleştirin.',
+              false
+            )
+          } else if (response.notSelected) {
+            showFeedback(
+              'Eşleştirildi. Bu Chrome profili Quizlab’da seçili değil; Ayarlar → Site Oturumları bölümünden bu profili seçin.',
+              false
+            )
+          } else if (response.result === 'refused') {
+            showFeedback(
+              'Eşleştirildi, ancak oturumlar şu an aktarılamadı. Site oturumları ekranındaki durumu kontrol edin.',
+              false
+            )
+          } else if (response.result === 'no_cookies') {
+            showFeedback('Eşleştirildi. Chrome’da bu siteler için oturum bulunamadı.', true)
+          } else if (response.result === 'permission_missing') {
+            showFeedback('Eşleştirildi, ancak bazı siteler için izin eksik.', false)
+          } else {
+            showFeedback('Eşleştirildi. Oturumlar aktarıldı.', true)
+          }
           void renderSites()
-        } else {
+        } else if (response && response.error === 'invalid_code') {
           showFeedback(
-            'Eşleştirilemedi. Quizlab açık mı ve kodu doğru yapıştırdınız mı kontrol edin.',
+            'Kod kabul edilmedi. Uygulamadaki güncel kodu kopyaladığınızdan emin olun.',
             false
           )
+        } else if (response && response.error === 'bridge_unreachable') {
+          showFeedback('Quizlab’a ulaşılamadı. Uygulamanın açık olduğunu kontrol edin.', false)
+        } else {
+          showFeedback('Eşleştirilemedi.', false)
         }
       })
       .catch((error) => {
@@ -466,7 +525,10 @@ async function initImportControls() {
   syncBtn.dataset.initialized = 'true'
   const area = chrome.storage?.local
   const stored = area ? await area.get(['autoSync']) : {}
-  if (auto) auto.checked = stored?.autoSync !== false
+  // The last preference the worker confirmed. The checkbox returns to it when
+  // a write fails, so it never shows a setting that is not on disk.
+  let savedAutoSync = stored?.autoSync !== false
+  if (auto) auto.checked = savedAutoSync
   if (siteSelect) {
     const targets = await readTargets()
     for (const target of targets || []) {
@@ -481,20 +543,48 @@ async function initImportControls() {
     feedback.textContent = text
     feedback.dataset.state = isSuccess ? 'success' : 'error'
   }
+  let autoSyncPending = false
+  const applyAutoSync = (value) => {
+    savedAutoSync = value
+    if (auto) auto.checked = value
+  }
+
   auto?.addEventListener('change', () => {
-    chrome.runtime.sendMessage({ type: 'set_auto_sync', enabled: auto.checked }, (response) => {
-      const error = chrome.runtime.lastError
-      if (error || !response?.success) {
-        showFeedback(
-          response?.settingsSaved
-            ? 'Eşitleme ayarı kaydedildi ancak aktarım tamamlanamadı.'
-            : 'Eşitleme ayarı kaydedilemedi.',
-          false
-        )
-      }
-    })
+    // A second click while the first request is on its way would send another
+    // write for a value the popup has not confirmed yet.
+    if (!auto || autoSyncPending) return
+    const next = auto.checked
+    autoSyncPending = true
+    auto.disabled = true
+    const settle = () => {
+      autoSyncPending = false
+      auto.disabled = false
+    }
+    try {
+      chrome.runtime.sendMessage({ type: 'set_auto_sync', enabled: next }, (response) => {
+        const error = chrome.runtime.lastError
+        settle()
+        if (error || response?.settingsSaved !== true) {
+          // The write did not land: the stored preference is still the truth.
+          auto.checked = savedAutoSync
+          showFeedback('Eşitleme ayarı kaydedilemedi.', false)
+          return
+        }
+        applyAutoSync(next)
+        if (!response.success) {
+          // The choice is safe; only the transfer it triggered was incomplete.
+          showFeedback('Eşitleme ayarı kaydedildi ancak aktarım tamamlanamadı.', false)
+        }
+      })
+    } catch (error) {
+      settle()
+      auto.checked = savedAutoSync
+      console.warn('[Quizlab Popup] The automatic sync setting failed:', errorMessage(error))
+      showFeedback('Eşitleme ayarı kaydedilemedi.', false)
+    }
   })
   syncBtn?.addEventListener('click', () => {
+    if (syncBtn.disabled) return
     syncBtn.disabled = true
     showFeedback('Site oturumları aktarılıyor...', true)
     chrome.runtime.sendMessage(
@@ -502,14 +592,23 @@ async function initImportControls() {
       (response) => {
         const error = chrome.runtime.lastError
         syncBtn.disabled = false
-        if (auto && !error && (response?.autoSync === false || response?.success)) {
-          auto.checked = false
+        // The worker reports the preference it really holds. A request that
+        // never arrived leaves the checkbox alone.
+        if (auto && !error && typeof response?.autoSync === 'boolean') {
+          applyAutoSync(response.autoSync)
         }
         if (!error && response?.result === 'not_selected') {
           showFeedback(
             'Bu Chrome profili Quizlab’da seçili değil. Quizlab → Ayarlar → Site Oturumları bölümünden bu profili seçin, sonra burada yeniden Aktar’a basın.',
             false
           )
+        } else if (!error && response?.result === 'no_cookies') {
+          showFeedback(
+            'Aktarım için Chrome’da oturum çerezi bulunamadı. Sitede oturum açık mı kontrol edin.',
+            false
+          )
+        } else if (!error && response?.result === 'permission_missing') {
+          showFeedback('Bu siteler için izin eksik. Yukarıdaki site listesinden izin verin.', false)
         } else if (!error && response?.success) {
           showFeedback('Oturumlar aktarıldı. Site oturumu uygulamaya aktarıldı.', true)
         } else {

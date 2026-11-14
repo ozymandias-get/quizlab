@@ -37,6 +37,7 @@ vi.mock('../../../features/web-session/siteSessionBridge.js', () => ({
 
 import { createBridgeRequestHandler } from '../../../features/native-messaging/nativeMessagingBridgeHandler.js'
 import { MAX_COOKIE_BODY_SIZE } from '../../../features/native-messaging/nativeMessagingTypes.js'
+import { openSiteSessionRound } from '../../../features/web-session/siteSessionBridge.js'
 
 /** The manager the bridge talks to. */
 function createManager() {
@@ -46,7 +47,7 @@ function createManager() {
     _extensionProtocolVersion: null,
     _expectedExtensionOrigin: EXTENSION_ORIGIN,
     instanceId: 'test-bridge',
-    getSelectedProfileId: () => PROFILE_ID,
+    getSelectedProfileId: (): string | null => PROFILE_ID,
     getSelectionVersion: () => 4,
     isSelectionChanging: () => false,
     markExtensionSeen: vi.fn(),
@@ -76,6 +77,7 @@ describe('the bridge of the site session', () => {
   beforeEach(async () => {
     recordOversizedSiteSessionPacket.mockClear()
     acceptPacket.mockClear()
+    vi.mocked(openSiteSessionRound).mockClear()
     manager = createManager()
     server = http.createServer(createBridgeRequestHandler(manager))
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -209,7 +211,10 @@ describe('the bridge of the site session', () => {
     const response = await postAs('other-profile-1234', body)
 
     expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toEqual({ error: 'not_selected' })
+    await expect(response.json()).resolves.toEqual({
+      error: 'not_selected',
+      retryable: false
+    })
     expect(acceptPacket).not.toHaveBeenCalled()
   })
 
@@ -352,6 +357,100 @@ describe('the bridge of the site session', () => {
     await expect(response.json()).resolves.toMatchObject({
       selectedProfileId: PROFILE_ID,
       selectionVersion: 4
+    })
+  })
+
+  it('opens one round for overlapping site list requests of one profile', async () => {
+    let release!: (round: unknown) => void
+    vi.mocked(openSiteSessionRound).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve as (round: unknown) => void
+        }) as never
+    )
+
+    const siteList = () =>
+      fetch(`http://127.0.0.1:${port}${SITE_LIST_PATH}`, {
+        headers: { ...profileHeaders(), 'x-hmac-signature': sign(SITE_LIST_PATH) }
+      })
+
+    // The first request opens the round; the second arrives while it is still
+    // being built and joins it instead of replacing the target list the first
+    // request's packets are prepared against.
+    const responses = Promise.all([siteList(), siteList()])
+    await vi.waitFor(() => expect(openSiteSessionRound).toHaveBeenCalledTimes(1))
+    release({ targets: [], accept: acceptPacket })
+
+    const resolved = await responses
+    expect(resolved.map((response) => response.status)).toEqual([200, 200])
+    expect(vi.mocked(openSiteSessionRound)).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a packet while the source is being switched', async () => {
+    manager.isSelectionChanging = () => true
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body)
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'selection_changing',
+      retryable: true
+    })
+    expect(acceptPacket).not.toHaveBeenCalled()
+
+    // The old source is still the selected one while it is wiped, so its
+    // packet waits for the switch — and a packet of the new source is not
+    // selected yet.
+    const other = await postAs('other-profile-1234', body)
+    expect(other.status).toBe(403)
+    await expect(other.json()).resolves.toEqual({ error: 'not_selected', retryable: false })
+    expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('refuses a packet while no profile is selected', async () => {
+    // The first pairing writes the source; when that write fails there is no
+    // answer to "whose session is this?", and importing it could mix two
+    // Chrome profiles in one session.
+    manager.getSelectedProfileId = () => null
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body)
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'selection_unavailable',
+      retryable: true
+    })
+    expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('marks a stale round as retryable and a disabled site as final', async () => {
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    acceptPacket.mockResolvedValueOnce({ accepted: false, reason: 'stale_round' })
+    const stale = await post(body)
+    expect(stale.status).toBe(409)
+    await expect(stale.json()).resolves.toEqual({ error: 'stale_round', retryable: true })
+
+    acceptPacket.mockResolvedValueOnce({ accepted: false, reason: 'target_disabled' })
+    const disabled = await post(body)
+    expect(disabled.status).toBe(403)
+    await expect(disabled.json()).resolves.toEqual({
+      error: 'target_disabled',
+      retryable: false
     })
   })
 

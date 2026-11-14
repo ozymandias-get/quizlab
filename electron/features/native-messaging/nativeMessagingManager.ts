@@ -59,10 +59,18 @@ class NativeMessagingManager {
   private readonly _profiles = new Map<string, ExtensionProfileState>()
   private _selectedProfileId: string | null = null
   private _selectionVersion: number = 0
-  private _selectionPending: boolean = false
   private _selectionChangeDepth: number = 0
   private _profilesPersistenceError: string | null = null
   private _profilesWrite: Promise<void> = Promise.resolve()
+  /**
+   * The selection writers that are running, one at a time.
+   *
+   * A pairing, a user click and a restart recovery all change the same two
+   * values. Serializing them is what keeps the memory and the disk from
+   * disagreeing: every writer persists first and commits after its own write,
+   * so the last committed write is the only state either side holds.
+   */
+  private _selectionWrite: Promise<unknown> = Promise.resolve()
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
@@ -161,31 +169,44 @@ class NativeMessagingManager {
   /**
    * Selects the Chrome profile to take cookies from.
    *
-   * The selection is written to disk before it is reported, so a restart does
-   * not silently fall back to another profile. A profile that has not
-   * contacted the app yet cannot be selected.
+   * The selection is written to disk before it is committed to memory and
+   * before it is reported: the bridge accepts packets for whatever
+   * `getSelectedProfileId()` says, so a memory-first switch would accept the
+   * new profile's packets against a selection a restart never saw. A profile
+   * that has not contacted the app yet cannot be selected.
    */
-  async selectProfile(profileId: string): Promise<boolean> {
-    if (!this.hasProfile(profileId)) return false
-    const id = profileId.trim()
-    if (this._selectedProfileId === id) return true
+  selectProfile(profileId: string): Promise<boolean> {
+    return this.runSelectionWrite(async () => {
+      if (!this.hasProfile(profileId)) return false
+      const id = profileId.trim()
+      if (this._selectedProfileId === id) return true
 
-    const previous = this._selectedProfileId
-    const previousVersion = this._selectionVersion
-    this._selectedProfileId = id
-    this._selectionVersion += 1
-    try {
-      await this.persistProfiles()
-    } catch (error) {
-      this._selectedProfileId = previous
-      this._selectionVersion = previousVersion
-      Logger.warn('[NativeMessaging] The profile selection could not be saved:', error)
-      return false
-    }
-    // The status page shows which profile is selected; the event makes it
-    // refetch without waiting for its poll.
-    this.broadcastExtensionConnected()
-    return true
+      const nextVersion = this._selectionVersion + 1
+      try {
+        await this.persistProfiles({ selectedProfileId: id, selectionVersion: nextVersion })
+      } catch (error) {
+        // Nothing was committed: the previous source stays authoritative, both
+        // in memory and on disk.
+        Logger.warn('[NativeMessaging] The profile selection could not be saved:', error)
+        return false
+      }
+      this._selectedProfileId = id
+      this._selectionVersion = nextVersion
+      // The status page shows which profile is selected; the event makes it
+      // refetch without waiting for its poll.
+      this.broadcastExtensionConnected()
+      return true
+    })
+  }
+
+  /** Runs one selection write after the previous one finished. */
+  private runSelectionWrite<T>(task: () => Promise<T>): Promise<T> {
+    const run = this._selectionWrite.catch(() => undefined).then(task)
+    this._selectionWrite = run.then(
+      () => undefined,
+      () => undefined
+    )
+    return run
   }
 
   /** The live status of the profile the user selected. */
@@ -339,40 +360,38 @@ class NativeMessagingManager {
   async markExtensionPaired(profileId?: string): Promise<void> {
     if (isProfileId(profileId)) {
       const profile = this._profiles.get(profileId.trim())
-      if (profile) {
-        profile.paired = true
-        // The first profile that proves it holds the pairing code becomes the
-        // source. Pinning it here is what keeps a later disconnect from
-        // silently moving the source to the other Chrome profile.
-        if (!this._selectedProfileId && !this._selectionPending) {
-          // The selection is not reported until it reached the disk: a restart
-          // that reads no selection would otherwise silently pick another
-          // profile, and the user would have seen a source that never existed.
-          this._selectionPending = true
-          const nextVersion = this._selectionVersion + 1
-          try {
-            await this.persistProfiles({
-              selectedProfileId: profile.id,
-              selectionVersion: nextVersion
-            })
-            if (!this._selectedProfileId) {
-              this._selectedProfileId = profile.id
-              this._selectionVersion = nextVersion
-              this.broadcastExtensionConnected()
-            }
-          } catch (error) {
-            // Leave the selection unset. The next signed request retries; the
-            // settings page keeps showing "no source selected" in the meantime.
-            Logger.warn(
-              '[NativeMessaging] The initial profile selection could not be saved:',
-              error
-            )
-          } finally {
-            this._selectionPending = false
-          }
-        }
+      if (!profile) {
+        // A valid id the app has never seen is not a legacy request: falling
+        // through would set the old single-extension flag and report a profile
+        // that is not there as paired.
         return
       }
+      profile.paired = true
+      // The first profile that proves it holds the pairing code becomes the
+      // source. Pinning it here is what keeps a later disconnect from silently
+      // moving the source to the other Chrome profile.
+      if (this._selectedProfileId) return
+      await this.runSelectionWrite(async () => {
+        // A concurrent pairing or the user may have committed a source while
+        // this one was waiting: the first committed source stays.
+        if (this._selectedProfileId) return
+        const nextVersion = this._selectionVersion + 1
+        try {
+          await this.persistProfiles({
+            selectedProfileId: profile.id,
+            selectionVersion: nextVersion
+          })
+        } catch (error) {
+          // Leave the selection unset. The next signed request retries; the
+          // settings page keeps showing "no source selected" in the meantime.
+          Logger.warn('[NativeMessaging] The initial profile selection could not be saved:', error)
+          return
+        }
+        this._selectedProfileId = profile.id
+        this._selectionVersion = nextVersion
+        this.broadcastExtensionConnected()
+      })
+      return
     }
     // A legacy request proves the old extension holds the secret, but it is
     // not a request from the selected profile: only that profile's own signed
@@ -437,27 +456,33 @@ class NativeMessagingManager {
   /**
    * Writes the names and the selection, one write at a time.
    *
-   * The optional selection lets a first pairing write the selection it is
-   * about to commit without putting it into memory before the disk accepted
-   * it. A failed write therefore leaves the manager unselected.
+   * The snapshot is built when the write runs, not when it is queued: a name
+   * change that was queued before a selection was committed must not write the
+   * old selection back to disk after the new one landed. Only the caller that
+   * commits a selection passes it explicitly; every other write carries the
+   * state that is committed at that moment.
    */
   private persistProfiles(selection?: {
     selectedProfileId: string | null
     selectionVersion: number
   }): Promise<void> {
-    const profiles: PersistedExtensionProfile[] = [...this._profiles.values()].map((profile) => ({
-      id: profile.id,
-      name: profile.name
-    }))
-    const snapshot = {
-      version: 1 as const,
-      selectedProfileId: selection ? selection.selectedProfileId : this._selectedProfileId,
-      selectionVersion: selection ? selection.selectionVersion : this._selectionVersion,
-      profiles
-    }
     this._profilesWrite = this._profilesWrite
       .catch(() => undefined)
-      .then(() => this.saveProfileSnapshot(snapshot))
+      .then(() => {
+        const profiles: PersistedExtensionProfile[] = [...this._profiles.values()].map(
+          (profile) => ({ id: profile.id, name: profile.name })
+        )
+        const state = selection ?? {
+          selectedProfileId: this._selectedProfileId,
+          selectionVersion: this._selectionVersion
+        }
+        return this.saveProfileSnapshot({
+          version: 1 as const,
+          selectedProfileId: state.selectedProfileId,
+          selectionVersion: state.selectionVersion,
+          profiles
+        })
+      })
     return this._profilesWrite
   }
 

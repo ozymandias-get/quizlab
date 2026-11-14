@@ -207,6 +207,17 @@ async function writeCookie(
   }
 }
 
+/** Flushes the cookie store of the session and reports whether it failed. */
+async function flushStorage(targetSession: Session, context: string): Promise<boolean> {
+  try {
+    await targetSession.flushStorageData()
+    return false
+  } catch (error) {
+    Logger.warn(`[SiteSessionImporter] Storage could not be flushed${context}:`, error)
+    return true
+  }
+}
+
 /** Removes one cookie and reports whether it is gone. */
 async function removeCookie(
   targetSession: Session,
@@ -441,6 +452,11 @@ export interface ImportExternalCookiesResult {
   /** Cookies reached the store but the explicit disk flush failed. */
   flushFailed?: boolean
   /**
+   * Cookies of the same identity that were replaced by the last value in the
+   * packet. They were not written twice.
+   */
+  duplicatesDropped?: number
+  /**
    * Stale cookies that were deliberately kept because Electron's removal API
    * cannot target their identity without touching an imported namesake.
    *
@@ -448,6 +464,44 @@ export interface ImportExternalCookiesResult {
    * session is not an exact mirror of the browser.
    */
   staleCookiesKept?: number
+}
+
+/** The outcome of restoring the cookies the session held before an import. */
+interface SnapshotRestoreResult {
+  failed: boolean
+  flushFailed: boolean
+}
+
+/**
+ * Restores the snapshot of a session after a write or a flush failed.
+ *
+ * A rollback is only trusted when it could be verified and flushed: a restore
+ * that lives in memory but not on disk is exactly the state a restart would
+ * break.
+ */
+async function restoreSnapshot(
+  targetSession: Session,
+  snapshot: readonly ExternalBrowserCookie[],
+  writes: readonly { key: string }[],
+  allowedDomains: readonly string[]
+): Promise<SnapshotRestoreResult> {
+  const snapshotKeys = new Set(snapshot.map(externalCookieKey))
+  const newOnlyKeys = new Set(
+    writes.map((write) => write.key).filter((key) => !snapshotKeys.has(key))
+  )
+  const restoredImport = await importExternalCookies(targetSession, [...snapshot], allowedDomains)
+  const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
+  const snapshotRestored = await rollbackMatchesSnapshot(targetSession, snapshot, allowedDomains)
+  const flushFailed = await flushStorage(targetSession, ' after a rollback')
+  return {
+    failed:
+      restoredImport.failed > 0 ||
+      restoredImport.flushFailed === true ||
+      !removed ||
+      !snapshotRestored ||
+      flushFailed,
+    flushFailed
+  }
 }
 
 /**
@@ -465,8 +519,20 @@ export async function importExternalCookies(
   allowedDomains: readonly string[],
   options: ImportExternalCookiesOptions = {}
 ): Promise<ImportExternalCookiesResult> {
-  const writes: { payload: Electron.CookiesSetDetails; domain: string; key: string }[] = []
+  // One write per cookie identity. A packet can name the same cookie twice:
+  // the same host, name, path and scope with a different value, a different
+  // secure flag or a different expiry. Two concurrent `cookies.set` calls for
+  // the same identity would race inside the cookie store, and the final jar
+  // would depend on the order the network service happened to use. The last
+  // value of the packet wins, and every other identity — a host-only and a
+  // domain-wide cookie of the same name are two of them — is still written in
+  // parallel.
+  const writeByIdentity = new Map<
+    string,
+    { payload: Electron.CookiesSetDetails; domain: string; key: string }
+  >()
   const refusedByDomain = new Map<string, number>()
+  let duplicatesDropped = 0
 
   for (const cookie of cookies) {
     const domain = normalizeCookieDomain(cookie.domain)
@@ -481,11 +547,12 @@ export async function importExternalCookies(
     }
 
     const host = domainHost(domain)
-    writes.push({
-      payload,
-      domain,
-      key: cookieKey(host, payload.name, payload.path, packetScope(domain))
-    })
+    const key = cookieKey(host, payload.name, payload.path, packetScope(domain))
+    if (writeByIdentity.has(key)) duplicatesDropped += 1
+    // A replaced entry keeps the position of its last occurrence, which makes
+    // the order of the unique writes deterministic.
+    writeByIdentity.delete(key)
+    writeByIdentity.set(key, { payload, domain, key })
   }
 
   for (const [domain, count] of refusedByDomain) {
@@ -493,6 +560,15 @@ export async function importExternalCookies(
       `[SiteSessionImporter] ${count} cookie(s) of "${domain}" were refused: they carry no usable name.`
     )
   }
+  if (duplicatesDropped > 0) {
+    Logger.warn(
+      `[SiteSessionImporter] ${duplicatesDropped} duplicate cookie identity(s) were dropped; ` +
+        `the last value of the packet was written.`
+    )
+  }
+
+  const writes = [...writeByIdentity.values()]
+  const refusedCount = [...refusedByDomain.values()].reduce((sum, count) => sum + count, 0)
 
   // A rollback without a snapshot would be a guess. If the target cannot be
   // read, fail closed instead of writing cookies that can never be undone.
@@ -509,7 +585,7 @@ export async function importExternalCookies(
       )
       return {
         imported: 0,
-        failed: writes.length + [...refusedByDomain.values()].reduce((a, b) => a + b, 0),
+        failed: writes.length + refusedCount,
         rolledBack: true,
         rollbackFailed: true
       }
@@ -520,7 +596,7 @@ export async function importExternalCookies(
     writes.map((write) => writeCookie(targetSession, write.payload, write.domain))
   )
   const imported = outcomes.filter(Boolean).length
-  let failed = outcomes.length - imported + [...refusedByDomain.values()].reduce((a, b) => a + b, 0)
+  let failed = outcomes.length - imported + refusedCount
 
   const incoming: IncomingCookieIdentity[] = []
   for (const [index, outcome] of outcomes.entries()) {
@@ -545,41 +621,26 @@ export async function importExternalCookies(
     staleCookiesKept = cleanup.kept
   }
 
-  const flush = async (context: string): Promise<boolean> => {
-    try {
-      await targetSession.flushStorageData()
-      return false
-    } catch (error) {
-      Logger.warn(`[SiteSessionImporter] Storage could not be flushed${context}:`, error)
-      return true
-    }
-  }
+  const result = (): ImportExternalCookiesResult => ({
+    imported,
+    failed,
+    ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
+    ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+  })
 
   if (failed > 0 && options.rollbackOnPartialFailure && snapshot !== null) {
-    const snapshotKeys = new Set(snapshot.map(externalCookieKey))
-    const newOnlyKeys = new Set(
-      writes.map((write) => write.key).filter((key) => !snapshotKeys.has(key))
-    )
-    const restoredImport = await importExternalCookies(targetSession, snapshot, allowedDomains)
-    const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
-    const snapshotRestored = await rollbackMatchesSnapshot(targetSession, snapshot, allowedDomains)
-    const flushFailed = await flush(' after a rollback')
-    const rollbackFailed =
-      restoredImport.failed > 0 ||
-      restoredImport.flushFailed === true ||
-      !removed ||
-      !snapshotRestored ||
-      flushFailed
+    const rollback = await restoreSnapshot(targetSession, snapshot, writes, allowedDomains)
     Logger.warn(
       `[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up; ` +
-        `rolled back ${rollbackFailed ? 'incompletely' : 'to the previous session'}.`
+        `rolled back ${rollback.failed ? 'incompletely' : 'to the previous session'}.`
     )
     return {
       imported,
       failed,
       rolledBack: true,
-      rollbackFailed,
-      ...(flushFailed ? { flushFailed: true } : {}),
+      rollbackFailed: rollback.failed,
+      ...(rollback.flushFailed ? { flushFailed: true } : {}),
+      ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
       ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
     }
   }
@@ -594,11 +655,27 @@ export async function importExternalCookies(
     )
   }
 
-  const flushFailed = await flush('')
-  return {
-    imported,
-    failed,
-    ...(flushFailed ? { flushFailed: true } : {}),
-    ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+  const flushFailed = await flushStorage(targetSession, '')
+  if (flushFailed && options.rollbackOnPartialFailure && snapshot !== null) {
+    // The cookies reached the store but could not be written to disk. A
+    // restart may therefore load the old state while the user was told that
+    // the session was imported. The import is undone and the restored state is
+    // flushed as well; only a verified rollback is reported as such.
+    const rollback = await restoreSnapshot(targetSession, snapshot, writes, allowedDomains)
+    Logger.warn(
+      `[SiteSessionImporter] The import could not be flushed to disk; ` +
+        `rolled back ${rollback.failed ? 'incompletely' : 'to the previous session'}.`
+    )
+    return {
+      imported,
+      failed,
+      rolledBack: true,
+      rollbackFailed: rollback.failed,
+      flushFailed: true,
+      ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
+      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+    }
   }
+
+  return { ...result(), ...(flushFailed ? { flushFailed: true } : {}) }
 }

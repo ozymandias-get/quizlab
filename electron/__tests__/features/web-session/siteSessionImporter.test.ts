@@ -516,4 +516,217 @@ describe('importExternalCookies', () => {
 
     expect(warn).not.toHaveBeenCalled()
   })
+
+  describe('cookies with the same identity', () => {
+    it('writes one cookie when the packet carries the same identity twice', async () => {
+      const result = await importExternalCookies(
+        fakeSession(),
+        [
+          { name: 'session', value: 'first', domain: '.chatgpt.com' },
+          { name: 'session', value: 'second', domain: '.chatgpt.com' }
+        ],
+        ALLOWED
+      )
+
+      // Two concurrent writes of one identity would race inside the cookie
+      // store; the last value of the packet is the one a jar would keep.
+      expect(set).toHaveBeenCalledTimes(1)
+      expect(set.mock.calls[0][0]).toMatchObject({ name: 'session', value: 'second' })
+      expect(result).toMatchObject({ imported: 1, failed: 0, duplicatesDropped: 1 })
+    })
+
+    it('treats the same name under a different path as a different cookie', async () => {
+      const result = await importExternalCookies(
+        fakeSession(),
+        [
+          { name: 'session', value: 'root', domain: '.chatgpt.com', path: '/' },
+          { name: 'session', value: 'sub', domain: '.chatgpt.com', path: '/app' }
+        ],
+        ALLOWED
+      )
+
+      expect(set).toHaveBeenCalledTimes(2)
+      expect(result).toMatchObject({ imported: 2, failed: 0 })
+      expect(result.duplicatesDropped).toBeUndefined()
+    })
+
+    it('treats a host-only and a domain-wide cookie as two cookies', async () => {
+      await importExternalCookies(
+        fakeSession(),
+        [
+          { name: 'session', value: 'host', domain: 'chatgpt.com' },
+          { name: 'session', value: 'wide', domain: '.chatgpt.com' }
+        ],
+        ALLOWED
+      )
+
+      expect(set).toHaveBeenCalledTimes(2)
+      const payloads = set.mock.calls.map((call) => call[0] as Record<string, unknown>)
+      expect(payloads[0].domain).toBeUndefined()
+      expect(payloads[1].domain).toBe('.chatgpt.com')
+    })
+
+    it('treats the same name and path with another secure flag as one identity', async () => {
+      // The secure flag is not part of a cookie's identity in the jar: the two
+      // entries would target the same row, so only the last one may be written.
+      const result = await importExternalCookies(
+        fakeSession(),
+        [
+          { name: 'session', value: 'plain', domain: '.chatgpt.com', secure: false },
+          { name: 'session', value: 'secure', domain: '.chatgpt.com', secure: true }
+        ],
+        ALLOWED
+      )
+
+      expect(set).toHaveBeenCalledTimes(1)
+      expect(set.mock.calls[0][0]).toMatchObject({ value: 'secure', secure: true })
+      expect(result).toMatchObject({ imported: 1, duplicatesDropped: 1 })
+    })
+  })
+
+  describe('the persistence of an import', () => {
+    /**
+     * A session with a cookie jar a test can inspect.
+     *
+     * `failFlush` makes the first N flush calls fail, which is how a disk that
+     * cannot accept the write is simulated.
+     */
+    function jarSession(options: { failFlush?: number } = {}) {
+      const jar = new Map<
+        string,
+        {
+          name: string
+          value: string
+          domain: string
+          path: string
+          secure: boolean
+          hostOnly: boolean
+          httpOnly: boolean
+          sameSite: string
+          expirationDate?: number
+        }
+      >()
+      let flushCalls = 0
+      const identity = (host: string, name: string, cookiePath: string, hostOnly: boolean) =>
+        `${host}::${name}::${cookiePath}::${hostOnly ? 'host' : 'domain'}`
+      const session = {
+        cookies: {
+          set: async (payload: {
+            url: string
+            name: string
+            value: string
+            domain?: string
+            path?: string
+            secure?: boolean
+            httpOnly?: boolean
+            sameSite?: string
+            expirationDate?: number
+          }) => {
+            const host = (payload.domain ?? new URL(payload.url).hostname).replace(/^\.+/, '')
+            const hostOnly = !payload.domain
+            jar.set(identity(host, payload.name, payload.path || '/', hostOnly), {
+              name: payload.name,
+              value: payload.value,
+              domain: payload.domain ?? host,
+              path: payload.path || '/',
+              secure: payload.secure === true,
+              hostOnly,
+              httpOnly: payload.httpOnly === true,
+              sameSite: payload.sameSite ?? 'unspecified',
+              expirationDate: payload.expirationDate
+            })
+            return {}
+          },
+          get: async () => [...jar.values()],
+          remove: async (url: string, name: string) => {
+            const parsed = new URL(url)
+            const host = parsed.hostname
+            for (const [key, cookie] of jar) {
+              if (cookie.name !== name) continue
+              if (cookie.domain.replace(/^\.+/, '') !== host) continue
+              if (!parsed.pathname.startsWith(cookie.path)) continue
+              jar.delete(key)
+            }
+            return {}
+          }
+        },
+        flushStorageData: async () => {
+          flushCalls += 1
+          if (options.failFlush !== undefined && flushCalls <= options.failFlush) {
+            throw new Error('disk full')
+          }
+        }
+      }
+      return { session: session as never, jar }
+    }
+
+    const PREVIOUS = {
+      name: 'old-session',
+      value: 'old',
+      domain: '.chatgpt.com',
+      path: '/',
+      secure: true,
+      hostOnly: false,
+      httpOnly: true,
+      sameSite: 'lax'
+    }
+
+    it('restores and flushes the previous jar when the import cannot be flushed', async () => {
+      const { session, jar } = jarSession({ failFlush: 1 })
+      jar.set('chatgpt.com::old-session::/::domain', { ...PREVIOUS })
+
+      const result = await importExternalCookies(
+        session,
+        [{ name: 'session', value: 'new', domain: '.chatgpt.com', secure: true }],
+        ALLOWED,
+        { rollbackOnPartialFailure: true }
+      )
+
+      // The write reached the store but not the disk, so it was undone; the
+      // restarted app has to load the state the user had before.
+      expect(result).toMatchObject({
+        rolledBack: true,
+        rollbackFailed: false,
+        flushFailed: true
+      })
+      expect([...jar.keys()]).toEqual(['chatgpt.com::old-session::/::domain'])
+      expect(jar.get('chatgpt.com::old-session::/::domain')?.value).toBe('old')
+    })
+
+    it('reports a rollback that could not be flushed as unverified', async () => {
+      const { session, jar } = jarSession({ failFlush: Number.MAX_SAFE_INTEGER })
+      jar.set('chatgpt.com::old-session::/::domain', { ...PREVIOUS })
+
+      const result = await importExternalCookies(
+        session,
+        [{ name: 'session', value: 'new', domain: '.chatgpt.com', secure: true }],
+        ALLOWED,
+        { rollbackOnPartialFailure: true }
+      )
+
+      // Neither the import nor the restore is on disk: the caller has to treat
+      // the session as unverified (quarantine) instead of retrying blindly.
+      expect(result).toMatchObject({
+        rolledBack: true,
+        rollbackFailed: true,
+        flushFailed: true
+      })
+    })
+
+    it('reports a durable import as a success', async () => {
+      const { session, jar } = jarSession()
+      jar.set('chatgpt.com::old-session::/::domain', { ...PREVIOUS })
+
+      const result = await importExternalCookies(
+        session,
+        [{ name: 'session', value: 'new', domain: '.chatgpt.com', secure: true }],
+        ALLOWED,
+        { rollbackOnPartialFailure: true }
+      )
+
+      expect(result).toMatchObject({ imported: 1, failed: 0 })
+      expect(result.flushFailed).toBeUndefined()
+      expect([...jar.keys()]).toEqual(['chatgpt.com::session::/::domain'])
+    })
+  })
 })

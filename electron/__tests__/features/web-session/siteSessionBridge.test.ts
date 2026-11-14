@@ -429,6 +429,31 @@ describe('site session bridge', () => {
     expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'packet_too_large')
     expect(set).not.toHaveBeenCalled()
   })
+
+  it('records an import that could not be flushed as failed and retryable', async () => {
+    // The rollback put the previous session back, so the retry is safe — but
+    // the user was not given a session, and the row must not say otherwise.
+    read.mockResolvedValue(stateWith(true))
+    const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
+    clearStorageData.mockClear()
+    fakeSession.flushStorageData.mockRejectedValueOnce(new Error('disk full'))
+
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    warn.mockRestore()
+
+    expect(outcome).toMatchObject({
+      accepted: true,
+      importSucceeded: false,
+      rolledBack: true,
+      rollbackFailed: false,
+      retryable: true
+    })
+    expect(recordResult).toHaveBeenCalledWith('chatgpt', 'failed', 'flush_failed')
+  })
 })
 
 describe('the renderer', () => {
@@ -468,6 +493,23 @@ describe('the renderer', () => {
     })
 
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('tells the renderer about a browser that holds no session', async () => {
+    // The row changed from "imported" to "no session in the browser", so the
+    // renderer has to hear about the status packet just like an import.
+    read.mockResolvedValue(stateWith(true))
+
+    await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'no_cookies',
+      cookies: []
+    })
+
+    expect(send).toHaveBeenCalledWith(
+      APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED,
+      expect.objectContaining({ extensionConnected: true })
+    )
   })
 
   it('tells the renderer about a packet that did not fit into the bridge', async () => {
@@ -620,5 +662,46 @@ describe('a round of packets', () => {
     )
 
     expect(loadTargets).toHaveBeenCalledTimes(2)
+  })
+
+  it('serializes two imports of the same site', async () => {
+    // Two packets can arrive together, for example a manual transfer while a
+    // cookie change is being pushed. The second one must not write its own
+    // snapshot over the first one, so the site's lock runs them in order.
+    read.mockResolvedValue(stateWith(true))
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let firstWrite = true
+    set.mockImplementation(async () => {
+      if (firstWrite) {
+        firstWrite = false
+        await gate
+      }
+      return {}
+    })
+
+    const first = acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'first', domain: '.chatgpt.com', secure: true }]
+    })
+    const second = acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'second', domain: '.chatgpt.com', secure: true }]
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(set).toHaveBeenCalledTimes(1)
+
+    release()
+    await Promise.all([first, second])
+
+    expect(set.mock.calls.map((call) => (call[0] as { value: string }).value)).toEqual([
+      'first',
+      'second'
+    ])
   })
 })

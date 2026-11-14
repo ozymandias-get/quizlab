@@ -35,6 +35,15 @@ const PROFILE_NAME_KEY = 'profileName'
 const DEFAULT_PROFILE_NAME = 'Chrome'
 const MAX_PROFILE_NAME_LENGTH = 60
 /**
+ * The cookie changes of one site are collected for this long, so that a login
+ * writes one packet instead of a dozen. The queue is also written to the
+ * session store: a service worker that is killed inside this window still
+ * delivers the change when it is woken up again.
+ */
+const COOKIE_DEBOUNCE_MS = 2000
+/** How soon a packet the app asked to retry is sent again. */
+const RETRY_DELAY_MS = 1000
+/**
  * The pairing code the user copies from the app's settings page.
  *
  * It is stored in `chrome.storage.local` by the popup and read by this worker.
@@ -48,6 +57,8 @@ const STORAGE_KEYS = [
   'bridgePort',
   'bridgeInstanceId',
   'pendingSiteIds',
+  'pendingChangedDomains',
+  'pairingInvalid',
   'outdatedState',
   'tooLargeSiteIds',
   'lastSelectedProfileId',
@@ -62,13 +73,23 @@ const SYNC_UNREACHABLE = 'unreachable'
 const SYNC_REFUSED = 'refused'
 /** This Chrome profile is not the cookie source the user selected. */
 const SYNC_NOT_SELECTED = 'not_selected'
+/** The app answered, but the pairing code it was signed with is not its own. */
+const SYNC_UNAUTHORIZED = 'unauthorized'
+/** The browser holds no session for the sites that were pushed. */
+const SYNC_NO_COOKIES = 'no_cookies'
+/** The extension may not read the sites that were pushed. */
+const SYNC_PERMISSION_MISSING = 'permission_missing'
 
-/** The app took the packet. */
+/** The app imported the packet (or took a packet that carried no cookies). */
 const PACKET_SENT = 'sent'
+/** The app recorded the browser state; there was nothing to import. */
+const PACKET_ACCEPTED = 'accepted'
 /** The app refused the packet because it was too large to read. */
 const PACKET_TOO_LARGE = 'too_large'
-/** The app refused the packet for another reason. */
+/** The app refused the packet for good; the same packet cannot succeed. */
 const PACKET_REFUSED = 'refused'
+/** The app refused the packet for now and asked for a fresh round. */
+const PACKET_RETRY = 'retry'
 /** The request never reached the app. */
 const PACKET_UNREACHABLE = 'unreachable'
 
@@ -80,6 +101,8 @@ let bridgeSecret = null
 let profileId = null
 /** The name the user gave this Chrome profile. */
 let profileName = DEFAULT_PROFILE_NAME
+/** Whether the app rejected the pairing code the worker currently holds. */
+let pairingInvalid = false
 /** The profile the app last named as the cookie source. */
 let lastSelectedProfileId = null
 /** The app's selection revision this worker last saw. */
@@ -96,10 +119,20 @@ let pendingSiteIds = new Set()
 let tooLargeSiteIds = new Set()
 /** The state the app was last told about while it speaks an older protocol. */
 let outdatedState = null
+/** Whether the last answered site list named this profile as the source. */
+let lastSelectionWasSource = null
 let autoSync = true
 /** What the last push sent, so that the same state is not sent twice. */
 let lastPush = null
 let pendingSend = Promise.resolve(SYNC_OK)
+/** The scan that is running, so that two callers share one connection state. */
+let scanInFlight = null
+/** The alarm transition that is running, so that two modes never coexist. */
+let alarmSwitch = Promise.resolve()
+/** The timer of a packet the app asked to retry. */
+let retryTimer = null
+/** The last write of the changed-domain queue. */
+let changedDomainsWrite = Promise.resolve()
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -260,6 +293,16 @@ async function readPersistedState() {
     if (Array.isArray(stored.pendingSiteIds)) {
       pendingSiteIds = new Set(stored.pendingSiteIds.filter((id) => typeof id === 'string'))
     }
+    // A cookie change that was queued before the worker was killed is still
+    // waiting: the next send that reaches the app applies it.
+    if (Array.isArray(stored.pendingChangedDomains)) {
+      for (const domain of stored.pendingChangedDomains) {
+        if (typeof domain === 'string' && domain) changedDomains.add(domain)
+      }
+    }
+    if (stored.pairingInvalid === true) {
+      pairingInvalid = true
+    }
     if (Array.isArray(stored.tooLargeSiteIds)) {
       tooLargeSiteIds = new Set(stored.tooLargeSiteIds.filter((id) => typeof id === 'string'))
     }
@@ -299,6 +342,20 @@ async function persistState(values) {
   }
 }
 
+/**
+ * Writes the queue of changed domains, one write at a time.
+ *
+ * The value is built when the write runs: a change that is added while an
+ * earlier write is still on its way is part of the later write and cannot be
+ * overwritten by the older snapshot.
+ */
+function persistChangedDomains() {
+  changedDomainsWrite = changedDomainsWrite
+    .catch(() => undefined)
+    .then(() => persistState({ pendingChangedDomains: [...changedDomains] }))
+  return changedDomainsWrite
+}
+
 const stateReady = ensureProfileIdentity().then(() => readPersistedState())
 
 /**
@@ -307,8 +364,13 @@ const stateReady = ensureProfileIdentity().then(() => readPersistedState())
  * The answer is signed like every other request: the extension reads the
  * pairing code the user pasted into the popup, and the site list is only
  * given to a caller that proves it holds that code.
+ *
+ * The outcome is told apart because the caller has to know whether the app was
+ * there at all: a 401 is the app telling us that the pairing code is not the
+ * one it holds, and every other failure means the request itself did not go
+ * through.
  */
-async function fetchSiteList(port) {
+async function requestSiteList(port) {
   try {
     const headers = baseHeaders()
     if (bridgeSecret) {
@@ -319,6 +381,7 @@ async function fetchSiteList(port) {
       headers,
       signal: AbortSignal.timeout(2000)
     })
+    if (response.status === 401) return { outcome: 'unauthorized' }
     if (!response.ok) {
       console.warn(
         '[Quizlab Bridge] The site list request on port',
@@ -326,10 +389,10 @@ async function fetchSiteList(port) {
         'answered with',
         response.status
       )
-      return null
+      return { outcome: 'error', status: response.status }
     }
     const data = await response.json()
-    if (!data || typeof data !== 'object') return null
+    if (!data || typeof data !== 'object') return { outcome: 'error' }
 
     const protocolVersion = typeof data.protocolVersion === 'number' ? data.protocolVersion : 0
     const targets = normalizeTargets(data.targets)
@@ -341,25 +404,31 @@ async function fetchSiteList(port) {
         protocolVersion,
         'and cannot read the per-site packets'
       )
-      return { protocolVersion, configVersion: 0, targets, outdated: true }
+      return {
+        outcome: 'ok',
+        list: { protocolVersion, configVersion: 0, targets, outdated: true }
+      }
     }
     return {
-      protocolVersion,
-      configVersion: typeof data.configVersion === 'number' ? data.configVersion : 0,
-      targets,
-      selectedProfileId:
-        typeof data.selectedProfileId === 'string' && data.selectedProfileId
-          ? data.selectedProfileId
-          : null,
-      selectionVersion:
-        typeof data.selectionVersion === 'number' && Number.isFinite(data.selectionVersion)
-          ? Math.max(0, Math.floor(data.selectionVersion))
-          : 0,
-      outdated: false
+      outcome: 'ok',
+      list: {
+        protocolVersion,
+        configVersion: typeof data.configVersion === 'number' ? data.configVersion : 0,
+        targets,
+        selectedProfileId:
+          typeof data.selectedProfileId === 'string' && data.selectedProfileId
+            ? data.selectedProfileId
+            : null,
+        selectionVersion:
+          typeof data.selectionVersion === 'number' && Number.isFinite(data.selectionVersion)
+            ? Math.max(0, Math.floor(data.selectionVersion))
+            : 0,
+        outdated: false
+      }
     }
   } catch (error) {
     console.warn('[Quizlab Bridge] The site list request failed:', errorMessage(error))
-    return null
+    return { outcome: 'error' }
   }
 }
 
@@ -407,13 +476,14 @@ function isPairingCode(value) {
  * this code.
  */
 async function rememberSecret(secret) {
-  if (secret === bridgeSecret) return
   bridgeSecret = secret
   await persistState({ bridgeSecret: secret })
   try {
     await chrome.storage.local.set({ bridgeSecret: secret })
+    return true
   } catch (error) {
     console.warn('[Quizlab Bridge] The pairing code could not be saved:', errorMessage(error))
+    return false
   }
 }
 
@@ -574,10 +644,19 @@ async function collectTargetPacket(target) {
 /**
  * Sends the packet of one site to the app.
  *
- * The answer of the app is told apart in four ways: the app took the packet,
- * the app refused it, the app refused it because it was too large to read, or
- * the request never reached the app. The last one is the only one that says
- * nothing about the packet itself.
+ * The answer of the app is told apart in six ways. The important distinction
+ * is not "did the HTTP request succeed" but "is this packet finished":
+ *
+ *   - the app imported it;
+ *   - the app recorded a browser state that has nothing to import (empty
+ *     session, missing permission);
+ *   - the app refused it for good, so sending it again cannot help;
+ *   - the app refused it for now (another round, a profile switch) and asked
+ *     for a retry;
+ *   - the packet was too large for the app to read; or
+ *   - the request never reached the app.
+ *
+ * Only the last one says nothing about the packet itself.
  */
 async function postPacket(packet, port) {
   try {
@@ -598,6 +677,15 @@ async function postPacket(packet, port) {
       // it is not sent again.
       return PACKET_TOO_LARGE
     }
+
+    let result = null
+    try {
+      result = await response.json()
+    } catch {
+      result = null
+    }
+    const retryable = result?.retryable === true
+
     if (!response.ok) {
       console.warn(
         '[Quizlab Bridge] The app refused the packet of',
@@ -605,18 +693,33 @@ async function postPacket(packet, port) {
         'with',
         response.status
       )
+      // A server error is transient; a refusal with an explicit retry flag is
+      // a round the app has already replaced.
+      if (response.status >= 500 || retryable) return PACKET_RETRY
       return PACKET_REFUSED
     }
-    const result = await response.json()
-    if (
-      packet.status !== 'ok' ||
-      result.success === false ||
-      (typeof result.imported === 'number' && result.imported === 0) ||
-      result.failed > 0
-    ) {
-      return PACKET_REFUSED
+
+    if (result && result.accepted === true) {
+      if (packet.status !== 'ok') {
+        // "the browser holds no session" and "the extension may not read the
+        // site" are normal states the app recorded. There is nothing to
+        // import, and sending the same report again would only repeat it.
+        return PACKET_ACCEPTED
+      }
+      if (result.importSucceeded === true) return PACKET_SENT
+      // The app took the packet but the session was not written. A retry is
+      // worth it only when the app says so; a failed rollback is final.
+      return retryable ? PACKET_RETRY : PACKET_REFUSED
     }
-    return PACKET_SENT
+
+    // An app that predates the `accepted`/`importSucceeded` fields answers
+    // with `success` alone. It cannot tell an import from a recorded browser
+    // state, so the packet status decides what the answer means.
+    if (result && result.success === true) {
+      return packet.status === 'ok' ? PACKET_SENT : PACKET_ACCEPTED
+    }
+    if (result && result.success === false && packet.status !== 'ok') return PACKET_ACCEPTED
+    return retryable ? PACKET_RETRY : PACKET_REFUSED
   } catch (error) {
     console.warn(
       '[Quizlab Bridge] The packet of',
@@ -674,16 +777,24 @@ function statePushedTo(list, fingerprint) {
 /**
  * Sends one packet per site.
  *
- * A site whose packet the app refused is remembered: it is pushed again with
- * the next poll, because the app may have refused it for a reason that is
- * gone by then.
+ * The outcome of every packet is counted, because the caller has to tell the
+ * user *why* a manual transfer did not import anything. A site whose packet
+ * the app refused for good is not queued again; a site the app asked to retry
+ * stays queued and gets one short retry.
  *
  * A site whose packet did not fit into the app is remembered as well, but the
  * other way round: it is not pushed again, because a packet that is too large
  * stays too large.
  */
 async function pushTargets(targets, port) {
-  let refused = false
+  const summary = {
+    imported: 0,
+    noCookies: 0,
+    permissionMissing: 0,
+    tooLarge: 0,
+    refused: 0,
+    retry: 0
+  }
   for (const target of targets) {
     if (tooLargeSiteIds.has(target.siteId)) continue
     let packet
@@ -692,35 +803,62 @@ async function pushTargets(targets, port) {
     } catch {
       // Retain the site for the next poll, but keep syncing the other sites.
       pendingSiteIds.add(target.siteId)
-      refused = true
+      summary.retry += 1
+      scheduleRetry()
       continue
     }
     const outcome = await postPacket(packet, port)
     if (outcome === PACKET_SENT) {
       pendingSiteIds.delete(target.siteId)
+      summary.imported += 1
+    } else if (outcome === PACKET_ACCEPTED) {
+      pendingSiteIds.delete(target.siteId)
+      // The app recorded the browser state. It is not a failed transfer, but
+      // it is also not an imported session, and the user may have to act.
+      if (packet.status === 'permission_missing') summary.permissionMissing += 1
+      else if (packet.status === 'no_cookies') summary.noCookies += 1
+      else summary.imported += 1
     } else if (outcome === PACKET_TOO_LARGE) {
       pendingSiteIds.delete(target.siteId)
       tooLargeSiteIds.add(target.siteId)
+      summary.tooLarge += 1
       // The state did not reach the app entirely, so the app has to be told
       // about it again when it asks for something new.
-      refused = true
       console.warn(
         '[Quizlab Bridge] The packet of',
         target.siteId,
         'is too large for the app; it is not pushed again'
       )
-    } else {
+    } else if (outcome === PACKET_RETRY) {
       pendingSiteIds.add(target.siteId)
-      refused = true
+      summary.retry += 1
+      scheduleRetry()
+    } else if (outcome === PACKET_UNREACHABLE) {
+      // The connection is gone; the scan and the heartbeat own the retry.
+      pendingSiteIds.add(target.siteId)
+      summary.retry += 1
+    } else {
+      // Refused for good: retrying the same packet would only repeat it.
+      pendingSiteIds.delete(target.siteId)
+      summary.refused += 1
     }
     // Only the site, the domains, the outcome and the count are logged. A
     // cookie value never reaches the log.
     console.log(
       `[Quizlab Bridge] ${target.siteId} (${target.cookieDomains.join(', ')}): ` +
-        `${packet.status}, ${packet.cookies.length} cookies`
+        `${packet.status}, ${packet.cookies.length} cookies, ${outcome}`
     )
   }
-  return refused
+  return summary
+}
+
+/** Sends the queue again soon, because the app asked for a fresh round. */
+function scheduleRetry() {
+  if (retryTimer) return
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    void queueSend({})
+  }, RETRY_DELAY_MS)
 }
 
 /**
@@ -776,8 +914,28 @@ async function sendCookiesToApp(options) {
   // popup is where the user enters it.
   if (!bridgeSecret) return SYNC_UNREACHABLE
 
-  const list = await fetchSiteList(port)
-  if (!list) return SYNC_UNREACHABLE
+  const request = await requestSiteList(port)
+  if (request.outcome === 'unauthorized') {
+    // The app answered, so it is running; it does not know this pairing code.
+    // This is not the same as "the app is not there", and the user can fix it
+    // only by pairing again.
+    console.warn('[Quizlab Bridge] The app rejected the pairing code of this extension')
+    return SYNC_UNAUTHORIZED
+  }
+  if (request.outcome !== 'ok') return SYNC_UNREACHABLE
+  const list = request.list
+
+  // The signed list proves that the app answered this worker. The cookie
+  // changes that were queued for it belong to this round — including the ones
+  // that were queued before a service-worker restart.
+  const changedDomainsForSend = new Set(changedDomains)
+  if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
+    changedDomainsForSend.add(settings.changedDomain)
+  }
+  changedDomains.clear()
+  // A change that arrived while the list was being fetched stays queued and
+  // is written back with the rest of the queue.
+  await persistChangedDomains()
 
   if (list.outdated) {
     await reportOutdatedOnce(list, port)
@@ -790,6 +948,7 @@ async function sendCookiesToApp(options) {
   }
 
   const isSelected = Boolean(profileId) && list.selectedProfileId === profileId
+  lastSelectionWasSource = isSelected
   const selectionVersion = list.selectionVersion
   // The revision catches A -> B -> A between two polls: the profile sees that
   // the source changed even though it is selected again by the time it asks.
@@ -819,11 +978,9 @@ async function sendCookiesToApp(options) {
   }
 
   if (settings.forceAll === true) {
-    // A manual sync only switches auto-sync off when it can actually deliver;
-    // a profile that is not the source must not change the user's setting.
-    autoSync = false
-    await chrome.storage.local.set({ autoSync })
-    pendingSiteIds.clear()
+    // The whole manual transfer pushes every site, so a retry queue is not
+    // needed. A transfer for one site keeps the queue of the others.
+    if (!settings.targetId) pendingSiteIds.clear()
   }
 
   if (!autoSync && settings.forceAll !== true) {
@@ -859,8 +1016,8 @@ async function sendCookiesToApp(options) {
   const wanted = new Set(pendingSiteIds)
   for (const target of list.targets) {
     if (changed || selectionChanged || settings.forceAll === true) wanted.add(target.siteId)
-    if (typeof settings.changedDomain === 'string' && settings.changedDomain) {
-      if (targetCoversDomain(target, settings.changedDomain)) {
+    for (const changedDomain of changedDomainsForSend) {
+      if (targetCoversDomain(target, changedDomain)) {
         // A changed cookie can make a previously oversized packet smaller.
         tooLargeSiteIds.delete(target.siteId)
         wanted.add(target.siteId)
@@ -919,16 +1076,34 @@ async function sendCookiesToApp(options) {
     tooLargeSiteIds: [...tooLargeSiteIds]
   })
 
-  const refused = await pushTargets(targets, port)
+  const summary = await pushTargets(targets, port)
   if (changed) {
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
     applyWakeUpFilter()
   }
-  if (!refused && targets.length === list.targets.length) {
+  const incomplete = summary.refused > 0 || summary.retry > 0 || summary.tooLarge > 0
+  if (!incomplete && targets.length === list.targets.length) {
     // The whole state reached the bridge: it does not have to be sent again.
     lastPush = { instanceId: bridgeInstanceId, configVersion: list.configVersion, fingerprint }
   }
+
+  // A manual "sync now" is a one-off action that stops the automatic mirror —
+  // but only when it really delivered something. A failed attempt must not
+  // change a preference the user set for the automatic path. The preference is
+  // written before the worker reports it; a failed write leaves it as it was.
+  if (settings.forceAll === true && summary.imported > 0 && autoSync) {
+    try {
+      await chrome.storage.local.set({ autoSync: false })
+      autoSync = false
+    } catch (error) {
+      console.warn(
+        '[Quizlab Bridge] The automatic sync preference could not be turned off:',
+        errorMessage(error)
+      )
+    }
+  }
+
   await persistState({
     lastConfigVersion,
     knownTargets,
@@ -937,7 +1112,15 @@ async function sendCookiesToApp(options) {
     lastSelectedProfileId,
     lastSelectionVersion
   })
-  return refused ? SYNC_REFUSED : SYNC_OK
+
+  if (incomplete) return SYNC_REFUSED
+  if (summary.imported === 0) {
+    // Nothing was written. The row of the site says why; a "success" here would
+    // tell the user a session was transferred that never existed.
+    if (summary.permissionMissing > 0) return SYNC_PERMISSION_MISSING
+    if (summary.noCookies > 0) return SYNC_NO_COOKIES
+  }
+  return SYNC_OK
 }
 
 /**
@@ -958,22 +1141,92 @@ function queueSend(options) {
   return pendingSend
 }
 
+/**
+ * The alarms are switched as one serialized transition.
+ *
+ * `enterScanMode` and `setupHeartbeat` are called from the scan and from the
+ * heartbeat at the same time. Clearing one alarm and creating the other are
+ * separate asynchronous calls, so two transitions that interleave would leave
+ * both alarms behind — a scan and a heartbeat that both keep the worker awake.
+ * Every transition therefore runs after the previous one finished.
+ */
+function switchAlarmMode(mode) {
+  const next = alarmSwitch
+    .catch(() => undefined)
+    .then(async () => {
+      if (mode === 'scan') {
+        connected = false
+        await chrome.alarms.clear(HEARTBEAT_ALARM).catch(() => false)
+        // The scan alarm is periodic as well: a scan that cannot re-arm itself
+        // (a worker killed mid-scan) would otherwise stop the reconnect loop.
+        await chrome.alarms.create(SCAN_ALARM, {
+          delayInMinutes: SCAN_INTERVAL_MS / 60000,
+          periodInMinutes: SCAN_INTERVAL_MS / 60000
+        })
+      } else {
+        connected = true
+        await chrome.alarms.clear(SCAN_ALARM).catch(() => false)
+        await chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: POLL_INTERVAL_MIN })
+      }
+    })
+  alarmSwitch = next
+  return next
+}
+
 function enterScanMode() {
-  // RULE: Always keep a scan alarm active when disconnected.
-  // This ensures the SW can be woken by the alarm system.
-  connected = false
-  chrome.alarms.clear(HEARTBEAT_ALARM).catch(() => {})
-  chrome.alarms.create(SCAN_ALARM, { delayInMinutes: SCAN_INTERVAL_MS / 60000 })
+  // RULE: Always keep a scan alarm active when disconnected. This ensures the
+  // service worker can be woken by the alarm system.
+  return switchAlarmMode('scan')
 }
 
 function setupHeartbeat() {
   // RULE: Always keep a heartbeat alarm active when connected.
-  connected = true
-  chrome.alarms.clear(SCAN_ALARM).catch(() => {})
-  chrome.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: POLL_INTERVAL_MIN })
+  return switchAlarmMode('heartbeat')
 }
 
-async function scanForBridge() {
+/** Remembers whether the app rejected the pairing code of this worker. */
+async function setPairingInvalid(invalid) {
+  if (pairingInvalid === invalid) return
+  pairingInvalid = invalid
+  await persistState({ pairingInvalid: invalid })
+}
+
+/**
+ * Looks for the bridge and brings the app up to date.
+ *
+ * Only one scan runs at a time. The worker is started by six different events
+ * (the module load, `onInstalled`, `onStartup`, the scan alarm, a navigation
+ * wake-up and the pairing action) and several of them can fire together. Two
+ * scans would each pick a port, each write `connected` and each switch the
+ * alarms, so the one that finishes last would decide the connection state.
+ * Every caller shares the scan that is running instead.
+ *
+ * A pairing scan cannot share one: it runs with a candidate secret that the
+ * worker does not own yet, so it waits for the running scan and then runs its
+ * own.
+ */
+function scanForBridge(options) {
+  const settings = options || {}
+  if (scanInFlight) {
+    if (!settings.force) return scanInFlight
+    return waitForScan(settings)
+  }
+  const run = performScan(settings).finally(() => {
+    if (scanInFlight === run) scanInFlight = null
+  })
+  scanInFlight = run
+  return run
+}
+
+/** Waits for the running scan, then starts a fresh one. */
+async function waitForScan(settings) {
+  while (scanInFlight) {
+    await scanInFlight.catch(() => SYNC_UNREACHABLE)
+  }
+  return scanForBridge(settings)
+}
+
+async function performScan(settings) {
   await stateReady
   try {
     for (let port = PORT_START; port <= PORT_END; port++) {
@@ -982,7 +1235,7 @@ async function scanForBridge() {
       if (!bridgeSecret) {
         // The bridge is there, but the extension is not paired yet. Staying in
         // scan mode keeps the popup's pairing action the only way forward.
-        enterScanMode()
+        await enterScanMode()
         return SYNC_UNREACHABLE
       }
 
@@ -994,28 +1247,40 @@ async function scanForBridge() {
         typeof health.instanceId === 'string' && health.instanceId !== bridgeInstanceId
       if (typeof health.instanceId === 'string') bridgeInstanceId = health.instanceId
       bridgePort = port
-      connected = true
-      await persistState({ bridgePort: port, bridgeInstanceId })
 
-      const result = await queueSend({ port, connect: justConnected })
-      if (result === SYNC_UNREACHABLE) {
-        // Bridge is up but did not answer — keep scanning so the next alarm
-        // retries instead of hanging in a fake "connected".
-        enterScanMode()
-      } else {
-        setupHeartbeat()
+      const result = await queueSend({
+        port,
+        connect: justConnected,
+        // A pairing is the user asking for the sessions: it pushes the sites
+        // even when this bridge already had them.
+        resync: settings.resync === true
+      })
+      if (result === SYNC_UNREACHABLE || result === SYNC_UNAUTHORIZED) {
+        // The app is up but did not confirm the connection. The worker must not
+        // stay in a fake "connected" state: it goes back to scanning, and the
+        // scan alarm is always (re-)armed.
+        if (result === SYNC_UNAUTHORIZED && !settings.probe) {
+          await setPairingInvalid(true)
+        }
+        await enterScanMode()
+        return result
       }
+
+      // The bridge answered with a signed list, so the port and the instance
+      // are worth remembering. A probe does not write them on failure.
+      await persistState({ bridgePort, bridgeInstanceId })
+      await setPairingInvalid(false)
+      await setupHeartbeat()
       return result
     }
 
-    // Bridge not found — enter scan mode if not already scanning.
-    if (!connected) {
-      enterScanMode()
-    }
+    // No port answered. This also covers a worker that still believed it was
+    // connected: a failed scan always means "disconnected now".
+    await enterScanMode()
     return SYNC_UNREACHABLE
   } catch (error) {
     console.warn('[Quizlab Bridge] The bridge scan failed:', errorMessage(error))
-    if (!connected) enterScanMode()
+    await enterScanMode()
     return SYNC_UNREACHABLE
   }
 }
@@ -1028,13 +1293,20 @@ async function handleCookieChange(changeInfo) {
   if (typeof domain !== 'string' || !domain) return
   if (!isKnownDomain(domain)) return
 
+  // The queue is written before the debounce starts. A service worker that is
+  // killed inside the two seconds otherwise loses the change: the heartbeat
+  // only pushes what changed, and nothing would tell it about this cookie.
+  const isNewDomain = !changedDomains.has(domain)
   changedDomains.add(domain)
+  if (isNewDomain) await persistChangedDomains()
+
   if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer)
   cookieDebounceTimer = setTimeout(() => {
     cookieDebounceTimer = null
-    for (const changedDomain of changedDomains) void queueSend({ changedDomain })
-    changedDomains.clear()
-  }, 2000)
+    // The send drains the queue itself once it has reached the app, so a change
+    // that never got there is not lost with the timer.
+    void queueSend({})
+  }, COOKIE_DEBOUNCE_MS)
 }
 
 // Event listeners registered synchronously at top level (MV3 requirement)
@@ -1046,10 +1318,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // The heartbeat polls the site list of the bridge it knows. It only
     // pushes when the app asked for something else than it did the last time.
     void queueSend({}).then((result) => {
-      if (result === SYNC_UNREACHABLE) {
+      if (result === SYNC_UNREACHABLE || result === SYNC_UNAUTHORIZED) {
         // Re-enter scan mode when the bridge is gone so the reconnect loop
         // keeps running instead of silently stopping the session sync.
-        enterScanMode()
+        if (result === SYNC_UNAUTHORIZED) void setPairingInvalid(true)
+        void enterScanMode()
       }
     })
   }
@@ -1127,15 +1400,30 @@ function applyWakeUpFilter() {
 if (chrome.runtime?.onMessage?.addListener) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === 'set_auto_sync') {
+      const enabled = message.enabled === true
       stateReady
         .then(async () => {
-          autoSync = message.enabled === true
-          await chrome.storage.local.set({ autoSync })
-          return queueSend(autoSync ? { resync: true } : {})
+          // The preference is written before the worker behaves differently:
+          // a failed write used to leave the worker mirroring (or not
+          // mirroring) a state that the next restart would not read.
+          try {
+            if (autoSync !== enabled) await chrome.storage.local.set({ autoSync: enabled })
+          } catch (error) {
+            console.warn(
+              '[Quizlab Bridge] The automatic sync preference could not be saved:',
+              errorMessage(error)
+            )
+            return { success: false, settingsSaved: false }
+          }
+          autoSync = enabled
+          const result = await queueSend(enabled ? { resync: true } : {})
+          // `success` is about the transfer; `settingsSaved` says the choice
+          // itself is on disk. The popup reports the two separately.
+          return { success: result === SYNC_OK, result, settingsSaved: true }
         })
         .then(
-          (result) => sendResponse({ success: result === SYNC_OK, result, settingsSaved: true }),
-          () => sendResponse({ success: false })
+          (response) => sendResponse(response),
+          () => sendResponse({ success: false, settingsSaved: false })
         )
       return true
     }
@@ -1153,13 +1441,24 @@ if (chrome.runtime?.onMessage?.addListener) {
       }
       stateReady
         .then(async () => {
+          // The name is persisted first. A write that failed must not leave a
+          // name in memory that the popup and the app would show until the next
+          // restart silently goes back to the old one.
+          try {
+            await chrome.storage.local.set({ [PROFILE_NAME_KEY]: name })
+          } catch (error) {
+            console.warn(
+              '[Quizlab Bridge] The profile name could not be saved:',
+              errorMessage(error)
+            )
+            return { success: false, error: 'storage_failed' }
+          }
           profileName = name
-          await chrome.storage.local.set({ [PROFILE_NAME_KEY]: name })
           await applyActionIdentity()
-          return true
+          return { success: true }
         })
         .then(
-          () => sendResponse({ success: true }),
+          (response) => sendResponse(response),
           (error) => sendResponse({ success: false, error: errorMessage(error) })
         )
       return true
@@ -1172,28 +1471,49 @@ if (chrome.runtime?.onMessage?.addListener) {
       }
       stateReady
         .then(async () => {
-          // The code is tried in memory first. A wrong code must not replace
+          // The code is tried in memory first. A wrong code must never replace
           // the working one or survive in the storage, so it is only saved
-          // after the app accepted it.
+          // after the app answered the signed site list request — which is the
+          // proof that it holds this code. Whether the following import
+          // succeeds is a separate result: pairing and transfer are not the
+          // same success.
           const previousSecret = bridgeSecret
           const previousInstanceId = bridgeInstanceId
-          bridgeInstanceId = null
-          bridgeSecret = code
-          const result = await scanForBridge()
-          if (result === SYNC_UNREACHABLE) {
+          const previousPort = bridgePort
+          try {
+            bridgeSecret = code
+            bridgeInstanceId = null
+            const result = await scanForBridge({ force: true, probe: true, resync: true })
+            if (result === SYNC_UNAUTHORIZED) {
+              bridgeSecret = previousSecret
+              bridgeInstanceId = previousInstanceId
+              bridgePort = previousPort
+              return { success: false, error: 'invalid_code' }
+            }
+            if (result === SYNC_UNREACHABLE) {
+              bridgeSecret = previousSecret
+              bridgeInstanceId = previousInstanceId
+              bridgePort = previousPort
+              return { success: false, error: 'bridge_unreachable' }
+            }
+            const settingsSaved = await rememberSecret(code)
+            return {
+              success: true,
+              result,
+              settingsSaved,
+              // Pairing worked, but the app intends to import from another
+              // Chrome profile. The popup tells the user to select this one.
+              notSelected: lastSelectionWasSource === false
+            }
+          } catch (error) {
             bridgeSecret = previousSecret
             bridgeInstanceId = previousInstanceId
-            return false
+            bridgePort = previousPort
+            throw error
           }
-          bridgeSecret = previousSecret
-          await rememberSecret(code)
-          return true
         })
         .then(
-          (paired) =>
-            sendResponse(
-              paired ? { success: true } : { success: false, error: 'bridge_unreachable' }
-            ),
+          (response) => sendResponse(response),
           (error) => sendResponse({ success: false, error: errorMessage(error) })
         )
       return true

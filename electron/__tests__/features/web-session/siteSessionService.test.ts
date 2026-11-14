@@ -77,6 +77,8 @@ function makeService(
     localCookies?: unknown[]
     extensionConnected?: boolean
     extensionVersionOk?: boolean
+    lastResult?: 'imported' | 'no_cookies' | 'permission_missing' | 'failed' | null
+    lastError?: string | null
   } = {}
 ) {
   const remove = vi.fn().mockResolvedValue({})
@@ -98,8 +100,8 @@ function makeService(
         chatgpt: {
           enabled: overrides.enabled ?? false,
           importedAt: null,
-          lastResult: null,
-          lastError: null
+          lastResult: overrides.lastResult ?? null,
+          lastError: overrides.lastError ?? null
         }
       }
     }),
@@ -178,6 +180,27 @@ describe('SiteSessionService', () => {
     const { service } = makeService()
     const result = await service.list()
     expect(result.views[0].status).toBe('signed_out')
+  })
+
+  it('tells an empty browser apart from a failed import', async () => {
+    // The extension reports both states; only one of them is a failure the
+    // user can do something about, and the row has to say which is which.
+    const empty = makeService({ enabled: true, lastResult: 'no_cookies' })
+    expect((await empty.service.list()).views[0].status).toBe('no_cookies_in_browser')
+
+    invalidateSiteSessionListCache()
+    const failed = makeService({
+      enabled: true,
+      lastResult: 'failed',
+      lastError: 'import_failed'
+    })
+    const result = await failed.service.list()
+    expect(result.views[0].status).toBe('import_failed')
+    expect(result.views[0].lastError).toBe('import_failed')
+
+    invalidateSiteSessionListCache()
+    const missing = makeService({ enabled: true, lastResult: 'permission_missing' })
+    expect((await missing.service.list()).views[0].status).toBe('permission_missing')
   })
 
   it('reports an outdated extension instead of a missing one', async () => {
@@ -519,6 +542,32 @@ describe('the Chrome profile selection', () => {
     profileSelection.hasProfile.mockClear()
     profileSelection.selectProfile.mockClear()
     profileSelection.selectProfile.mockResolvedValue(true)
+    profileSelection.beginSelectionChange.mockClear()
+    profileSelection.endSelectionChange.mockClear()
+    profileSelection.beginSelectionChange.mockImplementation(() => {})
+    profileSelection.endSelectionChange.mockImplementation(() => {})
+  })
+
+  it('closes the bridge before the old sessions are wiped and opens it after the switch', async () => {
+    const { service, clearStorageData } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+
+    await expect(service.selectExtensionProfile('known-profile-1234')).resolves.toEqual({
+      success: true
+    })
+
+    const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
+      fn.mock.invocationCallOrder[0]
+    // A packet from either profile that lands between the switch and the wipe
+    // would be written into a session that is being cleared, so the whole
+    // sequence has to be one closed window.
+    expect(order(profileSelection.beginSelectionChange)).toBeLessThan(order(clearStorageData))
+    expect(order(clearStorageData)).toBeLessThan(order(profileSelection.selectProfile))
+    expect(order(profileSelection.selectProfile)).toBeLessThan(
+      order(profileSelection.endSelectionChange)
+    )
   })
 
   it('selects a profile the extension bridge has seen', async () => {

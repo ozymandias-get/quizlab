@@ -168,17 +168,34 @@ export function createBridgeRequestHandler(manager: unknown) {
    * Two profiles can ask for their site list at the same time. Each gets its
    * own round, so the packets of one profile are never accepted against the
    * target list that another profile opened.
+   *
+   * A round is opened once per profile even when two site-list requests
+   * overlap: a second round opened while the packets of the first are still on
+   * their way would replace the list they were prepared against.
    */
   const rounds = new Map<string, SiteSessionRound>()
+  const roundOpenings = new Map<string, Promise<SiteSessionRound>>()
+
+  function openRoundFor(profileId: string): Promise<SiteSessionRound> {
+    const opening = roundOpenings.get(profileId)
+    if (opening) return opening
+    const next = openSiteSessionRound()
+      .then((round) => {
+        rounds.set(profileId, round)
+        return round
+      })
+      .finally(() => {
+        roundOpenings.delete(profileId)
+      })
+    roundOpenings.set(profileId, next)
+    return next
+  }
 
   /** The round of the packets that are on their way for this profile. */
   async function currentRound(profileId: string): Promise<SiteSessionRound> {
-    let round = rounds.get(profileId)
-    if (!round) {
-      round = await openSiteSessionRound()
-      rounds.set(profileId, round)
-    }
-    return round
+    const round = rounds.get(profileId)
+    if (round) return round
+    return openRoundFor(profileId)
   }
 
   return (req: IncomingMessage, res: ServerResponse): void => {
@@ -256,10 +273,9 @@ export function createBridgeRequestHandler(manager: unknown) {
       }
       void handleSiteListRequest(req, res, manager, profile.id, async () => {
         // The site list request opens the round: the packets that follow it
-        // belong to it and share its target list.
-        const round = await openSiteSessionRound()
-        rounds.set(profile.id as string, round)
-        return round
+        // belong to it and share its target list. Overlapping requests of the
+        // same profile share the opening instead of replacing each other.
+        return openRoundFor(profile.id as string)
       })
       return
     }
@@ -458,15 +474,24 @@ function handleCookiePost(
       // switches the source. They carry a valid signature, but they are no
       // longer the session the user asked for.
       const selectedProfileId = mgr.getSelectedProfileId?.() ?? null
-      if (selectedProfileId && selectedProfileId !== profileId) {
+      if (!selectedProfileId) {
+        // No source has been committed. The first pairing writes it, and that
+        // write may have failed; without it the app cannot tell this packet
+        // from one of another Chrome profile. Refusing is the only safe answer:
+        // the next request retries the selection write.
+        Logger.warn('[NativeMessaging] Refused a packet while no profile is selected')
+        sendJson(res, 409, { error: 'selection_unavailable', retryable: true })
+        return
+      }
+      if (selectedProfileId !== profileId) {
         Logger.warn('[NativeMessaging] Refused a packet from a profile that is not selected')
-        sendJson(res, 403, { error: 'not_selected' })
+        sendJson(res, 403, { error: 'not_selected', retryable: false })
         return
       }
       if (mgr.isSelectionChanging?.()) {
         // The app is wiping the previous source's sessions. Accepting a packet
         // now would race the wipe, so the extension retries on its next poll.
-        sendJson(res, 409, { error: 'selection_changing' })
+        sendJson(res, 409, { error: 'selection_changing', retryable: true })
         return
       }
 
@@ -495,8 +520,13 @@ function handleCookiePost(
       const outcome = await (await currentRound(profileId)).accept(packet)
       if (!outcome.accepted) {
         Logger.warn(`[NativeMessaging] Refused a cookie packet: ${outcome.reason}`)
-        sendJson(res, outcome.reason === 'domain_mismatch' ? 400 : 403, {
-          error: outcome.reason
+        // A round the app has already replaced and a wipe that is running are
+        // both reasons to ask again; the others are final answers about the
+        // packet or the site and must not be retried as they are.
+        const retryable = outcome.reason === 'stale_round'
+        sendJson(res, outcome.reason === 'domain_mismatch' ? 400 : retryable ? 409 : 403, {
+          error: outcome.reason,
+          retryable
         })
         return
       }

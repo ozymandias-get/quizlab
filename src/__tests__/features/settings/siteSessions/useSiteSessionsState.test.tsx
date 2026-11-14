@@ -196,6 +196,28 @@ describe('useSiteSessionsState', () => {
     })
   })
 
+  it('lets a switch be tried again after its first request failed', async () => {
+    mockSetEnabled.mockResolvedValueOnce({ success: false, error: 'write_failed' })
+
+    const { result } = renderHook(() => useSiteSessionsState(), { wrapper })
+
+    await act(async () => {
+      result.current.onToggle('chatgpt')
+      await Promise.resolve()
+    })
+    expect(mockShowError).toHaveBeenCalledWith('ws_error_write_failed')
+
+    // The pending guard is dropped with the failed request: a second click is
+    // the user's retry, not a duplicate of the request that failed.
+    mockSetEnabled.mockResolvedValueOnce({ success: true })
+    await act(async () => {
+      result.current.onToggle('chatgpt')
+      await Promise.resolve()
+    })
+
+    expect(mockSetEnabled).toHaveBeenCalledTimes(2)
+  })
+
   it('skips a failed-clear retry for a site whose import was turned off', async () => {
     mockViews = [GOOGLE_VIEW, { ...CHATGPT_VIEW, enabled: true }]
     mockClear.mockImplementation(({ siteId }: { siteId: string }) =>

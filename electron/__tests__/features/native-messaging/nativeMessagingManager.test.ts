@@ -305,6 +305,95 @@ describe('NativeMessagingManager', () => {
       expect(manager.getSelectionVersion()).toBe(1)
     })
 
+    it('does not report a selection before its write reached the disk', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      await manager.markExtensionPaired('profile-a-1234')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(3))
+
+      let release!: () => void
+      mockFsWriteFile.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve
+          })
+      )
+      const switching = manager.selectProfile('profile-b-1234')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      // The bridge accepts packets for the profile this getter names. Until
+      // the new source is durable, the old one stays the answer.
+      expect(manager.getSelectedProfileId()).toBe('profile-a-1234')
+
+      release()
+      await expect(switching).resolves.toBe(true)
+      expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
+    })
+
+    it('keeps the last committed selection when two switches overlap', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      manager.markExtensionSeen('profile-c-1234', 'Üç Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalled())
+      await manager.markExtensionPaired('profile-a-1234')
+
+      await Promise.all([
+        manager.selectProfile('profile-b-1234'),
+        manager.selectProfile('profile-c-1234')
+      ])
+
+      expect(manager.getSelectedProfileId()).toBe('profile-c-1234')
+      expect(manager.getSelectionVersion()).toBe(3)
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
+        String(filePath).endsWith('bridge-profiles.json.tmp')
+      )
+      const last = JSON.parse(String(writes.at(-1)![1])) as {
+        selectedProfileId: string
+        selectionVersion: number
+      }
+      expect(last.selectedProfileId).toBe('profile-c-1234')
+      expect(last.selectionVersion).toBe(3)
+    })
+
+    it('does not write an old selection back after a new one was committed', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(3))
+
+      let release!: () => void
+      mockFsWriteFile.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve
+          })
+      )
+      const switching = manager.selectProfile('profile-b-1234')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      // A name change saves the whole profile file while the selection write
+      // is still on its way. It must not carry the previous source.
+      manager.markExtensionSeen('profile-c-1234', 'Yeni Chrome')
+
+      release()
+      await switching
+      await vi.waitFor(() =>
+        expect(
+          mockFsWriteFile.mock.calls.filter(([filePath]) =>
+            String(filePath).endsWith('bridge-profiles.json.tmp')
+          ).length
+        ).toBeGreaterThanOrEqual(3)
+      )
+
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
+        String(filePath).endsWith('bridge-profiles.json.tmp')
+      )
+      const last = JSON.parse(String(writes.at(-1)![1])) as { selectedProfileId: string }
+      expect(last.selectedProfileId).toBe('profile-b-1234')
+      expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
+    })
+
     it('retries a failed profile write before giving up', async () => {
       manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
       await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(1))
