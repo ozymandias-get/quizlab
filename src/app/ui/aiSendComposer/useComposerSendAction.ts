@@ -79,6 +79,13 @@ export function useComposerSendAction({
   const [lastError, setLastError] = useState<string | null>(null)
   /** Son hatanın yeniden denenip denemeyeceği — "Tekrar dene" eyleminin sözleşmesi. */
   const [isResendSafe, setIsResendSafe] = useState(true)
+  /**
+   * Sonuç bildiriminin görünürlüğü. **Gönderim güvenliğinden ayrıdır**: kısmi
+   * teslimatta kullanıcı bildirimi kapatabilir, ama `sendFeedback` 'incomplete'
+   * kalır ve gönderim düğmesi 'awaiting' olarak devre dışı kalır. Böylece
+   * "bildirimi gizle" ile "yeniden gönderebilirim" birbirine karışmaz.
+   */
+  const [isOutcomeDismissed, setIsOutcomeDismissed] = useState(false)
 
   // Tek zamanlayıcı, ref ile: üst üste gelen gönderimlerde eski zamanlayıcı
   // yeni bildirimi silemez; unmount'ta sızar.
@@ -143,6 +150,7 @@ export function useComposerSendAction({
       setSendFeedback('sending')
       setLastError(null)
       setIsResendSafe(true)
+      setIsOutcomeDismissed(false)
       setIsExpanded(false)
       setStoredExpanded(false)
       lastIntentRef.current = options
@@ -170,6 +178,7 @@ export function useComposerSendAction({
           // ve güvenli manuel devam yolu (onayı kapatma) sunulur.
           clearFeedbackTimer()
           setSendFeedback('incomplete')
+          setIsOutcomeDismissed(false)
           const code = outcome.errorCode
           const key = code ? toErrorI18nKey(code) : 'unknown_error'
           const localized = t(key)
@@ -179,6 +188,7 @@ export function useComposerSendAction({
         } else if (outcome.feedback === 'error') {
           clearFeedbackTimer()
           setSendFeedback('error')
+          setIsOutcomeDismissed(false)
           const code = outcome.errorCode
           const key = code ? toErrorI18nKey(code) : 'unknown_error'
           const localized = t(key)
@@ -195,6 +205,7 @@ export function useComposerSendAction({
           clearFeedbackTimer()
           setSendFeedback('idle')
           setLastError(null)
+          setIsOutcomeDismissed(false)
           // Ek not, tarif ettiği içerikle birlikte composer'dan çıktı. Burada
           // bırakmak, bir sonraki taslağa ait olmayan bir talimatı devraldırırdı.
           onSendSucceeded?.()
@@ -211,6 +222,7 @@ export function useComposerSendAction({
         // `stage: 'uncertain'` ile aynı yönde durur.
         clearFeedbackTimer()
         setSendFeedback('incomplete')
+        setIsOutcomeDismissed(false)
         setIsResendSafe(false)
         setLastError('unknown_error')
         setIsExpanded(true)
@@ -245,19 +257,41 @@ export function useComposerSendAction({
   const handleRetry = useCallback(() => {
     if (sendingRef.current) return
     if (!isResendSafe || sendFeedback === 'incomplete') {
+      // Güvenli tekrar yok: bildirim gizlenebilir, ama gönderim kilidi kalır.
       clearFeedbackTimer()
-      setSendFeedback('idle')
-      setLastError(null)
+      setIsOutcomeDismissed(true)
       return
     }
     void handleSend(lastIntentRef.current)
   }, [clearFeedbackTimer, handleSend, isResendSafe, sendFeedback])
 
-  /** Yalnızca görünüm durumunu sıfırlar — kuyruğa veya not alanına dokunmaz. */
+  /**
+   * Bildirimi gizler — **güvenlik durumunu sıfırlamaz.**
+   *
+   * Kısmi teslimatta `sendFeedback` 'incomplete' olarak kalır; böylece iki
+   * gönder düğmesi de 'awaiting' (devre dışı) kalır ve kullanıcı bildirimi
+   * kapattı diye aynı içeriği yanlışlıkla ikinci kez gönderemez. Hata
+   * bildirimi güvenle tekrarlanabilir olduğu için normal şekilde temizlenir.
+   */
   const dismissOutcome = useCallback(() => {
+    clearFeedbackTimer()
+    setIsOutcomeDismissed(true)
+    if (sendFeedback !== 'incomplete') {
+      setSendFeedback('idle')
+      setLastError(null)
+    }
+  }, [clearFeedbackTimer, sendFeedback])
+
+  /**
+   * Taslak sıfırlandığında (tümünü temizle veya kuyruk boşaldı) güvenlik
+   * kilidini de bırakır: yeniden gönderilecek bir içerik kalmamıştır.
+   */
+  const resetOutcome = useCallback(() => {
     clearFeedbackTimer()
     setSendFeedback('idle')
     setLastError(null)
+    setIsOutcomeDismissed(false)
+    setIsResendSafe(true)
   }, [clearFeedbackTimer])
 
   // Every composer affordance — the panel's send button and the collapsed
@@ -271,8 +305,10 @@ export function useComposerSendAction({
     lastError,
     setLastError,
     isResendSafe,
+    isOutcomeDismissed,
     handleSend,
     handleRetry,
-    dismissOutcome
+    dismissOutcome,
+    resetOutcome
   }
 }

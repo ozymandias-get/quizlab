@@ -492,6 +492,126 @@ describe('AiSendComposer (compact draft)', () => {
         release({ success: true })
       })
     })
+
+    it('disables the collapsed send while a send is in flight', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+          autoSend
+        />
+      )
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+      })
+
+      const pill = screen.getByTestId('ai-draft-pill-send')
+      expect(pill).toBeDisabled()
+      expect(pill).toHaveAccessibleName('sending_to_ai')
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
+
+    it('starts only one send from two rapid clicks on the collapsed pill', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onSend={onSend}
+          autoSend
+        />
+      )
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
+
+    it('keeps the partial-delivery lock after the notice is dismissed', async () => {
+      const onSend = vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
+      openPanel(onSend)
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('ai-draft-send'))
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'ai_send_dismiss' }))
+      })
+
+      // Bildirim gizlendi…
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'ai_send_dismiss' })).not.toBeInTheDocument()
+      // …ama gönderim kilidi kaldı: düğme hâlâ 'sitede gönderin' ve devre dışı.
+      const send = screen.getByTestId('ai-draft-send')
+      expect(send).toHaveAccessibleName('ai_send_awaiting_submit')
+      expect(send).toBeDisabled()
+
+      await act(async () => {
+        fireEvent.click(send)
+      })
+      expect(onSend).toHaveBeenCalledTimes(1)
+    })
+
+    it('disables draft removal and clear-all while a send is in flight', async () => {
+      let release!: (v: unknown) => void
+      const onSend = vi.fn(
+        () =>
+          new Promise<unknown>((resolve) => {
+            release = resolve
+          })
+      )
+      const onRemoveItem = vi.fn()
+      renderComposer(
+        <AiSendComposer
+          items={[textItem('t1', 'hello')]}
+          onClearAll={vi.fn()}
+          onRemoveItem={onRemoveItem}
+          onSend={onSend}
+          autoSend
+        />
+      )
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('ai-draft-pill-send'))
+      })
+      // Panel gönderim sırasında kapanır; kullanıcı yeniden açabilir.
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+
+      expect(screen.queryByRole('button', { name: /ai_send_remove_item/ })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('ai-draft-overflow'))
+      expect(screen.getByTestId('ai-draft-clear-all')).toBeDisabled()
+
+      await act(async () => {
+        release({ success: true })
+      })
+    })
   })
 
   describe('item hierarchy', () => {
@@ -595,6 +715,114 @@ describe('AiSendComposer (compact draft)', () => {
       // Görsel satırı var, önizleme galerisi yok.
       expect(screen.getByTestId('ai-draft-item')).toBeInTheDocument()
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
+    it('opens a single lightweight text preview from a chip', () => {
+      renderComposer(
+        <AiSendComposer
+          items={[
+            textItem('t1', 'First long excerpt that is kept verbatim.'),
+            textItem('t2', 'Second excerpt.')
+          ]}
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+
+      // Varsayılan olarak kapalı.
+      expect(screen.queryByTestId('ai-draft-preview')).not.toBeInTheDocument()
+
+      const toggles = screen.getAllByRole('button', { name: /ai_draft_preview_show/ })
+      fireEvent.click(toggles[0])
+
+      const preview = screen.getByTestId('ai-draft-preview')
+      expect(preview).toHaveTextContent('First long excerpt that is kept verbatim.')
+      expect(toggles[0]).toHaveAttribute('aria-expanded', 'true')
+
+      // Tek önizleme: ikinci chip birincinin yerine geçer.
+      fireEvent.click(screen.getAllByRole('button', { name: /ai_draft_preview_show/ })[0])
+      expect(screen.getAllByTestId('ai-draft-preview')).toHaveLength(1)
+      expect(screen.getByTestId('ai-draft-preview')).toHaveTextContent('Second excerpt.')
+
+      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_hide/ }))
+      expect(screen.queryByTestId('ai-draft-preview')).not.toBeInTheDocument()
+    })
+
+    it('previews an image from the existing blob URL only', () => {
+      const { container } = renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 'i1',
+                type: 'image',
+                dataUrl: 'data:image/png;base64,AAA',
+                blobUrl: 'blob:quizlab/preview-1',
+                source: null,
+                createdAt: 1
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+
+      const preview = screen.getByTestId('ai-draft-preview')
+      const image = preview.querySelector('img')
+      // Kuyruğun ürettiği blob URL kullanılır; dataUrl yeniden encode edilmez.
+      expect(image).toHaveAttribute('src', 'blob:quizlab/preview-1')
+      expect(container.innerHTML).not.toContain('data:image/png')
+    })
+
+    it('uses a safe placeholder when the image preview is not ready', () => {
+      renderComposer(
+        <AiSendComposer
+          items={
+            [
+              {
+                id: 'i1',
+                type: 'image',
+                dataUrl: 'data:image/png;base64,AAA',
+                blobUrl: '',
+                source: null,
+                createdAt: 1
+              }
+            ] as never
+          }
+          onClearAll={vi.fn()}
+          onSend={vi.fn()}
+        />
+      )
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.click(screen.getByRole('button', { name: /ai_draft_preview_show/ }))
+
+      const preview = screen.getByTestId('ai-draft-preview')
+      expect(preview.querySelector('img')).toBeNull()
+      expect(preview).toHaveTextContent('ai_draft_preview_unavailable')
+    })
+
+    it('surfaces active instructions as one compact hint in the collapsed dock', () => {
+      renderComposer(
+        <AiSendComposer items={[textItem('t1', 'hello')]} onClearAll={vi.fn()} onSend={vi.fn()} />
+      )
+      // Talimat yokken gösterge yok.
+      expect(screen.queryByTestId('ai-draft-instruction-hint')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByTestId('ai-draft-badge'))
+      fireEvent.change(screen.getByLabelText('ai_draft_note_label'), {
+        target: { value: 'focus on treatment' }
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'ai_draft_close' }))
+
+      // Uzun etiketler yerine tek kompakt ikon; ayrıntı erişilebilir adda.
+      const hint = screen.getByTestId('ai-draft-instruction-hint')
+      expect(hint).toHaveTextContent('ai_draft_note_label')
+      expect(hint).toHaveAttribute('title', 'ai_draft_note_label')
+      expect(screen.getByTestId('ai-draft-badge')).toHaveAttribute('aria-describedby', hint.id)
     })
   })
 })

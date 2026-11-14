@@ -1,8 +1,8 @@
 import { cn } from '@shared/lib/uiUtils'
 import { Button, WithTooltip } from '@shared/ui/components/primitives'
 
-import { ChevronUp, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
-import { memo } from 'react'
+import { ChevronUp, FileText, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react'
+import { memo, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -27,6 +27,11 @@ interface DraftDockBarProps {
    */
   statusLabel?: string
   statusTone?: 'neutral' | 'warning' | 'error'
+  /**
+   * Aktif talimatların kısa adları (hızlı işlem, ek not). Tek bir kompakt
+   * göstergeye sığar; uzun etiketler satırı doldurmaz, tamamı tooltip'te okunur.
+   */
+  instructionLabels?: string[]
 }
 
 /**
@@ -54,15 +59,17 @@ function DraftDockBar({
   onToggle,
   onSend,
   statusLabel,
-  statusTone = 'neutral'
+  statusTone = 'neutral',
+  instructionLabels = []
 }: DraftDockBarProps) {
   const { t } = useTranslation()
 
   const intent = resolveDraftSendIntent({ autoSend, feedback, isSubmitting: isSending })
   const sendLabel = t(DRAFT_SEND_INTENT_KEYS[intent])
-  // Kısmi uygulama: içerik zaten hedefe ulaştı; yeniden göndermek mükerrer
-  // mesaj bırakır, bu yüzden hap üzerindeki düğme de devre dışıdır.
+  // Kısmi uygulama ve süren gönderim: iki durumda da yeni bir iş başlatılamaz.
   const canSend = itemCount > 0 && isDraftSendIntentActionable(intent)
+  const instructionLabel = instructionLabels.join(' · ')
+  const instructionsId = useId()
 
   const SendIcon = intent === 'sending' ? Loader2 : intent === 'retry' ? RotateCcw : Send
 
@@ -76,7 +83,7 @@ function DraftDockBar({
   return (
     <div
       data-testid="ai-draft-dock-bar"
-      className="hover:shadow-ambient-lg motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border border-white/12 bg-zinc-950/95 p-1 shadow-xl backdrop-blur-xl transition-all hover:border-white/20"
+      className="motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border border-white/[0.09] bg-zinc-950/95 p-1 shadow-xl backdrop-blur-xl transition-all hover:border-white/20"
     >
       <button
         type="button"
@@ -84,6 +91,7 @@ function DraftDockBar({
         aria-expanded={isOpen}
         aria-controls="ai-draft-dock-body"
         aria-label={isOpen ? t('ai_draft_close') : t('ai_draft_open')}
+        aria-describedby={instructionLabel ? instructionsId : undefined}
         data-testid="ai-draft-badge"
         className="group focus-visible:ring-ring/70 flex h-full min-w-0 flex-1 items-center gap-2 rounded-full pr-2.5 pl-1 text-left transition-colors hover:bg-white/10 focus-visible:ring-1 focus-visible:outline-none"
       >
@@ -131,6 +139,18 @@ function DraftDockBar({
         >
           {t('ai_draft_content_count', { count: itemCount })}
         </span>
+
+        {instructionLabel && (
+          <span
+            id={instructionsId}
+            title={instructionLabel}
+            data-testid="ai-draft-instruction-hint"
+            className="text-muted-foreground/70 flex size-4 shrink-0 items-center justify-center @max-[26rem]:hidden"
+          >
+            <FileText className="size-3" aria-hidden />
+            <span className="sr-only">{instructionLabel}</span>
+          </span>
+        )}
 
         {statusLabel && (
           <span

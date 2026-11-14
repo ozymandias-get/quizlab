@@ -1,6 +1,5 @@
-import { useQuickAiPresets } from '@features/ai'
+import { usePrompts, useQuickAiPresets } from '@features/ai'
 
-import { BorderBeam } from '@app/components/ui/border-beam'
 import { useLocalStorage } from '@shared/hooks'
 import { cn } from '@shared/lib/uiUtils'
 import { IconButton } from '@shared/ui/components/primitives'
@@ -73,8 +72,6 @@ function AiSendComposer({
   const { t } = useTranslation()
   const [isStoredOpen, setStoredOpen] = useLocalStorage<boolean>(DRAFT_OPEN_PREF_KEY, false)
   const [isOpen, setIsOpen] = useState(isStoredOpen)
-  /** BorderBeam boşta dururken görünmez; yalnızca aktif düzenlemede yanar. */
-  const [isComposerFocused, setIsComposerFocused] = useState(false)
   /** Tıklama-dışı kapatmanın "içeride miyim" kontrolü için kök düğüm. */
   const dockRef = useRef<HTMLDivElement>(null)
 
@@ -89,6 +86,7 @@ function AiSendComposer({
   } = useAiSendComposerState()
 
   const { presets } = useQuickAiPresets()
+  const { selectedPromptId } = usePrompts()
   const quickActionValue = useMemo(
     () => presets.find((preset) => preset.key === quickActionKey)?.value,
     [presets, quickActionKey]
@@ -108,20 +106,16 @@ function AiSendComposer({
   }, [items])
   const totalItems = textCount + imageCount
   const draftItemIds = useMemo(() => items.map((draft) => draft.id), [items])
-  // PDF alanından gelen görsel yakalamalar `type: 'image'` taşır. Böyle bir
-  // içerik kuyruktayken yakalama modu hâlâ aktiftir; border animasyonu bunu
-  // sessizce belli eder, odak yokken bile.
-  const hasCapturedVisual = useMemo(() => items.some((draft) => draft.type === 'image'), [items])
 
   const {
     sendFeedback,
-    setSendFeedback,
     lastError,
-    setLastError,
     isResendSafe,
+    isOutcomeDismissed,
     handleSend,
     handleRetry,
-    dismissOutcome
+    dismissOutcome,
+    resetOutcome
   } = useComposerSendAction({
     isSubmitting,
     setIsSubmitting,
@@ -169,7 +163,6 @@ function AiSendComposer({
   const handleClose = useCallback(() => {
     setIsOpen(false)
     setStoredOpen(false)
-    setIsComposerFocused(false)
   }, [setStoredOpen])
 
   /**
@@ -209,10 +202,17 @@ function AiSendComposer({
   const handleClearAll = useCallback(() => {
     clearNote()
     selectQuickAction(null)
-    setSendFeedback('idle')
-    setLastError(null)
+    // Kuyruk boşalacağı için kısmi teslimat kilidi de bırakılır.
+    resetOutcome()
     onClearAllRef.current()
-  }, [clearNote, selectQuickAction, setSendFeedback, setLastError])
+  }, [clearNote, resetOutcome, selectQuickAction])
+
+  // Kuyruk tamamen boşaldığında (öğeler tek tek kaldırıldı ya da başarılı
+  // gönderim kuyruğu tüketti) yeniden gönderilecek içerik yoktur; eski
+  // 'incomplete' kilidi yeni bir taslağı bloklamamalı.
+  useEffect(() => {
+    if (totalItems === 0 && !isSubmitting) resetOutcome()
+  }, [isSubmitting, resetOutcome, totalItems])
 
   // Gönderim anında tek bir deterministik talimat metni kurulur:
   // hızlı işlem talimatı + kullanıcının ek notu. Kayıtlı prompt burada değil —
@@ -228,20 +228,29 @@ function AiSendComposer({
   }, [handleSend, noteText, quickActionValue, totalItems])
 
   const isSending = sendFeedback === 'sending' || isSubmitting
-  const showComposerBeam = isComposerFocused || hasCapturedVisual
+  const isOutcomeVisible = !isOutcomeDismissed
 
-  // Dock kapalıyken de görünür olması gereken kısa durum. Yalnızca hata ve
-  // kısmi uygulama gösterilir: teslim edilen içerik sessizdir, çünkü kuyruk
-  // boşalarak sonucu zaten kendisi bildirir. Kısmi uygulama (`incomplete`)
-  // ayrı bir tonla ayrılır — içerik hedefe ulaştı ama teslim doğrulanamadı,
-  // "Gönderildi" gibi okunamaz.
+  // Kapalı hap için tek, kompakt "talimat var" göstergesi: hızlı işlem ve ek
+  // not ayrı ayrı etiketlerle satırı doldurmaz; tamamı tooltip'te okunur.
+  const instructionLabels = useMemo(() => {
+    const labels: string[] = []
+    if (quickActionKey) labels.push(t('ai_draft_quick_action_label'))
+    if (selectedPromptId) labels.push(t('ai_draft_prompt_label'))
+    if (noteText.trim()) labels.push(t('ai_draft_note_label'))
+    return labels
+  }, [noteText, quickActionKey, selectedPromptId, t])
+
+  // Dock kapalıyken de görünür olması gereken kısa durum. Bildirim kapatıldıysa
+  // yalnızca süren gönderim gösterilir; kısmi teslimat kilidi düğmede kalır.
   const barStatus = isSending
     ? { label: t('sending_to_ai'), tone: 'neutral' as const }
-    : sendFeedback === 'incomplete'
-      ? { label: t('ai_send_awaiting_submit'), tone: 'warning' as const }
-      : sendFeedback === 'error'
-        ? { label: t('ai_send_error'), tone: 'error' as const }
-        : null
+    : !isOutcomeVisible
+      ? null
+      : sendFeedback === 'incomplete'
+        ? { label: t('ai_send_awaiting_submit'), tone: 'warning' as const }
+        : sendFeedback === 'error'
+          ? { label: t('ai_send_error'), tone: 'error' as const }
+          : null
 
   return (
     <div
@@ -276,6 +285,7 @@ function AiSendComposer({
             isOpen={isOpen}
             onToggle={handleToggleOpen}
             onSend={handleSubmit}
+            instructionLabels={instructionLabels}
             statusLabel={barStatus?.label}
             statusTone={barStatus?.tone}
           />
@@ -296,7 +306,7 @@ function AiSendComposer({
             // tıkanıyor, dikey kaydırma gerektiriyordu; yeni tavan hem daha
             // geniş bir PDF alanında içeriği gösterir hem de kısa pencerede
             // küçülür.
-            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/12 bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
+            className="animate-in fade-in slide-in-from-bottom-2 motion-slow flex max-h-[min(26rem,calc(100dvh-8rem))] min-h-0 flex-col rounded-2xl border border-white/[0.09] bg-zinc-950/95 shadow-2xl backdrop-blur-xl"
           >
             {/* A — Başlık: ikon rozeti + ad + sayı rozeti tek hizada okunur.
                 `relative z-[2]` açılan taşma menüsünü, alttaki kaydırılabilir
@@ -355,6 +365,7 @@ function AiSendComposer({
                 onClearAll={handleClearAll}
                 totalItems={totalItems}
                 itemIds={draftItemIds}
+                disabled={isSending}
               />
               <IconButton
                 type="button"
@@ -372,28 +383,30 @@ function AiSendComposer({
 
             {/* B — İçerikler + talimat alanı. Tek kaydırma yüzeyi. */}
             <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-              <DraftItemChips items={items} onRemoveItem={onRemoveItem} />
+              <DraftItemChips items={items} onRemoveItem={onRemoveItem} disabled={isSending} />
 
-              {(sendFeedback === 'error' || sendFeedback === 'incomplete') && lastError && (
-                <div
-                  role="alert"
-                  className={cn(
-                    'mx-3 mb-2 rounded-xl border px-3 py-2',
-                    sendFeedback === 'incomplete'
-                      ? 'border-amber-500/25 bg-amber-500/8'
-                      : 'border-destructive/25 bg-destructive/8'
-                  )}
-                >
-                  <p
+              {isOutcomeVisible &&
+                (sendFeedback === 'error' || sendFeedback === 'incomplete') &&
+                lastError && (
+                  <div
+                    role="alert"
                     className={cn(
-                      'text-ql-11 leading-snug font-medium',
-                      sendFeedback === 'incomplete' ? 'text-amber-400' : 'text-destructive'
+                      'mx-3 mb-2 rounded-xl border px-3 py-2',
+                      sendFeedback === 'incomplete'
+                        ? 'border-amber-500/25 bg-amber-500/8'
+                        : 'border-destructive/25 bg-destructive/8'
                     )}
                   >
-                    {lastError}
-                  </p>
-                </div>
-              )}
+                    <p
+                      className={cn(
+                        'text-ql-11 leading-snug font-medium',
+                        sendFeedback === 'incomplete' ? 'text-amber-400' : 'text-destructive'
+                      )}
+                    >
+                      {lastError}
+                    </p>
+                  </div>
+                )}
 
               {/* Talimat alanı — hızlı işlem, kayıtlı prompt ve kullanıcı notu
                   ayrı veri türleridir; gönderimde `composeDraftInstruction`
@@ -402,24 +415,7 @@ function AiSendComposer({
               <div
                 data-testid="ai-draft-composer"
                 className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-zinc-900/50 transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
-                onFocusCapture={() => setIsComposerFocused(true)}
-                onBlurCapture={(event) => {
-                  const nextTarget = event.relatedTarget as Node | null
-                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) {
-                    setIsComposerFocused(false)
-                  }
-                }}
               >
-                {showComposerBeam && (
-                  <BorderBeam
-                    size={80}
-                    duration={11}
-                    borderWidth={1}
-                    colorFrom="#52525b"
-                    colorTo="#27272a"
-                    className="motion-reduce:hidden"
-                  />
-                )}
                 <DraftNoteField
                   value={noteText}
                   onChange={setNoteText}
@@ -459,6 +455,7 @@ function AiSendComposer({
               lastError={lastError}
               isSubmitting={isSubmitting}
               isResendSafe={isResendSafe}
+              showOutcome={isOutcomeVisible}
             />
           </section>
         )}

@@ -24,6 +24,8 @@ interface DraftOverflowMenuProps {
    * without the user seeing it in the prompt.
    */
   itemIds: readonly string[]
+  /** Gönderim sürerken kuyruğu değiştirmeyi kapatır. */
+  disabled?: boolean
 }
 
 /**
@@ -34,7 +36,12 @@ interface DraftOverflowMenuProps {
  * kompakt bir onay (`ConfirmDialog`) istenir; iptal edilirse hiçbir içerik
  * kaybolmaz, onaylanırsa mevcut kuyruk temizleme işlevi çağrılır.
  */
-function DraftOverflowMenu({ onClearAll, totalItems, itemIds }: DraftOverflowMenuProps) {
+function DraftOverflowMenu({
+  onClearAll,
+  totalItems,
+  itemIds,
+  disabled = false
+}: DraftOverflowMenuProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [placement, setPlacement] = useState<'bottom' | 'top'>('bottom')
@@ -175,7 +182,7 @@ function DraftOverflowMenu({ onClearAll, totalItems, itemIds }: DraftOverflowMen
           <MenuItem
             data-testid="ai-draft-clear-all"
             aria-label={t('ai_send_clear_all')}
-            disabled={totalItems === 0}
+            disabled={disabled || totalItems === 0}
             danger
             icon={<Trash2 />}
             onClick={handleRequestClear}

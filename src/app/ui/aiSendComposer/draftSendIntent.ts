@@ -46,7 +46,12 @@ export function resolveDraftSendIntent({
   return autoSend ? 'send' : 'prepare'
 }
 
-/** `awaiting` durumunda düğme güvenle bir eylem yapamaz; devre dışıdır. */
+/**
+ * `awaiting` ve `sending` durumlarında düğme yeni bir iş başlatamaz:
+ * biri kısmi teslimatın güvenlik kilidi, diğeri zaten süren bir gönderimdir.
+ * Kapalı hap ile açık panel aynı yardımcıyı kullandığı için ikisi de aynı anda
+ * devre dışı kalır.
+ */
 export function isDraftSendIntentActionable(intent: DraftSendIntent): boolean {
-  return intent !== 'awaiting'
+  return intent !== 'awaiting' && intent !== 'sending'
 }

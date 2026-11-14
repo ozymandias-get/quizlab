@@ -24,6 +24,8 @@ interface DraftSendControlsProps {
   lastError: string | null
   isSubmitting: boolean
   isResendSafe: boolean
+  /** Bildirim kapatıldıysa yalnızca görünürlük gizlenir; gönderim kilidi kalır. */
+  showOutcome?: boolean
 }
 
 /**
@@ -51,16 +53,18 @@ function DraftSendControls({
   feedback,
   lastError,
   isSubmitting,
-  isResendSafe
+  isResendSafe,
+  showOutcome = true
 }: DraftSendControlsProps) {
   const { t } = useTranslation()
   const [isStatusExpanded, setIsStatusExpanded] = useState(false)
 
-  const isIncomplete = feedback === 'incomplete'
-  const canRetry = feedback === 'error' && isResendSafe
+  const isIncomplete = showOutcome && feedback === 'incomplete'
+  const canRetry = showOutcome && feedback === 'error' && isResendSafe
 
-  const statusLabel =
-    feedback === 'sending'
+  const statusLabel = !showOutcome
+    ? null
+    : feedback === 'sending'
       ? t('sending_to_ai')
       : isIncomplete
         ? (lastError ?? t('ai_send_incomplete'))

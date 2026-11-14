@@ -400,7 +400,7 @@ describe('useComposerSendAction', () => {
       expect(onSend).toHaveBeenCalledTimes(1)
     })
 
-    it('lets the user dismiss an incomplete outcome without losing the draft', async () => {
+    it('hides the incomplete notice without unlocking sending or losing the draft', async () => {
       const onSend = vi
         .fn<(payload: Payload) => Promise<unknown>>()
         .mockResolvedValue({ success: false, error: 'autosend_failed_draft_saved' })
@@ -413,10 +413,20 @@ describe('useComposerSendAction', () => {
         result.current.dismissOutcome()
       })
 
-      expect(result.current.sendFeedback).toBe('idle')
-      expect(result.current.lastError).toBeNull()
+      // Bildirim gizlendi…
+      expect(result.current.isOutcomeDismissed).toBe(true)
+      // …ama güvenlik durumu sıfırlanmadı: kısmi teslimat kilidi sürüyor.
+      expect(result.current.sendFeedback).toBe('incomplete')
+      expect(result.current.isResendSafe).toBe(false)
       // Not ve kuyruk bu hook'a bağlı değil; hiçbir temizleme çağrısı yapılmaz.
       expect(onSend).toHaveBeenCalledTimes(1)
+
+      // Kuyruk boşaldığında açık bir sıfırlama kilidi bırakır.
+      act(() => {
+        result.current.resetOutcome()
+      })
+      expect(result.current.sendFeedback).toBe('idle')
+      expect(result.current.isOutcomeDismissed).toBe(false)
     })
   })
 })

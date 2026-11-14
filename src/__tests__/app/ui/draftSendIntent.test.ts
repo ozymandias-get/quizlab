@@ -11,7 +11,10 @@
  * send returns the composer to `idle` — so the post-send label is the `idle`
  * case above, and it still describes what a *click* would do.
  */
-import { resolveDraftSendIntent } from '@app/ui/aiSendComposer/draftSendIntent'
+import {
+  isDraftSendIntentActionable,
+  resolveDraftSendIntent
+} from '@app/ui/aiSendComposer/draftSendIntent'
 
 import { describe, expect, it } from 'vitest'
 
@@ -44,5 +47,15 @@ describe('resolveDraftSendIntent', () => {
     expect(
       resolveDraftSendIntent({ autoSend: false, feedback: 'error', isSubmitting: false })
     ).toBe('retry')
+  })
+
+  it('never treats a running send as actionable', () => {
+    // The closed pill used to stay clickable while a send was in flight: the
+    // label said "sending" but the button still looked (and was) enabled.
+    expect(isDraftSendIntentActionable('sending')).toBe(false)
+    expect(isDraftSendIntentActionable('awaiting')).toBe(false)
+    expect(isDraftSendIntentActionable('send')).toBe(true)
+    expect(isDraftSendIntentActionable('prepare')).toBe(true)
+    expect(isDraftSendIntentActionable('retry')).toBe(true)
   })
 })
