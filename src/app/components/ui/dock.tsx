@@ -19,7 +19,7 @@ import React, {
   useRef
 } from 'react'
 
-export interface DockProps extends VariantProps<typeof dockVariants> {
+interface DockProps extends VariantProps<typeof dockVariants> {
   className?: string
   style?: React.CSSProperties
   iconSize?: number
@@ -144,7 +144,7 @@ const Dock = React.forwardRef<HTMLDivElement, DockProps>(
 
 Dock.displayName = 'Dock'
 
-export interface DockIconProps extends Omit<
+interface DockIconProps extends Omit<
   MotionProps & React.HTMLAttributes<HTMLDivElement>,
   'children'
 > {
@@ -254,4 +254,4 @@ const DockIcon = React.forwardRef<HTMLDivElement, DockIconProps>(function DockIc
 
 DockIcon.displayName = 'DockIcon'
 
-export { Dock, DockIcon, dockVariants }
+export { Dock, DockIcon }

@@ -32,6 +32,8 @@ import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEng
 
 import { useEffect, useState } from 'react'
 
+import { toNativePdfErrorMessage } from './nativePdfErrors'
+
 /** `idle` = no document requested (flag off, or no URL); `ready` = a page can be fetched. */
 export type NativePdfDocumentStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -65,18 +67,6 @@ interface UseNativePdfDocumentResult {
   pageDimensions: NativePdfPageDimensions | null
   /** Human-readable load failure, already reduced to a safe message. */
   loadError: string | null
-}
-
-/**
- * Reduce a load failure to a message safe to show.
- *
- * PDF.js errors carry a stack trace and internal names (`PasswordException`,
- * `InvalidPDFException`, …). None of that belongs in the UI, so only `message`
- * is kept, and it is bounded in length.
- */
-function toLoadErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  return message.length > 200 ? message.slice(0, 200) : message
 }
 
 export function useNativePdfDocument({
@@ -135,7 +125,7 @@ export function useNativePdfDocument({
         setStatus('ready')
       } catch (error) {
         if (cancelled) return
-        setLoadError(toLoadErrorMessage(error))
+        setLoadError(toNativePdfErrorMessage(error))
         setLoadedIdentity(identity)
         setStatus('error')
       }

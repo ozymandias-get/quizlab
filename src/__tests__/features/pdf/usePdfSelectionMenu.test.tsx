@@ -1,4 +1,4 @@
-import type { SelectionPosition } from '@app/providers/ai/types'
+import type { SelectionPosition } from '@shared-core/types'
 import { usePdfSelectionMenu } from '@features/pdf/ui/components/usePdfSelectionMenu'
 import { computeSelectionMenuAnchor } from '@features/pdf/text/selectionPage'
 
@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   // `queueTextForAi` gerçek boolean sonucunu döndürür; `undefined` dönen bir mock
   // reddi modeller, bu yüzden kabul senaryoları açıkça `true` verir.
-  queueTextForAi: vi.fn((_text: string, _position?: unknown, _meta?: unknown) => true),
+  queueTextForAi: vi.fn((_text: string, _meta?: unknown) => true),
   sendTextDirectToAi: vi.fn().mockResolvedValue({ success: true, mode: 'auto_click' }),
   pendingAiItems: [] as unknown[]
 }))
@@ -303,7 +303,7 @@ describe('usePdfSelectionMenu — action contract', () => {
     expect(mocks.queueTextForAi).toHaveBeenCalledTimes(1)
     expect(mocks.queueTextForAi.mock.calls[0][0]).toBe('draft me')
     // Sayfa metadata'sı seçim anından yakalanır (11/59).
-    const meta = mocks.queueTextForAi.mock.calls[0][2] as {
+    const meta = mocks.queueTextForAi.mock.calls[0][1] as {
       source?: { page: number; totalPages: number }
     }
     expect(meta?.source?.page).toBe(11)

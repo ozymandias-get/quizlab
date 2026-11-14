@@ -83,7 +83,7 @@ interface UseScreenshotPipelineProps {
    * Metni kuyruğa yazar. Bekleyen metnin "Taslağa Ekle" yolu bunu çağırır ve
    * gerçek boolean sonucunu döner (reddedilirse bekleyen yakalama korunur).
    */
-  queueTextForAi: (text: string, position?: null, meta?: QueuedTextMeta | null) => boolean
+  queueTextForAi: (text: string, meta?: QueuedTextMeta | null) => boolean
 }
 
 /**
@@ -402,7 +402,7 @@ export function useScreenshotPipeline({
   const confirmPendingFullPageTextAsDraft = useCallback(() => {
     const pending = pendingFullPageTextRef.current
     if (!pending) return false
-    const accepted = queueTextForAi(pending.text, null, pending.meta ?? undefined)
+    const accepted = queueTextForAi(pending.text, pending.meta ?? undefined)
     if (!accepted) return false
     setPendingFullPageText(null)
     return true

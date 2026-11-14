@@ -1,4 +1,4 @@
-import type { AiPlatform, SelectionPosition } from '@shared-core/types'
+import type { AiPlatform } from '@shared-core/types'
 import type { AiContentController } from '@shared-core/types/aiContent'
 
 import type { AiSendOptions, AiSendResult } from '@features/ai'
@@ -6,10 +6,6 @@ import type { AiSendOptions, AiSendResult } from '@features/ai'
 import type { Dispatch, SetStateAction } from 'react'
 
 export type { AiSendResult }
-
-// Tek kaynak: seçim konum tipi katmanlar arası bir sözleşmedir ve
-// @shared-core/types altında yaşar (bkz. shared/types/pdf.ts).
-export type { SelectionPosition }
 
 /**
  * Gönderici bir sonuç döndürmediğinde kullanılan yedek sonuç.
@@ -56,10 +52,8 @@ interface AiDraftTextItem {
   id: string
   type: 'text'
   text: string
-  position?: SelectionPosition | null
   /** Seçim anındaki gerçek PDF kökeni (sayfa/toplam/belge). */
   source?: PdfSourceMeta | null
-  createdAt?: number
 }
 
 export interface AiDraftImageItem {
@@ -72,7 +66,6 @@ export interface AiDraftImageItem {
   captureKind?: 'full-page' | 'selection'
   /** Yeni kaynak modeli (sayfa/toplam/belge). Eski alanlarla geriye uyumlu. */
   source?: PdfSourceMeta | null
-  createdAt?: number
 }
 
 export type AiDraftItem = AiDraftTextItem | AiDraftImageItem

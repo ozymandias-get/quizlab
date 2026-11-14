@@ -5,6 +5,8 @@ import {
   writeStorageItem
 } from '@shared/hooks/localStorageUtils'
 
+import { normalizeConversationUrl } from './conversationUrl'
+
 /** How many recently used AI conversations the home page keeps around. */
 export const RECENT_AI_WORK_LIMIT = 10
 
@@ -31,19 +33,6 @@ function normalizeDocumentName(rawName: string | undefined): string | undefined 
     : name
 }
 
-function normalizeUrl(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
-    // A fragment never identifies a conversation and would split one chat into
-    // an extra history row.
-    url.hash = ''
-    return url.toString()
-  } catch {
-    return null
-  }
-}
-
 export function createRecentAiWorkEntry(
   modelId: string,
   rawUrl: string,
@@ -51,7 +40,7 @@ export function createRecentAiWorkEntry(
   documentName?: string
 ): RecentAiWorkEntry | null {
   if (!modelId) return null
-  const url = normalizeUrl(rawUrl)
+  const url = normalizeConversationUrl(rawUrl)
   if (!url) return null
   const normalizedDocument = normalizeDocumentName(documentName)
   return {

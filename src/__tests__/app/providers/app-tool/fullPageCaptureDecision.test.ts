@@ -69,7 +69,7 @@ describe('useScreenshotPipeline — full-page capture decision', () => {
       result.current.confirmPendingFullPageTextAsDraft()
     })
 
-    expect(queueTextForAi).toHaveBeenCalledWith('sayfa metni', null, undefined)
+    expect(queueTextForAi).toHaveBeenCalledWith('sayfa metni', undefined)
     expect(result.current.pendingFullPageTextCapture).toBeNull()
   })
 

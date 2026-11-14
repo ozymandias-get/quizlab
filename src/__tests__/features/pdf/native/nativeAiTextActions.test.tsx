@@ -320,7 +320,7 @@ describe('native viewer — AI text actions', () => {
     // Taslağa Ekle gönderim tetiklemez.
     expect(mocks.sendTextDirectToAi).not.toHaveBeenCalled()
     // Sayfa metadata'sı snapshot'tan gelir.
-    const meta = mocks.queueTextForAi.mock.calls[0][2]
+    const meta = mocks.queueTextForAi.mock.calls[0][1]
     expect(meta?.source?.page).toBeGreaterThanOrEqual(1)
   })
 

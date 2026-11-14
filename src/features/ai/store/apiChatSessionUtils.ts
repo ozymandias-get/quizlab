@@ -16,7 +16,7 @@ export interface ChatSession {
   updatedAt: number
 }
 
-export const DEFAULT_SESSION_TITLE = 'New Chat'
+const DEFAULT_SESSION_TITLE = 'New Chat'
 
 export function getDefaultSessionTitle(): string {
   try {
@@ -25,12 +25,11 @@ export function getDefaultSessionTitle(): string {
   } catch {
     // ignore and fall back
   }
-  return 'New Chat'
+  return DEFAULT_SESSION_TITLE
 }
 
 export function isDefaultSessionTitle(title: string): boolean {
-  if (title === DEFAULT_SESSION_TITLE) return true
-  if (title === 'New Chat' || title === 'Yeni Sohbet') return true
+  if (title === DEFAULT_SESSION_TITLE || title === 'Yeni Sohbet') return true
   try {
     const cur = i18next.t('api_chat_new_chat')
     if (title === cur) return true

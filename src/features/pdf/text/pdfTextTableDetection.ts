@@ -81,7 +81,6 @@ export interface DetectedTable {
   block: PdfTableBlock
   fragments: PdfTextFragment[]
   top: number
-  bottom: number
 }
 
 interface MeasuredLine {
@@ -103,7 +102,7 @@ interface ColumnSkeleton {
   tolerance: number
 }
 
-export function isCandidateTableRow(row: PdfTextFragment[]): boolean {
+function isCandidateTableRow(row: PdfTextFragment[]): boolean {
   if (row.length < 2) return false
   const cells = [...row].sort((a, b) => a.left - b.left)
   for (let index = 0; index < cells.length; index += 1) {
@@ -690,8 +689,7 @@ export function detectTables(
     tables.push({
       block,
       fragments: tableFragments,
-      top: Math.min(...tableFragments.map((fragment) => fragment.top)),
-      bottom: Math.max(...tableFragments.map((fragment) => fragment.bottom))
+      top: Math.min(...tableFragments.map((fragment) => fragment.top))
     })
   }
 

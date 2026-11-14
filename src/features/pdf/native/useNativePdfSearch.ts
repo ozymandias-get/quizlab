@@ -70,6 +70,7 @@
  */
 import { type RefObject, useCallback, useEffect, useState } from 'react'
 
+import { toNativePdfErrorMessage } from './nativePdfErrors'
 import { prefersReducedMotion } from './nativePdfReducedMotion'
 import {
   findNativePdfSearchHighlights,
@@ -97,12 +98,6 @@ export interface NativePdfSearchHandle {
    * not a broken one.
    */
   searchError: string | null
-}
-
-/** Keep a search failure to one safe line, as the other two layers do. */
-function toSearchErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  return message.length > 200 ? message.slice(0, 200) : message
 }
 
 /**
@@ -214,7 +209,7 @@ export function useNativePdfSearch({
       // from a query that no longer resolved.
       layer.replaceChildren()
       setMatchCount(0)
-      setSearchError(toSearchErrorMessage(error))
+      setSearchError(toNativePdfErrorMessage(error))
     }
     // `documentKey` and `scale` are not read here on purpose: they are the two inputs
     // that invalidate geometry without changing the layer's DOM identity, and a zoom has

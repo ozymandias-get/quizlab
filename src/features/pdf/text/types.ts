@@ -64,7 +64,6 @@ export interface PdfTextLine {
   top: number
   bottom: number
   fontSize: number
-  row: number
 }
 
 /** A table whose cell relationships were reliable enough to reconstruct. */

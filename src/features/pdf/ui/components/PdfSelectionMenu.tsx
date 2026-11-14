@@ -1,6 +1,6 @@
 import { BlurFade } from '@app/components/ui/blur-fade'
-import { BorderBeam } from '@app/components/ui/border-beam'
 import { DURATION } from '@shared/lib/motion'
+import { BorderBeam } from '@shared/ui/components/BorderBeam'
 
 import { BookmarkPlus, Info, Loader2, Send } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'

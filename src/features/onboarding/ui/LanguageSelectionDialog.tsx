@@ -1,10 +1,10 @@
 import { BlurFade } from '@app/components/ui/blur-fade'
-import { BorderBeam } from '@app/components/ui/border-beam'
 import { DialogBackdrop } from '@app/components/ui/dialog'
 import { MagicCard } from '@app/components/ui/magic-card'
 import { useDialogBehavior } from '@shared/hooks'
 import { DURATION } from '@shared/lib/motion'
 import { useLanguage } from '@shared/stores/languageStore'
+import { BorderBeam } from '@shared/ui/components/BorderBeam'
 import { Button } from '@shared/ui/components/primitives'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'

@@ -7,7 +7,7 @@ import { useToastActions } from '@shared/stores/toastStore'
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 
 import type { PdfSourceMeta } from './ai/pdfSource'
-import type { AiDraftItem, AiSendResult, SelectionPosition } from './ai/types'
+import type { AiDraftItem, AiSendResult } from './ai/types'
 import {
   useAiContent,
   useAiContentPresence,
@@ -110,7 +110,6 @@ interface AppToolActionsType {
    */
   queueTextForAi: (
     text: string,
-    position?: SelectionPosition | null,
     meta?: { source?: PdfSourceMeta | null } | PdfSourceMeta | null
   ) => boolean
   queueImageForAi: (dataUrl: string, imageMeta?: QueuedImageMeta) => boolean

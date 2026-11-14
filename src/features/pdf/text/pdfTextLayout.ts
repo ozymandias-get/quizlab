@@ -260,8 +260,7 @@ function linesFromFragments(fragments: PdfTextFragment[]): PdfTextLine[] {
       right: Math.max(...ordered.map((fragment) => fragment.right)),
       top: Math.min(...ordered.map((fragment) => fragment.top)),
       bottom: Math.max(...ordered.map((fragment) => fragment.bottom)),
-      fontSize: median(ordered.map((fragment) => fragment.fontSize)),
-      row: ordered[0].row
+      fontSize: median(ordered.map((fragment) => fragment.fontSize))
     })
   }
 

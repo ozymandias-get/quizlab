@@ -14,6 +14,7 @@
  * being renumbered.
  */
 import { normalizePdfText } from './normalizePdfText'
+import { median } from './pdfTextGeometry'
 import type { PdfFlowBlock, PdfTableBlock, PdfTextLine } from './types'
 
 interface SerializePdfFlowOptions {
@@ -35,13 +36,6 @@ interface ParagraphContext {
 
 const BULLET_MARKER = /^([•·▪◦‣∙*+\-–—])\s+(.*)$/u
 const NUMBERED_MARKER = /^(\d{1,3}[.)]|[a-zA-ZçğıöşüÇĞİÖŞÜ][.)]|[IVXLC]{1,5}[.)])\s+(.*)$/u
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0
-  const sorted = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(sorted.length / 2)
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
-}
 
 function matchListMarker(text: string): ListMarker | null {
   const bullet = BULLET_MARKER.exec(text)

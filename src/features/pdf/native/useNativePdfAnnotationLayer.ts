@@ -77,6 +77,7 @@ import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEng
 import { AnnotationLayer } from 'pdfjs-dist'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
+import { toNativePdfErrorMessage } from './nativePdfErrors'
 import {
   createNativePdfLinkService,
   type NativePdfLinkService,
@@ -108,12 +109,6 @@ interface NativePdfAnnotationLayerHandle {
    * layer is torn down, and for a superseded run.
    */
   annotationLayerError: string | null
-}
-
-/** Keep an annotation-layer failure to one safe line, as the canvas path does. */
-function toAnnotationLayerErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  return message.length > 200 ? message.slice(0, 200) : message
 }
 
 /** The annotations and options `AnnotationLayer#render` actually reads. */
@@ -241,7 +236,7 @@ export function useNativePdfAnnotationLayer({
       } catch (error) {
         // A superseded run is not a failure, and neither is a destroyed engine.
         if (cancelled) return
-        setAnnotationLayerError(toAnnotationLayerErrorMessage(error))
+        setAnnotationLayerError(toNativePdfErrorMessage(error))
       }
     })()
 

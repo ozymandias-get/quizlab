@@ -59,6 +59,8 @@ import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEng
 
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
+import { toNativePdfErrorMessage } from './nativePdfErrors'
+
 interface UseNativePdfRenderOptions {
   enabled: boolean
   engine: NativePdfEngineHandle
@@ -85,12 +87,6 @@ interface NativePdfRenderHandle {
    * canvas to render into.
    */
   renderError: string | null
-}
-
-/** Keep a render failure to a single safe line — no PDF.js stack traces in the UI. */
-function toRenderErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  return message.length > 200 ? message.slice(0, 200) : message
 }
 
 export function useNativePdfRender({
@@ -168,7 +164,7 @@ export function useNativePdfRender({
         onRenderCommittedRef.current?.(currentPage)
       } catch (error) {
         if (cancelled || isRenderCancelled(error)) return
-        setRenderError({ page: currentPage, scale, message: toRenderErrorMessage(error) })
+        setRenderError({ page: currentPage, scale, message: toNativePdfErrorMessage(error) })
       }
     })()
 

@@ -55,7 +55,6 @@ describe('planSingleMessageSend', () => {
       imageItem('i3', 13)
     ])
     expect(plan?.images).toHaveLength(3)
-    expect(plan?.images.map((i) => i.id)).toEqual(['i1', 'i2', 'i3'])
     expect(plan?.itemIds).toEqual(['i1', 'i2', 'i3'])
     // Görsel başlıkları gövdede ilişkilendirilmiş.
     expect(plan?.combinedBody).toContain('Sayfa 11/59')
@@ -63,18 +62,19 @@ describe('planSingleMessageSend', () => {
     expect(plan?.combinedBody).toContain('Sayfa 13/59')
   })
 
-  it('preserves mixed text+image order', () => {
+  it('preserves mixed text+image order in the final body', () => {
     const plan = planSingleMessageSend([
       textItem('t1', 'A', 11),
       imageItem('i1', 13),
       textItem('t2', 'B', 12)
     ])
-    expect(plan?.orderedParts).toHaveLength(3)
+    const bodyParts = plan?.combinedBody.split('\n\n---\n\n') ?? []
+    expect(bodyParts).toHaveLength(3)
     expect(plan?.itemIds).toEqual(['t1', 'i1', 't2'])
     // Sıra korunur: A, görsel başlığı, B.
-    expect(plan?.orderedParts[0]).toContain('A')
-    expect(plan?.orderedParts[1]).toContain('Görsel')
-    expect(plan?.orderedParts[2]).toContain('B')
+    expect(bodyParts[0]).toContain('A')
+    expect(bodyParts[1]).toContain('Görsel')
+    expect(bodyParts[2]).toContain('B')
   })
 
   it('skips whitespace-only texts without reporting them as sent', () => {

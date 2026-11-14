@@ -4,7 +4,7 @@ import { useToastStore } from '@shared/stores/toastStore'
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState } from 'react'
 
 import type { PdfSourceMeta } from '../ai/pdfSource'
-import type { AiDraftImageItem, AiDraftItem, SelectionPosition } from '../ai/types'
+import type { AiDraftImageItem, AiDraftItem } from '../ai/types'
 import { buildPendingId, clearBrowserTextSelection } from './appToolUtils'
 
 export type QueuedImageMeta = Partial<Pick<AiDraftImageItem, 'page' | 'captureKind'>> & {
@@ -240,15 +240,11 @@ export function useAiDraftQueue(onReject?: () => void) {
   )
 
   const queueTextForAi = useCallback(
-    (
-      text: string,
-      position?: SelectionPosition | null,
-      meta?: QueuedTextMeta | PdfSourceMeta | null
-    ): boolean => {
+    (text: string, meta?: QueuedTextMeta | PdfSourceMeta | null): boolean => {
       const normalized = text.trim()
       if (!normalized) return false
 
-      // Üçüncü argüman hem { source } hem de doğrudan PdfSourceMeta olabilir.
+      // İkinci argüman hem { source } hem de doğrudan PdfSourceMeta olabilir.
       const source =
         meta && typeof meta === 'object' && 'page' in meta && 'docId' in meta
           ? (meta as PdfSourceMeta)
@@ -268,9 +264,7 @@ export function useAiDraftQueue(onReject?: () => void) {
         id: buildPendingId('text'),
         type: 'text',
         text: normalized,
-        position: position ?? null,
-        source,
-        createdAt: Date.now()
+        source
       }
 
       commit([...itemsRef.current, draft])
@@ -382,8 +376,7 @@ export function useAiDraftQueue(onReject?: () => void) {
           ...(dataUrl ? { dataUrl } : {}),
           blobUrl,
           ...imageMeta,
-          source: imageMeta?.source ?? null,
-          createdAt: Date.now()
+          source: imageMeta?.source ?? null
         }
       ])
 

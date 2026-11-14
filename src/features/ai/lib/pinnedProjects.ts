@@ -1,6 +1,8 @@
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getStorageItem, writeStorageItem } from '@shared/hooks/localStorageUtils'
 
+import { normalizeConversationUrl } from './conversationUrl'
+
 export const PINNED_AI_PROJECT_LIMIT = 50
 
 export interface PinnedAiProject {
@@ -23,17 +25,6 @@ function normalizeName(rawName: string): string | null {
   return name.length > MAX_NAME_LENGTH ? name.slice(0, MAX_NAME_LENGTH - 1) + '…' : name
 }
 
-function normalizeUrl(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
-    url.hash = ''
-    return url.toString()
-  } catch {
-    return null
-  }
-}
-
 export function createPinnedAiProject(
   modelId: string,
   rawName: string,
@@ -42,7 +33,7 @@ export function createPinnedAiProject(
 ): PinnedAiProject | null {
   if (!modelId) return null
   const name = normalizeName(rawName)
-  const url = normalizeUrl(rawUrl)
+  const url = normalizeConversationUrl(rawUrl)
   if (!name || !url) return null
   return {
     id: `${modelId}::${url}`,

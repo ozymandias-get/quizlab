@@ -289,13 +289,9 @@ export function usePdfSelectionMenu({
     const snapshot = menuRef.current
     if (!snapshot || feedback === 'working') return
     // Taslağa Ekle hiçbir koşulda gönderim tetiklemez; global autoSend'e dokunmaz.
-    const accepted = queueTextForAi(
-      snapshot.text,
-      { top: snapshot.position.top, left: snapshot.position.left },
-      {
-        source: snapshot.source
-      }
-    )
+    const accepted = queueTextForAi(snapshot.text, {
+      source: snapshot.source
+    })
     clearFeedbackTimer()
     if (!accepted) {
       // Kısa bildirim, sonra menü eylemleriyle kalıcı olarak açık kalır.

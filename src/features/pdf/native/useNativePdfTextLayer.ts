@@ -82,6 +82,8 @@ import type { NativePdfEngineHandle } from '@features/pdf/native/useNativePdfEng
 import { type PDFPageProxy, TextLayer } from 'pdfjs-dist'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 
+import { toNativePdfErrorMessage } from './nativePdfErrors'
+
 /**
  * `pdfjs-dist` exports `TextLayer` but not the `TextContent` shape, so the type is
  * derived from the only method that produces it. That also keeps the cache typed
@@ -122,12 +124,6 @@ interface NativePdfTextLayerHandle {
    * runs on screen.
    */
   textLayerReady: boolean
-}
-
-/** Keep a text-layer failure to one safe line, as the canvas path does. */
-function toTextLayerErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  return message.length > 200 ? message.slice(0, 200) : message
 }
 
 /** PDF.js reports a cancelled text layer with `AbortException`, not a render failure. */
@@ -239,7 +235,7 @@ export function useNativePdfTextLayer({
         // Teardown rejects the in-flight render; that is the expected way a
         // superseded layer stops, not something to show the user.
         if (cancelled || isTextLayerAborted(error)) return
-        setTextLayerError(toTextLayerErrorMessage(error))
+        setTextLayerError(toNativePdfErrorMessage(error))
       }
     })()
 

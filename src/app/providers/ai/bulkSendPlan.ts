@@ -1,23 +1,14 @@
 import { decorateTextWithSource } from './pdfSource'
 import type { AiDraftItem } from './types'
 
-interface BulkTextEntry {
-  id: string
-  text: string
-}
-
 interface BulkImageEntry {
-  id: string
   dataUrl?: string
   blobUrl?: string
 }
 
 interface SingleMessagePlan {
-  /** Sıralı gövde parçaları (metinler + görsel başlıkları, draft sırasıyla). */
-  orderedParts: string[]
-  /** orderedParts'un "\n\n---\n\n" ile birleşimi. */
+  /** Sıralı gövde parçalarının "\n\n---\n\n" ile birleşimi. */
   combinedBody: string
-  texts: BulkTextEntry[]
   images: BulkImageEntry[]
   itemIds: string[]
 }
@@ -33,11 +24,7 @@ interface SingleMessagePlan {
  *   Böylece prompt yalnızca bir kez eklenir.
  * - Boş metinler gövdeye katılmaz ama id'leri "tüketildi" sayılmaz.
  */
-export function planSingleMessageSend(
-  pending: AiDraftItem[],
-  _composerNote?: string
-): SingleMessagePlan | null {
-  const texts: BulkTextEntry[] = []
+export function planSingleMessageSend(pending: AiDraftItem[]): SingleMessagePlan | null {
   const images: BulkImageEntry[] = []
   const orderedParts: string[] = []
   const itemIds: string[] = []
@@ -46,15 +33,13 @@ export function planSingleMessageSend(
     if (draft.type === 'text') {
       const trimmed = draft.text.trim()
       if (!trimmed) continue
-      const decorated = decorateTextWithSource(trimmed, draft.source ?? null, 'text')
-      texts.push({ id: draft.id, text: decorated })
-      orderedParts.push(decorated)
+      orderedParts.push(decorateTextWithSource(trimmed, draft.source ?? null, 'text'))
       itemIds.push(draft.id)
     } else {
       const dataUrl = draft.dataUrl
       const blobUrl = draft.blobUrl
       if (!dataUrl && !blobUrl) continue
-      images.push({ id: draft.id, dataUrl, blobUrl })
+      images.push({ dataUrl, blobUrl })
       // Görsel başlığı gövdeye metin olarak eklenir (AI tarafında ilişki kurulsun).
       const header = decorateTextWithSource('', draft.source ?? null, 'image')
       // decorateTextWithSource('', source) başlığı döndürür; kaynaksızsa boş döner.
@@ -68,7 +53,7 @@ export function planSingleMessageSend(
   if (itemIds.length === 0) return null
 
   const combinedBody = orderedParts.join('\n\n---\n\n')
-  return { orderedParts, combinedBody, texts, images, itemIds }
+  return { combinedBody, images, itemIds }
 }
 
 /**
