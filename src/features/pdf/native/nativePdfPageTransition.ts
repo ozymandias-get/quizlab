@@ -177,3 +177,62 @@ export function playNativePdfPageTransition(
     fill: 'none'
   })
 }
+
+/**
+ * How long a document takes to appear once its first page has actually painted.
+ *
+ * `--duration-slow`, 200 ms — the top of the requested 180–200 ms band. The page box
+ * holds the canvas, the text layer, the annotation layer and the search overlay, so a
+ * single fade is a *document* arriving rather than four surfaces arriving separately.
+ */
+export const NATIVE_DOCUMENT_ENTRANCE_DURATION_MS = Math.round(DURATION.slow * 1000)
+
+/**
+ * The document entrance: opacity only, from nothing to the page box's resting style.
+ *
+ * ## Why this is not a page turn
+ *
+ * The two presentations answer different questions. A page turn says "this is the
+ * direction you moved"; it is 8 px of travel and a 5 % dim, deliberately too small to
+ * be read as an event. An entrance says "here is the document you asked for"; a reader
+ * who just opened a file has no pixels on screen to preserve and expects the page to
+ * settle in. So this ramps the full opacity range and moves nothing.
+ *
+ * ## No scale, and nothing that touches layout
+ *
+ * `opacity` is compositor-only. Container measurement, the fit scale, the canvas
+ * backing store and the layer geometry are all untouched, which is what keeps the fade
+ * from costing a PDF.js re-render or nudging a zoom.
+ *
+ * ## Why `fill: 'none'` is still correct here
+ *
+ * The final keyframe is the page box's resting style (`opacity: 1`), so dropping the
+ * animation leaves nothing to clean up. `Element.animate()` applies its start value on
+ * the browser's next style pass, and the caller runs in the same task as the render
+ * commit — the same ordering the page turn relies on. That is what makes the first
+ * frame the compositor shows already faded, instead of one full-opacity flash of the
+ * page before the ramp begins.
+ */
+export function nativePdfDocumentEntranceKeyframes(): Keyframe[] {
+  return [{ opacity: 0 }, { opacity: 1 }]
+}
+
+/**
+ * Present a document entrance on the page box.
+ *
+ * Must be called in the same task as the render commit that painted the page. `null`
+ * means "no presentation": reduced motion, or no Web Animations API. The document is
+ * fully usable either way — the animation only controls whether the arrival is visible.
+ */
+export function playNativePdfDocumentEntrance(
+  page: HTMLElement,
+  reducedMotion: boolean
+): Animation | null {
+  if (reducedMotion) return null
+  if (typeof page.animate !== 'function') return null
+  return page.animate(nativePdfDocumentEntranceKeyframes(), {
+    duration: NATIVE_DOCUMENT_ENTRANCE_DURATION_MS,
+    easing: NATIVE_PAGE_TRANSITION_EASING,
+    fill: 'none'
+  })
+}

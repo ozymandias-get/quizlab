@@ -63,6 +63,16 @@ interface PresentedTurn {
 }
 
 let turns: PresentedTurn[]
+/**
+ * Document entrances, kept apart from page turns.
+ *
+ * Both presentations target the same page box and both are created through
+ * `Element.animate`. The recorder tells them apart by keyframe shape — a turn always
+ * carries a `transform`, an entrance never does — so the page-turn assertions below
+ * keep meaning "a turn", and the entrance has its own list instead of a second
+ * selector language.
+ */
+let entrances: PresentedTurn[]
 let frameCallbacks: FrameRequestCallback[]
 let originalAnimate: Element['animate'] | undefined
 
@@ -95,6 +105,7 @@ beforeEach(() => {
   FakeTextLayer.reset()
   FakeAnnotationLayer.reset()
   turns = []
+  entrances = []
   frameCallbacks = []
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     frameCallbacks.push(cb)
@@ -112,7 +123,10 @@ beforeEach(() => {
     options?: KeyframeAnimationOptions | number
   ) {
     const cancel = vi.fn()
-    turns.push({ element: this, keyframes, options, cancel })
+    const isEntrance = keyframes.every((keyframe) => keyframe.transform === undefined)
+    const presented = { element: this, keyframes, options, cancel }
+    if (isEntrance) entrances.push(presented)
+    else turns.push(presented)
     return { cancel, finished: Promise.resolve(this) } as unknown as Animation
   } as Element['animate']
 })
@@ -682,5 +696,70 @@ describe('native page transition — reduced motion', () => {
     // Navigation is the product feature and it is untouched: the page moved, and no
     // presentation was created — not a zero-length one, none.
     expect(turns).toHaveLength(0)
+  })
+})
+
+/* ------------------------------------------------ the document's own arrival */
+
+describe('native document entrance — the page appears once it is painted', () => {
+  it('fades the page box in on the first committed page of a document', async () => {
+    const { container } = await mountViewer()
+
+    await waitForFrames(() =>
+      expect(pageBoxOf(container)).toHaveAttribute('data-native-pdf-page', '1')
+    )
+
+    // One entrance, on the page box, at the render commit. Starting it on `status ===
+    // ready` would fade in an empty canvas and then let the page pop in behind a fade
+    // that had already finished.
+    expect(entrances).toHaveLength(1)
+    expect(entrances[0].element).toBe(pageBoxOf(container))
+    // Opacity only — no scale, no travel. A document arriving must not resample the
+    // page, touch the canvas box, or disturb the fit scale.
+    expect(entrances[0].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }])
+    expect(entrances[0].options).toEqual({
+      duration: 200,
+      easing: 'cubic-bezier(0.2, 0.9, 0.22, 1)',
+      fill: 'none'
+    })
+  })
+
+  it('does not replay the entrance for a page turn or a zoom', async () => {
+    const { control } = await mountViewer()
+
+    act(() => control.current?.goToNextPage())
+    await waitForFrames(() => expect(turns).toHaveLength(1))
+
+    act(() => control.current?.zoomTo(1.5))
+    await waitForFrames(() => expect(control.current?.scale).toBe(1.5))
+
+    // Page turns and re-renders are commits, but the document is already visible: the
+    // entrance belongs to the identity, not to the canvas.
+    expect(entrances).toHaveLength(1)
+  })
+
+  it('gives a switched document its own entrance and drops the previous one', async () => {
+    const { rerender } = await mountViewer({ pdfUrl: 'local-pdf://a' })
+    expect(entrances).toHaveLength(1)
+
+    const other = createFakeDocument({ numPages: 12 })
+    serveDocument(other)
+    rerender({ pdfUrl: 'local-pdf://b' })
+    await waitForFrames(() => expect(other.page(1).renderCalls.length).toBeGreaterThan(0))
+    await waitForFrames(() => expect(entrances).toHaveLength(2))
+
+    // The old document's ramp is cancelled rather than left running on a detached page
+    // box, and the new document starts its own.
+    expect(entrances[0].cancel).toHaveBeenCalled()
+    expect(entrances[1].keyframes).toEqual([{ opacity: 0 }, { opacity: 1 }])
+  })
+
+  it('presents nothing when the reader asked for reduced motion', async () => {
+    setPrefersReducedMotion(true)
+
+    await mountViewer()
+
+    // The document is loaded and usable; the arrival is simply not presented.
+    expect(entrances).toHaveLength(0)
   })
 })
