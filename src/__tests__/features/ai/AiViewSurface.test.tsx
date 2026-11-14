@@ -134,6 +134,20 @@ describe('AiViewSurface', () => {
     expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
   })
 
+  it('hides the native view while the focus shell is still revealing itself', () => {
+    // `clip-path` on the focus shell cannot clip a view that is not in the DOM
+    // tree, so the site would paint outside the expanding panel.
+    render(
+      <AiViewSurface
+        isResizing={false}
+        isSurfaceActive
+        isRevealInProgress
+        surfaceState={createSurfaceState()}
+      />
+    )
+    expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
+  })
+
   it('renders a non-owning surface so a stale host cannot move the active view', () => {
     renderSurface({ aliveTabIds: ['1'] }, false)
     expect(screen.getByText('GPT-4 - Active - Passive')).toBeInTheDocument()

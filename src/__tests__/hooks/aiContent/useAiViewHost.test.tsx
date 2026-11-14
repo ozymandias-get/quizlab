@@ -300,6 +300,15 @@ describe('useAiViewHost - position-only moves', () => {
     return { ...created, rect, ...rendered }
   }
 
+  /** One animation frame, which is the cadence the motion watch measures at. */
+  async function nextFrame(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+  }
+
+  const lastBounds = () => syncHost.mock.calls.at(-1)?.[0]?.bounds
+
   it('republishes when an ancestor class swap moves the host without resizing it', async () => {
     const rect = { x: 900, y: 150, width: 800, height: 600 }
     const { frame } = mountHost(rect)
@@ -347,6 +356,61 @@ describe('useAiViewHost - position-only moves', () => {
     expect(syncHost.mock.calls[0][0].bounds.y).toBe(90)
   })
 
+  it('follows a CSS transition through its intermediate frames', async () => {
+    // The case no observer can see: the browser interpolates the computed value
+    // while the element's attributes stay untouched, so only `transitionrun` and
+    // `transitionend` ever fire. Staying at the start rectangle until the end is
+    // what makes the native view trail the panel for the whole animation.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      Object.assign(rect, { x: 875 })
+      frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    await nextFrame()
+    expect(lastBounds()?.x).toBe(875)
+
+    for (const x of [850, 825, 800]) {
+      act(() => {
+        Object.assign(rect, { x })
+      })
+      await nextFrame()
+      expect(lastBounds()?.x).toBe(x)
+    }
+
+    act(() => {
+      frame.dispatchEvent(new Event('transitionend', { bubbles: true }))
+    })
+    await nextFrame()
+    expect(lastBounds()?.x).toBe(800)
+  })
+
+  it('stops following when a transition is cancelled', async () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const { frame } = mountHost(rect)
+
+    act(() => {
+      Object.assign(rect, { x: 875 })
+      frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    await nextFrame()
+    act(() => {
+      frame.dispatchEvent(new Event('transitioncancel', { bubbles: true }))
+    })
+    await nextFrame()
+    syncHost.mockClear()
+
+    // Nothing is running any more, so a later mutation that does not change the
+    // rectangle must not produce traffic.
+    act(() => {
+      Object.assign(rect, { x: 875 })
+      frame.dispatchEvent(new Event('animationend', { bubbles: true }))
+    })
+    await nextFrame()
+    expect(syncHost).not.toHaveBeenCalled()
+  })
+
   it('republishes when a scrolling ancestor carries the host with it', async () => {
     // Capture-phase scroll is the only signal for this: the host is not the
     // scrolled element and its own size does not change.
@@ -376,6 +440,140 @@ describe('useAiViewHost - position-only moves', () => {
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
     expect(syncHost).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Observer budget.
+ *
+ * Ten AI tabs stay mounted at once, but only the surface on screen owns the view.
+ * Observers and global listeners exist only while a host can actually publish;
+ * the rest rely on the ownership flush when they take over.
+ */
+describe('useAiViewHost - observation budget', () => {
+  beforeEach(() => {
+    syncHost.mockClear()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.body.innerHTML = ''
+  })
+
+  it('observes only while this host can actually move the view', () => {
+    const host = createHost({ x: 0, y: 0, width: 100, height: 100 })
+    const { result, rerender } = renderHook(
+      (props: { owner: boolean; visible: boolean }) =>
+        useAiViewHost({ ...defaultOptions, isHostOwner: props.owner, visible: props.visible }),
+      { initialProps: { owner: false, visible: true } }
+    )
+
+    act(() => {
+      result.current.setHostElement(host.element)
+    })
+    expect(host.observerCount()).toBe(0)
+
+    rerender({ owner: true, visible: true })
+    expect(host.observerCount()).toBe(1)
+
+    // A background tab keeps its placeholder mounted but publishes nothing, so
+    // it holds no observers at all.
+    rerender({ owner: true, visible: false })
+    expect(host.observerCount()).toBe(0)
+
+    rerender({ owner: true, visible: true })
+    expect(host.observerCount()).toBe(1)
+
+    rerender({ owner: false, visible: true })
+    expect(host.observerCount()).toBe(0)
+  })
+
+  it('stops listening for motion events on unmount', async () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const created = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result, unmount } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+    unmount()
+
+    act(() => {
+      Object.assign(rect, { x: 10 })
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(syncHost).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * A transition or animation that never reports an end must not leave a frame
+ * loop running: the follow has a hard frame budget.
+ */
+describe('useAiViewHost - bounded motion follow', () => {
+  let frames: Map<number, FrameRequestCallback>
+  let nextHandle: number
+
+  beforeEach(() => {
+    syncHost.mockClear()
+    document.body.innerHTML = ''
+    frames = new Map()
+    nextHandle = 0
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      nextHandle += 1
+      frames.set(nextHandle, callback)
+      return nextHandle
+    })
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => {
+      frames.delete(handle)
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    document.body.innerHTML = ''
+  })
+
+  function flushFrames(): void {
+    const queued = [...frames.values()]
+    frames.clear()
+    for (const callback of queued) callback(0)
+  }
+
+  it('stops following after its frame budget when no end event arrives', () => {
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const created = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+
+    for (let step = 0; step < 220; step += 1) {
+      rect.x = 900 - step
+      flushFrames()
+    }
+    const followed = syncHost.mock.calls.length
+    expect(followed).toBeGreaterThan(0)
+    expect(followed).toBeLessThanOrEqual(180)
+
+    // The budget is spent: further motion sends nothing until a new event.
+    for (let step = 0; step < 20; step += 1) {
+      rect.x = 100 - step
+      flushFrames()
+    }
+    expect(syncHost.mock.calls.length).toBe(followed)
   })
 })
 

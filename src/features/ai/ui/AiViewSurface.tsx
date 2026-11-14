@@ -27,6 +27,16 @@ interface AiViewSurfaceProps {
    * focus-mode handoff into a reposition instead of a rebuild.
    */
   isSurfaceActive: boolean
+  /**
+   * True while the panel wrapping this surface is still revealing itself — the
+   * focus overlay's clip-path expansion.
+   *
+   * The native view is composited above the DOM and does not inherit
+   * `clip-path`, so showing it mid-reveal paints the site outside the visible
+   * panel, over the backdrop. Keeping it hidden until the shell settles makes
+   * the first visible frame the settled one.
+   */
+  isRevealInProgress?: boolean
   surfaceState: AiViewSurfaceState
 }
 
@@ -37,7 +47,12 @@ interface AiViewSurfaceProps {
  * The remote pages themselves live in the main process as `WebContentsView`s;
  * this component renders only the DOM shell that positions them.
  */
-function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurfaceProps) {
+function AiViewSurface({
+  isResizing,
+  isSurfaceActive,
+  isRevealInProgress = false,
+  surfaceState
+}: AiViewSurfaceProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
   const { openAiWorkspace, setActiveTab } = useAiTabActions()
   const isDialogOpen = useIsAnyDialogOpen()
@@ -92,6 +107,8 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
   )
   // A native view is composited above every DOM layer, so any full-panel DOM
   // overlay — or any dialog anywhere in the app — has to be able to hide it.
+  // `isRevealInProgress` is the same rule for the focus shell's clip-path
+  // expansion: `clip-path` cannot clip a view that is not in the DOM tree.
   const isOverlayActive = showHome || isDialogOpen
 
   // Briefly cover the native view while a different AI tab takes over: the
@@ -113,7 +130,7 @@ function AiViewSurface({ isResizing, isSurfaceActive, surfaceState }: AiViewSurf
   const switchingTab = switchingTabId
     ? (tabs.find((tab) => tab.id === switchingTabId) ?? null)
     : null
-  const overlayBlocksViews = isOverlayActive || switchingTabId !== null
+  const overlayBlocksViews = isOverlayActive || isRevealInProgress || switchingTabId !== null
 
   const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
 

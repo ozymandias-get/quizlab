@@ -25,17 +25,21 @@ import { getAiViewClient } from './aiViewClient'
  *    ancestor's inline style every frame, while the host's border box keeps its
  *    width and height and no scroll or resize happens. The host therefore
  *    watches its ancestor chain for class/style mutations and the document for
- *    CSS animation/transition events, and re-measures on the next frame. Each
- *    of those is an event, not a timer: nothing runs between changes, and the
+ *    CSS animation/transition events, and re-measures on the next frame.
+ *
+ *    A CSS transition is the one case neither of those sees per frame: the
+ *    browser interpolates the computed value while the attributes stay put. Its
+ *    two events therefore bracket a *bounded* per-frame follow ({@link
+ *    MOTION_WATCH_MAX_FRAMES} frames at most), which stops on the end event or
+ *    on the budget, whichever comes first. Nothing runs between changes, and the
  *    dedupe above means a watched frame that measures the same rectangle still
  *    sends nothing.
  */
 
-const MOTION_EVENTS = [
-  'transitionrun',
+const MOTION_START_EVENTS = ['transitionrun', 'animationstart'] as const
+const MOTION_END_EVENTS = [
   'transitionend',
   'transitioncancel',
-  'animationstart',
   'animationend',
   'animationcancel'
 ] as const
@@ -102,6 +106,24 @@ const cancelFrame = (handle: number): void => {
  * frames costs a handful of no-op messages per attach and closes that window.
  */
 const REASSERT_FRAMES = 3
+
+/**
+ * Frames a running CSS transition or animation is followed for.
+ *
+ * A transition moves the host without mutating its attributes: the browser
+ * interpolates the computed value and only `transitionrun` / `transitionend`
+ * report it. Without a per-frame measurement the native view stays at the
+ * transition's start rectangle until it ends — visibly behind the panel for the
+ * whole animation. The watch below therefore measures once per frame while the
+ * animation runs, and stops on its end event.
+ *
+ * This is a *bounded* follow, not a loop: {@link MOTION_WATCH_MAX_FRAMES} is the
+ * safety cap for an animation that never reports an end (an infinite keyframe
+ * animation, a transition cancelled without an event). Nothing starts it except
+ * an actual motion event, and the snapshot dedupe still drops every frame that
+ * measures the same rectangle.
+ */
+const MOTION_WATCH_MAX_FRAMES = 180
 
 /**
  * Pixels the native view can be placed at.
@@ -241,6 +263,15 @@ export function useAiViewHost({
   isHostOwnerRef.current = isHostOwner
   visibleRef.current = visible
 
+  /**
+   * Motion watch state: one frame handle, a budget, and how many motion events
+   * are still unaccounted for. Kept in refs so starting or stopping the watch
+   * never re-renders the host.
+   */
+  const motionFrameRef = useRef<number | null>(null)
+  const motionFramesLeftRef = useRef(0)
+  const motionEventsRef = useRef(0)
+
   const measure = useCallback((): AiViewBounds | null => {
     if (!element) return null
     return toBounds(element.getBoundingClientRect(), resolveClipRadius(element))
@@ -302,12 +333,50 @@ export function useAiViewHost({
     schedule()
   }, [schedule])
 
+  /**
+   * Measures once per frame while a transition or animation is moving the host.
+   *
+   * `publish(false)` is the same path a resize takes, so the corner radius,
+   * visibility and dedupe rules are unchanged; the watch only decides *when* to
+   * measure. The budget shrinks every tick and nothing re-arms it, so a motion
+   * that never reports an end still costs at most {@link MOTION_WATCH_MAX_FRAMES}
+   * frames and then stops for good.
+   */
+  const startMotionWatch = useCallback(() => {
+    motionFramesLeftRef.current = MOTION_WATCH_MAX_FRAMES
+    if (motionFrameRef.current !== null) return
+    const tick = () => {
+      motionFrameRef.current = null
+      if (motionFramesLeftRef.current <= 0) return
+      motionFramesLeftRef.current -= 1
+      publish(false)
+      if (motionFramesLeftRef.current > 0 && motionEventsRef.current > 0) {
+        motionFrameRef.current = requestFrame(tick)
+      }
+    }
+    motionFrameRef.current = requestFrame(tick)
+  }, [publish])
+
+  const stopMotionWatch = useCallback(() => {
+    motionFramesLeftRef.current = 0
+    if (motionFrameRef.current !== null) {
+      cancelFrame(motionFrameRef.current)
+      motionFrameRef.current = null
+    }
+  }, [])
+
   const setHostElement = useCallback((node: HTMLDivElement | null) => {
     setElement(node)
   }, [])
 
   useEffect(() => {
-    if (!element) return
+    // Only a host that can actually move the view needs to watch anything: the
+    // owner of the view, while the view is on screen. Ten AI tabs stay mounted,
+    // but nine of them are background tabs whose hosts publish nothing — they
+    // take their observers when they become visible again, and the immediate
+    // flush below reads the current rectangle at that moment. A hidden view
+    // cannot lag visually, so nothing is lost by not measuring it.
+    if (!element || !isHostOwner || !visible) return
 
     const observer =
       typeof ResizeObserver === 'function' ? new ResizeObserver(() => schedule()) : null
@@ -345,23 +414,40 @@ export function useAiViewHost({
 
     /**
      * CSS keyframe animations and transitions are not attribute mutations, so
-     * they get their own signal. `animationend` / `transitionend` is what
-     * guarantees the settled rectangle is published even when the element never
-     * changed its class or style mid-flight.
+     * they get their own signal. A transition is the one case no observer can
+     * see frame by frame: the browser interpolates the computed value while the
+     * element's attributes stay exactly as they are, and only `transitionrun`
+     * and `transitionend` ever fire. So the event starts a bounded per-frame
+     * measurement, and the matching end event stops it.
+     *
+     * The counter keeps overlapping transitions alive: `transitionrun` fires per
+     * animated property, and the first `transitionend` must not stop a watch that
+     * is still covering another one.
      */
-    const handleMotionEvent = (event: Event) => {
-      if (event.target instanceof Node && !event.target.contains(element)) {
-        return
-      }
+    const handleMotionStart = (event: Event) => {
+      if (event.target instanceof Node && !event.target.contains(element)) return
+      motionEventsRef.current += 1
+      startMotionWatch()
+    }
+
+    const handleMotionEnd = (event: Event) => {
+      if (event.target instanceof Node && !event.target.contains(element)) return
+      motionEventsRef.current = Math.max(0, motionEventsRef.current - 1)
+      // Publish the settled rectangle on this frame even if the watch was
+      // between ticks, then stop: motion never leaves a frame running.
       schedule()
+      if (motionEventsRef.current === 0) stopMotionWatch()
     }
 
     window.addEventListener('resize', schedule)
     // Panels animate their bounds, so scroll/resize ancestors move the host
     // without firing a ResizeObserver entry on the host itself.
     window.addEventListener('scroll', handleScroll, true)
-    for (const type of MOTION_EVENTS) {
-      window.addEventListener(type, handleMotionEvent, true)
+    for (const type of MOTION_START_EVENTS) {
+      window.addEventListener(type, handleMotionStart, true)
+    }
+    for (const type of MOTION_END_EVENTS) {
+      window.addEventListener(type, handleMotionEnd, true)
     }
 
     return () => {
@@ -369,16 +455,21 @@ export function useAiViewHost({
       attributeObserver?.disconnect()
       window.removeEventListener('resize', schedule)
       window.removeEventListener('scroll', handleScroll, true)
-      for (const type of MOTION_EVENTS) {
-        window.removeEventListener(type, handleMotionEvent, true)
+      for (const type of MOTION_START_EVENTS) {
+        window.removeEventListener(type, handleMotionStart, true)
       }
+      for (const type of MOTION_END_EVENTS) {
+        window.removeEventListener(type, handleMotionEnd, true)
+      }
+      stopMotionWatch()
+      motionEventsRef.current = 0
       reassertFramesRef.current = 0
       if (frameRef.current !== null) {
         cancelFrame(frameRef.current)
         frameRef.current = null
       }
     }
-  }, [element, schedule])
+  }, [element, isHostOwner, visible, schedule, startMotionWatch, stopMotionWatch])
 
   // Ownership change and visibility flips both need an immediate push: the
   // bounds may be unchanged while the required action is only show or hide.

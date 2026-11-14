@@ -55,6 +55,9 @@ vi.mock('@features/ai/aiViewSurface', () => ({
   }
 }))
 
+const lastSurfaceProps = (): Record<string, unknown> =>
+  (mockAiViewSurface.mock.calls.at(-1)?.[0] ?? {}) as Record<string, unknown>
+
 vi.mock('@ui/components/PanelLoadingPlaceholder', () => ({
   default: () => <div data-testid="panel-loading-placeholder" />
 }))
@@ -197,6 +200,57 @@ describe('FocusOverlay', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Exit fullscreen' }))
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the native view hidden until the focus shell has settled', async () => {
+    vi.useFakeTimers()
+    render(
+      <FocusOverlay
+        mode="ai"
+        onClose={vi.fn()}
+        isAiSurfaceMounted
+        isResizing={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
+      />
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+  })
+
+  it('hides the native view as soon as a close starts', async () => {
+    vi.useFakeTimers()
+    const onClose = vi.fn()
+    render(
+      <FocusOverlay
+        mode="ai"
+        onClose={onClose}
+        isAiSurfaceMounted
+        isResizing={false}
+        isAiSurfaceActive
+        aiViewSurfaceState={surfaceState}
+      />
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit fullscreen' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
   })
 
   it('invokes onClose when Escape is pressed', () => {

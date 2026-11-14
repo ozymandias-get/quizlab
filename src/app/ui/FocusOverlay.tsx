@@ -54,6 +54,17 @@ const SHELL_STYLE: CSSProperties = {
   background: '#060608'
 }
 
+/**
+ * Safety net for the reveal gate.
+ *
+ * The native AI view stays hidden until the shell's clip-path expansion reports
+ * completion. Motion is reliable about `onAnimationComplete`, but a completion
+ * that never arrives (an interrupted transition, an environment where the
+ * animation is dropped) must not leave the panel permanently blank, so the gate
+ * also lifts on a one-shot timer a little longer than the longest reveal.
+ */
+const REVEAL_FALLBACK_MS = 1000
+
 const BACKDROP_STYLE: CSSProperties = {
   position: 'fixed',
   inset: 0,
@@ -82,10 +93,15 @@ function FocusOverlay({
   // dropped as soon as the reveal finishes so the panel is rasterised normally.
   const [isRevealSettled, setIsRevealSettled] = useState(false)
   const [showEscHint, setShowEscHint] = useState(true)
+  /** Set by a user-initiated close, so a completing exit animation cannot re-show the view. */
+  const isClosingRef = useRef(false)
 
   useEffect(() => {
     setIsRevealSettled(false)
     setShowEscHint(true)
+    isClosingRef.current = false
+    const timer = window.setTimeout(() => setIsRevealSettled(true), REVEAL_FALLBACK_MS)
+    return () => window.clearTimeout(timer)
   }, [mode])
 
   // The shortcut is discoverable for the first two seconds, then gets out of
@@ -115,6 +131,26 @@ function FocusOverlay({
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
+  /**
+   * A user-initiated close.
+   *
+   * The native AI view is not affected by the shell's exit clip-path either, so
+   * it has to be hidden before the panel starts shrinking, not after. `onClose`
+   * is called immediately — the overlay stays mounted through its exit
+   * animation, and `isClosingRef` keeps a completing exit animation from
+   * re-showing the view for its last frames.
+   */
+  const requestClose = useCallback(() => {
+    isClosingRef.current = true
+    setIsRevealSettled(false)
+    onCloseRef.current()
+  }, [])
+
+  const handleRevealComplete = useCallback(() => {
+    if (isClosingRef.current) return
+    setIsRevealSettled(true)
+  }, [])
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
@@ -135,11 +171,11 @@ function FocusOverlay({
       if (document.querySelector('[data-slot="menu-surface"], [role="menu"], [role="listbox"]')) {
         return
       }
-      onCloseRef.current()
+      requestClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isDialogOpen])
+  }, [isDialogOpen, requestClose])
 
   useEffect(() => {
     lastFocusedRef.current = (document.activeElement as HTMLElement | null) ?? null
@@ -157,8 +193,8 @@ function FocusOverlay({
   }, [])
 
   const handleBackdropClick = useCallback(() => {
-    onCloseRef.current()
-  }, [])
+    requestClose()
+  }, [requestClose])
   const handleShellClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation()
   }, [])
@@ -211,7 +247,7 @@ function FocusOverlay({
         initial="hidden"
         animate="visible"
         exit="exit"
-        onAnimationComplete={() => setIsRevealSettled(true)}
+        onAnimationComplete={handleRevealComplete}
         onClick={handleShellClick}
         className="glass-tier-1 relative flex h-full w-full flex-col overflow-hidden"
         style={shellStyle}
@@ -223,7 +259,7 @@ function FocusOverlay({
           <span className="text-ql-12 text-muted-foreground min-w-0 truncate font-medium">
             {focusTitle}
           </span>
-          <FocusCloseButton ref={closeButtonRef} onClick={onClose} label={closeLabel} />
+          <FocusCloseButton ref={closeButtonRef} onClick={requestClose} label={closeLabel} />
         </header>
 
         <div className="relative flex min-h-0 flex-1 flex-col">
@@ -241,6 +277,7 @@ function FocusOverlay({
                 <AiViewSurface
                   isResizing={isResizing}
                   isSurfaceActive={isAiSurfaceActive}
+                  isRevealInProgress={!isRevealSettled}
                   surfaceState={aiViewSurfaceState}
                 />
               ) : (
