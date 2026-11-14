@@ -42,7 +42,8 @@ export type {
   NativeMessagingConnectionStatus,
   NativeMessagingExtensionInfo,
   NativeMessagingExtensionInstallResult,
-  NativeMessagingExtensionProfile
+  NativeMessagingExtensionProfile,
+  NativeMessagingProfileRemovalResult
 } from './native-messaging.js'
 export type {
   PdfActionPoint,

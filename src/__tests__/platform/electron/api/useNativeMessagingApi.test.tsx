@@ -7,7 +7,8 @@
 import {
   useInstallExtensionMutation,
   useNativeMessagingPairingCodeQuery,
-  useNativeMessagingStatusQuery
+  useNativeMessagingStatusQuery,
+  useRemoveExtensionProfileMutation
 } from '@platform/electron/api/useNativeMessagingApi'
 
 import { getElectronApi } from '@shared/lib/electronApi'
@@ -43,6 +44,7 @@ describe('useNativeMessagingApi', () => {
       installExtension: vi
         .fn()
         .mockResolvedValue({ path: '/data/ext', version: '1.4.0', refreshed: true }),
+      removeProfile: vi.fn().mockResolvedValue({ success: true }),
       onExtensionConnected: () => () => {},
       onExtensionDisconnected: () => () => {}
     }
@@ -89,5 +91,25 @@ describe('useNativeMessagingApi', () => {
     const { result } = renderHook(() => useInstallExtensionMutation(), { wrapper })
 
     await expect(result.current.mutateAsync()).rejects.toThrow('Electron API not available')
+  })
+
+  it('forgets a Chrome profile through the main process', async () => {
+    vi.mocked(getElectronApi).mockReturnValue({ nativeMessaging: mockNativeMessaging } as any)
+    const { result } = renderHook(() => useRemoveExtensionProfileMutation(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ profileId: 'profile-b-1234' })
+    })
+
+    expect(mockNativeMessaging.removeProfile).toHaveBeenCalledWith('profile-b-1234')
+  })
+
+  it('reports an error when the profile removal API is not available', async () => {
+    vi.mocked(getElectronApi).mockReturnValue({} as any)
+    const { result } = renderHook(() => useRemoveExtensionProfileMutation(), { wrapper })
+
+    await expect(result.current.mutateAsync({ profileId: 'profile-b-1234' })).rejects.toThrow(
+      'Electron API not available'
+    )
   })
 })

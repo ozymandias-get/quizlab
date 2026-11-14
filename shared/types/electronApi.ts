@@ -26,6 +26,7 @@ import type { AiSelectorConfig, AutomationConfig, TextInputMode } from './automa
 import type {
   NativeMessagingExtensionInfo,
   NativeMessagingExtensionInstallResult,
+  NativeMessagingProfileRemovalResult,
   NativeMessagingProfileSelectionResult
 } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
@@ -201,6 +202,11 @@ export interface ElectronApi {
      * returns its absolute path, so the user can load it in Chrome.
      */
     installExtension: () => Promise<NativeMessagingExtensionInstallResult>
+    /**
+     * Forgets one Chrome profile in the app. Removing the selected source also
+     * clears the sessions imported from it.
+     */
+    removeProfile: (profileId: string) => Promise<NativeMessagingProfileRemovalResult>
     onExtensionConnected: (callback: () => void) => () => void
     onExtensionDisconnected: (callback: () => void) => () => void
   }

@@ -145,5 +145,11 @@
   "ws_profile_selected": "Selected",
   "ws_profile_select_btn": "Use this profile",
   "ws_profile_select_error": "The Chrome profile could not be selected.",
+  "ws_profile_remove_btn": "Remove",
+  "ws_profile_remove_confirm_title": "Remove this Chrome profile?",
+  "ws_profile_remove_confirm_other": "The profile is removed from the list. If its extension is still running, it registers itself again on its next poll.",
+  "ws_profile_remove_confirm_selected": "This profile is the selected session source. Removing it also clears the sessions imported from it. If its extension is still running, it registers itself again on its next poll.",
+  "ws_profile_remove_success": "The Chrome profile was removed.",
+  "ws_profile_remove_error": "The Chrome profile could not be removed.",
   "ws_profile_hint": "To add another profile, install the same extension in that Chrome profile, open its popup and give it a name you recognize."
 }

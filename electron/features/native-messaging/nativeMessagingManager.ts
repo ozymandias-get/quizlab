@@ -199,6 +199,51 @@ class NativeMessagingManager {
     })
   }
 
+  /**
+   * Forgets one Chrome profile in the app.
+   *
+   * The removal is written before it is committed: a failed write leaves both
+   * the list and the selection as they were. Removing the selected source
+   * clears the selection and advances the revision in the same write, so a
+   * restart cannot load a file that names a profile that is gone. The caller
+   * that removes the selected source clears its imported sessions first.
+   *
+   * A profile whose extension is still running re-registers with its next
+   * request: this is "forget", not "block".
+   */
+  removeProfile(profileId: string): Promise<boolean> {
+    return this.runSelectionWrite(async () => {
+      if (!this.hasProfile(profileId)) return false
+      const id = profileId.trim()
+      const wasSelected = this._selectedProfileId === id
+      const nextSelection = wasSelected ? null : this._selectedProfileId
+      const nextVersion = wasSelected ? this._selectionVersion + 1 : this._selectionVersion
+
+      try {
+        await this.writeProfileSnapshot({
+          selectedProfileId: nextSelection,
+          selectionVersion: nextVersion,
+          profiles: [...this._profiles.values()]
+            .filter((profile) => profile.id !== id)
+            .map((profile) => ({ id: profile.id, name: profile.name }))
+        })
+      } catch (error) {
+        Logger.warn('[NativeMessaging] The Chrome profile could not be removed:', error)
+        // A name write may already have left the profile out: write the full
+        // list again so a failed removal is not half-applied on disk.
+        await this.persistProfiles().catch(() => undefined)
+        return false
+      }
+
+      this._profiles.delete(id)
+      if (wasSelected) {
+        this._selectedProfileId = null
+        this._selectionVersion = nextVersion
+      }
+      this.broadcastExtensionConnected()
+      return true
+    })
+  }
   /** Runs one selection write after the previous one finished. */
   private runSelectionWrite<T>(task: () => Promise<T>): Promise<T> {
     const run = this._selectionWrite.catch(() => undefined).then(task)
@@ -469,9 +514,6 @@ class NativeMessagingManager {
     this._profilesWrite = this._profilesWrite
       .catch(() => undefined)
       .then(() => {
-        const profiles: PersistedExtensionProfile[] = [...this._profiles.values()].map(
-          (profile) => ({ id: profile.id, name: profile.name })
-        )
         const state = selection ?? {
           selectedProfileId: this._selectedProfileId,
           selectionVersion: this._selectionVersion
@@ -480,9 +522,31 @@ class NativeMessagingManager {
           version: 1 as const,
           selectedProfileId: state.selectedProfileId,
           selectionVersion: state.selectionVersion,
-          profiles
+          profiles: [...this._profiles.values()].map((profile) => ({
+            id: profile.id,
+            name: profile.name
+          }))
         })
       })
+    return this._profilesWrite
+  }
+
+  /** Writes one explicit snapshot, after the previous write finished. */
+  private writeProfileSnapshot(state: {
+    selectedProfileId: string | null
+    selectionVersion: number
+    profiles: PersistedExtensionProfile[]
+  }): Promise<void> {
+    this._profilesWrite = this._profilesWrite
+      .catch(() => undefined)
+      .then(() =>
+        this.saveProfileSnapshot({
+          version: 1 as const,
+          selectedProfileId: state.selectedProfileId,
+          selectionVersion: state.selectionVersion,
+          profiles: state.profiles
+        })
+      )
     return this._profilesWrite
   }
 

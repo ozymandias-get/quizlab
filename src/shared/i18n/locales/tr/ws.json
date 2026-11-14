@@ -145,5 +145,11 @@
   "ws_profile_selected": "Seçili",
   "ws_profile_select_btn": "Bu profili kullan",
   "ws_profile_select_error": "Chrome profili seçilemedi.",
+  "ws_profile_remove_btn": "Kaldır",
+  "ws_profile_remove_confirm_title": "Chrome profili kaldırılsın mı?",
+  "ws_profile_remove_confirm_other": "Profil listeden kaldırılır. Eklentisi hâlâ çalışıyorsa bir sonraki sorgusunda kendini yeniden kaydeder.",
+  "ws_profile_remove_confirm_selected": "Bu profil seçili oturum kaynağı. Kaldırılırsa bu profilden aktarılan oturumlar da silinir. Eklentisi hâlâ çalışıyorsa bir sonraki sorgusunda kendini yeniden kaydeder.",
+  "ws_profile_remove_success": "Chrome profili kaldırıldı.",
+  "ws_profile_remove_error": "Chrome profili kaldırılamadı.",
   "ws_profile_hint": "Başka bir profil eklemek için aynı eklentiyi o Chrome profiline kurun, eklenti penceresini açın ve tanıyacağınız bir ad verin."
 }

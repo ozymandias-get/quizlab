@@ -33,7 +33,12 @@ const profiles: NativeMessagingExtensionProfile[] = [
 ]
 
 const selectProfile = vi.fn(async (): Promise<Record<string, unknown>> => ({ success: true }))
+const removeExtensionProfile = vi.fn(async (): Promise<Record<string, unknown>> => ({
+  success: true
+}))
+const confirm = vi.fn(async (): Promise<boolean> => true)
 const showError = vi.fn()
+const showSuccess = vi.fn()
 
 vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
   useSelectExtensionProfileMutation: () => ({
@@ -45,11 +50,31 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
 vi.mock('@platform/electron/api/useNativeMessagingApi', () => ({
   useNativeMessagingStatusQuery: () => ({
     data: { profiles, selectedProfileId: 'profile-a-1234' }
+  }),
+  useRemoveExtensionProfileMutation: () => ({
+    mutateAsync: removeExtensionProfile,
+    isPending: false
   })
 }))
 
 vi.mock('@shared/stores/toastStore', () => ({
-  useToastActions: () => ({ showError })
+  useToastActions: () => ({ showError, showSuccess })
+}))
+
+vi.mock('@shared/hooks/useConfirmDialog', () => ({
+  useConfirmDialog: () => ({
+    confirm,
+    props: {
+      isOpen: false,
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+      title: ''
+    }
+  })
+}))
+
+vi.mock('@app/components/ui/confirm-dialog', () => ({
+  ConfirmDialog: () => null
 }))
 
 vi.mock('react-i18next', () => ({
@@ -59,7 +84,12 @@ vi.mock('react-i18next', () => ({
 describe('ExtensionProfileSelector', () => {
   beforeEach(() => {
     selectProfile.mockClear()
+    removeExtensionProfile.mockClear()
+    removeExtensionProfile.mockResolvedValue({ success: true })
+    confirm.mockClear()
+    confirm.mockResolvedValue(true)
     showError.mockClear()
+    showSuccess.mockClear()
   })
 
   it('lists every Chrome profile and marks the selected one', () => {
@@ -106,5 +136,61 @@ describe('ExtensionProfileSelector', () => {
 
     await waitFor(() => expect(showError).toHaveBeenCalledWith('ws_error_wipe_failed'))
     expect(screen.queryByText(/restored|reimported|geri yüklendi/i)).not.toBeInTheDocument()
+  })
+
+  it('removes a profile that is not the source after the confirmation', async () => {
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('İş Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_remove_btn İş Chrome' }))
+
+    await waitFor(() => expect(removeExtensionProfile).toHaveBeenCalledTimes(1))
+    expect(removeExtensionProfile).toHaveBeenCalledWith({ profileId: 'profile-b-1234' })
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'ws_profile_remove_confirm_title',
+        description: 'ws_profile_remove_confirm_other',
+        variant: 'destructive'
+      })
+    )
+    expect(showSuccess).toHaveBeenCalledWith('ws_profile_remove_success')
+  })
+
+  it('warns that removing the selected source also clears its sessions', async () => {
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('Ana Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_remove_btn Ana Chrome' }))
+
+    await waitFor(() =>
+      expect(confirm).toHaveBeenCalledWith(
+        expect.objectContaining({ description: 'ws_profile_remove_confirm_selected' })
+      )
+    )
+    await waitFor(() =>
+      expect(removeExtensionProfile).toHaveBeenCalledWith({ profileId: 'profile-a-1234' })
+    )
+  })
+
+  it('does not remove a profile when the confirmation is dismissed', async () => {
+    confirm.mockResolvedValue(false)
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('İş Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_remove_btn İş Chrome' }))
+
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1))
+    expect(removeExtensionProfile).not.toHaveBeenCalled()
+  })
+
+  it('reports a removal the app refused', async () => {
+    removeExtensionProfile.mockResolvedValue({ success: false, error: 'wipe_failed' })
+    render(<ExtensionProfileSelector t={(key) => key} />)
+
+    const row = screen.getByText('Ana Chrome').closest('[role="listitem"]') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'ws_profile_remove_btn Ana Chrome' }))
+
+    await waitFor(() => expect(showError).toHaveBeenCalledWith('ws_error_wipe_failed'))
+    expect(showSuccess).not.toHaveBeenCalled()
   })
 })

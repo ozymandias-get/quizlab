@@ -25,6 +25,7 @@ import type { CacheInfoResponse, WaitForSubmitReadyOptions } from './electronApi
 import type {
   NativeMessagingExtensionInfo,
   NativeMessagingExtensionInstallResult,
+  NativeMessagingProfileRemovalResult,
   NativeMessagingProfileSelectionResult
 } from './native-messaging.js'
 import type { PdfSelection, PdfSelectOptions, PdfStreamResult, PdfViewerZoomAction } from './pdf.js'
@@ -348,6 +349,11 @@ export interface IpcInvokeRequestMap {
   [IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_INSTALL]: {
     args: []
     result: IpcResult<NativeMessagingExtensionInstallResult>
+  }
+
+  [IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_PROFILE]: {
+    args: [profileId: string]
+    result: IpcResult<NativeMessagingProfileRemovalResult>
   }
 }
 

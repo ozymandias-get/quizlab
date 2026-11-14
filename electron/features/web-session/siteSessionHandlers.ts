@@ -93,4 +93,20 @@ export function registerSiteSessionHandlers(): void {
     requireTrustedIpcSender,
     success({ success: false, error: 'Unauthorized' })
   )
+
+  registerIpcHandler(
+    IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_PROFILE,
+    async (_event, profileId: unknown) => {
+      if (typeof profileId !== 'string' || profileId.trim().length === 0) {
+        return success({ success: false, error: 'unknown_profile' })
+      }
+
+      const result = await siteSessionService.removeExtensionProfile(profileId.trim())
+      // Removing the selected source clears its sessions, so the rows change.
+      await broadcastSiteSessionsChanged()
+      return success(result)
+    },
+    requireTrustedIpcSender,
+    failure('unauthorized', 'Not authorized')
+  )
 }

@@ -18,6 +18,7 @@ const profileSelection = vi.hoisted(() => ({
   hasProfile: vi.fn((profileId: string) => profileId === 'known-profile-1234'),
   getSelectedProfileId: vi.fn((): string | null => null),
   selectProfile: vi.fn(async () => true),
+  removeProfile: vi.fn(async () => true),
   beginSelectionChange: vi.fn(),
   endSelectionChange: vi.fn()
 }))
@@ -34,6 +35,7 @@ vi.mock('../../../features/native-messaging/nativeMessagingManager.js', () => ({
     hasProfile: profileSelection.hasProfile,
     getSelectedProfileId: profileSelection.getSelectedProfileId,
     selectProfile: profileSelection.selectProfile,
+    removeProfile: profileSelection.removeProfile,
     beginSelectionChange: profileSelection.beginSelectionChange,
     endSelectionChange: profileSelection.endSelectionChange
   }
@@ -542,6 +544,8 @@ describe('the Chrome profile selection', () => {
     profileSelection.hasProfile.mockClear()
     profileSelection.selectProfile.mockClear()
     profileSelection.selectProfile.mockResolvedValue(true)
+    profileSelection.getSelectedProfileId.mockReset()
+    profileSelection.getSelectedProfileId.mockReturnValue(null)
     profileSelection.beginSelectionChange.mockClear()
     profileSelection.endSelectionChange.mockClear()
     profileSelection.beginSelectionChange.mockImplementation(() => {})
@@ -700,6 +704,106 @@ describe('the Chrome profile selection', () => {
     expect(chatgptSession.clearStorageData).toHaveBeenCalled()
     expect(geminiSession.clearStorageData).toHaveBeenCalled()
     expect(claudeSession.clearStorageData).toHaveBeenCalled()
+  })
+})
+
+describe('the Chrome profile removal', () => {
+  beforeEach(() => {
+    profileSelection.hasProfile.mockClear()
+    profileSelection.getSelectedProfileId.mockReset()
+    profileSelection.getSelectedProfileId.mockReturnValue(null)
+    profileSelection.removeProfile.mockClear()
+    profileSelection.removeProfile.mockResolvedValue(true)
+    profileSelection.beginSelectionChange.mockClear()
+    profileSelection.endSelectionChange.mockClear()
+    profileSelection.beginSelectionChange.mockImplementation(() => {})
+    profileSelection.endSelectionChange.mockImplementation(() => {})
+    invalidateSiteSessionListCache()
+  })
+
+  it('removes a profile that is not the source without touching any session', async () => {
+    const { service, clearStorageData } = makeService()
+
+    await expect(service.removeExtensionProfile('known-profile-1234')).resolves.toEqual({
+      success: true
+    })
+
+    expect(profileSelection.removeProfile).toHaveBeenCalledWith('known-profile-1234')
+    expect(clearStorageData).not.toHaveBeenCalled()
+    expect(profileSelection.beginSelectionChange).not.toHaveBeenCalled()
+  })
+
+  it('refuses a profile the app has never heard from', async () => {
+    const { service } = makeService()
+
+    await expect(service.removeExtensionProfile('ghost-profile-1234')).resolves.toEqual({
+      success: false,
+      error: 'unknown_profile'
+    })
+    expect(profileSelection.removeProfile).not.toHaveBeenCalled()
+  })
+
+  it('clears the imported sessions before it removes the selected source', async () => {
+    profileSelection.getSelectedProfileId.mockReturnValue('known-profile-1234')
+    const { service, clearStorageData } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+
+    const result = await service.removeExtensionProfile('known-profile-1234')
+
+    // Removing the source is a source change: no session may outlive the
+    // Chrome profile it was taken from.
+    expect(result).toMatchObject({ success: true, clearedSiteIds: ['chatgpt'] })
+    const order = (fn: { mock: { invocationCallOrder: number[] } }) =>
+      fn.mock.invocationCallOrder[0]
+    expect(order(profileSelection.beginSelectionChange)).toBeLessThan(order(clearStorageData))
+    expect(order(clearStorageData)).toBeLessThan(order(profileSelection.removeProfile))
+    expect(order(profileSelection.removeProfile)).toBeLessThan(
+      order(profileSelection.endSelectionChange)
+    )
+  })
+
+  it('keeps the source and asks it to re-import when a session cannot be cleared', async () => {
+    profileSelection.getSelectedProfileId.mockReturnValue('known-profile-1234')
+    const { service, clearStorageData, config } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+    clearStorageData.mockRejectedValue(new Error('the session is locked'))
+
+    const result = await service.removeExtensionProfile('known-profile-1234')
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'wipe_failed',
+      clearedSiteIds: [],
+      failedSiteIds: ['chatgpt'],
+      partial: false,
+      reimportRequested: true
+    })
+    expect(profileSelection.removeProfile).not.toHaveBeenCalled()
+    expect(config.requestResync).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports the cleared sessions when the removal cannot be written', async () => {
+    profileSelection.getSelectedProfileId.mockReturnValue('known-profile-1234')
+    profileSelection.removeProfile.mockResolvedValue(false)
+    const { service, config } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+
+    const result = await service.removeExtensionProfile('known-profile-1234')
+
+    expect(result).toMatchObject({
+      success: false,
+      error: 'write_failed',
+      clearedSiteIds: ['chatgpt'],
+      partial: true,
+      reimportRequested: true
+    })
+    expect(config.requestResync).toHaveBeenCalledTimes(1)
   })
 })
 

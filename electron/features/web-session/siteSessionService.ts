@@ -24,7 +24,10 @@
 import type { Session } from 'electron'
 import { session as electronSession } from 'electron'
 
-import type { NativeMessagingProfileSelectionResult } from '../../../shared/types/native-messaging.js'
+import type {
+  NativeMessagingProfileRemovalResult,
+  NativeMessagingProfileSelectionResult
+} from '../../../shared/types/native-messaging.js'
 import type {
   SiteSessionActionResult,
   SiteSessionListResult
@@ -277,6 +280,73 @@ export class SiteSessionService {
       invalidateSiteSessionListCache()
     }
     return result
+  }
+
+  /**
+   * Forgets one Chrome profile in the app.
+   *
+   * Removing a profile that is not the source only drops its entry. Removing
+   * the selected source is a source change: the bridge is closed, the sessions
+   * imported from that profile are cleared, and only then is the profile
+   * removed. If a wipe fails, the profile stays and is asked to restore what
+   * was cleared, exactly like a failed source switch.
+   */
+  async removeExtensionProfile(profileId: string): Promise<NativeMessagingProfileRemovalResult> {
+    if (!nativeMessagingManager.hasProfile(profileId)) {
+      return { success: false, error: 'unknown_profile' }
+    }
+    const id = profileId.trim()
+    const isSelected = nativeMessagingManager.getSelectedProfileId() === id
+    invalidateSiteSessionListCache()
+
+    if (!isSelected) {
+      const removed = await nativeMessagingManager.removeProfile(id)
+      invalidateSiteSessionListCache()
+      return removed ? { success: true } : { success: false, error: 'write_failed' }
+    }
+
+    nativeMessagingManager.beginSelectionChange()
+    let clearedSiteIds: string[] = []
+    try {
+      const clear = await this.clearImportedSessionsAfterSourceChange()
+      clearedSiteIds = clear.clearedSiteIds
+      if (clear.failedSiteIds.length > 0 || clear.readFailed) {
+        // The profile is still selected, so it can import the cleared sites
+        // again. The result says which sessions were really forgotten.
+        let result: NativeMessagingProfileRemovalResult = {
+          success: false,
+          error: 'wipe_failed',
+          clearedSiteIds,
+          failedSiteIds: clear.failedSiteIds,
+          ...(Object.keys(clear.failedWipes).length > 0 ? { failedWipes: clear.failedWipes } : {}),
+          partial: clearedSiteIds.length > 0
+        }
+        if (await this.requestReimport()) {
+          result = { ...result, reimportRequested: true }
+        }
+        return result
+      }
+
+      const removed = await nativeMessagingManager.removeProfile(id)
+      if (!removed) {
+        let result: NativeMessagingProfileRemovalResult = {
+          success: false,
+          error: 'write_failed',
+          ...(clearedSiteIds.length > 0 ? { clearedSiteIds, failedSiteIds: [], partial: true } : {})
+        }
+        if (await this.requestReimport()) {
+          result = { ...result, reimportRequested: true }
+        }
+        return result
+      }
+      return {
+        success: true,
+        ...(clearedSiteIds.length > 0 ? { clearedSiteIds } : {})
+      }
+    } finally {
+      nativeMessagingManager.endSelectionChange()
+      invalidateSiteSessionListCache()
+    }
   }
 
   /** Asks the selected profile to push every enabled site again. */

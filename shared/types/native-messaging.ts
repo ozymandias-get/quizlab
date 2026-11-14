@@ -77,6 +77,28 @@ export interface NativeMessagingProfileSelectionResult {
   reimportRequested?: boolean
 }
 
+/**
+ * The outcome of forgetting one Chrome profile in the app.
+ *
+ * Removing the selected source also clears the sessions imported from it, for
+ * the same reason switching the source does: no session may outlive the
+ * Chrome profile it was taken from.
+ */
+export interface NativeMessagingProfileRemovalResult {
+  success: boolean
+  error?: 'unknown_profile' | 'write_failed' | 'wipe_failed' | 'Unauthorized'
+  /** Sites whose sessions were cleared before the removal. */
+  clearedSiteIds?: string[]
+  /** Enabled sites whose sessions could not be cleared. */
+  failedSiteIds?: string[]
+  /** The per-store outcome of each failed wipe. */
+  failedWipes?: Record<string, SiteSessionWipeStatus>
+  /** Some sessions were cleared but the profile could not be removed. */
+  partial?: boolean
+  /** The still-selected profile was asked to push the cleared sites again. */
+  reimportRequested?: boolean
+}
+
 export interface ChromeExtensionCookie {
   name: string
   value: string

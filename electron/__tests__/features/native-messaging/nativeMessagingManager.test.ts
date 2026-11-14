@@ -457,6 +457,117 @@ describe('NativeMessagingManager', () => {
     })
   })
 
+  describe('removing a Chrome profile', () => {
+    function lastSavedProfiles(): {
+      selectedProfileId: string | null
+      selectionVersion: number
+      profiles: Array<{ id: string; name: string }>
+    } {
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
+        String(filePath).endsWith('bridge-profiles.json.tmp')
+      )
+      return JSON.parse(String(writes.at(-1)![1])) as {
+        selectedProfileId: string | null
+        selectionVersion: number
+        profiles: Array<{ id: string; name: string }>
+      }
+    }
+
+    it('removes a profile that is not the source and keeps the source', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+
+      await expect(manager.removeProfile('profile-b-1234')).resolves.toBe(true)
+
+      const info = manager.getExtensionInfo()
+      expect(info.profiles.map((profile) => profile.id)).toEqual(['profile-a-1234'])
+      expect(info.selectedProfileId).toBe('profile-a-1234')
+      const last = lastSavedProfiles()
+      expect(last.profiles.map((profile) => profile.id)).toEqual(['profile-a-1234'])
+      expect(last.selectedProfileId).toBe('profile-a-1234')
+    })
+
+    it('clears the selection when the source itself is removed', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+      expect(manager.getSelectionVersion()).toBe(1)
+
+      await expect(manager.removeProfile('profile-a-1234')).resolves.toBe(true)
+
+      expect(manager.getSelectedProfileId()).toBeNull()
+      // Other extension copies have to see that the source went away.
+      expect(manager.getSelectionVersion()).toBe(2)
+      expect(manager.getExtensionInfo().profiles.map((profile) => profile.id)).toEqual([
+        'profile-b-1234'
+      ])
+      const last = lastSavedProfiles()
+      expect(last.selectedProfileId).toBeNull()
+      expect(last.selectionVersion).toBe(2)
+      expect(last.profiles.map((profile) => profile.id)).toEqual(['profile-b-1234'])
+    })
+
+    it('refuses a profile the app has never heard from', async () => {
+      await expect(manager.removeProfile('ghost-profile-1234')).resolves.toBe(false)
+      expect(mockFsWriteFile).not.toHaveBeenCalled()
+    })
+
+    it('keeps the profile and the source when the removal cannot be written', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+      mockFsWriteFile.mockRejectedValue(new Error('the disk is full'))
+
+      await expect(manager.removeProfile('profile-a-1234')).resolves.toBe(false)
+
+      expect(manager.getSelectedProfileId()).toBe('profile-a-1234')
+      expect(manager.getSelectionVersion()).toBe(1)
+      expect(manager.getExtensionInfo().profiles.map((profile) => profile.id)).toEqual([
+        'profile-a-1234',
+        'profile-b-1234'
+      ])
+    })
+
+    it('does not let a queued name write put the removed profile back', async () => {
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+      manager.markExtensionSeen('profile-b-1234', 'İş Chrome')
+      await vi.waitFor(() => expect(mockFsWriteFile).toHaveBeenCalledTimes(2))
+      await manager.markExtensionPaired('profile-a-1234')
+
+      let release!: () => void
+      mockFsWriteFile.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve
+          })
+      )
+      const removing = manager.removeProfile('profile-b-1234')
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      // A new Chrome profile talks while the removal is still on its way.
+      manager.markExtensionSeen('profile-c-1234', 'Yeni Chrome')
+      release()
+      await expect(removing).resolves.toBe(true)
+      await vi.waitFor(() =>
+        expect(
+          mockFsWriteFile.mock.calls.filter(([filePath]) =>
+            String(filePath).endsWith('bridge-profiles.json.tmp')
+          ).length
+        ).toBeGreaterThanOrEqual(5)
+      )
+
+      const last = lastSavedProfiles()
+      expect(last.profiles.map((profile) => profile.id).sort()).toEqual([
+        'profile-a-1234',
+        'profile-c-1234'
+      ])
+    })
+  })
+
   describe('stopServer', () => {
     beforeEach(async () => {
       await manager.initialize()

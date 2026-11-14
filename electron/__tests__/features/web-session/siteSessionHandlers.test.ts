@@ -9,6 +9,7 @@ const send = vi.fn()
 const list = vi.fn()
 const setEnabled = vi.fn()
 const clear = vi.fn()
+const removeExtensionProfile = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({
   app: {
@@ -28,7 +29,7 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionService.js', () => ({
-  siteSessionService: { list, setEnabled, clear }
+  siteSessionService: { list, setEnabled, clear, removeExtensionProfile }
 }))
 
 vi.mock('../../../app/windowManager', () => ({
@@ -55,6 +56,7 @@ describe('site session handlers', () => {
     list.mockReset().mockResolvedValue(LIST_RESULT)
     setEnabled.mockReset().mockResolvedValue({ success: true })
     clear.mockReset().mockResolvedValue({ success: true })
+    removeExtensionProfile.mockReset().mockResolvedValue({ success: true })
   })
 
   it('lists the sites for the trusted window', async () => {
@@ -158,5 +160,61 @@ describe('site session handlers', () => {
 
     expect(result).toEqual({ ok: true, data: { success: false, error: 'invalid_site_id' } })
     expect(clear).not.toHaveBeenCalled()
+  })
+
+  it('removes a Chrome profile and sends the fresh list', async () => {
+    const { registerSiteSessionHandlers } =
+      await import('../../../features/web-session/siteSessionHandlers.js')
+    registerSiteSessionHandlers()
+    removeExtensionProfile.mockResolvedValue({
+      success: true,
+      clearedSiteIds: ['chatgpt']
+    })
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_PROFILE)
+    const result = await handler?.(trustedEvent, ' known-profile-1234 ')
+
+    expect(removeExtensionProfile).toHaveBeenCalledWith('known-profile-1234')
+    expect(result).toEqual({
+      ok: true,
+      data: { success: true, clearedSiteIds: ['chatgpt'] }
+    })
+    // Removing the selected source clears sessions, so the rows change.
+    expect(send).toHaveBeenCalledWith(APP_CONFIG.IPC_CHANNELS.SITE_SESSION_CHANGED, LIST_RESULT)
+  })
+
+  it('refuses to remove a profile id that is not a non-empty string', async () => {
+    const { registerSiteSessionHandlers } =
+      await import('../../../features/web-session/siteSessionHandlers.js')
+    registerSiteSessionHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_PROFILE)
+    const empty = await handler?.(trustedEvent, '   ')
+    const missing = await handler?.(trustedEvent, undefined)
+
+    expect(empty).toEqual({
+      ok: true,
+      data: { success: false, error: 'unknown_profile' }
+    })
+    expect(missing).toEqual({
+      ok: true,
+      data: { success: false, error: 'unknown_profile' }
+    })
+    expect(removeExtensionProfile).not.toHaveBeenCalled()
+  })
+
+  it('refuses a profile removal from an untrusted sender', async () => {
+    const { registerSiteSessionHandlers } =
+      await import('../../../features/web-session/siteSessionHandlers.js')
+    registerSiteSessionHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.NATIVE_MESSAGING_REMOVE_PROFILE)
+    const result = await handler?.({ sender: { id: 404 }, type: 'invoke' }, 'known-profile-1234')
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: 'unauthorized', message: 'Not authorized' }
+    })
+    expect(removeExtensionProfile).not.toHaveBeenCalled()
   })
 })

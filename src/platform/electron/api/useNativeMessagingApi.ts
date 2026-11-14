@@ -1,6 +1,7 @@
 import type {
   NativeMessagingExtensionInfo,
-  NativeMessagingExtensionInstallResult
+  NativeMessagingExtensionInstallResult,
+  NativeMessagingProfileRemovalResult
 } from '@shared-core/types'
 
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
@@ -49,6 +50,34 @@ export function useInstallExtensionMutation() {
         throw new Error('Electron API not available')
       }
       return api.nativeMessaging.installExtension()
+    }
+  })
+}
+
+/**
+ * Forgets one Chrome profile in the app.
+ *
+ * Removing the selected source clears the sessions imported from it in the
+ * main process; the site-session list is refreshed by the broadcast the main
+ * process sends after the action.
+ */
+export function useRemoveExtensionProfileMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      profileId
+    }: {
+      profileId: string
+    }): Promise<NativeMessagingProfileRemovalResult> => {
+      const api = getElectronApi()
+      if (!api?.nativeMessaging?.removeProfile) {
+        throw new Error('Electron API not available')
+      }
+      return api.nativeMessaging.removeProfile(profileId)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: NATIVE_MESSAGING_STATUS_KEY })
     }
   })
 }

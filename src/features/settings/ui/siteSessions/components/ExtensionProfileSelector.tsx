@@ -1,14 +1,19 @@
 import { SITE_SESSION_PROTOCOL_VERSION } from '@shared-core/constants/siteSessionProtocol'
 import type { NativeMessagingExtensionProfile } from '@shared-core/types'
 
-import { useNativeMessagingStatusQuery } from '@platform/electron/api/useNativeMessagingApi'
+import {
+  useNativeMessagingStatusQuery,
+  useRemoveExtensionProfileMutation
+} from '@platform/electron/api/useNativeMessagingApi'
 import { useSelectExtensionProfileMutation } from '@platform/electron/api/useSiteSessionApi'
 
+import { ConfirmDialog } from '@app/components/ui/confirm-dialog'
+import { useConfirmDialog } from '@shared/hooks/useConfirmDialog'
 import { useToastActions } from '@shared/stores/toastStore'
 import { Button, SettingsSection } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
-import { Check, Laptop } from 'lucide-react'
+import { Check, Laptop, Trash2 } from 'lucide-react'
 import { memo, useCallback } from 'react'
 
 interface ExtensionProfileSelectorProps {
@@ -39,6 +44,8 @@ function profileLampTone(profile: NativeMessagingExtensionProfile): string {
   return 'bg-muted-foreground/70'
 }
 
+const REMOVAL_ERRORS = new Set(['unknown_profile', 'write_failed', 'wipe_failed', 'Unauthorized'])
+
 /**
  * The Chrome profiles the extension runs in.
  *
@@ -46,11 +53,18 @@ function profileLampTone(profile: NativeMessagingExtensionProfile): string {
  * profiles has two independent copies of the same extension. Only one of them
  * may feed the app at a time: this picker is that choice, and the bridge
  * refuses packets from every other profile.
+ *
+ * A profile can also be forgotten. Removing the selected source is a source
+ * change: the app clears the sessions imported from it first, and the
+ * confirmation says so. A profile whose extension is still running registers
+ * itself again on its next poll.
  */
 function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
   const { data } = useNativeMessagingStatusQuery()
   const selectMutation = useSelectExtensionProfileMutation()
-  const { showError } = useToastActions()
+  const removeMutation = useRemoveExtensionProfileMutation()
+  const { confirm, props: confirmProps } = useConfirmDialog()
+  const { showError, showSuccess } = useToastActions()
 
   const profiles = data?.profiles ?? []
   const selectedProfileId = data?.selectedProfileId ?? null
@@ -69,6 +83,38 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
         })
     },
     [selectMutation, showError, t]
+  )
+
+  const onRemove = useCallback(
+    async (profile: NativeMessagingExtensionProfile) => {
+      if (removeMutation.isPending) return
+      const isSource = profile.id === selectedProfileId
+      const confirmed = await confirm({
+        title: t('ws_profile_remove_confirm_title'),
+        description: isSource
+          ? t('ws_profile_remove_confirm_selected')
+          : t('ws_profile_remove_confirm_other'),
+        confirmLabel: t('ws_profile_remove_btn'),
+        variant: 'destructive'
+      })
+      if (!confirmed) return
+
+      try {
+        const result = await removeMutation.mutateAsync({ profileId: profile.id })
+        if (!result.success) {
+          const errorKey =
+            result.error && REMOVAL_ERRORS.has(result.error)
+              ? `ws_error_${result.error}`
+              : 'ws_profile_remove_error'
+          showError(t(errorKey))
+          return
+        }
+        showSuccess(t('ws_profile_remove_success'))
+      } catch {
+        showError(t('ws_profile_remove_error'))
+      }
+    },
+    [confirm, removeMutation, selectedProfileId, showError, showSuccess, t]
   )
 
   if (profiles.length === 0) return null
@@ -113,18 +159,31 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant={selected ? 'outline' : 'default'}
-                  size="xs"
-                  onClick={() => onSelect(profile.id)}
-                  disabled={selected || selectMutation.isPending}
-                  className="shrink-0"
-                >
-                  <span className="text-ql-11 font-semibold">
-                    {selected ? t('ws_profile_selected') : t('ws_profile_select_btn')}
-                  </span>
-                </Button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => void onRemove(profile)}
+                    disabled={removeMutation.isPending}
+                    aria-label={`${t('ws_profile_remove_btn')} ${profile.name}`}
+                    title={t('ws_profile_remove_btn')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={selected ? 'outline' : 'default'}
+                    size="xs"
+                    onClick={() => onSelect(profile.id)}
+                    disabled={selected || selectMutation.isPending}
+                    className="shrink-0"
+                  >
+                    <span className="text-ql-11 font-semibold">
+                      {selected ? t('ws_profile_selected') : t('ws_profile_select_btn')}
+                    </span>
+                  </Button>
+                </div>
               </div>
             )
           })}
@@ -132,6 +191,8 @@ function ExtensionProfileSelector({ t }: ExtensionProfileSelectorProps) {
 
         <p className="text-ql-11 text-muted-foreground leading-relaxed">{t('ws_profile_hint')}</p>
       </div>
+
+      <ConfirmDialog {...confirmProps} />
     </SettingsSection>
   )
 }
