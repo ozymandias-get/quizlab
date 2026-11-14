@@ -296,8 +296,10 @@ function FocusOverlay({
       >
         {/* A real header row instead of a floating close button: the strip owns
             the top-right corner, so the PDF/AI toolbars underneath are neither
-            covered nor unclickable. */}
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/[0.07] bg-zinc-950/40 px-4 backdrop-blur-xl">
+            covered nor unclickable. `window-controls-safe` also keeps this
+            header's own close button clear of the native Windows caption
+            buttons, which sit above the renderer in that corner. */}
+        <header className="window-controls-safe flex h-12 shrink-0 items-center justify-between border-b border-white/[0.07] bg-zinc-950/40 px-4 backdrop-blur-xl">
           <span className="text-ql-12 text-muted-foreground min-w-0 truncate font-medium">
             {focusTitle}
           </span>

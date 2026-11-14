@@ -52,8 +52,14 @@ export function createMainBrowserWindow(windowState: WindowState): BrowserWindow
     ...(isWindows || isMac ? { titleBarStyle: 'hidden' as const } : {}),
     ...(isWindows
       ? {
+          // The caption buttons are drawn by Windows over the renderer, so an
+          // opaque strip here becomes a solid rectangle pasted over the panels:
+          // it squares off the AI/PDF panel's rounded top corner and cuts the
+          // tab strip at its own height. A transparent overlay leaves the app's
+          // own surface (tab strip, panel border, window gutter) visible and
+          // keeps the native hover/close states working on top of it.
           titleBarOverlay: {
-            color: '#060608',
+            color: '#00000000',
             symbolColor: '#a1a1aa',
             height: 44
           }

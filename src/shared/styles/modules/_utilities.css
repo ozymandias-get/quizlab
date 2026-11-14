@@ -23,10 +23,14 @@ html[data-platform='win32'] .app-drag-gutter {
   -webkit-app-region: drag;
 }
 
-/* Windows titleBarOverlay reserves the top-right corner for caption buttons. */
+/* Windows titleBarOverlay reserves the top-right corner for caption buttons.
+   Electron lays those out as three 46px buttons plus 2px between them, i.e. a
+   142px cluster in CSS pixels regardless of DPI. The reserve is a fixed length
+   on purpose: a rem value shrinks with the root font size and would let the
+   last toolbar control slide under the close button in narrow windows. */
 
 html[data-platform='win32'] .window-controls-safe {
-  padding-right: 9.5rem;
+  padding-right: 152px;
 }
 
 /* macOS traffic lights only affect the strip touching the window's left edge. */
