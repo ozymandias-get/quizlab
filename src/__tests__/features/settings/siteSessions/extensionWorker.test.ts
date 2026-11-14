@@ -71,6 +71,10 @@ interface BridgeState {
   healthCalls: number
   siteListCalls: number
   lastSitesHeaders: Record<string, string>
+  /** The signature of every site-list request, in order. */
+  siteListSignatures: string[]
+  /** Holds a site-list request so a test can overlap another worker flow. */
+  beforeSiteList?: (headers: Record<string, string>) => Promise<void> | void
   /** The answer of the app to one packet. */
   answerPacket: (packet: Packet) => { status: number; body: Record<string, unknown> }
   /** The status the signed site list answers with. */
@@ -88,6 +92,11 @@ interface HarnessOptions {
   permissionDenied?: boolean
   /** Returns true for a local-storage write that has to fail. */
   failLocalSet?: (values: Record<string, unknown>) => boolean
+}
+
+/** The signature the app expects for the site list, signed with a given code. */
+function siteListSignature(secret: string): string {
+  return createHmac('sha256', secret).update(`${PROFILE_ID}\n${SITES_PATH}`).digest('hex')
 }
 
 function createStorage(): StorageState {
@@ -147,6 +156,7 @@ function createHarness(options: HarnessOptions = {}) {
     healthCalls: 0,
     siteListCalls: 0,
     lastSitesHeaders: {},
+    siteListSignatures: [],
     siteListStatus: 200,
     cookieStatus: null,
     cookieStatusBody: {},
@@ -268,6 +278,8 @@ function createHarness(options: HarnessOptions = {}) {
     if (url.pathname === SITES_PATH) {
       bridge.siteListCalls += 1
       bridge.lastSitesHeaders = { ...headers }
+      bridge.siteListSignatures.push(headers['x-hmac-signature'] ?? '')
+      if (bridge.beforeSiteList) await bridge.beforeSiteList(headers)
       if (bridge.siteListStatus !== 200) return respond(bridge.siteListStatus, { error: 'nope' })
       if (headers['x-hmac-signature'] !== signatureOf(headers, SITES_PATH)) {
         return respond(401, { error: 'Invalid signature' })
@@ -729,5 +741,221 @@ describe('the extension worker', () => {
     const response = await worker.send({ type: 'sync_now' })
 
     expect(response).toMatchObject({ success: false, result: 'no_cookies' })
+  })
+
+  it('keeps the committed pairing while a wrong code is being probed', async () => {
+    // The pairing probe runs with a candidate code that the worker does not
+    // own yet. A heartbeat that overlaps it must keep signing with the code the
+    // worker really holds: a wrong candidate may not disconnect a working
+    // extension or mark its stored code as rejected.
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    let gateArmed = false
+    let gated = false
+    const worker = createHarness({
+      bridge: {
+        beforeSiteList: async () => {
+          if (!gateArmed || gated) return
+          gated = true
+          await probeGate
+        }
+      }
+    })
+    await worker.settle()
+    expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+
+    // From here on the next site-list request (the pairing probe) is held.
+    gateArmed = true
+    const pairing = worker.send({ type: 'pair', secret: OTHER_SECRET })
+    // Let the pair handler reach the gated probe request, then queue the
+    // heartbeat behind it.
+    await worker.settle()
+    worker.fireAlarm(HEARTBEAT_ALARM)
+    await worker.settle()
+    releaseProbe()
+
+    await expect(pairing).resolves.toMatchObject({ success: false, error: 'invalid_code' })
+    await worker.settle()
+
+    expect(worker.read<boolean>('pairingInvalid')).toBe(false)
+    expect(worker.read<boolean>('connected')).toBe(true)
+    expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+    expect(worker.alarms.has(SCAN_ALARM)).toBe(false)
+    // The probe used the candidate; the heartbeat used the stored code.
+    expect(worker.bridge.siteListSignatures).toContain(siteListSignature(OTHER_SECRET))
+    expect(worker.bridge.siteListSignatures.at(-1)).toBe(siteListSignature(SECRET))
+  })
+
+  it('keeps the connection when a re-pairing overlaps a heartbeat', async () => {
+    // The stored code is the one the app no longer accepts; the user pastes
+    // the new one. A heartbeat that runs during the probe still holds the old
+    // code and is answered with 401 — that result must not undo the pairing.
+    let releaseProbe!: () => void
+    const probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    let gateArmed = false
+    let gated = false
+    const worker = createHarness({
+      storage: {
+        local: {
+          profileId: PROFILE_ID,
+          profileName: PROFILE_NAME,
+          bridgeSecret: OTHER_SECRET
+        },
+        session: {}
+      },
+      bridge: {
+        beforeSiteList: async () => {
+          if (!gateArmed || gated) return
+          gated = true
+          await probeGate
+        }
+      }
+    })
+    await worker.settle()
+    expect(worker.read<boolean>('pairingInvalid')).toBe(true)
+
+    gateArmed = true
+    const pairing = worker.send({ type: 'pair', secret: SECRET })
+    await worker.settle()
+    worker.fireAlarm(HEARTBEAT_ALARM)
+    await worker.settle()
+    releaseProbe()
+
+    await expect(pairing).resolves.toMatchObject({ success: true })
+    await worker.settle()
+
+    expect(worker.read<boolean>('pairingInvalid')).toBe(false)
+    expect(worker.read<boolean>('connected')).toBe(true)
+    expect(worker.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+    expect(worker.alarms.has(SCAN_ALARM)).toBe(false)
+  })
+
+  it('keeps a verified pairing across a worker restart when the local store kept the old code', async () => {
+    const worker = createHarness({
+      storage: {
+        local: {
+          profileId: PROFILE_ID,
+          profileName: PROFILE_NAME,
+          bridgeSecret: OTHER_SECRET
+        },
+        session: {}
+      },
+      failLocalSet: (values) => Object.hasOwn(values, 'bridgeSecret')
+    })
+    await worker.settle()
+
+    const response = await worker.send({ type: 'pair', secret: SECRET })
+
+    expect(response).toMatchObject({ success: true, settingsSaved: false })
+    expect(worker.storage.session.bridgeSecret).toBe(SECRET)
+    expect(worker.storage.local.bridgeSecret).toBe(OTHER_SECRET)
+
+    // The session store survives a service-worker restart and holds the code
+    // the app just verified; the local store only survived a browser restart
+    // and holds the old one. The verified code must win.
+    const restarted = createHarness({ storage: worker.storage })
+    await restarted.settle()
+
+    expect(restarted.read<boolean>('pairingInvalid')).toBe(false)
+    expect(restarted.read<boolean>('connected')).toBe(true)
+    expect(restarted.alarms.has(HEARTBEAT_ALARM)).toBe(true)
+    expect(restarted.bridge.siteListSignatures.at(-1)).toBe(siteListSignature(SECRET))
+  })
+
+  it('retries a pending packet after a worker restart instead of losing it', async () => {
+    let calls = 0
+    const worker = createHarness()
+    worker.bridge.answerPacket = (packet) => {
+      calls += 1
+      if (calls === 1) return { status: 409, body: { error: 'stale_round', retryable: true } }
+      return {
+        status: 200,
+        body: {
+          success: true,
+          accepted: true,
+          importSucceeded: true,
+          imported: packet.cookies,
+          failed: 0,
+          retryable: false
+        }
+      }
+    }
+    await worker.settle()
+
+    expect(worker.bridge.packets).toHaveLength(1)
+    expect(worker.read<string[]>('[...pendingSiteIds]')).toEqual(['chatgpt'])
+    expect(worker.storage.session.pendingSiteIds).toEqual(['chatgpt'])
+
+    // The 1 s retry timer has not fired: the service worker is terminated now.
+    vi.clearAllTimers()
+
+    const restarted = createHarness({ storage: worker.storage, cookies: worker.cookies })
+    await restarted.settle()
+
+    // The pending site was persisted before the retry outcome, so the new
+    // worker pushes it without waiting for a manual action.
+    expect(restarted.bridge.packets.map((packet) => packet.status)).toEqual(['ok'])
+    expect(restarted.read<string[]>('[...pendingSiteIds]')).toEqual([])
+  })
+
+  it('reports a mixed manual transfer as a failure, not as a success', async () => {
+    const worker = createHarness({
+      cookies: [createCookie(), createCookie({ name: 'sessionKey', domain: '.claude.ai' })],
+      bridge: {
+        targets: [
+          { siteId: 'chatgpt', label: 'ChatGPT', cookieDomains: ['.chatgpt.com'] },
+          { siteId: 'claude', label: 'Claude', cookieDomains: ['.claude.ai'] }
+        ],
+        answerPacket: (packet) =>
+          packet.targetId === 'chatgpt'
+            ? {
+                status: 200,
+                body: {
+                  success: true,
+                  accepted: true,
+                  importSucceeded: true,
+                  imported: packet.cookies,
+                  failed: 0,
+                  retryable: false
+                }
+              }
+            : { status: 403, body: { error: 'session_unverified', retryable: false } }
+      }
+    })
+    await worker.settle()
+    const before = worker.bridge.packets.length
+
+    const response = await worker.send({ type: 'sync_now' })
+
+    // One site was imported, one was refused: the transfer as a whole did not
+    // succeed, and the popup may not say that both sessions arrived.
+    expect(response).toMatchObject({ success: false, result: 'refused' })
+    expect(worker.bridge.packets.slice(before).map((packet) => packet.targetId)).toEqual([
+      'chatgpt',
+      'claude'
+    ])
+  })
+
+  it('reports a transfer where one site had no browser session as partial', async () => {
+    const worker = createHarness({
+      cookies: [createCookie()],
+      bridge: {
+        targets: [
+          { siteId: 'chatgpt', label: 'ChatGPT', cookieDomains: ['.chatgpt.com'] },
+          { siteId: 'claude', label: 'Claude', cookieDomains: ['.claude.ai'] }
+        ]
+      }
+    })
+    await worker.settle()
+
+    const response = await worker.send({ type: 'sync_now' })
+
+    // One session was imported and one site had nothing to import. A plain
+    // "ok" would let the popup claim that the whole transfer succeeded.
+    expect(response).toMatchObject({ success: false, result: 'partial' })
   })
 })

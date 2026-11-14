@@ -489,6 +489,11 @@ async function initPairingControls() {
               'Eşleştirildi, ancak oturumlar şu an aktarılamadı. Site oturumları ekranındaki durumu kontrol edin.',
               false
             )
+          } else if (response.result === 'partial') {
+            showFeedback(
+              'Eşleştirildi. Bazı oturumlar aktarıldı; bazı sitelerde Chrome oturumu yok ya da izin eksik.',
+              false
+            )
           } else if (response.result === 'no_cookies') {
             showFeedback('Eşleştirildi. Chrome’da bu siteler için oturum bulunamadı.', true)
           } else if (response.result === 'permission_missing') {
@@ -609,6 +614,11 @@ async function initImportControls() {
           )
         } else if (!error && response?.result === 'permission_missing') {
           showFeedback('Bu siteler için izin eksik. Yukarıdaki site listesinden izin verin.', false)
+        } else if (!error && response?.result === 'partial') {
+          showFeedback(
+            'Bazı oturumlar aktarıldı; bazı sitelerde Chrome oturumu yok ya da izin eksik.',
+            false
+          )
         } else if (!error && response?.success) {
           showFeedback('Oturumlar aktarıldı. Site oturumu uygulamaya aktarıldı.', true)
         } else {

@@ -127,6 +127,39 @@ describe('extension popup import feedback', () => {
     )
   })
 
+  it('does not call a transfer with an empty site a full success', async () => {
+    await popup({ response: { success: false, result: 'partial', autoSync: true } })
+
+    document.getElementById('sync-btn')!.click()
+
+    expect(document.getElementById('sync-feedback')?.textContent).toContain(
+      'Bazı oturumlar aktarıldı'
+    )
+    expect(document.getElementById('sync-feedback')?.textContent).not.toContain(
+      'Oturumlar aktarıldı. Site oturumu'
+    )
+  })
+
+  it('reports a partially transferred pairing as a partial success', async () => {
+    await popup({
+      response: (message) =>
+        message.type === 'pair'
+          ? { success: true, result: 'partial', settingsSaved: true }
+          : { success: false }
+    })
+
+    const input = document.getElementById('pairing-code-input') as HTMLInputElement
+    input.value = 'a'.repeat(64)
+    document.getElementById('pair-btn')!.click()
+
+    await vi.waitFor(() =>
+      expect(document.getElementById('pair-feedback')?.textContent).toContain(
+        'Bazı oturumlar aktarıldı'
+      )
+    )
+    expect(document.getElementById('pair-feedback')?.textContent).toContain('Eşleştirildi')
+  })
+
   it.each([undefined, { message: 'Receiving end does not exist' }])(
     'never reports a failed request as successful (%s)',
     async (lastError) => {

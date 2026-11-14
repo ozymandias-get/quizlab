@@ -79,6 +79,8 @@ const SYNC_UNAUTHORIZED = 'unauthorized'
 const SYNC_NO_COOKIES = 'no_cookies'
 /** The extension may not read the sites that were pushed. */
 const SYNC_PERMISSION_MISSING = 'permission_missing'
+/** Some sessions were imported, some sites had nothing to import. */
+const SYNC_PARTIAL = 'partial'
 
 /** The app imported the packet (or took a packet that carried no cookies). */
 const PACKET_SENT = 'sent'
@@ -131,6 +133,8 @@ let scanInFlight = null
 let alarmSwitch = Promise.resolve()
 /** The timer of a packet the app asked to retry. */
 let retryTimer = null
+/** Whether the pairing probe is running with a code the worker does not own yet. */
+let pairingInFlight = false
 /** The last write of the changed-domain queue. */
 let changedDomainsWrite = Promise.resolve()
 
@@ -269,11 +273,13 @@ function normalizeTargets(value) {
 async function readPersistedState() {
   const area = storageArea()
   if (!area) return
+  let hasSessionSecret = false
   try {
     const stored = await area.get(STORAGE_KEYS)
     if (!stored) return
     if (typeof stored.bridgeSecret === 'string' && stored.bridgeSecret) {
       bridgeSecret = stored.bridgeSecret
+      hasSessionSecret = true
     }
     if (typeof stored.lastConfigVersion === 'number') {
       lastConfigVersion = stored.lastConfigVersion
@@ -323,7 +329,16 @@ async function readPersistedState() {
   try {
     const preferences = await chrome.storage.local.get(['autoSync', 'bridgeSecret'])
     autoSync = preferences.autoSync !== false
-    if (typeof preferences.bridgeSecret === 'string' && preferences.bridgeSecret) {
+    // The session copy is the most recent one: the same worker wrote it after
+    // the app verified the code, and it survives a worker restart. The local
+    // copy is the fallback for a browser restart, when the session store is
+    // empty. A local write that failed after a verified pairing must not make
+    // its old code win over the verified one.
+    if (
+      !hasSessionSecret &&
+      typeof preferences.bridgeSecret === 'string' &&
+      preferences.bridgeSecret
+    ) {
       bridgeSecret = preferences.bridgeSecret
     }
   } catch {}
@@ -359,6 +374,20 @@ function persistChangedDomains() {
 const stateReady = ensureProfileIdentity().then(() => readPersistedState())
 
 /**
+ * The secret a request is signed with.
+ *
+ * Every normal request signs with the committed pairing code. A pairing probe
+ * passes its candidate explicitly instead: the worker must not put a code it
+ * has not verified into the state every other flow signs with, or a heartbeat
+ * that overlaps the probe would sign with the candidate and a wrong code would
+ * look like a broken pairing.
+ */
+function requestSecret(secret) {
+  if (typeof secret === 'string' && secret) return secret
+  return bridgeSecret
+}
+
+/**
  * Asks the app which sites it wants cookies for.
  *
  * The answer is signed like every other request: the extension reads the
@@ -370,11 +399,12 @@ const stateReady = ensureProfileIdentity().then(() => readPersistedState())
  * one it holds, and every other failure means the request itself did not go
  * through.
  */
-async function requestSiteList(port) {
+async function requestSiteList(port, secret) {
+  const signingSecret = requestSecret(secret)
   try {
     const headers = baseHeaders()
-    if (bridgeSecret) {
-      headers['x-hmac-signature'] = await computeHmac(signingPayload(SITE_LIST_PATH), bridgeSecret)
+    if (signingSecret) {
+      headers['x-hmac-signature'] = await computeHmac(signingPayload(SITE_LIST_PATH), signingSecret)
     }
     const response = await fetch(`http://${BRIDGE_HOST}:${port}${SITE_LIST_PATH}`, {
       method: 'GET',
@@ -658,12 +688,13 @@ async function collectTargetPacket(target) {
  *
  * Only the last one says nothing about the packet itself.
  */
-async function postPacket(packet, port) {
+async function postPacket(packet, port, secret) {
+  const signingSecret = requestSecret(secret)
   try {
     const body = JSON.stringify(packet)
     const headers = { ...baseHeaders(), 'Content-Type': 'application/json' }
-    if (bridgeSecret) {
-      headers['x-hmac-signature'] = await computeHmac(signingPayload(body), bridgeSecret)
+    if (signingSecret) {
+      headers['x-hmac-signature'] = await computeHmac(signingPayload(body), signingSecret)
     }
 
     const response = await fetch(`http://${BRIDGE_HOST}:${port}${COOKIE_PATH}`, {
@@ -786,7 +817,7 @@ function statePushedTo(list, fingerprint) {
  * other way round: it is not pushed again, because a packet that is too large
  * stays too large.
  */
-async function pushTargets(targets, port) {
+async function pushTargets(targets, port, secret) {
   const summary = {
     imported: 0,
     noCookies: 0,
@@ -807,7 +838,7 @@ async function pushTargets(targets, port) {
       scheduleRetry()
       continue
     }
-    const outcome = await postPacket(packet, port)
+    const outcome = await postPacket(packet, port, secret)
     if (outcome === PACKET_SENT) {
       pendingSiteIds.delete(target.siteId)
       summary.imported += 1
@@ -872,14 +903,15 @@ function scheduleRetry() {
  * report that never reached the app is lost otherwise, and the user is never
  * told to reload the extension.
  */
-async function reportOutdatedOnce(list, port) {
+async function reportOutdatedOnce(list, port, secret) {
   const key = `${list.protocolVersion}:${targetsFingerprint(list.targets)}`
   if (outdatedState === key) return
   let delivered = true
   for (const target of list.targets) {
     const outcome = await postPacket(
       { targetId: target.siteId, status: 'permission_missing', cookies: [] },
-      port
+      port,
+      secret
     )
     // The app answers with a refusal: it does not understand the packet. The
     // report still went through, so it is not repeated.
@@ -911,10 +943,12 @@ async function sendCookiesToApp(options) {
   if (!port) return SYNC_UNREACHABLE
 
   // Without the pairing code the site list is signed wrong and refused; the
-  // popup is where the user enters it.
-  if (!bridgeSecret) return SYNC_UNREACHABLE
+  // popup is where the user enters it. A pairing probe passes its candidate
+  // explicitly, so the committed code of every other flow stays untouched.
+  const secret = requestSecret(settings.secret)
+  if (!secret) return SYNC_UNREACHABLE
 
-  const request = await requestSiteList(port)
+  const request = await requestSiteList(port, secret)
   if (request.outcome === 'unauthorized') {
     // The app answered, so it is running; it does not know this pairing code.
     // This is not the same as "the app is not there", and the user can fix it
@@ -938,7 +972,7 @@ async function sendCookiesToApp(options) {
   await persistChangedDomains()
 
   if (list.outdated) {
-    await reportOutdatedOnce(list, port)
+    await reportOutdatedOnce(list, port, secret)
     return SYNC_OK
   }
 
@@ -1076,7 +1110,7 @@ async function sendCookiesToApp(options) {
     tooLargeSiteIds: [...tooLargeSiteIds]
   })
 
-  const summary = await pushTargets(targets, port)
+  const summary = await pushTargets(targets, port, secret)
   if (changed) {
     lastConfigVersion = list.configVersion
     knownTargets = list.targets
@@ -1119,6 +1153,11 @@ async function sendCookiesToApp(options) {
     // tell the user a session was transferred that never existed.
     if (summary.permissionMissing > 0) return SYNC_PERMISSION_MISSING
     if (summary.noCookies > 0) return SYNC_NO_COOKIES
+  }
+  if (summary.noCookies > 0 || summary.permissionMissing > 0) {
+    // Some sessions were imported, but not all of them: a plain "ok" would let
+    // the popup claim the whole transfer succeeded.
+    return SYNC_PARTIAL
   }
   return SYNC_OK
 }
@@ -1228,11 +1267,14 @@ async function waitForScan(settings) {
 
 async function performScan(settings) {
   await stateReady
+  // A pairing scan signs with its candidate; every other scan signs with the
+  // committed code.
+  const secret = requestSecret(settings.secret)
   try {
     for (let port = PORT_START; port <= PORT_END; port++) {
       const health = await fetchHealth(port)
       if (!health) continue
-      if (!bridgeSecret) {
+      if (!secret) {
         // The bridge is there, but the extension is not paired yet. Staying in
         // scan mode keeps the popup's pairing action the only way forward.
         await enterScanMode()
@@ -1251,6 +1293,7 @@ async function performScan(settings) {
       const result = await queueSend({
         port,
         connect: justConnected,
+        secret,
         // A pairing is the user asking for the sessions: it pushes the sites
         // even when this bridge already had them.
         resync: settings.resync === true
@@ -1259,10 +1302,15 @@ async function performScan(settings) {
         // The app is up but did not confirm the connection. The worker must not
         // stay in a fake "connected" state: it goes back to scanning, and the
         // scan alarm is always (re-)armed.
-        if (result === SYNC_UNAUTHORIZED && !settings.probe) {
-          await setPairingInvalid(true)
+        //
+        // A probe is the exception: it only proved that its candidate code is
+        // not the app's, not that the committed code stopped working. Leaving
+        // the heartbeat alone keeps a wrong pairing attempt from disconnecting
+        // a working extension.
+        if (settings.probe !== true) {
+          if (result === SYNC_UNAUTHORIZED) await setPairingInvalid(true)
+          await enterScanMode()
         }
-        await enterScanMode()
         return result
       }
 
@@ -1317,7 +1365,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   } else if (alarm.name === HEARTBEAT_ALARM) {
     // The heartbeat polls the site list of the bridge it knows. It only
     // pushes when the app asked for something else than it did the last time.
+    const requestCode = bridgeSecret
     void queueSend({}).then((result) => {
+      // A result produced while the pairing probe runs — or with a code the
+      // worker no longer holds — says nothing about the current pairing. A
+      // wrong code or a re-pairing must not disconnect a working extension.
+      if (pairingInFlight || requestCode !== bridgeSecret) return
       if (result === SYNC_UNREACHABLE || result === SYNC_UNAUTHORIZED) {
         // Re-enter scan mode when the bridge is gone so the reconnect loop
         // keeps running instead of silently stopping the session sync.
@@ -1471,27 +1524,29 @@ if (chrome.runtime?.onMessage?.addListener) {
       }
       stateReady
         .then(async () => {
-          // The code is tried in memory first. A wrong code must never replace
-          // the working one or survive in the storage, so it is only saved
-          // after the app answered the signed site list request — which is the
-          // proof that it holds this code. Whether the following import
-          // succeeds is a separate result: pairing and transfer are not the
-          // same success.
-          const previousSecret = bridgeSecret
+          // The candidate is only ever passed to the probe; it is not put into
+          // the state every other flow signs with. A wrong code must never
+          // replace the working one, and a heartbeat that overlaps the probe
+          // must not sign with an unverified code. The code is saved only after
+          // the app answered the signed site list request — which is the proof
+          // that it holds this code. Whether the following import succeeds is a
+          // separate result: pairing and transfer are not the same success.
           const previousInstanceId = bridgeInstanceId
           const previousPort = bridgePort
+          pairingInFlight = true
           try {
-            bridgeSecret = code
-            bridgeInstanceId = null
-            const result = await scanForBridge({ force: true, probe: true, resync: true })
+            const result = await scanForBridge({
+              force: true,
+              probe: true,
+              resync: true,
+              secret: code
+            })
             if (result === SYNC_UNAUTHORIZED) {
-              bridgeSecret = previousSecret
               bridgeInstanceId = previousInstanceId
               bridgePort = previousPort
               return { success: false, error: 'invalid_code' }
             }
             if (result === SYNC_UNREACHABLE) {
-              bridgeSecret = previousSecret
               bridgeInstanceId = previousInstanceId
               bridgePort = previousPort
               return { success: false, error: 'bridge_unreachable' }
@@ -1506,10 +1561,11 @@ if (chrome.runtime?.onMessage?.addListener) {
               notSelected: lastSelectionWasSource === false
             }
           } catch (error) {
-            bridgeSecret = previousSecret
             bridgeInstanceId = previousInstanceId
             bridgePort = previousPort
             throw error
+          } finally {
+            pairingInFlight = false
           }
         })
         .then(
