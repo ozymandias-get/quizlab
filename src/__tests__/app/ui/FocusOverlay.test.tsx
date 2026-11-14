@@ -4,14 +4,24 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const motionHandle = vi.hoisted(() => ({
+  /** The content shell's reveal handler, captured so tests can complete it. */
+  onAnimationComplete: null as (() => void) | null
+}))
+
 vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
   motion: {
-    div: ({ children, onClick, ...props }: any) => (
-      <div onClick={onClick} {...props}>
-        {children}
-      </div>
-    ),
+    div: ({ children, onClick, onAnimationComplete, ...props }: any) => {
+      if (typeof onAnimationComplete === 'function') {
+        motionHandle.onAnimationComplete = onAnimationComplete
+      }
+      return (
+        <div onClick={onClick} {...props}>
+          {children}
+        </div>
+      )
+    },
     button: ({ children, onClick, ...props }: any) => (
       <button onClick={onClick} {...props}>
         {children}
@@ -123,6 +133,7 @@ describe('FocusOverlay', () => {
   beforeEach(() => {
     mockAiViewSurface.mockClear()
     mockUsePdfSelection.mockReturnValue({ ...defaultPdfSelection })
+    motionHandle.onAnimationComplete = null
   })
 
   afterEach(() => {
@@ -202,33 +213,7 @@ describe('FocusOverlay', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the native view hidden until the focus shell has settled', async () => {
-    vi.useFakeTimers()
-    render(
-      <FocusOverlay
-        mode="ai"
-        onClose={vi.fn()}
-        isAiSurfaceMounted
-        isResizing={false}
-        isAiSurfaceActive
-        aiViewSurfaceState={surfaceState}
-      />
-    )
-
-    await act(async () => {
-      await Promise.resolve()
-    })
-    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
-  })
-
-  it('hides the native view as soon as a close starts', async () => {
-    vi.useFakeTimers()
-    const onClose = vi.fn()
+  const renderOverlay = (onClose = vi.fn()) =>
     render(
       <FocusOverlay
         mode="ai"
@@ -240,17 +225,100 @@ describe('FocusOverlay', () => {
       />
     )
 
+  const closeButton = () => screen.getByRole('button', { name: 'Exit fullscreen' })
+
+  /** Flushes the lazy surface import so the shell's props are observable. */
+  const settleLazyLoad = async () => {
     await act(async () => {
       await Promise.resolve()
     })
+  }
+
+  it('reveals the view when the reveal animation reports completion', async () => {
+    vi.useFakeTimers()
+    renderOverlay()
+    await settleLazyLoad()
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      motionHandle.onAnimationComplete?.()
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+  })
+
+  it('reveals the view through the fallback when the animation never completes', async () => {
+    vi.useFakeTimers()
+    renderOverlay()
+    await settleLazyLoad()
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
+  })
+
+  it('keeps the view hidden when the close lands just before the fallback', async () => {
+    // The dangerous window: the reveal fallback is armed for 1000ms and the user
+    // closes at 950ms. If the timer fired anyway it would re-show the native view
+    // over the shell that is already shrinking.
+    vi.useFakeTimers()
+    renderOverlay()
+    await settleLazyLoad()
+    act(() => {
+      vi.advanceTimersByTime(950)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    fireEvent.click(closeButton())
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+  })
+
+  it('ignores a reveal completion that arrives after a close started', async () => {
+    vi.useFakeTimers()
+    renderOverlay()
+    await settleLazyLoad()
     act(() => {
       vi.advanceTimersByTime(1000)
     })
     expect(lastSurfaceProps().isRevealInProgress).toBe(false)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Exit fullscreen' }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    fireEvent.click(closeButton())
     expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    // The exit animation completing must not be mistaken for the reveal.
+    act(() => {
+      motionHandle.onAnimationComplete?.()
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+  })
+
+  it('does not let the previous session fallback reveal the next session', async () => {
+    vi.useFakeTimers()
+    const first = renderOverlay()
+    await settleLazyLoad()
+    act(() => {
+      vi.advanceTimersByTime(900)
+    })
+    fireEvent.click(closeButton())
+    first.unmount()
+
+    renderOverlay()
+    await settleLazyLoad()
+    // Past the first session's 1000ms boundary: only the new session's timer
+    // exists now, and it is not due yet.
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(true)
+
+    act(() => {
+      vi.advanceTimersByTime(800)
+    })
+    expect(lastSurfaceProps().isRevealInProgress).toBe(false)
   })
 
   it('invokes onClose when Escape is pressed', () => {

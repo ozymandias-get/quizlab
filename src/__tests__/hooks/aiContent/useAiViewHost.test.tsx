@@ -575,6 +575,47 @@ describe('useAiViewHost - bounded motion follow', () => {
     }
     expect(syncHost.mock.calls.length).toBe(followed)
   })
+
+  it('shares the remaining budget with overlapping motion events', () => {
+    // A second transition starting mid-follow must not re-arm the cap: a stream
+    // of overlapping events would otherwise keep the follow alive forever.
+    const rect = { x: 900, y: 150, width: 800, height: 600 }
+    const created = createRoundedHost(rect, { radius: '16px', borderWidth: '1px' })
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(created.host)
+    })
+    syncHost.mockClear()
+
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    for (let step = 0; step < 100; step += 1) {
+      // Start one pixel off the already published rectangle so every frame is
+      // a real change (a deduped frame would not count towards the cap).
+      rect.x = 899 - step
+      flushFrames()
+    }
+
+    act(() => {
+      created.frame.dispatchEvent(new Event('transitionrun', { bubbles: true }))
+    })
+    for (let step = 0; step < 140; step += 1) {
+      rect.x = 799 - step
+      flushFrames()
+    }
+
+    // 240 frames of motion, but one cap of 180.
+    expect(syncHost.mock.calls.length).toBe(180)
+
+    const followed = syncHost.mock.calls.length
+    for (let step = 0; step < 20; step += 1) {
+      rect.x = 600 - step
+      flushFrames()
+    }
+    expect(syncHost.mock.calls.length).toBe(followed)
+  })
 })
 
 /**

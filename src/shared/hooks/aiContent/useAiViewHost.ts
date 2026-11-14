@@ -343,8 +343,14 @@ export function useAiViewHost({
    * frames and then stops for good.
    */
   const startMotionWatch = useCallback(() => {
-    motionFramesLeftRef.current = MOTION_WATCH_MAX_FRAMES
+    // A motion that begins while another is already being followed shares the
+    // remaining budget instead of re-arming it. Resetting here let a stream of
+    // overlapping events — one `transitionrun` per animated property, a class
+    // toggled on a timer — keep the follow alive indefinitely, which is the one
+    // thing the cap exists to prevent. A motion that starts after the previous
+    // follow has ended is a new session and gets a fresh budget.
     if (motionFrameRef.current !== null) return
+    motionFramesLeftRef.current = MOTION_WATCH_MAX_FRAMES
     const tick = () => {
       motionFrameRef.current = null
       if (motionFramesLeftRef.current <= 0) return

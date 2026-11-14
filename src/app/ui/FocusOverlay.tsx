@@ -95,14 +95,29 @@ function FocusOverlay({
   const [showEscHint, setShowEscHint] = useState(true)
   /** Set by a user-initiated close, so a completing exit animation cannot re-show the view. */
   const isClosingRef = useRef(false)
+  /** The pending reveal fallback, so a close can cancel it instead of letting it fire. */
+  const revealFallbackRef = useRef<number | null>(null)
+
+  const clearRevealFallback = useCallback(() => {
+    if (revealFallbackRef.current === null) return
+    window.clearTimeout(revealFallbackRef.current)
+    revealFallbackRef.current = null
+  }, [])
 
   useEffect(() => {
     setIsRevealSettled(false)
     setShowEscHint(true)
     isClosingRef.current = false
-    const timer = window.setTimeout(() => setIsRevealSettled(true), REVEAL_FALLBACK_MS)
-    return () => window.clearTimeout(timer)
-  }, [mode])
+    clearRevealFallback()
+    revealFallbackRef.current = window.setTimeout(() => {
+      revealFallbackRef.current = null
+      // A close that started after this timer was armed owns the reveal state:
+      // re-showing the view here would paint the site over the shrinking shell.
+      if (isClosingRef.current) return
+      setIsRevealSettled(true)
+    }, REVEAL_FALLBACK_MS)
+    return () => clearRevealFallback()
+  }, [mode, clearRevealFallback])
 
   // The shortcut is discoverable for the first two seconds, then gets out of
   // the way; the close button remains for anyone who missed it.
@@ -135,16 +150,20 @@ function FocusOverlay({
    * A user-initiated close.
    *
    * The native AI view is not affected by the shell's exit clip-path either, so
-   * it has to be hidden before the panel starts shrinking, not after. `onClose`
-   * is called immediately — the overlay stays mounted through its exit
-   * animation, and `isClosingRef` keeps a completing exit animation from
-   * re-showing the view for its last frames.
+   * it has to be hidden before the panel starts shrinking, not after. The
+   * pending reveal fallback is cancelled here — waiting for its own guard would
+   * leave a timer that can only ever no-op, and cancelling keeps "close owns the
+   * reveal state" true for the rest of this session. `onClose` is called
+   * immediately: the overlay stays mounted through its exit animation, and
+   * `isClosingRef` keeps a completing exit animation from re-showing the view
+   * for its last frames.
    */
   const requestClose = useCallback(() => {
     isClosingRef.current = true
+    clearRevealFallback()
     setIsRevealSettled(false)
     onCloseRef.current()
-  }, [])
+  }, [clearRevealFallback])
 
   const handleRevealComplete = useCallback(() => {
     if (isClosingRef.current) return
