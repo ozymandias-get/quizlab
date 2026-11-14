@@ -19,12 +19,21 @@
  * page-width and header checks are what keep a long two/three-column body of
  * prose from becoming a table.
  *
- * Line wrapping inside a cell is handled geometrically. A single-fragment line
- * that starts at an occupied column, advances by normal leading and does not
- * cross another column start is appended to that cell. A single fragment that
- * crosses another column start is a merged row, not a wrapped line, and keeps
- * its own row. Anything else that cannot be placed on the skeleton rejects the
- * run instead of guessing, so no cell is silently moved or dropped.
+ * Line wrapping inside a cell is handled geometrically. A physical line whose
+ * fragments all land in already-filled columns, advances by leading and stays
+ * inside the current row's vertical band is appended to that row, even when
+ * several cells wrap on the same line. A single fragment that crosses another
+ * column start is a merged row, not a wrapped line. Anything else that cannot be
+ * placed on the skeleton rejects the run instead of guessing, so no cell is
+ * silently moved or dropped.
+ *
+ * A header is only trusted on independent evidence: larger type, a visible
+ * separator, clearly shorter labels, a header width outside the body's range, or
+ * a numeric body column under a non-numeric label. Short labels alone are not
+ * enough, so a headerless table keeps its first data row as data and falls back
+ * to row-preserving plain text. Nearby tables are separated by a local
+ * whitespace rhythm plus a header/repeated-header/type-size cue; equal-width
+ * tables are accepted when their cells end well before the next column start.
  */
 import { groupByRow, median } from './pdfTextGeometry'
 import type { PdfTableBlock, PdfTextFragment } from './types'
@@ -41,6 +50,18 @@ const TWO_COLUMN_WIDTH_SPREAD = 1.39
 const MULTI_COLUMN_WIDTH_SPREAD = 1.2
 const HEADER_SEPARATOR_RATIO = 1.25
 const HEADER_STYLE_RATIO = 1.08
+/** A header cell this much narrower/wider than the body is a header cue. */
+const HEADER_WIDTH_NARROW_RATIO = 0.6
+const HEADER_WIDTH_WIDE_RATIO = 1.4
+/** A header label this much shorter than the column's body is a header cue. */
+const HEADER_SHORTER_RATIO = 0.6
+/** A row this much taller than the local rhythm may start a new table. */
+const ROW_RHYTHM_FACTOR = 1.4
+const ROW_RHYTHM_RESET_FACTOR = 1.75
+/** Only the most recent data gaps describe the table's local rhythm. */
+const ROW_RHYTHM_WINDOW = 4
+/** A line must sit this far inside a row's vertical band to continue it. */
+const CONTINUATION_ROW_BAND_FACTOR = 0.65
 /** A row can be taller than its text (banded table); allow generous row pitch. */
 const ROW_ADVANCE_FACTOR = 7
 const MIN_ROW_ADVANCE = 56
@@ -66,11 +87,13 @@ export interface DetectedTable {
 interface MeasuredLine {
   fragments: PdfTextFragment[]
   top: number
+  bottom: number
   fontSize: number
 }
 
 interface LogicalRow {
   cells: string[]
+  widths: number[]
   top: number
   fontSizes: number[]
 }
@@ -170,6 +193,7 @@ function measureLine(fragments: PdfTextFragment[]): MeasuredLine {
   return {
     fragments,
     top: Math.min(...fragments.map((fragment) => fragment.top)),
+    bottom: Math.max(...fragments.map((fragment) => fragment.bottom)),
     fontSize: median(fragments.map((fragment) => fragment.fontSize))
   }
 }
@@ -180,6 +204,39 @@ function maxRowAdvance(line: MeasuredLine): number {
 
 function maxContinuationAdvance(fontSize: number): number {
   return Math.max(5, fontSize * CONTINUATION_ADVANCE_FACTOR + 1)
+}
+
+/** A row made entirely of short, non-numeric labels looks like a header. */
+function looksLikeHeaderRow(row: PdfTextFragment[], skeleton: ColumnSkeleton): boolean {
+  if (!isCandidateTableRow(row)) return false
+  const texts = row.map((fragment) => fragment.text.trim())
+  if (
+    !texts.every(
+      (text) =>
+        text.length > 0 && text.length <= HEADER_LABEL_MAX_LENGTH && !/^\d+(?:[.,]\d+)?$/.test(text)
+    )
+  ) {
+    return false
+  }
+
+  return row.every(
+    (fragment) => fragmentColumnIndex(fragment, skeleton.centres, skeleton.tolerance) !== null
+  )
+}
+
+/** A second table often repeats the first table's header text verbatim. */
+function repeatsHeaderText(row: PdfTextFragment[], header: PdfTextFragment[]): boolean {
+  const headerTexts = new Set(
+    header.map((fragment) => fragment.text.trim()).filter((text) => text.length > 0)
+  )
+  return row.some(
+    (fragment) => fragment.text.trim().length > 0 && headerTexts.has(fragment.text.trim())
+  )
+}
+
+/** A value that begins with a number (optionally a comparator or sign). */
+function numericLike(text: string): boolean {
+  return /^\s*[-+<>≥≤±]?\s*\d/u.test(text)
 }
 
 /**
@@ -195,32 +252,74 @@ function collectTableRuns(rows: [number, PdfTextFragment[]][]): MeasuredLine[][]
   const runs: MeasuredLine[][] = []
   let run: MeasuredLine[] = []
   let skeleton: ColumnSkeleton | null = null
+  let currentRowBottom: number | null = null
+  let rowGaps: number[] = []
 
   const close = () => {
     if (run.length > 0) runs.push(run)
     run = []
     skeleton = null
+    currentRowBottom = null
+    rowGaps = []
   }
 
   const start = (line: MeasuredLine) => {
     run = [line]
     skeleton = clusterColumnStarts(line.fragments)
+    currentRowBottom = line.bottom
+    rowGaps = []
+  }
+
+  const pushRowGap = (gap: number) => {
+    rowGaps.push(gap)
+    if (rowGaps.length > ROW_RHYTHM_WINDOW) rowGaps.shift()
   }
 
   for (const [index, [, rowFragments]] of rows.entries()) {
     const line = measureLine(rowFragments)
 
     if (isCandidateTableRow(rowFragments)) {
-      if (run.length === 0 || !skeleton) {
+      if (run.length === 0 || !skeleton || currentRowBottom === null) {
         start(line)
         continue
       }
 
       const previous = run.at(-1)
-      if (!previous || line.top - previous.top > maxRowAdvance(previous)) {
+      if (!previous) {
         close()
         start(line)
         continue
+      }
+
+      const physicalAdvance = line.top - previous.top
+      const textGap = line.top - currentRowBottom
+      const tight = physicalAdvance <= maxContinuationAdvance(line.fontSize)
+
+      if (physicalAdvance > maxRowAdvance(previous)) {
+        close()
+        start(line)
+        continue
+      }
+
+      // A local whitespace rhythm separates two tables that use the same
+      // columns from one table with tall rows. The gap below the header is not
+      // part of the rhythm, and wrapped lines are excluded, so a real tall-row
+      // pattern does not look like a boundary. Header repetition, a new
+      // header-shaped row or a type-size change must confirm the gap; a very
+      // large reset also splits headerless tables.
+      if (!tight && rowGaps.length > 0) {
+        const localGap = median(rowGaps)
+        const headerLike =
+          looksLikeHeaderRow(rowFragments, skeleton) ||
+          repeatsHeaderText(rowFragments, run[0].fragments) ||
+          line.fontSize >= previous.fontSize * HEADER_STYLE_RATIO
+        const separatedByGap = textGap > localGap * ROW_RHYTHM_FACTOR + 2
+        const rhythmReset = rowGaps.length >= 2 && textGap > localGap * ROW_RHYTHM_RESET_FACTOR + 4
+        if ((separatedByGap && headerLike) || rhythmReset) {
+          close()
+          start(line)
+          continue
+        }
       }
 
       const added = newColumnStarts(rowFragments, skeleton.centres, skeleton.tolerance)
@@ -235,6 +334,13 @@ function collectTableRuns(rows: [number, PdfTextFragment[]][]): MeasuredLine[][]
         continue
       }
 
+      if (!tight) {
+        if (run.length >= 2) pushRowGap(textGap)
+        currentRowBottom = line.bottom
+      } else {
+        currentRowBottom = Math.max(currentRowBottom, line.bottom)
+      }
+
       run.push(line)
       if (added.length === 1) {
         skeleton = {
@@ -245,7 +351,7 @@ function collectTableRuns(rows: [number, PdfTextFragment[]][]): MeasuredLine[][]
       continue
     }
 
-    if (rowFragments.length === 1 && run.length > 0 && skeleton) {
+    if (rowFragments.length === 1 && run.length > 0 && skeleton && currentRowBottom !== null) {
       const previous = run.at(-1)
       if (!previous || line.top - previous.top > maxRowAdvance(previous)) {
         close()
@@ -263,6 +369,7 @@ function collectTableRuns(rows: [number, PdfTextFragment[]][]): MeasuredLine[][]
       // so it is only kept when the table demonstrably continues below it.
       // Otherwise a paragraph that follows the table would be swallowed as a
       // one-cell row.
+      const textGap = line.top - currentRowBottom
       const tight = line.top - previous.top <= maxContinuationAdvance(line.fontSize)
       const nextFragments = rows[index + 1]?.[1]
       const tableContinues = nextFragments !== undefined && isCandidateTableRow(nextFragments)
@@ -271,6 +378,12 @@ function collectTableRuns(rows: [number, PdfTextFragment[]][]): MeasuredLine[][]
         continue
       }
 
+      if (!tight) {
+        if (run.length >= 2) pushRowGap(textGap)
+        currentRowBottom = line.bottom
+      } else {
+        currentRowBottom = Math.max(currentRowBottom, line.bottom)
+      }
       run.push(line)
       continue
     }
@@ -325,9 +438,13 @@ function appendCellText(previous: string, next: string): string {
 /**
  * Maps the physical lines onto logical rows and their cells.
  *
- * Wrapped lines are appended only when they start at an occupied cell, advance
- * by leading and stay inside that column. Any ambiguity becomes a separate row
- * with empty cells, which serialization marks as not confident.
+ * A physical line with several fragments is not automatically a new row: two
+ * cells can wrap on the same line. It is appended to the current row when it
+ * advances by leading, every fragment lands in an already filled column, and
+ * (if it includes the first column) it still sits inside the current row's
+ * vertical band. A line at the table's row pitch starts a new row even when the
+ * pitch is tight. Anything ambiguous becomes a separate row, which keeps the
+ * source text and lets serialization mark the table as not confident.
  */
 function buildLogicalRows(lines: MeasuredLine[], skeleton: ColumnSkeleton): LogicalRow[] | null {
   const rows: LogicalRow[] = []
@@ -335,45 +452,55 @@ function buildLogicalRows(lines: MeasuredLine[], skeleton: ColumnSkeleton): Logi
   let previous: MeasuredLine | null = null
 
   for (const line of lines) {
-    if (line.fragments.length >= 2) {
-      const cells = new Array<string>(skeleton.centres.length).fill('')
-      for (const fragment of [...line.fragments].sort((a, b) => a.left - b.left)) {
-        const column = fragmentColumnIndex(fragment, skeleton.centres, skeleton.tolerance)
-        if (column === null) return null
-        cells[column] = appendCellText(cells[column], fragment.text)
+    const ordered = [...line.fragments].sort((a, b) => a.left - b.left)
+    const columns: number[] = []
+    for (const fragment of ordered) {
+      const column = fragmentColumnIndex(fragment, skeleton.centres, skeleton.tolerance)
+      if (column === null) return null
+      columns.push(column)
+    }
+
+    const advance = previous ? line.top - previous.top : Number.POSITIVE_INFINITY
+    const tight = advance <= maxContinuationAdvance(line.fontSize)
+    const rowPitch = current && rows.length >= 2 ? current.top - rows[rows.length - 2].top : null
+    const occupied = current !== null && columns.every((column) => current?.cells[column] !== '')
+    const firstOccupied = current ? current.cells.findIndex((cell) => cell.length > 0) : -1
+    const includesFirst = firstOccupied >= 0 && columns.includes(firstOccupied)
+    const withinRowBand =
+      rowPitch === null
+        ? rows.length >= 2
+        : current !== null && line.top - current.top <= rowPitch * CONTINUATION_ROW_BAND_FACTOR
+    const spans =
+      line.fragments.length === 1 &&
+      spansAnotherColumn(line.fragments[0], skeleton.centres, skeleton.tolerance)
+    const canContinue =
+      current !== null && tight && !spans && occupied && (!includesFirst || withinRowBand)
+
+    if (canContinue && current) {
+      for (const [index, column] of columns.entries()) {
+        const fragment = ordered[index]
+        current.cells[column] = appendCellText(current.cells[column], fragment.text)
+        current.widths[column] = Math.max(current.widths[column], fragment.right - fragment.left)
+        current.fontSizes.push(fragment.fontSize)
       }
-      current = {
-        cells,
-        top: line.top,
-        fontSizes: line.fragments.map((fragment) => fragment.fontSize)
-      }
-      rows.push(current)
       previous = line
       continue
     }
 
-    const fragment = line.fragments[0]
-    const column = fragmentColumnIndex(fragment, skeleton.centres, skeleton.tolerance)
-    if (column === null) return null
-
-    const advance = previous ? line.top - previous.top : Number.POSITIVE_INFINITY
-    const tight = advance <= maxContinuationAdvance(fragment.fontSize)
-    const spans = spansAnotherColumn(fragment, skeleton.centres, skeleton.tolerance)
-    const canContinue = current !== null && tight && !spans && current.cells[column] !== ''
-
-    if (canContinue && current) {
-      current.cells[column] = appendCellText(current.cells[column], fragment.text)
-      current.fontSizes.push(fragment.fontSize)
-    } else {
-      const cells = new Array<string>(skeleton.centres.length).fill('')
-      cells[column] = fragment.text
-      current = {
-        cells,
-        top: line.top,
-        fontSizes: [fragment.fontSize]
-      }
-      rows.push(current)
+    const cells = new Array<string>(skeleton.centres.length).fill('')
+    const widths = new Array<number>(skeleton.centres.length).fill(0)
+    for (const [index, column] of columns.entries()) {
+      const fragment = ordered[index]
+      cells[column] = appendCellText(cells[column], fragment.text)
+      widths[column] = Math.max(widths[column], fragment.right - fragment.left)
     }
+    current = {
+      cells,
+      widths,
+      top: line.top,
+      fontSizes: ordered.map((fragment) => fragment.fontSize)
+    }
+    rows.push(current)
     previous = line
   }
 
@@ -391,15 +518,27 @@ function headerEvidence(rows: LogicalRow[], options: DetectTablesOptions): Heade
   const header = rows[0]
   const dataRows = rows.slice(1)
   const headerCells = header?.cells ?? []
-  const dataCells = dataRows.flatMap((row) => row.cells).filter(Boolean)
 
   const labels =
     headerCells.length > 0 &&
     headerCells.every((cell) => cell.length > 0 && !/^\d+(?:[.,]\d+)?$/.test(cell))
-  const headerMaxLength = Math.max(...headerCells.map((cell) => cell.length), 0)
-  const dataMaxLength = Math.max(...dataCells.map((cell) => cell.length), 0)
-  const shortLabels = labels && headerMaxLength <= HEADER_LABEL_MAX_LENGTH
-  const shorterThanBody = labels && headerMaxLength <= 64 && dataMaxLength >= headerMaxLength * 1.5
+
+  // A real header is usually shorter than the body in every column, and clearly
+  // shorter in at least one. A headerless first data row tracks the following
+  // rows, so it has no strongly shorter column and often one longer column.
+  let hasShorterColumn = false
+  let hasLongerColumn = false
+  if (labels) {
+    for (const [index, cell] of headerCells.entries()) {
+      const values = dataRows.map((row) => row.cells[index]).filter(Boolean)
+      if (values.length < 2) continue
+      const dataMedian = median(values.map((value) => value.length))
+      if (dataMedian <= 0) continue
+      if (cell.length <= dataMedian * HEADER_SHORTER_RATIO) hasShorterColumn = true
+      if (cell.length > dataMedian) hasLongerColumn = true
+    }
+  }
+  const shorterThanBody = labels && hasShorterColumn && !hasLongerColumn
 
   const headerFont = median(header?.fontSizes ?? [])
   const dataFont = median(dataRows.flatMap((row) => row.fontSizes))
@@ -414,28 +553,66 @@ function headerEvidence(rows: LogicalRow[], options: DetectTablesOptions): Heade
   const headerGap = dataTops.length > 0 ? dataTops[0] - header.top : 0
   const separator = dataGap > 0 && headerGap > dataGap * HEADER_SEPARATOR_RATIO
 
+  // Header labels often do not share the body's text widths; an out-of-range
+  // header cell keeps a headerless first data row from being promoted.
+  const widthOutlier =
+    header?.widths.some((width, index) => {
+      if (width <= 0) return false
+      const values = dataRows.map((row) => row.widths[index]).filter((value) => value > 0)
+      if (values.length < 2) return false
+      const min = Math.min(...values)
+      const max = Math.max(...values)
+      return width < min * HEADER_WIDTH_NARROW_RATIO || width > max * HEADER_WIDTH_WIDE_RATIO
+    }) ?? false
+
+  // A numeric/measurement body column under a non-numeric label is a strong
+  // header cue. All body values must be numeric so that a single data row with
+  // one non-numeric value does not turn into a header.
+  const valueContrast = headerCells.some((cell, index) => {
+    if (/\d/u.test(cell)) return false
+    const values = dataRows.map((row) => row.cells[index]).filter(Boolean)
+    return values.length >= 2 && values.every(numericLike)
+  })
+
   const trusted = options.requireExplicitHeader
     ? labels && (style || separator)
-    : labels && (shortLabels || shorterThanBody || style || separator)
+    : labels && (style || separator || shorterThanBody || widthOutlier || valueContrast)
 
   return { labels, trusted, separator, style }
 }
 
-function columnWidthSpread(lines: MeasuredLine[], skeleton: ColumnSkeleton): number {
-  const widths: number[][] = skeleton.centres.map(() => [])
+function columnWidthSpread(rows: LogicalRow[], skeleton: ColumnSkeleton): number {
+  const medians = skeleton.centres
+    .map((_, index) => median(rows.map((row) => row.widths[index]).filter((width) => width > 0)))
+    .filter((width) => width > 0)
 
-  for (const line of lines) {
-    if (line.fragments.length < 2) continue
-    for (const fragment of line.fragments) {
-      if (spansAnotherColumn(fragment, skeleton.centres, skeleton.tolerance)) continue
-      const column = fragmentColumnIndex(fragment, skeleton.centres, skeleton.tolerance)
-      if (column !== null) widths[column].push(fragment.right - fragment.left)
-    }
-  }
-
-  const medians = widths.map((column) => median(column)).filter((width) => width > 0)
   if (medians.length < 2) return 0
   return Math.max(...medians) / Math.min(...medians)
+}
+
+/**
+ * How much whitespace follows each column's typical cell.
+ *
+ * A page's text columns are filled: the gutter is small compared with the text
+ * width. A table's cells end well before the next column even when the cell
+ * texts are equally long. This is the geometric cue that lets an equal-width
+ * table pass without also accepting equal-width prose columns.
+ */
+function gutterDominance(rows: LogicalRow[], skeleton: ColumnSkeleton): boolean {
+  if (skeleton.centres.length < 3) return false
+
+  const medians = skeleton.centres.map((_, index) =>
+    median(rows.map((row) => row.widths[index]).filter((width) => width > 0))
+  )
+
+  for (let index = 0; index < skeleton.centres.length - 1; index += 1) {
+    const width = medians[index]
+    if (width <= 0) return false
+    const gap = skeleton.centres[index + 1] - (skeleton.centres[index] + width)
+    if (gap < width * 0.5) return false
+  }
+
+  return true
 }
 
 function buildTableFromRun(
@@ -463,17 +640,20 @@ function buildTableFromRun(
   if (fullRows < 2) return null
 
   const evidence = headerEvidence(rows, options)
-  const widthSpread = columnWidthSpread(lines, skeleton)
+  const widthSpread = columnWidthSpread(rows, skeleton)
 
   if (columnCount === 2) {
     const hasHeaderSeparator = rows.length === 3 && evidence.separator && evidence.labels
     if (widthSpread < TWO_COLUMN_WIDTH_SPREAD && !hasHeaderSeparator) return null
   } else {
-    // Three or more columns are only a table when the first row reads like a
-    // header and the columns have a label/value width profile. A multi-column
-    // page with equal-width columns therefore stays plain text.
+    // Three or more columns are a table when the first row reads like a header
+    // and the columns either have a label/value width profile or end well
+    // before the next column start. The latter accepts equal text widths while
+    // still rejecting prose columns that fill their gutters.
     if (!evidence.labels) return null
-    if (widthSpread < MULTI_COLUMN_WIDTH_SPREAD) return null
+    if (widthSpread < MULTI_COLUMN_WIDTH_SPREAD && !gutterDominance(rows, skeleton)) {
+      return null
+    }
   }
 
   const header = rows[0].cells
