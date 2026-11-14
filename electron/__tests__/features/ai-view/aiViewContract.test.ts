@@ -126,10 +126,24 @@ describe('parseBounds', () => {
     expect(isUsableBounds(zero)).toBe(false)
   })
 
-  it('keeps a sub-pixel radius and clamps a hostile one', () => {
+  it('rounds a fractional radius, which the native setter cannot accept', () => {
+    // `View.setBorderRadius` is an integer argument in Electron; a fractional
+    // one throws in the argument converter. This used to keep a 17.75px CSS
+    // radius on the wire, so every panel whose content box landed on a fraction
+    // (1.25rem minus a 1px border) silently kept square native corners.
     expect(parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 15.5 })?.borderRadius).toBe(
-      15.5
+      16
     )
+    expect(
+      parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 17.75 })?.borderRadius
+    ).toBe(18)
+    for (const radius of [15.5, 17.75, 18.2, 0.4]) {
+      const parsed = parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: radius })
+      expect(Number.isInteger(parsed?.borderRadius)).toBe(true)
+    }
+  })
+
+  it('clamps a hostile radius instead of trusting it', () => {
     expect(parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: -8 })?.borderRadius).toBe(0)
     expect(
       parseBounds({ x: 0, y: 0, width: 1, height: 1, borderRadius: 99_999 })?.borderRadius

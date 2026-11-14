@@ -59,6 +59,16 @@ interface ManagedAiView {
   /** What `setVisible` was last called with, so repeat calls are skipped. */
   shown: boolean
   bounds: AiViewBounds | null
+  /**
+   * Radius `setBorderRadius` last accepted, or `null` while none has been.
+   *
+   * Kept apart from `bounds.borderRadius` because the two can disagree: Electron
+   * validates the radius as an integer and throws on anything else. Remembering
+   * the request instead of the result would make a rejected call permanent — the
+   * next geometry message would compare equal and skip the retry, so the view
+   * would stay square for its whole lifetime.
+   */
+  appliedBorderRadius: number | null
   /** Token of the host placeholder currently allowed to move this view. */
   hostToken: string | null
   disposeBridge: () => void
@@ -286,6 +296,7 @@ function attachResolved(
     visible: false,
     shown: false,
     bounds: null,
+    appliedBorderRadius: null,
     hostToken: null,
     disposeBridge: () => {}
   }
@@ -481,14 +492,20 @@ export function syncAiViewHost(
   const bounds = parseBounds(rawBounds)
   if (!bounds) return false
 
+  const nextRadius = bounds.borderRadius ?? 0
+  const radiusChanged = entry.appliedBorderRadius !== nextRadius
   if (!boundsEqual(entry.bounds, bounds)) {
-    const prevRadius = entry.bounds ? (entry.bounds.borderRadius ?? 0) : undefined
-    const nextRadius = bounds.borderRadius ?? 0
     entry.bounds = bounds
-    if (prevRadius !== nextRadius) {
-      applyBorderRadius(entry.view, nextRadius)
+    // Radius first: the clip has to exist before the first frame painted at the
+    // new geometry, otherwise the corner is square for one frame.
+    if (radiusChanged && applyBorderRadius(entry.view, nextRadius)) {
+      entry.appliedBorderRadius = nextRadius
     }
     entry.view.setBounds(bounds)
+  } else if (radiusChanged && applyBorderRadius(entry.view, nextRadius)) {
+    // A rectangle that did not move can still need its clip: this is the retry
+    // path for a radius the platform rejected the first time.
+    entry.appliedBorderRadius = nextRadius
   }
 
   entry.hostToken = hostToken
@@ -507,14 +524,21 @@ export function syncAiViewHost(
  *
  * `View.setBorderRadius` is new in Electron 42 and is the only per-view
  * rounding API; `BrowserWindow.setShape` would clip the whole window, including
- * the title bar and the other panels. It is guarded because a platform that
- * lacks it should degrade to square corners rather than take the view down.
+ * the title bar and the other panels. It takes an *integer*, so a fractional
+ * radius is rejected by the argument converter before the call ever reaches the
+ * platform; `parseBounds` rounds it at the trust boundary for that reason.
+ *
+ * Returns whether the radius was accepted, because the caller stores that result
+ * rather than the request: a rejected call must be retried on the next message
+ * instead of being remembered as applied.
  */
-function applyBorderRadius(view: WebContentsView, radius: number): void {
+function applyBorderRadius(view: WebContentsView, radius: number): boolean {
   try {
     view.setBorderRadius(radius)
+    return true
   } catch (error) {
     Logger.warn('[AiView] setBorderRadius failed:', error)
+    return false
   }
 }
 

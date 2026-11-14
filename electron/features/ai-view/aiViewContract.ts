@@ -83,12 +83,6 @@ function toFiniteInteger(value: unknown): number | null {
   return Math.round(value)
 }
 
-/** Like `toFiniteInteger` but keeps sub-pixel radii, which CSS can produce. */
-function toNonNegativeNumber(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
-  return Math.max(0, value)
-}
-
 /**
  * Normalises a host rectangle into the integer, non-negative shape
  * `View.setBounds` expects. `null` means "not a rectangle at all"; a rectangle
@@ -98,6 +92,13 @@ function toNonNegativeNumber(value: unknown): number {
  * `borderRadius` travels with the rectangle on purpose: the corner radius has to
  * be applied in the same step as the bounds, or a resized view would briefly be
  * clipped to the previous panel's radius.
+ *
+ * It is part of the rectangle, so it is normalised here like every other field
+ * and, critically, to an integer. `View.setBorderRadius` is declared as `Integer`
+ * and its argument converter *rejects* a fractional value by throwing, which a
+ * guarded caller can only log — the view then keeps square corners while the
+ * DOM panel keeps its rounded ones. Rounding at the trust boundary means the
+ * value the manager stores is always a value Electron can apply.
  */
 export function parseBounds(value: unknown): AiViewBounds | null {
   if (!isPlainRecord(value)) return null
@@ -113,7 +114,7 @@ export function parseBounds(value: unknown): AiViewBounds | null {
     width: clamp(width, 0, MAX_VIEW_RECT_EDGE),
     height: clamp(height, 0, MAX_VIEW_RECT_EDGE),
     borderRadius: clamp(
-      value.borderRadius === undefined ? 0 : toNonNegativeNumber(value.borderRadius),
+      value.borderRadius === undefined ? 0 : (toFiniteInteger(value.borderRadius) ?? 0),
       0,
       MAX_VIEW_BORDER_RADIUS
     )

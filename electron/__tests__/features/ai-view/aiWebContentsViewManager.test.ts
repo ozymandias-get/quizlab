@@ -11,6 +11,8 @@ class FakeWebContentsView {
   static boundsHistory: Array<{ viewId: string; bounds: unknown }> = []
   static radiusHistory: Array<{ viewId: string; radius: number }> = []
   static visibleHistory: Array<{ viewId: string; visible: boolean }> = []
+  /** Makes the next `setBorderRadius` fail the way Electron rejects a non-integer. */
+  static rejectNextRadius = false
 
   viewId: string
   bounds: unknown
@@ -32,6 +34,12 @@ class FakeWebContentsView {
 
   setBorderRadius(radius: number) {
     FakeWebContentsView.radiusHistory.push({ viewId: this.viewId, radius })
+    if (FakeWebContentsView.rejectNextRadius) {
+      FakeWebContentsView.rejectNextRadius = false
+      // Electron's converter throws on a fractional radius; a fake that never
+      // fails cannot cover the retry path.
+      throw new Error('Error processing argument at index 0, conversion failure')
+    }
   }
 
   setVisible(visible: boolean) {
@@ -216,7 +224,9 @@ async function reset() {
   setIgnoreMouseEvents.mockClear()
   createdViews = []
   FakeWebContentsView.boundsHistory = []
+  FakeWebContentsView.radiusHistory = []
   FakeWebContentsView.visibleHistory = []
+  FakeWebContentsView.rejectNextRadius = false
   nextWebContentsId = 1
 }
 
@@ -553,6 +563,64 @@ describe('AiWebContentsViewManager - host geometry', () => {
     manager.syncAiViewHost('tab-1', 'h1', { ...base, borderRadius: 16 }, true)
 
     expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(16)
+  })
+
+  it('sends the corner radius as an integer the native setter accepts', async () => {
+    // The panel's inner radius is `1.25rem` minus its 1px border, which is
+    // 17.75px at the 15px root. Electron's `View.setBorderRadius` takes an
+    // Integer and throws on anything else, so the contract rounds it before the
+    // manager can cache it.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    FakeWebContentsView.radiusHistory = []
+
+    manager.syncAiViewHost(
+      'tab-1',
+      'h1',
+      { x: 0, y: 0, width: 300, height: 400, borderRadius: 17.75 },
+      true
+    )
+
+    expect(FakeWebContentsView.boundsHistory.at(-1)?.bounds).toMatchObject({ borderRadius: 18 })
+    expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(18)
+  })
+
+  it('retries a radius the platform rejected instead of treating it as applied', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    FakeWebContentsView.radiusHistory = []
+    const bounds = { x: 0, y: 0, width: 300, height: 400, borderRadius: 18 }
+
+    FakeWebContentsView.rejectNextRadius = true
+    manager.syncAiViewHost('tab-1', 'h1', bounds, true)
+    expect(FakeWebContentsView.radiusHistory).toHaveLength(1)
+
+    // Identical rectangle and radius: the only thing left to do is the retry.
+    manager.syncAiViewHost('tab-1', 'h1', bounds, true)
+
+    expect(FakeWebContentsView.radiusHistory).toHaveLength(2)
+    expect(FakeWebContentsView.radiusHistory.at(-1)?.radius).toBe(18)
+  })
+
+  it('does not re-apply an accepted radius when only the rectangle moves', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    FakeWebContentsView.radiusHistory = []
+
+    manager.syncAiViewHost(
+      'tab-1',
+      'h1',
+      { x: 0, y: 0, width: 300, height: 400, borderRadius: 18 },
+      true
+    )
+    manager.syncAiViewHost(
+      'tab-1',
+      'h1',
+      { x: 0, y: 0, width: 320, height: 400, borderRadius: 18 },
+      true
+    )
+
+    expect(FakeWebContentsView.radiusHistory).toHaveLength(1)
   })
 
   it('hides the view when the host reports visible=false without moving it', async () => {

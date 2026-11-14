@@ -68,18 +68,28 @@ const defaultOptions = {
  *
  * Longhand properties are set because jsdom does not expand the `overflow` and
  * `border-radius` shorthands; a real Chromium does, which is what production
- * relies on.
+ * relies on. All four corners are written for the same reason: a real
+ * `border-radius: 16px` leaves four equal corners, and the hook reads every one
+ * of them (one `setBorderRadius` value has to satisfy them all).
  */
 function createRoundedHost(
   rect: { x: number; y: number; width: number; height: number },
-  panel: { radius: string; borderWidth: string }
+  panel: { radius: string; borderWidth: string; bottomRadius?: string }
 ) {
   const frame = document.createElement('div')
   frame.style.overflowX = 'hidden'
   frame.style.overflowY = 'hidden'
+  const bottomRadius = panel.bottomRadius ?? panel.radius
   frame.style.borderTopLeftRadius = panel.radius
+  frame.style.borderTopRightRadius = panel.radius
+  frame.style.borderBottomRightRadius = bottomRadius
+  frame.style.borderBottomLeftRadius = bottomRadius
   frame.style.borderTopWidth = panel.borderWidth
   frame.style.borderTopStyle = 'solid'
+  frame.style.borderRightWidth = panel.borderWidth
+  frame.style.borderBottomWidth = panel.borderWidth
+  frame.style.borderLeftWidth = panel.borderWidth
+  frame.style.borderStyle = 'solid'
 
   const host = document.createElement('div')
   frame.appendChild(host)
@@ -123,6 +133,59 @@ describe('useAiViewHost - corner radius', () => {
     })
 
     expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(15)
+  })
+
+  it('rounds a fractional CSS radius, because the native API only takes integers', () => {
+    // Regression guard for the bottom-corner mismatch between the PDF panel and
+    // the AI panel. `--radius-2xl` is 1.25rem, so at the 15px root this app uses
+    // the panel's inner radius is 17.75px. Electron's `View.setBorderRadius` is
+    // declared as `Integer` and its converter *throws* on 17.75, which left the
+    // native view square while the CSS-rounded PDF panel next to it was round.
+    const { host } = createRoundedHost(
+      { x: 0, y: 0, width: 500, height: 400 },
+      { radius: '18.75px', borderWidth: '1px' }
+    )
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    const radius = syncHost.mock.calls[0][0].bounds.borderRadius
+    expect(radius).toBe(18)
+    expect(Number.isInteger(radius)).toBe(true)
+  })
+
+  it('measures the bottom corners, not just the top ones', () => {
+    // The host only touches the panel's *bottom* corners, so that is where a
+    // uniform radius has to be no larger than the CSS corner. A panel that
+    // rounds its top edge only yields square corners instead of over-clipping.
+    const { host } = createRoundedHost(
+      { x: 0, y: 0, width: 500, height: 400 },
+      { radius: '18.75px', borderWidth: '1px', bottomRadius: '6px' }
+    )
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(5)
+  })
+
+  it('takes the narrowest inner corner when the four radii differ', () => {
+    const { host, frame } = createRoundedHost(
+      { x: 0, y: 0, width: 500, height: 400 },
+      { radius: '18.75px', borderWidth: '1px' }
+    )
+    frame.style.borderBottomRightRadius = '8px'
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host)
+    })
+
+    expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(7)
   })
 
   it('falls back to square corners when no ancestor clips', () => {
@@ -169,6 +232,9 @@ describe('useAiViewHost - corner radius', () => {
     expect(syncHost.mock.calls[0][0].bounds.borderRadius).toBe(15)
 
     frame.style.borderTopLeftRadius = '13px'
+    frame.style.borderTopRightRadius = '13px'
+    frame.style.borderBottomRightRadius = '13px'
+    frame.style.borderBottomLeftRadius = '13px'
     act(() => {
       result.current.flush()
     })
@@ -336,9 +402,26 @@ describe('useAiViewHost', () => {
     expect(syncHost).toHaveBeenCalledWith({
       viewId: 'tab-1',
       hostToken: 'h1',
-      bounds: { x: 10, y: 21, width: 300, height: 401, borderRadius: 0 },
+      bounds: { x: 10, y: 21, width: 301, height: 400, borderRadius: 0 },
       visible: true
     })
+  })
+
+  it('derives the size from the rounded edges instead of rounding the size', () => {
+    // A host on fractional pixels — a resized window, a non-integer panel split —
+    // used to round origin and size independently, so the right and bottom edges
+    // could sit a pixel away from the rounded box the DOM actually occupies.
+    const rect = { x: 10.4, y: 20.6, width: 300.2, height: 400.8 }
+    const host = createHost(rect)
+    const { result } = renderHook(() => useAiViewHost(defaultOptions))
+
+    act(() => {
+      result.current.setHostElement(host.element)
+    })
+
+    const { bounds } = syncHost.mock.calls[0][0]
+    expect(bounds.x + bounds.width).toBe(Math.round(rect.x + rect.width))
+    expect(bounds.y + bounds.height).toBe(Math.round(rect.y + rect.height))
   })
 
   it('clamps a negative origin instead of sending it', async () => {
@@ -349,11 +432,13 @@ describe('useAiViewHost', () => {
       result.current.setHostElement(host.element)
     })
 
+    // The visible part of the box, not the whole width: painting 100px from a
+    // clamped origin would push the native view 30px past the host.
     expect(syncHost.mock.calls.at(-1)?.[0].bounds).toEqual({
       x: 0,
       y: 0,
-      width: 100,
-      height: 100,
+      width: 70,
+      height: 95,
       borderRadius: 0
     })
   })

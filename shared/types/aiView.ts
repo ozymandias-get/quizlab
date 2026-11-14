@@ -22,6 +22,11 @@ export interface AiViewBounds {
    * square corners straight over the rounded panel frame. Optional so that a
    * caller that does not care gets square corners; the main process defaults it
    * to 0 and the host hook always sends the measured value.
+   *
+   * Always an integer: `View.setBorderRadius` is declared as `Integer` and its
+   * converter throws on a fractional value, which leaves the view square. The
+   * renderer rounds the measured CSS radius and the contract rounds again, so a
+   * value that arrives here is exactly what the platform will apply.
    */
   borderRadius?: number
 }

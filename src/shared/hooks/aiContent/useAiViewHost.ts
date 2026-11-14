@@ -84,12 +84,29 @@ const cancelFrame = (handle: number): void => {
  */
 const REASSERT_FRAMES = 3
 
+/**
+ * Pixels the native view can be placed at.
+ *
+ * Both edges of each axis are rounded, and the size is derived from them, rather
+ * than rounding origin and size independently: at fractional layout positions
+ * (125% scaling, a window resized to an odd width) `round(left) + round(width)`
+ * lands up to a pixel away from `round(right)`, so the right and bottom edges
+ * drift from the DOM box by a pixel that the top and left edges do not have.
+ * Deriving the size from the rounded boundaries keeps the rectangle exactly
+ * between them, so neither edge can accumulate the error.
+ *
+ * Everything here is an integer because `View.setBounds` takes integer
+ * device-independent pixels; the corner radius is separately measured and
+ * already integer (see `resolveClipRadius`).
+ */
 function toBounds(rect: DOMRect, borderRadius: number): AiViewBounds {
+  const x = Math.max(0, Math.round(rect.left))
+  const y = Math.max(0, Math.round(rect.top))
   return {
-    x: Math.max(0, Math.round(rect.left)),
-    y: Math.max(0, Math.round(rect.top)),
-    width: Math.max(0, Math.round(rect.width)),
-    height: Math.max(0, Math.round(rect.height)),
+    x,
+    y,
+    width: Math.max(0, Math.round(rect.right) - x),
+    height: Math.max(0, Math.round(rect.bottom) - y),
     borderRadius
   }
 }
@@ -102,21 +119,66 @@ function toBounds(rect: DOMRect, borderRadius: number): AiViewBounds {
  * `border-radius`). A native view is composited above the DOM and cannot inherit
  * that, so the value has to be measured and shipped across.
  *
- * The panel's border width is subtracted because the host sits inside the border
- * box: a 16px radius around a 1px border leaves the content corner at 15px.
- * Reading it from the DOM also means a theme or density change is picked up for
- * free instead of being hard-coded here.
+ * Two details decide whether the corner actually lines up:
+ *
+ * 1. Per-corner inner radius. The panel's border width is subtracted because the
+ *    host sits inside the border box: a 16px radius around a 1px border leaves
+ *    the content corner at 15px. Every corner is measured, not just the top-left
+ *    one, because `setBorderRadius` is uniform — the *smallest* inner corner is
+ *    the only value that cannot paint over any of them. A panel that only rounds
+ *    its top edge therefore yields 0, which is square and safe, instead of
+ *    over-clipping the bottom.
+ * 2. An integer. Electron's `View.setBorderRadius` is declared as `Integer`; a
+ *    fractional radius — `1.25rem` at a 15px root minus a 1px border is 17.75px —
+ *    is rejected by the argument converter and the call throws, leaving the view
+ *    square with only a warning in the log. Rounding here is what makes the
+ *    native corner line up with the CSS corner instead of silently not existing.
+ *
+ * Reading all of it from the DOM also means a theme, density or radius change is
+ * picked up for free instead of being hard-coded here.
  */
+const CORNER_PROPERTIES = [
+  ['borderTopLeftRadius', 'borderTopWidth', 'borderLeftWidth'],
+  ['borderTopRightRadius', 'borderTopWidth', 'borderRightWidth'],
+  ['borderBottomRightRadius', 'borderBottomWidth', 'borderRightWidth'],
+  ['borderBottomLeftRadius', 'borderBottomWidth', 'borderLeftWidth']
+] as const
+
+/** Reads a computed length in CSS pixels; anything else counts as absent. */
+function computedPixels(value: string): number {
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+/**
+ * The tightest inner corner of one element, or 0 when it cannot be rounded.
+ *
+ * A single square corner means a uniform radius would either over-clip the
+ * rounded ones or paint over the square one, so the element is reported as not
+ * roundable. Each corner loses its own border width — the wider of the two edges
+ * meeting there, which is the safe side for a non-uniform border — because the
+ * host sits inside the border box.
+ */
+function innerCornerRadius(style: CSSStyleDeclaration): number {
+  let smallest = Number.POSITIVE_INFINITY
+  for (const [radiusProperty, firstBorder, secondBorder] of CORNER_PROPERTIES) {
+    const radius = computedPixels(style[radiusProperty])
+    if (radius <= 0) return 0
+    const border = Math.max(computedPixels(style[firstBorder]), computedPixels(style[secondBorder]))
+    smallest = Math.min(smallest, radius - border)
+  }
+  return Number.isFinite(smallest) ? Math.max(0, smallest) : 0
+}
+
 function resolveClipRadius(element: HTMLElement): number {
   if (typeof window.getComputedStyle !== 'function') return 0
   let node: HTMLElement | null = element
   while (node instanceof HTMLElement && node !== document.body) {
     const style = window.getComputedStyle(node)
     const clips = style.overflowX === 'hidden' || style.overflowY === 'hidden'
-    const radius = Number.parseFloat(style.borderTopLeftRadius)
-    if (clips && Number.isFinite(radius) && radius > 0) {
-      const border = Number.parseFloat(style.borderTopWidth)
-      return Math.max(0, radius - (Number.isFinite(border) ? border : 0))
+    if (clips) {
+      const radius = innerCornerRadius(style)
+      if (radius > 0) return Math.round(radius)
     }
     node = node.parentElement
   }
