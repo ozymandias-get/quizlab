@@ -1,22 +1,28 @@
-import { flushPendingSessions, scheduleSaveSessions } from '@features/ai/store/apiChatPersistence'
+import {
+  flushPendingSessions,
+  loadSessionsFromStorageAsync,
+  LOCAL_STORAGE_KEY,
+  scheduleSaveSessions
+} from '@features/ai/store/apiChatPersistence'
 import type { ChatSession } from '@features/ai/store/apiChatSessionUtils'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const storage = vi.hoisted(() => {
   const values = new Map<string, string>()
-  return { values, quotaExceeded: false }
+  return { values, quotaExceeded: false, failRemove: false }
 })
 
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => storage.values.get(key) ?? null,
   setItem: (key: string, value: string) => {
-    if (storage.quotaExceeded) {
+    if (storage.quotaExceeded && key === LOCAL_STORAGE_KEY) {
       throw new DOMException('quota', 'QuotaExceededError')
     }
     storage.values.set(key, value)
   },
   removeItem: (key: string) => {
+    if (storage.failRemove) throw new Error('storage removal blocked')
     storage.values.delete(key)
   },
   clear: () => storage.values.clear()
@@ -49,7 +55,9 @@ describe('flushing sessions on shutdown', () => {
     vi.useFakeTimers()
     storage.values.clear()
     storage.quotaExceeded = true
+    storage.failRemove = false
     indexedDb.update.mockReset()
+    indexedDb.read.mockReset().mockResolvedValue(null)
   })
 
   it('waits for a save that a previous timer already started', async () => {
@@ -77,6 +85,37 @@ describe('flushing sessions on shutdown', () => {
 
     release([SESSION])
     await expect(flush).resolves.toBe(true)
+  })
+
+  it('keeps IndexedDB authoritative when the stale local key cannot be removed', async () => {
+    const stale = {
+      id: 'old',
+      title: 'old',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 1
+    } as unknown as ChatSession
+    const fresh = {
+      id: 'new',
+      title: 'new',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 2
+    } as unknown as ChatSession
+
+    storage.values.set(LOCAL_STORAGE_KEY, JSON.stringify([stale]))
+    storage.failRemove = true
+    indexedDb.update.mockImplementation(async (merge: (stored: ChatSession[]) => ChatSession[]) =>
+      merge([])
+    )
+    indexedDb.read.mockResolvedValue([fresh] as never)
+
+    scheduleSaveSessions([fresh])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPendingSessions()
+
+    expect(storage.values.get(LOCAL_STORAGE_KEY)).toContain('"old"')
+    await expect(loadSessionsFromStorageAsync()).resolves.toEqual([fresh])
   })
 
   it('reports a failed write instead of a clean shutdown', async () => {

@@ -45,6 +45,25 @@ function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
 
 let cachedRawContent: string | null = null
 let cachedDecodedConfig: ApiConfig | null = null
+/**
+ * A read failed for a reason other than "the file does not exist".
+ *
+ * The empty config returned to the UI is not proof that the user has no
+ * providers. Saving it would replace the unreadable file, so writes are
+ * refused until a load succeeds again.
+ */
+let configReadFailed = false
+
+function emptyApiConfig(): ApiConfig {
+  return {
+    providers: [],
+    generalPrompt: '',
+    memoryPrompt: '',
+    characterPrompt: '',
+    selectedProviderId: '',
+    selectedModel: ''
+  }
+}
 
 /**
  * Providers whose stored key exists but could not be decrypted.
@@ -67,11 +86,36 @@ function cloneApiConfig(config: ApiConfig): ApiConfig {
 }
 
 async function loadConfig(): Promise<ApiConfig> {
-  let configPath: string | undefined
+  let configPath: string
   try {
     configPath = getApiChatConfigPath()
-    const content = await fs.promises.readFile(configPath, 'utf-8')
+  } catch (error) {
+    configReadFailed = true
+    Logger.warn('[apiChatHandlers] Failed to resolve the API chat config path:', error)
+    return emptyApiConfig()
+  }
+
+  let content: string
+  try {
+    content = await fs.promises.readFile(configPath, 'utf-8')
+  } catch (error) {
+    cachedRawContent = null
+    cachedDecodedConfig = null
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      configReadFailed = false
+      return emptyApiConfig()
+    }
+
+    // A permission or I/O error is not proof that the file is empty. Keep the
+    // existing file untouched and refuse writes until a later load works.
+    configReadFailed = true
+    Logger.warn('[apiChatHandlers] The API chat config could not be read:', error)
+    return emptyApiConfig()
+  }
+
+  try {
     if (cachedRawContent === content && cachedDecodedConfig !== null) {
+      configReadFailed = false
       return cloneApiConfig(cachedDecodedConfig)
     }
 
@@ -98,31 +142,29 @@ async function loadConfig(): Promise<ApiConfig> {
       selectedModel: raw.selectedModel || ''
     }
 
+    configReadFailed = false
     cachedRawContent = content
     cachedDecodedConfig = resolved
     return cloneApiConfig(resolved)
-  } catch (err) {
+  } catch (error) {
     cachedRawContent = null
     cachedDecodedConfig = null
-    Logger.warn('[apiChatHandlers] Failed to load API chat config, using defaults:', err)
+    Logger.warn('[apiChatHandlers] The API chat config is corrupt:', error)
 
-    if (configPath) {
-      try {
-        const backupPath = configPath + `.bak.${Date.now()}`
-        await fs.promises.copyFile(configPath, backupPath).catch(() => {})
-        Logger.info(`[apiChatHandlers] Backed up config to ${backupPath}`)
-      } catch {
-        // Backup failure is non-fatal
-      }
+    // A corrupt file has no usable provider list, but its bytes are the only
+    // remaining copy of the encrypted keys. Move it aside (do not overwrite
+    // it), then let the user create a new config.
+    try {
+      const backupPath = `${configPath}.bak.${Date.now()}`
+      await fs.promises.rename(configPath, backupPath)
+      undecryptableApiKeys.clear()
+      configReadFailed = false
+      Logger.warn(`[apiChatHandlers] Moved the corrupt config to ${backupPath}`)
+    } catch (backupError) {
+      configReadFailed = true
+      Logger.error('[apiChatHandlers] The corrupt config could not be preserved:', backupError)
     }
-  }
-  return {
-    providers: [],
-    generalPrompt: '',
-    memoryPrompt: '',
-    characterPrompt: '',
-    selectedProviderId: '',
-    selectedModel: ''
+    return emptyApiConfig()
   }
 }
 
@@ -167,6 +209,13 @@ async function readStoredApiKeys(configPath: string): Promise<Map<string, string
 }
 
 async function saveConfigNow(config: ApiConfig): Promise<boolean> {
+  if (configReadFailed) {
+    Logger.warn(
+      '[apiChatHandlers] Refusing to save the API chat config: the existing file could not be read.'
+    )
+    return false
+  }
+
   let temporaryPath: string | null = null
   try {
     const configPath = getApiChatConfigPath()

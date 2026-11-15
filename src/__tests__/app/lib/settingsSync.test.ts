@@ -7,6 +7,7 @@ import {
   installSettingsSync,
   isSyncableSettingKey,
   PENDING_SETTINGS_SYNC_KEY,
+  SETTINGS_REMOVED_VALUE,
   SETTINGS_SYNC_KEYS,
   syncSettingToMain
 } from '@app/lib/settingsSync'
@@ -73,6 +74,66 @@ describe('settingsSync', () => {
 
     uninstallSync()
     expect(Storage.prototype.setItem).toBe(original)
+  })
+
+  it('mirrors a removed setting as a deletion instead of leaving the old main value', async () => {
+    uninstallSync = installSettingsSync()
+    window.localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, 'tr')
+    saveAppSetting.mockClear()
+
+    window.localStorage.removeItem(STORAGE_KEYS.APP_LANGUAGE)
+    await Promise.resolve()
+
+    expect(saveAppSetting).toHaveBeenCalledWith(STORAGE_KEYS.APP_LANGUAGE, SETTINGS_REMOVED_VALUE)
+  })
+
+  it('removes a key whose main mirror says it was deleted', async () => {
+    window.localStorage.setItem(STORAGE_KEYS.APP_LANGUAGE, 'tr')
+    getAppSettings.mockResolvedValue({
+      [STORAGE_KEYS.APP_LANGUAGE]: SETTINGS_REMOVED_VALUE
+    })
+    uninstallSync = installSettingsSync()
+
+    await hydrateSettingsFromMain()
+
+    expect(window.localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)).toBeNull()
+    expect(saveAppSetting).not.toHaveBeenCalled()
+  })
+
+  it('does not let an old A response clear the pending value after A -> B -> A', async () => {
+    const deferred: Array<(saved: boolean) => void> = []
+    saveAppSetting.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          deferred.push(resolve)
+        })
+    )
+    const key = STORAGE_KEYS.TYPING_SPEED
+
+    const first = syncSettingToMain(key, 'A')
+    await Promise.resolve()
+    const second = syncSettingToMain(key, 'B')
+    await Promise.resolve()
+    const third = syncSettingToMain(key, 'A')
+    await Promise.resolve()
+
+    deferred[0](true)
+    await first
+    expect(JSON.parse(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) ?? '{}')).toEqual({
+      [key]: 'A'
+    })
+
+    deferred[1](true)
+    await second
+    expect(JSON.parse(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) ?? '{}')).toEqual({
+      [key]: 'A'
+    })
+
+    deferred[2](false)
+    await third
+    expect(JSON.parse(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) ?? '{}')).toEqual({
+      [key]: 'A'
+    })
   })
 
   it('hydrateSettingsFromMain writes persisted settings without forwarding back', async () => {

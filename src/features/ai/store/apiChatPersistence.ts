@@ -139,6 +139,30 @@ const persistenceTabId = `${Date.now().toString(36)}-${Math.random().toString(36
 /** Whether the localStorage quota forced the sessions into IndexedDB. */
 let indexedDbAuthoritative = false
 
+/**
+ * Durable source-of-truth marker for the sessions store.
+ *
+ * The localStorage key is normally removed after a successful IndexedDB move.
+ * If that removal fails, the stale local array would win on the next start and
+ * the sessions written to IndexedDB would look lost. The marker says which
+ * store is authoritative independently of whether the old key could be
+ * removed.
+ */
+const STORAGE_MODE_KEY = 'quizlab_api_chat_storage_mode_v1'
+const STORAGE_MODE_INDEXEDDB = 'indexeddb'
+
+function markIndexedDbAuthoritative(): void {
+  try {
+    localStorage.setItem(STORAGE_MODE_KEY, STORAGE_MODE_INDEXEDDB)
+  } catch {}
+}
+
+function clearStorageModeMarker(): void {
+  try {
+    localStorage.removeItem(STORAGE_MODE_KEY)
+  } catch {}
+}
+
 export function loadSessionsFromStorage(): ChatSession[] {
   try {
     const data = getStorageItem(LOCAL_STORAGE_KEY)
@@ -173,6 +197,29 @@ export function loadSessionsFromStorage(): ChatSession[] {
  * IndexedDB write). A valid local value — including `[]` — stays authoritative.
  */
 export async function loadSessionsFromStorageAsync(): Promise<ChatSession[]> {
+  // The marker, not the presence of the localStorage key, decides the source.
+  // A failed removal after the IndexedDB move leaves a stale local array whose
+  // value must not beat the newer overflow store.
+  if (getStorageItem(STORAGE_MODE_KEY) === STORAGE_MODE_INDEXEDDB) {
+    const stored = await readSessionsFromIndexedDb()
+    if (stored !== null) {
+      const sessions = stored.filter(isChatSession)
+      indexedDbAuthoritative = true
+      lastRawData = null
+      lastParsedSessions = sessions
+      // Try again to drop the stale local copy. If removal still fails, the
+      // marker keeps the next start on IndexedDB.
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY)
+      } catch {}
+      return [...sessions]
+    }
+    // IndexedDB is unavailable: fall back to the local copy and clear the
+    // marker so the next successful local write is authoritative again.
+    clearStorageModeMarker()
+    indexedDbAuthoritative = false
+  }
+
   const local = loadSessionsFromStorage()
   if (local.length > 0) {
     indexedDbAuthoritative = false
@@ -198,6 +245,7 @@ export async function loadSessionsFromStorageAsync(): Promise<ChatSession[]> {
   if (sessions.length === 0) return local
 
   indexedDbAuthoritative = true
+  markIndexedDbAuthoritative()
   lastRawData = null
   lastParsedSessions = sessions
   return [...sessions]
@@ -382,6 +430,7 @@ async function writeSessionsThroughIndexedDb(
     mergeSessionLists(sessions, stored.length > 0 ? stored : fallbackStored, deletions)
   )
   if (written === null) return false
+  markIndexedDbAuthoritative()
   lastRawData = null
   lastParsedSessions = written
   storageFailureNotified = false
@@ -403,6 +452,7 @@ async function saveSessionsToStorage(
       return true
     }
     indexedDbAuthoritative = false
+    clearStorageModeMarker()
   }
 
   const merged = mergeSessionsWithStored(sessions, deletions)
@@ -438,6 +488,8 @@ async function saveSessionsToStorage(
     notifyStorageFailure(result.error)
     return false
   }
+  indexedDbAuthoritative = false
+  clearStorageModeMarker()
   lastRawData = serialized
   lastParsedSessions = merged
   storageFailureNotified = false

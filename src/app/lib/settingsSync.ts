@@ -56,9 +56,22 @@ const SYNC_KEY_SET = new Set<string>(SETTINGS_SYNC_KEYS)
  */
 export const PENDING_SETTINGS_SYNC_KEY = 'quizlab_settings_pending_sync_v1'
 
+/**
+ * The mirror of a deleted setting.
+ *
+ * `removeItem` has no value to send. The main store is a string map, so an
+ * explicit sentinel tells hydration to remove the key instead of restoring the
+ * old value. The NUL prefix makes a collision with a real setting value
+ * impractical.
+ */
+export const SETTINGS_REMOVED_VALUE = '\u0000__quizlab_setting_removed__'
+
 let installed = false
 let suppressForwarding = false
 const settingsSyncFailureNotified = new Set<string>()
+/** The newest mirror request per setting, for discarding late answers. */
+const latestSyncRequest = new Map<string, number>()
+let nextSyncRequest = 1
 
 function readPendingSettings(): Record<string, string> {
   try {
@@ -167,22 +180,34 @@ export async function syncSettingToMain(key: string, value: string): Promise<voi
   const api = getElectronApi()
   if (!api?.saveAppSetting) return
 
+  const requestId = nextSyncRequest++
+  latestSyncRequest.set(key, requestId)
+
   // Mark the value before sending it: a window that closes while the IPC call
   // is in flight must still leave the newer value for the next start.
   markPendingSetting(key, value)
 
   try {
     const saved = await api.saveAppSetting(key, value)
+    const isLatest = latestSyncRequest.get(key) === requestId
     if (saved === false) {
       Logger.warn(`settingsSync: The main process refused to save "${key}".`)
-      notifySettingsSyncFailure(key)
+      if (isLatest) {
+        latestSyncRequest.delete(key)
+        notifySettingsSyncFailure(key)
+      }
       return
     }
+    if (!isLatest) return
+    latestSyncRequest.delete(key)
     settingsSyncFailureNotified.delete(key)
     clearPendingSetting(key, value)
   } catch (error) {
     Logger.warn(`settingsSync: Failed to sync "${key}" to main process:`, error)
-    notifySettingsSyncFailure(key)
+    if (latestSyncRequest.get(key) === requestId) {
+      latestSyncRequest.delete(key)
+      notifySettingsSyncFailure(key)
+    }
   }
 }
 
@@ -213,6 +238,7 @@ export function installSettingsSync(): () => void {
 
   const storageProto = Object.getPrototypeOf(window.localStorage) as Storage
   const originalSetItem = storageProto.setItem
+  const originalRemoveItem = storageProto.removeItem
 
   const patchedSetItem = function (this: Storage, key: string, value: string) {
     const isLocalStorage = this === window.localStorage
@@ -222,8 +248,23 @@ export function installSettingsSync(): () => void {
     }
   }
 
+  const patchedRemoveItem = function (this: Storage, key: string) {
+    const isLocalStorage = this === window.localStorage
+    originalRemoveItem.call(this, key)
+    // A deletion is a user-visible state change too. Without this mirror the
+    // main store keeps the old value and hydration restores it on restart.
+    if (isLocalStorage && !suppressForwarding && isSyncableSettingKey(key)) {
+      void syncSettingToMain(key, SETTINGS_REMOVED_VALUE)
+    }
+  }
+
   Object.defineProperty(storageProto, 'setItem', {
     value: patchedSetItem,
+    writable: true,
+    configurable: true
+  })
+  Object.defineProperty(storageProto, 'removeItem', {
+    value: patchedRemoveItem,
     writable: true,
     configurable: true
   })
@@ -255,6 +296,11 @@ export function installSettingsSync(): () => void {
   return () => {
     Object.defineProperty(storageProto, 'setItem', {
       value: originalSetItem,
+      writable: true,
+      configurable: true
+    })
+    Object.defineProperty(storageProto, 'removeItem', {
+      value: originalRemoveItem,
       writable: true,
       configurable: true
     })
@@ -292,12 +338,16 @@ export async function hydrateSettingsFromMain(): Promise<void> {
       if (!isSyncableSettingKey(key)) continue
       // A pending value is newer than the main snapshot: the previous mirror
       // failed or was interrupted. Keep it and let the retry below persist it.
-      window.localStorage.setItem(key, pending[key] ?? value)
+      const resolved = pending[key] ?? value
+      if (resolved === SETTINGS_REMOVED_VALUE) window.localStorage.removeItem(key)
+      else window.localStorage.setItem(key, resolved)
     }
     // The main store may not contain a key whose local value is pending (for
     // example the first write of a brand-new setting); restore those too.
     for (const [key, value] of Object.entries(pending)) {
-      if (!(key in stored)) window.localStorage.setItem(key, value)
+      if (key in stored) continue
+      if (value === SETTINGS_REMOVED_VALUE) window.localStorage.removeItem(key)
+      else window.localStorage.setItem(key, value)
     }
   } catch (error) {
     Logger.warn('settingsSync: Failed to hydrate localStorage:', error)

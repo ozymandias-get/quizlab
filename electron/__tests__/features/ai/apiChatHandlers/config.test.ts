@@ -248,3 +248,39 @@ describe('saveConfig atomic write', () => {
     expect(mocks.rename).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('unreadable API chat config', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.mkdir.mockResolvedValue(undefined)
+    mocks.writeFile.mockResolvedValue(undefined)
+    mocks.rename.mockResolvedValue(undefined)
+    mocks.unlink.mockResolvedValue(undefined)
+  })
+
+  it('does not let a later save replace a config it could not read', async () => {
+    mocks.readFile.mockRejectedValueOnce(
+      Object.assign(new Error('permission denied'), { code: 'EACCES' })
+    )
+
+    const config = await loadConfig()
+    expect(config.providers).toEqual([])
+
+    await expect(saveConfig(config)).resolves.toBe(false)
+    expect(mocks.writeFile).not.toHaveBeenCalled()
+    expect(mocks.rename).not.toHaveBeenCalled()
+  })
+
+  it('moves a corrupt config aside before allowing a fresh save', async () => {
+    mocks.readFile.mockResolvedValueOnce('not json')
+
+    const config = await loadConfig()
+    expect(config.providers).toEqual([])
+    expect(mocks.rename).toHaveBeenCalledWith(
+      '/tmp/api_chat_config.json',
+      expect.stringMatching(/^\/tmp\/api_chat_config\.json\.bak\./)
+    )
+
+    await expect(saveConfig(config)).resolves.toBe(true)
+  })
+})
