@@ -102,6 +102,11 @@ vi.mock('../../../core/logger', () => ({
   Logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }))
 
+function isProfileTempWrite(filePath: unknown): boolean {
+  const value = String(filePath)
+  return value.includes('bridge-profiles.json') && value.endsWith('.tmp')
+}
+
 describe('NativeMessagingManager', () => {
   let manager: typeof import('../../../features/native-messaging/nativeMessagingManager.js').nativeMessagingManager
 
@@ -144,6 +149,8 @@ describe('NativeMessagingManager', () => {
       _extensionProtocolVersion: number | null
       _legacyConnectedAt: number
       _paired: boolean
+      _profilesLoadFailed: boolean
+      _profilesPersistenceError: string | null
     }
     state._profiles.clear()
     state._selectedProfileId = null
@@ -151,6 +158,8 @@ describe('NativeMessagingManager', () => {
     state._extensionProtocolVersion = null
     state._legacyConnectedAt = 0
     state._paired = false
+    state._profilesLoadFailed = false
+    state._profilesPersistenceError = null
   })
 
   afterEach(() => {
@@ -194,11 +203,16 @@ describe('NativeMessagingManager', () => {
         expect.stringContaining('bridge-secret.json'),
         'utf-8'
       )
-      const writeCall = mockFsWriteFile.mock.calls.find(([filePath]) =>
-        String(filePath).endsWith('bridge-secret.json')
+      const writeCall = mockFsWriteFile.mock.calls.find(
+        ([filePath]) =>
+          String(filePath).includes('bridge-secret.json') && String(filePath).endsWith('.tmp')
       )
       expect(writeCall).toBeDefined()
       expect(JSON.parse(String(writeCall![1]))).toEqual({ secret: manager.getPairingCode() })
+      expect(mockFsLink).toHaveBeenCalledWith(
+        writeCall![0],
+        expect.stringMatching(/bridge-secret\.json$/)
+      )
       expect(manager.getPairingCode()).toMatch(/^[\da-f]{64}$/)
     })
 
@@ -223,6 +237,49 @@ describe('NativeMessagingManager', () => {
         String(filePath).endsWith('bridge-secret.json')
       )
       expect(secretWrites).toHaveLength(0)
+    })
+
+    it('does not overwrite a profile file it could not read', async () => {
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        const value = String(filePath)
+        if (value.endsWith('bridge-environment.json')) {
+          return JSON.stringify({ environment: 'prod' })
+        }
+        if (value.endsWith('bridge-secret.json')) {
+          return JSON.stringify({ secret: 'a'.repeat(64) })
+        }
+        if (value.endsWith('bridge-profiles.json')) {
+          throw Object.assign(new Error('the file is locked'), { code: 'EACCES' })
+        }
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
+
+      await manager.initialize()
+      manager.markExtensionSeen('profile-a-1234', 'Ana Chrome')
+
+      await vi.waitFor(() =>
+        expect(manager.getExtensionInfo().profilePersistenceError).toContain('could not be read')
+      )
+      expect(mockFsWriteFile.mock.calls.some(([filePath]) => isProfileTempWrite(filePath))).toBe(
+        false
+      )
+    })
+
+    it('does not regenerate a corrupt pairing secret', async () => {
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        const value = String(filePath)
+        if (value.endsWith('bridge-environment.json')) {
+          return JSON.stringify({ environment: 'prod' })
+        }
+        if (value.endsWith('bridge-secret.json')) return 'not a secret'
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
+
+      await manager.initialize()
+
+      expect(manager.connectionStatus).toBe('error')
+      expect(manager.environmentReady).toBe(false)
+      expect(mockCreateServer).not.toHaveBeenCalled()
     })
 
     it('starts the bridge server and enters the connecting state', async () => {
@@ -439,9 +496,7 @@ describe('NativeMessagingManager', () => {
 
       expect(manager.getSelectedProfileId()).toBe('profile-c-1234')
       expect(manager.getSelectionVersion()).toBe(3)
-      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
-        String(filePath).endsWith('bridge-profiles.json.tmp')
-      )
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) => isProfileTempWrite(filePath))
       const last = JSON.parse(String(writes.at(-1)![1])) as {
         selectedProfileId: string
         selectionVersion: number
@@ -475,15 +530,11 @@ describe('NativeMessagingManager', () => {
       await switching
       await vi.waitFor(() =>
         expect(
-          mockFsWriteFile.mock.calls.filter(([filePath]) =>
-            String(filePath).endsWith('bridge-profiles.json.tmp')
-          ).length
+          mockFsWriteFile.mock.calls.filter(([filePath]) => isProfileTempWrite(filePath)).length
         ).toBeGreaterThanOrEqual(3)
       )
 
-      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
-        String(filePath).endsWith('bridge-profiles.json.tmp')
-      )
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) => isProfileTempWrite(filePath))
       const last = JSON.parse(String(writes.at(-1)![1])) as { selectedProfileId: string }
       expect(last.selectedProfileId).toBe('profile-b-1234')
       expect(manager.getSelectedProfileId()).toBe('profile-b-1234')
@@ -558,9 +609,7 @@ describe('NativeMessagingManager', () => {
       selectionVersion: number
       profiles: Array<{ id: string; name: string }>
     } {
-      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) =>
-        String(filePath).endsWith('bridge-profiles.json.tmp')
-      )
+      const writes = mockFsWriteFile.mock.calls.filter(([filePath]) => isProfileTempWrite(filePath))
       return JSON.parse(String(writes.at(-1)![1])) as {
         selectedProfileId: string | null
         selectionVersion: number
@@ -649,9 +698,7 @@ describe('NativeMessagingManager', () => {
       await expect(removing).resolves.toBe(true)
       await vi.waitFor(() =>
         expect(
-          mockFsWriteFile.mock.calls.filter(([filePath]) =>
-            String(filePath).endsWith('bridge-profiles.json.tmp')
-          ).length
+          mockFsWriteFile.mock.calls.filter(([filePath]) => isProfileTempWrite(filePath)).length
         ).toBeGreaterThanOrEqual(5)
       )
 

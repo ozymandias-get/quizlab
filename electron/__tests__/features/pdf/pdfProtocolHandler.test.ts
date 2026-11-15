@@ -132,7 +132,9 @@ describe('local-pdf:// protocol handler', () => {
     setItemMock.mockReset().mockResolvedValue(undefined)
     readMock.mockReset().mockResolvedValue({})
     existsSyncMock.mockReset().mockReturnValue(true)
-    statMock.mockReset().mockResolvedValue({ size: 1000, mtimeMs: 1700000000000 })
+    statMock
+      .mockReset()
+      .mockResolvedValue({ size: 1000, mtimeMs: 1700000000000, ctimeMs: 1700000000001 })
     openMock.mockReset().mockImplementation(async () => ({
       fd: 42,
       stat: statMock,
@@ -221,7 +223,7 @@ describe('local-pdf:// protocol handler', () => {
         size: 1000,
         mtimeMs: 1700000000000
       })
-      const etag = 'W/"1000-1700000000000"'
+      const etag = 'W/"1000-1700000000000-1700000000001"'
       closeFdMock.mockClear()
 
       const response = await getProtocolHandler()(makeRequest(streamUrl, { 'if-none-match': etag }))

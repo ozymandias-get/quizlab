@@ -58,7 +58,10 @@ export function parseByteRange(
 export function createPdfResponseHeaders(stats: fs.Stats): Record<string, string> {
   return {
     ...PDF_STREAM_HEADERS,
-    ETag: `W/"${stats.size}-${stats.mtimeMs}"`
+    // The change time catches an in-place rewrite that preserved the size and
+    // the modification time (some sync clients restore mtime). Without it a
+    // changed PDF could keep the old ETag and be answered with 304.
+    ETag: `W/"${stats.size}-${stats.mtimeMs}-${stats.ctimeMs}"`
   }
 }
 

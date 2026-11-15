@@ -113,8 +113,13 @@ async function hasPdfSignature(filePath: string): Promise<boolean> {
     handle = await fs.promises.open(filePath, 'r')
     const buffer = Buffer.alloc(1024)
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
-    const head = buffer.subarray(0, bytesRead).toString('latin1')
-    return /^\uFEFF?\s{0,32}%PDF-/u.test(head)
+    const bytes = buffer.subarray(0, bytesRead)
+    // A UTF-8 BOM is bytes EF BB BF. Decoding the buffer as latin1 turns them
+    // into "ï»¿", never U+FEFF, so the BOM has to be removed from the bytes.
+    const offset =
+      bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0
+    const head = bytes.subarray(offset).toString('latin1')
+    return /^\s{0,32}%PDF-/.test(head)
   } catch {
     return false
   } finally {

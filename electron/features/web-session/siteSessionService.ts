@@ -185,11 +185,20 @@ export class SiteSessionService {
       return await withSiteSessionLock(siteId, async () => {
         if (!enabled) return this.switchOff(target)
         try {
-          await this.deps.config.setEnabled(siteId, true)
           // Switching the site on is the user's explicit recovery from a
-          // quarantine; the in-process guard has to follow the durable flag.
+          // quarantine. The durable marker is removed first: if it cannot be
+          // removed, the switch must not be reported as a completed recovery.
+          // The config still carries the quarantine flag until setEnabled runs,
+          // so a failure here leaves the site safely quarantined.
+          if (!(await clearQuarantineMarker(siteId))) {
+            Logger.warn(
+              `[SiteSession] The quarantine marker of "${siteId}" could not be removed; ` +
+                'the switch was not changed.'
+            )
+            return { success: false, error: 'write_failed' }
+          }
+          await this.deps.config.setEnabled(siteId, true)
           clearSiteSessionQuarantine(siteId)
-          void clearQuarantineMarker(siteId)
           return { success: true }
         } catch (error) {
           Logger.warn(`[SiteSession] The switch of "${siteId}" could not be written:`, error)
@@ -496,9 +505,16 @@ export class SiteSessionService {
       )
       throw new SiteSessionWipeError(result)
     }
+    // The marker is the durable half of the quarantine. If it survives, the
+    // next start quarantines the site again even though the user was told the
+    // session was cleared. Remove it before reporting success.
+    if (!(await clearQuarantineMarker(target.siteId))) {
+      throw new Error(
+        `The quarantine marker of "${target.siteId}" could not be removed; the session was wiped but the quarantine remains.`
+      )
+    }
     await this.deps.config.resetResults(target.siteId)
     clearSiteSessionQuarantine(target.siteId)
-    void clearQuarantineMarker(target.siteId)
   }
 }
 

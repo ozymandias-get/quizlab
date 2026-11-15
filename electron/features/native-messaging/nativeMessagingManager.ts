@@ -22,7 +22,8 @@ import {
   isProfileId,
   NativeMessagingProfileStore,
   normalizeProfileName,
-  type PersistedExtensionProfile
+  type PersistedExtensionProfile,
+  type PersistedExtensionProfiles
 } from './nativeMessagingProfiles.js'
 import {
   BRIDGE_PORT,
@@ -73,6 +74,13 @@ class NativeMessagingManager {
   private _selectionVersion: number = 0
   private _selectionChangeDepth: number = 0
   private _profilesPersistenceError: string | null = null
+  /**
+   * The last load failed with an I/O error.
+   *
+   * The in-memory profile list is then incomplete, and writing it back would
+   * replace the healthy file on disk with that incomplete snapshot.
+   */
+  private _profilesLoadFailed = false
   private _profilesWrite: Promise<void> = Promise.resolve()
   /**
    * The selection writers that are running, one at a time.
@@ -560,8 +568,20 @@ class NativeMessagingManager {
     // The secret is persisted once and paired with the extension by hand. It
     // is never handed out over HTTP: an HTTP response can be read by any local
     // process that can forge the Origin header, which would defeat the
-    // signature it is supposed to enable.
-    this._sharedSecret = await NativeMessagingCredentials.loadOrCreateSharedSecret()
+    // signature it is supposed to enable. A corrupt or unreadable secret is
+    // not regenerated: the bridge stays off and the stored secret is kept.
+    try {
+      this._sharedSecret = await NativeMessagingCredentials.loadOrCreateSharedSecret()
+    } catch (error) {
+      this._environmentReady = false
+      this._connectionStatus = 'error'
+      this._waitingSince = null
+      Logger.error(
+        '[NativeMessaging] The pairing secret could not be loaded; the bridge will not start:',
+        error
+      )
+      return
+    }
     this._expectedExtensionOrigin = extensionOriginForEnvironment(this._environment)
     await this.loadProfiles()
     Logger.info(
@@ -579,7 +599,18 @@ class NativeMessagingManager {
    * switch the cookie source to another Chrome profile.
    */
   private async loadProfiles(): Promise<void> {
-    const stored = await this._profileStore.load()
+    let stored: PersistedExtensionProfiles
+    try {
+      stored = await this._profileStore.load()
+    } catch (error) {
+      this._profilesLoadFailed = true
+      this._profilesPersistenceError =
+        'The Chrome profile list could not be read; it will not be overwritten.'
+      Logger.error('[NativeMessaging] The Chrome profile list could not be read:', error)
+      return
+    }
+
+    this._profilesLoadFailed = false
     this._selectedProfileId = stored.selectedProfileId
     this._selectionVersion = stored.selectionVersion
     for (const profile of stored.profiles) {
@@ -661,6 +692,14 @@ class NativeMessagingManager {
     selectionVersion: number
     profiles: PersistedExtensionProfile[]
   }): Promise<void> {
+    if (this._profilesLoadFailed) {
+      this._profilesPersistenceError =
+        'The Chrome profile list could not be read; it will not be overwritten.'
+      throw new Error(
+        'The Chrome profile list could not be read; refusing to overwrite it with an incomplete snapshot.'
+      )
+    }
+
     let lastError: unknown
     for (let attempt = 0; attempt < 2; attempt++) {
       try {

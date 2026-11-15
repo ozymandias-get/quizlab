@@ -1,10 +1,17 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdtempSync,
+  mkdirSync,
+  promises as fs,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
 import { ConfigManager } from '@electron/core/ConfigManager'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 type TestConfig = {
   name?: string
@@ -199,6 +206,24 @@ describe('ConfigManager - Error Handling', () => {
     const success = await manager.update(() => ({ name: 'fail' }))
 
     expect(success).toBe(false)
+  })
+
+  it('does not overwrite an existing file when access fails for a reason other than ENOENT', async () => {
+    const { manager, filePath } = createTempManager<TestConfig>()
+    const original = JSON.stringify({ name: 'keep me' })
+    writeFileSync(filePath, original, 'utf8')
+
+    const access = vi
+      .spyOn(fs, 'access')
+      .mockRejectedValue(Object.assign(new Error('permission denied'), { code: 'EACCES' }))
+    try {
+      await expect(manager.read()).resolves.toEqual({})
+      await expect(manager.write({ name: 'replace' })).resolves.toBe(false)
+    } finally {
+      access.mockRestore()
+    }
+
+    expect(readFileSync(filePath, 'utf8')).toBe(original)
   })
 })
 

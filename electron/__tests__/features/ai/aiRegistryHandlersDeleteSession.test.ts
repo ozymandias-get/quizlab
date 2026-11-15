@@ -5,6 +5,7 @@ const KEPT_ID = 'custom_22222222-2222-4222-8222-222222222222'
 
 const ipcHandle = vi.fn()
 const forget = vi.fn()
+const deleteItem = vi.fn(async () => true)
 
 const trustedSender = { id: 1, getURL: vi.fn(() => 'http://localhost:5173') }
 
@@ -84,7 +85,7 @@ vi.mock('../../../app/windowManager', () => ({
 
 vi.mock('../../../features/ai/customPlatformStore.js', () => ({
   getCustomPlatformStore: () => ({
-    deleteItem: vi.fn(async () => true),
+    deleteItem,
     read: vi.fn(async () => ({})),
     setItem: vi.fn(async () => true)
   })
@@ -146,6 +147,7 @@ describe('deleting a user-added site', () => {
   beforeEach(() => {
     ipcHandle.mockReset()
     forget.mockReset().mockResolvedValue(undefined)
+    deleteItem.mockReset().mockResolvedValue(true)
     sessions.clear()
   })
 
@@ -180,6 +182,33 @@ describe('deleting a user-added site', () => {
     )
     expect(kept.cookies.remove).not.toHaveBeenCalled()
     expect(kept.clearStorageData).not.toHaveBeenCalled()
+  })
+
+  it('does not delete the platform when the session cannot be cleared', async () => {
+    sessionOf(`persist:ai_custom_${DELETED_ID}`).clearStorageData.mockRejectedValue(
+      new Error('the partition is locked')
+    )
+
+    const result = await deleteSite(DELETED_ID)
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'internal_error' } })
+    expect(deleteItem).not.toHaveBeenCalled()
+  })
+
+  it('does not delete the platform when its session state cannot be removed', async () => {
+    forget.mockRejectedValueOnce(new Error('the state file is locked'))
+
+    const result = await deleteSite(DELETED_ID)
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'internal_error' } })
+    expect(deleteItem).not.toHaveBeenCalled()
+  })
+
+  it('removes the platform only after the session is gone', async () => {
+    const result = await deleteSite(DELETED_ID)
+
+    expect(result).toMatchObject({ ok: true, data: true })
+    expect(deleteItem).toHaveBeenCalledWith(DELETED_ID)
   })
 
   it('removes the state of the deleted site', async () => {

@@ -74,34 +74,35 @@ let handlersRegistered = false
  * that site runs under — so an import that is already on its way writes its
  * cookies before the wipe and not after it.
  *
- * Neither of them may keep the site from being deleted: a failure is logged
- * and the delete goes on.
+ * A failed wipe throws: the caller must not delete the platform entry and
+ * report success while the session it held is still usable. The platform stays
+ * in the list and the user can retry once the session can be cleared.
  */
 async function clearDeletedSiteSession(siteId: string): Promise<void> {
-  try {
-    // The target has to be looked up before the platform is deleted: the
-    // target list is derived from the registry, and the deleted site is no
-    // longer in it afterwards.
-    const targets = await buildSiteSessionTargets()
-    const target = targets.find((candidate) => candidate.siteId === siteId)
-    if (target) {
-      const result = await withSiteSessionLock(siteId, () =>
-        wipeSiteSession(electronSession.fromPartition(target.partition), target, {
-          clearAuthCache: !isPartitionShared(target.partition, targets, target.siteId)
-        })
-      )
-      if (!result.ok) {
-        Logger.warn('[AI] The session of the deleted site was only partly cleared:', result)
-      }
+  // The target has to be looked up before the platform is deleted: the target
+  // list is derived from the registry, and the deleted site is no longer in it
+  // afterwards.
+  const targets = await buildSiteSessionTargets()
+  const target = targets.find((candidate) => candidate.siteId === siteId)
+  if (target) {
+    const result = await withSiteSessionLock(siteId, () =>
+      wipeSiteSession(electronSession.fromPartition(target.partition), target, {
+        clearAuthCache: !isPartitionShared(target.partition, targets, target.siteId)
+      })
+    )
+    if (!result.ok) {
+      Logger.warn('[AI] The session of the deleted site was only partly cleared:', result)
+      throw new Error('The session of the deleted site could not be cleared.')
     }
-  } catch (error) {
-    Logger.warn('[AI] The session of the deleted site could not be cleared:', error)
   }
 
   try {
     await getSiteSessionConfig().forget(siteId)
   } catch (error) {
     Logger.warn('[AI] The session state of the deleted site could not be removed:', error)
+    throw new Error('The session state of the deleted site could not be removed.', {
+      cause: error
+    })
   }
 }
 
@@ -201,15 +202,26 @@ export function registerAiRegistryHandlers() {
         await clearDeletedSiteSession(siteId)
 
         const deleted = await manager.deleteItem(id)
+        if (!deleted) {
+          return failure('internal_error', 'The AI platform could not be removed.')
+        }
 
+        // The session is already wiped, so the on-disk partition is only a
+        // best-effort cleanup of a site that will never be opened again.
         try {
           const partitionDir = path.join(app.getPath('userData'), 'Partitions', `ai_custom_${id}`)
-          await fs.promises.rm(partitionDir, { recursive: true, force: true }).catch(() => {})
-        } catch {}
+          await fs.promises.rm(partitionDir, { recursive: true, force: true }).catch((error) => {
+            // The session itself is already wiped. A locked directory is a
+            // cleanup problem, not a reason to claim the delete failed.
+            Logger.warn('[AI] The partition directory of the deleted site remains:', error)
+          })
+        } catch (error) {
+          Logger.warn('[AI] The partition directory path could not be resolved:', error)
+        }
 
         unregisterCustomPlatformOrigin(`persist:ai_custom_${id}`)
 
-        return success(deleted)
+        return success(true)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         Logger.error('[IPC] Failed to delete custom AI:', message)

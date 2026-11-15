@@ -48,16 +48,28 @@ export class ConfigManager<T extends object> {
     try {
       await fs.access(this.filePath)
       this.fileEnsured = true
-    } catch {
-      const dir = path.dirname(this.filePath)
-      try {
-        await fs.access(dir)
-      } catch {
-        await fs.mkdir(dir, { recursive: true })
-      }
-      await fs.writeFile(this.filePath, JSON.stringify({}, null, 2), 'utf8')
-      this.fileEnsured = true
+      return
+    } catch (error) {
+      // Only a missing file may be created. A permission or I/O error is not
+      // proof that the user has no config: writing `{}` over the file would
+      // discard it.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
+
+    const dir = path.dirname(this.filePath)
+    await fs.mkdir(dir, { recursive: true })
+
+    // `wx` keeps two instances from truncating each other's new file. The
+    // loser of that race simply finds a file that already exists.
+    try {
+      await fs.writeFile(this.filePath, JSON.stringify({}, null, 2), {
+        encoding: 'utf8',
+        flag: 'wx'
+      })
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+    this.fileEnsured = true
   }
 
   /**

@@ -2,6 +2,8 @@ import { app } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+import { Logger } from '../../core/logger.js'
+
 /**
  * The Chrome profiles the app has seen.
  *
@@ -111,12 +113,61 @@ export class NativeMessagingProfileStore {
     return this.configuredPath ?? getNativeMessagingProfilesPath()
   }
 
+  /**
+   * Reads the profile list.
+   *
+   * A missing file is a fresh install and returns an empty state. A file that
+   * exists but cannot be read is an I/O problem: it throws instead of
+   * pretending the user has no profiles, so the manager can refuse to
+   * overwrite the healthy file with an empty snapshot. Corrupt JSON is
+   * different: the bytes cannot be used, so they are moved aside to a backup
+   * path before an empty state is returned.
+   */
   async load(): Promise<PersistedExtensionProfiles> {
+    let raw: string
     try {
-      const raw = await fs.readFile(this.filePath, 'utf-8')
-      return normalizePersistedProfiles(JSON.parse(raw) as unknown)
-    } catch {
+      raw = await fs.readFile(this.filePath, 'utf-8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return emptyState()
+      throw new Error(`The Chrome profile file at ${this.filePath} could not be read.`, {
+        cause: error
+      })
+    }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch (error) {
+      await this.preserveCorruptFile(error)
       return emptyState()
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      await this.preserveCorruptFile(new Error('The profile file is not a JSON object.'))
+      return emptyState()
+    }
+    return normalizePersistedProfiles(parsed)
+  }
+
+  /**
+   * Moves a corrupt file out of the way before the next save creates a new one.
+   *
+   * The original bytes are the only remaining copy of the user's profile names
+   * and selection. If the backup cannot be written, the read fails instead of
+   * letting the next save overwrite that copy.
+   */
+  private async preserveCorruptFile(cause: unknown): Promise<void> {
+    const backup = `${this.filePath}.corrupt-${Date.now()}`
+    try {
+      await fs.rename(this.filePath, backup)
+      Logger.warn(
+        `[NativeMessaging] The Chrome profile file was corrupt and moved to ${backup}.`,
+        cause
+      )
+    } catch (error) {
+      throw new Error(
+        `The Chrome profile file at ${this.filePath} is corrupt and could not be preserved.`,
+        { cause: error }
+      )
     }
   }
 
@@ -124,8 +175,17 @@ export class NativeMessagingProfileStore {
     await fs.mkdir(path.dirname(this.filePath), { recursive: true })
     // Write next to the target and rename, so a crash cannot leave a
     // half-written file that would silently lose the selection on next start.
-    const temporary = `${this.filePath}.tmp`
-    await fs.writeFile(temporary, JSON.stringify(state, null, 2), 'utf-8')
-    await fs.rename(temporary, this.filePath)
+    // The unique suffix keeps two app instances from writing the same temp
+    // file at once; the manager's queue already serializes this process.
+    const temporary = `${this.filePath}.${process.pid}.${Date.now()}.${Math.random()
+      .toString(36)
+      .slice(2)}.tmp`
+    try {
+      await fs.writeFile(temporary, JSON.stringify(state, null, 2), 'utf-8')
+      await fs.rename(temporary, this.filePath)
+    } catch (error) {
+      await fs.unlink(temporary).catch(() => {})
+      throw error
+    }
   }
 }

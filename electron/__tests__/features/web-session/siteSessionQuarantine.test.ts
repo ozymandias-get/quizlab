@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, promises as fs, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -49,9 +49,20 @@ describe('the quarantine marker', () => {
   it('is removed by the explicit recovery path', async () => {
     await writeQuarantineMarker('chatgpt', 'session_restore_failed')
 
-    await clearQuarantineMarker('chatgpt')
+    await expect(clearQuarantineMarker('chatgpt')).resolves.toBe(true)
 
     await expect(readQuarantineMarker('chatgpt')).resolves.toBe('absent')
+  })
+
+  it('reports a failed removal instead of claiming the quarantine is gone', async () => {
+    const remove = vi
+      .spyOn(fs, 'rm')
+      .mockRejectedValueOnce(Object.assign(new Error('the file is locked'), { code: 'EPERM' }))
+    try {
+      await expect(clearQuarantineMarker('chatgpt')).resolves.toBe(false)
+    } finally {
+      remove.mockRestore()
+    }
   })
 
   it('reports an unreadable marker as unknown instead of absent', async () => {

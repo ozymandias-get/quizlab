@@ -51,7 +51,7 @@ vi.mock('../../../features/web-session/siteSessionPartitions.js', () => ({
 vi.mock('../../../features/web-session/siteSessionQuarantine.js', () => ({
   readQuarantineMarker: vi.fn(async () => 'absent'),
   writeQuarantineMarker: vi.fn(async () => true),
-  clearQuarantineMarker: vi.fn(async () => undefined)
+  clearQuarantineMarker: vi.fn(async () => true)
 }))
 
 import {
@@ -61,6 +61,7 @@ import {
 import { acceptSiteSessionPacket } from '../../../features/web-session/siteSessionBridge.js'
 import { invalidateSiteSessionListCache } from '../../../features/web-session/siteSessionListCache.js'
 import { partitionExistsOnDisk } from '../../../features/web-session/siteSessionPartitions.js'
+import { clearQuarantineMarker } from '../../../features/web-session/siteSessionQuarantine.js'
 
 const CHATGPT = {
   siteId: 'chatgpt',
@@ -387,6 +388,18 @@ describe('SiteSessionService', () => {
     expect(clearStorageData).not.toHaveBeenCalled()
   })
 
+  it('does not report a recovery while the quarantine marker survives', async () => {
+    const { service, config } = makeService({ enabled: false })
+    vi.mocked(clearQuarantineMarker).mockResolvedValueOnce(false)
+
+    const result = await service.setEnabled('chatgpt', true)
+
+    expect(result).toEqual({ success: false, error: 'write_failed' })
+    // The switch is not written: turning it on would claim a recovery that the
+    // durable marker still contradicts.
+    expect(config.setEnabled).not.toHaveBeenCalled()
+  })
+
   it('tells the user when the switch could not be written', async () => {
     const { service, config, remove } = makeService({ enabled: false })
     config.setEnabled.mockRejectedValue(new Error('the disk is full'))
@@ -414,6 +427,22 @@ describe('SiteSessionService', () => {
     expect(config.setEnabled).not.toHaveBeenCalled()
     expect(remove).toHaveBeenCalledWith('https://chatgpt.com/', 'session')
     expect(clearStorageData).toHaveBeenCalled()
+  })
+
+  it('does not report a cleared session while the quarantine marker survives', async () => {
+    const { service, config } = makeService({
+      enabled: true,
+      localCookies: [LOCAL_COOKIE]
+    })
+    vi.mocked(clearQuarantineMarker).mockResolvedValueOnce(false)
+
+    const result = await service.clear('chatgpt')
+
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('wipe_failed')
+    // The config would make the next start forget the quarantine while the
+    // marker brings it back; keep both sides unchanged until a retry works.
+    expect(config.resetResults).not.toHaveBeenCalled()
   })
 
   it('refuses to clear a site the app does not know', async () => {

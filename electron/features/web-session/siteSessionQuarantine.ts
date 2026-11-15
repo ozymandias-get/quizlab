@@ -78,13 +78,16 @@ export async function readQuarantineMarker(siteId: string): Promise<QuarantineMa
 }
 
 /** Removes the marker after the user cleared or re-enabled the site. */
-export async function clearQuarantineMarker(siteId: string): Promise<void> {
+export async function clearQuarantineMarker(siteId: string): Promise<boolean> {
   try {
+    // `force` makes a missing marker a successful removal.
     await fs.rm(markerFile(siteId), { force: true })
+    return true
   } catch (error) {
     Logger.warn(
       `[SiteSessionQuarantine] The marker of "${siteId}" could not be removed: ` +
         `${error instanceof Error ? error.message : String(error)}`
     )
+    return false
   }
 }

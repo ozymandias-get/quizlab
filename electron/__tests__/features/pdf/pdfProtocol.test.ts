@@ -136,6 +136,27 @@ describe('pdfProtocol handlers', () => {
     expect(result?.data.streamUrl).toContain('local-pdf://')
   })
 
+  it('accepts a valid PDF with a UTF-8 BOM before the header', async () => {
+    showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ['/outside/bom.pdf']
+    })
+    readPdfHead.mockImplementationOnce(async (buffer: Buffer) => {
+      const bom = Buffer.from([0xef, 0xbb, 0xbf])
+      bom.copy(buffer)
+      Buffer.from('%PDF-1.7').copy(buffer, bom.length)
+      return { bytesRead: bom.length + 8 }
+    })
+    const { registerPdfProtocolHandlers } = await import('../../../features/pdf/pdfProtocol.js')
+    registerPdfProtocolHandlers()
+
+    const handler = getHandler(APP_CONFIG.IPC_CHANNELS.SELECT_PDF)
+    const result = await handler?.({ sender: {} }, {})
+
+    expect(result?.data.path).toBe('/outside/bom.pdf')
+    expect(result?.data.streamUrl).toContain('local-pdf://')
+  })
+
   it('refuses a .pdf file that does not start with a PDF header', async () => {
     showOpenDialog.mockResolvedValue({
       canceled: false,
