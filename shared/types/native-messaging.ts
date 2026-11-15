@@ -1,3 +1,4 @@
+import type { QuizlabEnvironment } from '../constants/extensionRelease.js'
 import type { SiteSessionWipeStatus } from './siteSession.js'
 
 export type NativeMessagingConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -22,6 +23,13 @@ export interface NativeMessagingExtensionProfile {
 
 export interface NativeMessagingExtensionInfo {
   status: NativeMessagingConnectionStatus
+  /**
+   * Which app this bridge belongs to.
+   *
+   * The settings page uses it to name the build the user has to load: the
+   * development app only talks to its own development extension.
+   */
+  environment: QuizlabEnvironment
   /**
    * Whether the extension has proved that it holds the pairing code.
    *

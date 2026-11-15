@@ -23,9 +23,13 @@ export function deriveExtensionIdFromKey(publicKeyBase64: string): string {
  * The origin is pinned to the extension id from the release manifest, so no
  * localhost or arbitrary web origin is allowed.
  *
- * DEVELOPMENT (isDev=true): the extension origin plus the exact dev server
- * origin (e.g. http://localhost:5173, derived from the Vite config). Matches
- * are exact — "any port" on localhost is never allowed.
+ * DEVELOPMENT (isDev=true): the development extension origin plus the exact dev
+ * server origin (e.g. http://localhost:5173, derived from the Vite config).
+ * Matches are exact — "any port" on localhost is never allowed.
+ *
+ * `isDev` is the environment of the running bridge, so the development app pins
+ * its own extension id. The two builds never accept each other's origin, even
+ * though they run on the same machine.
  */
 export interface BridgeOriginPolicy {
   expectedExtensionOrigin: string | null

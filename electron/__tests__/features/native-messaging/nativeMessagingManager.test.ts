@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { QUIZLAB_EXTENSION_ORIGIN } from '../../../../shared/constants/extensionRelease.js'
+import {
+  QUIZLAB_DEV_EXTENSION_ORIGIN,
+  QUIZLAB_EXTENSION_ORIGIN
+} from '../../../../shared/constants/extensionRelease.js'
 
 const mockAppGetPath = vi.hoisted(() =>
   vi.fn((name: string) => {
@@ -98,7 +101,9 @@ describe('NativeMessagingManager', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    mockApp.isPackaged = false
+    // These tests describe the installed release app: a packaged build whose
+    // bridge listens on the release range and pins the release extension.
+    mockApp.isPackaged = true
     mockFsMkdir.mockReset()
     mockFsWriteFile.mockReset()
     mockFsReadFile.mockReset()
@@ -138,7 +143,7 @@ describe('NativeMessagingManager', () => {
   })
 
   afterEach(() => {
-    mockApp.isPackaged = false
+    mockApp.isPackaged = true
     manager.stopServer()
   })
 
@@ -160,6 +165,7 @@ describe('NativeMessagingManager', () => {
       expect(info).toEqual({
         status: 'disconnected',
         paired: false,
+        environment: 'prod',
         error: undefined,
         waitingSince: null,
         userHint: null,
@@ -192,7 +198,12 @@ describe('NativeMessagingManager', () => {
       await manager.initialize()
 
       expect(manager.getPairingCode()).toBe(persisted)
-      expect(mockFsWriteFile).not.toHaveBeenCalled()
+      // The bridge environment marker may be written, but the secret file of an
+      // already paired install is not touched.
+      const secretWrites = mockFsWriteFile.mock.calls.filter(([filePath]) =>
+        String(filePath).endsWith('bridge-secret.json')
+      )
+      expect(secretWrites).toHaveLength(0)
     })
 
     it('starts the bridge server and enters the connecting state', async () => {
@@ -203,6 +214,63 @@ describe('NativeMessagingManager', () => {
       expect(manager.connectionStatus).toBe('connecting')
       expect(manager.getExtensionInfo().waitingSince).toBeTypeOf('number')
       expect(manager.getExtensionInfo().userHint).toBe('waiting')
+    })
+  })
+
+  describe('environment isolation', () => {
+    it('listens on the dev range and names the dev extension in a development build', async () => {
+      mockApp.isPackaged = false
+
+      await manager.initialize()
+
+      expect(mockServerListen).toHaveBeenCalledWith(52010, '127.0.0.1', expect.any(Function))
+      expect(manager.environment).toBe('dev')
+      expect(manager.getExtensionInfo().environment).toBe('dev')
+    })
+
+    it('never walks out of its own range when every port of the environment is taken', async () => {
+      mockApp.isPackaged = false
+      const listenPorts: number[] = []
+      let errorHandlers: ((error: NodeJS.ErrnoException) => void)[] = []
+
+      mockServerOn.mockImplementation(
+        (event: string, handler: (error: NodeJS.ErrnoException) => void) => {
+          if (event === 'error') errorHandlers.push(handler)
+        }
+      )
+      mockServerListen.mockImplementation((port: number, _host: string, _callback: () => void) => {
+        listenPorts.push(port)
+        // The next server registers its error listener right after listen()
+        // returned, so the failure is emitted on the next microtask. This is
+        // the EADDRINUSE path of the real server.
+        errorHandlers = []
+        queueMicrotask(() => {
+          const error = Object.assign(new Error('the port is in use'), {
+            code: 'EADDRINUSE'
+          }) as NodeJS.ErrnoException
+          for (const handler of errorHandlers) handler(error)
+        })
+        return mockServer
+      })
+
+      await manager.initialize()
+
+      // Only the dev range, and never a port of the release range.
+      expect(listenPorts).toEqual([
+        52010, 52011, 52012, 52013, 52014, 52015, 52016, 52017, 52018, 52019, 52020
+      ])
+      expect(manager.connectionStatus).toBe('error')
+    })
+
+    it('does not start the bridge in a user data folder of the other environment', async () => {
+      mockApp.isPackaged = false
+      mockFsReadFile.mockResolvedValue(JSON.stringify({ environment: 'prod' }))
+
+      await manager.initialize()
+
+      expect(mockCreateServer).not.toHaveBeenCalled()
+      expect(manager.environmentReady).toBe(false)
+      expect(manager.connectionStatus).toBe('error')
     })
   })
 
@@ -621,14 +689,19 @@ describe('NativeMessagingManager', () => {
 
   describe('bridge origin validation', () => {
     const EXTENSION_ORIGIN = QUIZLAB_EXTENSION_ORIGIN
+    const DEV_EXTENSION_ORIGIN = QUIZLAB_DEV_EXTENSION_ORIGIN
 
     beforeEach(async () => {
       await manager.initialize()
     })
 
     function getRequestHandler() {
-      const createCall = mockCreateServer.mock.calls.find((call) => typeof call[0] === 'function')
-      return createCall![0] as (req: unknown, res: unknown) => void
+      // A test may initialize the manager twice (release and development); the
+      // newest handler belongs to the newest run.
+      const createCalls = mockCreateServer.mock.calls.filter(
+        (call) => typeof call[0] === 'function'
+      )
+      return createCalls.at(-1)![0] as (req: unknown, res: unknown) => void
     }
 
     function fakeRes() {
@@ -646,57 +719,112 @@ describe('NativeMessagingManager', () => {
       )
     })
 
-    const PACKAGED = [false, true]
-
-    function requestHealth(origin: string | undefined): ReturnType<typeof fakeRes> {
+    function requestHealth(
+      origin: string | undefined,
+      headers: Record<string, string> = {}
+    ): ReturnType<typeof fakeRes> {
       const handler = getRequestHandler()
       const res = fakeRes()
       handler(
         {
           method: 'GET',
           url: '/api/health',
-          headers: origin === undefined ? {} : { origin }
+          headers: { ...headers, ...(origin === undefined ? {} : { origin }) }
         },
         res
       )
       return res
     }
 
-    it.each(PACKAGED)('never serves the pairing code over HTTP (packaged=%s)', (packaged) => {
-      mockApp.isPackaged = packaged
+    it('never serves the pairing code over HTTP', () => {
       const res = requestHealth(EXTENSION_ORIGIN)
       expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
       expect(JSON.parse(res.end.mock.calls[0][0]).secret).toBeUndefined()
     })
 
-    it.each(PACKAGED)('rejects arbitrary website origins (packaged=%s)', (packaged) => {
+    it('reports its environment in the health answer', () => {
+      const res = requestHealth(EXTENSION_ORIGIN)
+      expect(JSON.parse(res.end.mock.calls[0][0]).environment).toBe('prod')
+    })
+
+    it.each([false, true])('rejects arbitrary website origins (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged
       const res = requestHealth('https://evil.example.com')
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
     })
 
-    it.each(PACKAGED)('rejects requests with no Origin header (packaged=%s)', (packaged) => {
+    it.each([false, true])('rejects requests with no Origin header (packaged=%s)', (packaged) => {
       mockApp.isPackaged = packaged
       const res = requestHealth(undefined)
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
     })
 
-    it.each(PACKAGED)('rejects localhost origins on any other port (packaged=%s)', (packaged) => {
-      mockApp.isPackaged = packaged
-      const res = requestHealth('http://localhost:9999')
-      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
-    })
+    it.each([false, true])(
+      'rejects localhost origins on any other port (packaged=%s)',
+      (packaged) => {
+        mockApp.isPackaged = packaged
+        const res = requestHealth('http://localhost:9999')
+        expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+      }
+    )
 
-    it('serves the dev server origin only in development', () => {
+    it('serves the dev server origin only in development', async () => {
+      expect(requestHealth('http://localhost:5173').writeHead).toHaveBeenCalledWith(
+        403,
+        expect.anything()
+      )
+
       mockApp.isPackaged = false
+      await manager.initialize()
       expect(requestHealth('http://localhost:5173').writeHead).toHaveBeenCalledWith(
         200,
         expect.anything()
       )
+    })
 
-      mockApp.isPackaged = true
-      const res = requestHealth('http://localhost:5173')
+    it('pins the dev extension origin on the development bridge', async () => {
+      mockApp.isPackaged = false
+      await manager.initialize()
+
+      expect(
+        (manager as unknown as { _expectedExtensionOrigin: string | null })._expectedExtensionOrigin
+      ).toBe(DEV_EXTENSION_ORIGIN)
+      expect(requestHealth(DEV_EXTENSION_ORIGIN).writeHead).toHaveBeenCalledWith(
+        200,
+        expect.anything()
+      )
+      expect(JSON.parse(requestHealth(DEV_EXTENSION_ORIGIN).end.mock.calls[0][0]).environment).toBe(
+        'dev'
+      )
+    })
+
+    it('refuses the release extension on the development bridge', async () => {
+      mockApp.isPackaged = false
+      await manager.initialize()
+
+      expect(requestHealth(EXTENSION_ORIGIN).writeHead).toHaveBeenCalledWith(403, expect.anything())
+    })
+
+    it('refuses the development extension on the release bridge', async () => {
+      expect(requestHealth(DEV_EXTENSION_ORIGIN).writeHead).toHaveBeenCalledWith(
+        403,
+        expect.anything()
+      )
+    })
+
+    it('refuses a request that names the other environment', async () => {
+      const res = requestHealth(EXTENSION_ORIGIN, { 'x-quizlab-environment': 'dev' })
       expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything())
+    })
+
+    it('accepts a request that names its own environment', () => {
+      const res = requestHealth(EXTENSION_ORIGIN, { 'x-quizlab-environment': 'prod' })
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
+    })
+
+    it('accepts a release extension that predates the environment header', () => {
+      const res = requestHealth(EXTENSION_ORIGIN)
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything())
     })
 
     describe('CORS headers', () => {
@@ -767,7 +895,9 @@ describe('NativeMessagingManager', () => {
         expect(acaoValues(res)).toEqual([])
       })
 
-      it('answers OPTIONS preflights from the dev origin with 204', () => {
+      it('answers OPTIONS preflights from the dev origin with 204', async () => {
+        mockApp.isPackaged = false
+        await manager.initialize()
         const handler = getRequestHandler()
         const res = fakeRes()
         handler(

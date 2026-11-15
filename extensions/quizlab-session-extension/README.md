@@ -4,6 +4,31 @@ The app's web chat services have local brand icons and Chrome session targets.
 Gemini, AI Studio, YouTube, Google Drive and NotebookLM share the **Google**
 target and partition. API Chat has no browser session to import.
 
+## Two builds of one source
+
+This folder is the only copy of the extension code. The app prepares one of two
+builds from it; the build is decided by the manifest `key`, because Chrome
+derives the extension id from that key:
+
+|              | Release build                 | Development build                   |
+| ------------ | ----------------------------- | ----------------------------------- |
+| Chrome name  | `Quizlab Site Session Bridge` | `Quizlab Site Session Bridge (Dev)` |
+| Prepared by  | the installed app             | `npm run dev`                       |
+| Bridge ports | `51999-52009`                 | `52010-52020`                       |
+| Pairs with   | the installed app only        | the development app only            |
+
+Both builds can be loaded in the same Chrome profile at the same time. They have
+different ids, so `chrome.storage.local` (pairing code, profile name, queue) is
+separate, and each one scans only its own port range. The bridge of each app
+accepts only its own extension origin, its own pairing secret and requests that
+name the matching environment, so a development extension cannot reach the
+installed app and vice versa.
+
+The public key of the development build lives in
+`shared/constants/extensionRelease.ts`. Its private half was discarded on
+purpose: an unpacked extension only needs the public key to pin its id, and no
+secret belongs in the repository.
+
 ## Install the extension from the app
 
 The extension ships inside Quizlab Reader; there is no separate download.
@@ -24,6 +49,26 @@ The extension ships inside Quizlab Reader; there is no separate download.
 
 An app update refreshes the copied folder under the same path. Reload the
 extension from `chrome://extensions` after an update.
+
+## Develop against the extension
+
+1. Run `npm run dev`. The development app prepares its own folder under the
+   development user-data directory (`…/Quizlab Reader Dev/extension/
+quizlab-session-extension-dev`) on every start.
+2. Open **Settings → Site Sessions → Install extension** in the development app
+   and copy the reported path.
+3. Load that folder once in `chrome://extensions` (Developer mode → Load
+   unpacked). Chrome shows it as **Quizlab Site Session Bridge (Dev)**.
+4. Pair this build once with the development app's code. The release pairing is
+   untouched; the two builds keep separate secrets and separate Chrome storage.
+5. After a source change, restart `npm run dev` so the folder is refreshed, then
+   press **Reload** on the extension card in `chrome://extensions`. Chrome does
+   not reload an unpacked extension by itself, and the app never installs
+   anything silently.
+
+The development app never accepts the release extension, and the release app
+never accepts the development one. If both apps run, each extension keeps
+talking to its own app.
 
 ## More than one Chrome profile
 

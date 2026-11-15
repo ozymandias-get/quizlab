@@ -124,6 +124,7 @@
   "ws_extension_install_status_paired": "The files are ready and the extension is paired.",
   "ws_extension_install_reload_hint": "If the extension was already loaded, press Reload in chrome://extensions so Chrome runs the new files.",
   "ws_extension_install_error": "The extension could not be prepared. Restart Quizlab and try again.",
+  "ws_extension_dev_build_notice": "Development environment: this app connects only to the \"Quizlab Site Session Bridge (Dev)\" extension.",
   "ws_extension_pair_btn": "Pair",
   "ws_extension_pairing_title": "Pair the Chrome extension",
   "ws_extension_pairing_desc": "The extension ships with the app. Install it once, load its folder in Chrome, then paste the code below into its popup.",

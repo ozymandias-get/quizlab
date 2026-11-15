@@ -9,18 +9,27 @@ import { BrowserWindow } from 'electron'
 import http from 'http'
 import type { AddressInfo } from 'net'
 
-import { QUIZLAB_EXTENSION_ORIGIN } from '../../../shared/constants/extensionRelease.js'
+import {
+  extensionOriginForEnvironment,
+  type QuizlabEnvironment
+} from '../../../shared/constants/extensionRelease.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
 import { createBridgeRequestHandler } from './nativeMessagingBridgeHandler.js'
 import { NativeMessagingCredentials } from './nativeMessagingCredentials.js'
+import { claimBridgeEnvironment, resolveBridgeEnvironment } from './nativeMessagingEnvironment.js'
 import {
   isProfileId,
   NativeMessagingProfileStore,
   normalizeProfileName,
   type PersistedExtensionProfile
 } from './nativeMessagingProfiles.js'
-import { BRIDGE_PORT, BRIDGE_PORT_RANGE_END } from './nativeMessagingTypes.js'
+import {
+  BRIDGE_PORT,
+  type BridgePortRange,
+  resolveBridgePort,
+  resolveBridgePortRange
+} from './nativeMessagingTypes.js'
 
 /**
  * What the app knows about one Chrome profile's extension.
@@ -46,6 +55,9 @@ class NativeMessagingManager {
   private httpServer: http.Server | null = null
   private _connectionStatus: NativeMessagingConnectionStatus = 'disconnected'
   private _port: number = BRIDGE_PORT
+  private _portRange: BridgePortRange = resolveBridgePortRange('prod')
+  private _environment: QuizlabEnvironment = 'prod'
+  private _environmentReady = false
   private _paired = false
   private _waitingSince: number | null = null
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null
@@ -74,6 +86,29 @@ class NativeMessagingManager {
 
   get connectionStatus(): NativeMessagingConnectionStatus {
     return this._connectionStatus
+  }
+
+  /**
+   * Which app this bridge belongs to.
+   *
+   * A packaged build is production, a checkout started by the dev script is
+   * development. The value decides the port range and the single extension
+   * origin the bridge accepts, so it is resolved from the process and never
+   * from a user setting.
+   */
+  get environment(): QuizlabEnvironment {
+    return this._environment
+  }
+
+  /**
+   * Whether this environment claimed the user data folder.
+   *
+   * False means the folder belongs to the other environment (a custom
+   * `QUIZLAB_PROFILE`/`QUIZLAB_USER_DATA_DIR`). The bridge then refuses to
+   * start instead of sharing the pairing secret and the profile selection.
+   */
+  get environmentReady(): boolean {
+    return this._environmentReady
   }
 
   get port(): number {
@@ -112,6 +147,7 @@ class NativeMessagingManager {
     return {
       status,
       paired,
+      environment: this._environment,
       error: status === 'error' ? 'Bridge server not running' : undefined,
       waitingSince: this._waitingSince,
       userHint: this.computeUserHint(status),
@@ -463,14 +499,41 @@ class NativeMessagingManager {
   }
 
   async initialize(): Promise<void> {
+    this._environment = resolveBridgeEnvironment()
+    this._portRange = resolveBridgePortRange(this._environment)
+    this._port = resolveBridgePort(this._environment)
+
+    // The pairing secret, the Chrome profile selection and the prepared
+    // extension folder all live in the user data directory. Before anything is
+    // read or written there, the folder has to belong to this environment; a
+    // custom `QUIZLAB_PROFILE`/`QUIZLAB_USER_DATA_DIR` can otherwise point both
+    // builds at one folder and silently share the very data this feature keeps
+    // apart.
+    const claim = await claimBridgeEnvironment(this._environment)
+    if (!claim.ok) {
+      this._environmentReady = false
+      this._connectionStatus = 'error'
+      this._waitingSince = null
+      Logger.error(
+        `[NativeMessaging] The user data folder belongs to the "${claim.owner}" environment; ` +
+          `the "${this._environment}" bridge will not start. Use a separate QUIZLAB_PROFILE or ` +
+          'QUIZLAB_USER_DATA_DIR for the development build.'
+      )
+      return
+    }
+    this._environmentReady = true
+
     // The secret is persisted once and paired with the extension by hand. It
     // is never handed out over HTTP: an HTTP response can be read by any local
     // process that can forge the Origin header, which would defeat the
     // signature it is supposed to enable.
     this._sharedSecret = await NativeMessagingCredentials.loadOrCreateSharedSecret()
-    this._expectedExtensionOrigin = QUIZLAB_EXTENSION_ORIGIN
+    this._expectedExtensionOrigin = extensionOriginForEnvironment(this._environment)
     await this.loadProfiles()
-    Logger.info(`[NativeMessaging] Expected extension origin: ${this._expectedExtensionOrigin}`)
+    Logger.info(
+      `[NativeMessaging] ${this._environment} bridge; expected extension origin: ` +
+        `${this._expectedExtensionOrigin}; ports ${this._portRange.start}-${this._portRange.end}`
+    )
     await this.startServer()
   }
 
@@ -606,9 +669,11 @@ class NativeMessagingManager {
           // an unhandled `error` event after its listeners were removed.
           this.disposeFailedServer(server)
 
-          if (this._port >= BRIDGE_PORT_RANGE_END) {
+          if (this._port >= this._portRange.end) {
             Logger.error(
-              `[NativeMessaging] No available port in range ${BRIDGE_PORT}-${BRIDGE_PORT_RANGE_END}`
+              `[NativeMessaging] No available port in the ${
+                this._environment
+              } range ${this._portRange.start}-${this._portRange.end}`
             )
             this._connectionStatus = 'error'
             this._waitingSince = null

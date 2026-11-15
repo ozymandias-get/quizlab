@@ -124,6 +124,7 @@
   "ws_extension_install_status_paired": "Dosyalar hazır ve eklenti eşleştirildi.",
   "ws_extension_install_reload_hint": "Eklenti zaten yüklüyse Chrome'un yeni dosyaları çalıştırması için chrome://extensions sayfasında Yeniden yükle düğmesine basın.",
   "ws_extension_install_error": "Eklenti hazırlanamadı. Quizlab'ı yeniden başlatıp tekrar deneyin.",
+  "ws_extension_dev_build_notice": "Geliştirme ortamı: bu uygulama yalnızca \"Quizlab Site Session Bridge (Dev)\" eklentisine bağlanır.",
   "ws_extension_pair_btn": "Eşleştir",
   "ws_extension_pairing_title": "Chrome eklentisini eşleştir",
   "ws_extension_pairing_desc": "Eklenti uygulamayla birlikte gelir. Bir kez kurup klasörünü Chrome'a yükleyin, ardından aşağıdaki kodu eklenti penceresine yapıştırın.",

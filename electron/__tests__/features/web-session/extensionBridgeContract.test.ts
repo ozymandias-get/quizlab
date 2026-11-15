@@ -5,6 +5,10 @@ import vm from 'node:vm'
 
 import { describe, expect, it } from 'vitest'
 import { ADDITIONAL_AI_CHAT_PLATFORMS } from '../../../../shared/constants/aiChatCatalog.js'
+import {
+  QUIZLAB_DEV_EXTENSION_ID,
+  QUIZLAB_DEV_EXTENSION_ORIGIN
+} from '../../../../shared/constants/extensionRelease.js'
 import { SITE_SESSION_PROTOCOL_VERSION } from '../../../../shared/constants/siteSessionProtocol.js'
 import { getSiteSessionCookieDomains } from '../../../../shared/constants/siteSessionCookieDomains.js'
 
@@ -18,6 +22,8 @@ const source = readFileSync(BACKGROUND_PATH, 'utf-8')
 const BRIDGE_SECRET = 'ab'.repeat(32)
 const EXTENSION_ID = 'quizlab-test-extension'
 const EXTENSION_ORIGIN = `chrome-extension://${EXTENSION_ID}`
+const DEV_EXTENSION_ID = QUIZLAB_DEV_EXTENSION_ID
+const DEV_EXTENSION_ORIGIN = QUIZLAB_DEV_EXTENSION_ORIGIN
 const TEST_PROFILE_ID = 'test-profile-1234'
 const TEST_PROFILE_NAME = 'Test Chrome'
 const SCAN_ALARM = 'quizlabScan'
@@ -126,6 +132,15 @@ interface HarnessOptions {
   permissionsThrow?: boolean
   /** Whether the browser already holds the pairing code. Defaults to true. */
   paired?: boolean
+  /** The build the fake Chrome reports: the release build unless set. */
+  extensionId?: string
+  /**
+   * The environment the fake bridge reports in its health answer.
+   *
+   * Defaults to the environment of the extension. `legacy` omits the field, the
+   * way a bridge installed before the two builds existed answers.
+   */
+  healthEnvironment?: 'dev' | 'prod' | 'legacy'
 }
 
 interface Harness {
@@ -214,6 +229,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const granted = options.grantedOrigins ?? 'all'
   const bridgePortOption = options.bridgePort ?? null
   const permissionsThrow = options.permissionsThrow === true
+  const extensionId = options.extensionId ?? EXTENSION_ID
+  const extensionEnvironment = extensionId === DEV_EXTENSION_ID ? 'dev' : 'prod'
+  const healthEnvironment = options.healthEnvironment ?? extensionEnvironment
   let failingPackets = options.failPackets ?? 0
   let tooLargePackets = options.tooLargePackets ?? 0
   let failingPosts = options.failPosts ?? 0
@@ -260,8 +278,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
 
   const fakeChrome = {
     runtime: {
-      id: EXTENSION_ID,
-      getURL: (path: string) => `chrome-extension://${EXTENSION_ID}/${path}`,
+      id: extensionId,
+      getURL: (path: string) => `chrome-extension://${extensionId}/${path}`,
       onInstalled: { addListener: () => {} },
       onStartup: { addListener: () => {} }
     },
@@ -388,7 +406,8 @@ function createHarness(options: HarnessOptions = {}): Harness {
         status: 'ok',
         timestamp: '2026-01-01T00:00:00.000Z',
         instanceId: 'bridge-instance-1',
-        protocolVersion: 3
+        protocolVersion: 3,
+        ...(healthEnvironment === 'legacy' ? {} : { environment: healthEnvironment })
       })
     }
     return jsonResponse({ error: 'Not found' }, 404)
@@ -1125,6 +1144,98 @@ describe('extension bridge behaviour', () => {
     expect(source).toContain('chrome.alarms.create')
     expect(source).toContain('chrome.webNavigation.onCompleted')
     expect(source).not.toContain('setInterval')
+  })
+})
+
+describe('extension environment isolation', () => {
+  /** The ports a path was requested on, in order. */
+  function portsOf(harness: Harness, pathname: string): number[] {
+    return callsTo(harness, pathname).map((entry) => Number(new URL(entry.url).port))
+  }
+
+  it('scans only the release ports in the release build', async () => {
+    const harness = createHarness({ bridgePort: 52003 })
+    await harness.settle()
+
+    const ports = portsOf(harness, HEALTH_PATH)
+    expect(ports).toEqual([51999, 52000, 52001, 52002, 52003])
+    expect(harness.packets).toHaveLength(2)
+  })
+
+  it('scans only the dev ports in the dev build', async () => {
+    const harness = createHarness({ extensionId: DEV_EXTENSION_ID, bridgePort: 52012 })
+    await harness.settle()
+
+    expect(portsOf(harness, HEALTH_PATH)).toEqual([52010, 52011, 52012])
+
+    const call = callsTo(harness, SITE_LIST_PATH)[0]
+    expect(call?.headers['Origin']).toBe(DEV_EXTENSION_ORIGIN)
+    expect(call?.headers['x-quizlab-environment']).toBe('dev')
+    expect(harness.packets).toHaveLength(2)
+  })
+
+  it('names the release build on every request', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    const call = callsTo(harness, SITE_LIST_PATH)[0]
+    expect(call?.headers['x-quizlab-environment']).toBe('prod')
+    expect(call?.headers['Origin']).toBe(EXTENSION_ORIGIN)
+  })
+
+  it('refuses a bridge that reports the dev environment', async () => {
+    const harness = createHarness({ healthEnvironment: 'dev' })
+    await harness.settle()
+
+    expect(callsTo(harness, SITE_LIST_PATH)).toHaveLength(0)
+    expect(harness.packets).toHaveLength(0)
+    expect(
+      harness.logs.some((entry) => entry.level === 'warn' && entry.message.includes('environment'))
+    ).toBe(true)
+  })
+
+  it('refuses a bridge that reports the release environment from the dev build', async () => {
+    const harness = createHarness({ extensionId: DEV_EXTENSION_ID, healthEnvironment: 'prod' })
+    await harness.settle()
+
+    expect(callsTo(harness, SITE_LIST_PATH)).toHaveLength(0)
+    expect(harness.packets).toHaveLength(0)
+    // The dev build only looked at its own ports while it did so.
+    expect(portsOf(harness, HEALTH_PATH).every((port) => port >= 52010 && port <= 52020)).toBe(true)
+  })
+
+  it('accepts a release bridge that predates the environment field', async () => {
+    const harness = createHarness({ healthEnvironment: 'legacy' })
+    await harness.settle()
+
+    expect(harness.packets).toHaveLength(2)
+  })
+
+  it('does not accept an unidentified bridge in the dev build', async () => {
+    const harness = createHarness({ extensionId: DEV_EXTENSION_ID, healthEnvironment: 'legacy' })
+    await harness.settle()
+
+    expect(harness.packets).toHaveLength(0)
+  })
+
+  it('reconnects on its own after a worker restart in the dev build', async () => {
+    const first = createHarness({ extensionId: DEV_EXTENSION_ID, bridgePort: 52012 })
+    await first.settle()
+    expect(first.packets).toHaveLength(2)
+
+    const second = createHarness({
+      extensionId: DEV_EXTENSION_ID,
+      bridgePort: 52012,
+      storage: Object.fromEntries(first.storage)
+    })
+    second.fireAlarm(HEARTBEAT_ALARM)
+    await second.settle()
+
+    const siteListCalls = callsTo(second, SITE_LIST_PATH)
+    expect(siteListCalls.length).toBeGreaterThan(0)
+    expect(siteListCalls.every((entry) => entry.url.includes(':52012/'))).toBe(true)
+    // The app did not change anything, so the sessions are not pushed again.
+    expect(second.packets).toHaveLength(0)
   })
 })
 

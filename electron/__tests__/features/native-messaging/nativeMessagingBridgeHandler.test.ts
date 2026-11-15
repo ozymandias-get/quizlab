@@ -341,8 +341,25 @@ describe('the bridge of the site session', () => {
 
     expect(response.status).toBe(200)
     const body = (await response.json()) as Record<string, unknown>
-    expect(body).toMatchObject({ status: 'ok' })
+    // The extension uses the environment to tell the two running apps apart.
+    expect(body).toMatchObject({ status: 'ok', environment: 'prod' })
     expect(body.secret).toBeUndefined()
+  })
+
+  it('refuses a request that names the other environment', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+      headers: { Origin: EXTENSION_ORIGIN, 'x-quizlab-environment': 'dev' }
+    })
+
+    expect(response.status).toBe(403)
+  })
+
+  it('answers a request that names its own environment', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+      headers: { Origin: EXTENSION_ORIGIN, 'x-quizlab-environment': 'prod' }
+    })
+
+    expect(response.status).toBe(200)
   })
 
   it('answers the signed site list request', async () => {

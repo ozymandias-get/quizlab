@@ -186,14 +186,14 @@ no `.env` loader: the Electron main process reads `process.env` directly, so
 variables must be exported in the shell that launches it. `.env.example`
 documents the full list with defaults; the ones that matter in development are:
 
-| Variable                        | Effect                                                                 |
-| ------------------------------- | ---------------------------------------------------------------------- |
-| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`) |
-| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                               |
-| `QUIZLAB_PROFILE`               | Suffix for the user-data directory (see below)                         |
-| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                   |
-| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                          |
-| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)          |
+| Variable                        | Effect                                                                                                            |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`)                                            |
+| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                                                                          |
+| `QUIZLAB_PROFILE`               | Suffix for the user-data directory (see below)                                                                    |
+| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                                                              |
+| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                                                                     |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge; the release app uses `51999-52009`, `npm run dev` uses `52010-52020` |
 
 Using a `QUIZLAB_PROFILE` other than `stable` also disables the single-instance
 lock, which is useful for running two profiles side by side.
@@ -443,7 +443,9 @@ Verified properties of this build:
 - **Bridge authentication** - the cookie bridge requires an exact extension
   origin and HMAC-SHA256 over the request body with the pairing code shared
   with the extension, compared in constant time, plus a 512 KB body cap and a
-  cookie-domain allowlist.
+  cookie-domain allowlist. The installed app and `npm run dev` use separate port
+  ranges, extension ids, origins and user-data directories, so their bridges and
+  pairing secrets never meet.
 - **Electronegativity and Semgrep** run in CI.
 
 What this does **not** give you: live AI session cookies are stored by Chromium

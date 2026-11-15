@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  resolveBridgePort,
+  resolveBridgePortRange
+} from '../../../features/native-messaging/nativeMessagingTypes.js'
+
 /**
  * This module is mostly literal constants. Asserting that
  * `HMAC_HEADER === 'x-hmac-signature'` only restates the source line and can
@@ -51,5 +56,37 @@ describe('BRIDGE_PORT', () => {
     ['empty', '']
   ])('falls back to the default when the env port is %s', async (_label, envValue) => {
     await expect(readBridgePort(envValue as string)).resolves.toBe(DEFAULT_PORT)
+  })
+})
+
+describe('bridge port ranges', () => {
+  it('keeps the release range exactly where it was', () => {
+    expect(resolveBridgePortRange('prod')).toEqual({ start: 51999, end: 52009 })
+  })
+
+  it('gives the development build its own range', () => {
+    expect(resolveBridgePortRange('dev')).toEqual({ start: 52010, end: 52020 })
+  })
+
+  it('never lets the two ranges overlap', () => {
+    const prod = resolveBridgePortRange('prod')
+    const dev = resolveBridgePortRange('dev')
+    expect(dev.start).toBeGreaterThan(prod.end)
+  })
+
+  it.each([
+    ['unset', undefined, 52010],
+    ['inside the dev range', '52015', 52015],
+    ['inside the release range', '51999', 52010],
+    ['past the dev range', '52021', 52010]
+  ])('resolves a dev port when it is %s', (_label, raw, expected) => {
+    expect(resolveBridgePort('dev', raw)).toBe(expected)
+  })
+
+  it.each([
+    ['a dev port', '52015'],
+    ['past the release range', '52021']
+  ])('never moves the release bridge to %s', (_label, raw) => {
+    expect(resolveBridgePort('prod', raw)).toBe(51999)
   })
 })

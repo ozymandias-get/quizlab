@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
     status: string
     paired: boolean
     userHint?: string
+    environment?: string
   },
   install: vi.fn(),
   copy: vi.fn()
@@ -92,6 +93,22 @@ describe('ExtensionStatusCard', () => {
 
     expect(getByText('ws_extension_status_waiting')).toBeInTheDocument()
     expect(container.querySelector('.bg-amber-500')).toBeInTheDocument()
+  })
+
+  it('names the development build in a development app', () => {
+    state.info = { status: 'disconnected', paired: false, environment: 'dev' }
+
+    const { getByText } = render(<ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />)
+
+    expect(getByText('ws_extension_dev_build_notice')).toBeInTheDocument()
+  })
+
+  it('shows no development notice in the release app', () => {
+    state.info = { status: 'disconnected', paired: false, environment: 'prod' }
+
+    const { queryByText } = render(<ExtensionStatusCard t={(key) => key} onShowPairing={vi.fn()} />)
+
+    expect(queryByText('ws_extension_dev_build_notice')).not.toBeInTheDocument()
   })
 
   it('prepares the bundled extension and copies its folder', async () => {

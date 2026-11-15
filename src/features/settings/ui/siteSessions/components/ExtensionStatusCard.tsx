@@ -97,6 +97,7 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
     : null
   const installedPaired = extensionInfo?.status === 'connected' && extensionInfo?.paired === true
   const installedLoaded = extensionInfo?.status === 'connected' || extensionInfo?.paired === true
+  const isDevBuild = extensionInfo?.environment === 'dev'
 
   return (
     <SettingsSection icon={<SettingsIcon className="h-4 w-4" />} title={t('ws_extension_title')}>
@@ -161,6 +162,16 @@ function ExtensionStatusCard({ t, onShowPairing }: ExtensionStatusCardProps) {
           </Button>
         </div>
       </div>
+
+      {/* The two apps run at the same time and each one pairs with its own
+          extension. Naming the build here is what keeps a user from loading the
+          release folder in a development session and wondering why it never
+          connects. */}
+      {isDevBuild && (
+        <p className="text-ql-11 text-muted-foreground mt-2 leading-relaxed">
+          {t('ws_extension_dev_build_notice')}
+        </p>
+      )}
 
       {installed && installStatusKey && (
         <div

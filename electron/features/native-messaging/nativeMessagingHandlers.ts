@@ -38,7 +38,11 @@ export function registerNativeMessagingHandlers(): void {
     IPC_CHANNELS.NATIVE_MESSAGING_EXTENSION_INSTALL,
     async () => {
       try {
-        return success(await getBundledExtensionInstaller().install())
+        // The running app prepares the build it pairs with: the release build in
+        // production, the development build under `npm run dev`.
+        return success(
+          await getBundledExtensionInstaller(nativeMessagingManager.environment).install()
+        )
       } catch (error) {
         if (error instanceof ExtensionInstallError) {
           return failure(

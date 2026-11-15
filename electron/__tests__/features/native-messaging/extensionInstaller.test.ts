@@ -24,9 +24,14 @@ vi.mock('electron', () => ({
 }))
 
 import {
+  QUIZLAB_DEV_EXTENSION_ID,
+  QUIZLAB_DEV_EXTENSION_NAME
+} from '../../../../shared/constants/extensionRelease.js'
+import {
   BundledExtensionInstaller,
   ExtensionInstallError
 } from '../../../features/native-messaging/extensionInstaller.js'
+import { deriveExtensionIdFromKey } from '../../../features/native-messaging/nativeMessagingOrigin.js'
 
 /** The public key of the extension this app accepts. */
 const PINNED_KEY = (
@@ -100,6 +105,18 @@ describe('BundledExtensionInstaller', () => {
 
   function installer(appVersion = '7.5.2'): BundledExtensionInstaller {
     return new BundledExtensionInstaller({ sourceDirectory, targetDirectory, appVersion })
+  }
+
+  function devInstaller(
+    appVersion = '7.5.2',
+    target = path.join(root, 'user-data', 'extension', 'quizlab-session-extension-dev')
+  ): BundledExtensionInstaller {
+    return new BundledExtensionInstaller({
+      sourceDirectory,
+      targetDirectory: target,
+      appVersion,
+      environment: 'dev'
+    })
   }
 
   async function readTarget(relative: string): Promise<string> {
@@ -414,5 +431,115 @@ describe('BundledExtensionInstaller', () => {
     expect(result.path).toBe(path.join(appState.userData, 'extension', 'quizlab-session-extension'))
     await expect(readTarget('manifest.json')).resolves.toContain('1.4.0')
     appState.isPackaged = false
+  })
+
+  describe('the development build', () => {
+    function devTarget(): string {
+      return path.join(root, 'user-data', 'extension', 'quizlab-session-extension-dev')
+    }
+
+    it('writes the dev identity into its own folder and keeps the source code', async () => {
+      const result = await devInstaller().install()
+
+      expect(result).toMatchObject({ path: devTarget(), version: '1.4.0', refreshed: true })
+
+      const manifest = JSON.parse(
+        await fs.readFile(path.join(devTarget(), 'manifest.json'), 'utf-8')
+      ) as { name: string; key: string; permissions: string[]; host_permissions: string[] }
+      expect(manifest.name).toBe(QUIZLAB_DEV_EXTENSION_NAME)
+      expect(deriveExtensionIdFromKey(manifest.key)).toBe(QUIZLAB_DEV_EXTENSION_ID)
+
+      // The build is the same code and the same permission surface as the
+      // release one.
+      const sourceManifest = JSON.parse(
+        await fs.readFile(path.join(sourceDirectory, 'manifest.json'), 'utf-8')
+      ) as { permissions: string[]; host_permissions: string[] }
+      expect(manifest.permissions).toEqual(sourceManifest.permissions)
+      expect(manifest.host_permissions).toEqual(sourceManifest.host_permissions)
+      await expect(fs.readFile(path.join(devTarget(), 'background.js'), 'utf-8')).resolves.toBe(
+        '// background\n'
+      )
+      expect(await exists(path.join(root, 'user-data', 'extension', '.install-dev.json'))).toBe(
+        true
+      )
+    })
+
+    it('does not copy again when the prepared dev build did not change', async () => {
+      await devInstaller().install()
+      const copy = vi.spyOn(fs, 'cp')
+
+      const second = await devInstaller().install()
+
+      expect(second.refreshed).toBe(false)
+      // The generated manifest takes part in the fingerprint, so an unchanged
+      // source must not churn the folder Chrome has loaded.
+      expect(copy).not.toHaveBeenCalled()
+    })
+
+    it('refreshes the dev build when only a source file changed', async () => {
+      await devInstaller().install()
+      await writeExtension(sourceDirectory, { background: '// changed worker\n' })
+
+      const result = await devInstaller().install()
+
+      expect(result.refreshed).toBe(true)
+      await expect(fs.readFile(path.join(devTarget(), 'background.js'), 'utf-8')).resolves.toBe(
+        '// changed worker\n'
+      )
+    })
+
+    it('leaves the release install untouched and the other way round', async () => {
+      await installer().install()
+      const releaseBefore = await readTarget('background.js')
+      await devInstaller().install()
+
+      // A source change refreshes only the build that is asked for.
+      await writeExtension(sourceDirectory, { background: '// new worker\n' })
+      await devInstaller().install()
+
+      await expect(readTarget('background.js')).resolves.toBe(releaseBefore)
+      await expect(fs.readFile(path.join(devTarget(), 'background.js'), 'utf-8')).resolves.toBe(
+        '// new worker\n'
+      )
+
+      // A release refresh does not touch the development folder either.
+      await installer().install()
+      await expect(fs.readFile(path.join(devTarget(), 'background.js'), 'utf-8')).resolves.toBe(
+        '// new worker\n'
+      )
+      expect(await exists(path.join(root, 'user-data', 'extension', '.install-dev-backup'))).toBe(
+        false
+      )
+    })
+
+    it('reports the dev version from the manifest of the prepared copy', async () => {
+      const result = await devInstaller().install()
+      const marker = JSON.parse(
+        await fs.readFile(path.join(root, 'user-data', 'extension', '.install-dev.json'), 'utf-8')
+      ) as { extensionVersion: string }
+
+      expect(result.version).toBe('1.4.0')
+      expect(marker.extensionVersion).toBe('1.4.0')
+    })
+
+    it('prepares the real source folder as a loadable dev build', async () => {
+      const dev = new BundledExtensionInstaller({ environment: 'dev' })
+
+      const result = await dev.install()
+
+      expect(result.path).toBe(
+        path.join(appState.userData, 'extension', 'quizlab-session-extension-dev')
+      )
+      const manifest = JSON.parse(
+        await fs.readFile(path.join(result.path, 'manifest.json'), 'utf-8')
+      ) as { name: string; version: string; key: string; background: { service_worker: string } }
+      expect(manifest.name).toBe(QUIZLAB_DEV_EXTENSION_NAME)
+      expect(manifest.version).toBe('1.4.0')
+      expect(deriveExtensionIdFromKey(manifest.key)).toBe(QUIZLAB_DEV_EXTENSION_ID)
+      expect(manifest.background.service_worker).toBe('background.js')
+      await expect(
+        fs.readFile(path.join(result.path, 'background.js'), 'utf-8')
+      ).resolves.toContain('DEV_EXTENSION_ID')
+    })
   })
 })

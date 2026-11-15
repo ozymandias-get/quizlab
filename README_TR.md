@@ -191,14 +191,14 @@ dosyası ve bir `.env` yükleyicisi yoktur: Electron ana süreci doğrudan
 gerekir. `.env.example` varsayılanlarla birlikte listenin tamamını belgeler;
 geliştirmede önemli olanlar:
 
-| Değişken                        | Etkisi                                                                                 |
-| ------------------------------- | -------------------------------------------------------------------------------------- |
-| `APP_RENDERER_URL`              | Ana pencerenin yüklediği geliştirme sunucu adresi (varsayılan `http://localhost:5173`) |
-| `APP_OPEN_DEVTOOLS=1`           | Başlangıçta DevTools'u aç                                                              |
-| `QUIZLAB_PROFILE`               | Kullanıcı verisi dizini son eki (aşağıya bakın)                                        |
-| `QUIZLAB_USER_DATA_DIR`         | Kullanıcı verisi için mutlak yol geçersiz kılma                                        |
-| `QUIZLAB_DISABLE_GPU=1`         | Donanım hızlandırmayı kapat                                                            |
-| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Chrome çerez köprüsü için yerel port (varsayılan `51999`)                              |
+| Değişken                        | Etkisi                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Ana pencerenin yüklediği geliştirme sunucu adresi (varsayılan `http://localhost:5173`)                    |
+| `APP_OPEN_DEVTOOLS=1`           | Başlangıçta DevTools'u aç                                                                                 |
+| `QUIZLAB_PROFILE`               | Kullanıcı verisi dizini son eki (aşağıya bakın)                                                           |
+| `QUIZLAB_USER_DATA_DIR`         | Kullanıcı verisi için mutlak yol geçersiz kılma                                                           |
+| `QUIZLAB_DISABLE_GPU=1`         | Donanım hızlandırmayı kapat                                                                               |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Chrome çerez köprüsü için yerel port; kurulu uygulama `51999-52009`, `npm run dev` `52010-52020` kullanır |
 
 `stable` dışında bir `QUIZLAB_PROFILE` kullanmak tek örnekli kilidi de devre dışı
 bırakır; bu, iki profili yan yana çalıştırmak için kullanışlıdır.
@@ -457,7 +457,9 @@ Bu derlemenin doğrulanmış özellikleri:
 - **Köprü kimlik doğrulaması** - çerez köprüsü tam bir eklenti kaynağı ister,
   gövdeyi eklentiyle paylaşılan eşleştirme koduyla HMAC-SHA256 ile imzalar ve
   sabit zamanlı karşılaştırır, 512 KB gövde sınırı uygular ve çerez alan adı
-  izin listesi kullanır.
+  izin listesi kullanır. Kurulu uygulama ile `npm run dev` ayrı port aralıkları,
+  eklenti kimlikleri, kaynakları ve kullanıcı verisi dizinleri kullanır; köprüleri
+  ve eşleştirme anahtarları hiçbir zaman birbirine karışmaz.
 - **Electronegativity ve Semgrep** CI'da çalışır.
 
 Bunların size **sağlamadığı** şeyler: canlı yapay zeka oturum çerezleri

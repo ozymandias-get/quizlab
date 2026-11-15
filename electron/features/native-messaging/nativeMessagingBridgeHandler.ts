@@ -1,7 +1,7 @@
 import crypto from 'crypto'
-import { app } from 'electron'
 import type { IncomingMessage, ServerResponse } from 'http'
 
+import type { QuizlabEnvironment } from '../../../shared/constants/extensionRelease.js'
 import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
 import { Logger } from '../../core/logger.js'
 import {
@@ -26,6 +26,17 @@ const PROFILE_ID_HEADER = 'x-quizlab-profile-id'
 const PROFILE_NAME_HEADER = 'x-quizlab-profile-name'
 
 /**
+ * The header an extension uses to name its own build.
+ *
+ * The port range and the pinned origin already separate the builds. This header
+ * is a third, independent check: a request that says it comes from the other
+ * environment is refused even if the origin check were ever misconfigured. An
+ * extension that predates the header sends none, which stays acceptable for the
+ * release build.
+ */
+const ENVIRONMENT_HEADER = 'x-quizlab-environment'
+
+/**
  * The status a packet that does not fit into the bridge is answered with.
  *
  * The status tells the extension that the packet was too large: a broken
@@ -35,13 +46,38 @@ const PROFILE_NAME_HEADER = 'x-quizlab-profile-name'
 const STATUS_PACKET_TOO_LARGE = 413
 
 function getOriginPolicy(manager: unknown): BridgeOriginPolicy {
-  const isDev = !app.isPackaged
+  const environment = readManagerEnvironment(manager)
+  const isDevEnvironment = environment === 'dev'
   return {
     expectedExtensionOrigin: (manager as unknown as { _expectedExtensionOrigin: string | null })
       ._expectedExtensionOrigin,
-    allowedDevOrigins: isDev && DEV_SERVER_ORIGIN ? [DEV_SERVER_ORIGIN] : [],
-    isDev
+    // The Vite origin is only needed while the renderer runs from the dev
+    // server, and it stays the exact configured origin: "any localhost port"
+    // is never allowed.
+    allowedDevOrigins: isDevEnvironment && DEV_SERVER_ORIGIN ? [DEV_SERVER_ORIGIN] : [],
+    isDev: isDevEnvironment
   }
+}
+
+/**
+ * Which app this bridge belongs to.
+ *
+ * The manager resolves it from the process. A test double that does not carry
+ * the field is the release bridge, which keeps the pinned-origin behaviour.
+ */
+function readManagerEnvironment(manager: unknown): QuizlabEnvironment {
+  const value = (manager as unknown as { _environment?: unknown })._environment
+  if (value === 'dev') return 'dev'
+  return 'prod'
+}
+
+/** The build the extension says it is, or null when it says nothing. */
+function readDeclaredEnvironment(req: IncomingMessage): string | null {
+  const raw = req.headers[ENVIRONMENT_HEADER as never]
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  return normalized || null
 }
 
 function rejectDisallowedOrigin(res: ServerResponse, origin: string | undefined): void {
@@ -206,7 +242,7 @@ export function createBridgeRequestHandler(manager: unknown) {
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader(
       'Access-Control-Allow-Headers',
-      `Content-Type, x-hmac-signature, x-protocol-version, ${PROFILE_ID_HEADER}, ${PROFILE_NAME_HEADER}`
+      `Content-Type, x-hmac-signature, x-protocol-version, ${PROFILE_ID_HEADER}, ${PROFILE_NAME_HEADER}, ${ENVIRONMENT_HEADER}`
     )
     res.setHeader('Vary', 'Origin')
     if (originAllowed && requestOrigin) {
@@ -225,6 +261,20 @@ export function createBridgeRequestHandler(manager: unknown) {
 
     if (!originAllowed) {
       rejectDisallowedOrigin(res, requestOrigin)
+      return
+    }
+
+    // The extension names its build. A request that names the other environment
+    // is not answered at all, even when the origin check above already passed:
+    // the two builds are not interchangeable.
+    const environment = readManagerEnvironment(manager)
+    const declaredEnvironment = readDeclaredEnvironment(req)
+    if (declaredEnvironment !== null && declaredEnvironment !== environment) {
+      Logger.warn(
+        `[NativeMessaging] Rejected a request of the "${declaredEnvironment}" extension on the "${environment}" bridge`
+      )
+      res.writeHead(403, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Forbidden' }))
       return
     }
 
@@ -256,7 +306,11 @@ export function createBridgeRequestHandler(manager: unknown) {
           // Identifies this running bridge, so the extension can tell a restart
           // from the same bridge without seeing the secret itself.
           instanceId: mgr.instanceId,
-          protocolVersion: SITE_SESSION_PROTOCOL_VERSION
+          protocolVersion: SITE_SESSION_PROTOCOL_VERSION,
+          // The extension refuses a bridge of the other environment. The field
+          // is additive: an extension that predates it ignores it, and the port
+          // range and the pinned origin keep the two apps apart anyway.
+          environment
         })
       )
       return

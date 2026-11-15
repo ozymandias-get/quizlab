@@ -4,8 +4,13 @@ import path from 'node:path'
 import vm from 'node:vm'
 
 import {
+  QUIZLAB_DEV_EXTENSION_ID,
+  QUIZLAB_DEV_EXTENSION_NAME,
+  QUIZLAB_DEV_EXTENSION_ORIGIN,
+  QUIZLAB_DEV_EXTENSION_PUBLIC_KEY,
   QUIZLAB_EXTENSION_ID,
-  QUIZLAB_EXTENSION_ORIGIN
+  QUIZLAB_EXTENSION_ORIGIN,
+  extensionOriginForEnvironment
 } from '../../../../shared/constants/extensionRelease.js'
 import { deriveExtensionIdFromKey } from '../../../features/native-messaging/nativeMessagingOrigin.js'
 import { describe, expect, it } from 'vitest'
@@ -413,6 +418,20 @@ describe('extension permission popup', () => {
     const derived = deriveExtensionIdFromKey(manifest.key ?? '')
     expect(derived).toBe(QUIZLAB_EXTENSION_ID)
     expect(`chrome-extension://${derived}`).toBe(QUIZLAB_EXTENSION_ORIGIN)
+  })
+
+  it('pins a separate stable identity for the development build', () => {
+    // The dev build is the same source with another manifest key. The key is
+    // public and the id derived from it must never move: the dev source folder
+    // has to keep the same Chrome identity between two `npm run dev` runs.
+    const derived = deriveExtensionIdFromKey(QUIZLAB_DEV_EXTENSION_PUBLIC_KEY)
+    expect(derived).toBe(QUIZLAB_DEV_EXTENSION_ID)
+    expect(`chrome-extension://${derived}`).toBe(QUIZLAB_DEV_EXTENSION_ORIGIN)
+    expect(QUIZLAB_DEV_EXTENSION_ID).not.toBe(QUIZLAB_EXTENSION_ID)
+    expect(QUIZLAB_DEV_EXTENSION_NAME).toBe('Quizlab Site Session Bridge (Dev)')
+    // The bridge of each environment accepts exactly one of the two origins.
+    expect(extensionOriginForEnvironment('prod')).toBe(QUIZLAB_EXTENSION_ORIGIN)
+    expect(extensionOriginForEnvironment('dev')).toBe(QUIZLAB_DEV_EXTENSION_ORIGIN)
   })
 
   it('keeps the identity of the extension', () => {

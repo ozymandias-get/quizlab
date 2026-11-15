@@ -212,6 +212,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       getStatus: stubReturn({
         status: 'disconnected',
         paired: false,
+        environment: 'prod',
         waitingSince: null,
         userHint: null,
         profiles: [],

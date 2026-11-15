@@ -6,24 +6,22 @@ import type { Dirent } from 'fs'
 import { promises as fs } from 'fs'
 import path from 'path'
 
-import { QUIZLAB_EXTENSION_ID } from '../../../shared/constants/extensionRelease.js'
+import type { QuizlabEnvironment } from '../../../shared/constants/extensionRelease.js'
 import type { NativeMessagingExtensionInstallResult } from '../../../shared/types/native-messaging.js'
+import {
+  buildDevManifestText,
+  type ExtensionVariant,
+  resolveExtensionVariant
+} from './extensionVariant.js'
 import { deriveExtensionIdFromKey } from './nativeMessagingOrigin.js'
 
-/** The folder name of the extension inside the repository and the app. */
-const EXTENSION_FOLDER = 'quizlab-session-extension'
-
-/** The marker next to the installed copy: what the copy was made from. */
-const INSTALL_MARKER = '.install.json'
-
 /**
- * The folders used while the copy is swapped.
+ * The folder name of the extension source inside the repository and the app.
  *
- * They live next to the target so a rename stays on the same volume, and the
- * marker names in the parent are not inside the folder Chrome loads.
+ * Both builds are prepared from this one folder; the variant only changes the
+ * identity written into the copied manifest and the folder the copy lands in.
  */
-const STAGING_FOLDER = '.install-staging'
-const BACKUP_FOLDER = '.install-backup'
+const EXTENSION_FOLDER = 'quizlab-session-extension'
 
 /** The manifest format Chrome needs for an unpacked MV3 extension. */
 const SUPPORTED_MANIFEST_VERSION = 3
@@ -68,6 +66,8 @@ export interface ExtensionInstallerOptions {
   targetDirectory: string
   /** The app version whose bundle is being installed. */
   appVersion: string
+  /** The build that is prepared from the source folder. */
+  environment: QuizlabEnvironment
 }
 
 /** What one inspected folder contains. */
@@ -103,10 +103,15 @@ function bundledExtensionSourceDirectory(): string {
  *
  * The folder lives in the per-user data directory: it is writable, its path
  * does not change on an app update, and it is not inside an installation
- * directory that may be read-only.
+ * directory that may be read-only. Each build lands in its own folder, so a
+ * development install can never overwrite the folder Chrome loads for the
+ * release build.
  */
-function installedExtensionDirectory(): string {
-  return path.join(app.getPath('userData'), 'extension', EXTENSION_FOLDER)
+function installedExtensionDirectory(
+  environment: QuizlabEnvironment,
+  userDataPath: string = app.getPath('userData')
+): string {
+  return path.join(userDataPath, 'extension', resolveExtensionVariant(environment).folderName)
 }
 
 function errorMessage(error: unknown): string {
@@ -152,6 +157,7 @@ export class BundledExtensionInstaller {
   private readonly sourceDirectory: string
   private readonly targetDirectory: string
   private readonly appVersion: string
+  private readonly variant: ExtensionVariant
   /**
    * The install that is running.
    *
@@ -162,9 +168,16 @@ export class BundledExtensionInstaller {
   private installInFlight: Promise<NativeMessagingExtensionInstallResult> | null = null
 
   constructor(options: Partial<ExtensionInstallerOptions> = {}) {
+    this.variant = resolveExtensionVariant(options.environment ?? 'prod')
     this.sourceDirectory = options.sourceDirectory ?? bundledExtensionSourceDirectory()
-    this.targetDirectory = options.targetDirectory ?? installedExtensionDirectory()
+    this.targetDirectory =
+      options.targetDirectory ?? installedExtensionDirectory(this.variant.environment)
     this.appVersion = options.appVersion ?? app.getVersion()
+  }
+
+  /** The build this installer prepares. */
+  get environment(): QuizlabEnvironment {
+    return this.variant.environment
   }
 
   /** The folder the user loads in Chrome. */
@@ -182,11 +195,15 @@ export class BundledExtensionInstaller {
   }
 
   private async performInstall(): Promise<NativeMessagingExtensionInstallResult> {
-    const source = await this.inspectBundle(this.sourceDirectory, 'not_found')
+    // The development build is the source folder with another manifest. The
+    // rewrite is computed before anything is inspected, so the fingerprint and
+    // the key check below describe the folder Chrome will actually load.
+    const overrides = await this.buildManifestOverrides()
+    const source = await this.inspectBundle(this.sourceDirectory, 'not_found', overrides)
     const targetParent = path.dirname(this.targetDirectory)
-    const markerPath = path.join(targetParent, INSTALL_MARKER)
-    const stagingPath = path.join(targetParent, STAGING_FOLDER)
-    const backupPath = path.join(targetParent, BACKUP_FOLDER)
+    const markerPath = path.join(targetParent, this.variant.markerFileName)
+    const stagingPath = path.join(targetParent, this.variant.stagingFolderName)
+    const backupPath = path.join(targetParent, this.variant.backupFolderName)
 
     await this.recoverInterruptedInstall(stagingPath, backupPath)
 
@@ -211,6 +228,7 @@ export class BundledExtensionInstaller {
     await this.removeTree(stagingPath)
     try {
       await fs.cp(this.sourceDirectory, stagingPath, { recursive: true })
+      await this.writeManifestOverrides(stagingPath, overrides)
     } catch (error) {
       await this.removeTree(stagingPath)
       throw new ExtensionInstallError(
@@ -238,6 +256,55 @@ export class BundledExtensionInstaller {
 
     await this.commit(stagingPath, backupPath, markerPath, source)
     return { path: this.targetDirectory, version: source.version, refreshed: true }
+  }
+
+  /**
+   * The files of the prepared bundle whose content differs from the source.
+   *
+   * The release build uses the source folder as it is. The development build
+   * gets a generated manifest: a copy is not a second code base, and the public
+   * key in it is what gives the build its own stable Chrome id.
+   */
+  private async buildManifestOverrides(): Promise<Record<string, string>> {
+    if (this.variant.manifestRewrite === null) return {}
+
+    const manifestPath = path.join(this.sourceDirectory, 'manifest.json')
+    let raw: string
+    try {
+      raw = await fs.readFile(manifestPath, 'utf-8')
+    } catch {
+      throw new ExtensionInstallError(
+        'not_found',
+        `The bundled extension is missing at ${this.sourceDirectory}`
+      )
+    }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new ExtensionInstallError('invalid_manifest', 'The extension manifest is not JSON')
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      throw new ExtensionInstallError('invalid_manifest', 'The extension manifest is empty')
+    }
+
+    return {
+      'manifest.json': buildDevManifestText(
+        parsed as Record<string, unknown>,
+        this.variant.extensionName
+      )
+    }
+  }
+
+  /** Writes the generated files into the staging copy before it is validated. */
+  private async writeManifestOverrides(
+    stagingPath: string,
+    overrides: Record<string, string>
+  ): Promise<void> {
+    for (const [relative, content] of Object.entries(overrides)) {
+      await fs.writeFile(path.join(stagingPath, ...relative.split('/')), content, 'utf-8')
+    }
   }
 
   /**
@@ -387,12 +454,17 @@ export class BundledExtensionInstaller {
    * or a manifest path that escapes the root is refused. The fingerprint
    * covers the path and the bytes of every file, so a changed `background.js`
    * is detected even when the app and manifest versions are unchanged.
+   *
+   * `overrides` replaces the bytes of named files without writing them. The
+   * development build is inspected that way: its generated manifest takes part
+   * in the fingerprint and in the key check exactly like a file on disk.
    */
   private async inspectBundle(
     directory: string,
-    missingFailure: ExtensionInstallFailure
+    missingFailure: ExtensionInstallFailure,
+    overrides: Readonly<Record<string, string>> = {}
   ): Promise<InspectedBundle> {
-    const manifest = await this.readManifest(directory, missingFailure)
+    const manifest = await this.readManifest(directory, missingFailure, overrides['manifest.json'])
     const files = await this.collectFiles(directory, missingFailure)
 
     for (const raw of this.manifestFiles(manifest)) {
@@ -415,12 +487,17 @@ export class BundledExtensionInstaller {
     for (const relative of [...files].sort()) {
       const fullPath = path.join(directory, ...relative.split('/'))
       let bytes: Buffer
+      const override = overrides[relative]
       try {
-        const stat = await fs.lstat(fullPath)
-        if (!stat.isFile() || stat.isSymbolicLink()) {
-          throw new Error('not a regular file')
+        if (override !== undefined) {
+          bytes = Buffer.from(override, 'utf-8')
+        } else {
+          const stat = await fs.lstat(fullPath)
+          if (!stat.isFile() || stat.isSymbolicLink()) {
+            throw new Error('not a regular file')
+          }
+          bytes = await fs.readFile(fullPath)
         }
-        bytes = await fs.readFile(fullPath)
       } catch (error) {
         throw new ExtensionInstallError(
           missingFailure,
@@ -512,21 +589,28 @@ export class BundledExtensionInstaller {
    *
    * The key is required: it pins the extension id the bridge's origin
    * allowlist accepts. An unpacked copy without it would load under another id
-   * and could never pair.
+   * and could never pair. The expected id is the one of the build being
+   * prepared, so a development manifest can never be written over the release
+   * folder (or the other way round).
    */
   private async readManifest(
     directory: string,
-    missingFailure: ExtensionInstallFailure
+    missingFailure: ExtensionInstallFailure,
+    overrideText?: string
   ): Promise<ExtensionManifest> {
     const manifestPath = path.join(directory, 'manifest.json')
     let raw: string
-    try {
-      raw = await fs.readFile(manifestPath, 'utf-8')
-    } catch {
-      throw new ExtensionInstallError(
-        missingFailure,
-        `The bundled extension is missing at ${directory}`
-      )
+    if (overrideText !== undefined) {
+      raw = overrideText
+    } else {
+      try {
+        raw = await fs.readFile(manifestPath, 'utf-8')
+      } catch {
+        throw new ExtensionInstallError(
+          missingFailure,
+          `The bundled extension is missing at ${directory}`
+        )
+      }
     }
 
     let parsed: ExtensionManifest
@@ -550,7 +634,7 @@ export class BundledExtensionInstaller {
     // A changed key would make Chrome load the folder under another id, which
     // the bridge's origin allowlist rejects. Fail here instead of leaving the
     // user with an extension that can never connect.
-    if (deriveExtensionIdFromKey(parsed.key) !== QUIZLAB_EXTENSION_ID) {
+    if (deriveExtensionIdFromKey(parsed.key) !== this.variant.extensionId) {
       throw new ExtensionInstallError(
         'invalid_manifest',
         'The extension key does not belong to this app'
@@ -600,10 +684,17 @@ export class BundledExtensionInstaller {
   }
 }
 
-let sharedInstaller: BundledExtensionInstaller | null = null
+/** One installer per build, so a dev install never shares state with the release. */
+const sharedInstallers = new Map<QuizlabEnvironment, BundledExtensionInstaller>()
 
-/** The installer the app uses. */
-export function getBundledExtensionInstaller(): BundledExtensionInstaller {
-  sharedInstaller ??= new BundledExtensionInstaller()
-  return sharedInstaller
+/** The installer the app uses for one build. */
+export function getBundledExtensionInstaller(
+  environment: QuizlabEnvironment = 'prod'
+): BundledExtensionInstaller {
+  let installer = sharedInstallers.get(environment)
+  if (!installer) {
+    installer = new BundledExtensionInstaller({ environment })
+    sharedInstallers.set(environment, installer)
+  }
+  return installer
 }

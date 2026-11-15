@@ -16,8 +16,28 @@
  */
 
 const BRIDGE_HOST = '127.0.0.1'
-const PORT_START = 51999
-const PORT_END = 52009
+/**
+ * The Chrome id of the development build.
+ *
+ * One source folder produces two extensions; the manifest key decides which id
+ * Chrome derives, and the id is the only thing this worker has to know about
+ * the build it runs in. The value is pinned in
+ * `shared/constants/extensionRelease.ts` and re-derived from the dev public key
+ * by the extension contract test.
+ */
+const DEV_EXTENSION_ID = 'coonffpgfklpknbbkpilpcjjfjndheic'
+/** Which build this worker is: `prod` for the release extension, `dev` otherwise. */
+const EXTENSION_ENVIRONMENT = chrome.runtime.id === DEV_EXTENSION_ID ? 'dev' : 'prod'
+/**
+ * The ports of this build.
+ *
+ * The release app listens on 51999-52009 and the development app on
+ * 52010-52020 (see `electron/features/native-messaging/nativeMessagingTypes.ts`).
+ * The ranges never overlap and a build never scans the range of the other one,
+ * so two running apps cannot answer each other's extension.
+ */
+const PORT_START = EXTENSION_ENVIRONMENT === 'dev' ? 52010 : 51999
+const PORT_END = EXTENSION_ENVIRONMENT === 'dev' ? 52020 : 52009
 const SCAN_INTERVAL_MS = 30000
 const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
@@ -184,7 +204,13 @@ function normalizeProfileName(value) {
  * header values are not Unicode.
  */
 function baseHeaders() {
-  const headers = { 'x-protocol-version': String(PROTOCOL_VERSION) }
+  const headers = {
+    'x-protocol-version': String(PROTOCOL_VERSION),
+    // Names the build, so the bridge can refuse an extension of the other
+    // environment even before it reads the request. The port range and the
+    // pinned origin already separate them; this is a third, independent check.
+    'x-quizlab-environment': EXTENSION_ENVIRONMENT
+  }
   const origin = getExtensionOrigin()
   if (origin) headers['Origin'] = origin
   if (profileId) headers['x-quizlab-profile-id'] = profileId
@@ -227,12 +253,19 @@ async function ensureProfileIdentity() {
 async function applyActionIdentity() {
   if (!chrome.action) return
   try {
-    const title = profileName ? `Quizlab Site Sessions — ${profileName}` : 'Quizlab Site Sessions'
+    const build = EXTENSION_ENVIRONMENT === 'dev' ? ' (Dev)' : ''
+    const title = profileName
+      ? `Quizlab Site Sessions${build} — ${profileName}`
+      : `Quizlab Site Sessions${build}`
     await chrome.action.setTitle({ title })
     const badge = profileName.replaceAll(/\s+/g, '').slice(0, 4).toUpperCase()
     await chrome.action.setBadgeText({ text: badge })
     if (chrome.action.setBadgeBackgroundColor) {
-      await chrome.action.setBadgeBackgroundColor({ color: '#4f46e5' })
+      // A different badge colour makes the two loaded builds tell apart at a
+      // glance in the toolbar.
+      await chrome.action.setBadgeBackgroundColor({
+        color: EXTENSION_ENVIRONMENT === 'dev' ? '#0ea5e9' : '#4f46e5'
+      })
     }
   } catch (error) {
     console.warn('[Quizlab Bridge] The profile name could not be shown:', errorMessage(error))
@@ -465,11 +498,27 @@ async function requestSiteList(port, secret) {
 }
 
 /**
+ * Whether a health answer belongs to this build.
+ *
+ * The development build only talks to a bridge that says it is the development
+ * one. The release build also accepts a bridge that predates the field: an app
+ * installed before the two builds existed is still the app this extension was
+ * paired with, and refusing it would break that install for no security gain —
+ * the port range, the pinned origin and the HMAC still hold.
+ */
+function acceptsBridgeEnvironment(value) {
+  if (value === EXTENSION_ENVIRONMENT) return true
+  if (value === undefined && EXTENSION_ENVIRONMENT === 'prod') return true
+  return false
+}
+
+/**
  * The health endpoint of the bridge.
  *
- * It answers with the protocol the app speaks and an instance id; it does not
- * carry the shared secret. A port that does not answer is simply not the
- * bridge, so a failed request is not worth a warning.
+ * It answers with the protocol the app speaks, an instance id and the
+ * environment it belongs to; it does not carry the shared secret. A port that
+ * does not answer is simply not the bridge, so a failed request is not worth a
+ * warning.
  */
 async function fetchHealth(port) {
   try {
@@ -489,6 +538,16 @@ async function fetchHealth(port) {
     }
     const data = await response.json()
     if (!data || data.status !== 'ok') return null
+    if (!acceptsBridgeEnvironment(data.environment)) {
+      // Another app listens here: not ours, whatever the port says.
+      console.warn(
+        '[Quizlab Bridge] Ignored a bridge of the',
+        String(data.environment),
+        'environment on port',
+        port
+      )
+      return null
+    }
     return data
   } catch {
     return null

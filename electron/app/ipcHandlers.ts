@@ -1,9 +1,11 @@
+import { Logger } from '../core/logger.js'
 import { registerSystemHandlers } from '../core/systemHandlers/systemHandlers.js'
 import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers/apiChatHandlers.js'
 import { registerAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
+import { getBundledExtensionInstaller } from '../features/native-messaging/extensionInstaller.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
 import { nativeMessagingManager } from '../features/native-messaging/nativeMessagingManager.js'
 import { registerPdfHandlers } from '../features/pdf/pdfHandlers.js'
@@ -36,6 +38,19 @@ export function registerGeneralHandlers() {
 
 export async function initializeNativeMessaging(): Promise<void> {
   await nativeMessagingManager.initialize()
+
+  // The development build keeps the folder Chrome loads in sync with the source
+  // checkout, so a code change reaches the loaded extension with the next
+  // `npm run dev`. Preparing files is not installing: Chrome still loads the
+  // folder once by hand and still needs its own Reload after a file changed.
+  // Nothing is written when the folder belongs to the release environment.
+  if (nativeMessagingManager.environment === 'dev' && nativeMessagingManager.environmentReady) {
+    try {
+      await getBundledExtensionInstaller('dev').install()
+    } catch (error) {
+      Logger.warn('[NativeMessaging] The development extension could not be prepared:', error)
+    }
+  }
 }
 
 export async function shutdownNativeMessaging(): Promise<void> {

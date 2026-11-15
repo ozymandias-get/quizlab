@@ -49,14 +49,14 @@ loader, so exporting a `.env` file has no effect. Set variables in the shell
 that launches the app instead. `.env.example` lists the full set with
 defaults; the ones you are most likely to want:
 
-| Variable                        | Effect                                                                                                |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`)                                |
-| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                                                              |
-| `QUIZLAB_PROFILE`               | Suffix for the user-data directory; any value other than `stable` also lifts the single-instance lock |
-| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                                                  |
-| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                                                         |
-| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge (default `51999`)                                         |
+| Variable                        | Effect                                                                                                            |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `APP_RENDERER_URL`              | Dev-server URL the main window loads (default `http://localhost:5173`)                                            |
+| `APP_OPEN_DEVTOOLS=1`           | Open DevTools on startup                                                                                          |
+| `QUIZLAB_PROFILE`               | Suffix for the user-data directory; any value other than `stable` also lifts the single-instance lock             |
+| `QUIZLAB_USER_DATA_DIR`         | Absolute path override for user data                                                                              |
+| `QUIZLAB_DISABLE_GPU=1`         | Disable hardware acceleration                                                                                     |
+| `QUIZLAB_EXTENSION_BRIDGE_PORT` | Localhost port for the Chrome cookie bridge; the release app uses `51999-52009`, `npm run dev` uses `52010-52020` |
 
 On Windows PowerShell:
 
