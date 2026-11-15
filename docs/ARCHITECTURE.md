@@ -736,6 +736,15 @@ A packet that is bigger than the bridge reads (512 KB) is answered with
 with the reason code `packet_too_large`, and the extension does not push that
 site again — a packet that does not fit cannot get smaller by waiting.
 
+The bridge never reads more than 576 KB of a cookie POST: 512 KB of packet plus
+64 KB of room for a packet that is only a little too large. Up to that point the
+body is still signed, so the site of an oversized packet can be recorded. Past
+it the answer is sent immediately and the socket is ended gracefully — ending it
+rather than destroying it keeps the client's pending writes from resetting the
+connection, which would lose the 413 and make the extension retry. The rest of
+the upload is never read, hashed or kept, and because its signature is therefore
+not verified nothing is recorded for its site.
+
 The Google family is the one group: Gemini, AI Studio, YouTube and Google Drive
 share one account and one partition, so they are **one row**
 (`siteId: 'google'`) — see `shared/constants/googleAiWebApps.ts`. The row owns

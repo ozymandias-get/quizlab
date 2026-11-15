@@ -53,4 +53,19 @@ export function resolveBridgePort(
 /** The port the release bridge starts on. */
 export const BRIDGE_PORT = resolveBridgePort('prod')
 
+/** The largest cookie packet the bridge imports. */
 export const MAX_COOKIE_BODY_SIZE = 1024 * 512 // 512 KB
+
+/**
+ * The most bytes the bridge ever reads from a cookie POST.
+ *
+ * A packet is imported only up to `MAX_COOKIE_BODY_SIZE`. The extra room lets a
+ * packet that is only a little too large be read to its end, so its signature
+ * can still be verified and its site recorded as a failed import.
+ *
+ * Past this point the body is no longer read, hashed or kept: the request is
+ * answered with 413 and its connection is closed. Without that hard stop an
+ * upload that never fits would be hashed byte by byte for as long as it runs,
+ * which costs CPU without ever changing the answer.
+ */
+export const MAX_COOKIE_READ_SIZE = MAX_COOKIE_BODY_SIZE + 64 * 1024

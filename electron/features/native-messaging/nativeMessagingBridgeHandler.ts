@@ -16,7 +16,7 @@ import {
 import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin } from './nativeMessagingOrigin.js'
 import { isProfileId, normalizeProfileName } from './nativeMessagingProfiles.js'
-import { MAX_COOKIE_BODY_SIZE } from './nativeMessagingTypes.js'
+import { MAX_COOKIE_BODY_SIZE, MAX_COOKIE_READ_SIZE } from './nativeMessagingTypes.js'
 
 /** The payload the extension signs when it asks for the site list. */
 const SITE_LIST_SIGNING_PAYLOAD = '/api/sites'
@@ -478,9 +478,10 @@ function isValidSignature(payload: string, signature: string | undefined, secret
 /**
  * Whether a signature matches a digest that was computed over a body.
  *
- * The digest is computed while the body comes in, so a body that does not fit
- * into the bridge can be signed as well — the signature covers the whole body,
- * not only the part that was kept.
+ * The digest is computed while the body comes in, so a body that is too large
+ * to import can still be signed — the signature covers the whole body, not
+ * only the part that was kept. A body past `MAX_COOKIE_READ_SIZE` is not read
+ * to its end, so its signature is never checked and nothing is done with it.
  */
 function matchesSignature(expected: string, signature: string | undefined): boolean {
   if (!signature || !/^[0-9a-f]{64}$/i.test(signature)) return false
@@ -527,23 +528,79 @@ function handleCookiePost(
 
   let bodySize = 0
   let oversized = false
+  // A request is answered at most once: the early 413 and the `end` path can
+  // both be reached when the body ends right at the read limit.
+  let answered = false
   const chunks: Buffer[] = []
   // The signature covers the profile id and the whole body, so it is hashed
   // while the body comes in: a body that does not fit is never kept in memory
-  // as a whole, and it is still signed.
+  // as a whole, and it is still signed. Only the bytes up to
+  // `MAX_COOKIE_READ_SIZE` are ever hashed, see `stopReading` below.
   const digest = crypto.createHmac('sha256', mgr._sharedSecret)
   digest.update(`${profileId}\n`)
 
+  /**
+   * Answers a body the bridge will never read to its end.
+   *
+   * The rest of the upload is not read, hashed or kept: a body that is already
+   * past every byte the bridge accepts can only be answered with 413, so
+   * digesting the remaining bytes would cost CPU without changing the answer.
+   * The signature of such a body cannot be verified any more, which is why
+   * nothing is recorded for its site: an unverified body must not change app
+   * state.
+   */
+  const stopReading = (): void => {
+    if (answered) return
+    answered = true
+    chunks.length = 0
+    Logger.warn('[NativeMessaging] Dropped a cookie payload that is too large to read')
+    res.writeHead(STATUS_PACKET_TOO_LARGE, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: PACKET_TOO_LARGE }), () => {
+      // End the socket instead of destroying it: a destroy while the client is
+      // still writing resets the connection, and a reset can lose the 413 that
+      // tells the extension not to push this packet again. Ending it is a
+      // graceful FIN, so the answer is read first.
+      req.socket?.end()
+    })
+  }
+
   req.on('data', (chunk: Buffer) => {
+    // Once the answer is out nothing else is read from this body.
+    if (answered) return
+    // The chunk does not fit into what is left of the read budget: the body is
+    // bigger than anything this bridge will ever look at, so it is answered
+    // now. A single huge chunk is not hashed either, only the chunks before it
+    // were.
+    if (chunk.length > MAX_COOKIE_READ_SIZE - bodySize) {
+      stopReading()
+      return
+    }
     const remaining = Math.max(0, MAX_COOKIE_BODY_SIZE - bodySize)
+    if (remaining > 0) {
+      // Copy instead of keeping a view: a view of a large chunk pins the whole
+      // chunk even when only its first bytes are kept.
+      chunks.push(remaining >= chunk.length ? chunk : Buffer.from(chunk.subarray(0, remaining)))
+    }
     bodySize += chunk.length
-    digest.update(chunk)
-    if (remaining > 0) chunks.push(chunk.subarray(0, remaining))
     if (bodySize > MAX_COOKIE_BODY_SIZE) oversized = true
+    digest.update(chunk)
   })
+
+  // A client that hangs up mid-upload is not a failure of the bridge, and an
+  // unhandled `error` on the request would be thrown as an uncaught exception.
+  req.on('error', (error: Error) => {
+    answered = true
+    chunks.length = 0
+    Logger.warn(`[NativeMessaging] A cookie upload was cut off: ${error.message}`)
+  })
+
+  // The response can fail when the client is already gone. The answer is lost
+  // either way, and the request cleans itself up in its own handlers.
+  res.on('error', () => undefined)
 
   req.on('end', async () => {
     try {
+      if (answered) return
       if (!matchesSignature(digest.digest('hex'), signature)) {
         Logger.warn('[NativeMessaging] Rejected cookie POST: invalid HMAC signature')
         sendJson(res, 401, { error: 'Invalid signature' })

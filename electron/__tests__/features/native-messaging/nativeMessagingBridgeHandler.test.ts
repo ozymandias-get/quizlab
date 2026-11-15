@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto'
+import crypto, { createHmac, type BinaryLike, type BinaryToTextEncoding } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -36,7 +36,10 @@ vi.mock('../../../features/web-session/siteSessionBridge.js', () => ({
 }))
 
 import { createBridgeRequestHandler } from '../../../features/native-messaging/nativeMessagingBridgeHandler.js'
-import { MAX_COOKIE_BODY_SIZE } from '../../../features/native-messaging/nativeMessagingTypes.js'
+import {
+  MAX_COOKIE_BODY_SIZE,
+  MAX_COOKIE_READ_SIZE
+} from '../../../features/native-messaging/nativeMessagingTypes.js'
 import { openSiteSessionRound } from '../../../features/web-session/siteSessionBridge.js'
 
 /** The manager the bridge talks to. */
@@ -68,6 +71,42 @@ function profileHeaders(): Record<string, string> {
     'x-quizlab-profile-id': PROFILE_ID,
     'x-quizlab-profile-name': PROFILE_NAME
   }
+}
+
+/** A cookie packet whose single cookie value is as long as asked. */
+function packetBody(valueLength: number): string {
+  return JSON.stringify({
+    targetId: 'chatgpt',
+    status: 'ok',
+    cookies: [{ name: 'session', value: 'x'.repeat(valueLength), domain: '.chatgpt.com' }]
+  })
+}
+
+/** A request as the HTTP server hands it to the handler. */
+function createRequestDouble(signature: string) {
+  return Object.assign(new EventEmitter(), {
+    method: 'POST',
+    url: COOKIE_PATH,
+    headers: {
+      origin: EXTENSION_ORIGIN,
+      'x-quizlab-profile-id': PROFILE_ID,
+      'x-quizlab-profile-name': PROFILE_NAME,
+      'x-hmac-signature': signature
+    } as Record<string, string>,
+    socket: { end: vi.fn() }
+  })
+}
+
+/** A response the handler writes to. */
+function createResponseDouble() {
+  return Object.assign(new EventEmitter(), {
+    setHeader: vi.fn(),
+    writeHead: vi.fn(),
+    end: vi.fn((chunkOrCallback?: unknown, callback?: () => void) => {
+      if (typeof chunkOrCallback === 'function') chunkOrCallback()
+      else callback?.()
+    })
+  })
 }
 
 describe('the bridge of the site session', () => {
@@ -124,12 +163,96 @@ describe('the bridge of the site session', () => {
 
   /** A packet whose body does not fit into the bridge. */
   function oversizedBody(): string {
-    return JSON.stringify({
-      targetId: 'chatgpt',
-      status: 'ok',
-      cookies: [
-        { name: 'session', value: 'x'.repeat(MAX_COOKIE_BODY_SIZE), domain: '.chatgpt.com' }
-      ]
+    return packetBody(MAX_COOKIE_BODY_SIZE)
+  }
+
+  /**
+   * What one raw upload saw.
+   *
+   * `bytesWrittenAtResponse` is how much of the body the client had handed to
+   * the socket when the answer arrived: it is the observable difference
+   * between "the bridge reads the whole upload" and "the bridge stops at its
+   * own limit".
+   */
+  function upload(
+    body: string,
+    options: { chunkSize?: number; delayMs?: number } = {}
+  ): Promise<{
+    status: number
+    text: string
+    bytesWrittenAtResponse: number
+    bytesSent: number
+  }> {
+    const payload = Buffer.from(body)
+    const chunkSize = options.chunkSize ?? 64 * 1024
+    const delayMs = options.delayMs ?? 0
+
+    return new Promise((resolve, reject) => {
+      let written = 0
+      let responded = false
+      let settled = false
+      let status = 0
+      let bytesWrittenAtResponse = -1
+      let text = ''
+
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        resolve({ status, text, bytesWrittenAtResponse, bytesSent: written })
+      }
+
+      const request = http.request({
+        host: '127.0.0.1',
+        port,
+        path: COOKIE_PATH,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...profileHeaders(),
+          'Content-Length': payload.byteLength,
+          'x-hmac-signature': sign(body)
+        }
+      })
+      request.setTimeout(5000, () => request.destroy(new Error('upload timeout')))
+
+      request.on('response', (response) => {
+        responded = true
+        status = response.statusCode ?? 0
+        bytesWrittenAtResponse = written
+        response.setEncoding('utf8')
+        response.on('data', (chunk: string) => {
+          text += chunk
+        })
+        response.on('end', finish)
+        response.on('close', finish)
+      })
+      request.on('error', (error: Error) => {
+        // An answer that arrived before the connection broke is still the
+        // answer: the client read it out of its own buffer.
+        if (responded) finish()
+        else reject(error)
+      })
+
+      const pump = (): void => {
+        if (settled) {
+          request.destroy()
+          return
+        }
+        while (written < payload.byteLength) {
+          const chunk = payload.subarray(written, Math.min(written + chunkSize, payload.byteLength))
+          written += chunk.byteLength
+          if (!request.write(chunk)) {
+            request.once('drain', pump)
+            return
+          }
+          if (delayMs > 0) {
+            setTimeout(pump, delayMs)
+            return
+          }
+        }
+        request.end()
+      }
+      pump()
     })
   }
 
@@ -153,17 +276,8 @@ describe('the bridge of the site session', () => {
 
   it('retains the packet prefix when a single chunk exceeds the size limit', async () => {
     const body = oversizedBody()
-    const request = Object.assign(new EventEmitter(), {
-      method: 'POST',
-      url: COOKIE_PATH,
-      headers: {
-        origin: EXTENSION_ORIGIN,
-        'x-quizlab-profile-id': PROFILE_ID,
-        'x-quizlab-profile-name': PROFILE_NAME,
-        'x-hmac-signature': sign(body)
-      }
-    })
-    const response = { setHeader: vi.fn(), writeHead: vi.fn(), end: vi.fn() }
+    const request = createRequestDouble(sign(body))
+    const response = createResponseDouble()
     createBridgeRequestHandler(createManager())(request as never, response as never)
     request.emit('data', Buffer.from(body))
     request.emit('end')
@@ -176,6 +290,139 @@ describe('the bridge of the site session', () => {
     await post(oversizedBody())
 
     expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('imports a packet that is just under the size limit', async () => {
+    const body = packetBody(MAX_COOKIE_BODY_SIZE - 4096)
+    expect(Buffer.byteLength(body)).toBeLessThan(MAX_COOKIE_BODY_SIZE)
+
+    const response = await post(body)
+
+    expect(response.status).toBe(200)
+    expect(acceptPacket).toHaveBeenCalledTimes(1)
+    expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+  })
+
+  it('stops reading and hashing a body that is past the read limit', async () => {
+    // Sixteen times the most the bridge ever reads.
+    const body = packetBody(8 * 1024 * 1024)
+    const hashed: number[] = []
+    const realCreateHmac = crypto.createHmac
+    const hmacSpy = vi.spyOn(crypto, 'createHmac').mockImplementation(((
+      algorithm: string,
+      key: BinaryLike
+    ) => {
+      const hmac = realCreateHmac(algorithm, key)
+      const realUpdate = hmac.update.bind(hmac)
+      hmac.update = ((data: BinaryLike, encoding?: BinaryToTextEncoding) => {
+        hashed.push(
+          typeof data === 'string' ? Buffer.byteLength(data) : (data as Uint8Array).byteLength
+        )
+        return realUpdate(data as never, encoding as never)
+      }) as typeof hmac.update
+      return hmac
+    }) as typeof crypto.createHmac)
+
+    try {
+      const result = await upload(body)
+
+      expect(result.status).toBe(413)
+      expect(JSON.parse(result.text)).toEqual({ error: 'packet_too_large' })
+      // The answer arrives before the whole body is uploaded.
+      expect(result.bytesWrittenAtResponse).toBeLessThan(Buffer.byteLength(body))
+
+      // Only the bytes the bridge reads are signed. The rest is never hashed,
+      // so an upload that never ends cannot burn CPU.
+      const hashedBytes = hashed.reduce((total, value) => total + value, 0)
+      expect(hashedBytes).toBeGreaterThan(0)
+      expect(hashedBytes).toBeLessThanOrEqual(MAX_COOKIE_READ_SIZE + 64)
+      // The signature of an unread body cannot be checked, so no site is
+      // recorded as a failed import for it.
+      expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+    } finally {
+      hmacSpy.mockRestore()
+    }
+  })
+
+  it('answers a body of huge chunks once and closes the socket after it', async () => {
+    const request = createRequestDouble('a'.repeat(64))
+    const response = createResponseDouble()
+    createBridgeRequestHandler(createManager())(request as never, response as never)
+
+    request.emit('data', Buffer.alloc(2 * 1024 * 1024, 0x20))
+
+    // The body is past every byte the bridge reads: the answer does not wait
+    // for the rest of the upload.
+    expect(response.writeHead).toHaveBeenCalledTimes(1)
+    expect(response.writeHead).toHaveBeenCalledWith(413, expect.anything())
+    expect(response.end).toHaveBeenCalledTimes(1)
+    // The socket is ended gracefully, so the client reads the answer instead of
+    // a reset that would look like a network failure and trigger a retry.
+    expect(request.socket.end).toHaveBeenCalledTimes(1)
+
+    // The rest of the upload neither answers a second time nor is imported.
+    request.emit('data', Buffer.alloc(2 * 1024 * 1024, 0x20))
+    request.emit('end')
+    await Promise.resolve()
+
+    expect(response.writeHead).toHaveBeenCalledTimes(1)
+    expect(response.end).toHaveBeenCalledTimes(1)
+    expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
+    expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('answers a slow upload that crosses the read limit without waiting for its end', async () => {
+    const body = packetBody(2 * 1024 * 1024)
+
+    const result = await upload(body, { chunkSize: 32 * 1024, delayMs: 4 })
+
+    expect(result.status).toBe(413)
+    expect(JSON.parse(result.text)).toEqual({ error: 'packet_too_large' })
+    // A slow uploader must not keep the bridge reading until it decides to
+    // stop: the answer comes when the bridge has read its own limit.
+    expect(result.bytesWrittenAtResponse).toBeLessThan(Buffer.byteLength(body))
+  })
+
+  it('survives a client that hangs up in the middle of a body', async () => {
+    const request = createRequestDouble('a'.repeat(64))
+    const response = createResponseDouble()
+    createBridgeRequestHandler(createManager())(request as never, response as never)
+
+    request.emit('data', Buffer.from(packetBody(64)))
+    // An unhandled `error` on the request would become an uncaught exception.
+    expect(() => request.emit('error', new Error('read ECONNRESET'))).not.toThrow()
+    request.emit('end')
+    await Promise.resolve()
+
+    expect(response.writeHead).not.toHaveBeenCalled()
+    expect(response.end).not.toHaveBeenCalled()
+    expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('keeps the bridge working after a client aborts a large upload', async () => {
+    const body = packetBody(1024 * 1024)
+    const payload = Buffer.from(body)
+    const aborted = http.request({
+      host: '127.0.0.1',
+      port,
+      path: COOKIE_PATH,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...profileHeaders(),
+        'Content-Length': payload.byteLength,
+        'x-hmac-signature': sign(body)
+      }
+    })
+    aborted.on('error', () => undefined)
+    aborted.write(payload.subarray(0, 256 * 1024))
+    await new Promise<void>((resolve) => setTimeout(resolve, 20))
+    aborted.destroy()
+
+    const response = await post(packetBody(64))
+
+    expect(response.status).toBe(200)
+    expect(acceptPacket).toHaveBeenCalledTimes(1)
   })
 
   it('does not record a site for a packet that is not signed', async () => {
