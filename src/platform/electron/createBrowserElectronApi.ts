@@ -115,6 +115,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
     registerPdfPath: stubReturn(null),
     getPathForFile: (file) => (file as File & { path?: string }).path ?? '',
     onShellOpenPdf: () => () => {},
+    notifyShellPdfReady: () => {},
     shellIntegration: {
       getStatus: stubReturn(null),
       install: stubReturn({ success: false, error: 'web_dev_mode_only' }),

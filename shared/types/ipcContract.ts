@@ -373,9 +373,12 @@ export interface IpcEventMap {
   [IPC_CHANNELS.AI_VIEW_EVENT]: {
     args: [event: AiViewEvent]
   }
-  // Event-style channels (main → renderer) not using invoke
+  // Event-style channels not using invoke
   [IPC_CHANNELS.OPEN_PDF_FROM_SHELL]: {
     args: [filePath: string]
+  }
+  [IPC_CHANNELS.SHELL_PDF_READY]: {
+    args: []
   }
   [IPC_CHANNELS.APP_FLUSH_PENDING_STATE]: {
     args: []

@@ -365,13 +365,44 @@ class NativeMessagingManager {
   }
 
   /**
-   * Remembers that the extension is talking to the app.
+   * Records that an origin-allowed request reached the bridge.
+   *
+   * This runs before the HMAC check, so it must not create a profile or write
+   * the profile list: a local process can forge the Origin header, and the
+   * settings page must not offer a Chrome profile that never proved it holds
+   * the pairing code. A known profile can still be marked reachable.
+   */
+  markExtensionReachable(profileId?: string): void {
+    const now = Date.now()
+    this._extensionLastSeenAt = now
+
+    if (!isProfileId(profileId)) {
+      this._legacyConnectedAt = now
+      if (this._connectionStatus === 'connected') return
+      this._connectionStatus = 'connected'
+      this._waitingSince = null
+      this.broadcastExtensionConnected()
+      return
+    }
+
+    const profile = this._profiles.get(profileId.trim())
+    if (!profile) return
+    profile.lastSeenAt = now
+    const wasDisconnected = !profile.connected
+    profile.connected = true
+    this._connectionStatus = 'connected'
+    this._waitingSince = null
+    if (wasDisconnected) this.broadcastExtensionConnected()
+  }
+
+  /**
+   * Remembers that the paired extension is talking to the app.
    *
    * The connection is kept alive by the traffic itself: the extension pushes
    * its packets only when something changed, so the app learns that the
    * extension is there from the requests that arrive, not from a heartbeat of
-   * its own. The bridge calls this for every request that passed the origin
-   * check.
+   * its own. The bridge calls this only after the request proved it holds the
+   * pairing code.
    */
   markExtensionSeen(profileId?: string, profileName?: string): void {
     const now = Date.now()
@@ -515,9 +546,12 @@ class NativeMessagingManager {
       this._connectionStatus = 'error'
       this._waitingSince = null
       Logger.error(
-        `[NativeMessaging] The user data folder belongs to the "${claim.owner}" environment; ` +
-          `the "${this._environment}" bridge will not start. Use a separate QUIZLAB_PROFILE or ` +
-          'QUIZLAB_USER_DATA_DIR for the development build.'
+        claim.owner
+          ? `[NativeMessaging] The user data folder belongs to the "${claim.owner}" environment; ` +
+              `the "${this._environment}" bridge will not start. Use a separate QUIZLAB_PROFILE or ` +
+              'QUIZLAB_USER_DATA_DIR for the development build.'
+          : `[NativeMessaging] The user data folder could not be claimed for the "${this._environment}" ` +
+              'environment; its marker is unreadable or corrupt. The bridge will not start.'
       )
       return
     }

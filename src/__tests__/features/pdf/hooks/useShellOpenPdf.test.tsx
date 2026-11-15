@@ -1,6 +1,10 @@
 import { useShellOpenPdf } from '@features/pdf/hooks/useShellOpenPdf'
-import { resetReadingProgressStore } from '@features/pdf/hooks/useReadingProgressPersistence'
+import {
+  resetReadingProgressStore,
+  useReadingProgressPersistence
+} from '@features/pdf/hooks/useReadingProgressPersistence'
 import { resetPdfTabStore, usePdfTabStore } from '@features/pdf/store/usePdfTabStore'
+import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +25,7 @@ vi.mock('react-i18next', () => ({
 type ShellCallback = (filePath: string) => void
 let capturedCallback: ShellCallback | null = null
 const mockRegisterPdfPath = vi.fn()
+const mockNotifyShellPdfReady = vi.fn()
 
 function installElectronApi() {
   ;(window as any).electronAPI = {
@@ -30,6 +35,7 @@ function installElectronApi() {
         capturedCallback = null
       }
     }),
+    notifyShellPdfReady: mockNotifyShellPdfReady,
     registerPdfPath: mockRegisterPdfPath
   }
 }
@@ -72,6 +78,8 @@ describe('useShellOpenPdf', () => {
     renderHook(() => useShellOpenPdf())
 
     expect(capturedCallback).not.toBeNull()
+    // Main queues Explorer paths until this listener exists.
+    expect(mockNotifyShellPdfReady).toHaveBeenCalled()
     await act(async () => {
       capturedCallback?.('C:\\Docs\\a.pdf')
     })
@@ -100,6 +108,44 @@ describe('useShellOpenPdf', () => {
       expect(mockShowError).toHaveBeenCalled()
     })
     expect(usePdfTabStore.getState().pdfTabs).toHaveLength(0)
+  })
+
+  it('keeps the stored page when Explorer opens the same PDF again', async () => {
+    localStorageMock.setItem(
+      STORAGE_KEYS.LAST_PDF_READING,
+      JSON.stringify([
+        {
+          path: 'C:\\Docs\\a.pdf',
+          name: 'a.pdf',
+          page: 150,
+          totalPages: 300,
+          lastOpenedAt: 1
+        }
+      ])
+    )
+    resetReadingProgressStore()
+    mockRegisterPdfPath.mockResolvedValue({
+      path: 'C:\\Docs\\a.pdf',
+      name: 'a.pdf',
+      size: 10,
+      streamUrl: 'local-pdf://x'
+    })
+
+    const progress = renderHook(() => useReadingProgressPersistence())
+    renderHook(() => useShellOpenPdf())
+
+    await act(async () => {
+      capturedCallback?.('C:\\Docs\\a.pdf')
+    })
+
+    await waitFor(() => {
+      expect(usePdfTabStore.getState().pdfTabs).toHaveLength(1)
+    })
+    expect(
+      progress.result.current
+        .getRecentReadingInfo()
+        .find((entry) => entry.path === 'C:\\Docs\\a.pdf')?.page
+    ).toBe(150)
   })
 
   it('ignores duplicate events for the same path while opening', async () => {

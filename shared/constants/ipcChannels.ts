@@ -4,6 +4,8 @@ export const IPC_CHANNELS = {
   PDF_REGISTER_PATH: 'pdf:register-path',
   /** Main → renderer: Explorer sağ-tık ile açılan PDF yolu. */
   OPEN_PDF_FROM_SHELL: 'open-pdf-from-shell',
+  /** Renderer -> main: the shell-PDF listener is mounted and can receive paths. */
+  SHELL_PDF_READY: 'shell-pdf-ready',
   SHELL_INTEGRATION_STATUS: 'shell-integration-status',
   SHELL_INTEGRATION_INSTALL: 'shell-integration-install',
   SHELL_INTEGRATION_REMOVE: 'shell-integration-remove',

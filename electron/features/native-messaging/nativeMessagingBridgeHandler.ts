@@ -189,6 +189,19 @@ function markExtensionSeen(manager: unknown, profile: RequestProfile): void {
   mgr.markExtensionSeen(profile.id, profile.name)
 }
 
+/**
+ * Remembers liveness without proving the caller holds the pairing code.
+ *
+ * The Origin header alone is not authentication: a local process can forge it.
+ * This helper may only update liveness, never create or persist a profile.
+ */
+function markExtensionReachable(manager: unknown, profile: RequestProfile): void {
+  const mgr = manager as unknown as {
+    markExtensionReachable?(profileId?: string): void
+  }
+  mgr.markExtensionReachable?.(profile.id)
+}
+
 /** Remembers that the extension knows the pairing code. */
 async function markExtensionPaired(manager: unknown, profile: RequestProfile): Promise<void> {
   const mgr = manager as unknown as {
@@ -278,18 +291,17 @@ export function createBridgeRequestHandler(manager: unknown) {
       return
     }
 
-    // The request passed the origin check, so the extension is alive. This
-    // happens before the routing: a request that is refused further down — a
-    // packet for a site that is switched off, an old extension that still
-    // speaks the old protocol — still proves that the extension is there.
-    markExtensionSeen(manager, profile)
-
-    // The extension names the protocol it speaks in every request it makes to
-    // the bridge. The version is remembered before the request is answered,
-    // so that the settings page knows how old the extension is.
-    recordProtocolVersion(manager, req, profile.id)
+    // The request passed the origin check, so something that can claim the
+    // extension origin is alive. The Origin header is forgeable by a local
+    // process, though, so this only touches liveness. A profile is registered
+    // and persisted after the request proves it holds the pairing code.
+    markExtensionReachable(manager, profile)
 
     if (req.method === 'GET' && req.url === '/api/health') {
+      // The version is display-only (it tells an outdated extension from one
+      // that is not installed), so the unsigned health probe may report it.
+      // It cannot register a profile or change the selected source.
+      recordProtocolVersion(manager, req, profile.id)
       const mgr = manager as unknown as {
         _extensionLastSeenAt: number
         instanceId: string
@@ -325,7 +337,7 @@ export function createBridgeRequestHandler(manager: unknown) {
         void handleLegacySiteListRequest(req, res, manager)
         return
       }
-      void handleSiteListRequest(req, res, manager, profile.id, async () => {
+      void handleSiteListRequest(req, res, manager, profile, async () => {
         // The site list request opens the round: the packets that follow it
         // belong to it and share its target list. Overlapping requests of the
         // same profile share the opening instead of replacing each other.
@@ -339,7 +351,7 @@ export function createBridgeRequestHandler(manager: unknown) {
         sendJson(res, 400, { error: 'Missing profile id' })
         return
       }
-      handleCookiePost(req, res, manager, profile.id, currentRound)
+      handleCookiePost(req, res, manager, profile, currentRound)
       return
     }
 
@@ -369,13 +381,18 @@ async function handleSiteListRequest(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown,
-  profileId: string,
+  profile: RequestProfile,
   openRound: () => Promise<SiteSessionRound>
 ): Promise<void> {
   const mgr = manager as unknown as {
     _sharedSecret: string
     getSelectedProfileId?: () => string | null
     getSelectionVersion?: () => number
+  }
+  const profileId = profile.id
+  if (!profileId) {
+    sendJson(res, 400, { error: 'Missing profile id' })
+    return
   }
   const signature = req.headers['x-hmac-signature' as never] as string | undefined
   if (
@@ -389,7 +406,10 @@ async function handleSiteListRequest(
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
-  await markExtensionPaired(manager, { id: profileId, name: '' })
+  // Only now, with the pairing code proven, may the profile list change.
+  markExtensionSeen(manager, profile)
+  recordProtocolVersion(manager, req, profileId)
+  await markExtensionPaired(manager, profile)
 
   void openRound()
     .then((round) => listEnabledSiteSessionTargets(round))
@@ -429,6 +449,8 @@ async function handleLegacySiteListRequest(
     sendJson(res, 401, { error: 'Invalid signature' })
     return
   }
+  markExtensionSeen(manager, { id: undefined, name: '' })
+  recordProtocolVersion(manager, req, undefined)
   await markExtensionPaired(manager, { id: undefined, name: '' })
 
   void openSiteSessionRound()
@@ -483,9 +505,14 @@ function handleCookiePost(
   req: IncomingMessage,
   res: ServerResponse,
   manager: unknown,
-  profileId: string,
+  profile: RequestProfile,
   currentRound: (profileId: string) => Promise<SiteSessionRound>
 ): void {
+  const profileId = profile.id
+  if (!profileId) {
+    sendJson(res, 400, { error: 'Missing profile id' })
+    return
+  }
   const mgr = manager as unknown as {
     _sharedSecret: string
     getSelectedProfileId?: () => string | null
@@ -522,7 +549,11 @@ function handleCookiePost(
         sendJson(res, 401, { error: 'Invalid signature' })
         return
       }
-      await markExtensionPaired(manager, { id: profileId, name: '' })
+      // The signature covers the whole body, so the profile may be registered
+      // only after this point.
+      markExtensionSeen(manager, profile)
+      recordProtocolVersion(manager, req, profileId)
+      await markExtensionPaired(manager, profile)
 
       // Another profile may still have packets in flight when the user
       // switches the source. They carry a valid signature, but they are no

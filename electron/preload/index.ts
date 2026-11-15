@@ -68,6 +68,7 @@ const electronApi: ElectronApi = {
   },
   onShellOpenPdf: (callback) =>
     onEvent(IPC_CHANNELS.OPEN_PDF_FROM_SHELL, (filePath) => callback(filePath)),
+  notifyShellPdfReady: () => ipcRenderer.send(IPC_CHANNELS.SHELL_PDF_READY),
   shellIntegration: {
     getStatus: () => unwrapIpcResult(typedInvoke(IPC_CHANNELS.SHELL_INTEGRATION_STATUS)),
     install: (locale?) =>

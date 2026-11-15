@@ -62,22 +62,57 @@ export async function readSessionsFromIndexedDb(): Promise<ChatSession[] | null>
   })
 }
 
-/** Replaces the whole store with `sessions`. */
-export async function writeSessionsToIndexedDb(sessions: ChatSession[]): Promise<boolean> {
+/**
+ * Reads the current store, applies `update` to it and writes the result in one
+ * readwrite transaction.
+ *
+ * Two renderer windows can save at the same time. Reading the store in this
+ * window's memory and then clearing/replacing it would let the later writer
+ * drop the sessions the other window just added. The read and the write share
+ * one transaction, so IndexedDB serialises them and the merge always sees the
+ * latest committed snapshot.
+ *
+ * Returns the written sessions, or null when IndexedDB is unavailable or the
+ * transaction failed.
+ */
+export async function updateSessionsInIndexedDb(
+  update: (stored: ChatSession[]) => ChatSession[]
+): Promise<ChatSession[] | null> {
   const db = await openDatabase()
-  if (!db) return false
+  if (!db) return null
 
-  return new Promise<boolean>((resolve) => {
+  return new Promise<ChatSession[] | null>((resolve) => {
     try {
       const transaction = db.transaction(STORE_NAME, 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
-      store.clear()
-      for (const session of sessions) store.put(session)
-      transaction.oncomplete = () => resolve(true)
-      transaction.onerror = () => resolve(false)
-      transaction.onabort = () => resolve(false)
+      let written: ChatSession[] | null = null
+
+      // The read request is queued before the writes, so this transaction
+      // observes the store as the previous transaction left it.
+      const request = store.getAll()
+      request.onsuccess = () => {
+        try {
+          const stored = Array.isArray(request.result) ? (request.result as ChatSession[]) : []
+          written = update(stored)
+          store.clear()
+          for (const session of written) store.put(session)
+        } catch {
+          try {
+            transaction.abort()
+          } catch {}
+        }
+      }
+      request.onerror = () => {
+        try {
+          transaction.abort()
+        } catch {}
+      }
+
+      transaction.oncomplete = () => resolve(written)
+      transaction.onerror = () => resolve(null)
+      transaction.onabort = () => resolve(null)
     } catch {
-      resolve(false)
+      resolve(null)
     }
   })
 }

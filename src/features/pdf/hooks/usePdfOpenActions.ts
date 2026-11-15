@@ -17,6 +17,7 @@ import type { LastReadingInfo, PdfTab, ResumePdfResult } from './types'
 interface UsePdfOpenActionsProps {
   openPdfInTab: (file: PdfFile) => PdfTab
   upsertLastReadingInfo: (info: LastReadingInfo) => void
+  recordPdfOpened: (info: { name: string; path: string; lastOpenedAt?: number }) => void
   flushPendingReadingProgress: () => void
   recentReadingInfoRef: { current: LastReadingInfo[] }
 }
@@ -24,6 +25,7 @@ interface UsePdfOpenActionsProps {
 export function usePdfOpenActions({
   openPdfInTab,
   upsertLastReadingInfo,
+  recordPdfOpened,
   flushPendingReadingProgress,
   recentReadingInfoRef
 }: UsePdfOpenActionsProps) {
@@ -39,17 +41,27 @@ export function usePdfOpenActions({
     (file: PdfFile, initialReadInfo?: Partial<LastReadingInfo>) => {
       openPdfInTab(file)
       if (file.path && file.name) {
-        upsertLastReadingInfo({
-          name: file.name,
-          path: file.path,
-          page: 1,
-          totalPages: 0,
-          lastOpenedAt: Date.now(),
-          ...initialReadInfo
-        })
+        if (initialReadInfo) {
+          // Resume: the caller already carries the stored position.
+          upsertLastReadingInfo({
+            name: file.name,
+            path: file.path,
+            page: 1,
+            totalPages: 0,
+            lastOpenedAt: Date.now(),
+            ...initialReadInfo
+          })
+        } else {
+          // A plain open must not overwrite a page the user left behind.
+          recordPdfOpened({
+            name: file.name,
+            path: file.path,
+            lastOpenedAt: Date.now()
+          })
+        }
       }
     },
-    [openPdfInTab, upsertLastReadingInfo]
+    [openPdfInTab, upsertLastReadingInfo, recordPdfOpened]
   )
 
   const handleSelectPdf = useCallback(async () => {

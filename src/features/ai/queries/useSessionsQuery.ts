@@ -104,9 +104,13 @@ export function useClearSessionMutation() {
       const removedMessageIds =
         prev.find((session) => session.id === sessionId)?.messages.map((message) => message.id) ??
         []
+      // A clear is explicit and time-bounded: unlike an empty snapshot, it may
+      // remove messages this window has not seen yet.
+      const clearedAt = Date.now()
       const updated = clearSessionMessages(prev, sessionId)
       persistSessions(updated, {
-        messageIdsBySession: { [sessionId]: removedMessageIds }
+        messageIdsBySession: { [sessionId]: removedMessageIds },
+        clearedSessions: { [sessionId]: clearedAt }
       })
       return { sessionId, allSessions: updated }
     },

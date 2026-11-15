@@ -1,4 +1,8 @@
-import { loadConfig, normalizeProvider } from '../../../../features/ai/apiChatHandlers/config.js'
+import {
+  loadConfig,
+  normalizeProvider,
+  saveConfig
+} from '../../../../features/ai/apiChatHandlers/config.js'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   encryptValue: vi.fn((value: string) => `encrypted:${value}`),
   readFile: vi.fn(),
   writeFile: vi.fn(),
-  mkdir: vi.fn()
+  mkdir: vi.fn(),
+  rename: vi.fn(),
+  unlink: vi.fn()
 }))
 
 vi.mock('../../../../core/encryption.js', () => ({
@@ -25,6 +31,8 @@ vi.mock('fs', () => ({
       readFile: mocks.readFile,
       writeFile: mocks.writeFile,
       mkdir: mocks.mkdir,
+      rename: mocks.rename,
+      unlink: mocks.unlink,
       copyFile: vi.fn()
     }
   }
@@ -118,5 +126,68 @@ describe('loadConfig provider migration', () => {
       expect(provider.apiKey).toBe('decrypted:k')
     }
     expect(config.selectedProviderId).toBe('legacy-endpoints')
+  })
+})
+
+describe('saveConfig atomic write', () => {
+  const config = {
+    providers: [baseProvider],
+    generalPrompt: 'g',
+    memoryPrompt: 'm',
+    characterPrompt: 'c',
+    selectedProviderId: 'p1',
+    selectedModel: 'llama3'
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.mkdir.mockResolvedValue(undefined)
+    mocks.writeFile.mockResolvedValue(undefined)
+    mocks.rename.mockResolvedValue(undefined)
+    mocks.unlink.mockResolvedValue(undefined)
+  })
+
+  it('writes a temporary file and renames it over the config', async () => {
+    await expect(saveConfig(config)).resolves.toBe(true)
+
+    expect(mocks.writeFile).toHaveBeenCalledWith(
+      '/tmp/api_chat_config.json.tmp',
+      expect.any(String),
+      { mode: 0o600 }
+    )
+    expect(mocks.rename).toHaveBeenCalledWith(
+      '/tmp/api_chat_config.json.tmp',
+      '/tmp/api_chat_config.json'
+    )
+  })
+
+  it('does not replace the valid config when the temporary write fails', async () => {
+    mocks.writeFile.mockRejectedValueOnce(new Error('disk full'))
+
+    await expect(saveConfig(config)).resolves.toBe(false)
+
+    expect(mocks.rename).not.toHaveBeenCalled()
+    expect(mocks.unlink).toHaveBeenCalledWith('/tmp/api_chat_config.json.tmp')
+  })
+
+  it('serialises two overlapping saves so the temporary file stays whole', async () => {
+    let releaseFirst!: () => void
+    mocks.writeFile.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirst = resolve
+        })
+    )
+
+    const first = saveConfig(config)
+    await Promise.resolve()
+    const second = saveConfig({ ...config, generalPrompt: 'second' })
+    await Promise.resolve()
+
+    expect(mocks.writeFile).toHaveBeenCalledTimes(1)
+
+    releaseFirst()
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true])
+    expect(mocks.rename).toHaveBeenCalledTimes(2)
   })
 })

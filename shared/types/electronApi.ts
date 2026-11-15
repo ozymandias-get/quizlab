@@ -114,6 +114,14 @@ export interface ElectronApi {
   getPathForFile: (file: File) => string
   /** Explorer sağ-tık ile açılan PDF yolu için dinleyici (Windows). */
   onShellOpenPdf: (callback: (filePath: string) => void) => () => void
+  /**
+   * Tells the main process that the listener above is mounted.
+   *
+   * The main process cannot know when React finished mounting, and a path sent
+   * before that has no receiver. The handshake replaces the fixed delay as the
+   * real readiness signal.
+   */
+  notifyShellPdfReady: () => void
   shellIntegration: {
     getStatus: () => Promise<{
       supported: boolean

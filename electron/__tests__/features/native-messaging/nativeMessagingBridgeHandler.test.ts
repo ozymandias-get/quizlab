@@ -50,6 +50,7 @@ function createManager() {
     getSelectedProfileId: (): string | null => PROFILE_ID,
     getSelectionVersion: () => 4,
     isSelectionChanging: () => false,
+    markExtensionReachable: vi.fn(),
     markExtensionSeen: vi.fn(),
     markExtensionPaired: vi.fn()
   }
@@ -184,7 +185,7 @@ describe('the bridge of the site session', () => {
     expect(recordOversizedSiteSessionPacket).not.toHaveBeenCalled()
   })
 
-  it('marks an unsigned request as seen but never as paired', async () => {
+  it('never registers a profile for an unsigned request', async () => {
     const body = JSON.stringify({
       targetId: 'chatgpt',
       status: 'ok',
@@ -194,11 +195,40 @@ describe('the bridge of the site session', () => {
     const response = await post(body, 'a'.repeat(64))
 
     expect(response.status).toBe(401)
-    // The request proves the extension is present; only the signature may
-    // prove that it is the paired extension and ready to import.
-    expect(manager.markExtensionSeen).toHaveBeenCalled()
+    // The Origin header is forgeable; liveness may be updated, but only a
+    // signed request may add a profile the settings page offers as a source.
+    expect(manager.markExtensionReachable).toHaveBeenCalled()
+    expect(manager.markExtensionSeen).not.toHaveBeenCalled()
     expect(manager.markExtensionPaired).not.toHaveBeenCalled()
     expect(acceptPacket).not.toHaveBeenCalled()
+  })
+
+  it('registers the profile only after a valid signature', async () => {
+    const body = JSON.stringify({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com' }]
+    })
+
+    const response = await post(body)
+
+    expect(response.status).toBe(200)
+    expect(manager.markExtensionSeen).toHaveBeenCalledWith(PROFILE_ID, 'Test Chrome')
+    expect(manager.markExtensionPaired).toHaveBeenCalled()
+  })
+
+  it('does not register a profile from an unsigned health request', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+      headers: {
+        Origin: EXTENSION_ORIGIN,
+        'x-quizlab-profile-id': 'forged-profile-1234',
+        'x-quizlab-profile-name': 'Forged'
+      }
+    })
+
+    expect(response.status).toBe(200)
+    expect(manager.markExtensionReachable).toHaveBeenCalled()
+    expect(manager.markExtensionSeen).not.toHaveBeenCalled()
   })
 
   it('refuses a valid packet from a Chrome profile the user did not select', async () => {

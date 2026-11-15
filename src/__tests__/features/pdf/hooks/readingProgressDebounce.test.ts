@@ -52,6 +52,33 @@ describe('reading progress debounce', () => {
     expect(info.find((entry) => entry.path === '/b.pdf')?.page).toBe(11)
   })
 
+  it('does not reset a stored page when the document is opened again', () => {
+    const { result } = renderHook(() => useReadingProgressPersistence())
+
+    act(() => {
+      result.current.updateReadingProgress({ path: '/a.pdf', page: 150, totalPages: 300 })
+    })
+    act(() => {
+      result.current.recordPdfOpened({ path: '/a.pdf', name: 'a.pdf' })
+    })
+
+    expect(
+      result.current.getRecentReadingInfo().find((entry) => entry.path === '/a.pdf')?.page
+    ).toBe(150)
+  })
+
+  it('starts a document with no history on the first page', () => {
+    const { result } = renderHook(() => useReadingProgressPersistence())
+
+    act(() => {
+      result.current.recordPdfOpened({ path: '/new.pdf', name: 'new.pdf' })
+    })
+
+    expect(
+      result.current.getRecentReadingInfo().find((entry) => entry.path === '/new.pdf')
+    ).toMatchObject({ page: 1, totalPages: 0 })
+  })
+
   it('tells the user when the reading history could not be written', () => {
     const showWarning = vi.spyOn(useToastStore.getState(), 'showWarning')
     localStorageMock.setItem.mockImplementationOnce(() => {

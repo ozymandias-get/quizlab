@@ -42,6 +42,8 @@ const mockFsMkdir = vi.hoisted(() => vi.fn())
 const mockFsWriteFile = vi.hoisted(() => vi.fn())
 const mockFsReadFile = vi.hoisted(() => vi.fn())
 const mockFsRename = vi.hoisted(() => vi.fn())
+const mockFsLink = vi.hoisted(() => vi.fn())
+const mockFsUnlink = vi.hoisted(() => vi.fn())
 
 const mockCryptoRandomBytes = vi.hoisted(() => vi.fn(() => Buffer.alloc(32, 0xab)))
 
@@ -56,14 +58,18 @@ vi.mock('fs', () => ({
       mkdir: mockFsMkdir,
       writeFile: mockFsWriteFile,
       readFile: mockFsReadFile,
-      rename: mockFsRename
+      rename: mockFsRename,
+      link: mockFsLink,
+      unlink: mockFsUnlink
     }
   },
   promises: {
     mkdir: mockFsMkdir,
     writeFile: mockFsWriteFile,
     readFile: mockFsReadFile,
-    rename: mockFsRename
+    rename: mockFsRename,
+    link: mockFsLink,
+    unlink: mockFsUnlink
   }
 }))
 
@@ -108,6 +114,8 @@ describe('NativeMessagingManager', () => {
     mockFsWriteFile.mockReset()
     mockFsReadFile.mockReset()
     mockFsRename.mockReset()
+    mockFsLink.mockReset()
+    mockFsUnlink.mockReset()
     mockCryptoRandomBytes.mockReset()
     mockServerListen.mockReset()
     mockServerOn.mockReset()
@@ -119,8 +127,11 @@ describe('NativeMessagingManager', () => {
     mockFsMkdir.mockResolvedValue(undefined)
     mockFsWriteFile.mockResolvedValue(undefined)
     mockFsRename.mockResolvedValue(undefined)
-    // A missing secret file: the manager generates one.
-    mockFsReadFile.mockRejectedValue(new Error('ENOENT'))
+    mockFsLink.mockResolvedValue(undefined)
+    mockFsUnlink.mockResolvedValue(undefined)
+    // Missing marker/secret files: the manager claims the folder and
+    // generates a secret.
+    mockFsReadFile.mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
 
     const mod = await import('../../../features/native-messaging/nativeMessagingManager.js')
     manager = mod.nativeMessagingManager
@@ -193,7 +204,15 @@ describe('NativeMessagingManager', () => {
 
     it('reuses a persisted secret', async () => {
       const persisted = 'a'.repeat(64)
-      mockFsReadFile.mockResolvedValue(JSON.stringify({ secret: persisted }))
+      mockFsReadFile.mockImplementation(async (filePath: string) => {
+        if (String(filePath).endsWith('bridge-environment.json')) {
+          return JSON.stringify({ environment: 'prod' })
+        }
+        if (String(filePath).endsWith('bridge-secret.json')) {
+          return JSON.stringify({ secret: persisted })
+        }
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
 
       await manager.initialize()
 
@@ -291,6 +310,14 @@ describe('NativeMessagingManager', () => {
       expect(info.status).toBe('connecting')
       expect(info.paired).toBe(false)
       expect(info.profiles[0]).toMatchObject({ connected: true, paired: false })
+    })
+
+    it('does not create a profile from an unsigned health/liveness signal', () => {
+      // A local process can forge the extension Origin. Liveness may be
+      // recorded, but the profile list must stay empty until a signed request.
+      manager.markExtensionReachable('forged-profile-1234')
+
+      expect(manager.getExtensionInfo().profiles).toEqual([])
     })
   })
 

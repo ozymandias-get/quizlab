@@ -105,6 +105,14 @@ interface SiteSessionRoundMetadata {
    * enough to collapse the burst without accepting an old catalogue for long.
    */
   catalogueCheckedAt?: number
+  /**
+   * Set once a packet proved this round obsolete.
+   *
+   * The check is cached for a burst, but a negative result must never be
+   * cached: without this flag the next packet of the same burst skipped the
+   * comparison and was accepted against the stale target list.
+   */
+  invalidated?: boolean
 }
 
 /** How long a catalogue comparison stays valid inside one round. */
@@ -452,6 +460,11 @@ async function handleSiteSessionPacket(
   // an obsolete catalogue, even when its target still exists.
   const round = environment?.round
   if (round) {
+    if (round.invalidated) {
+      Logger.warn('[SiteSessionBridge] Refused a packet from an already obsolete round.')
+      return { accepted: false, reason: 'stale_round' }
+    }
+
     const now = Date.now()
     const age = now - round.openedAt
     const versionChanged = state.configVersion !== round.configVersion
@@ -464,10 +477,14 @@ async function handleSiteSessionPacket(
     const lastCheckedAt = round.catalogueCheckedAt
     if (lastCheckedAt === undefined || now - lastCheckedAt >= SITE_SESSION_CATALOGUE_CACHE_MS) {
       const currentTargets = await loadTargets()
-      round.catalogueCheckedAt = now
       catalogueChanged = siteSessionTargetsFingerprint(currentTargets) !== round.targetsFingerprint
+      // Only a positive result may be cached. Caching "changed" let the next
+      // packet inside the window skip the comparison and be accepted against
+      // the obsolete list.
+      if (!catalogueChanged) round.catalogueCheckedAt = now
     }
     if (age > SITE_SESSION_ROUND_MAX_AGE_MS || versionChanged || catalogueChanged) {
+      round.invalidated = true
       Logger.warn(
         `[SiteSessionBridge] Refused a packet from an obsolete round ` +
           `(age ${age}ms, version ${round.configVersion} -> ${state.configVersion}, ` +

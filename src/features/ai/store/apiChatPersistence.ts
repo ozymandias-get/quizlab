@@ -17,11 +17,22 @@ import {
   notifyIndexedDbSessionsChanged,
   readSessionsFromIndexedDb,
   subscribeToIndexedDbSessionChanges,
-  writeSessionsToIndexedDb
+  updateSessionsInIndexedDb
 } from './apiChatIndexedDb'
 import type { ChatSession } from './apiChatSessionUtils'
 
 export const LOCAL_STORAGE_KEY = 'quizlab_api_chat_sessions_v2'
+/**
+ * Durable tombstones of user deletions.
+ *
+ * The in-memory marks only cover the debounce window of the window that made
+ * the deletion. Another open window still holds the old transcript, and its
+ * next save runs in its own module instance where those marks do not exist.
+ * The ledger is the small piece of shared state that tells that save what the
+ * user removed.
+ */
+const DELETIONS_STORAGE_KEY = 'quizlab_api_chat_deletions_v1'
+const DELETION_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 const SESSION_SAVE_DEBOUNCE_MS = 300
 
 /**
@@ -35,6 +46,77 @@ const SESSION_SAVE_DEBOUNCE_MS = 300
 export interface SessionDeletionMarks {
   sessionIds?: readonly string[]
   messageIdsBySession?: Readonly<Record<string, readonly string[]>>
+  /**
+   * Sessions whose transcript the user cleared, with the clear time.
+   *
+   * This is not the same thing as an empty session. A window that loaded an
+   * empty transcript before another window appended to it must not wipe those
+   * new messages; only an explicit clear may remove the older ones.
+   */
+  clearedSessions?: Readonly<Record<string, number>>
+}
+
+interface StoredDeletionLedger {
+  sessions: Record<string, number>
+  messages: Record<string, Record<string, number>>
+  cleared: Record<string, number>
+}
+
+function emptyDeletionLedger(): StoredDeletionLedger {
+  return { sessions: {}, messages: {}, cleared: {} }
+}
+
+function isTimestamp(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+function readDeletionLedger(): StoredDeletionLedger {
+  const raw = getStorageItem(DELETIONS_STORAGE_KEY)
+  if (!raw) return emptyDeletionLedger()
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return emptyDeletionLedger()
+    const source = parsed as Record<string, unknown>
+    const ledger = emptyDeletionLedger()
+    const now = Date.now()
+
+    if (typeof source.sessions === 'object' && source.sessions !== null) {
+      for (const [id, at] of Object.entries(source.sessions as Record<string, unknown>)) {
+        if (id && isTimestamp(at) && now - at <= DELETION_RETENTION_MS) {
+          ledger.sessions[id] = at
+        }
+      }
+    }
+    if (typeof source.cleared === 'object' && source.cleared !== null) {
+      for (const [id, at] of Object.entries(source.cleared as Record<string, unknown>)) {
+        if (id && isTimestamp(at) && now - at <= DELETION_RETENTION_MS) {
+          ledger.cleared[id] = at
+        }
+      }
+    }
+    if (typeof source.messages === 'object' && source.messages !== null) {
+      for (const [sessionId, ids] of Object.entries(source.messages as Record<string, unknown>)) {
+        if (!sessionId || typeof ids !== 'object' || ids === null) continue
+        const kept: Record<string, number> = {}
+        for (const [messageId, at] of Object.entries(ids as Record<string, unknown>)) {
+          if (messageId && isTimestamp(at) && now - at <= DELETION_RETENTION_MS) {
+            kept[messageId] = at
+          }
+        }
+        if (Object.keys(kept).length > 0) ledger.messages[sessionId] = kept
+      }
+    }
+    return ledger
+  } catch {
+    return emptyDeletionLedger()
+  }
+}
+
+function writeDeletionLedger(ledger: StoredDeletionLedger): void {
+  // Tombstones are a safety net, not the transcript itself: a failed write
+  // leaves the current window's in-memory marks working and is retried on the
+  // next deletion instead of interrupting the user.
+  writeStorageItem(DELETIONS_STORAGE_KEY, JSON.stringify(ledger))
 }
 
 function isChatSession(value: unknown): value is ChatSession {
@@ -157,7 +239,11 @@ function notifyStorageFailure(error: unknown): void {
 function readStoredSessions(): ChatSession[] {
   try {
     const raw = getStorageItem(LOCAL_STORAGE_KEY)
-    if (!raw) return []
+    if (!raw) {
+      lastRawData = null
+      lastParsedSessions = []
+      return []
+    }
     if (raw === lastRawData) {
       // Same reasoning as `loadSessionsFromStorage`: the cached array is
       // shared state and is never handed out directly.
@@ -186,17 +272,48 @@ function mergeSessionLists(
   storedSessions: ChatSession[],
   deletions?: SessionDeletionMarks
 ): ChatSession[] {
-  const deletedSessionIds = new Set(deletions?.sessionIds ?? [])
+  const ledger = readDeletionLedger()
+  const deletedSessionIds = new Set([
+    ...Object.keys(ledger.sessions),
+    ...(deletions?.sessionIds ?? [])
+  ])
+
   const deletedMessageIds = new Map<string, Set<string>>()
-  for (const [sessionId, ids] of Object.entries(deletions?.messageIdsBySession ?? {})) {
-    if (!sessionId || ids.length === 0) continue
-    deletedMessageIds.set(sessionId, new Set(ids))
+  const addMessageDeletions = (marks: Record<string, readonly string[]> | undefined) => {
+    for (const [sessionId, ids] of Object.entries(marks ?? {})) {
+      if (!sessionId || ids.length === 0) continue
+      const removed = deletedMessageIds.get(sessionId) ?? new Set<string>()
+      for (const id of ids) if (id) removed.add(id)
+      deletedMessageIds.set(sessionId, removed)
+    }
+  }
+  for (const [sessionId, ids] of Object.entries(ledger.messages)) {
+    addMessageDeletions({ [sessionId]: Object.keys(ids) })
+  }
+  addMessageDeletions(deletions?.messageIdsBySession)
+
+  // A clear is a point in time, not "this list happens to be empty": messages
+  // the clearing window had not seen yet are older than the clear and go away,
+  // while a message another window appends afterwards survives.
+  const clearedSessions = new Map<string, number>(Object.entries(ledger.cleared))
+  for (const [sessionId, at] of Object.entries(deletions?.clearedSessions ?? {})) {
+    if (!sessionId || !isTimestamp(at)) continue
+    const previous = clearedSessions.get(sessionId) ?? 0
+    clearedSessions.set(sessionId, Math.max(previous, at))
   }
 
   const withoutDeletedMessages = (session: ChatSession): ChatSession => {
     const removed = deletedMessageIds.get(session.id)
-    if (!removed) return session
-    const messages = session.messages.filter((message) => !removed.has(message.id))
+    const clearedAt = clearedSessions.get(session.id)
+    let messages = session.messages
+    if (removed) {
+      messages = messages.filter((message) => !removed.has(message.id))
+    }
+    if (clearedAt !== undefined) {
+      messages = messages.filter(
+        (message) => typeof message.timestamp !== 'number' || message.timestamp > clearedAt
+      )
+    }
     return messages.length === session.messages.length ? session : { ...session, messages }
   }
 
@@ -223,20 +340,15 @@ function mergeSessionLists(
       continue
     }
     // Same session edited in two tabs: union messages by id so neither
-    // tab's appended messages are lost; newer session fields win.
+    // tab's appended messages are lost; newer session fields win. An empty
+    // incoming list is not a clear — the deletion ledger above already
+    // removed what the user explicitly deleted, so an old empty snapshot
+    // cannot wipe a transcript another window has since appended to.
     const base = inc.updatedAt >= prev.updatedAt ? inc : prev
     const other = inc.updatedAt >= prev.updatedAt ? prev : inc
     const msgById = new Map(other.messages.map((m) => [m.id, m]))
     for (const m of base.messages) msgById.set(m.id, m)
-    // A clear is not an append. The union below is what stops two tabs from
-    // losing each other's appended messages, but it would also resurrect every
-    // message a clear just deleted — `updatedAt` makes the emptied copy `base`,
-    // and the union seeds from `other`. "Clear this conversation" has to mean
-    // the transcript is gone, including in storage, or it comes back on restart.
-    const messages =
-      inc.messages.length === 0 && prev.messages.length > 0
-        ? []
-        : [...msgById.values()].sort((a, b) => a.timestamp - b.timestamp)
+    const messages = [...msgById.values()].sort((a, b) => a.timestamp - b.timestamp)
     merged.push({ ...base, messages, updatedAt: Math.max(inc.updatedAt, prev.updatedAt) })
     storedById.delete(id)
   }
@@ -254,30 +366,46 @@ function mergeSessionsWithStored(
   return mergeSessionLists(incomingSessions, readStoredSessions(), deletions)
 }
 
+/**
+ * Merges against the store as it is inside the IndexedDB transaction.
+ *
+ * `fallbackStored` only matters when the overflow store is still empty (for
+ * example the very first quota fallback): the merge then keeps the local copy
+ * it is replacing instead of trusting one window's snapshot.
+ */
+async function writeSessionsThroughIndexedDb(
+  sessions: ChatSession[],
+  deletions: SessionDeletionMarks | undefined,
+  fallbackStored: ChatSession[]
+): Promise<boolean> {
+  const written = await updateSessionsInIndexedDb((stored) =>
+    mergeSessionLists(sessions, stored.length > 0 ? stored : fallbackStored, deletions)
+  )
+  if (written === null) return false
+  lastRawData = null
+  lastParsedSessions = written
+  storageFailureNotified = false
+  notifyIndexedDbSessionsChanged(persistenceTabId)
+  try {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
+  } catch {}
+  return true
+}
+
 async function saveSessionsToStorage(
   sessions: ChatSession[],
   deletions?: SessionDeletionMarks
 ): Promise<boolean> {
-  const merged = indexedDbAuthoritative
-    ? mergeSessionLists(sessions, [...lastParsedSessions], deletions)
-    : mergeSessionsWithStored(sessions, deletions)
-
   // Once the quota forced the sessions into IndexedDB, keep writing there.
   // Falling back to localStorage on every save would only throw again.
   if (indexedDbAuthoritative) {
-    if (await writeSessionsToIndexedDb(merged)) {
-      lastRawData = null
-      lastParsedSessions = merged
-      storageFailureNotified = false
-      notifyIndexedDbSessionsChanged(persistenceTabId)
-      try {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
-      } catch {}
+    if (await writeSessionsThroughIndexedDb(sessions, deletions, [...lastParsedSessions])) {
       return true
     }
     indexedDbAuthoritative = false
   }
 
+  const merged = mergeSessionsWithStored(sessions, deletions)
   const serialized = JSON.stringify(merged)
   // writeStorageItem keeps the raw failure cause so quota errors can be
   // reported with a dedicated message (see notifyStorageFailure).
@@ -289,7 +417,10 @@ async function saveSessionsToStorage(
     isInternalWrite = false
   }
   if (!result.ok) {
-    if (isQuotaExceededError(result.error) && (await writeSessionsToIndexedDb(merged))) {
+    if (
+      isQuotaExceededError(result.error) &&
+      (await writeSessionsThroughIndexedDb(sessions, deletions, readStoredSessions()))
+    ) {
       // The transcript is safe in IndexedDB. Removing the localStorage key is
       // what tells the next start that the local copy is gone and the
       // overflow store has to be read.
@@ -297,16 +428,9 @@ async function saveSessionsToStorage(
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEY)
       } catch {}
-      lastRawData = null
-      lastParsedSessions = merged
-      storageFailureNotified = false
       Logger.warn(
         '[ChatPersistence] localStorage quota exceeded; api chat sessions moved to IndexedDB'
       )
-      notifyIndexedDbSessionsChanged(persistenceTabId)
-      try {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AI.SESSIONS })
-      } catch {}
       return true
     }
 
@@ -390,11 +514,23 @@ const inFlightSaves = new Set<Promise<boolean>>()
  */
 const pendingDeletedSessionIds = new Set<string>()
 const pendingDeletedMessageIds = new Map<string, Set<string>>()
+const pendingClearedSessions = new Map<string, number>()
 
 function addSessionDeletionMarks(deletions?: SessionDeletionMarks): void {
   if (!deletions) return
+  const now = Date.now()
+
   for (const sessionId of deletions.sessionIds ?? []) {
-    if (sessionId) pendingDeletedSessionIds.add(sessionId)
+    if (!sessionId) continue
+    pendingDeletedSessionIds.add(sessionId)
+    // A deleted session no longer needs its message/clear tombstones.
+    pendingDeletedMessageIds.delete(sessionId)
+    pendingClearedSessions.delete(sessionId)
+  }
+  for (const [sessionId, at] of Object.entries(deletions.clearedSessions ?? {})) {
+    if (!sessionId || !isTimestamp(at)) continue
+    const previous = pendingClearedSessions.get(sessionId) ?? 0
+    pendingClearedSessions.set(sessionId, Math.max(previous, at))
   }
   for (const [sessionId, ids] of Object.entries(deletions.messageIdsBySession ?? {})) {
     if (!sessionId || ids.length === 0) continue
@@ -404,6 +540,32 @@ function addSessionDeletionMarks(deletions?: SessionDeletionMarks): void {
     }
     pendingDeletedMessageIds.set(sessionId, deleted)
   }
+
+  // Persist immediately: another window may save before this debounce fires.
+  const ledger = readDeletionLedger()
+  let changed = false
+  for (const sessionId of deletions.sessionIds ?? []) {
+    if (!sessionId) continue
+    ledger.sessions[sessionId] = now
+    delete ledger.cleared[sessionId]
+    delete ledger.messages[sessionId]
+    changed = true
+  }
+  for (const [sessionId, at] of Object.entries(deletions.clearedSessions ?? {})) {
+    if (!sessionId || !isTimestamp(at)) continue
+    ledger.cleared[sessionId] = Math.max(ledger.cleared[sessionId] ?? 0, at)
+    changed = true
+  }
+  for (const [sessionId, ids] of Object.entries(deletions.messageIdsBySession ?? {})) {
+    if (!sessionId || ids.length === 0) continue
+    const deleted = ledger.messages[sessionId] ?? {}
+    for (const messageId of ids) {
+      if (messageId) deleted[messageId] = now
+    }
+    ledger.messages[sessionId] = deleted
+    changed = true
+  }
+  if (changed) writeDeletionLedger(ledger)
 }
 
 function takeSessionDeletionMarks(): SessionDeletionMarks {
@@ -411,12 +573,18 @@ function takeSessionDeletionMarks(): SessionDeletionMarks {
   for (const [sessionId, ids] of pendingDeletedMessageIds) {
     if (ids.size > 0) messageIdsBySession[sessionId] = [...ids]
   }
+  const clearedSessions: Record<string, number> = {}
+  for (const [sessionId, at] of pendingClearedSessions) {
+    clearedSessions[sessionId] = at
+  }
   const marks: SessionDeletionMarks = {
     sessionIds: [...pendingDeletedSessionIds],
-    messageIdsBySession
+    messageIdsBySession,
+    clearedSessions
   }
   pendingDeletedSessionIds.clear()
   pendingDeletedMessageIds.clear()
+  pendingClearedSessions.clear()
   return marks
 }
 

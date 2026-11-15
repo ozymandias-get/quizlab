@@ -617,6 +617,35 @@ describe('a round of packets', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
+  it('keeps refusing packets from a round the catalogue already invalidated', async () => {
+    // The comparison is cached for a burst. A negative answer must not be
+    // cached: the next packet inside the window used to skip the check and
+    // import against the obsolete list.
+    let targets = [TARGET]
+    const round = await openSiteSessionRound({
+      config: { read, recordResult } as never,
+      loadTargets: async () => targets,
+      resolveSession: () => fakeSession as never
+    })
+
+    targets = [{ ...TARGET, cookieDomains: ['.chatgpt.com', '.openai.com', '.example.com'] }]
+
+    const first = await round.accept({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    const second = await round.accept({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'session', value: 'v2', domain: '.chatgpt.com', secure: true }]
+    })
+
+    expect(first).toMatchObject({ accepted: false, reason: 'stale_round' })
+    expect(second).toMatchObject({ accepted: false, reason: 'stale_round' })
+    expect(set).not.toHaveBeenCalled()
+  })
+
   it('refuses a packet from a round opened before the configuration changed', async () => {
     read.mockResolvedValue(stateWith(true, 3))
     const round = await openSiteSessionRound({

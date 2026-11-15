@@ -1,7 +1,9 @@
-import { type BrowserWindow } from 'electron'
+import { type BrowserWindow, dialog } from 'electron'
 
 import { APP_CONFIG } from './constants.js'
 import { confirmQuitWithPendingWrites } from './quitConfirmation.js'
+import { waitForQuitFlush } from './quitFlushGate.js'
+import { isReloadShortcut } from './reloadShortcut.js'
 import {
   DEV_SERVER_URL,
   isDev,
@@ -67,6 +69,45 @@ export async function createWindow() {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
     })
   })
+  // A keyboard reload must use the same flush handshake as a close. The
+  // renderer's beforeunload cannot await an IndexedDB transaction, and a
+  // reload aborts one that is still in flight (verified against Electron).
+  const reloadWindow = mainWindow
+  let reloadFlushInProgress = false
+  reloadWindow.webContents.on('before-input-event', (event, input) => {
+    if (!isReloadShortcut(input)) return
+    // Own the shortcut even when a flush is already running: the default
+    // action would tear the renderer down before the write finishes.
+    event.preventDefault()
+    if (reloadFlushInProgress) return
+    reloadFlushInProgress = true
+    const ignoreCache = input.shift === true
+
+    void (async () => {
+      const saved = await waitForQuitFlush(reloadWindow)
+      reloadFlushInProgress = false
+      if (reloadWindow.isDestroyed()) return
+
+      if (!saved) {
+        const { response } = await dialog.showMessageBox(reloadWindow, {
+          type: 'warning',
+          buttons: ['Cancel', 'Reload without saving'],
+          defaultId: 0,
+          cancelId: 0,
+          message: 'Some chat changes could not be saved.',
+          detail:
+            'Reloading now would lose the latest changes. Cancel and try again, or reload without them?'
+        })
+        if (response !== 1 || reloadWindow.isDestroyed()) return
+      }
+
+      if (ignoreCache) reloadWindow.webContents.reloadIgnoringCache()
+      else reloadWindow.webContents.reload()
+    })().catch(() => {
+      reloadFlushInProgress = false
+    })
+  })
+
   mainWindow.on('closed', () => {
     clearRevealTimer()
     mainWindow = null

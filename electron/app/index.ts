@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 
@@ -40,6 +40,10 @@ app.commandLine.appendSwitch('enable-features', 'CanvasOopRasterization')
 /** Pencere henüz hazır değilken gelen sağ-tık PDF yolları. */
 const pendingShellPdfPaths: string[] = []
 let shellRendererReady = false
+/** Set when the renderer signals readiness before the window was armed. */
+let shellReadySignalReceived = false
+/** The flush callback of the currently armed window. */
+let shellReadyFlush: (() => void) | null = null
 
 function deliverShellPdfPaths(filePaths: string[]) {
   if (filePaths.length === 0) return
@@ -49,7 +53,10 @@ function deliverShellPdfPaths(filePaths: string[]) {
     mainWindow &&
     !mainWindow.isDestroyed() &&
     mainWindow.webContents &&
-    !mainWindow.webContents.isDestroyed()
+    !mainWindow.webContents.isDestroyed() &&
+    // A reload keeps the old readiness flag for a moment; the new document has
+    // no listener yet, so queue instead of sending into the navigation.
+    !mainWindow.webContents.isLoadingMainFrame()
   ) {
     // Uygulama zaten açıkken: her PDF yeni sekmede açılır (renderer tarafı),
     // pencere öne getirilir.
@@ -101,15 +108,42 @@ function armShellPdfDelivery(window: BrowserWindow | null): void {
     shellRendererReady = true
     flushPendingShellPdfPaths()
   }
+  shellReadyFlush = flush
 
-  // `did-finish-load` is not enough: the renderer subscribes to the channel
-  // only after two settings IPC calls and the AI-registry gate. Delivering at
-  // load would drop the first-launch file because nobody is listening yet.
-  // The short delay gives React time to mount the subscription; it is also the
-  // fallback for a renderer that never becomes ready.
-  fallbackTimer = setTimeout(flush, 3000)
+  const armFallback = () => {
+    if (fallbackTimer) clearTimeout(fallbackTimer)
+    fallbackTimer = setTimeout(flush, 3000)
+  }
+
+  // A full reload destroys the document that owned the listener; its paths
+  // must wait for the next document's ready signal instead of being sent into
+  // the navigation. The fallback belongs to a document, so it is restarted
+  // when the next one finishes loading.
+  window.webContents.on('did-start-loading', () => {
+    shellRendererReady = false
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer)
+      fallbackTimer = null
+    }
+  })
+  window.webContents.on('did-finish-load', () => {
+    if (!shellRendererReady) armFallback()
+  })
+
+  // The renderer sends the ready signal from the effect that installs the
+  // listener, so this is the real guarantee. The timer is only a fallback for
+  // a renderer that never signals; it is no longer the first-delivery path.
+  if (shellReadySignalReceived) {
+    shellReadySignalReceived = false
+    flush()
+  } else {
+    armFallback()
+  }
+
   window.once('closed', () => {
     shellRendererReady = false
+    shellReadySignalReceived = false
+    if (shellReadyFlush === flush) shellReadyFlush = null
     if (fallbackTimer) {
       clearTimeout(fallbackTimer)
       fallbackTimer = null
@@ -119,6 +153,21 @@ function armShellPdfDelivery(window: BrowserWindow | null): void {
     void resetClipboardSnapshots()
   })
 }
+
+// The renderer's subscription is the readiness boundary. A sender other than
+// the current main window is ignored so a managed view cannot mark the shell
+// listener ready on the window's behalf.
+ipcMain.on(APP_CONFIG.IPC_CHANNELS.SHELL_PDF_READY, (event) => {
+  const mainWindow = getMainWindow()
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
+    return
+  }
+  if (shellReadyFlush) {
+    shellReadyFlush()
+  } else {
+    shellReadySignalReceived = true
+  }
+})
 
 if (getProfileName() === 'stable') {
   const gotTheLock = app.requestSingleInstanceLock()

@@ -27,6 +27,7 @@ export function usePdfSelection() {
     getRecentReadingInfo,
     updateReadingProgress,
     upsertLastReadingInfo,
+    recordPdfOpened,
     flushPendingReadingProgress,
     clearLastReading,
     restoreRecentReading
@@ -35,6 +36,7 @@ export function usePdfSelection() {
   const { handleSelectPdf, handlePdfDrop, resumeLastPdf } = usePdfOpenActions({
     openPdfInTab,
     upsertLastReadingInfo,
+    recordPdfOpened,
     flushPendingReadingProgress,
     recentReadingInfoRef
   })
@@ -93,6 +95,7 @@ export function usePdfSelection() {
       activeTabInitialPage,
       openPdfInTab,
       upsertLastReadingInfo,
+      recordPdfOpened,
       goToPdfHome,
       recentReadingInfo
     }),
@@ -117,6 +120,7 @@ export function usePdfSelection() {
       activeTabInitialPage,
       openPdfInTab,
       upsertLastReadingInfo,
+      recordPdfOpened,
       goToPdfHome,
       recentReadingInfo
     ]

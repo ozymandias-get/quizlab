@@ -23,14 +23,14 @@ vi.stubGlobal('localStorage', {
 })
 
 const indexedDb = vi.hoisted(() => ({
-  write: vi.fn(),
+  update: vi.fn(),
   read: vi.fn(async () => null),
   notify: vi.fn(),
   subscribe: vi.fn(() => () => undefined)
 }))
 
 vi.mock('@features/ai/store/apiChatIndexedDb', () => ({
-  writeSessionsToIndexedDb: indexedDb.write,
+  updateSessionsInIndexedDb: indexedDb.update,
   readSessionsFromIndexedDb: indexedDb.read,
   notifyIndexedDbSessionsChanged: indexedDb.notify,
   subscribeToIndexedDbSessionChanges: indexedDb.subscribe
@@ -49,21 +49,21 @@ describe('flushing sessions on shutdown', () => {
     vi.useFakeTimers()
     storage.values.clear()
     storage.quotaExceeded = true
-    indexedDb.write.mockReset()
+    indexedDb.update.mockReset()
   })
 
   it('waits for a save that a previous timer already started', async () => {
-    let release!: (value: boolean) => void
-    indexedDb.write.mockImplementation(
+    let release!: (value: (typeof SESSION)[]) => void
+    indexedDb.update.mockImplementation(
       () =>
-        new Promise<boolean>((resolve) => {
+        new Promise<(typeof SESSION)[]>((resolve) => {
           release = resolve
         })
     )
 
     scheduleSaveSessions([SESSION])
     await vi.advanceTimersByTimeAsync(300)
-    expect(indexedDb.write).toHaveBeenCalledTimes(1)
+    expect(indexedDb.update).toHaveBeenCalledTimes(1)
 
     let settled = false
     const flush = flushPendingSessions().then((saved) => {
@@ -75,16 +75,40 @@ describe('flushing sessions on shutdown', () => {
     // The debounce slot is empty, but the IndexedDB write is still running.
     expect(settled).toBe(false)
 
-    release(true)
+    release([SESSION])
     await expect(flush).resolves.toBe(true)
   })
 
   it('reports a failed write instead of a clean shutdown', async () => {
-    indexedDb.write.mockResolvedValue(false)
+    indexedDb.update.mockResolvedValue(null)
 
     scheduleSaveSessions([SESSION])
     vi.advanceTimersByTime(300)
     // The save has started (it awaits IndexedDB) but has not finished yet.
     await expect(flushPendingSessions()).resolves.toBe(false)
+  })
+
+  it('merges against the store inside the IndexedDB transaction', async () => {
+    // The old write cleared the store and put this window's snapshot. That
+    // snapshot predates a session another window wrote, so the transaction
+    // callback has to receive that stored session and merge it, not replace it.
+    const otherWindowSession = {
+      id: 's2',
+      title: 's2',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 2
+    } as unknown as ChatSession
+    let stored: ChatSession[] = [otherWindowSession]
+    indexedDb.update.mockImplementation(async (merge: (stored: ChatSession[]) => ChatSession[]) => {
+      stored = merge(stored)
+      return stored
+    })
+
+    scheduleSaveSessions([SESSION])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPendingSessions()
+
+    expect(stored.map((session) => session.id).sort()).toEqual(['s1', 's2'])
   })
 })

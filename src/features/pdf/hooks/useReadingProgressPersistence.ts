@@ -2,6 +2,7 @@ import { useToastStore } from '@shared/stores/toastStore'
 
 import { create } from 'zustand'
 
+import { isSamePdfPath } from '../lib/pdfPathIdentity'
 import {
   MAX_RECENT_PDFS,
   migrateReadingHistory,
@@ -151,6 +152,38 @@ const upsertLastReadingInfo = (info: LastReadingInfo): void => {
   persistRecentReadingInfo(upsertRecentHistory(current, info))
 }
 
+/**
+ * Records that a PDF was opened without resetting a known reading position.
+ *
+ * Reopening a document from the picker, a drop or Explorer used to write the
+ * default page 1 over the stored position, so the next resume started at the
+ * first page even though the user had left the document at page 150. Opening
+ * is not navigation: only a document with no usable entry gets the default.
+ * An explicit page change still goes through `updateReadingProgress`.
+ */
+const recordPdfOpened = (info: { name: string; path: string; lastOpenedAt?: number }): void => {
+  const current = useReadingProgressStore.getState().recentReadingInfo
+  const existing = current.find((entry) => isSamePdfPath(entry.path, info.path))
+  const nextInfo: LastReadingInfo = existing
+    ? {
+        ...existing,
+        // Keep the position, but adopt the path spelling the viewer will use:
+        // the tab and the history entry have to resolve to the same key when
+        // the document is opened from a different surface.
+        path: info.path,
+        name: info.name || existing.name,
+        lastOpenedAt: info.lastOpenedAt ?? Date.now()
+      }
+    : {
+        name: info.name,
+        path: info.path,
+        page: 1,
+        totalPages: 0,
+        lastOpenedAt: info.lastOpenedAt ?? Date.now()
+      }
+  persistRecentReadingInfo(upsertRecentHistory(current, nextInfo))
+}
+
 const clearLastReading = (path?: string): void => {
   if (path) {
     cancelPendingForPath(path)
@@ -250,6 +283,7 @@ export const useReadingProgressPersistence = () => {
     getRecentReadingInfo,
     updateReadingProgress,
     upsertLastReadingInfo,
+    recordPdfOpened,
     flushPendingReadingProgress: flushPendingDebounce,
     clearLastReading,
     restoreRecentReading

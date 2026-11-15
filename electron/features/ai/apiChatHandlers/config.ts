@@ -109,7 +109,26 @@ async function loadConfig(): Promise<ApiConfig> {
   }
 }
 
-async function saveConfig(config: ApiConfig): Promise<boolean> {
+let configWriteQueue: Promise<unknown> = Promise.resolve()
+
+/**
+ * Serialises config writes.
+ *
+ * Two IPC saves can overlap. A fixed `.tmp` path would let the second write
+ * truncate the file the first is about to rename; the queue keeps each
+ * write-rename pair whole.
+ */
+function saveConfig(config: ApiConfig): Promise<boolean> {
+  const write = configWriteQueue.then(
+    () => saveConfigNow(config),
+    () => saveConfigNow(config)
+  )
+  configWriteQueue = write.catch(() => undefined)
+  return write
+}
+
+async function saveConfigNow(config: ApiConfig): Promise<boolean> {
+  let temporaryPath: string | null = null
   try {
     const encryptedProviders: ApiProviderConfig[] = config.providers.map((p) => ({
       ...p,
@@ -127,11 +146,22 @@ async function saveConfig(config: ApiConfig): Promise<boolean> {
 
     const serialized = JSON.stringify(trimmedConfig, null, 2)
     await fs.promises.mkdir(path.dirname(configPath), { recursive: true })
-    await fs.promises.writeFile(configPath, serialized, { mode: 0o600 })
+
+    // Write next to the target and rename over it. A crash or a full disk in
+    // the middle of the write leaves the previous, valid config in place
+    // instead of a truncated file that loadConfig would read as an empty
+    // provider list. The rename is atomic on the same volume.
+    temporaryPath = `${configPath}.tmp`
+    await fs.promises.writeFile(temporaryPath, serialized, { mode: 0o600 })
+    await fs.promises.rename(temporaryPath, configPath)
+
     cachedRawContent = null
     cachedDecodedConfig = null
     return true
   } catch {
+    if (temporaryPath) {
+      await fs.promises.unlink(temporaryPath).catch(() => {})
+    }
     return false
   }
 }

@@ -37,6 +37,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
     recentReadingInfo,
     updateReadingProgress,
     upsertLastReadingInfo,
+    recordPdfOpened,
     flushPendingReadingProgress,
     clearLastReading,
     restoreRecentReading,
@@ -46,6 +47,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
   const { handleSelectPdf, resumeLastPdf } = usePdfOpenActions({
     openPdfInTab: usePdfTabStore((s) => s.openPdfInTab),
     upsertLastReadingInfo,
+    recordPdfOpened,
     flushPendingReadingProgress,
     recentReadingInfoRef
   })

@@ -70,20 +70,35 @@ describe('saveSessionsToStorage merge', () => {
 
   it('keeps a cleared transcript cleared', () => {
     // The merge unions messages by id so two tabs cannot lose each other's
-    // appended messages. A clear is not an append: the emptied copy is the
-    // newer one, so the union would seed from the stored transcript and put
-    // every message back — on screen it stayed empty (the query cache holds
-    // `[]`) but the next save wrote them to disk and the clear was undone on
-    // the next launch.
+    // appended messages. A clear is not an append: the app marks the clear
+    // explicitly, and the union must not put the messages back.
     localStorage.setItem(
       LOCAL_STORAGE_KEY,
       JSON.stringify([session('s1', [message('m1', 1), message('m2', 2)], 100)])
     )
 
-    scheduleSaveSessions([session('s1', [], 200)])
+    scheduleSaveSessions([session('s1', [], 200)], {
+      messageIdsBySession: { s1: ['m1', 'm2'] },
+      clearedSessions: { s1: 200 }
+    })
     vi.advanceTimersByTime(1000)
 
     expect(loadSessionsFromStorage()[0].messages).toEqual([])
+  })
+
+  it('does not let a stale empty snapshot wipe messages added by another window', () => {
+    // Window A loaded the empty transcript first; window B appended m2 after
+    // that. A's next save still carries the old, empty list. Emptiness is not
+    // a clear, so B's message has to survive.
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [message('m2', 2)], 200)])
+    )
+
+    scheduleSaveSessions([session('s1', [], 100)])
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage()[0].messages.map((m) => m.id)).toEqual(['m2'])
   })
 
   it('does not resurrect a session the user deleted', () => {
@@ -112,6 +127,44 @@ describe('saveSessionsToStorage merge', () => {
     vi.advanceTimersByTime(1000)
 
     expect(loadSessionsFromStorage()[0].messages.map((m) => m.id)).toEqual(['m1'])
+  })
+
+  it('does not let a stale window resurrect a deleted message', () => {
+    // Window A deletes m2. Window B still holds the old transcript and appends
+    // m3 afterwards. B's save has no in-memory mark of A's deletion, so the
+    // durable tombstone has to remove m2 while keeping the new m3.
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [message('m1', 1), message('m2', 2)], 100)])
+    )
+
+    scheduleSaveSessions([session('s1', [message('m1', 1)], 200)], {
+      messageIdsBySession: { s1: ['m2'] }
+    })
+    vi.advanceTimersByTime(1000)
+
+    scheduleSaveSessions([
+      session('s1', [message('m1', 1), message('m2', 2), message('m3', 3)], 300)
+    ])
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage()[0].messages.map((m) => m.id)).toEqual(['m1', 'm3'])
+  })
+
+  it('does not let a stale window resurrect a deleted session', () => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [], 100), session('s2', [message('m1', 1)], 100)])
+    )
+
+    scheduleSaveSessions([session('s1', [], 200)], { sessionIds: ['s2'] })
+    vi.advanceTimersByTime(1000)
+
+    // The other window has not refreshed yet and still saves both sessions.
+    scheduleSaveSessions([session('s1', [], 300), session('s2', [message('m1', 1)], 300)])
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['s1'])
   })
 
   it('keeps only the new session after clear-all', () => {

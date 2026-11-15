@@ -18,7 +18,7 @@ import { useReadingProgressPersistence } from './useReadingProgressPersistence'
 export function useShellOpenPdf(): void {
   const { t } = useTranslation()
   const { showError, showSuccess } = useToastActions()
-  const { upsertLastReadingInfo } = useReadingProgressPersistence()
+  const { recordPdfOpened } = useReadingProgressPersistence()
   const openingRef = useRef<Set<string>>(new Set())
   // A second Explorer request for the same path arrives while the first is
   // still registering. It is not opened twice, but it must bring the finished
@@ -50,11 +50,11 @@ export function useShellOpenPdf(): void {
           }
           usePdfTabStore.getState().openPdfInTab(result)
           if (result.path && result.name) {
-            upsertLastReadingInfo({
+            // Keep the stored page: opening from Explorer is not a navigation
+            // back to page one.
+            recordPdfOpened({
               name: result.name,
               path: result.path,
-              page: 1,
-              totalPages: 0,
               lastOpenedAt: Date.now()
             })
           }
@@ -78,6 +78,9 @@ export function useShellOpenPdf(): void {
       })()
     })
 
+    // Main queues Explorer paths until this listener exists; a fixed delay is
+    // only the fallback for a renderer that never sends this signal.
+    api.notifyShellPdfReady?.()
     return unsubscribe
-  }, [showError, showSuccess, t, upsertLastReadingInfo])
+  }, [showError, showSuccess, t, recordPdfOpened])
 }
