@@ -17,6 +17,7 @@ import { Logger } from '../../core/logger.js'
 import { CHROME_USER_AGENT } from '../ai/aiManager.js'
 import { boundsEqual, isUsableBounds, parseBounds, parseViewId } from './aiViewContract.js'
 import { type AiViewLoadStateChange, bridgeWebContentsEvents } from './aiViewEventBridge.js'
+import { installChatGptShortcutGuard, isChatGptViewPartition } from './aiViewKeyboardGuard.js'
 import {
   type AiViewTarget,
   isUrlTrustedForTarget,
@@ -78,6 +79,13 @@ interface ManagedAiView {
   /** Token of the host placeholder currently allowed to move this view. */
   hostToken: string | null
   disposeBridge: () => void
+  /**
+   * Removes the provider shortcut guard from this view's `WebContents`.
+   *
+   * Bound per view rather than globally: the guard belongs to the guest that
+   * has focus, and the next attachment creates a new `WebContents`.
+   */
+  disposeKeyboardGuard: () => void
 }
 
 const views = new Map<string, ManagedAiView>()
@@ -305,7 +313,8 @@ function attachResolved(
     appliedBorderRadius: null,
     radiusFailureLogged: null,
     hostToken: null,
-    disposeBridge: () => {}
+    disposeBridge: () => {},
+    disposeKeyboardGuard: () => {}
   }
 
   const disposeBridge = bridgeWebContentsEvents({
@@ -324,6 +333,13 @@ function attachResolved(
 
   applyUserAgent(webContents)
   applyRemoteContentSecurity({ webContents, partition: target.partition })
+  // ChatGPT's sidebar toggle is the one guest binding that collides with a
+  // QuizLab shortcut. Only that provider gets a guard; every other site keeps
+  // its own keyboard behaviour. The PDF screenshot accelerator is untouched:
+  // it lives on the PDF context menu in the main renderer, not in a guest view.
+  if (isChatGptViewPartition(target.partition)) {
+    entry.disposeKeyboardGuard = installChatGptShortcutGuard(webContents)
+  }
 
   views.set(viewId, entry)
   window.contentView.addChildView(view)
@@ -331,6 +347,7 @@ function attachResolved(
   view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
 
   webContents.once('destroyed', () => {
+    entry.disposeKeyboardGuard()
     const current = views.get(viewId)
     if (current && current.generation === generation) views.delete(viewId)
   })
@@ -423,6 +440,12 @@ function destroyEntry(viewId: string): boolean {
     entry.disposeBridge()
   } catch (error) {
     Logger.warn('[AiView] Failed to detach listeners:', error)
+  }
+
+  try {
+    entry.disposeKeyboardGuard()
+  } catch (error) {
+    Logger.warn('[AiView] Failed to remove keyboard guard:', error)
   }
 
   const window = getMainWindow()

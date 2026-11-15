@@ -1202,6 +1202,107 @@ describe('AiWebContentsViewManager - state snapshot', () => {
   })
 })
 
+describe('AiWebContentsViewManager - provider keyboard guard', () => {
+  type GuardListener = (event: { preventDefault: () => void }, input: unknown) => void
+
+  const contentsOf = (viewId: string) =>
+    manager.getManagedAiView(viewId)!.webContents as unknown as FakeWebContents
+
+  const guardListeners = (viewId: string) =>
+    contentsOf(viewId).listeners.get('before-input-event') ?? new Set<GuardListener>()
+
+  /** Delivers one input and reports whether the guard cancelled it. */
+  const press = (viewId: string, input: Record<string, unknown>) => {
+    const preventDefault = vi.fn()
+    for (const listener of guardListeners(viewId)) listener({ preventDefault }, input)
+    return preventDefault
+  }
+
+  const ctrlShiftS = {
+    type: 'keyDown',
+    key: 's',
+    control: true,
+    shift: true,
+    alt: false,
+    meta: false
+  }
+
+  // The guard keeps macOS's existing Cmd+Shift+S contract untouched, so on a
+  // macOS host there is deliberately nothing installed to assert here.
+  it.skipIf(process.platform === 'darwin')(
+    'installs one guard on the ChatGPT view and none on other providers',
+    async () => {
+      await reset()
+      await manager.attachAiView({ viewId: 'tab-chatgpt', source: CHATGPT })
+      await manager.attachAiView({ viewId: 'tab-grok', source: GROK })
+
+      expect(guardListeners('tab-chatgpt').size).toBe(1)
+      expect(guardListeners('tab-grok').size).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'darwin')(
+    'cancels Ctrl+Shift+S but leaves the composer and other chords alone',
+    async () => {
+      await reset()
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+      expect(press('tab-1', ctrlShiftS)).toHaveBeenCalledTimes(1)
+      // Copy, paste and ChatGPT's other bindings must still reach the page.
+      expect(press('tab-1', { ...ctrlShiftS, key: 'c', shift: false })).not.toHaveBeenCalled()
+      expect(press('tab-1', { ...ctrlShiftS, key: 'v', control: false })).not.toHaveBeenCalled()
+      expect(press('tab-1', { ...ctrlShiftS, key: 'p' })).not.toHaveBeenCalled()
+      expect(press('tab-1', { ...ctrlShiftS, alt: true })).not.toHaveBeenCalled()
+    }
+  )
+
+  it.skipIf(process.platform === 'darwin')(
+    'does not stack a second listener when the same view is attached again',
+    async () => {
+      await reset()
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+      expect(guardListeners('tab-1').size).toBe(1)
+    }
+  )
+
+  it.skipIf(process.platform === 'darwin')(
+    'removes the guard before the WebContents closes',
+    async () => {
+      await reset()
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+      const contents = contentsOf('tab-1')
+      let listenersAtClose = -1
+      // Record the listener count at the moment of teardown: `close()` clears the
+      // fake's listener map afterwards, so checking later could not tell a
+      // correctly disposed guard from a leaked one.
+      contents.close.mockImplementationOnce(() => {
+        // Read from the captured guest: `destroyEntry` has already removed the
+        // view from the manager's map by the time `close()` runs.
+        listenersAtClose = contents.listeners.get('before-input-event')?.size ?? 0
+      })
+
+      await manager.destroyAiView('tab-1')
+
+      expect(listenersAtClose).toBe(0)
+    }
+  )
+
+  it.skipIf(process.platform === 'darwin')(
+    'guards the replacement view after close and reopen',
+    async () => {
+      await reset()
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+      await manager.destroyAiView('tab-1')
+      await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+
+      expect(guardListeners('tab-1').size).toBe(1)
+      expect(press('tab-1', ctrlShiftS)).toHaveBeenCalledTimes(1)
+    }
+  )
+})
+
 describe('AiWebContentsViewManager - renderer reload', () => {
   // A reload replaces the renderer without running any of its cleanups, so the
   // `hostToken` mirror goes on naming a host that no longer exists. The sync

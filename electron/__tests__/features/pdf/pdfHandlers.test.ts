@@ -16,9 +16,11 @@ class MockMenu {
 
 class MockMenuItem {
   label?: string
+  accelerator?: string
   click?: () => void
-  constructor(options: { label?: string; click?: () => void }) {
+  constructor(options: { label?: string; accelerator?: string; click?: () => void }) {
     this.label = options.label
+    this.accelerator = options.accelerator
     this.click = options.click
   }
 }
@@ -100,6 +102,7 @@ describe('pdfHandlers', () => {
     eventHandler?.({ sender: webContents }, {})
 
     const items = append.mock.calls.map(([item]) => item) as Array<{
+      accelerator?: string
       click?: () => void
       label?: string
     }>
@@ -110,6 +113,11 @@ describe('pdfHandlers', () => {
     findItem('Zoom Out')?.click?.()
     findItem('Reset Zoom')?.click?.()
 
+    // Regression guard for the short cut the ChatGPT panel must not steal: crop
+    // screenshot stays on CmdOrCtrl+Shift+S and full page stays on Alt, so the
+    // guest-view keyboard guard leaves this contract intact.
+    expect(findItem('Crop Screenshot')?.accelerator).toBe('CmdOrCtrl+Shift+S')
+    expect(findItem('Full Page Screenshot')?.accelerator).toBe('CmdOrCtrl+Alt+S')
     expect(sentMessages).toContainEqual([
       APP_CONFIG.IPC_CHANNELS.TRIGGER_SCREENSHOT,
       APP_CONFIG.SCREENSHOT_TYPES.CROP
