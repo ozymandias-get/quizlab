@@ -10,8 +10,9 @@ import {
   upsertRecentAiWork
 } from '@features/ai/lib/recentWork'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
+import { useToastStore } from '@shared/stores/toastStore'
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 function entry(modelId: string, url: string, lastUsedAt = 1) {
   const created = createRecentAiWorkEntry(modelId, url, lastUsedAt)
@@ -22,6 +23,22 @@ function entry(modelId: string, url: string, lastUsedAt = 1) {
 describe('recent AI work', () => {
   beforeEach(() => {
     window.localStorage.removeItem(STORAGE_KEYS.RECENT_AI_WORK)
+  })
+
+  it('reports a storage failure instead of silently dropping recent work', () => {
+    const showWarning = vi.spyOn(useToastStore.getState(), 'showWarning')
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw new Error('quota exceeded')
+    })
+
+    try {
+      recordRecentAiWork(entry('chatgpt', 'https://chatgpt.com/c/failed-save'))
+      expect(showWarning).toHaveBeenCalled()
+      expect(readRecentAiWork()).toEqual([])
+    } finally {
+      setItem.mockRestore()
+      showWarning.mockRestore()
+    }
   })
 
   it('rejects URLs that cannot identify an AI conversation', () => {

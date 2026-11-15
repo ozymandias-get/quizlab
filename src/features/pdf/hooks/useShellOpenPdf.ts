@@ -5,6 +5,7 @@ import { useToastActions } from '@shared/stores/toastStore'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { isSamePdfPath, normalizePdfPathKey } from '../lib/pdfPathIdentity'
 import { usePdfTabStore } from '../store/usePdfTabStore'
 import { useReadingProgressPersistence } from './useReadingProgressPersistence'
 
@@ -31,11 +32,12 @@ export function useShellOpenPdf(): void {
 
     const unsubscribe = api.onShellOpenPdf((filePath: string) => {
       if (!filePath) return
-      if (openingRef.current.has(filePath)) {
-        pendingFocusRef.current.add(filePath)
+      const pathKey = normalizePdfPathKey(filePath)
+      if (openingRef.current.has(pathKey)) {
+        pendingFocusRef.current.add(pathKey)
         return
       }
-      openingRef.current.add(filePath)
+      openingRef.current.add(pathKey)
 
       void (async () => {
         try {
@@ -63,15 +65,11 @@ export function useShellOpenPdf(): void {
           Logger.error('[useShellOpenPdf] Shell open error:', error)
           showError(t('error_pdf_load'))
         } finally {
-          openingRef.current.delete(filePath)
-          if (pendingFocusRef.current.delete(filePath)) {
+          openingRef.current.delete(pathKey)
+          if (pendingFocusRef.current.delete(pathKey)) {
             const tab = usePdfTabStore
               .getState()
-              .pdfTabs.find(
-                (candidate) =>
-                  candidate.file?.path === filePath ||
-                  candidate.file?.path?.toLowerCase() === filePath.toLowerCase()
-              )
+              .pdfTabs.find((candidate) => isSamePdfPath(candidate.file?.path, filePath))
             if (tab) usePdfTabStore.getState().setActivePdfTab(tab.id)
           }
         }

@@ -10,13 +10,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const storage = vi.hoisted(() => {
   const values = new Map<string, string>()
-  return { values, quotaExceeded: false, failRemove: false }
+  return { values, quotaExceeded: false, failRemove: false, failMarker: false }
 })
 
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => storage.values.get(key) ?? null,
   setItem: (key: string, value: string) => {
-    if (storage.quotaExceeded && key === LOCAL_STORAGE_KEY) {
+    if (storage.failMarker && key.includes('storage_mode')) {
+      throw new DOMException('quota', 'QuotaExceededError')
+    }
+    if (
+      storage.quotaExceeded &&
+      key === LOCAL_STORAGE_KEY &&
+      !value.startsWith('{"__quizlab_storage_mode__"')
+    ) {
       throw new DOMException('quota', 'QuotaExceededError')
     }
     storage.values.set(key, value)
@@ -56,6 +63,7 @@ describe('flushing sessions on shutdown', () => {
     storage.values.clear()
     storage.quotaExceeded = true
     storage.failRemove = false
+    storage.failMarker = false
     indexedDb.update.mockReset()
     indexedDb.read.mockReset().mockResolvedValue(null)
   })
@@ -116,6 +124,68 @@ describe('flushing sessions on shutdown', () => {
 
     expect(storage.values.get(LOCAL_STORAGE_KEY)).toContain('"old"')
     await expect(loadSessionsFromStorageAsync()).resolves.toEqual([fresh])
+  })
+
+  it('keeps IndexedDB authoritative when both the mode marker and the removal fail', async () => {
+    const stale = {
+      id: 'old-marker',
+      title: 'old',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 1
+    } as unknown as ChatSession
+    const fresh = {
+      id: 'new-marker',
+      title: 'new',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 2
+    } as unknown as ChatSession
+
+    storage.values.set(LOCAL_STORAGE_KEY, JSON.stringify([stale]))
+    storage.failRemove = true
+    storage.failMarker = true
+    indexedDb.update.mockImplementation(async (merge: (stored: ChatSession[]) => ChatSession[]) =>
+      merge([])
+    )
+    indexedDb.read.mockResolvedValue([fresh] as never)
+
+    scheduleSaveSessions([fresh])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPendingSessions()
+
+    expect(storage.values.get(LOCAL_STORAGE_KEY)).toBe('{"__quizlab_storage_mode__":"indexeddb"}')
+    await expect(loadSessionsFromStorageAsync()).resolves.toEqual([fresh])
+  })
+
+  it('follows the shared marker when another window switches back to local storage', async () => {
+    indexedDb.update.mockImplementation(async (merge: (stored: ChatSession[]) => ChatSession[]) =>
+      merge([])
+    )
+
+    scheduleSaveSessions([SESSION])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPendingSessions()
+    expect(storage.values.has('quizlab_api_chat_storage_mode_v1')).toBe(true)
+
+    // Another window could write locally and clear the shared marker.
+    storage.values.delete('quizlab_api_chat_storage_mode_v1')
+    storage.quotaExceeded = false
+    indexedDb.update.mockClear()
+    const local = {
+      id: 'local',
+      title: 'local',
+      messages: [],
+      createdAt: 0,
+      updatedAt: 2
+    } as unknown as ChatSession
+
+    scheduleSaveSessions([local])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPendingSessions()
+
+    expect(indexedDb.update).not.toHaveBeenCalled()
+    expect(storage.values.get(LOCAL_STORAGE_KEY)).toContain('"local"')
   })
 
   it('reports a failed write instead of a clean shutdown', async () => {

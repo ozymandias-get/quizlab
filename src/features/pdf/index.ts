@@ -56,6 +56,7 @@ export {
   useReadingProgressPersistence
 } from './hooks/useReadingProgressPersistence'
 export { useShellOpenPdf } from './hooks/useShellOpenPdf'
+export { isSamePdfPath } from './lib/pdfPathIdentity'
 export { usePdfTabStore } from './store/usePdfTabStore'
 export {
   computeSelectionMenuAnchor,

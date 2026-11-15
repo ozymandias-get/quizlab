@@ -12,6 +12,7 @@ import { Logger } from '@shared/lib/logger'
 import { useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { isSamePdfPath } from '../lib/pdfPathIdentity'
 import type { LastReadingInfo, PdfTab, ResumePdfResult } from './types'
 
 interface UsePdfOpenActionsProps {
@@ -121,7 +122,7 @@ export function usePdfOpenActions({
     async (path?: string): Promise<ResumePdfResult> => {
       flushPendingReadingProgress()
       const history = recentReadingInfoRef.current
-      const target = path ? history.find((entry) => entry.path === path) : history[0]
+      const target = path ? history.find((entry) => isSamePdfPath(entry.path, path)) : history[0]
 
       if (!target) {
         return 'missing'

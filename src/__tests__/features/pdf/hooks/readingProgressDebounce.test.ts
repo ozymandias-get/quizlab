@@ -52,6 +52,40 @@ describe('reading progress debounce', () => {
     expect(info.find((entry) => entry.path === '/b.pdf')?.page).toBe(11)
   })
 
+  it('updates the same entry when the path is spelled differently', () => {
+    const { result } = renderHook(() => useReadingProgressPersistence())
+
+    act(() => {
+      result.current.updateReadingProgress({
+        path: 'C:\\Docs\\A.pdf',
+        page: 150,
+        totalPages: 300
+      })
+    })
+    act(() => {
+      result.current.updateReadingProgress({ path: 'c:/docs/a.pdf', page: 151 })
+      vi.advanceTimersByTime(400)
+    })
+
+    const history = result.current.getRecentReadingInfo()
+    expect(history).toHaveLength(1)
+    expect(history[0]).toMatchObject({ page: 151, totalPages: 300 })
+  })
+
+  it('cancels a pending page write when the document is cleared with another spelling', () => {
+    const { result } = renderHook(() => useReadingProgressPersistence())
+
+    act(() => {
+      result.current.updateReadingProgress({ path: 'C:\\Docs\\A.pdf', page: 4 })
+    })
+    act(() => {
+      result.current.clearLastReading('c:/docs/a.pdf')
+      vi.advanceTimersByTime(400)
+    })
+
+    expect(result.current.getRecentReadingInfo()).toEqual([])
+  })
+
   it('does not reset a stored page when the document is opened again', () => {
     const { result } = renderHook(() => useReadingProgressPersistence())
 

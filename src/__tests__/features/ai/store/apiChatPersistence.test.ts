@@ -167,6 +167,38 @@ describe('saveSessionsToStorage merge', () => {
     expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['s1'])
   })
 
+  it('keeps a deletion in memory when the tombstone write fails and persists it on retry', () => {
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify([session('s1', [], 100), session('s2', [message('m1', 1)], 100)])
+    )
+
+    const originalSetItem = Storage.prototype.setItem
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key: string,
+      value: string
+    ) {
+      if (key === 'quizlab_api_chat_deletions_v1') throw new Error('quota')
+      return originalSetItem.call(this, key, value)
+    })
+
+    try {
+      scheduleSaveSessions([session('s1', [], 200)], { sessionIds: ['s2'] })
+      vi.advanceTimersByTime(1000)
+      expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['s1'])
+    } finally {
+      write.mockRestore()
+    }
+
+    // The same deletion must survive a stale save from a window that still
+    // has s2, even though the ledger only became writable after the first save.
+    scheduleSaveSessions([session('s1', [], 300), session('s2', [message('m1', 1)], 300)])
+    vi.advanceTimersByTime(1000)
+
+    expect(loadSessionsFromStorage().map((s) => s.id)).toEqual(['s1'])
+  })
+
   it('keeps only the new session after clear-all', () => {
     localStorage.setItem(
       LOCAL_STORAGE_KEY,

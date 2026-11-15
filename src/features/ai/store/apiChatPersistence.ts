@@ -72,7 +72,12 @@ function isTimestamp(value: unknown): value is number {
 
 function readDeletionLedger(): StoredDeletionLedger {
   const raw = getStorageItem(DELETIONS_STORAGE_KEY)
-  if (!raw) return emptyDeletionLedger()
+  if (!raw) {
+    if (!unsavedDeletionLedger) return emptyDeletionLedger()
+    const pending = emptyDeletionLedger()
+    mergeLedgers(pending, unsavedDeletionLedger)
+    return pending
+  }
   try {
     const parsed: unknown = JSON.parse(raw)
     if (typeof parsed !== 'object' || parsed === null) return emptyDeletionLedger()
@@ -106,17 +111,60 @@ function readDeletionLedger(): StoredDeletionLedger {
         if (Object.keys(kept).length > 0) ledger.messages[sessionId] = kept
       }
     }
+    if (unsavedDeletionLedger) mergeLedgers(ledger, unsavedDeletionLedger)
     return ledger
   } catch {
-    return emptyDeletionLedger()
+    if (!unsavedDeletionLedger) return emptyDeletionLedger()
+    const pending = emptyDeletionLedger()
+    mergeLedgers(pending, unsavedDeletionLedger)
+    return pending
   }
 }
 
-function writeDeletionLedger(ledger: StoredDeletionLedger): void {
-  // Tombstones are a safety net, not the transcript itself: a failed write
-  // leaves the current window's in-memory marks working and is retried on the
-  // next deletion instead of interrupting the user.
-  writeStorageItem(DELETIONS_STORAGE_KEY, JSON.stringify(ledger))
+/**
+ * Tombstones that could not be written to localStorage.
+ *
+ * Keeping them in memory lets this tab keep filtering stale snapshots and
+ * gives the next save another chance to persist them. If the failure is
+ * temporary, the deletion becomes durable without user action.
+ */
+let unsavedDeletionLedger: StoredDeletionLedger | null = null
+
+function mergeLedgers(target: StoredDeletionLedger, source: StoredDeletionLedger): void {
+  for (const [id, at] of Object.entries(source.sessions)) {
+    target.sessions[id] = Math.max(target.sessions[id] ?? 0, at)
+  }
+  for (const [sessionId, ids] of Object.entries(source.messages)) {
+    const kept = target.messages[sessionId] ?? {}
+    for (const [messageId, at] of Object.entries(ids)) {
+      kept[messageId] = Math.max(kept[messageId] ?? 0, at)
+    }
+    target.messages[sessionId] = kept
+  }
+  for (const [id, at] of Object.entries(source.cleared)) {
+    target.cleared[id] = Math.max(target.cleared[id] ?? 0, at)
+  }
+}
+
+function writeDeletionLedger(ledger: StoredDeletionLedger): boolean {
+  const result = writeStorageItem(DELETIONS_STORAGE_KEY, JSON.stringify(ledger))
+  if (result.ok) {
+    unsavedDeletionLedger = null
+    return true
+  }
+
+  // Tombstones are a safety net, not the transcript itself: keep them in
+  // memory and retry instead of interrupting the user.
+  const pending = emptyDeletionLedger()
+  mergeLedgers(pending, unsavedDeletionLedger ?? emptyDeletionLedger())
+  mergeLedgers(pending, ledger)
+  unsavedDeletionLedger = pending
+  return false
+}
+
+function retryUnsavedDeletionLedger(): void {
+  if (!unsavedDeletionLedger) return
+  writeDeletionLedger(unsavedDeletionLedger)
 }
 
 function isChatSession(value: unknown): value is ChatSession {
@@ -150,10 +198,27 @@ let indexedDbAuthoritative = false
  */
 const STORAGE_MODE_KEY = 'quizlab_api_chat_storage_mode_v1'
 const STORAGE_MODE_INDEXEDDB = 'indexeddb'
+/**
+ * Fallback marker written into the sessions key itself.
+ *
+ * A quota error can reject the tiny mode key while the large stale transcript
+ * is still there. Replacing that transcript with this small object frees the
+ * space and leaves a marker the loader can recognise, without ever exposing it
+ * as a session.
+ */
+const SESSIONS_MODE_SENTINEL = '{"__quizlab_storage_mode__":"indexeddb"}'
 
 function markIndexedDbAuthoritative(): void {
   try {
     localStorage.setItem(STORAGE_MODE_KEY, STORAGE_MODE_INDEXEDDB)
+    return
+  } catch {}
+
+  // The dedicated marker could not be written. The sessions key is about to be
+  // removed anyway; replacing its stale contents with a small sentinel is the
+  // fallback that still identifies IndexedDB as the source on the next start.
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, SESSIONS_MODE_SENTINEL)
   } catch {}
 }
 
@@ -161,6 +226,14 @@ function clearStorageModeMarker(): void {
   try {
     localStorage.removeItem(STORAGE_MODE_KEY)
   } catch {}
+}
+
+/** Whether the shared marker currently names IndexedDB as the source. */
+function isIndexedDbSourceMarked(): boolean {
+  return (
+    getStorageItem(STORAGE_MODE_KEY) === STORAGE_MODE_INDEXEDDB ||
+    getStorageItem(LOCAL_STORAGE_KEY) === SESSIONS_MODE_SENTINEL
+  )
 }
 
 export function loadSessionsFromStorage(): ChatSession[] {
@@ -200,7 +273,7 @@ export async function loadSessionsFromStorageAsync(): Promise<ChatSession[]> {
   // The marker, not the presence of the localStorage key, decides the source.
   // A failed removal after the IndexedDB move leaves a stale local array whose
   // value must not beat the newer overflow store.
-  if (getStorageItem(STORAGE_MODE_KEY) === STORAGE_MODE_INDEXEDDB) {
+  if (isIndexedDbSourceMarked()) {
     const stored = await readSessionsFromIndexedDb()
     if (stored !== null) {
       const sessions = stored.filter(isChatSession)
@@ -320,6 +393,7 @@ function mergeSessionLists(
   storedSessions: ChatSession[],
   deletions?: SessionDeletionMarks
 ): ChatSession[] {
+  retryUnsavedDeletionLedger()
   const ledger = readDeletionLedger()
   const deletedSessionIds = new Set([
     ...Object.keys(ledger.sessions),
@@ -445,6 +519,11 @@ async function saveSessionsToStorage(
   sessions: ChatSession[],
   deletions?: SessionDeletionMarks
 ): Promise<boolean> {
+  // The marker is shared by every renderer. Re-reading it before the save
+  // keeps this tab from writing one source while another tab has just switched
+  // to the other one.
+  indexedDbAuthoritative = isIndexedDbSourceMarked()
+
   // Once the quota forced the sessions into IndexedDB, keep writing there.
   // Falling back to localStorage on every save would only throw again.
   if (indexedDbAuthoritative) {
@@ -545,6 +624,13 @@ if (typeof window !== 'undefined') {
         .catch(() => handleExternalSessionsChange())
     })
   } catch {}
+
+  // A tombstone write that failed still has to reach tabs that hold the old
+  // transcript. The receiving tab applies the marks and retries the durable
+  // ledger itself.
+  try {
+    subscribeToDeletionMarks((marks) => addSessionDeletionMarks(marks, false))
+  } catch {}
 }
 
 let pendingSaveSessions: ChatSession[] | null = null
@@ -568,7 +654,87 @@ const pendingDeletedSessionIds = new Set<string>()
 const pendingDeletedMessageIds = new Map<string, Set<string>>()
 const pendingClearedSessions = new Map<string, number>()
 
-function addSessionDeletionMarks(deletions?: SessionDeletionMarks): void {
+const DELETIONS_CHANNEL_NAME = 'quizlab-api-chat-deletions'
+
+/**
+ * Sends fresh tombstones to the other open renderers.
+ *
+ * This is the fallback when the durable ledger could not be written: an open
+ * tab that still holds the old transcript must apply the deletion before its
+ * next save, or it would merge the deleted rows back.
+ */
+function broadcastDeletionMarks(deletions: SessionDeletionMarks): void {
+  try {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel(DELETIONS_CHANNEL_NAME)
+    channel.postMessage({
+      sessionIds: deletions.sessionIds ?? [],
+      messageIdsBySession: deletions.messageIdsBySession ?? {},
+      clearedSessions: deletions.clearedSessions ?? {}
+    })
+    channel.close()
+  } catch {}
+}
+
+function sanitizeDeletionMarks(value: unknown): SessionDeletionMarks | null {
+  if (typeof value !== 'object' || value === null) return null
+  const source = value as Record<string, unknown>
+
+  const sessionIds = Array.isArray(source.sessionIds)
+    ? source.sessionIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : []
+
+  const messageIdsBySession: Record<string, string[]> = {}
+  if (typeof source.messageIdsBySession === 'object' && source.messageIdsBySession !== null) {
+    for (const [sessionId, ids] of Object.entries(
+      source.messageIdsBySession as Record<string, unknown>
+    )) {
+      if (!sessionId || !Array.isArray(ids)) continue
+      const clean = ids.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      if (clean.length > 0) messageIdsBySession[sessionId] = clean
+    }
+  }
+
+  const clearedSessions: Record<string, number> = {}
+  if (typeof source.clearedSessions === 'object' && source.clearedSessions !== null) {
+    for (const [sessionId, at] of Object.entries(
+      source.clearedSessions as Record<string, unknown>
+    )) {
+      if (sessionId && isTimestamp(at)) clearedSessions[sessionId] = at
+    }
+  }
+
+  if (
+    sessionIds.length === 0 &&
+    Object.keys(messageIdsBySession).length === 0 &&
+    Object.keys(clearedSessions).length === 0
+  ) {
+    return null
+  }
+  return { sessionIds, messageIdsBySession, clearedSessions }
+}
+
+function subscribeToDeletionMarks(onMarks: (marks: SessionDeletionMarks) => void): () => void {
+  try {
+    if (typeof BroadcastChannel === 'undefined') return () => {}
+    const channel = new BroadcastChannel(DELETIONS_CHANNEL_NAME)
+    channel.onmessage = (event: MessageEvent) => {
+      try {
+        const marks = sanitizeDeletionMarks(event.data)
+        if (marks) onMarks(marks)
+      } catch {}
+    }
+    return () => {
+      try {
+        channel.close()
+      } catch {}
+    }
+  } catch {
+    return () => {}
+  }
+}
+
+function addSessionDeletionMarks(deletions?: SessionDeletionMarks, relay = true): void {
   if (!deletions) return
   const now = Date.now()
 
@@ -617,7 +783,10 @@ function addSessionDeletionMarks(deletions?: SessionDeletionMarks): void {
     ledger.messages[sessionId] = deleted
     changed = true
   }
-  if (changed) writeDeletionLedger(ledger)
+  if (changed) {
+    const written = writeDeletionLedger(ledger)
+    if (!written && relay) broadcastDeletionMarks(deletions)
+  }
 }
 
 function takeSessionDeletionMarks(): SessionDeletionMarks {

@@ -17,6 +17,7 @@ import {
   useCallback
 } from 'react'
 
+import { isSamePdfPath } from '../../../lib/pdfPathIdentity'
 import { formatRelativeTime, getProgressRatio } from './pdfPlaceholderUtils'
 import type { RecentItemView } from './types'
 
@@ -117,7 +118,7 @@ function PdfRecentListItem({
     ? formatRelativeTime(item.lastOpenedAt, language)
     : t('last_opened_unknown')
   const showProgress = !isInvalid && item.totalPages > 0 && Number.isFinite(progress)
-  const isActive = !!activePdfPath && item.path === activePdfPath
+  const isActive = !!activePdfPath && isSamePdfPath(item.path, activePdfPath)
 
   const interactionProps = isInvalid
     ? {}

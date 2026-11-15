@@ -1,9 +1,13 @@
+import { TOAST_DURATION } from '@shared/constants/appConstants'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import {
   getStorageItem,
   removeStorageItem,
   writeStorageItem
 } from '@shared/hooks/localStorageUtils'
+import { useToastStore } from '@shared/stores/toastStore'
+
+import i18next from 'i18next'
 
 import { normalizeConversationUrl } from './conversationUrl'
 
@@ -161,8 +165,33 @@ export function readRecentAiWork(): RecentAiWorkEntry[] {
   }
 }
 
-function writeRecentAiWork(entries: RecentAiWorkEntry[]): void {
-  writeStorageItem(STORAGE_KEYS.RECENT_AI_WORK, JSON.stringify(entries))
+let recentWorkWriteFailureNotified = false
+
+function reportRecentWorkWriteFailure(): void {
+  if (recentWorkWriteFailureNotified) return
+  recentWorkWriteFailureNotified = true
+  try {
+    useToastStore
+      .getState()
+      .showWarning(
+        i18next.t('toast_recent_work_save_failed'),
+        i18next.t('toast_system_title'),
+        undefined,
+        TOAST_DURATION.LONG
+      )
+  } catch {
+    // A toast failure must never break the write path.
+  }
+}
+
+function writeRecentAiWork(entries: RecentAiWorkEntry[]): boolean {
+  const result = writeStorageItem(STORAGE_KEYS.RECENT_AI_WORK, JSON.stringify(entries))
+  if (result.ok) {
+    recentWorkWriteFailureNotified = false
+    return true
+  }
+  reportRecentWorkWriteFailure()
+  return false
 }
 
 export function recordRecentAiWork(entry: RecentAiWorkEntry): void {
@@ -197,5 +226,9 @@ export function removeRecentAiWork(id: string): void {
 }
 
 export function clearRecentAiWork(): void {
-  removeStorageItem(STORAGE_KEYS.RECENT_AI_WORK)
+  if (removeStorageItem(STORAGE_KEYS.RECENT_AI_WORK)) {
+    recentWorkWriteFailureNotified = false
+    return
+  }
+  reportRecentWorkWriteFailure()
 }

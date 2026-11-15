@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 
+import { isSamePdfPath } from '../lib/pdfPathIdentity'
 import { usePdfTabStore } from '../store/usePdfTabStore'
 import { usePdfOpenActions } from './usePdfOpenActions'
 import { usePdfTabState } from './usePdfTabState'
@@ -67,7 +68,9 @@ export function usePdfSelection() {
 
     const file = activePdfTab.file
     if (file.path) {
-      const existing = (recentReadingInfo || []).find((entry) => entry.path === file.path)
+      const existing = (recentReadingInfo || []).find((entry) =>
+        isSamePdfPath(entry.path, file.path)
+      )
       return existing?.page
     }
     return undefined

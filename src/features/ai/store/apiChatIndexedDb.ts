@@ -24,7 +24,19 @@ function openDatabase(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null)
   if (databasePromise) return databasePromise
 
-  databasePromise = new Promise<IDBDatabase | null>((resolve) => {
+  let settled = false
+  let resolvedNullSynchronously = false
+
+  const promise = new Promise<IDBDatabase | null>((resolve) => {
+    const fail = () => {
+      if (settled) return
+      settled = true
+      // A failed open is not a permanent capability verdict: the next caller
+      // must be able to retry after a transient block or error.
+      databasePromise = null
+      resolve(null)
+    }
+
     try {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
       request.onupgradeneeded = () => {
@@ -33,14 +45,27 @@ function openDatabase(): Promise<IDBDatabase | null> {
           db.createObjectStore(STORE_NAME, { keyPath: 'id' })
         }
       }
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => resolve(null)
-      request.onblocked = () => resolve(null)
+      request.onsuccess = () => {
+        if (settled) {
+          // A blocked request can still complete later. Its connection has no
+          // owner after the failed promise; close it instead of leaking it.
+          request.result.close()
+          return
+        }
+        settled = true
+        resolve(request.result)
+      }
+      request.onerror = fail
+      request.onblocked = fail
     } catch {
-      resolve(null)
+      resolvedNullSynchronously = true
+      fail()
     }
   })
-  return databasePromise
+
+  databasePromise = promise
+  if (resolvedNullSynchronously) databasePromise = null
+  return promise
 }
 
 /** Reads every stored session, or null when IndexedDB is unavailable. */

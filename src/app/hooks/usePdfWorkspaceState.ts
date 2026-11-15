@@ -1,4 +1,4 @@
-import { usePdfSelection } from '@features/pdf'
+import { isSamePdfPath, usePdfSelection } from '@features/pdf'
 
 import { getElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
@@ -44,7 +44,7 @@ export function usePdfWorkspaceState({
   const handleResumePdf = useCallback(
     (path?: string) => {
       const current = lastReadingInfoRef.current
-      const target = path ? current.find((entry) => entry.path === path) : current[0]
+      const target = path ? current.find((entry) => isSamePdfPath(entry.path, path)) : current[0]
 
       if (target) {
         return resumeLastPdf(target.path)
@@ -65,7 +65,7 @@ export function usePdfWorkspaceState({
   const handleRelinkPdf = useCallback(
     async (oldPath: string): Promise<boolean> => {
       const current = lastReadingInfoRef.current
-      const target = current.find((entry) => entry.path === oldPath)
+      const target = current.find((entry) => isSamePdfPath(entry.path, oldPath))
       if (!target) return false
 
       try {
@@ -101,7 +101,7 @@ export function usePdfWorkspaceState({
         })
         // The history dedupes by path, so the old-path entry would remain
         // as a ghost next to the relinked one — drop it explicitly.
-        if (target.path !== result.path) clearLastReading(target.path)
+        if (!isSamePdfPath(target.path, result.path)) clearLastReading(target.path)
 
         openPdfInTab({
           ...result,

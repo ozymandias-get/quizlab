@@ -2,7 +2,7 @@ import { useToastStore } from '@shared/stores/toastStore'
 
 import { create } from 'zustand'
 
-import { isSamePdfPath } from '../lib/pdfPathIdentity'
+import { isSamePdfPath, normalizePdfPathKey } from '../lib/pdfPathIdentity'
 import {
   MAX_RECENT_PDFS,
   migrateReadingHistory,
@@ -39,17 +39,19 @@ const clearDebounce = (): void => {
 }
 
 const cancelPendingForPath = (path: string): void => {
-  const pending = pendingReadingProgress.get(path)
+  const key = normalizePdfPathKey(path)
+  const pending = pendingReadingProgress.get(key)
   if (!pending) return
   clearTimeout(pending.timer)
-  pendingReadingProgress.delete(path)
+  pendingReadingProgress.delete(key)
 }
 
 const flushPendingDebounce = (path?: string): void => {
   if (path !== undefined) {
-    const pending = pendingReadingProgress.get(path)
+    const key = normalizePdfPathKey(path)
+    const pending = pendingReadingProgress.get(key)
     if (!pending) return
-    pendingReadingProgress.delete(path)
+    pendingReadingProgress.delete(key)
     clearTimeout(pending.timer)
     pending.apply()
     return
@@ -101,7 +103,7 @@ const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   const { path, page, totalPages, lastOpenedAt } = update
 
   const doPersist = (state: LastReadingInfo[]) => {
-    const existing = state.find((entry) => entry.path === path)
+    const existing = state.find((entry) => isSamePdfPath(entry.path, path))
     if (!existing) {
       if (!path) return
       const newEntry: LastReadingInfo = {
@@ -126,7 +128,7 @@ const updateReadingProgress = (update: ReadingProgressUpdate): void => {
   const shouldDebounce = typeof page === 'number' && typeof totalPages !== 'number'
 
   if (shouldDebounce) {
-    const key = path || ''
+    const key = normalizePdfPathKey(path)
     const previous = pendingReadingProgress.get(key)
     if (previous) clearTimeout(previous.timer)
     const apply = () => doPersist(useReadingProgressStore.getState().recentReadingInfo)
@@ -195,12 +197,12 @@ const clearLastReading = (path?: string): void => {
     persistRecentReadingInfo([])
     return
   }
-  persistRecentReadingInfo(current.filter((entry) => entry.path !== path))
+  persistRecentReadingInfo(current.filter((entry) => !isSamePdfPath(entry.path, path)))
 }
 
 const restoreRecentReading = (info: LastReadingInfo, index = 0): void => {
   const current = useReadingProgressStore.getState().recentReadingInfo
-  const history = current.filter((entry) => entry.path !== info.path)
+  const history = current.filter((entry) => !isSamePdfPath(entry.path, info.path))
   const safeIndex = Math.max(0, Math.min(index, history.length))
   const restored: LastReadingInfo = {
     ...info,

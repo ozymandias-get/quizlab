@@ -1,6 +1,6 @@
 import type { ReadingProgressUpdate, ResumePdfResult } from '@features/pdf'
 import { usePdfOpenActions } from '@features/pdf'
-import { useReadingProgressPersistence } from '@features/pdf'
+import { isSamePdfPath, useReadingProgressPersistence } from '@features/pdf'
 import { usePdfTabStore } from '@features/pdf'
 
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -60,7 +60,9 @@ const FocusPdfBody = memo(function FocusPdfBody() {
     if (activePdfTab?.kind !== 'pdf' || !activePdfTab?.file) return undefined
     const file = activePdfTab.file
     if (file.path) {
-      const existing = (readingHistoryRef.current || []).find((entry) => entry.path === file.path)
+      const existing = (readingHistoryRef.current || []).find((entry) =>
+        isSamePdfPath(entry.path, file.path)
+      )
       return existing?.page
     }
     return undefined
@@ -71,7 +73,7 @@ const FocusPdfBody = memo(function FocusPdfBody() {
   const handleResumePdf = useCallback(
     (path?: string): Promise<ResumePdfResult> => {
       const current = lastReadingInfoRef.current
-      const target = path ? current.find((entry) => entry.path === path) : current[0]
+      const target = path ? current.find((entry) => isSamePdfPath(entry.path, path)) : current[0]
       if (target) return resumeLastPdf(target.path)
       return resumeLastPdf(path)
     },
