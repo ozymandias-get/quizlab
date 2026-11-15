@@ -65,9 +65,29 @@ export function createRecentAiWorkEntry(
 }
 
 /**
+ * Identity of the card a row occupies on AI Home.
+ *
+ * A card shows the site and the document, never the conversation title, so two
+ * conversations used with the same document paint as identical rows — the user
+ * sees "three of the same work". They collapse into one card and the most
+ * recent conversation wins.
+ *
+ * A row without a document keeps its conversation identity: there is nothing to
+ * group those rows by, and merging unrelated chats into a single "no document"
+ * card would hide them behind whichever was used last.
+ */
+export function recentAiWorkCardKey(entry: RecentAiWorkEntry): string {
+  return entry.documentName ? `${entry.modelId}::${entry.documentName}` : entry.id
+}
+
+/**
  * Puts `entry` at the top, removes the previous copy and keeps the list
  * bounded. Ordering is by usage, not by insertion, so an old conversation the
  * user returned to becomes the first card again.
+ *
+ * Every other row for the same site + document is dropped as well: those rows
+ * render as the same card, so keeping an older conversation behind it would
+ * bring the duplicate straight back on the next read.
  */
 export function upsertRecentAiWork(
   entries: RecentAiWorkEntry[],
@@ -81,10 +101,14 @@ export function upsertRecentAiWork(
     entry.documentName || !previous?.documentName
       ? entry
       : { ...entry, documentName: previous.documentName }
-  return [merged, ...entries.filter((current) => current.id !== entry.id)].slice(0, limit)
+  const cardKey = recentAiWorkCardKey(merged)
+  const remaining = entries.filter(
+    (current) => current.id !== merged.id && recentAiWorkCardKey(current) !== cardKey
+  )
+  return [merged, ...remaining].slice(0, limit)
 }
 
-/** Drops malformed storage rows and duplicate identity keys. */
+/** Drops malformed storage rows, duplicate identity keys and conversations that share one card. */
 export function sanitizeRecentAiWork(value: unknown): RecentAiWorkEntry[] {
   if (!Array.isArray(value)) return []
 
@@ -110,7 +134,19 @@ export function sanitizeRecentAiWork(value: unknown): RecentAiWorkEntry[] {
     }
   }
 
-  return [...byId.values()]
+  // Second pass over what a card can actually show. Stored lists written before
+  // this grouping existed can hold several conversations per document, and the
+  // read path is where they collapse without a migration.
+  const byCard = new Map<string, RecentAiWorkEntry>()
+  for (const entry of byId.values()) {
+    const cardKey = recentAiWorkCardKey(entry)
+    const existing = byCard.get(cardKey)
+    if (!existing || existing.lastUsedAt < entry.lastUsedAt) {
+      byCard.set(cardKey, entry)
+    }
+  }
+
+  return [...byCard.values()]
     .sort((left, right) => right.lastUsedAt - left.lastUsedAt)
     .slice(0, RECENT_AI_WORK_LIMIT)
 }
@@ -148,7 +184,16 @@ export function replaceRecentAiWork(previous: RecentAiWorkEntry, next: RecentAiW
 }
 
 export function removeRecentAiWork(id: string): void {
-  writeRecentAiWork(readRecentAiWork().filter((entry) => entry.id !== id))
+  const current = readRecentAiWork()
+  const target = current.find((entry) => entry.id === id)
+  if (!target) {
+    writeRecentAiWork(current.filter((entry) => entry.id !== id))
+    return
+  }
+  // The card stands for every conversation used with that document, so removing
+  // it must not let an older one resurface on the next read.
+  const cardKey = recentAiWorkCardKey(target)
+  writeRecentAiWork(current.filter((entry) => recentAiWorkCardKey(entry) !== cardKey))
 }
 
 export function clearRecentAiWork(): void {

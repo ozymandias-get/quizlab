@@ -107,6 +107,42 @@ describe('AI Home recent work', () => {
     expect(document.getElementById(panelId!)).toBeInTheDocument()
   })
 
+  it('shows one card when several chats were used with the same document', () => {
+    const entries = [
+      createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/old', 10, '10.Şok.pdf'),
+      createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/mid', 20, '10.Şok.pdf'),
+      createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/new', 30, '10.Şok.pdf')
+    ]
+    for (const entry of entries) {
+      if (!entry) throw new Error('entry expected')
+      recordRecentAiWork(entry)
+    }
+
+    const open = vi.fn()
+    render(<AiHomePage onOpenModel={open} />)
+    const section = recentSection()
+
+    expect(section.getByText('1')).toBeInTheDocument()
+    expect(section.getAllByRole('button', { name: /ai_home.recent_open/ })).toHaveLength(1)
+
+    fireEvent.click(section.getByRole('button', { name: /ai_home.recent_open/ }))
+    expect(open).toHaveBeenCalledWith('chatgpt', 'https://chatgpt.com/c/new')
+  })
+
+  it('keeps the same document under different sites as separate cards', () => {
+    const chatgpt = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/1', 10, 'Fizik.pdf')
+    const claude = createRecentAiWorkEntry('claude', 'https://claude.ai/chat/2', 20, 'Fizik.pdf')
+    if (!chatgpt || !claude) throw new Error('entries expected')
+    recordRecentAiWork(chatgpt)
+    recordRecentAiWork(claude)
+
+    render(<AiHomePage onOpenModel={vi.fn()} />)
+    const section = recentSection()
+
+    expect(section.getByText('2')).toBeInTheDocument()
+    expect(section.getAllByRole('button', { name: /ai_home.recent_open/ })).toHaveLength(2)
+  })
+
   it('shows the chat count and updates it when a card is removed', () => {
     const first = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/1')
     const second = createRecentAiWorkEntry('claude', 'https://claude.ai/chat/2')

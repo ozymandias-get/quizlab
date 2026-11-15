@@ -76,6 +76,96 @@ describe('recent AI work', () => {
     expect(result.map((item) => item.id)).toEqual([returned.id, newer.id])
   })
 
+  it('collapses chats used with the same document into the newest one', () => {
+    const older = createRecentAiWorkEntry(
+      'chatgpt',
+      'https://chatgpt.com/c/old',
+      10,
+      '10.Şok Patofizyolojisi Çeşitleri Tedavisi.pdf'
+    )
+    const newer = createRecentAiWorkEntry(
+      'chatgpt',
+      'https://chatgpt.com/c/new',
+      20,
+      '10.Şok Patofizyolojisi Çeşitleri Tedavisi.pdf'
+    )
+    if (!older || !newer) throw new Error('entries expected')
+
+    const result = upsertRecentAiWork([older], newer)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe(newer.id)
+    expect(result[0].documentName).toBe('10.Şok Patofizyolojisi Çeşitleri Tedavisi.pdf')
+  })
+
+  it('keeps the same document under different sites as separate cards', () => {
+    const chatgpt = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/1', 10, 'Fizik.pdf')
+    const claude = createRecentAiWorkEntry('claude', 'https://claude.ai/chat/2', 20, 'Fizik.pdf')
+    if (!chatgpt || !claude) throw new Error('entries expected')
+
+    const result = upsertRecentAiWork([chatgpt], claude)
+
+    expect(result.map((item) => item.id)).toEqual([claude.id, chatgpt.id])
+  })
+
+  it('does not collapse chats that were not used with a document', () => {
+    const first = entry('chatgpt', 'https://chatgpt.com/c/1', 10)
+    const second = entry('chatgpt', 'https://chatgpt.com/c/2', 20)
+
+    expect(upsertRecentAiWork([first], second).map((item) => item.id)).toEqual([
+      second.id,
+      first.id
+    ])
+    expect(sanitizeRecentAiWork([first, second])).toHaveLength(2)
+  })
+
+  it('collapses document duplicates that are already in storage', () => {
+    const result = sanitizeRecentAiWork([
+      {
+        modelId: 'chatgpt',
+        url: 'https://chatgpt.com/c/old',
+        documentName: 'Fizik.pdf',
+        lastUsedAt: 10
+      },
+      {
+        modelId: 'chatgpt',
+        url: 'https://chatgpt.com/c/new',
+        documentName: 'Fizik.pdf',
+        lastUsedAt: 30
+      },
+      {
+        modelId: 'chatgpt',
+        url: 'https://chatgpt.com/c/mid',
+        documentName: 'Fizik.pdf',
+        lastUsedAt: 20
+      },
+      {
+        modelId: 'claude',
+        url: 'https://claude.ai/chat/1',
+        documentName: 'Fizik.pdf',
+        lastUsedAt: 5
+      }
+    ])
+
+    expect(result.map((item) => item.url)).toEqual([
+      'https://chatgpt.com/c/new',
+      'https://claude.ai/chat/1'
+    ])
+  })
+
+  it('removes every chat behind a collapsed card', () => {
+    const older = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/1', 10, 'Fizik.pdf')
+    const newer = createRecentAiWorkEntry('chatgpt', 'https://chatgpt.com/c/2', 20, 'Fizik.pdf')
+    if (!older || !newer) throw new Error('entries expected')
+    recordRecentAiWork(older)
+    recordRecentAiWork(newer)
+    expect(readRecentAiWork()).toHaveLength(1)
+
+    removeRecentAiWork(newer.id)
+
+    expect(readRecentAiWork()).toEqual([])
+  })
+
   it(`keeps at most ${RECENT_AI_WORK_LIMIT} conversations`, () => {
     const entries = Array.from({ length: RECENT_AI_WORK_LIMIT }, (_, index) =>
       entry('chatgpt', `https://chatgpt.com/c/${index}`, index)
