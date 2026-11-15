@@ -8,8 +8,10 @@ const trustedEvent = { sender: trustedSender, type: 'invoke' }
 
 const managerState: {
   data: Record<string, string>
+  writeResult: boolean
 } = {
-  data: {}
+  data: {},
+  writeResult: true
 }
 
 vi.mock('electron', () => ({
@@ -48,6 +50,7 @@ vi.mock('../../../core/ConfigManager', () => ({
     }
 
     async setItem(key: string, value: string): Promise<boolean> {
+      if (!managerState.writeResult) return false
       managerState.data = { ...managerState.data, [key]: value }
       return true
     }
@@ -63,6 +66,7 @@ describe('appSettingsHandlers', () => {
     vi.resetModules()
     ipcHandle.mockReset()
     managerState.data = {}
+    managerState.writeResult = true
   })
 
   it('GET returns the persisted settings map', async () => {
@@ -96,6 +100,19 @@ describe('appSettingsHandlers', () => {
       'appearance-storage': '{"a":1}',
       customPrompts: '[]'
     })
+  })
+
+  it('SAVE reports a failed disk write instead of a successful save', async () => {
+    const { registerAppSettingsHandlers } =
+      await import('../../../features/settings/appSettingsHandlers.js')
+    registerAppSettingsHandlers()
+
+    managerState.writeResult = false
+    const saveSettingsHandler = getHandler(APP_CONFIG.IPC_CHANNELS.SAVE_APP_SETTINGS)
+
+    await expect(
+      saveSettingsHandler?.(trustedEvent, 'appearance-storage', '{"a":1}')
+    ).resolves.toEqual({ ok: true, data: false })
   })
 
   it('SAVE rejects invalid keys/values without persisting', async () => {

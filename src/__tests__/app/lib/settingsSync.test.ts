@@ -6,9 +6,11 @@ import {
   hydrateSettingsFromMain,
   installSettingsSync,
   isSyncableSettingKey,
+  PENDING_SETTINGS_SYNC_KEY,
   SETTINGS_SYNC_KEYS,
   syncSettingToMain
 } from '@app/lib/settingsSync'
+import { useToastStore } from '@shared/stores/toastStore'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -145,7 +147,7 @@ describe('settingsSync', () => {
     await expect(hydrateSettingsFromMain()).resolves.toBeUndefined()
   })
 
-  it('syncSettingToMain ignores non-syncable keys and swallows errors', async () => {
+  it('syncSettingToMain ignores non-syncable keys and never throws', async () => {
     saveAppSetting.mockRejectedValue(new Error('boom'))
 
     await syncSettingToMain('transient-key', 'x')
@@ -153,5 +155,69 @@ describe('settingsSync', () => {
 
     await syncSettingToMain(STORAGE_KEYS.APP_LANGUAGE, 'tr')
     await expect(syncSettingToMain(STORAGE_KEYS.APP_LANGUAGE, 'tr')).resolves.toBeUndefined()
+  })
+
+  it('reports a refused save and keeps the value in the outbox', async () => {
+    const showWarning = vi.spyOn(useToastStore.getState(), 'showWarning')
+    saveAppSetting.mockResolvedValue(false)
+
+    try {
+      await syncSettingToMain(STORAGE_KEYS.CUSTOM_PROMPTS, '["p1"]')
+
+      expect(showWarning).toHaveBeenCalled()
+      expect(JSON.parse(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) ?? '{}')).toEqual({
+        [STORAGE_KEYS.CUSTOM_PROMPTS]: '["p1"]'
+      })
+    } finally {
+      showWarning.mockRestore()
+    }
+  })
+
+  it('keeps an in-flight value pending until the mirror succeeds', async () => {
+    let finish!: (saved: boolean) => void
+    saveAppSetting.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        finish = resolve
+      })
+    )
+
+    const pending = syncSettingToMain(STORAGE_KEYS.APP_LANGUAGE, 'tr')
+    await Promise.resolve()
+    expect(JSON.parse(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) ?? '{}')).toEqual({
+      [STORAGE_KEYS.APP_LANGUAGE]: 'tr'
+    })
+
+    finish(true)
+    await pending
+    expect(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY)).toBeNull()
+  })
+
+  it('does not let a stale main snapshot overwrite a newer pending value', async () => {
+    window.localStorage.setItem(
+      PENDING_SETTINGS_SYNC_KEY,
+      JSON.stringify({ [STORAGE_KEYS.APP_LANGUAGE]: 'tr' })
+    )
+    getAppSettings.mockResolvedValue({ [STORAGE_KEYS.APP_LANGUAGE]: 'en' })
+    uninstallSync = installSettingsSync()
+
+    await hydrateSettingsFromMain()
+
+    expect(window.localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)).toBe('tr')
+    expect(saveAppSetting).toHaveBeenCalledWith(STORAGE_KEYS.APP_LANGUAGE, 'tr')
+    expect(window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY)).toBeNull()
+  })
+
+  it('restores a pending value the main snapshot does not contain', async () => {
+    window.localStorage.setItem(
+      PENDING_SETTINGS_SYNC_KEY,
+      JSON.stringify({ [STORAGE_KEYS.APP_LANGUAGE]: 'tr' })
+    )
+    getAppSettings.mockResolvedValue({})
+    uninstallSync = installSettingsSync()
+
+    await hydrateSettingsFromMain()
+
+    expect(window.localStorage.getItem(STORAGE_KEYS.APP_LANGUAGE)).toBe('tr')
+    expect(saveAppSetting).toHaveBeenCalledWith(STORAGE_KEYS.APP_LANGUAGE, 'tr')
   })
 })

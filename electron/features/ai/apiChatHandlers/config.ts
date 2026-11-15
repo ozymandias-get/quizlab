@@ -3,7 +3,7 @@ import path from 'path'
 
 import type { ApiConfig, ApiProviderConfig } from '../../../../shared/types/index.js'
 import { getApiChatConfigPath } from '../../../core/coreHelpers.js'
-import { decryptValue, encryptValue } from '../../../core/encryption.js'
+import { decryptValueChecked, encryptValue } from '../../../core/encryption.js'
 import { Logger } from '../../../core/logger.js'
 
 const MAX_PROMPT_LENGTH = 4000
@@ -46,6 +46,16 @@ function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
 let cachedRawContent: string | null = null
 let cachedDecodedConfig: ApiConfig | null = null
 
+/**
+ * Providers whose stored key exists but could not be decrypted.
+ *
+ * Their in-memory `apiKey` is empty because the UI has nothing to show. A save
+ * must not interpret that as "the user cleared the key": the encrypted value
+ * is still in the file and is kept until the key can be read or the user enters
+ * a new one.
+ */
+const undecryptableApiKeys = new Set<string>()
+
 function cloneApiConfig(config: ApiConfig): ApiConfig {
   return {
     ...config,
@@ -67,10 +77,17 @@ async function loadConfig(): Promise<ApiConfig> {
 
     const raw = JSON.parse(content)
 
-    const providers: ApiProviderConfig[] = (raw.providers || []).map((p: ApiProviderConfig) => ({
-      ...normalizeProvider(p),
-      apiKey: decryptValue(p.apiKey || '')
-    }))
+    undecryptableApiKeys.clear()
+    const providers: ApiProviderConfig[] = (raw.providers || []).map((p: ApiProviderConfig) => {
+      const decrypted = decryptValueChecked(p.apiKey || '')
+      if (decrypted.failed && typeof p.id === 'string' && p.id) {
+        undecryptableApiKeys.add(p.id)
+      }
+      return {
+        ...normalizeProvider(p),
+        apiKey: decrypted.value
+      }
+    })
 
     const resolved: ApiConfig = {
       providers,
@@ -127,15 +144,59 @@ function saveConfig(config: ApiConfig): Promise<boolean> {
   return write
 }
 
+async function readStoredApiKeys(configPath: string): Promise<Map<string, string>> {
+  let content: string
+  try {
+    content = await fs.promises.readFile(configPath, 'utf-8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Map()
+    throw error
+  }
+  const raw = JSON.parse(content) as { providers?: Array<{ id?: unknown; apiKey?: unknown }> }
+  const stored = new Map<string, string>()
+  for (const provider of raw.providers ?? []) {
+    if (
+      typeof provider?.id === 'string' &&
+      typeof provider.apiKey === 'string' &&
+      provider.apiKey
+    ) {
+      stored.set(provider.id, provider.apiKey)
+    }
+  }
+  return stored
+}
+
 async function saveConfigNow(config: ApiConfig): Promise<boolean> {
   let temporaryPath: string | null = null
   try {
-    const encryptedProviders: ApiProviderConfig[] = config.providers.map((p) => ({
-      ...p,
-      apiKey: encryptValue(sanitizeApiKey(p.apiKey || ''))
-    }))
-
     const configPath = getApiChatConfigPath()
+    const preservedIds = new Set<string>()
+    let storedApiKeys: Map<string, string> | null = null
+
+    const encryptedProviders: ApiProviderConfig[] = []
+    for (const p of config.providers) {
+      const plain = sanitizeApiKey(p.apiKey || '')
+      const needsPreservedKey =
+        plain === '' && typeof p.id === 'string' && undecryptableApiKeys.has(p.id)
+
+      if (needsPreservedKey) {
+        // If the current file cannot be read, fail the save instead of
+        // overwriting the key we could not decrypt.
+        storedApiKeys ??= await readStoredApiKeys(configPath)
+        const storedKey = storedApiKeys.get(p.id)
+        if (storedKey) {
+          preservedIds.add(p.id)
+          encryptedProviders.push({ ...p, apiKey: storedKey })
+          continue
+        }
+      }
+
+      encryptedProviders.push({
+        ...p,
+        apiKey: encryptValue(plain)
+      })
+    }
+
     const trimmedConfig = {
       ...config,
       providers: encryptedProviders,
@@ -154,6 +215,12 @@ async function saveConfigNow(config: ApiConfig): Promise<boolean> {
     temporaryPath = `${configPath}.tmp`
     await fs.promises.writeFile(temporaryPath, serialized, { mode: 0o600 })
     await fs.promises.rename(temporaryPath, configPath)
+
+    // A provider whose encrypted key is still in the file stays marked. A
+    // provider that was removed or given a new key no longer needs the mark.
+    for (const id of undecryptableApiKeys) {
+      if (!preservedIds.has(id)) undecryptableApiKeys.delete(id)
+    }
 
     cachedRawContent = null
     cachedDecodedConfig = null

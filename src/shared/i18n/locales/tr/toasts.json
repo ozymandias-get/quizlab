@@ -21,6 +21,7 @@
   "toast_capture_failed": "Ekran görüntüsü alınamadı",
   "toast_capture_cancelled": "Sayfa değiştiği için yakalama iptal edildi; yeniden deneyin.",
   "toast_pdf_history_save_failed": "PDF okuma geçmişi kaydedilemedi; son konum uygulama kapanınca kaybolabilir.",
+  "toast_settings_save_failed": "Bir ayar diske kaydedilemedi; uygulama yeniden başlatıldığında eski değere dönebilir.",
   "toast_screenshot_captured": "Ekran görüntüsü alındı",
   "toast_logs_copied": "Tanılama logları panoya kopyalandı",
   "toast_ai_config_saved": "AI yapılandırması başarıyla kaydedildi",

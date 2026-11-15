@@ -45,8 +45,13 @@ export function registerSystemHandlers() {
 
   registerIpcHandler(
     IPC_CHANNELS.APP_FLUSH_COMPLETE,
-    async (_event, saved: boolean) => {
-      markQuitFlushComplete(saved === true)
+    async (_event, saved: boolean, requestId?: number) => {
+      // A malformed id must not fall back to the broadcast path: that would
+      // let a delayed answer release a different request.
+      if (requestId !== undefined && (!Number.isInteger(requestId) || requestId <= 0)) {
+        return success(false)
+      }
+      markQuitFlushComplete(saved === true, requestId)
       return success(true)
     },
     requireTrustedIpcSender,

@@ -27,7 +27,8 @@ vi.mock('@electron/core/logger', () => ({
   }
 }))
 
-const { encryptValue, decryptValue } = await import('@electron/core/encryption')
+const { decryptValue, decryptValueChecked, encryptValue } =
+  await import('@electron/core/encryption')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -183,6 +184,31 @@ describe('decryptValue', () => {
     const encrypted = encryptValue('test')
     mockIsEncryptionAvailable.mockReturnValue(false)
     expect(decryptValue(encrypted)).toBe('')
+  })
+})
+
+describe('decryptValueChecked', () => {
+  it('reports a successful decryption as not failed', () => {
+    const encrypted = encryptValue('secret-key')
+    expect(decryptValueChecked(encrypted)).toEqual({ value: 'secret-key', failed: false })
+  })
+
+  it('reports a failed safeStorage decryption instead of a user-saved empty key', () => {
+    mockDecryptString.mockImplementation(() => {
+      throw new Error('keychain unavailable')
+    })
+
+    expect(decryptValueChecked('enc:' + Buffer.from('x').toString('base64'))).toEqual({
+      value: '',
+      failed: true
+    })
+  })
+
+  it('reports missing safeStorage as a failure for an enc: value', () => {
+    const encrypted = encryptValue('test')
+    mockIsEncryptionAvailable.mockReturnValue(false)
+
+    expect(decryptValueChecked(encrypted)).toEqual({ value: '', failed: true })
   })
 })
 

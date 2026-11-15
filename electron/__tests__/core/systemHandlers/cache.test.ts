@@ -83,6 +83,48 @@ describe('systemHandlers/cache', () => {
     expect(resolveAiModelPartition({ partition: 'persist:unknown_partition' })).toBeNull()
   })
 
+  it('accepts a custom partition only for its own platform id', async () => {
+    const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
+
+    expect(
+      resolveAiModelPartition({
+        id: 'custom_111',
+        partition: 'persist:ai_custom_custom_111'
+      })
+    ).toBe('persist:ai_custom_custom_111')
+    expect(
+      resolveAiModelPartition({
+        id: 'custom_custom_111',
+        partition: 'persist:ai_custom_custom_111'
+      })
+    ).toBe('persist:ai_custom_custom_111')
+  })
+
+  it('refuses a partition that belongs to another platform', async () => {
+    const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
+
+    expect(
+      resolveAiModelPartition({
+        id: 'custom_111',
+        partition: 'persist:ai_chatgpt'
+      })
+    ).toBeNull()
+    expect(resolveAiModelPartition({ partition: 'persist:ai_chatgpt' })).toBeNull()
+  })
+
+  it('keeps the shared model and Google partitions addressable', async () => {
+    const { resolveAiModelPartition } = await import('../../../core/systemHandlers/cache.js')
+    const { GOOGLE_AI_WEB_SESSION_PARTITION } =
+      await import('../../../../shared/constants/googleAiWebApps.js')
+
+    expect(resolveAiModelPartition({ id: 'model-1', partition: 'persist:ai_session' })).toBe(
+      'persist:ai_session'
+    )
+    expect(
+      resolveAiModelPartition({ id: 'google', partition: GOOGLE_AI_WEB_SESSION_PARTITION })
+    ).toBe(GOOGLE_AI_WEB_SESSION_PARTITION)
+  })
+
   it('does not clear root cache while clearing a single partition', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'quizlab-cache-root-'))
     try {

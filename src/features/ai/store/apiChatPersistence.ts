@@ -662,10 +662,10 @@ if (typeof window !== 'undefined') {
     // The main process waits for this answer on window close and app quit:
     // beforeunload cannot await the IndexedDB write.
     const api = getElectronApi()
-    api?.onAppFlushPending?.(() => {
+    api?.onAppFlushPending?.((requestId) => {
       void flushPendingSessions()
-        .then((saved) => api.notifyAppFlushComplete(saved))
-        .catch(() => api.notifyAppFlushComplete(false))
+        .then((saved) => api.notifyAppFlushComplete(saved, requestId))
+        .catch(() => api.notifyAppFlushComplete(false, requestId))
     })
   } catch {}
 }

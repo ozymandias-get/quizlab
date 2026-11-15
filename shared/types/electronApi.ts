@@ -157,8 +157,8 @@ export interface ElectronApi {
   platform: string
   quitApp: () => Promise<boolean>
   /** Main asks the renderer to finish pending storage writes before quitting. */
-  onAppFlushPending: (callback: () => void) => () => void
-  notifyAppFlushComplete: (saved: boolean) => Promise<boolean>
+  onAppFlushPending: (callback: (requestId?: number) => void) => () => void
+  notifyAppFlushComplete: (saved: boolean, requestId?: number) => Promise<boolean>
   checkForUpdates: () => Promise<UpdateCheckResult>
   getAppVersion: () => Promise<string>
   clearCache: () => Promise<boolean>

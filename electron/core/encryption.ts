@@ -133,15 +133,26 @@ export function encryptValue(plaintext: string): string {
   return aesEncrypt(plaintext)
 }
 
-export function decryptValue(stored: string): string {
-  if (!stored) return stored
+/**
+ * Decrypts a stored value and reports whether an encrypted value was lost.
+ *
+ * `decryptValue()` keeps returning the plain string for existing callers. The
+ * caller that writes the config back has to know that an empty result came
+ * from a failed decryption, not from a user-saved empty key; otherwise the
+ * next save would overwrite the still-encrypted value with an empty one.
+ */
+export function decryptValueChecked(stored: string): {
+  value: string
+  failed: boolean
+} {
+  if (!stored) return { value: stored, failed: false }
 
   if (stored.startsWith(AES_PREFIX)) {
     try {
-      return aesDecrypt(stored)
+      return { value: aesDecrypt(stored), failed: false }
     } catch (error) {
       Logger.error('[Encryption] AES fallback decryption failed:', error)
-      return ''
+      return { value: '', failed: true }
     }
   }
 
@@ -150,13 +161,18 @@ export function decryptValue(stored: string): string {
       if (safeStorage.isEncryptionAvailable()) {
         const base64Data = stored.slice(ENC_PREFIX.length)
         const buffer = Buffer.from(base64Data, 'base64')
-        return safeStorage.decryptString(buffer)
+        return { value: safeStorage.decryptString(buffer), failed: false }
       }
+      Logger.warn('[Encryption] safeStorage is unavailable for an encrypted value.')
     } catch (error) {
       Logger.error('[Encryption] safeStorage.decryptString failed:', error)
     }
-    return ''
+    return { value: '', failed: true }
   }
 
-  return stored
+  return { value: stored, failed: false }
+}
+
+export function decryptValue(stored: string): string {
+  return decryptValueChecked(stored).value
 }

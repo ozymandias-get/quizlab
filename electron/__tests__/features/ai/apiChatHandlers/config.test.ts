@@ -7,7 +7,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  decryptValue: vi.fn((value: string) => `decrypted:${value}`),
+  decryptValueChecked: vi.fn((value: string) => ({ value: `decrypted:${value}`, failed: false })),
   encryptValue: vi.fn((value: string) => `encrypted:${value}`),
   readFile: vi.fn(),
   writeFile: vi.fn(),
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../../../core/encryption.js', () => ({
-  decryptValue: mocks.decryptValue,
+  decryptValueChecked: mocks.decryptValueChecked,
   encryptValue: mocks.encryptValue
 }))
 
@@ -94,7 +94,10 @@ describe('normalizeProvider', () => {
 describe('loadConfig provider migration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.decryptValue.mockImplementation((value: string) => `decrypted:${value}`)
+    mocks.decryptValueChecked.mockImplementation((value: string) => ({
+      value: `decrypted:${value}`,
+      failed: false
+    }))
   })
 
   it('resolves aliases from a persisted file and returns only the canonical flag', async () => {
@@ -126,6 +129,60 @@ describe('loadConfig provider migration', () => {
       expect(provider.apiKey).toBe('decrypted:k')
     }
     expect(config.selectedProviderId).toBe('legacy-endpoints')
+  })
+})
+
+describe('undecryptable API keys', () => {
+  const storedConfig = JSON.stringify({
+    providers: [{ ...baseProvider, id: 'broken-key', apiKey: 'enc:broken' }],
+    generalPrompt: '',
+    memoryPrompt: '',
+    characterPrompt: '',
+    selectedProviderId: 'broken-key',
+    selectedModel: 'llama3'
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.mkdir.mockResolvedValue(undefined)
+    mocks.writeFile.mockResolvedValue(undefined)
+    mocks.rename.mockResolvedValue(undefined)
+    mocks.unlink.mockResolvedValue(undefined)
+    mocks.decryptValueChecked.mockImplementation((value: string) =>
+      value === 'enc:broken' ? { value: '', failed: true } : { value: value, failed: false }
+    )
+  })
+
+  it('keeps the encrypted key when a save follows a failed decryption', async () => {
+    mocks.readFile.mockResolvedValueOnce(storedConfig)
+
+    const config = await loadConfig()
+    expect(config.providers[0].apiKey).toBe('')
+
+    mocks.readFile.mockResolvedValueOnce(storedConfig)
+    await expect(saveConfig(config)).resolves.toBe(true)
+
+    const writeCall = mocks.writeFile.mock.calls.find(([filePath]) =>
+      String(filePath).endsWith('.tmp')
+    )
+    expect(writeCall).toBeDefined()
+    const saved = JSON.parse(String(writeCall![1])) as {
+      providers: Array<{ id: string; apiKey: string }>
+    }
+    expect(saved.providers[0]).toMatchObject({ id: 'broken-key', apiKey: 'enc:broken' })
+    expect(mocks.encryptValue).not.toHaveBeenCalled()
+  })
+
+  it('fails the save instead of overwriting the key when the file cannot be read', async () => {
+    mocks.readFile.mockResolvedValueOnce(storedConfig)
+    const config = await loadConfig()
+
+    mocks.readFile.mockRejectedValueOnce(
+      Object.assign(new Error('permission denied'), { code: 'EACCES' })
+    )
+
+    await expect(saveConfig(config)).resolves.toBe(false)
+    expect(mocks.rename).not.toHaveBeenCalled()
   })
 })
 

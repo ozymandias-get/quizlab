@@ -130,7 +130,7 @@ export interface IpcInvokeRequestMap {
   }
 
   [IPC_CHANNELS.APP_FLUSH_COMPLETE]: {
-    args: [saved: boolean]
+    args: [saved: boolean, requestId?: number]
     result: IpcResult<boolean>
   }
 
@@ -381,7 +381,7 @@ export interface IpcEventMap {
     args: []
   }
   [IPC_CHANNELS.APP_FLUSH_PENDING_STATE]: {
-    args: []
+    args: [requestId: number]
   }
   [IPC_CHANNELS.SHOW_PDF_CONTEXT_MENU]: {
     args: [labels: Partial<Record<string, string>>]

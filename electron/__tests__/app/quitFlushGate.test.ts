@@ -10,6 +10,10 @@ function fakeWindow() {
   }
 }
 
+function sentRequestId(window: ReturnType<typeof fakeWindow>): number {
+  return window.webContents.send.mock.calls[0][1] as number
+}
+
 describe('the quit flush gate', () => {
   afterEach(() => {
     markQuitFlushComplete()
@@ -19,9 +23,13 @@ describe('the quit flush gate', () => {
   it('asks the renderer to flush and resolves on its answer', async () => {
     const window = fakeWindow()
     const pending = waitForQuitFlush(window as never)
+    const requestId = sentRequestId(window)
 
-    expect(window.webContents.send).toHaveBeenCalledWith(IPC_CHANNELS.APP_FLUSH_PENDING_STATE)
-    markQuitFlushComplete(true)
+    expect(window.webContents.send).toHaveBeenCalledWith(
+      IPC_CHANNELS.APP_FLUSH_PENDING_STATE,
+      requestId
+    )
+    markQuitFlushComplete(true, requestId)
 
     await expect(pending).resolves.toBe(true)
   })
@@ -30,12 +38,61 @@ describe('the quit flush gate', () => {
     const window = fakeWindow()
     const pending = waitForQuitFlush(window as never)
 
-    markQuitFlushComplete(false)
+    markQuitFlushComplete(false, sentRequestId(window))
 
     await expect(pending).resolves.toBe(false)
   })
 
-  it('releases every concurrent waiter with one renderer answer', async () => {
+  it('releases only the request the answer names', async () => {
+    const first = fakeWindow()
+    const second = fakeWindow()
+    let firstSettled = false
+    let secondSettled = false
+    const firstWaiting = waitForQuitFlush(first as never).then((saved) => {
+      firstSettled = true
+      return saved
+    })
+    const secondWaiting = waitForQuitFlush(second as never).then((saved) => {
+      secondSettled = true
+      return saved
+    })
+
+    markQuitFlushComplete(true, sentRequestId(first))
+    await Promise.resolve()
+
+    expect(firstSettled).toBe(true)
+    expect(secondSettled).toBe(false)
+
+    markQuitFlushComplete(false, sentRequestId(second))
+    await expect(firstWaiting).resolves.toBe(true)
+    await expect(secondWaiting).resolves.toBe(false)
+  })
+
+  it('ignores a late answer from a request that already timed out', async () => {
+    vi.useFakeTimers()
+    const staleWindow = fakeWindow()
+    const stale = waitForQuitFlush(staleWindow as never, 100)
+    const staleId = sentRequestId(staleWindow)
+
+    await vi.advanceTimersByTimeAsync(100)
+    await expect(stale).resolves.toBe(false)
+
+    const currentWindow = fakeWindow()
+    let currentSettled = false
+    const current = waitForQuitFlush(currentWindow as never, 1000).then((saved) => {
+      currentSettled = true
+      return saved
+    })
+
+    markQuitFlushComplete(true, staleId)
+    await Promise.resolve()
+    expect(currentSettled).toBe(false)
+
+    markQuitFlushComplete(true, sentRequestId(currentWindow))
+    await expect(current).resolves.toBe(true)
+  })
+
+  it('keeps the broadcast behaviour for an answer without a request id', async () => {
     const first = fakeWindow()
     const second = fakeWindow()
     const waiting = [waitForQuitFlush(first as never), waitForQuitFlush(second as never)]
@@ -43,8 +100,6 @@ describe('the quit flush gate', () => {
     markQuitFlushComplete(true)
 
     await expect(Promise.all(waiting)).resolves.toEqual([true, true])
-    expect(first.webContents.send).toHaveBeenCalledTimes(1)
-    expect(second.webContents.send).toHaveBeenCalledTimes(1)
   })
 
   it('does not block quitting when the renderer never answers', async () => {

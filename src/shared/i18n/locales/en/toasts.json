@@ -21,6 +21,7 @@
   "toast_capture_failed": "Failed to capture screen",
   "toast_capture_cancelled": "The page changed, so the capture was cancelled. Try again.",
   "toast_pdf_history_save_failed": "The PDF reading history could not be saved; the last position may be lost when the app closes.",
+  "toast_settings_save_failed": "A setting could not be saved to disk and may revert when the app restarts.",
   "toast_screenshot_captured": "Screenshot captured",
   "toast_logs_copied": "Diagnostic logs copied to clipboard",
   "toast_ai_config_saved": "AI configuration saved successfully",

@@ -1,8 +1,12 @@
 import { queryClient } from '@app/providers/queryClient'
+import { TOAST_DURATION } from '@shared/constants/appConstants'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { Logger } from '@shared/lib/logger'
 import { QUERY_KEYS } from '@shared/query/queryKeys'
+import { useToastStore } from '@shared/stores/toastStore'
+
+import i18next from 'i18next'
 
 /**
  * Settings kept in the renderer's localStorage but mirrored to the main
@@ -41,8 +45,80 @@ export const SETTINGS_SYNC_KEYS: readonly string[] = [
 
 const SYNC_KEY_SET = new Set<string>(SETTINGS_SYNC_KEYS)
 
+/**
+ * Values whose mirror to the main process has not completed yet.
+ *
+ * The renderer writes a setting locally and sends it over IPC. The IPC call is
+ * asynchronous and can fail or still be in flight when the window closes. The
+ * outbox makes that value survive the failure: hydration must not replace it
+ * with the older main-process snapshot, and the next start retries the mirror
+ * after restoring the value.
+ */
+export const PENDING_SETTINGS_SYNC_KEY = 'quizlab_settings_pending_sync_v1'
+
 let installed = false
 let suppressForwarding = false
+const settingsSyncFailureNotified = new Set<string>()
+
+function readPendingSettings(): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(PENDING_SETTINGS_SYNC_KEY)
+    if (!raw) return {}
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
+    const pending: Record<string, string> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string' && isSyncableSettingKey(key)) pending[key] = value
+    }
+    return pending
+  } catch {
+    return {}
+  }
+}
+
+function writePendingSettings(pending: Record<string, string>): void {
+  try {
+    if (Object.keys(pending).length === 0) {
+      window.localStorage.removeItem(PENDING_SETTINGS_SYNC_KEY)
+      return
+    }
+    window.localStorage.setItem(PENDING_SETTINGS_SYNC_KEY, JSON.stringify(pending))
+  } catch (error) {
+    Logger.warn('settingsSync: Failed to persist the pending settings outbox:', error)
+  }
+}
+
+function markPendingSetting(key: string, value: string): void {
+  const pending = readPendingSettings()
+  pending[key] = value
+  writePendingSettings(pending)
+}
+
+function clearPendingSetting(key: string, value: string): void {
+  const pending = readPendingSettings()
+  // An older request finishing after a newer value must not clear the newer
+  // pending entry.
+  if (pending[key] !== value) return
+  delete pending[key]
+  writePendingSettings(pending)
+}
+
+function notifySettingsSyncFailure(key: string): void {
+  if (settingsSyncFailureNotified.has(key)) return
+  settingsSyncFailureNotified.add(key)
+  try {
+    useToastStore
+      .getState()
+      .showWarning(
+        i18next.t('toast_settings_save_failed'),
+        i18next.t('toast_system_title'),
+        undefined,
+        TOAST_DURATION.LONG
+      )
+  } catch {
+    // A toast failure must never break storage sync.
+  }
+}
 
 // Single source of truth: any external storage mutation must refresh the
 // corresponding React Query cache, otherwise a stale in-memory copy (e.g. an
@@ -78,15 +154,43 @@ export function isSyncableSettingKey(key: string): boolean {
   return SYNC_KEY_SET.has(key)
 }
 
-/** Fire-and-forget mirror of a single setting to the main process store. */
+/**
+ * Mirrors a single setting to the main process store.
+ *
+ * The localStorage write already happened and is the user-visible state. A
+ * failed IPC mirror is therefore an outbox entry, not a silent success: the
+ * next start must not replace the newer local value with the older main copy,
+ * and the user is told that the setting may revert.
+ */
 export async function syncSettingToMain(key: string, value: string): Promise<void> {
   if (!isSyncableSettingKey(key) || !hasElectronApi()) return
   const api = getElectronApi()
   if (!api?.saveAppSetting) return
+
+  // Mark the value before sending it: a window that closes while the IPC call
+  // is in flight must still leave the newer value for the next start.
+  markPendingSetting(key, value)
+
   try {
-    await api.saveAppSetting(key, value)
+    const saved = await api.saveAppSetting(key, value)
+    if (saved === false) {
+      Logger.warn(`settingsSync: The main process refused to save "${key}".`)
+      notifySettingsSyncFailure(key)
+      return
+    }
+    settingsSyncFailureNotified.delete(key)
+    clearPendingSetting(key, value)
   } catch (error) {
     Logger.warn(`settingsSync: Failed to sync "${key}" to main process:`, error)
+    notifySettingsSyncFailure(key)
+  }
+}
+
+/** Retries values left in the outbox by a failed or interrupted mirror. */
+async function retryPendingSettingsSync(): Promise<void> {
+  const pending = readPendingSettings()
+  for (const [key, value] of Object.entries(pending)) {
+    await syncSettingToMain(key, value)
   }
 }
 
@@ -178,18 +282,28 @@ export async function hydrateSettingsFromMain(): Promise<void> {
     Logger.warn('settingsSync: Failed to read settings from main process:', error)
     return
   }
-  if (!settings) return
+
+  const pending = readPendingSettings()
+  const stored = settings ?? {}
 
   suppressForwarding = true
   try {
-    for (const [key, value] of Object.entries(settings)) {
-      if (isSyncableSettingKey(key)) {
-        window.localStorage.setItem(key, value)
-      }
+    for (const [key, value] of Object.entries(stored)) {
+      if (!isSyncableSettingKey(key)) continue
+      // A pending value is newer than the main snapshot: the previous mirror
+      // failed or was interrupted. Keep it and let the retry below persist it.
+      window.localStorage.setItem(key, pending[key] ?? value)
+    }
+    // The main store may not contain a key whose local value is pending (for
+    // example the first write of a brand-new setting); restore those too.
+    for (const [key, value] of Object.entries(pending)) {
+      if (!(key in stored)) window.localStorage.setItem(key, value)
     }
   } catch (error) {
     Logger.warn('settingsSync: Failed to hydrate localStorage:', error)
   } finally {
     suppressForwarding = false
   }
+
+  await retryPendingSettingsSync()
 }

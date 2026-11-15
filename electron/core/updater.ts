@@ -1,6 +1,7 @@
 import { app, net } from 'electron'
 
 import { failure, success } from '../../shared/lib/typedIpc.js'
+import type { UpdateCheckResult } from '../../shared/types/system.js'
 import { APP_CONFIG } from '../app/constants.js'
 import { requireTrustedIpcSender } from './ipcSecurity.js'
 import { Logger } from './logger.js'
@@ -16,7 +17,14 @@ type LatestRelease = {
 type LatestReleaseResult = LatestRelease | { error: string }
 
 let updateInfo: LatestRelease | null = null
-let isChecking = false
+/**
+ * The check that is currently running.
+ *
+ * A second request while the network call is in flight joins this promise
+ * instead of receiving an early `{ available: false, cached: true }`, which
+ * the UI would treat as a completed negative result.
+ */
+let pendingCheck: Promise<UpdateCheckResult> | null = null
 let lastCheckTime = 0
 const CHECK_DEBOUNCE_MS = 5000
 
@@ -141,16 +149,43 @@ async function getLatestRelease(): Promise<LatestReleaseResult> {
   }
 }
 
+async function runUpdateCheck(): Promise<UpdateCheckResult> {
+  try {
+    const latest = await getLatestRelease()
+
+    if ('error' in latest) {
+      Logger.warn('[Updater] Check failed:', latest.error)
+      return { available: false, error: latest.error }
+    }
+
+    const currentVersion = app.getVersion()
+    if (isNewer(latest.version, currentVersion)) {
+      updateInfo = latest
+      return {
+        available: true,
+        version: latest.version,
+        releaseNotes: latest.body || ''
+      }
+    }
+
+    updateInfo = null
+    return { available: false }
+  } catch (catastrophicError) {
+    const message =
+      catastrophicError instanceof Error ? catastrophicError.message : String(catastrophicError)
+    Logger.error('[Updater] Catastrophic error:', message)
+    return { available: false, error: message }
+  }
+}
+
 export function initUpdater() {
   const { IPC_CHANNELS } = APP_CONFIG
 
   registerIpcHandler(
     IPC_CHANNELS.CHECK_FOR_UPDATES,
     async (_event) => {
-      if (isChecking) return success({ available: !!updateInfo, cached: true })
-
       const now = Date.now()
-      if (now - lastCheckTime < CHECK_DEBOUNCE_MS && updateInfo) {
+      if (!pendingCheck && now - lastCheckTime < CHECK_DEBOUNCE_MS && updateInfo) {
         return success({
           available: true,
           version: updateInfo.version,
@@ -159,37 +194,15 @@ export function initUpdater() {
         })
       }
 
-      isChecking = true
-      lastCheckTime = now
-
-      try {
-        const latest = await getLatestRelease()
-
-        if ('error' in latest) {
-          Logger.warn('[Updater] Check failed:', latest.error)
-          return success({ available: false, error: latest.error })
-        }
-
-        const currentVersion = app.getVersion()
-        if (isNewer(latest.version, currentVersion)) {
-          updateInfo = latest
-          return success({
-            available: true,
-            version: latest.version,
-            releaseNotes: latest.body || ''
-          })
-        }
-
-        updateInfo = null
-        return success({ available: false })
-      } catch (catastrophicError) {
-        const message =
-          catastrophicError instanceof Error ? catastrophicError.message : String(catastrophicError)
-        Logger.error('[Updater] Catastrophic error:', message)
-        return success({ available: false, error: message })
-      } finally {
-        isChecking = false
+      if (!pendingCheck) {
+        lastCheckTime = now
+        pendingCheck = runUpdateCheck().finally(() => {
+          pendingCheck = null
+        })
       }
+
+      const check = pendingCheck
+      return success(await check)
     },
     requireTrustedIpcSender,
     failure('unauthorized', 'Unauthorized')

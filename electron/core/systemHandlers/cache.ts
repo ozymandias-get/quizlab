@@ -163,7 +163,23 @@ export function resolveAiModelPartition(input: {
   const registeredPartition = getRegisteredAiPartition(input.id)
   if (registeredPartition) return registeredPartition
 
-  return normalizeClearablePartition(input.partition)
+  const partition = normalizeClearablePartition(input.partition)
+  if (!partition) return null
+
+  // The shared model partition and the Google web-session partition are not
+  // tied to one platform.
+  if (partition === APP_CONFIG.PARTITIONS.AI) return partition
+  if (partition === GOOGLE_AI_WEB_SESSION_PARTITION) return partition
+
+  // A custom platform is addressed by its own id. Requiring the partition to
+  // belong to that id stops a mismatched renderer request (for example a
+  // custom model sending the ChatGPT partition) from wiping another platform.
+  const id = typeof input.id === 'string' ? input.id.trim() : ''
+  if (id && (partition === `persist:ai_${id}` || partition === `persist:ai_custom_${id}`)) {
+    return partition
+  }
+
+  return null
 }
 
 export function getAllPartitions(): Set<string> {
