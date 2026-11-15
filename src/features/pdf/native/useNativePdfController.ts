@@ -78,7 +78,6 @@ import {
   type NativePdfDocumentStatus,
   useNativePdfDocument
 } from '@features/pdf/native/useNativePdfDocument'
-import { useNativePdfDocumentReveal } from '@features/pdf/native/useNativePdfDocumentReveal'
 import {
   type NativePdfEngineHandle,
   useNativePdfEngine
@@ -266,19 +265,10 @@ export function useNativePdfController({
   // to have seen the page change before the render that will report its commit.
   const documentKey = `${pdfUrl}::${reloadKey}`
 
-  // The document's own arrival. One fade per identity, started on the first commit
-  // that actually paints a page — never on `ready`, which would fade in an empty
-  // canvas and then let the page pop in behind the finished animation.
-  const { onRenderCommitted: onDocumentRevealed } = useNativePdfDocumentReveal({
-    enabled,
-    documentKey,
-    containerRef
-  })
-
   // Presentation only. `currentPage` remains the single source of truth, this adds no
   // second page state, and nothing here can delay, gate or reorder a render — the
   // transition is presented when a render commits, never awaited by one.
-  const { onRenderCommitted: onPageTurnCommitted } = useNativePdfPageTransition({
+  const { onRenderCommitted } = useNativePdfPageTransition({
     enabled,
     ready: status === 'ready',
     documentKey,
@@ -286,17 +276,6 @@ export function useNativePdfController({
     totalPages,
     containerRef
   })
-
-  // Both presentations observe the same commit and neither can hold the other up: the
-  // reveal answers only the first commit of an identity, the turn only a page change
-  // after that baseline exists.
-  const handleRenderCommitted = useCallback(
-    (pageNumber: number) => {
-      onDocumentRevealed(pageNumber)
-      onPageTurnCommitted(pageNumber)
-    },
-    [onDocumentRevealed, onPageTurnCommitted]
-  )
 
   // The shared fit calculation, fed the native path's own page size. Fit is a
   // number computed from the page box and the container box, so this is the same
@@ -412,7 +391,7 @@ export function useNativePdfController({
     canvasRef,
     currentPage,
     scale,
-    onRenderCommitted: handleRenderCommitted
+    onRenderCommitted
   })
 
   const { textLayerError, textLayerReady } = useNativePdfTextLayer({
