@@ -454,7 +454,10 @@ describe('drawing the highlights', () => {
 
     expect(first.style.left).toMatch(/px$/)
     expect(first.style.top).toBe('30px')
-    expect(Number.parseFloat(first.style.width)).toBeCloseTo((80 * 5) / 15, 6)
+    // Three decimal places: the value is the measured rectangle's width, and the CSSOM
+    // serializes a non-integral pixel length to four decimals (26.6667px), which is a
+    // notation detail rather than a different rectangle.
+    expect(Number.parseFloat(first.style.width)).toBeCloseTo((80 * 5) / 15, 3)
     // The second occurrence is on the same row, further right.
     expect(Number.parseFloat(second.style.left)).toBeGreaterThan(
       Number.parseFloat(first.style.left)

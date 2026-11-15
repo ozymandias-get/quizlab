@@ -7,6 +7,8 @@ import { generatePickerScript } from '@electron/features/automation/userElementP
 import { waitFor } from '@testing-library/dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { normalizeBoxShadow } from './lib/cssShadowValue'
+
 type PickerWindow = Window & {
   _aiPickerResult?: Record<string, unknown> | null
   _aiPickerCleanup?: () => void
@@ -252,7 +254,7 @@ describe('userElementPicker integration', () => {
         if (kind === 'rejected') {
           rejected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
         }
-        expect(target.style.boxShadow).toContain('0 0')
+        expect(normalizeBoxShadow(target.style.boxShadow)).toContain('0 0')
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
         expect(target.getAttribute('style')).toBe(original)
         vi.advanceTimersByTime(1000)
@@ -280,7 +282,7 @@ describe('userElementPicker integration', () => {
       vi.advanceTimersByTime(100)
       rejected.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
       vi.advanceTimersByTime(100)
-      expect(rejected.style.boxShadow).toContain('#ef4444')
+      expect(normalizeBoxShadow(rejected.style.boxShadow)).toContain('#ef4444')
       vi.advanceTimersByTime(100)
       expect(rejected.getAttribute('style')).toBe(original)
     } finally {
@@ -312,7 +314,7 @@ describe('userElementPicker integration', () => {
     document.body.appendChild(reject)
     reject.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
 
-    expect(reject.style.boxShadow).toContain('#ef4444')
+    expect(normalizeBoxShadow(reject.style.boxShadow)).toContain('#ef4444')
   })
 
   // S11: bridge wiring. The renderer-side console bridge subscribes to

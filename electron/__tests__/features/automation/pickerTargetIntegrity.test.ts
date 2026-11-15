@@ -19,6 +19,8 @@ import { buildInjectedPickerDomHelpers } from '@electron/features/automation/lib
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { normalizeBoxShadow } from './lib/cssShadowValue'
+
 type PickerWindow = Window & {
   _aiPickerResult?: Record<string, unknown> | null
   _aiPickerCleanup?: () => void
@@ -78,7 +80,7 @@ describe('picker target integrity', () => {
     // …no element may carry the selected style…
     expect(document.querySelector('._ai-picker-selected')).toBeNull()
     // …and the misclick must be visibly rejected (red flash).
-    expect(button.style.boxShadow).toContain('#ef4444')
+    expect(normalizeBoxShadow(button.style.boxShadow)).toContain('#ef4444')
   })
 
   it('T02: clicking an SVG inside a send wrapper normalizes to the real button', () => {
@@ -299,7 +301,7 @@ describe('picker target integrity', () => {
       expect(micBtn.classList.contains('_ai-picker-hover-low')).toBe(true)
 
       click(micBtn)
-      expect(micBtn.style.boxShadow).toContain('#ef4444')
+      expect(normalizeBoxShadow(micBtn.style.boxShadow)).toContain('#ef4444')
       expect((window as PickerWindow)._aiPickerResult).toBeUndefined()
 
       click(sendBtn)
@@ -359,7 +361,7 @@ describe('picker target integrity', () => {
 
       // Clicking the already-selected input in step 2 ('typing') must not flash red.
       click(editor)
-      expect(editor.style.boxShadow).not.toContain('#ef4444')
+      expect(normalizeBoxShadow(editor.style.boxShadow)).not.toContain('#ef4444')
 
       // Typing a printable key inside the Shadow DOM editor advances to step 3 ('submit').
       editor.dispatchEvent(

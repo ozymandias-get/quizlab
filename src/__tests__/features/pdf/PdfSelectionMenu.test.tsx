@@ -8,6 +8,23 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }))
 
+/**
+ * A `translate(x, y)` value as numbers.
+ *
+ * The surface is positioned with `translate(${x}px, ${y}px)`. Reading it back goes
+ * through the CSSOM, and the two jsdom generations this suite supports serialize the
+ * same value differently: jsdom 30 keeps `translate(-180px, 0px)`, jsdom 31 drops the
+ * explicit zero axis and answers `translate(-180px)`. The assertion is about the
+ * nudge, not its notation, so both forms are compared as the same pair.
+ */
+function translateOf(transform: string): { x: number; y: number } | null {
+  const match = /^translate\(\s*(-?\d+(?:\.\d+)?)px(?:,?\s*(-?\d+(?:\.\d+)?)px)?\s*\)$/.exec(
+    transform.trim()
+  )
+  if (!match) return null
+  return { x: Number(match[1]), y: Number(match[2] ?? 0) }
+}
+
 describe('PdfSelectionMenu', () => {
   it('renders both actions at once with no extra AI icon step', () => {
     render(<PdfSelectionMenu top={100} left={100} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
@@ -121,9 +138,10 @@ describe('PdfSelectionMenu', () => {
     try {
       render(<PdfSelectionMenu top={100} left={900} onSendToAi={vi.fn()} onAddToDraft={vi.fn()} />)
 
-      expect(screen.getByTestId('pdf-selection-menu').style.transform).toBe(
-        'translate(-180px, 0px)'
-      )
+      expect(translateOf(screen.getByTestId('pdf-selection-menu').style.transform)).toEqual({
+        x: -180,
+        y: 0
+      })
     } finally {
       rectSpy.mockRestore()
     }
