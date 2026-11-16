@@ -98,7 +98,9 @@ describe('confirmQuitWithPendingWrites', () => {
           release = resolve
         })
     )
-    showMessageBox.mockResolvedValue({ response: 0 })
+    // The close supersedes the reload, so the dialog uses close's buttons:
+    // 2 = Cancel. (0 would mean Retry and loop.)
+    showMessageBox.mockResolvedValue({ response: 2 })
 
     const reload = confirmPendingWrites(window() as never, 'reload')
     const close = confirmPendingWrites(window() as never, 'close')
@@ -142,6 +144,75 @@ describe('confirmQuitWithPendingWrites', () => {
     release(true)
 
     await expect(Promise.all([close, reload])).resolves.toEqual([false, true])
+  })
+
+  it('distinguishes two different requests of the same action type', async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+
+    const reloadA = confirmPendingWrites(window() as never, 'reload')
+    const close = confirmPendingWrites(window() as never, 'close')
+    const reloadB = confirmPendingWrites(window() as never, 'reload')
+    await Promise.resolve()
+    release(true)
+
+    await expect(Promise.all([reloadA, close, reloadB])).resolves.toEqual([false, false, true])
+  })
+
+  it("shows the latest action's dialog when the shared flush fails", async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+    showMessageBox.mockResolvedValue({ response: 1 })
+
+    const reload = confirmPendingWrites(window() as never, 'reload')
+    const close = confirmPendingWrites(window() as never, 'close')
+    await Promise.resolve()
+    release(false)
+
+    await vi.waitFor(() => expect(showMessageBox).toHaveBeenCalledTimes(1))
+    expect(showMessageBox).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ buttons: ['Retry', 'Close without saving', 'Cancel'] })
+    )
+    await expect(Promise.all([reload, close])).resolves.toEqual([false, true])
+  })
+
+  it('keeps consent tied to the action named in the dialog', async () => {
+    let releaseFlush!: (saved: boolean) => void
+    let releaseDialog!: (value: { response: number }) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          releaseFlush = resolve
+        })
+    )
+    showMessageBox.mockImplementation(
+      () =>
+        new Promise<{ response: number }>((resolve) => {
+          releaseDialog = resolve
+        })
+    )
+
+    const reload = confirmPendingWrites(window() as never, 'reload')
+    await Promise.resolve()
+    releaseFlush(false)
+    await vi.waitFor(() => expect(showMessageBox).toHaveBeenCalledTimes(1))
+
+    // A quit joins while the "Reload without saving" dialog is still open.
+    const quit = confirmQuitWithPendingWrites(window() as never)
+    releaseDialog({ response: 1 })
+
+    await expect(Promise.all([reload, quit])).resolves.toEqual([true, false])
   })
 
   it('does not quit with unsaved changes when the warning cannot be shown', async () => {

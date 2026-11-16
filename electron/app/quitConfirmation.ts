@@ -56,22 +56,29 @@ const CHOICES: Readonly<Record<PendingWritesAction, DialogChoice>> = {
 }
 
 /**
- * The decision currently in progress.
- *
- * A second close click, a simultaneous app quit or a reload joins the same
- * decision instead of opening another dialog. A Cancel therefore stops every
- * caller waiting behind it.
+ * The decision currently in progress. Every caller joins it, but only the
+ * request that is still current when the decision resolves may act on it.
  */
-let pendingDecision: Promise<boolean> | null = null
-/**
- * The caller that asked most recently owns the destructive action. A reload
- * followed by a close must not also reload when the shared flush says "saved".
- */
-let latestAction: PendingWritesAction | null = null
+interface DecisionState {
+  /** Latest action, so the dialog describes the action that will be performed. */
+  action: PendingWritesAction
+  /** Unique id of the latest request — action *type* alone cannot tell two
+   * separate reloads apart (reload → close → reload). */
+  requestId: number
+}
+
+interface DecisionResult {
+  proceed: boolean
+  winnerId: number
+}
+
+let pendingDecision: Promise<DecisionResult> | null = null
+let pendingState: DecisionState | null = null
+let nextRequestId = 1
 
 /**
- * Resolves true only when the user allowed the write AND this caller is still
- * the latest request. A superseded caller gets false, which every caller
+ * Resolves true only when the user allowed the write AND this exact request is
+ * still the current one. A superseded caller gets false, which every caller
  * already treats as "do not perform the destructive action".
  *
  * A missing or destroyed window has no renderer left to flush; proceeding is
@@ -83,15 +90,21 @@ export function confirmPendingWrites(
 ): Promise<boolean> {
   if (!window || window.isDestroyed()) return Promise.resolve(true)
 
-  latestAction = action
-  if (!pendingDecision) {
-    pendingDecision = decide(window, action).finally(() => {
+  const requestId = nextRequestId++
+  if (!pendingDecision || !pendingState) {
+    const state: DecisionState = { action, requestId }
+    pendingState = state
+    pendingDecision = decide(window, state).finally(() => {
       pendingDecision = null
+      pendingState = null
     })
+  } else {
+    pendingState.action = action
+    pendingState.requestId = requestId
   }
 
   const decision = pendingDecision
-  return decision.then((proceed) => proceed && latestAction === action)
+  return decision.then(({ proceed, winnerId }) => proceed && winnerId === requestId)
 }
 
 /** Backwards-compatible name for the quit path. */
@@ -99,12 +112,23 @@ export function confirmQuitWithPendingWrites(window: BrowserWindow | null): Prom
   return confirmPendingWrites(window, 'quit')
 }
 
-async function decide(window: BrowserWindow, action: PendingWritesAction): Promise<boolean> {
-  const choice = CHOICES[action]
+async function decide(window: BrowserWindow, state: DecisionState): Promise<DecisionResult> {
+  let winnerId = state.requestId
+  const winner = (proceed: boolean): DecisionResult => ({ proceed, winnerId })
   for (;;) {
     const saved = await waitForQuitFlush(window)
-    if (saved) return true
+    if (saved) {
+      winnerId = state.requestId
+      return winner(true)
+    }
 
+    // Read the action at dialog time, not at decision creation: a close that
+    // joined while the flush was in flight must show "Close without saving",
+    // not the first caller's wording. Freeze the winner together with the
+    // wording so a request joining while the modal dialog is open cannot turn
+    // a "Reload without saving" consent into a quit.
+    winnerId = state.requestId
+    const choice = CHOICES[state.action]
     let response: number
     try {
       ;({ response } = await dialog.showMessageBox(window, {
@@ -119,11 +143,11 @@ async function decide(window: BrowserWindow, action: PendingWritesAction): Promi
       Logger.warn('[QuitFlow] The save-failure dialog could not be shown:', error)
       // Never quit with unsaved changes just because the warning failed; the
       // caller stays open and can try again later.
-      return false
+      return winner(false)
     }
 
     if (response === choice.retry) continue
-    if (response === choice.proceed) return true
-    return false
+    if (response === choice.proceed) return winner(true)
+    return winner(false)
   }
 }
