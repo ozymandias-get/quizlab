@@ -152,6 +152,62 @@ describe('systemHandlers', () => {
     expect(appQuit).not.toHaveBeenCalled()
   })
 
+  it('does not let a non-main-window sender complete a pending flush', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    const { waitForQuitFlush } = await import('../../app/quitFlushGate.js')
+    getMainWindow.mockReturnValue({
+      isDestroyed: vi.fn(() => false),
+      webContents: trustedSender
+    })
+    registerSystemHandlers()
+    const flushHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.APP_FLUSH_COMPLETE
+    )?.[1]
+
+    const gateWindow = { isDestroyed: () => false, webContents: { send: vi.fn() } }
+    let settled = false
+    const pending = waitForQuitFlush(gateWindow as never).then((saved) => {
+      settled = true
+      return saved
+    })
+    const requestId = gateWindow.webContents.send.mock.calls[0][1] as number
+
+    await flushHandler?.({ sender: { id: 'attacker' } }, true, requestId)
+    await Promise.resolve()
+    expect(settled).toBe(false)
+
+    await flushHandler?.({ sender: trustedSender }, true, requestId)
+    await expect(pending).resolves.toBe(true)
+  })
+
+  it('rejects a flush answer that carries no request id', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    const { waitForQuitFlush } = await import('../../app/quitFlushGate.js')
+    getMainWindow.mockReturnValue({
+      isDestroyed: vi.fn(() => false),
+      webContents: trustedSender
+    })
+    registerSystemHandlers()
+    const flushHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.APP_FLUSH_COMPLETE
+    )?.[1]
+
+    const gateWindow = { isDestroyed: () => false, webContents: { send: vi.fn() } }
+    let settled = false
+    const pending = waitForQuitFlush(gateWindow as never).then((saved) => {
+      settled = true
+      return saved
+    })
+
+    await flushHandler?.({ sender: trustedSender }, true)
+    await Promise.resolve()
+    expect(settled).toBe(false)
+
+    const requestId = gateWindow.webContents.send.mock.calls[0][1] as number
+    await flushHandler?.({ sender: trustedSender }, true, requestId)
+    await expect(pending).resolves.toBe(true)
+  })
+
   it('leaves cleanup to before-quit so a cancelled quit cannot tear the app down', async () => {
     const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
     getMainWindow.mockReturnValue({

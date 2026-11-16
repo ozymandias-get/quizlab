@@ -47,9 +47,10 @@ export function registerSystemHandlers() {
   registerIpcHandler(
     IPC_CHANNELS.APP_FLUSH_COMPLETE,
     async (_event, saved: boolean, requestId?: number) => {
-      // A malformed id must not fall back to the broadcast path: that would
-      // let a delayed answer release a different request.
-      if (requestId !== undefined && (!Number.isInteger(requestId) || requestId <= 0)) {
+      // Every answer must name the request it belongs to. A missing or
+      // malformed id is rejected so it cannot fall back to a broadcast that
+      // would release a different, newer flush request.
+      if (requestId === undefined || !Number.isInteger(requestId) || requestId <= 0) {
         return success(false)
       }
       markQuitFlushComplete(saved === true, requestId)

@@ -92,14 +92,30 @@ describe('the quit flush gate', () => {
     await expect(current).resolves.toBe(true)
   })
 
-  it('keeps the broadcast behaviour for an answer without a request id', async () => {
+  it('ignores an answer without a request id instead of releasing every waiter', async () => {
     const first = fakeWindow()
     const second = fakeWindow()
-    const waiting = [waitForQuitFlush(first as never), waitForQuitFlush(second as never)]
+    let firstSettled = false
+    let secondSettled = false
+    const firstWaiting = waitForQuitFlush(first as never).then((saved) => {
+      firstSettled = true
+      return saved
+    })
+    const secondWaiting = waitForQuitFlush(second as never).then((saved) => {
+      secondSettled = true
+      return saved
+    })
 
+    // A stale renderer or an anonymous IPC answer must not complete a newer
+    // flush it was never sent for.
     markQuitFlushComplete(true)
+    await Promise.resolve()
+    expect(firstSettled).toBe(false)
+    expect(secondSettled).toBe(false)
 
-    await expect(Promise.all(waiting)).resolves.toEqual([true, true])
+    markQuitFlushComplete(true, sentRequestId(first))
+    markQuitFlushComplete(true, sentRequestId(second))
+    await expect(Promise.all([firstWaiting, secondWaiting])).resolves.toEqual([true, true])
   })
 
   it('does not block quitting when the renderer never answers', async () => {

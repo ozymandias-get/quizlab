@@ -26,22 +26,18 @@ let nextFlushRequestId = 1
  * The renderer answered with the result of its pending writes.
  *
  * `false` means at least one save failed; the caller decides whether to quit
- * anyway or offer a retry. A missing id keeps the old broadcast behaviour for
- * callers that predate the request identity.
+ * anyway or offer a retry. The answer belongs to exactly one request: an
+ * answer without an id (or with an unknown/stale id) is ignored rather than
+ * released as a broadcast. A broadcast let a delayed or anonymous answer
+ * complete a newer flush it was never sent for, defeating the request
+ * isolation that keeps a slow renderer from tearing the app down.
  */
 export function markQuitFlushComplete(saved = true, requestId?: number): void {
-  if (requestId !== undefined) {
-    const resolve = pendingWaiters.get(requestId)
-    if (!resolve) return
-    pendingWaiters.delete(requestId)
-    resolve(saved)
-    return
-  }
-
-  for (const [id, resolve] of pendingWaiters) {
-    pendingWaiters.delete(id)
-    resolve(saved)
-  }
+  if (requestId === undefined) return
+  const resolve = pendingWaiters.get(requestId)
+  if (!resolve) return
+  pendingWaiters.delete(requestId)
+  resolve(saved)
 }
 
 /** Asks the renderer to flush and waits for its answer, bounded by a timeout. */
