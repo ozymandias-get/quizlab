@@ -74,6 +74,18 @@ describe('normalizeProvider', () => {
     expect('isCustomProvider' in result).toBe(false)
   })
 
+  it('keeps an explicit denial even when a legacy alias grants local access', () => {
+    const result = normalizeProvider({
+      ...baseProvider,
+      allowLocalNetwork: false,
+      allowLocalEndpoints: true,
+      isCustomProvider: true
+    })
+    expect(result.allowLocalNetwork).toBe(false)
+    expect('allowLocalEndpoints' in result).toBe(false)
+    expect('isCustomProvider' in result).toBe(false)
+  })
+
   it('does not grant local access when no flag is set', () => {
     const result = normalizeProvider(baseProvider)
     expect(result.allowLocalNetwork).toBeUndefined()

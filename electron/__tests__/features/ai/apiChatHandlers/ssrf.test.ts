@@ -290,6 +290,21 @@ describe('fetchWithSsrProtection (redirect revalidation + DNS pinning)', () => {
     expect(a.requests.map((r) => r.url)).toEqual(['/start', '/final'])
   })
 
+  it.each([204, 205, 304])(
+    'returns a bodyless Response for status %i instead of throwing',
+    async (status) => {
+      const a = await startTestServer((_req, res) => {
+        res.writeHead(status, { 'content-type': 'text/plain' })
+        res.end('ignored body')
+      })
+      handles.push(a)
+
+      const response = await fetchWithSsrProtection(`http://127.0.0.1:${a.port}/start`)
+      expect(response.status).toBe(status)
+      expect(await response.text()).toBe('')
+    }
+  )
+
   it('blocks a same-host redirect to a different port', async () => {
     const target = await startTestServer((_req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' })

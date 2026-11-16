@@ -12,7 +12,6 @@ import { success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
 import { markQuitFlushComplete } from '../../app/quitFlushGate.js'
 import { registerIpcHandler } from '../../core/typedIpcMain.js'
-import { runCleanup } from '../appCleanup.js'
 import { requireTrustedIpcSender } from '../ipcSecurity.js'
 import { Logger, pushToLoggerBuffer } from '../logger.js'
 import { registerCacheHandlers } from './cacheHandlers.js'
@@ -31,8 +30,10 @@ export function registerSystemHandlers() {
   registerIpcHandler(
     IPC_CHANNELS.APP_QUIT,
     async () => {
-      await runCleanup()
-
+      // Cleanup belongs to the single `before-quit` path in app/index.ts,
+      // which asks the renderer to flush first and honours a cancelled quit.
+      // Running it here would tear down AI views, native messaging and the
+      // cache schedulers even when the user later cancels the save dialog.
       setImmediate(() => {
         app.quit()
       })

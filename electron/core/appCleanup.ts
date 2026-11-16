@@ -1,10 +1,11 @@
 /**
  * Shared application lifecycle state.
  *
- * Both `electron/app/index.ts` (the main entry point) and
- * `electron/core/systemHandlers.ts` (the APP_QUIT handler) need
- * coordinated cleanup before quitting.  This module provides a
- * shared mechanism without creating circular dependencies.
+ * `electron/app/index.ts` owns the single `before-quit` path, which confirms
+ * pending renderer writes before running this cleanup. `systemHandlers.ts`
+ * only requests `app.quit()`; it must never clean up early, because a
+ * cancelled quit would otherwise leave a running but torn-down app.
+ * This module provides the shared mechanism without circular dependencies.
  */
 
 import { Logger } from './logger.js'

@@ -76,6 +76,17 @@ describe('diskLogger flushToDisk bookkeeping', () => {
     expect(mkdirMock).not.toHaveBeenCalled()
   })
 
+  it('stays inert when logToDisk is explicitly false', async () => {
+    const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
+
+    initLogger({ userDataPath: '/ud', logToDisk: false })
+    pushEntry('info', 'not written')
+    await flushToDisk()
+
+    expect(mkdirMock).not.toHaveBeenCalled()
+    expect(appendFileMock).not.toHaveBeenCalled()
+  })
+
   it('continues flushing after the buffer has saturated (regression)', async () => {
     const { initLogger, flushToDisk } = await import('../../core/diskLogger.js')
     initLogger({ userDataPath: '/ud' })

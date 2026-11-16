@@ -13,6 +13,19 @@ export const domSearchHelpers =
         return str.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"');
     };
 
+    // Identifier escaping (ids, class tokens). CSS.escape is absent in some
+    // injected runtimes (jsdom, restricted webviews), so fall back to a
+    // codepoint escape instead of throwing on the whole fingerprint lookup.
+    const __escapeCssIdentifier = (value) => {
+        if (typeof value !== 'string') return '';
+        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+            return CSS.escape(value);
+        }
+        return value.replace(/[^a-zA-Z0-9_-]/g, (character) =>
+            '\\\\' + character.charCodeAt(0).toString(16) + ' '
+        );
+    };
+
     __installShadowRootRegistry();
 
     const collectShadowRoots = (root, accumulator, visitedHosts) => {
@@ -277,11 +290,17 @@ export const domSearchHelpers =
             }
 
             const hostElement = findUniqueInRoot(currentRoot, host.selector);
-            if (!hostElement || !hostElement.shadowRoot) {
+            if (!hostElement) {
+                return null;
+            }
+            // Closed roots are absent from the shadowRoot property; the
+            // attachShadow registry is the only way to recover them.
+            const shadowRoot = getShadowRootForHost(hostElement);
+            if (!shadowRoot) {
                 return null;
             }
 
-            currentRoot = hostElement.shadowRoot;
+            currentRoot = shadowRoot;
         }
 
         return currentRoot;

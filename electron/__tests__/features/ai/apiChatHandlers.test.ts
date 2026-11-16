@@ -113,6 +113,15 @@ describe('the API chat handlers', () => {
     await expect(first).resolves.toMatchObject({ ok: true })
   })
 
+  it('reports a 429 with a dedicated rate_limited code', async () => {
+    fetchWithSsrProtection.mockResolvedValueOnce(new Response('slow down', { status: 429 }))
+
+    await expect(send('rate-limit-request')).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'rate_limited', message: expect.stringContaining('rate limit') }
+    })
+  })
+
   it('accepts an answer split into content parts', async () => {
     fetchWithSsrProtection.mockResolvedValueOnce(
       jsonResponse({

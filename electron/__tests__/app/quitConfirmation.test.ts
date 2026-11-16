@@ -1,4 +1,4 @@
-import { confirmQuitWithPendingWrites } from '../../app/quitConfirmation.js'
+import { confirmPendingWrites, confirmQuitWithPendingWrites } from '../../app/quitConfirmation.js'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -76,6 +76,37 @@ describe('confirmQuitWithPendingWrites', () => {
 
     release(false)
     await expect(Promise.all([close, quit])).resolves.toEqual([false, false])
+    expect(showMessageBox).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers Cancel / Reload without saving for a reload', async () => {
+    waitForQuitFlush.mockResolvedValue(false)
+    showMessageBox.mockResolvedValue({ response: 1 })
+
+    await expect(confirmPendingWrites(window() as never, 'reload')).resolves.toBe(true)
+    expect(showMessageBox).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ buttons: ['Cancel', 'Reload without saving'] })
+    )
+  })
+
+  it('shares one flush decision between a reload and a close', async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+    showMessageBox.mockResolvedValue({ response: 0 })
+
+    const reload = confirmPendingWrites(window() as never, 'reload')
+    const close = confirmPendingWrites(window() as never, 'close')
+    await Promise.resolve()
+    expect(waitForQuitFlush).toHaveBeenCalledTimes(1)
+
+    release(false)
+    await expect(Promise.all([reload, close])).resolves.toEqual([false, false])
     expect(showMessageBox).toHaveBeenCalledTimes(1)
   })
 

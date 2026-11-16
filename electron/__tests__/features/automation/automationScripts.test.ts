@@ -77,6 +77,35 @@ describe('automationScripts', () => {
     }
   )
 
+  it('resolves a fingerprint when the runtime has no CSS.escape', async () => {
+    document.body.innerHTML =
+      '<div id="target" class="alpha beta" role="textbox" contenteditable="true"></div>'
+    const originalEscape = CSS.escape
+    try {
+      Object.defineProperty(CSS, 'escape', { value: undefined, configurable: true })
+      expect(CSS.escape).toBeUndefined()
+
+      const script = generateFocusScript({
+        input: '#does-not-exist',
+        inputFingerprint: {
+          tag: 'div',
+          safeId: 'target',
+          classTokens: ['alpha', 'beta'],
+          role: 'textbox',
+          contentEditable: true,
+          hostChain: [],
+          localPath: ['#target']
+        }
+      })
+
+      const result = await window.eval(script)
+      expect(result.success).toBe(true)
+      expect(result.diagnostics.input.strategy).toBe('fingerprint')
+    } finally {
+      Object.defineProperty(CSS, 'escape', { value: originalEscape, configurable: true })
+    }
+  })
+
   it('falls back to a candidate selector when the primary does not match', async () => {
     document.body.innerHTML = `
       <div role="textbox" contenteditable="true" id="editor"></div>

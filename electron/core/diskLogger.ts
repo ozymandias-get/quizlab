@@ -15,6 +15,7 @@ const CLEANUP_INTERVAL_MS = 3_600_000
 const LOG_RETENTION_DAYS = 7
 
 export function initLogger(options?: { userDataPath?: string; logToDisk?: boolean }): void {
+  if (options?.logToDisk === false) return
   if (!options?.userDataPath) return
 
   const logDir = path.join(options.userDataPath, 'logs')

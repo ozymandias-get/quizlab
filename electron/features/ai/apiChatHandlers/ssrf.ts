@@ -244,6 +244,33 @@ function pinnedRequest(
 
 const MAX_REDIRECTS = 5
 
+/**
+ * Statuses the Fetch spec forbids from carrying a response body. Passing even
+ * an empty `Uint8Array` for one of these makes the `Response` constructor throw
+ * (`TypeError: Invalid response status code 204`), which would turn an ordinary
+ * provider answer into an opaque request failure.
+ */
+function isNullBodyStatus(status: number): boolean {
+  return status === 204 || status === 205 || status === 304
+}
+
+function toFetchResponse(response: {
+  status: number
+  statusText: string
+  headers: Record<string, string | string[] | undefined>
+  body: Buffer
+}): Response {
+  const headers = new Headers()
+  for (const [name, value] of Object.entries(response.headers)) {
+    if (typeof value === 'string') headers.set(name, value)
+  }
+  return new Response(isNullBodyStatus(response.status) ? null : new Uint8Array(response.body), {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
+}
+
 function isRedirectStatus(status: number): boolean {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
 }
@@ -306,28 +333,12 @@ async function fetchWithSsrProtection(
     )
 
     if (!isRedirectStatus(response.status)) {
-      const responseHeaders = new Headers()
-      for (const [name, value] of Object.entries(response.headers)) {
-        if (typeof value === 'string') responseHeaders.set(name, value)
-      }
-      return new Response(new Uint8Array(response.body), {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders
-      })
+      return toFetchResponse(response)
     }
 
     const locationHeader = response.headers.location
     if (!locationHeader) {
-      const responseHeaders = new Headers()
-      for (const [name, value] of Object.entries(response.headers)) {
-        if (typeof value === 'string') responseHeaders.set(name, value)
-      }
-      return new Response(new Uint8Array(response.body), {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders
-      })
+      return toFetchResponse(response)
     }
 
     const location = Array.isArray(locationHeader) ? locationHeader[0] : locationHeader

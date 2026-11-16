@@ -261,7 +261,7 @@ export function registerApiChatHandlers() {
           }
           if (response.status === 429) {
             return failure(
-              'internal_error',
+              'rate_limited',
               `API rate limit exceeded (429). Please wait and retry. ${errorText}`.trim()
             )
           }

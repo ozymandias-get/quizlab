@@ -14,6 +14,7 @@ const fromPartition = vi.fn(() => ({
 }))
 const fromId = vi.fn()
 const getMainWindow = vi.fn()
+const runCleanup = vi.hoisted(() => vi.fn(async () => undefined))
 
 // Only `electron` is mocked here — the clipboard adapter under the handlers is
 // the real one, so a write really travels through `ClipboardItem` and the
@@ -75,6 +76,8 @@ vi.mock('../../app/windowManager', () => ({
   getMainWindow
 }))
 
+vi.mock('../../core/appCleanup', () => ({ runCleanup }))
+
 describe('systemHandlers', () => {
   // trustedSender doubles as both the IPC event.sender (a WebContents-like
   // object) and mainWindow.webContents, so it must answer isDestroyed() for
@@ -99,6 +102,7 @@ describe('systemHandlers', () => {
     fromPartition.mockClear()
     fromId.mockReset()
     getMainWindow.mockReset()
+    runCleanup.mockClear()
     trustedSender = {
       id: 'trusted',
       isDestroyed: vi.fn(() => false),
@@ -146,6 +150,24 @@ describe('systemHandlers', () => {
     await quitHandler?.({ sender: { id: 'attacker' } })
 
     expect(appQuit).not.toHaveBeenCalled()
+  })
+
+  it('leaves cleanup to before-quit so a cancelled quit cannot tear the app down', async () => {
+    const { registerSystemHandlers } = await import('../../core/systemHandlers/systemHandlers.js')
+    getMainWindow.mockReturnValue({
+      isDestroyed: vi.fn(() => false),
+      webContents: trustedSender
+    })
+
+    registerSystemHandlers()
+    const quitHandler = ipcHandle.mock.calls.find(
+      ([channel]) => channel === APP_CONFIG.IPC_CHANNELS.APP_QUIT
+    )?.[1]
+
+    await quitHandler?.({ sender: trustedSender })
+    await vi.waitFor(() => expect(appQuit).toHaveBeenCalledTimes(1))
+
+    expect(runCleanup).not.toHaveBeenCalled()
   })
 
   it('opens external URLs only for trusted senders and valid protocols', async () => {

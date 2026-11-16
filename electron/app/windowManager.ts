@@ -1,8 +1,7 @@
-import { type BrowserWindow, dialog } from 'electron'
+import { type BrowserWindow } from 'electron'
 
 import { APP_CONFIG } from './constants.js'
-import { confirmQuitWithPendingWrites } from './quitConfirmation.js'
-import { waitForQuitFlush } from './quitFlushGate.js'
+import { confirmPendingWrites } from './quitConfirmation.js'
 import { isReloadShortcut } from './reloadShortcut.js'
 import {
   DEV_SERVER_URL,
@@ -61,7 +60,7 @@ export async function createWindow() {
     saveWindowState(mainWindow)
     if (closeFlushDone) return
     event.preventDefault()
-    void confirmQuitWithPendingWrites(mainWindow).then((mayClose) => {
+    void confirmPendingWrites(mainWindow, 'close').then((mayClose) => {
       // A second close click joins the same decision; only the first callback
       // may actually close the window.
       if (!mayClose || closeFlushDone) return
@@ -84,22 +83,12 @@ export async function createWindow() {
     const ignoreCache = input.shift === true
 
     void (async () => {
-      const saved = await waitForQuitFlush(reloadWindow)
+      // Join the same bounded decision as a close or quit. A reload must not
+      // keep a private handshake that can overlap the close path and let the
+      // window be destroyed while its flush answer is still in flight.
+      const mayReload = await confirmPendingWrites(reloadWindow, 'reload')
       reloadFlushInProgress = false
-      if (reloadWindow.isDestroyed()) return
-
-      if (!saved) {
-        const { response } = await dialog.showMessageBox(reloadWindow, {
-          type: 'warning',
-          buttons: ['Cancel', 'Reload without saving'],
-          defaultId: 0,
-          cancelId: 0,
-          message: 'Some chat changes could not be saved.',
-          detail:
-            'Reloading now would lose the latest changes. Cancel and try again, or reload without them?'
-        })
-        if (response !== 1 || reloadWindow.isDestroyed()) return
-      }
+      if (!mayReload || reloadWindow.isDestroyed()) return
 
       if (ignoreCache) reloadWindow.webContents.reloadIgnoringCache()
       else reloadWindow.webContents.reload()

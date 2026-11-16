@@ -52,7 +52,7 @@ export const fingerprintSearchHelpers = `    // Cross-root twin guards. A select
 
         const selectorCandidates = [];
         if (fingerprint.safeId) {
-            selectorCandidates.push('#' + CSS.escape(fingerprint.safeId));
+            selectorCandidates.push('#' + __escapeCssIdentifier(fingerprint.safeId));
         }
         if (fingerprint.dataTestId) {
             selectorCandidates.push((tag !== '*' ? tag : '') + '[data-testid="' + __escapeCssStr(fingerprint.dataTestId) + '"]');
@@ -68,7 +68,7 @@ export const fingerprintSearchHelpers = `    // Cross-root twin guards. A select
             selectorCandidates.push((tag !== '*' ? tag : '') + '[aria-label="' + __escapeCssStr(fingerprint.ariaLabel) + '"]');
         }
         if (Array.isArray(fingerprint.classTokens) && fingerprint.classTokens.length > 0 && tag !== '*') {
-            selectorCandidates.push(tag + fingerprint.classTokens.map((token) => '.' + CSS.escape(token)).join(''));
+            selectorCandidates.push(tag + fingerprint.classTokens.map((token) => '.' + __escapeCssIdentifier(token)).join(''));
         }
         if (fingerprint.role) {
             selectorCandidates.push((tag !== '*' ? tag : '') + '[role="' + __escapeCssStr(fingerprint.role) + '"]');

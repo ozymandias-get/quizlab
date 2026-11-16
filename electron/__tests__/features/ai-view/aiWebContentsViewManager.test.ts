@@ -5,6 +5,7 @@ const addChildView = vi.fn()
 const removeChildView = vi.fn()
 const setIgnoreMouseEvents = vi.fn()
 const warn = vi.hoisted(() => vi.fn())
+const fromPartition = vi.hoisted(() => vi.fn())
 
 vi.mock('../../../core/logger.js', () => ({
   Logger: { warn, info: vi.fn(), error: vi.fn(), debug: vi.fn() }
@@ -72,6 +73,7 @@ interface FakeWebContents {
   setUserAgent: ReturnType<typeof vi.fn>
   setIgnoreMouseEvents: ReturnType<typeof vi.fn>
   setWindowOpenHandler: ReturnType<typeof vi.fn>
+  setAudioMuted: ReturnType<typeof vi.fn>
   navigationHistory: { goBack: ReturnType<typeof vi.fn>; goForward: ReturnType<typeof vi.fn> }
   on: (event: string, handler: (...args: unknown[]) => void) => void
   once: (event: string, handler: (...args: unknown[]) => void) => void
@@ -108,6 +110,7 @@ function createFakeWebContents(viewId: string): FakeWebContents {
     setUserAgent: vi.fn(),
     setIgnoreMouseEvents: vi.fn(),
     setWindowOpenHandler: vi.fn(),
+    setAudioMuted: vi.fn(),
     navigationHistory: { goBack: vi.fn(), goForward: vi.fn() },
     insertCSS: vi.fn(async () => undefined),
     on: (event: string, handler: (...args: unknown[]) => void) => {
@@ -138,7 +141,8 @@ function createFakeWebContents(viewId: string): FakeWebContents {
 
 vi.mock('electron', () => ({
   WebContentsView: FakeWebContentsView,
-  shell: { openExternal: vi.fn(async () => undefined) }
+  shell: { openExternal: vi.fn(async () => undefined) },
+  session: { fromPartition }
 }))
 
 vi.mock('../../../app/windowManager.js', () => ({
@@ -210,6 +214,13 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
       id: 'noPartition',
       name: 'NoPartition',
       url: 'https://nopartition.test'
+    },
+    setupFail: {
+      id: 'setupFail',
+      name: 'SetupFail',
+      displayName: 'SetupFail',
+      url: 'https://setup-fail.test',
+      partition: 'persist:ai_custom_setup_fail'
     }
   })
 }))
@@ -233,6 +244,13 @@ async function reset() {
   FakeWebContentsView.visibleHistory = []
   FakeWebContentsView.radiusFailuresRemaining = 0
   warn.mockClear()
+  fromPartition.mockReset()
+  fromPartition.mockReturnValue({
+    webRequest: { onBeforeSendHeaders: vi.fn() },
+    setDisplayMediaRequestHandler: vi.fn(),
+    setPermissionRequestHandler: vi.fn(),
+    setPermissionCheckHandler: vi.fn()
+  })
   nextWebContentsId = 1
 }
 
@@ -247,6 +265,29 @@ describe('AiWebContentsViewManager - creation', () => {
     WebContentsViewMock.mockClear()
     const second = await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
     expect(second.generation).toBe(first.generation)
+    expect(WebContentsViewMock).not.toHaveBeenCalled()
+  })
+
+  it('mutes a hidden view from the moment it is attached', async () => {
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-muted', source: CHATGPT })
+
+    const view = addChildView.mock.calls[0][0] as FakeWebContentsView
+    expect(view.webContents.setAudioMuted).toHaveBeenCalledWith(true)
+  })
+
+  it('refuses to attach a view when session security setup fails', async () => {
+    await reset()
+    fromPartition.mockImplementationOnce(() => {
+      throw new Error('webRequest conflict')
+    })
+
+    await expect(
+      manager.attachAiView({
+        viewId: 'tab-setup-fail',
+        source: { kind: 'ai-platform', modelId: 'setupFail' }
+      })
+    ).rejects.toThrow(/session_setup_failed/)
     expect(WebContentsViewMock).not.toHaveBeenCalled()
   })
 

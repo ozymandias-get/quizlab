@@ -271,7 +271,19 @@ function attachResolved(
 
   try {
     setupAiSession(target.partition)
-  } catch {}
+  } catch (error) {
+    // Never attach a guest to a partition whose deny-by-default permission
+    // policy could not be installed: falling back to Electron defaults would
+    // silently grant capabilities the app meant to withhold.
+    Logger.error('[AiView] Session security setup failed; refusing to attach the view:', {
+      viewId,
+      partition: target.partition,
+      error
+    })
+    throw new Error(
+      `session_setup_failed: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
 
   const view = new WebContentsView({
     webPreferences: {
@@ -345,6 +357,16 @@ function attachResolved(
   window.contentView.addChildView(view)
   view.setVisible(false)
   view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+  // `shown` starts false and applyVisibility() only mutes on a state change,
+  // so an initially hidden view must be muted explicitly. Otherwise a guest
+  // can play audio from attach until its first show (or forever if never shown).
+  if (!webContents.isDestroyed()) {
+    try {
+      webContents.setAudioMuted(true)
+    } catch {
+      // Older Electron builds may not expose muting; degrade gracefully.
+    }
+  }
 
   webContents.once('destroyed', () => {
     entry.disposeKeyboardGuard()

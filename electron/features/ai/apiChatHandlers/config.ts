@@ -25,10 +25,12 @@ function sanitizeApiKey(key: string): string {
  * only the canonical flag exists at runtime, and the next save rewrites the file
  * in canonical form.
  *
- * The grant itself is unchanged: an alias of `true` becomes
- * `allowLocalNetwork: true`, which is what the request path would have computed
- * from it anyway. An explicit `allowLocalNetwork: false` still wins over an alias
- * set to `false`, and neither alias overrides a canonical `true`.
+ * The grant is only derived from an alias when the canonical flag is absent:
+ * an alias of `true` becomes `allowLocalNetwork: true`, which is what the
+ * request path would have computed from it anyway. An explicit canonical
+ * value is the user's decision and is never overridden by a stale alias —
+ * in particular, a deliberate `allowLocalNetwork: false` keeps local/LAN
+ * access revoked.
  *
  * The request path (`getSsrOptionsForProvider` in ssrf.ts) reads
  * `allowLocalNetwork` and nothing else, so a provider that predates the aliases
@@ -39,7 +41,7 @@ function normalizeProvider(p: ApiProviderConfig): ApiProviderConfig {
   const aliasAllowsLocal = allowLocalEndpoints === true || isCustomProvider === true
   return {
     ...rest,
-    ...(aliasAllowsLocal || rest.allowLocalNetwork === true ? { allowLocalNetwork: true } : {})
+    ...(rest.allowLocalNetwork === undefined && aliasAllowsLocal ? { allowLocalNetwork: true } : {})
   }
 }
 
