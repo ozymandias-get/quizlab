@@ -63,9 +63,16 @@ const CHOICES: Readonly<Record<PendingWritesAction, DialogChoice>> = {
  * caller waiting behind it.
  */
 let pendingDecision: Promise<boolean> | null = null
+/**
+ * The caller that asked most recently owns the destructive action. A reload
+ * followed by a close must not also reload when the shared flush says "saved".
+ */
+let latestAction: PendingWritesAction | null = null
 
 /**
- * Resolves true when the caller may proceed, false when the user cancelled.
+ * Resolves true only when the user allowed the write AND this caller is still
+ * the latest request. A superseded caller gets false, which every caller
+ * already treats as "do not perform the destructive action".
  *
  * A missing or destroyed window has no renderer left to flush; proceeding is
  * the only meaningful answer there.
@@ -75,12 +82,16 @@ export function confirmPendingWrites(
   action: PendingWritesAction
 ): Promise<boolean> {
   if (!window || window.isDestroyed()) return Promise.resolve(true)
-  if (pendingDecision) return pendingDecision
 
-  pendingDecision = decide(window, action).finally(() => {
-    pendingDecision = null
-  })
-  return pendingDecision
+  latestAction = action
+  if (!pendingDecision) {
+    pendingDecision = decide(window, action).finally(() => {
+      pendingDecision = null
+    })
+  }
+
+  const decision = pendingDecision
+  return decision.then((proceed) => proceed && latestAction === action)
 }
 
 /** Backwards-compatible name for the quit path. */

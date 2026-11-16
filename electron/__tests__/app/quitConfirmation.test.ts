@@ -110,6 +110,40 @@ describe('confirmQuitWithPendingWrites', () => {
     expect(showMessageBox).toHaveBeenCalledTimes(1)
   })
 
+  it('gives an approved flush only to the latest overlapping caller', async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+
+    const reload = confirmPendingWrites(window() as never, 'reload')
+    const close = confirmPendingWrites(window() as never, 'close')
+    await Promise.resolve()
+    release(true)
+
+    await expect(Promise.all([reload, close])).resolves.toEqual([false, true])
+  })
+
+  it('hands the decision back when the later caller is the reload', async () => {
+    let release!: (saved: boolean) => void
+    waitForQuitFlush.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          release = resolve
+        })
+    )
+
+    const close = confirmPendingWrites(window() as never, 'close')
+    const reload = confirmPendingWrites(window() as never, 'reload')
+    await Promise.resolve()
+    release(true)
+
+    await expect(Promise.all([close, reload])).resolves.toEqual([false, true])
+  })
+
   it('does not quit with unsaved changes when the warning cannot be shown', async () => {
     waitForQuitFlush.mockResolvedValue(false)
     showMessageBox.mockRejectedValue(new Error('no display'))
