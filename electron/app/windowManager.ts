@@ -29,16 +29,17 @@ export async function createWindow() {
   windowState.height = Math.max(APP_CONFIG.WINDOW.MIN_HEIGHT, windowState.height)
   clampWindowStateToDisplay(windowState)
 
-  mainWindow = createMainBrowserWindow(windowState)
+  const window = createMainBrowserWindow(windowState)
+  mainWindow = window
 
-  hardenWindowWebContents(mainWindow)
+  hardenWindowWebContents(window)
 
   // Must be armed before the first load: `loadFile`/`loadURL` resolve on
   // `did-finish-load`, so registering `dom-ready` / `did-finish-load` after
   // awaiting them misses the events they exist to observe and leaves a hidden
   // window waiting for the 10-second fallback timer.
   const clearRevealTimer = configureWindowReveal({
-    window: mainWindow,
+    window,
     iconPath: resolveIconPath(),
     isDev,
     devServerUrl: DEV_SERVER_URL,
@@ -47,31 +48,55 @@ export async function createWindow() {
     didFinishLoadRevealDelayMs: MAIN_WINDOW_DID_FINISH_LOAD_REVEAL_DELAY_MS
   })
 
-  await loadRenderer(mainWindow)
+  // Drop the module-level reference as soon as the window goes away, including
+  // when it closes while the renderer is still loading. Only a window that is
+  // still the current main window may clear it (an old window's late `closed`
+  // event must not detach a replacement created by `activate`).
+  window.on('closed', () => {
+    clearRevealTimer()
+    if (mainWindow === window) mainWindow = null
+  })
 
-  if (windowState.isMaximized && !mainWindow.isDestroyed()) {
-    mainWindow.maximize()
+  try {
+    await loadRenderer(window)
+  } catch (error) {
+    // A failed load leaves no renderer to answer a flush. Destroy the window
+    // so its `closed` handler clears `mainWindow` and the startup error path
+    // can quit without waiting on a phantom flush answer or showing a dialog.
+    if (!window.isDestroyed()) window.destroy()
+    throw error
+  }
+
+  if (windowState.isMaximized && !window.isDestroyed()) {
+    window.maximize()
   }
 
   // A close must give the renderer one bounded chance to finish its pending
   // IndexedDB writes; beforeunload alone cannot await them.
   let closeFlushDone = false
-  mainWindow.on('close', (event) => {
-    saveWindowState(mainWindow)
+  window.on('close', (event) => {
     if (closeFlushDone) return
     event.preventDefault()
-    void confirmPendingWrites(mainWindow, 'close').then((mayClose) => {
+    void (async () => {
+      // Wait for both the flush decision and the final state write before
+      // destroying the window. An unawaited write can be cut short by a fast
+      // app quit, losing the last bounds; the flush still starts immediately
+      // because the two run in parallel.
+      const [mayClose] = await Promise.all([
+        confirmPendingWrites(window, 'close'),
+        saveWindowState(window)
+      ])
       // A second close click joins the same decision; only the first callback
       // may actually close the window.
       if (!mayClose || closeFlushDone) return
       closeFlushDone = true
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close()
-    })
+      if (!window.isDestroyed()) window.close()
+    })()
   })
   // A keyboard reload must use the same flush handshake as a close. The
   // renderer's beforeunload cannot await an IndexedDB transaction, and a
   // reload aborts one that is still in flight (verified against Electron).
-  const reloadWindow = mainWindow
+  const reloadWindow = window
   let reloadFlushInProgress = false
   reloadWindow.webContents.on('before-input-event', (event, input) => {
     if (!isReloadShortcut(input)) return
@@ -97,12 +122,7 @@ export async function createWindow() {
     })
   })
 
-  mainWindow.on('closed', () => {
-    clearRevealTimer()
-    mainWindow = null
-  })
-
   setupSessions(getMainWindow)
 
-  return mainWindow
+  return window
 }
