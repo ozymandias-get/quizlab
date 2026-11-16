@@ -67,6 +67,12 @@ export async function createWindow() {
     throw error
   }
 
+  // The window may have closed while the renderer was loading. Its `closed`
+  // handler already cleared `mainWindow` and the reveal timer; do not install
+  // lifecycle listeners on a dead window or hand it back to callers — the
+  // macOS `activate` path calls show() on whatever createWindow returns.
+  if (window.isDestroyed()) return null
+
   if (windowState.isMaximized && !window.isDestroyed()) {
     window.maximize()
   }

@@ -5,6 +5,7 @@ const showMessageBox = vi.hoisted(() => vi.fn())
 const loadRenderer = vi.hoisted(() => vi.fn<() => Promise<void>>())
 const saveWindowState = vi.hoisted(() => vi.fn<() => Promise<boolean>>())
 const createMainBrowserWindow = vi.hoisted(() => vi.fn())
+const setupSessions = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({ dialog: { showMessageBox } }))
 vi.mock('../../core/logger.js', () => ({
@@ -24,7 +25,7 @@ vi.mock('../../app/window/environment.js', () => ({
 }))
 vi.mock('../../app/window/rendererLoader.js', () => ({ loadRenderer }))
 vi.mock('../../app/window/security.js', () => ({ hardenWindowWebContents: vi.fn() }))
-vi.mock('../../app/window/sessions.js', () => ({ setupSessions: vi.fn() }))
+vi.mock('../../app/window/sessions.js', () => ({ setupSessions }))
 vi.mock('../../app/window/state.js', () => ({
   loadWindowState: vi.fn(async () => ({ width: 800, height: 600, isMaximized: false })),
   saveWindowState,
@@ -36,21 +37,20 @@ vi.mock('../../app/windowReveal.js', () => ({
 
 interface FakeWindow {
   isDestroyed: () => boolean
-  maximize: ReturnType<typeof vi.fn>
+  maximize: ReturnType<typeof vi.fn<() => void>>
   on: (event: string, handler: (event: { preventDefault(): void }) => void) => void
-  close: ReturnType<typeof vi.fn>
-  destroy: ReturnType<typeof vi.fn>
+  close: ReturnType<typeof vi.fn<() => void>>
+  destroy: ReturnType<typeof vi.fn<() => void>>
   webContents: {
     on: (event: string, handler: (event: unknown, input: unknown) => void) => void
-    reload: ReturnType<typeof vi.fn>
-    reloadIgnoringCache: ReturnType<typeof vi.fn>
+    reload: ReturnType<typeof vi.fn<() => void>>
+    reloadIgnoringCache: ReturnType<typeof vi.fn<() => void>>
   }
 }
 
 let fakeWindow: FakeWindow
 let closeListeners: Array<(event: { preventDefault(): void }) => void>
 let inputListeners: Array<(event: unknown, input: unknown) => void>
-let closedListeners: Array<() => void>
 
 function makeWindow(): FakeWindow {
   // Each window keeps its own listener arrays. The module-level aliases below
@@ -59,25 +59,25 @@ function makeWindow(): FakeWindow {
   const ownCloseListeners: Array<(event: { preventDefault(): void }) => void> = []
   const ownInputListeners: Array<(event: unknown, input: unknown) => void> = []
   const ownClosedListeners: Array<() => void> = []
+  let destroyed = false
   closeListeners = ownCloseListeners
   inputListeners = ownInputListeners
-  closedListeners = ownClosedListeners
 
   const window: FakeWindow = {
-    isDestroyed: () => false,
-    maximize: vi.fn(),
+    isDestroyed: () => destroyed,
+    maximize: vi.fn<() => void>(),
     on: (event, handler) => {
       if (event === 'close') ownCloseListeners.push(handler)
       if (event === 'closed') ownClosedListeners.push(handler as () => void)
     },
-    close: vi.fn(),
-    destroy: vi.fn(),
+    close: vi.fn<() => void>(),
+    destroy: vi.fn<() => void>(),
     webContents: {
       on: (event, handler) => {
         if (event === 'before-input-event') ownInputListeners.push(handler)
       },
-      reload: vi.fn(),
-      reloadIgnoringCache: vi.fn()
+      reload: vi.fn<() => void>(),
+      reloadIgnoringCache: vi.fn<() => void>()
     }
   }
   // Electron fires `close` again for our own close() call. The windowManager
@@ -86,6 +86,8 @@ function makeWindow(): FakeWindow {
     for (const handler of ownCloseListeners) handler({ preventDefault: () => undefined })
   })
   window.destroy.mockImplementation(() => {
+    if (destroyed) return
+    destroyed = true
     for (const handler of ownClosedListeners) handler()
   })
   return window
@@ -107,7 +109,8 @@ function fireClose(): void {
 }
 
 function fireClosed(): void {
-  for (const handler of closedListeners) handler()
+  // Electron destroys the window and emits `closed` when it is closed.
+  fakeWindow.destroy()
 }
 
 describe('windowManager shutdown lifecycle', () => {
@@ -118,6 +121,7 @@ describe('windowManager shutdown lifecycle', () => {
     loadRenderer.mockReset().mockResolvedValue(undefined)
     saveWindowState.mockReset().mockResolvedValue(true)
     createMainBrowserWindow.mockReset().mockImplementation(() => fakeWindow)
+    setupSessions.mockReset()
   })
 
   it('runs only the latest of an overlapping reload and close', async () => {
@@ -232,5 +236,56 @@ describe('windowManager shutdown lifecycle', () => {
 
     releaseSave()
     await vi.waitFor(() => expect(fakeWindow.close).toHaveBeenCalledTimes(1))
+  })
+
+  it('does not install lifecycle listeners on a window closed during the renderer load', async () => {
+    let releaseLoad!: () => void
+    loadRenderer.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseLoad = resolve
+        })
+    )
+
+    const creating = createWindow()
+    await vi.waitFor(() => expect(loadRenderer).toHaveBeenCalledTimes(1))
+    fireClosed()
+
+    releaseLoad()
+    await expect(creating).resolves.toBeNull()
+
+    expect(closeListeners).toHaveLength(0)
+    expect(inputListeners).toHaveLength(0)
+    expect(getMainWindow()).toBeNull()
+  })
+
+  it('does not disturb a replacement window when an old load finishes later', async () => {
+    let releaseLoad!: () => void
+    loadRenderer.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseLoad = resolve
+        })
+    )
+
+    const firstCreating = createWindow()
+    await vi.waitFor(() => expect(loadRenderer).toHaveBeenCalledTimes(1))
+    const firstCloseListeners = closeListeners
+    const firstInputListeners = inputListeners
+    fireClosed()
+
+    const secondWindow = makeWindow()
+    createMainBrowserWindow.mockImplementationOnce(() => secondWindow)
+    await createWindow()
+
+    releaseLoad()
+    await expect(firstCreating).resolves.toBeNull()
+
+    expect(getMainWindow()).toBe(secondWindow)
+    expect(firstCloseListeners).toHaveLength(0)
+    expect(firstInputListeners).toHaveLength(0)
+    expect(closeListeners).toHaveLength(1)
+    expect(inputListeners).toHaveLength(1)
+    expect(setupSessions).toHaveBeenCalledTimes(1)
   })
 })
