@@ -29,6 +29,9 @@ const recentReadingInfo = [
 ]
 
 vi.mock('@features/pdf', () => ({
+  isSamePdfPath: (left: string | null | undefined, right: string | null | undefined) =>
+    (left ?? '').trim().replaceAll('\\', '/').toLowerCase() ===
+    (right ?? '').trim().replaceAll('\\', '/').toLowerCase(),
   usePdfSelection: () => ({
     pdfFile: null,
     pdfTabs: [],

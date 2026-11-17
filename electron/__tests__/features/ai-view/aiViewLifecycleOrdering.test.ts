@@ -18,6 +18,14 @@ import { describe, expect, it, vi } from 'vitest'
 const addChildView = vi.fn()
 const removeChildView = vi.fn()
 
+const fromPartition = vi.hoisted(() => vi.fn())
+fromPartition.mockReturnValue({
+  webRequest: { onBeforeSendHeaders: vi.fn() },
+  setDisplayMediaRequestHandler: vi.fn(),
+  setPermissionRequestHandler: vi.fn(),
+  setPermissionCheckHandler: vi.fn()
+})
+
 const WebContentsViewMock = vi.fn()
 
 class FakeWebContentsView {
@@ -102,7 +110,8 @@ function createFakeWebContents(): FakeWebContents {
 
 vi.mock('electron', () => ({
   WebContentsView: FakeWebContentsView,
-  shell: { openExternal: vi.fn(async () => undefined) }
+  shell: { openExternal: vi.fn(async () => undefined) },
+  session: { fromPartition }
 }))
 
 vi.mock('../../../app/windowManager.js', () => ({
