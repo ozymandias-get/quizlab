@@ -8,7 +8,7 @@
  *    `engines.node`, `README.md`, `README_TR.md`, `.github/CONTRIBUTING.md`,
  *    and the `node-version` pins in `.github/workflows/build.yml`. All but the
  *    first are prose or CI pins, and no gate compared them. The floor is set by
- *    a transitive dependency (jsdom 30), so the next bump of *that* package
+ *    a transitive dependency (jsdom 31), so the next bump of *that* package
  *    moves the truth while every document keeps its old claim — a green build
  *    shipping different answers, and a contributor told by the Turkish README
  *    to install a Node that CI does not use.

@@ -300,11 +300,11 @@ jobs:
             **Chrome extension:** `quizlab-session-extension.zip` — unzip it, open
             `chrome://extensions`, enable Developer mode, choose **Load unpacked**
             and select the unzipped folder. Pair it with the code shown in
-            **Settings → Site Sessions**.
+            **Settings → Session Import**.
 
             ### Core Features
             - **Embedded AI panels** (ChatGPT, Gemini, Claude, and more)
-            - **Magic Selector** for Universal AI Chat
+            - **Magic Picker** for Universal AI Chat
             - **Multi-language support (EN, TR)**
             - **Dual-Pane PDF Reader**
         env:

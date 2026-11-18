@@ -80,7 +80,7 @@ export function createRecentAiWorkEntry(
  * group those rows by, and merging unrelated chats into a single "no document"
  * card would hide them behind whichever was used last.
  */
-export function recentAiWorkCardKey(entry: RecentAiWorkEntry): string {
+function recentAiWorkCardKey(entry: RecentAiWorkEntry): string {
   return entry.documentName ? `${entry.modelId}::${entry.documentName}` : entry.id
 }
 

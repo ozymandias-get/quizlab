@@ -21,8 +21,8 @@ Thank you for your interest in contributing. This guide reflects the current rep
 
 ### Prerequisites
 
-- **Node.js 24.15+ / 26+** (CI uses 24 — the `engines` field mirrors jsdom 30's
-  range, which is stricter than the ranges Vite and Vitest publish)
+- **Node.js 24.15+ / 26+** (CI uses both 24 and 26 — the `engines` field mirrors
+  jsdom 31's range, which is stricter than the ranges Vite and Vitest publish)
 - **npm**
 - **Git**
 - **Google account** (optional, for the Google sites: Gemini, AI Studio, YouTube, Google Drive)
@@ -115,6 +115,8 @@ We follow conventional commits:
 | `perf`     | Performance improvements                  |
 | `test`     | Adding or updating tests                  |
 | `chore`    | Build process or auxiliary tool changes   |
+| `ci`       | CI configuration and workflow changes     |
+| `revert`   | Reverting a previous commit               |
 
 ---
 
@@ -216,8 +218,8 @@ set of CI gates is listed in
 ### Declared range floors are pinned to what is installed
 
 Every direct dependency's range in `package.json` has its floor set to the
-version actually on disk — `electron` is declared `^44.9.0` because 44.9.0 is
-installed, not because 44.9.0 is the newest release. Two reasons:
+version actually on disk — `electron` is declared `^45.2.3` because 45.2.3 is
+installed, not because it is the newest release. Two reasons:
 
 - `npm ci` installs from the manifest and the lockfile together. A floor above
   the installed tree makes a fresh checkout resolve differently from the one
@@ -242,7 +244,7 @@ npm run ci:check-declarations
 When it fails, the message names the file and both values. The Node floor is
 declared once, in `package.json` `engines.node`, and everything else is checked
 against it — so if the floor genuinely moved (it is set by a transitive
-dependency, jsdom 30, and will move again when that package is bumped), change
+dependency, jsdom 31, and will move again when that package is bumped), change
 `engines.node` first and let the gate tell you which documents need updating.
 
 ### Dependabot

@@ -156,7 +156,7 @@ async function captureRecentAiWork(
   for (let attempt = 0; attempt < RECENT_URL_POLL_ATTEMPTS; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, RECENT_URL_POLL_INTERVAL_MS))
     const currentUrl =
-      tabId && api
+      tabId && api?.aiView?.getUrl
         ? ((await api.aiView.getUrl({ viewId: tabId }).catch(() => null)) ?? readLiveUrl())
         : readLiveUrl()
     if (currentUrl && currentUrl !== initialEntry.url) {

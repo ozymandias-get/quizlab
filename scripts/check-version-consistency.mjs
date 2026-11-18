@@ -11,7 +11,7 @@ const buildYml = path.join(root, '.github', 'workflows', 'build.yml')
 const SEMVER_RE = /^\d+\.\d+\.\d+(-[\d.A-Za-z-]+)?(\+[\d.A-Za-z-]+)?$/
 
 const RAW_PACKAGE_JSON_ENC =
-  'https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmain%2Fpackage.json'
+  'https%3A%2F%2Fraw.githubusercontent.com%2Fozymandias-get%2Fquizlab%2Fmaster%2Fpackage.json'
 const DYNAMIC_QUERY = 'query=%24.version'
 
 function fail(msg) {
@@ -43,7 +43,7 @@ for (const file of [readmeEn, readmeTr]) {
   }
   if (!text.includes(RAW_PACKAGE_JSON_ENC) || !text.includes(DYNAMIC_QUERY)) {
     fail(
-      `${path.relative(root, file)}: version badge must read version from raw package.json on main (${RAW_PACKAGE_JSON_ENC} + ${DYNAMIC_QUERY})`
+      `${path.relative(root, file)}: version badge must read version from raw package.json on master (${RAW_PACKAGE_JSON_ENC} + ${DYNAMIC_QUERY})`
     )
   }
 

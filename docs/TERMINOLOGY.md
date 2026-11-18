@@ -147,6 +147,6 @@ Rules:
 - Keep the flat JSON structure — one file per domain (`ai-chat.json`,
   `errors.json`, `ws.json`, …) already groups keys; nesting inside the JSON is
   unnecessary.
-- The 19 per-domain files are merged into a single flat `translation` namespace
+- The 17 per-domain files are merged into a single flat `translation` namespace
   in `src/shared/i18n/i18next.ts`, so key names must be globally unique across
   all files.

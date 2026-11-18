@@ -10,7 +10,7 @@
  * declaration the others could be derived from; the rest are prose a
  * contributor might read and CI pins that decide what actually ran. No gate
  * compared them, so the next thing that moves the floor — and it moves when the
- * dependency that sets it is bumped, which today is jsdom 30 — would leave a
+ * dependency that sets it is bumped, which today is jsdom 31 — would leave a
  * green build shipping different answers, and a contributor reading the Turkish
  * README would be told to install a Node that CI does not use.
  *

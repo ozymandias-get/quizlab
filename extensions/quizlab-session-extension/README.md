@@ -33,7 +33,7 @@ secret belongs in the repository.
 
 The extension ships inside Quizlab Reader; there is no separate download.
 
-1. In Quizlab, open **Settings → Site Sessions** and press **Install**
+1. In Quizlab, open **Settings → Session Import** and press **Install**
    (**Eklentiyi kur**). The app copies the bundled extension to a stable
    folder under its user-data directory and puts that folder's path on the
    clipboard.
@@ -55,7 +55,7 @@ extension from `chrome://extensions` after an update.
 1. Run `npm run dev`. The development app prepares its own folder under the
    development user-data directory (`…/Quizlab Reader Dev/extension/
 quizlab-session-extension-dev`) on every start.
-2. Open **Settings → Site Sessions → Install extension** in the development app
+2. Open **Settings → Session Import → Install extension** in the development app
    and copy the reported path.
 3. Load that folder once in `chrome://extensions` (Developer mode → Load
    unpacked). Chrome shows it as **Quizlab Site Session Bridge (Dev)**.

@@ -85,13 +85,14 @@ it is regressed:
   constant time, caps the body at 512 KB, and only accepts cookies for
   `.google.com` and `.youtube.com`
   (`electron/features/native-messaging/`).
-- **Secret storage** — API keys are written with mode `0600` and encrypted with
+- **Secret storage** — API keys are written with mode `0600` on POSIX (Windows
+  ACLs are unchanged) and encrypted with
   Electron `safeStorage` where the OS keychain is available, falling back to
   AES-256-GCM under a PBKDF2-derived machine key. The fallback obfuscates the
   value at rest; it is not a substitute for a keychain.
 - **Automated scanning** — Electronegativity, Semgrep, `npm audit` and
   dependency-cruiser all run in the release quality CI job. The Electronegativity
-  baseline (12 MEDIUM, 1 LOW) is documented in
+  baseline (14 MEDIUM, 1 LOW) is documented in
   `scripts/check-electron-security.mjs`; the gate fails on HIGH/CRITICAL.
 - **Dependency exceptions** — accepted advisories live in
   `security/audit-exceptions.json` with an id, installed version and expiry, and

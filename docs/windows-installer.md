@@ -69,18 +69,19 @@ QuizLab-Setup-<version>-x64.exe   (NSIS, x64, per-user)
 ## Chrome session bridge
 
 The bridge is a loopback HTTP server (`127.0.0.1:51999–52009`) plus a Chrome
-extension that is distributed and installed separately. It does **not** use
-Chrome Native Messaging:
+extension that ships inside the app and is installed from Settings → Session
+Import. It does **not** use Chrome Native Messaging:
 
 - No `NativeMessagingHosts` registry key is written by the installer or by
   the app. Older installs that still carry the legacy
   `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.quizlab.reader` key
   have it removed on uninstall.
-- The app does **not** bundle or copy the extension. Settings → Site Sessions
-  links to the extension release; the user unzips it and loads it unpacked in
-  `chrome://extensions`.
-- The user pairs the extension by copying the code from Settings → Site
-  Sessions and pasting it into the extension popup. The code is the HMAC
+- The app bundles the extension as an extra resource and copies it to a stable
+  folder under its user-data directory when **Install** is pressed in Settings
+  → Session Import. The user loads that folder unpacked in `chrome://extensions`.
+  CI also publishes the extension as a standalone zip artifact.
+- The user pairs the extension by copying the code from Settings → Session
+  Import and pasting it into the extension popup. The code is the HMAC
   secret; it is stored in the extension's `chrome.storage.local` and is never
   returned by the HTTP health endpoint or written into the extension package.
 - The app keeps its own copy of the secret in
@@ -172,8 +173,9 @@ DLL that is no longer shipped.
 
 - `files: ["dist/**/*"]` — only the built app goes into `app.asar`.
 - `extraResources`: `resources/icon.{ico,png}` (window/taskbar icon resolved
-  from `<resources>/resources/` at runtime). The session extension is not
-  bundled; it is its own release artifact.
+  from `<resources>/resources/` at runtime) and
+  `extensions/quizlab-session-extension` → `extension`. The extension is also
+  published as its own release artifact.
 
 ## Code signing readiness
 

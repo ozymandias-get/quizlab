@@ -517,12 +517,13 @@ describe('screenshotHandlers', () => {
     it("references the first send's snapshot when two copies race from an empty stack", async () => {
       requireTrustedIpcSender.mockReturnValue(true)
       createFromDataURL.mockReturnValue(fakeImage())
-      read
-        .mockResolvedValueOnce([fakeItem(['text/plain'], { 'text/plain': 'previous user text' })])
-        // The read that is already in flight when the first copy writes resolves
-        // after that write, so it observes the app's temporary image instead of
-        // the user's content — the garbage the ledger exists to filter out.
-        .mockResolvedValue([fakeItem(['image/png'], { 'image/png': 'temporary app image' })])
+      // Control both reads explicitly: Node and jsdom decode Blob flavours with
+      // different microtask timings, so relying on mock resolution order here can
+      // invert which racer pushes its snapshot first.
+      const pendingReads: Array<(value: ClipboardItemLike[]) => void> = []
+      read.mockImplementation(
+        () => new Promise<ClipboardItemLike[]>((resolve) => pendingReads.push(resolve))
+      )
 
       const { registerScreenshotHandlers } =
         await import('../../../features/screenshot/screenshotHandlers.js')
@@ -533,7 +534,7 @@ describe('screenshotHandlers', () => {
 
       // Both reservations start before either one pushes, so both read the
       // clipboard; only the first read's content may reach the ledger.
-      await Promise.all([
+      const copies = [
         expect(copyHandler?.({ sender: {} }, IMAGE + 'a', 'send-race-a')).resolves.toEqual({
           ok: true,
           data: true
@@ -542,7 +543,14 @@ describe('screenshotHandlers', () => {
           ok: true,
           data: true
         })
-      ])
+      ]
+      expect(pendingReads).toHaveLength(2)
+      pendingReads[0]([fakeItem(['text/plain'], { 'text/plain': 'previous user text' })])
+      // Let the first snapshot land and its image write finish before the raced
+      // read resolves, so it observes the temporary image the ledger filters out.
+      await vi.waitFor(() => expect(write).toHaveBeenCalledTimes(1))
+      pendingReads[1]([fakeItem(['image/png'], { 'image/png': 'temporary app image' })])
+      await Promise.all(copies)
       expect(read).toHaveBeenCalledTimes(2)
 
       // The first send unwinds while the second still owns the stack, so
