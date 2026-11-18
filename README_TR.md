@@ -47,10 +47,10 @@ panelinde, yanında PDF paneli ve araç merkezi:
 
 ![Yapay zeka modelleri, PDF paneli ve araç merkezi ile çalışma alanı ana ekranı](docs/images/workspace-home-ai-models.png)
 
-**Okuma ve gönderme** — solda bir PDF sayfası, sağda ChatGPT, altında hızlı
-istemler hazır gönderme bileşeni:
+**Okuma ve gönderme** — solda bir PDF sayfası, sağda ChatGPT ve gönderme
+bileşeninde hazırlanmış PDF metni:
 
-![ChatGPT'nin yanında PDF sayfası, gönderme bileşeni ve hızlı istemler](docs/images/pdf-chatgpt-send-composer.png)
+![ChatGPT'nin yanında PDF sayfası ve gönderme bileşeninde hazırlanmış metin](docs/images/pdf-chatgpt-send-composer.png)
 
 **Odak modu** — aynı belge, AI paneli olmadan tam genişlikte:
 
@@ -73,6 +73,23 @@ Hakkında — sürüm, güncelleme denetimi, Windows sağ tık menüsü, önbell
 ve tanılama araçları:
 
 ![Ayarlar - sürüm, güncellemeler, kabuk entegrasyonu ve önbellek bulunan Hakkında sekmesi](docs/images/settings-about.png)
+
+Oturum Aktarımı — site başına "Chrome'dan çek" anahtarları, profil eşleştirme ve
+çerez aktarımının riskleri:
+
+![Ayarlar - site başına Chrome anahtarlarının bulunduğu Oturum Aktarımı sekmesi](docs/images/settings-session-import.png)
+
+Selektörler — Magic Picker'ın site başına kayıtlı seçicileri ve sağlık durumu:
+
+![Ayarlar - site başına seçici sağlığının bulunduğu Selektörler sekmesi](docs/images/settings-selectors.png)
+
+API sohbeti — sağlayıcı şablonları ve isteğe bağlı saklanan talimatlar:
+
+![Ayarlar - sağlayıcı şablonlarının bulunduğu API Sohbet Ayarları sekmesi](docs/images/settings-api-chat.png)
+
+Görünüm — merkez çubuğu saydamlığı/ölçeği ve seçim rengi:
+
+![Ayarlar - saydamlık, ölçek ve seçim renginin bulunduğu Görünüm sekmesi](docs/images/settings-appearance.png)
 
 ## Özellikler
 

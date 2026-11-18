@@ -45,10 +45,10 @@ the PDF panel and the tool hub:
 
 ![Workspace home with AI models, the PDF panel and the tool hub](docs/images/workspace-home-ai-models.png)
 
-**Reading and sending** — a PDF page on the left, ChatGPT on the right, and the
-send composer with quick prompts ready:
+**Reading and sending** — a PDF page on the left, ChatGPT on the right, and PDF
+text staged in the send composer:
 
-![PDF page next to ChatGPT, with the send composer and quick prompts](docs/images/pdf-chatgpt-send-composer.png)
+![PDF page next to ChatGPT with staged text in the send composer](docs/images/pdf-chatgpt-send-composer.png)
 
 **Focus mode** — the same document expanded to full width, without the AI panel:
 
@@ -69,6 +69,23 @@ About — version, update check, Windows right-click menu, cache cleaning and
 diagnostics:
 
 ![Settings - About tab with version, updates, shell integration and cache](docs/images/settings-about.png)
+
+Session import — per-site "Pull from Chrome" switches, profile pairing and the
+risks of cookie import:
+
+![Settings - Session Import tab with per-site Chrome switches](docs/images/settings-session-import.png)
+
+Selectors — the Magic Picker's saved selectors and health per AI site:
+
+![Settings - Selectors tab with per-site selector health](docs/images/settings-selectors.png)
+
+API chat — provider templates and optional stored instructions:
+
+![Settings - API Chat tab with provider templates](docs/images/settings-api-chat.png)
+
+Appearance — hub opacity and scale, and the selection colour:
+
+![Settings - Appearance tab with opacity, scale and selection colour](docs/images/settings-appearance.png)
 
 ## Features
 
