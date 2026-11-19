@@ -1,7 +1,7 @@
 import { SettingsTabIcon, SettingsTabIntro } from '@shared/ui/components/primitives'
 import { SelectorIcon } from '@ui/components/Icons'
 
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 
 import SelectorsList from './selectors/components/SelectorsList'
 import { useSelectorsTabController } from './selectors/hooks/useSelectorsTabController'
@@ -34,6 +34,11 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
     handleDeleteSelectors
   } = controller
 
+  const translate = useCallback(
+    (key: string, params?: Record<string, string>) => (params ? t(key, params) : t(key)),
+    [t]
+  )
+
   return (
     <div className="space-y-4 pb-4">
       <SettingsTabIntro icon={SELECTORS_ICON} description={t('selectors_description_simple')} />
@@ -54,7 +59,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         onSubmitModeChange={handleSubmitModeChange}
         onTestSelectors={handleTestSelectors}
         onDeleteSelectors={handleDeleteSelectors}
-        t={(key, params) => (params ? t(key, params) : t(key))}
+        t={translate}
       />
     </div>
   )

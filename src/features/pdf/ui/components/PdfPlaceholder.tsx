@@ -5,7 +5,7 @@ import { MagicCard } from '@app/components/ui/magic-card'
 import { Button } from '@shared/ui/components/primitives'
 
 import { FileText, Upload } from 'lucide-react'
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 
 import PdfRecentControls from './pdfPlaceholder/PdfRecentControls'
 import PdfRecentList from './pdfPlaceholder/PdfRecentList'
@@ -53,6 +53,11 @@ function PdfPlaceholder({
     onRelinkPdf,
     lastReadingInfo
   })
+
+  const translate = useCallback(
+    (key: string, params?: Record<string, string>) => (params ? t(key, params) : t(key)),
+    [t]
+  )
 
   return (
     /* Top-aligned (not `justify-center`): with centring, the hero drifted
@@ -130,7 +135,7 @@ function PdfPlaceholder({
 
             <div className="custom-scrollbar -mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
               <PdfRecentList
-                t={(key, params) => (params ? t(key, params) : t(key))}
+                t={translate}
                 language={language}
                 recentCount={recentItems.length}
                 processedCount={processedItems.length}
