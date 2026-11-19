@@ -27,7 +27,8 @@ interface ErrorBoundaryState {
   errorInfo: ErrorInfo | null
 }
 
-const translate = (key: string, params?: Record<string, string>) => i18next.t(key, params)
+const translate = (key: string, params?: Record<string, string>) =>
+  params ? i18next.t(key, params) : i18next.t(key)
 
 /**
  * The recovery action for the default "Tekrar Dene" button.

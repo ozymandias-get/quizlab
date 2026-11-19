@@ -273,7 +273,11 @@ const ToastItem = memo(
 
           <div className="min-w-0 grow pr-4">
             <h4 className="text-ql-13 text-foreground mb-0.5 leading-tight font-semibold">
-              {toast.title ? t(toast.title, toast.params) : t(`toast.${toast.type}.title`)}
+              {toast.title
+                ? toast.params
+                  ? t(toast.title, toast.params)
+                  : t(toast.title)
+                : t(`toast.${toast.type}.title`)}
             </h4>
             {/* Errors are diagnostic: clamping them can hide the part the user
                 needs. Other toast types keep the compact two-line preview. */}
@@ -283,7 +287,7 @@ const ToastItem = memo(
                 toast.type !== 'error' && 'line-clamp-2'
               )}
             >
-              {renderToastMessage(t(toast.message, toast.params))}
+              {renderToastMessage(toast.params ? t(toast.message, toast.params) : t(toast.message))}
             </p>
             {toast.actionLabel && (
               <Button

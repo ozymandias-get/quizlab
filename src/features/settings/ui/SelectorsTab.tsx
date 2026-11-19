@@ -54,7 +54,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         onSubmitModeChange={handleSubmitModeChange}
         onTestSelectors={handleTestSelectors}
         onDeleteSelectors={handleDeleteSelectors}
-        t={t}
+        t={(key, params) => (params ? t(key, params) : t(key))}
       />
     </div>
   )

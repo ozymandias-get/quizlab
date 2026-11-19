@@ -130,7 +130,7 @@ function PdfPlaceholder({
 
             <div className="custom-scrollbar -mr-1 flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
               <PdfRecentList
-                t={t}
+                t={(key, params) => (params ? t(key, params) : t(key))}
                 language={language}
                 recentCount={recentItems.length}
                 processedCount={processedItems.length}

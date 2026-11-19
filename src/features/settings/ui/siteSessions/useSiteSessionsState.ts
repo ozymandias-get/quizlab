@@ -24,7 +24,10 @@ const NO_VIEWS: SiteSessionView[] = []
  */
 export function useSiteSessionsState() {
   const { t: translate } = useTranslation()
-  const t: SiteSessionTranslate = translate
+  const t: SiteSessionTranslate = useCallback(
+    (key, params) => (params ? translate(key, params) : translate(key)),
+    [translate]
+  )
   const { showError, showSuccess, showWarning } = useToastActions()
   const { data } = useSiteSessionListQuery()
   const setEnabledMutation = useSetSiteSessionEnabledMutation()
