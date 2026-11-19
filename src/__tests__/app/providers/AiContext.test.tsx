@@ -58,7 +58,7 @@ vi.mock('@features/ai/hooks/useAiSender', () => ({
 }))
 
 vi.mock('@shared/lib/logger', () => ({
-  Logger: { error: vi.fn() }
+  Logger: { error: vi.fn(), warn: vi.fn() }
 }))
 
 /**
