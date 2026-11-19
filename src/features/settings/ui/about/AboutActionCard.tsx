@@ -27,7 +27,7 @@ const AboutActionCard = memo(function AboutActionCard({
   interactive = false
 }: AboutActionCardProps) {
   const content = (
-    <div className="flex min-w-0 items-center justify-between gap-4 p-5">
+    <div className="flex min-w-0 items-center justify-between gap-4 p-4">
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {leading}
         <div className="min-w-0">

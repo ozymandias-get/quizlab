@@ -2,9 +2,9 @@ import { getElectronApi, hasElectronApi } from '@shared/lib/electronApi'
 import { ensureErrorMessage } from '@shared/lib/errorUtils'
 import { createIssueLogReport, Logger } from '@shared/lib/logger'
 import { useToastActions } from '@shared/stores/toastStore'
-import { Button, CollapsiblePanel } from '@shared/ui/components/primitives'
+import { Button, CollapsiblePanel, SettingsRowIcon } from '@shared/ui/components/primitives'
 
-import { ChevronDown, Copy, Loader2 } from 'lucide-react'
+import { Bug, ChevronDown, Copy, Loader2 } from 'lucide-react'
 import { memo, useCallback, useId, useMemo, useState } from 'react'
 
 import AboutActionCard from './AboutActionCard'
@@ -114,6 +114,11 @@ const IssueReportCard = memo(({ t, appVersion }: IssueReportCardProps) => {
       <AboutActionCard
         title={t('report_issue_title')}
         description={t('report_issue_desc')}
+        leading={
+          <SettingsRowIcon>
+            <Bug className="h-4 w-4" />
+          </SettingsRowIcon>
+        }
         trailing={
           <Button
             type="button"

@@ -57,6 +57,7 @@ export function SettingsRowIcon({
 }) {
   return (
     <div
+      aria-hidden
       className={cn(
         'text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]',
         className

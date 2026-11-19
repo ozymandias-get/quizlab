@@ -1,7 +1,7 @@
-import { Button } from '@shared/ui/components/primitives'
+import { Button, SettingsRowIcon } from '@shared/ui/components/primitives'
 
 import type { TFunction } from 'i18next'
-import { Check, Loader2, Trash2 } from 'lucide-react'
+import { Check, DatabaseZap, Loader2, Trash2 } from 'lucide-react'
 import { memo } from 'react'
 
 import { formatTimeAgo } from '../storage/storageUtils'
@@ -43,6 +43,11 @@ const CacheControl = memo(
       <AboutActionCard
         title={t('clear_cache_title')}
         description={description}
+        leading={
+          <SettingsRowIcon>
+            <DatabaseZap className="h-4 w-4" />
+          </SettingsRowIcon>
+        }
         trailing={
           <div className="flex shrink-0 items-center gap-2">
             {handleDeepClean && (

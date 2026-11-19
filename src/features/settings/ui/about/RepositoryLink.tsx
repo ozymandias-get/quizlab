@@ -1,4 +1,5 @@
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
+import { SettingsRowIcon } from '@shared/ui/components/primitives'
 import { GithubIcon } from '@ui/components/Icons'
 
 import { ExternalLink } from 'lucide-react'
@@ -21,12 +22,9 @@ const RepositoryLink = memo(({ t }: RepositoryLinkProps) => {
       interactive
       className="group border-white/[0.07] bg-zinc-900/45 hover:bg-white/5"
       leading={
-        <span
-          aria-hidden
-          className="text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04]"
-        >
+        <SettingsRowIcon>
           <GithubIcon className="h-4 w-4" />
-        </span>
+        </SettingsRowIcon>
       }
       trailing={
         <span className="text-muted-foreground group-hover:text-foreground flex shrink-0 items-center gap-1">

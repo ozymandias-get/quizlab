@@ -1,4 +1,4 @@
-import { memo, type RefObject } from 'react'
+import { memo, type RefObject, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import SettingsNavItem from '../shared/SettingsNavItem'
@@ -22,6 +22,42 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
   isCompact
 }: SettingsModalSidebarProps) {
   const { t } = useTranslation()
+  const [hasMoreBelow, setHasMoreBelow] = useState(false)
+
+  /**
+   * The bottom fade is a scroll cue, so it may only appear while there is
+   * something left to scroll to. At a tall window the whole nav fits
+   * (`scrollHeight === clientHeight`) and an unconditional fade dimmed the last
+   * row even though nothing was hidden behind it.
+   */
+  const updateOverflowState = useCallback(() => {
+    const el = sidebarScrollRef.current
+    if (!el) {
+      setHasMoreBelow(false)
+      return
+    }
+
+    setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 1)
+  }, [sidebarScrollRef])
+
+  useEffect(() => {
+    const el = sidebarScrollRef.current
+    if (!el) return
+
+    updateOverflowState()
+    el.addEventListener('scroll', updateOverflowState, { passive: true })
+
+    // Watching the nav (a child) as well as the viewport keeps the cue correct
+    // when the compact rail or a section list changes the content height.
+    const observer = new ResizeObserver(updateOverflowState)
+    observer.observe(el)
+    for (const child of el.children) observer.observe(child)
+
+    return () => {
+      el.removeEventListener('scroll', updateOverflowState)
+      observer.disconnect()
+    }
+  }, [sidebarScrollRef, updateOverflowState, isCompact])
 
   return (
     <aside
@@ -68,7 +104,12 @@ const SettingsModalSidebar = memo(function SettingsModalSidebar({
               ))}
             </nav>
           </div>
-          <div className="from-background/80 pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t to-transparent" />
+          <div
+            aria-hidden
+            className={`motion-normal from-background/80 pointer-events-none absolute right-0 bottom-0 left-0 h-8 bg-gradient-to-t to-transparent transition-opacity ${
+              hasMoreBelow ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
         </div>
       </div>
     </aside>

@@ -55,8 +55,8 @@ const SitesTab = memo(() => {
   )
 
   const enabledSitesCount = useMemo(
-    () => enabledSites.filter((id) => aiSites[id] && aiSites[id].isSite).length,
-    [enabledSites, aiSites]
+    () => sitesList.filter((id) => enabledSites.includes(id)).length,
+    [enabledSites, sitesList]
   )
 
   const handleDeleteAi = useCallback(
