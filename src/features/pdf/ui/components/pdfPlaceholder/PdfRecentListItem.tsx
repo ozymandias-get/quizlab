@@ -141,7 +141,7 @@ function PdfRecentListItem({
       >
         <ListItemCard
           active={isActive}
-          className={`group relative border border-transparent bg-transparent p-0 shadow-none hover:bg-white/[0.03] ${isInvalid ? 'text-foreground border-destructive/30 bg-destructive/5' : ''}`}
+          className={`group relative rounded-xl border border-transparent bg-transparent p-0 shadow-none hover:bg-white/[0.03] ${isInvalid ? 'text-foreground border-destructive/30 bg-destructive/5' : ''}`}
           interactive={false}
         >
           {isActive && (

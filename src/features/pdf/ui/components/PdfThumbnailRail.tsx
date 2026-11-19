@@ -94,7 +94,7 @@ const PdfThumbnail = memo(function PdfThumbnail({
     >
       <span
         className={cn(
-          'relative flex w-full items-center justify-center overflow-hidden rounded-[4px] bg-zinc-900/60 shadow-xs',
+          'relative flex w-full items-center justify-center overflow-hidden rounded-sm bg-zinc-900/60 shadow-xs',
           !hasRendered && 'min-h-[5.5rem]'
         )}
       >

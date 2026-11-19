@@ -174,7 +174,7 @@ function PdfPageNav({
   }, [announceRevert, cancelPageInput, clearRevertNotice, onJumpToPage, readPageInput])
 
   return (
-    <ToolbarGroup className="rounded-full border border-white/[0.07] bg-zinc-900/45 p-1">
+    <ToolbarGroup>
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton
