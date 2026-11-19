@@ -103,7 +103,7 @@ const ChatWelcome = memo(function ChatWelcome({
                     type="button"
                     onClick={() => onSuggestionClick(s.prompt)}
                     title={s.desc}
-                    className="group focus-visible:ring-ring/70 motion-normal flex h-full w-full cursor-pointer items-start gap-2.5 rounded-xl border border-transparent bg-transparent p-3.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
+                    className="group focus-visible:inset-ring-ring/70 motion-normal flex h-full w-full cursor-pointer items-start gap-2.5 rounded-xl border border-transparent bg-transparent p-3.5 text-left transition-colors hover:bg-white/[0.03] focus-visible:inset-ring-2 focus-visible:outline-none"
                   >
                     <span className="text-muted-foreground group-hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.04] transition-colors">
                       {s.Icon && <s.Icon className="h-4 w-4" />}

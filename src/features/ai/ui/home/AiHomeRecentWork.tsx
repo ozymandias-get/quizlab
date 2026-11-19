@@ -179,7 +179,7 @@ const AiHomeRecentWork = memo(function AiHomeRecentWork({
                       name: displayName,
                       document: documentName
                     })}
-                    className="focus-visible:ring-ring/70 motion-normal flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent bg-transparent p-3 pr-12 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:outline-none"
+                    className="focus-visible:inset-ring-ring/70 motion-normal flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent bg-transparent p-3 pr-12 text-left transition-colors hover:bg-white/[0.03] focus-visible:inset-ring-2 focus-visible:outline-none"
                   >
                     <div
                       className="motion-normal flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105 motion-reduce:scale-100"

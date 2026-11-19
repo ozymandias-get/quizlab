@@ -132,7 +132,7 @@ const GridCard = memo<GridCardProps>(function GridCard({
               onMove ? 'Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown' : undefined
             }
             style={AI_HOME_GRID_CARD_MIN_HEIGHT}
-            className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+            className={`group motion-normal focus-visible:inset-ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:inset-ring-2 focus-visible:outline-none ${
               isDropTarget
                 ? 'border-primary/40 bg-white/[0.04]'
                 : isActive

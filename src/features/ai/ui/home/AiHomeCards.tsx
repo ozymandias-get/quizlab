@@ -111,7 +111,7 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
                   type="button"
                   onClick={() => onOpenModel('api-chat')}
                   style={AI_HOME_GRID_CARD_MIN_HEIGHT}
-                  className={`group motion-normal focus-visible:ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                  className={`group motion-normal focus-visible:inset-ring-ring/70 relative flex w-full cursor-pointer items-center rounded-xl border p-3 text-left transition-colors focus-visible:inset-ring-2 focus-visible:outline-none ${
                     isApiChatActive
                       ? 'border-ring/50 bg-accent/30'
                       : 'border-transparent bg-transparent hover:bg-white/[0.03]'

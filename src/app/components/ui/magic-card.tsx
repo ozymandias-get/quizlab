@@ -165,6 +165,11 @@ export function MagicCard(props: MagicCardProps) {
   }, [reset])
 
   return (
+    // `overflow-hidden` defines the card's rounded silhouette, so it also clips
+    // any descendant box-shadow. Interactive children that sit flush with the
+    // card edge (full-width buttons, list rows) must therefore draw their focus
+    // state with `focus-visible:inset-ring-2`; an outer ring would be clipped
+    // and the control would show no focus indicator at all.
     <motion.div
       className={cn(
         'group relative isolate overflow-hidden rounded-[inherit] border border-transparent',

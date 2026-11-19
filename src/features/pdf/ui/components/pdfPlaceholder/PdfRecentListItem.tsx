@@ -160,7 +160,7 @@ function PdfRecentListItem({
               className={`pdf-recent-item flex min-w-0 flex-1 items-center gap-3 rounded-lg ${
                 isInvalid
                   ? ''
-                  : 'focus-visible:ring-ring/70 cursor-pointer focus-visible:ring-2 focus-visible:outline-none'
+                  : 'focus-visible:inset-ring-ring/70 cursor-pointer focus-visible:inset-ring-2 focus-visible:outline-none'
               }`}
             >
               <IconBadge
