@@ -69,7 +69,7 @@ const AiHomeHero = memo(function AiHomeHero({
                   onClick={() => (onOpenTab ? onOpenTab(tab.id) : onOpenModel(tab.modelId))}
                   aria-current={isActive ? 'true' : undefined}
                   title={label}
-                  className="max-w-[220px] rounded-full border px-3 py-1"
+                  className="max-w-[220px] rounded-full border px-3 py-1 @max-[420px]:max-w-[10rem]"
                 >
                   <span className="min-w-0 truncate">{label}</span>
                 </Button>

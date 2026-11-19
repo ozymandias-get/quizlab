@@ -87,7 +87,7 @@ function PdfRecentControls({
         /* The 440px query must describe the control row, not the whole
            placeholder: in the two-column history layout this row can be much
            narrower than its container. */
-        <div className="@container flex items-center gap-2">
+        <div className="@container flex flex-wrap items-center gap-2">
           <IconButton
             type="button"
             variant="outline"
@@ -100,7 +100,7 @@ function PdfRecentControls({
           </IconButton>
 
           <div
-            className={`${isMobileSearchOpen ? 'flex' : 'hidden'} text-ql-12 min-w-0 flex-1 @min-[440px]:flex`}
+            className={`${isMobileSearchOpen ? 'flex' : 'hidden'} text-ql-12 min-w-0 flex-1 @max-[440px]:order-last @max-[440px]:basis-full @min-[440px]:flex`}
           >
             <div className="relative w-full">
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2" />

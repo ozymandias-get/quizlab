@@ -72,7 +72,7 @@ function AiHomePage({ onOpenModel, onOpenTab, onOpenRecent, onOpenPinned }: AiHo
           cr={1}
           className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] text-zinc-500 opacity-10"
         />
-        <div className="relative z-10 flex flex-col gap-4">
+        <div className="@container relative z-10 flex flex-col gap-4">
           <AiHomeHero
             activeTabId={activeTabId}
             aiSites={aiSites}
