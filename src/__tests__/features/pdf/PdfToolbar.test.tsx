@@ -186,7 +186,7 @@ describe('PdfToolbar', () => {
     document.removeEventListener('keydown', documentKeyDown)
   })
 
-  it('flips the compact menu when there is no room above or to the left', () => {
+  it('opens the compact menu below the trigger when there is no room above', () => {
     const rectSpy = vi
       .spyOn(Element.prototype, 'getBoundingClientRect')
       .mockImplementation(function (this: Element) {
@@ -205,6 +205,32 @@ describe('PdfToolbar', () => {
 
       const menu = screen.getByRole('menu')
       expect(menu).toHaveClass('top-full')
+      // The trigger sits near the left edge, so a left-aligned menu is fully
+      // on screen; right-aligning it to the trigger would hang it off-window.
+      expect(menu).toHaveClass('left-0')
+    } finally {
+      rectSpy.mockRestore()
+    }
+  })
+
+  it('flips the compact menu to its right edge only when it would overflow the window', () => {
+    const rectSpy = vi
+      .spyOn(Element.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: Element) {
+        if (this.getAttribute('data-testid') === 'pdf-toolbar-more') {
+          return { top: 100, bottom: 120, left: 900, right: 920, width: 20, height: 20 } as DOMRect
+        }
+        if (this.getAttribute('data-slot') === 'menu-surface') {
+          return { top: 0, bottom: 0, left: 0, right: 0, width: 192, height: 100 } as DOMRect
+        }
+        return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 } as DOMRect
+      })
+
+    try {
+      const { getByTestId } = renderToolbar()
+      fireEvent.click(getByTestId('pdf-toolbar-more'))
+
+      const menu = screen.getByRole('menu')
       expect(menu).toHaveClass('right-0')
     } finally {
       rectSpy.mockRestore()

@@ -97,7 +97,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                   leaveFrom="opacity-100 translate-y-0 scale-100"
                   leaveTo="opacity-0 translate-y-1 scale-98"
                 >
-                  <PopoverPanel className="text-popover-foreground shadow-ambient-lg z-dropdown absolute top-full left-1/2 mt-2 w-44 -translate-x-1/2 rounded-xl border border-white/12 bg-zinc-950/95 p-1 backdrop-blur-xl">
+                  <PopoverPanel className="text-popover-foreground shadow-ambient-lg z-dropdown absolute top-full right-0 mt-2 w-44 rounded-xl border border-white/12 bg-zinc-950/95 p-1 backdrop-blur-xl">
                     {presets.map((preset) => (
                       <button
                         key={preset}

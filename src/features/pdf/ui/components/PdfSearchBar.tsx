@@ -78,18 +78,20 @@ function PdfSearchBar({
   }
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center">
+    <div className="flex h-full w-full items-center justify-center">
       <AnimatePresence mode="wait">
         {isOpen ? (
-          // A floating popover above the toolbar row: opening search no longer
-          // squeezes page navigation and zoom out of the bar.
+          // A floating popover below the toolbar row: opening search no longer
+          // squeezes page navigation and zoom out of the bar. It anchors to the
+          // toolbar (the search slot collapses while the chip is gone), so it
+          // stays under the bar and inside the viewer at every panel width.
           <motion.div
             key="search"
             initial={{ opacity: 0, scale: 0.98, y: 2 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: -2 }}
             transition={{ duration: DURATION.normal }}
-            className="z-dropdown absolute top-[calc(100%+0.5rem)] left-1/2 flex w-[min(26rem,92vw)] -translate-x-1/2 items-center gap-1.5 rounded-xl border border-white/12 bg-zinc-950/95 p-2 text-zinc-100 shadow-2xl backdrop-blur-xl"
+            className="z-dropdown absolute top-[calc(100%+0.5rem)] left-1/2 flex w-[min(26rem,calc(100cqw-1rem))] -translate-x-1/2 items-center gap-1.5 rounded-xl border border-white/12 bg-zinc-950/95 p-2 text-zinc-100 shadow-2xl backdrop-blur-xl"
           >
             <BlurFade
               duration={DURATION.normal}
@@ -219,10 +221,11 @@ function PdfSearchBar({
               asChild
               type="button"
               variant="outline"
-              className="group motion-normal h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 rounded-full border border-white/[0.07] bg-zinc-900/45 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
+              className="group motion-normal @container h-auto min-w-0 flex-1 cursor-pointer justify-start gap-2.5 overflow-hidden rounded-full border border-white/[0.07] bg-zinc-900/45 px-2.5 py-1 text-left transition-colors hover:bg-white/5"
             >
               <motion.button
                 type="button"
+                aria-label={fileName || t('pdf_document')}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -234,8 +237,8 @@ function PdfSearchBar({
                   <FileText className="h-3.5 w-3.5" />
                 </div>
 
-                <div className="flex min-w-0 flex-1 flex-col justify-center">
-                  <span className="text-ql-10 text-muted-foreground tracking-ql-label hidden leading-none font-semibold uppercase sm:block">
+                <div className="flex min-w-0 flex-1 flex-col justify-center @max-[80px]:hidden">
+                  <span className="text-ql-10 text-muted-foreground tracking-ql-label hidden truncate leading-none font-semibold uppercase sm:block">
                     {t('reading_now') === 'reading_now' ? 'READING' : t('reading_now')}
                   </span>
                   <span className="text-ql-12 text-foreground block w-full truncate leading-tight font-medium">
@@ -243,9 +246,9 @@ function PdfSearchBar({
                   </span>
                 </div>
 
-                <div className="h-4 w-px shrink-0 bg-white/10" />
+                <div className="h-4 w-px shrink-0 bg-white/10 @max-[190px]:hidden" />
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 @max-[190px]:hidden">
                   <div className="text-muted-foreground group-hover:text-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors">
                     <Search className="h-3.5 w-3.5" />
                   </div>

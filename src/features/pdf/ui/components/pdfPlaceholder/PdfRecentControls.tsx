@@ -118,10 +118,10 @@ function PdfRecentControls({
           <Select value={sortMode} onValueChange={handleSortChange}>
             <SelectTrigger
               size="sm"
-              className="text-foreground shrink-0 gap-1.5 border-white/[0.07] bg-zinc-950/80 pr-2 pl-6 [&_svg]:h-3.5 [&_svg]:w-3.5"
+              className="text-foreground shrink-0 gap-1.5 border-white/[0.07] bg-zinc-950/80 pr-2 [&_svg]:h-3.5 [&_svg]:w-3.5"
               aria-label={t('sort_recent_list')}
             >
-              <ArrowUpDown className="text-muted-foreground pointer-events-none absolute left-2 h-3.5 w-3.5" />
+              <ArrowUpDown className="text-muted-foreground pointer-events-none shrink-0" />
               <span className="text-ql-12">
                 <SelectValue />
               </span>

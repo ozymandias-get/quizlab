@@ -173,16 +173,16 @@ function PdfToolbar({
       const nextVertical: MenuVertical =
         spaceAbove >= menuRect.height + MENU_GAP || spaceAbove > spaceBelow ? 'top' : 'bottom'
 
-      // The menu is left-aligned by default. If that would cross the left
-      // viewport edge but there is room to the right, align its right edge with
-      // the trigger instead.
-      const spaceToLeft = triggerRect.left
-      const spaceToRight = window.innerWidth - triggerRect.right
-      const overflowsLeft = menuRect.width > 0 && spaceToLeft < menuRect.width + MENU_GAP
-      const canFlipRight = spaceToRight >= menuRect.width + MENU_GAP
+      // The menu is left-aligned by default. Flip it to the right edge of the
+      // trigger only when the left-aligned box would cross the right edge of the
+      // window: the trigger sits near the *left* edge in this toolbar, so a
+      // right-aligned menu would hang off-screen instead of fixing anything.
+      const spaceToRight = window.innerWidth - triggerRect.left
+      const overflowsRight = menuRect.width > 0 && spaceToRight < menuRect.width + MENU_GAP
+      const canFlipLeft = triggerRect.right - menuRect.width - MENU_GAP >= 0
 
       setCompactMenuVertical(nextVertical)
-      setCompactMenuHorizontal(overflowsLeft && canFlipRight ? 'right' : 'left')
+      setCompactMenuHorizontal(overflowsRight && canFlipLeft ? 'right' : 'left')
     }
 
     const handlePointerDown = (event: PointerEvent) => {
