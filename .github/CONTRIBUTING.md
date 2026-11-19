@@ -218,7 +218,7 @@ set of CI gates is listed in
 ### Declared range floors are pinned to what is installed
 
 Every direct dependency's range in `package.json` has its floor set to the
-version actually on disk — `electron` is declared `^45.2.3` because 45.2.3 is
+version actually on disk — `electron` is declared `^45.3.1` because 45.3.1 is
 installed, not because it is the newest release. Two reasons:
 
 - `npm ci` installs from the manifest and the lockfile together. A floor above
