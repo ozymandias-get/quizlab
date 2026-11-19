@@ -40,32 +40,37 @@ function HistorySearchField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('api_chat_modal_search_placeholder')}
-          className="text-ql-13 h-10 rounded-xl pr-24 pl-9"
+          className="text-ql-13 h-10 rounded-xl pr-28 pl-9"
           data-testid="history-search-input"
         />
         <Search className="text-muted-foreground group-focus-within/modal-search:text-foreground absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 transition-colors" />
-        {isSearchActive && (
-          <span
-            data-testid="history-search-count"
-            aria-live="polite"
-            className="text-ql-10 absolute top-1/2 right-9 -translate-y-1/2 rounded-full bg-white/[0.06] px-1.5 py-0.5 font-medium text-zinc-300 tabular-nums"
-          >
-            {isSearchPending ? '…' : t('api_chat_search_results', { count: resultCount })}
-          </span>
-        )}
-        {value && (
-          <IconButton
-            type="button"
-            variant="ghost"
-            size="compact"
-            onClick={onClear}
-            aria-label={t('api_chat_clear_search')}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 -translate-y-1/2"
-            data-testid="history-search-clear"
-          >
-            <X className="h-3.5 w-3.5" />
-          </IconButton>
-        )}
+        {/* Counter and clear live in one flex rail: they can never overlap
+            each other, and the input only reserves the space they actually
+            take (pr-28) instead of a fixed absolute gap. */}
+        <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-1">
+          {isSearchActive && (
+            <span
+              data-testid="history-search-count"
+              aria-live="polite"
+              className="text-ql-10 max-w-[9rem] shrink-0 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5 font-medium whitespace-nowrap text-zinc-300 tabular-nums"
+            >
+              {isSearchPending ? '…' : t('api_chat_search_results', { count: resultCount })}
+            </span>
+          )}
+          {value && (
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="compact"
+              onClick={onClear}
+              aria-label={t('api_chat_clear_search')}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              data-testid="history-search-clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </IconButton>
+          )}
+        </div>
       </div>
     </div>
   )

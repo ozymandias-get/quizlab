@@ -21,7 +21,7 @@ const AppearancePreviewCard = memo(function AppearancePreviewCard({
 }: AppearancePreviewCardProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-zinc-950/70 p-3">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-ql-10 text-muted-foreground tracking-ql-label font-semibold uppercase">
           {label}
         </span>

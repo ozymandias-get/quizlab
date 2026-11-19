@@ -96,7 +96,10 @@ export const QuickPresetEditorCard = memo(function QuickPresetEditorCard({
       </div>
 
       {!isEditing && (
-        <p className="text-ql-11 text-muted-foreground line-clamp-2 leading-relaxed">
+        <p
+          className="text-ql-11 text-muted-foreground line-clamp-2 leading-relaxed"
+          title={preset.value || preset.defaultValue}
+        >
           {preset.value || preset.defaultValue}
         </p>
       )}

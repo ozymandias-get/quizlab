@@ -102,7 +102,6 @@ function AiOverflowMenu({
       <ToolbarButton
         ref={triggerRef}
         icon={MoreHorizontal}
-        className="!w-auto min-w-[32px] px-1.5"
         tooltip={tr('tab_more', 'More tabs')}
         tooltipSide="top"
         tooltipAvoidCollisions={false}

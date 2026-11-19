@@ -223,13 +223,13 @@ function PdfPageNav({
             onBlur={handleBlur}
             aria-invalid={isPageInvalid || undefined}
             aria-describedby={isPageInvalid ? pageErrorId : undefined}
-            className="text-ql-12 rounded-full border-white/[0.07] bg-zinc-950/80 py-0.5 pr-4 pl-1.5 text-center font-medium tabular-nums"
+            className="text-ql-12 @max-[430px]:text-ql-10 h-7 rounded-full border-white/[0.07] bg-zinc-950/80 py-0.5 pr-5 pl-1.5 text-center font-medium tabular-nums"
             style={{
               width: `${totalPages.toString().length + 2}ch`,
               minWidth: '58px'
             }}
           />
-          <span className="absolute top-1/2 right-0 flex -translate-y-1/2 flex-col">
+          <span className="absolute top-1/2 right-0.5 flex -translate-y-1/2 flex-col">
             <button
               type="button"
               tabIndex={-1}
@@ -237,7 +237,7 @@ function PdfPageNav({
               onClick={() => stepPage(1)}
               disabled={(readPageInput() ?? currentPage) >= totalPages}
               aria-label={t('page_step_up')}
-              className="text-muted-foreground hover:text-foreground flex h-2.5 w-3.5 items-center justify-center disabled:pointer-events-none disabled:opacity-30"
+              className="text-muted-foreground hover:text-foreground flex h-3 w-4.5 items-center justify-center rounded-[3px] hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
             >
               <ChevronUp className="size-2.5" />
             </button>
@@ -248,7 +248,7 @@ function PdfPageNav({
               onClick={() => stepPage(-1)}
               disabled={(readPageInput() ?? currentPage) <= 1}
               aria-label={t('page_step_down')}
-              className="text-muted-foreground hover:text-foreground flex h-2.5 w-3.5 items-center justify-center disabled:pointer-events-none disabled:opacity-30"
+              className="text-muted-foreground hover:text-foreground flex h-3 w-4.5 items-center justify-center rounded-[3px] hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
             >
               <ChevronDown className="size-2.5" />
             </button>
@@ -272,7 +272,7 @@ function PdfPageNav({
             size="xs"
             onClick={startPageInput}
             aria-describedby={showRevertNotice ? revertNoticeId : undefined}
-            className="text-ql-12 text-foreground hover:text-primary h-auto min-w-[54px] cursor-text rounded-full border border-white/[0.07] bg-zinc-950/80 px-2.5 text-center font-medium tabular-nums"
+            className="text-ql-12 text-foreground hover:text-primary @max-[430px]:text-ql-10 h-7 min-w-[54px] cursor-text rounded-full border border-white/[0.07] bg-zinc-950/80 px-2.5 text-center font-medium tabular-nums"
           >
             {currentPage} <span className="text-muted-foreground mx-0.5">/</span>{' '}
             <span className="text-muted-foreground">{totalPages}</span>

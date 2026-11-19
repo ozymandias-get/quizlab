@@ -82,7 +82,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
             return (
               <Popover className="relative">
                 <PopoverButton
-                  className="text-ql-12 text-foreground @max-[430px]:text-ql-10 inline-flex min-w-[42px] items-center justify-center gap-1 rounded-full border border-white/[0.07] bg-zinc-950/80 px-2 py-0.5 text-center font-medium tabular-nums transition-colors outline-none select-none hover:border-white/20 hover:bg-white/5"
+                  className="text-ql-12 text-foreground @max-[430px]:text-ql-10 focus-visible:ring-ring/70 inline-flex h-7 min-w-[42px] items-center justify-center gap-1 rounded-full border border-white/[0.07] bg-zinc-950/80 px-2 py-0.5 text-center font-medium tabular-nums transition-colors outline-none select-none hover:border-white/20 hover:bg-white/5 focus-visible:ring-2"
                   aria-label={t('zoom_presets')}
                   title={label}
                 >

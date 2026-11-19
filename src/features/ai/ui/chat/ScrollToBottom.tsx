@@ -29,7 +29,7 @@ const ScrollToBottom = memo(function ScrollToBottom({
       {count > 0 && (
         <span
           aria-label={t('api_chat_unread_count', { count: String(count) })}
-          className="bg-primary text-primary-foreground ml-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 py-0 text-[10px] font-semibold tabular-nums"
+          className="bg-primary text-primary-foreground text-ql-10 ml-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-1 py-0 font-semibold tabular-nums"
         >
           {count > 99 ? '99+' : count}
         </span>

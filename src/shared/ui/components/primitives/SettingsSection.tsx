@@ -48,7 +48,9 @@ function SettingsSection({
             {title}
           </h3>
           {detail && (
-            <p className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2">{detail}</p>
+            <p className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2" title={detail}>
+              {detail}
+            </p>
           )}
         </div>
 

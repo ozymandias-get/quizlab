@@ -44,7 +44,10 @@ const AiHomeSection = memo(function AiHomeSection({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="text-ql-13 text-foreground min-w-0 truncate font-semibold">
+            <span
+              className="text-ql-13 text-foreground min-w-0 truncate font-semibold"
+              title={title}
+            >
               {title}
             </span>
             {count > 0 && (
@@ -53,7 +56,9 @@ const AiHomeSection = memo(function AiHomeSection({
               </span>
             )}
           </div>
-          <div className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2">{detail}</div>
+          <div className="text-ql-12 text-muted-foreground mt-0.5 line-clamp-2" title={detail}>
+            {detail}
+          </div>
         </div>
         <div
           className="text-muted-foreground motion-slow flex size-6 shrink-0 items-center justify-center transition-transform"
