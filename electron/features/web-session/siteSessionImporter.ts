@@ -313,7 +313,8 @@ interface StaleCleanupResult {
 async function removeStaleCookies(
   targetSession: Session,
   incoming: readonly IncomingCookieIdentity[],
-  allowedDomains: readonly string[]
+  allowedDomains: readonly string[],
+  preserveCookieNames: ReadonlySet<string>
 ): Promise<StaleCleanupResult> {
   let existingCookies: Electron.Cookie[]
   try {
@@ -328,6 +329,9 @@ async function removeStaleCookies(
 
   for (const existing of existingCookies) {
     if (!isCookieDomainAllowed(existing.domain, allowedDomains)) continue
+    // Guest-owned state is not the donor's to remove: the browser never had a
+    // copy because the value was created inside the app.
+    if (existing.name && preserveCookieNames.has(existing.name)) continue
 
     const host = domainHost(normalizeCookieDomain(existing.domain) ?? '')
     if (!host) continue
@@ -442,6 +446,17 @@ export interface ImportExternalCookiesOptions {
    * that mixes the old and the new state.
    */
   rollbackOnPartialFailure?: boolean
+  /**
+   * Cookie names the guest owns and the donor must not touch.
+   *
+   * A page hosted in the app keeps its own layout preferences in cookies
+   * (ChatGPT's `codex_sidebar_state` is the one this was found with). Those
+   * names are skipped on write *and* on stale cleanup: importing the browser's
+   * copy re-opens a panel the user closed here, and the cleanup would otherwise
+   * delete a value the app created because the donor never had it. Identity
+   * cookies are not in this list and keep being mirrored.
+   */
+  preserveCookieNames?: readonly string[]
 }
 
 export interface ImportExternalCookiesResult {
@@ -464,6 +479,12 @@ export interface ImportExternalCookiesResult {
    * session is not an exact mirror of the browser.
    */
   staleCookiesKept?: number
+  /**
+   * Distinct guest-owned cookie names (see `preserveCookieNames`) left as the
+   * partition had them. Reported so a caller can show that the session is not
+   * an exact mirror of the browser.
+   */
+  preserved?: number
 }
 
 /** The outcome of restoring the cookies the session held before an import. */
@@ -483,13 +504,16 @@ async function restoreSnapshot(
   targetSession: Session,
   snapshot: readonly ExternalBrowserCookie[],
   writes: readonly { key: string }[],
-  allowedDomains: readonly string[]
+  allowedDomains: readonly string[],
+  preserveCookieNames: ReadonlySet<string>
 ): Promise<SnapshotRestoreResult> {
   const snapshotKeys = new Set(snapshot.map(externalCookieKey))
   const newOnlyKeys = new Set(
     writes.map((write) => write.key).filter((key) => !snapshotKeys.has(key))
   )
-  const restoredImport = await importExternalCookies(targetSession, [...snapshot], allowedDomains)
+  const restoredImport = await importExternalCookies(targetSession, [...snapshot], allowedDomains, {
+    preserveCookieNames: [...preserveCookieNames]
+  })
   const removed = await removeCookiesByKeys(targetSession, newOnlyKeys, allowedDomains)
   const snapshotRestored = await rollbackMatchesSnapshot(targetSession, snapshot, allowedDomains)
   const flushFailed = await flushStorage(targetSession, ' after a rollback')
@@ -532,12 +556,24 @@ export async function importExternalCookies(
     { payload: Electron.CookiesSetDetails; domain: string; key: string }
   >()
   const refusedByDomain = new Map<string, number>()
+  const preserveCookieNames = new Set(options.preserveCookieNames ?? [])
+  const preservedNames = new Set<string>()
   let duplicatesDropped = 0
 
   for (const cookie of cookies) {
     const domain = normalizeCookieDomain(cookie.domain)
     // A cookie of another site is not ours: it is neither written nor logged.
     if (!domain || !isCookieDomainAllowed(domain, allowedDomains)) continue
+
+    // Guest-owned layout state is not mirrored from the donor. The packet's
+    // copy would overwrite whatever the user chose inside the app, and the
+    // stale cleanup below must not treat its absence from the donor as a
+    // deletion either.
+    const cookieName = typeof cookie.name === 'string' ? cookie.name.trim() : ''
+    if (cookieName && preserveCookieNames.has(cookieName)) {
+      preservedNames.add(cookieName)
+      continue
+    }
 
     const payload = buildElectronCookiePayload(cookie, allowedDomains)
     if (!payload) {
@@ -616,20 +652,33 @@ export async function importExternalCookies(
   // together with a partial write instead of reporting a half-changed session.
   let staleCookiesKept = 0
   if (imported > 0 && failed === 0) {
-    const cleanup = await removeStaleCookies(targetSession, incoming, allowedDomains)
+    const cleanup = await removeStaleCookies(
+      targetSession,
+      incoming,
+      allowedDomains,
+      preserveCookieNames
+    )
     failed += cleanup.failed
     staleCookiesKept = cleanup.kept
   }
 
+  const preserved = preservedNames.size
   const result = (): ImportExternalCookiesResult => ({
     imported,
     failed,
     ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
-    ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+    ...(staleCookiesKept > 0 ? { staleCookiesKept } : {}),
+    ...(preserved > 0 ? { preserved } : {})
   })
 
   if (failed > 0 && options.rollbackOnPartialFailure && snapshot !== null) {
-    const rollback = await restoreSnapshot(targetSession, snapshot, writes, allowedDomains)
+    const rollback = await restoreSnapshot(
+      targetSession,
+      snapshot,
+      writes,
+      allowedDomains,
+      preserveCookieNames
+    )
     Logger.warn(
       `[SiteSessionImporter] ${failed} cookie(s) could not be written or cleaned up; ` +
         `rolled back ${rollback.failed ? 'incompletely' : 'to the previous session'}.`
@@ -641,7 +690,8 @@ export async function importExternalCookies(
       rollbackFailed: rollback.failed,
       ...(rollback.flushFailed ? { flushFailed: true } : {}),
       ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
-      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {}),
+      ...(preserved > 0 ? { preserved } : {})
     }
   }
 
@@ -661,7 +711,13 @@ export async function importExternalCookies(
     // restart may therefore load the old state while the user was told that
     // the session was imported. The import is undone and the restored state is
     // flushed as well; only a verified rollback is reported as such.
-    const rollback = await restoreSnapshot(targetSession, snapshot, writes, allowedDomains)
+    const rollback = await restoreSnapshot(
+      targetSession,
+      snapshot,
+      writes,
+      allowedDomains,
+      preserveCookieNames
+    )
     Logger.warn(
       `[SiteSessionImporter] The import could not be flushed to disk; ` +
         `rolled back ${rollback.failed ? 'incompletely' : 'to the previous session'}.`
@@ -673,7 +729,8 @@ export async function importExternalCookies(
       rollbackFailed: rollback.failed,
       flushFailed: true,
       ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
-      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {})
+      ...(staleCookiesKept > 0 ? { staleCookiesKept } : {}),
+      ...(preserved > 0 ? { preserved } : {})
     }
   }
 

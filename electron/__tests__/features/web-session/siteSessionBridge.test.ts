@@ -268,6 +268,26 @@ describe('site session bridge', () => {
     expect(set.mock.calls[0][0]).toMatchObject({ sameSite: 'no_restriction' })
   })
 
+  it('keeps the app-owned ChatGPT layout state out of the import', async () => {
+    // The sidebar preference is created inside the app. Mirroring the browser's
+    // copy would re-open the panel on every sync.
+    read.mockResolvedValue(stateWith(true))
+    const outcome = await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [
+        { name: 'session', value: 'v', domain: '.chatgpt.com', secure: true },
+        { name: 'codex_sidebar_state', value: 'expanded', domain: '.chatgpt.com', secure: true },
+        { name: 'codex_sidebar_width', value: '340', domain: '.chatgpt.com', secure: true }
+      ]
+    })
+
+    expect(outcome.accepted).toBe(true)
+    expect(outcome.imported).toBe(1)
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(set.mock.calls[0][0]).toMatchObject({ name: 'session' })
+  })
+
   it('records a reason code when the import writes nothing', async () => {
     // The row renders `lastError` through the `ws_error_*` keys. Without a
     // reason code the outcome would be shown without saying what went wrong.

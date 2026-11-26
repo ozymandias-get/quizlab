@@ -92,6 +92,43 @@ describe('importExternalCookies', () => {
     expect(remove).not.toHaveBeenCalled()
   })
 
+  it('does not mirror a guest-owned state cookie over the partition value', async () => {
+    get.mockResolvedValue([
+      { name: 'codex_sidebar_state', domain: '.chatgpt.com', path: '/', secure: true }
+    ])
+    const result = await importExternalCookies(
+      fakeSession(),
+      [
+        { name: 'session', value: 'v', domain: '.chatgpt.com' },
+        { name: 'codex_sidebar_state', value: 'expanded', domain: '.chatgpt.com' }
+      ],
+      ALLOWED,
+      { preserveCookieNames: ['codex_sidebar_state'] }
+    )
+
+    expect(result).toEqual({ imported: 1, failed: 0, preserved: 1 })
+    // Only the identity cookie is written; the stored layout value survives.
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(set.mock.calls[0][0]).toMatchObject({ name: 'session' })
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('keeps a guest-owned state cookie the donor never had', async () => {
+    get.mockResolvedValue([
+      { name: 'codex_sidebar_width', domain: '.chatgpt.com', path: '/', secure: true }
+    ])
+    await importExternalCookies(
+      fakeSession(),
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com' }],
+      ALLOWED,
+      { preserveCookieNames: ['codex_sidebar_state', 'codex_sidebar_width'] }
+    )
+
+    // The browser has no copy of a value the user set inside the app, so its
+    // absence is not a deletion signal.
+    expect(remove).not.toHaveBeenCalled()
+  })
+
   it('removes the stale namesake under a different domain', async () => {
     get.mockResolvedValue([
       { name: 'session', domain: '.openai.com', path: '/', secure: true, hostOnly: false }

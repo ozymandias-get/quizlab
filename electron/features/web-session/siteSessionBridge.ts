@@ -19,6 +19,7 @@ import { type Session, session as electronSession } from 'electron'
  * reported version against the same number the bridge answers with.
  */
 import { SITE_SESSION_PROTOCOL_VERSION } from '../../../shared/constants/siteSessionProtocol.js'
+import { getSiteUiStateCookieNames } from '../../../shared/constants/siteSessionUiStateCookies.js'
 import { Logger } from '../../core/logger.js'
 import { AI_REGISTRY } from '../ai/aiManager.js'
 import { broadcastSiteSessionsChanged } from './siteSessionBroadcast.js'
@@ -546,12 +547,16 @@ async function handleSiteSessionPacket(
   }
 
   const targetSession = resolveSession(target.partition)
+  // The donor is authoritative for identity cookies, never for the page's own
+  // layout state: importing ChatGPT's sidebar cookie re-opens a panel the user
+  // closed inside the app on every sync.
+  const preserveCookieNames = getSiteUiStateCookieNames(target.siteId)
   const { imported, failed, rolledBack, rollbackFailed, flushFailed, staleCookiesKept } =
     await importExternalCookies(
       targetSession,
       packet.cookies.map(toImporterCookie),
       target.cookieDomains,
-      { rollbackOnPartialFailure: true }
+      { rollbackOnPartialFailure: true, preserveCookieNames }
     )
 
   // An import that wrote nothing is a failure the user has to see: without a
