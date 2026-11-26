@@ -20,7 +20,7 @@ export function useAppShellState() {
       toggleFocusMode: s.toggleFocusMode
     }))
   )
-  const [isUpdateBannerVisible, setIsUpdateBannerVisible] = useState(true)
+  const [isUpdateNoticeVisible, setIsUpdateNoticeVisible] = useState(true)
 
   const panelResize = usePanelResize({
     initialWidth: 50,
@@ -33,15 +33,15 @@ export function useAppShellState() {
   const animations = useAppAnimations(isLayoutSwapped)
   const isAiSurfaceMounted = useAiSurfaceMount()
 
-  const closeUpdateBanner = useCallback(() => setIsUpdateBannerVisible(false), [])
+  const closeUpdateNotice = useCallback(() => setIsUpdateNoticeVisible(false), [])
   const closeFocusMode = useCallback(() => setFocusMode(null), [setFocusMode])
 
-  const updateBanner = useMemo(
+  const updateNotice = useMemo(
     () => ({
-      isVisible: isUpdateBannerVisible,
-      close: closeUpdateBanner
+      isVisible: isUpdateNoticeVisible,
+      close: closeUpdateNotice
     }),
-    [isUpdateBannerVisible, closeUpdateBanner]
+    [isUpdateNoticeVisible, closeUpdateNotice]
   )
 
   const focus = useMemo(
@@ -61,7 +61,7 @@ export function useAppShellState() {
       animations,
       isAiSurfaceMounted,
       panelResize,
-      updateBanner,
+      updateNotice,
       focus
     }),
     [
@@ -71,7 +71,7 @@ export function useAppShellState() {
       animations,
       isAiSurfaceMounted,
       panelResize,
-      updateBanner,
+      updateNotice,
       focus
     ]
   )

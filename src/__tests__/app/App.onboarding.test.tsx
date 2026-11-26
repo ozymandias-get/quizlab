@@ -32,7 +32,6 @@ vi.mock('@app/providers/ai-context', () => ({
   useAiViewRequestNonce: () => 0
 }))
 vi.mock('@features/screenshot/tool', () => ({ ScreenshotTool: () => null }))
-vi.mock('@app/components/UpdateBanner', () => ({ default: () => null }))
 vi.mock('@app/ui/AiSendComposer', () => ({ default: () => null }))
 vi.mock('@app/ui/CaptureChoiceMenu', () => ({ default: () => null }))
 vi.mock('@app/hooks/useCacheThresholdWarning', () => ({
@@ -58,7 +57,7 @@ vi.mock('@app/hooks/useAppShellState', () => ({
       setLeftPanelWidth: vi.fn()
     },
     workspaceState: { isBarHovered: false, setIsBarHovered: vi.fn() },
-    updateBanner: { isVisible: false, close: vi.fn() },
+    updateNotice: { isVisible: false, close: vi.fn() },
     focus: { mode: null, close: vi.fn() }
   })
 }))

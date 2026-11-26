@@ -106,6 +106,10 @@ function PdfTabItem({
         </TooltipContent>
       </Tooltip>
 
+      {/* Not hover-only: the pill's `pr-10` (40px) reserves 4px inset + this
+          24px button + 12px clearance, and `MIN_TAB_WIDTH` (140px) keeps every
+          rendered pill wide enough for that reserve, so the label never reaches
+          the control. */}
       <Tooltip>
         <TooltipTrigger asChild>
           <IconButton

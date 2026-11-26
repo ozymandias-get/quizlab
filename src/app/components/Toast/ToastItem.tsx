@@ -211,9 +211,10 @@ const ToastItem = memo(
     const handleClose = useCallback(
       (e: MouseEvent) => {
         e.stopPropagation()
+        toast.onDismiss?.()
         onRemove(toast.id)
       },
-      [onRemove, toast.id]
+      [onRemove, toast]
     )
 
     const handleAction = useCallback(
@@ -222,6 +223,7 @@ const ToastItem = memo(
         try {
           toast.onAction?.()
         } finally {
+          toast.onDismiss?.()
           onRemove(toast.id)
         }
       },

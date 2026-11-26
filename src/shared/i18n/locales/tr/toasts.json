@@ -37,6 +37,7 @@
   "toast_custom_ai_deleted": "Özel AI başarıyla silindi",
   "toast_ai_deleted_title": "AI Silindi",
   "toast_automation_title": "Otomasyon",
+  "toast_update_available": "Yeni sürüm {version} indirilebilir.",
   "picker_save_failed": "Seçilen öğeler kaydedilemedi: {error}",
   "toast_unhandled_error": "Beklenmeyen bir hata oluştu: {error}",
   "toast_error_title": "Hata",

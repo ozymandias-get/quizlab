@@ -15,6 +15,12 @@ export interface Toast {
   duration?: number
   actionLabel?: string
   onAction?: () => void
+  /**
+   * Fired when the reader dismisses the toast (close button) or runs its
+   * action. Not fired on timeout or when the stack evicts it: those are not
+   * decisions the caller asked about.
+   */
+  onDismiss?: () => void
   createdAt: number
 }
 
@@ -106,7 +112,8 @@ export const useToastStore = create<ToastStoreState>((set, get) => {
       params = {},
       duration = DEFAULT_DURATION,
       actionLabel,
-      onAction
+      onAction,
+      onDismiss
     }: ToastInput) => {
       if (!useNotificationPrefs.getState().isEnabled(type)) {
         return ''
@@ -130,6 +137,7 @@ export const useToastStore = create<ToastStoreState>((set, get) => {
             duration,
             actionLabel,
             onAction,
+            onDismiss,
             createdAt: Date.now()
           }
         ]

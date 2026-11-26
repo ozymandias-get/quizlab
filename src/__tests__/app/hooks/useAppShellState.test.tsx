@@ -56,13 +56,13 @@ describe('useAppShellState', () => {
     vi.clearAllMocks()
   })
 
-  describe('updateBanner', () => {
+  describe('updateNotice', () => {
     it('close hides the banner', () => {
       const { result } = renderHook(() => useAppShellState())
       act(() => {
-        result.current.updateBanner.close()
+        result.current.updateNotice.close()
       })
-      expect(result.current.updateBanner.isVisible).toBe(false)
+      expect(result.current.updateNotice.isVisible).toBe(false)
     })
   })
 

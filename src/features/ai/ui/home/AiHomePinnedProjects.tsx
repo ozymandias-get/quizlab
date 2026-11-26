@@ -128,6 +128,9 @@ const AiHomePinnedProjects = memo(function AiHomePinnedProjects({
                     </div>
                   </button>
 
+                  {/* Always visible at 40% muted: `pr-12` on the open button
+                      reserves exactly this control (8px inset + 28px + 12px),
+                      so it is space in use, not dead padding. */}
                   <button
                     type="button"
                     onClick={(event) => handleRemove(event, project.id, index)}

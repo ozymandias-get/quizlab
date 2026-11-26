@@ -124,7 +124,7 @@ export function useClearPartitionCache() {
 
 /**
  * Re-exported rather than duplicated: `useSystemApi` owns the implementation
- * and `UpdateBanner` consumes it there, while the settings tier imports it
+ * and the settings screen consumes it there, while the settings tier imports it
  * through this module. Two byte-identical implementations of one IPC mutation
  * is how they drift.
  */

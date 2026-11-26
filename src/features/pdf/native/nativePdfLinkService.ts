@@ -334,7 +334,7 @@ export function createNativePdfLinkService({
 /**
  * The default external-link pathway: the app's own `openExternal` IPC.
  *
- * Reused rather than re-invented — it is what `UpdateBanner`, `useSettings` and the
+ * Reused rather than re-invented — it is what the settings screen and the
  * Gemini session cards already call, and the main process re-validates the URL
  * (`resolveExternalLink`) before it reaches `shell.openExternal`. Failures are
  * reported, never surfaced as a PDF error: a link that will not open is not a broken

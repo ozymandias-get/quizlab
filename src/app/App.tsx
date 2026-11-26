@@ -11,7 +11,6 @@ const ScreenshotTool = lazy(() =>
   import('@features/screenshot/tool').then((m) => ({ default: m.ScreenshotTool }))
 )
 const CaptureChoiceMenu = lazy(() => import('@app/ui/CaptureChoiceMenu'))
-const UpdateBanner = lazy(() => import('@app/components/UpdateBanner'))
 const AiSendComposer = lazy(() => import('@app/ui/AiSendComposer'))
 const AiDraftLayer = lazy(() =>
   import('@app/ui/AiDraftLayer').then((m) => ({ default: m.AiDraftLayer }))
@@ -27,6 +26,7 @@ import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
+import { useUpdateNoticeToast } from '@app/hooks/useUpdateNoticeToast'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
 import { useAiTabsSliceState, useAiViewRequestNonce } from '@app/providers/ai-context'
 import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
@@ -43,21 +43,15 @@ function App() {
     animations,
     isAiSurfaceMounted,
     panelResize,
-    updateBanner,
+    updateNotice,
     focus
   } = useAppShellState()
 
-  const {
-    t,
-    leftPanelProps,
-    readingProps,
-    rootDragHandlers,
-    isInteractionBlocked,
-    isPanelResizing
-  } = usePdfWorkspaceState({
-    isInteractionBlocked: panelResize.isResizing,
-    isPanelResizing: panelResize.isResizing
-  })
+  const { leftPanelProps, readingProps, rootDragHandlers, isInteractionBlocked, isPanelResizing } =
+    usePdfWorkspaceState({
+      isInteractionBlocked: panelResize.isResizing,
+      isPanelResizing: panelResize.isResizing
+    })
 
   // Windows Explorer sağ-tık "QuizLab ile Aç" ile gelen PDF'leri karşıla.
   useShellOpenPdf()
@@ -104,8 +98,14 @@ function App() {
   // and focus overlay) under one view id.
   useDriveViewRetirement()
   const isAiFocusSurface = isFocusActive && focus.mode === 'ai'
-  const shouldShowUpdateBanner =
-    updateAvailable && Boolean(updateInfo) && updateBanner.isVisible && !isFocusActive
+  const shouldShowUpdateNotice =
+    updateAvailable && Boolean(updateInfo) && updateNotice.isVisible && !isFocusActive
+
+  useUpdateNoticeToast({
+    shouldShow: shouldShowUpdateNotice,
+    version: updateInfo?.version,
+    onDismiss: updateNotice.close
+  })
 
   return (
     <LayoutGroup>
@@ -123,18 +123,6 @@ function App() {
           aria-hidden
           className="app-drag-gutter absolute inset-x-0 top-0 z-10 h-3 sm:h-4 md:h-5 lg:h-6"
         />
-
-        {shouldShowUpdateBanner && (
-          <Suspense fallback={null}>
-            <UpdateBanner
-              updateAvailable={updateAvailable}
-              updateInfo={updateInfo}
-              isVisible
-              onClose={updateBanner.close}
-              t={t}
-            />
-          </Suspense>
-        )}
 
         {!isFocusActive && (
           <div>

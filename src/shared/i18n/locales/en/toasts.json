@@ -37,6 +37,7 @@
   "toast_custom_ai_deleted": "Custom AI deleted successfully",
   "toast_ai_deleted_title": "AI Deleted",
   "toast_automation_title": "Automation",
+  "toast_update_available": "New version {version} can be downloaded.",
   "picker_save_failed": "Couldn't save the selected elements: {error}",
   "toast_unhandled_error": "An unexpected error occurred: {error}",
   "toast_error_title": "Error",

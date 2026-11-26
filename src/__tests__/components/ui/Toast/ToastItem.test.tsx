@@ -62,6 +62,43 @@ describe('ToastItem', () => {
     expect(mockOnRemove).toHaveBeenCalledWith('123')
   })
 
+  it('reports a dismissal when the close button is clicked', () => {
+    const onDismiss = vi.fn()
+    render(<ToastItem toast={{ ...mockToast, onDismiss }} onRemove={mockOnRemove} />)
+
+    fireEvent.click(screen.getByRole('button'))
+
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a dismissal when the action is used, after running it', () => {
+    const order: string[] = []
+    const onAction = vi.fn(() => order.push('action'))
+    const onDismiss = vi.fn(() => order.push('dismiss'))
+    render(
+      <ToastItem
+        toast={{ ...mockToast, actionLabel: 'download', onAction, onDismiss }}
+        onRemove={mockOnRemove}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'download' }))
+
+    expect(order).toEqual(['action', 'dismiss'])
+    expect(mockOnRemove).toHaveBeenCalledWith('123')
+  })
+
+  it('does not report a dismissal when the timer expires', () => {
+    const onDismiss = vi.fn()
+    render(<ToastItem toast={{ ...mockToast, onDismiss }} onRemove={mockOnRemove} />)
+
+    act(() => {
+      vi.advanceTimersByTime(1100)
+    })
+
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
+
   it('should call onRemove after duration timeout', () => {
     render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
 
