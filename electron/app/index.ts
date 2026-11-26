@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from 'electron'
 import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 
@@ -215,6 +215,15 @@ let quitAfterCleanup = false
 
 async function initializeApp() {
   initLogger({ userDataPath: app.getPath('userData'), logToDisk: true })
+
+  // The app has one appearance: dark (`color-scheme: dark` in index.css, and the
+  // Windows title-bar symbols are already light). Leaving the source on `system`
+  // made every embedded page follow Windows instead — ChatGPT, Claude and the
+  // PDF surfaces opened light on a light desktop while the app around them
+  // stayed dark. Fixing the source also fixes the native menus and scrollbars to
+  // the same appearance.
+  nativeTheme.themeSource = 'dark'
+
   registerGeneralHandlers()
 
   // SECURITY: Register the shared cleanup function so that both the
