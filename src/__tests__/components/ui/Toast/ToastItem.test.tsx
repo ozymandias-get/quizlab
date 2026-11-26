@@ -53,6 +53,8 @@ describe('ToastItem', () => {
     vi.useRealTimers()
   })
 
+  const root = () => screen.getAllByTestId('motion-div')[0]
+
   it('should call onRemove when close button is clicked', () => {
     render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
 
@@ -194,5 +196,198 @@ describe('ToastItem', () => {
     })
 
     expect(mockOnRemove).toHaveBeenCalledWith('123')
+  })
+
+  describe('background cards', () => {
+    it('leaves the tab order and the accessibility tree while behind the front card', () => {
+      render(<ToastItem toast={mockToast} onRemove={mockOnRemove} paused />)
+
+      expect(root()).toHaveAttribute('inert')
+      expect(root()).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('stays usable when focus is already inside the demoted card', () => {
+      const { rerender } = render(<ToastItem toast={mockToast} onRemove={mockOnRemove} />)
+      const closeButton = screen.getByRole('button')
+
+      act(() => {
+        closeButton.focus()
+      })
+
+      // A new toast arrives and pushes this one to the back. Focus must not be
+      // dropped to <body> by making the focused subtree inert.
+      rerender(<ToastItem toast={mockToast} onRemove={mockOnRemove} paused />)
+
+      expect(root()).not.toHaveAttribute('inert')
+      expect(root()).not.toHaveAttribute('aria-hidden')
+
+      act(() => {
+        closeButton.blur()
+      })
+
+      expect(root()).toHaveAttribute('inert')
+      expect(root()).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('does not re-enable pointer events on its own root', () => {
+      render(<ToastItem toast={mockToast} onRemove={mockOnRemove} paused />)
+
+      expect(root()).not.toHaveClass('pointer-events-auto')
+    })
+
+    it('resumes a demoted card with the time it had left', () => {
+      const { rerender } = render(
+        <ToastItem toast={{ ...mockToast, duration: 5000 }} onRemove={mockOnRemove} />
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(3000)
+      })
+      rerender(
+        <ToastItem toast={{ ...mockToast, duration: 5000 }} onRemove={mockOnRemove} paused />
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(10000)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      rerender(<ToastItem toast={{ ...mockToast, duration: 5000 }} onRemove={mockOnRemove} />)
+
+      act(() => {
+        vi.advanceTimersByTime(1900)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(mockOnRemove).toHaveBeenCalledWith('123')
+    })
+  })
+
+  describe('progress bar', () => {
+    const progressBar = () => screen.getByTestId('toast-progress')
+
+    it('keeps the bar at its frozen offset when a paused toast resumes', () => {
+      render(<ToastItem toast={{ ...mockToast, duration: 5000 }} onRemove={mockOnRemove} />)
+
+      const initialBar = progressBar()
+      expect(initialBar.style.animation).toContain('5000ms')
+      expect(initialBar.style.animationPlayState).toBe('running')
+
+      act(() => {
+        vi.advanceTimersByTime(3000)
+      })
+      fireEvent.mouseEnter(root())
+
+      expect(progressBar()).toBe(initialBar)
+      expect(progressBar().style.animationPlayState).toBe('paused')
+
+      // Hovering longer than the original lifetime must not dismiss or restart.
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      fireEvent.mouseLeave(root())
+
+      // Same element: only the play state changed, so the bar cannot jump back
+      // to 100% while the timeout has only 2s left.
+      expect(progressBar()).toBe(initialBar)
+      expect(progressBar().style.animationPlayState).toBe('running')
+      expect(progressBar().style.animation).toContain('5000ms')
+
+      act(() => {
+        vi.advanceTimersByTime(1900)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(mockOnRemove).toHaveBeenCalledWith('123')
+    })
+
+    it('renders no progress bar for a persistent toast', () => {
+      render(<ToastItem toast={{ ...mockToast, duration: 0 }} onRemove={mockOnRemove} />)
+
+      expect(screen.queryByTestId('toast-progress')).not.toBeInTheDocument()
+    })
+
+    it('restarts the bar and the timeout together on a duration update', () => {
+      const { rerender } = render(
+        <ToastItem toast={{ ...mockToast, duration: 5000 }} onRemove={mockOnRemove} />
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(2000)
+      })
+      fireEvent.mouseEnter(root())
+
+      // Apply the new duration while paused: the bar is rebuilt for the new
+      // total, but the timeout stays stopped.
+      rerender(<ToastItem toast={{ ...mockToast, duration: 3000 }} onRemove={mockOnRemove} />)
+
+      expect(progressBar().style.animation).toContain('3000ms')
+      expect(progressBar().style.animationPlayState).toBe('paused')
+
+      act(() => {
+        vi.advanceTimersByTime(5000)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      fireEvent.mouseLeave(root())
+
+      act(() => {
+        vi.advanceTimersByTime(2900)
+      })
+      expect(mockOnRemove).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(mockOnRemove).toHaveBeenCalledWith('123')
+    })
+  })
+
+  describe('message rendering', () => {
+    const messageOf = () => screen.getAllByTestId('motion-div')[0].querySelector('p')!
+
+    it('keeps the sentence punctuation that follows a URL', () => {
+      render(
+        <ToastItem
+          toast={{ ...mockToast, message: 'Open https://example.com/a. Then retry.' }}
+          onRemove={mockOnRemove}
+        />
+      )
+
+      expect(screen.getByRole('link')).toHaveTextContent('https://example.com/a')
+      expect(messageOf().textContent).toBe('Open https://example.com/a. Then retry.')
+    })
+
+    it('keeps a closing bracket that belongs to the URL', () => {
+      render(
+        <ToastItem
+          toast={{ ...mockToast, message: 'See https://en.wikipedia.org/wiki/Foo_(bar).' }}
+          onRemove={mockOnRemove}
+        />
+      )
+
+      expect(screen.getByRole('link')).toHaveTextContent('https://en.wikipedia.org/wiki/Foo_(bar)')
+      expect(messageOf().textContent).toBe('See https://en.wikipedia.org/wiki/Foo_(bar).')
+    })
+
+    it('keeps file-path punctuation outside the selectable path', () => {
+      render(
+        <ToastItem
+          toast={{ ...mockToast, message: String.raw`Failed at C:\Users\me\notes.txt.` }}
+          onRemove={mockOnRemove}
+        />
+      )
+
+      expect(screen.getByText(String.raw`C:\Users\me\notes.txt`)).toBeInTheDocument()
+      expect(messageOf().textContent).toBe(String.raw`Failed at C:\Users\me\notes.txt.`)
+    })
   })
 })

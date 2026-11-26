@@ -68,6 +68,40 @@ const PROGRESS_COLORS: Record<ToastType, string> = {
 const TOAST_LINK_PATTERN =
   /(https?:\/\/[^\s<>"']+|[A-Za-z]:\\[^\s<>"']+|\/(?:Users|home|var|etc|tmp|opt|mnt|private)\/[^\s<>"']+)/g
 
+const SENTENCE_PUNCTUATION = new Set(['.', ',', ';', ':', '!', '?'])
+/** Closing brackets only belong to the prose when they have no opener inside the target. */
+const CLOSING_BRACKETS: Record<string, string> = { ')': '(', ']': '[', '}': '{' }
+
+function countChar(value: string, char: string): number {
+  let count = 0
+  for (const current of value) if (current === char) count += 1
+  return count
+}
+
+/**
+ * Split a raw match into the actionable target and the punctuation that must
+ * stay in the sentence. Stripping used to *drop* the punctuation, so the toast
+ * showed a different sentence than the one the diagnostic produced; a closing
+ * bracket that is genuinely part of a URL (Wikipedia-style `/Foo_(bar)`) must
+ * survive, while a sentence-closing one must not.
+ */
+function splitTrailingPunctuation(raw: string): { value: string; punctuation: string } {
+  let end = raw.length
+  while (end > 0) {
+    const char = raw[end - 1]
+    if (SENTENCE_PUNCTUATION.has(char)) {
+      end -= 1
+      continue
+    }
+    const opener = CLOSING_BRACKETS[char]
+    if (!opener) break
+    const candidate = raw.slice(0, end)
+    if (countChar(candidate, opener) >= countChar(candidate, char)) break
+    end -= 1
+  }
+  return { value: raw.slice(0, end), punctuation: raw.slice(end) }
+}
+
 function renderToastMessage(text: string): ReactNode {
   const nodes: ReactNode[] = []
   let cursor = 0
@@ -75,9 +109,10 @@ function renderToastMessage(text: string): ReactNode {
     const index = match.index ?? 0
     if (index > cursor) nodes.push(text.slice(cursor, index))
     const raw = match[0]
-    // Sentence punctuation belongs to the prose, not to the target.
-    const value = raw.replace(/[.,;:!?)\]]+$/, '')
-    if (/^https?:\/\//.test(value)) {
+    const { value, punctuation } = splitTrailingPunctuation(raw)
+    if (!value) {
+      nodes.push(raw)
+    } else if (/^https?:\/\//.test(value)) {
       nodes.push(
         <button
           key={`${index}-link`}
@@ -94,6 +129,7 @@ function renderToastMessage(text: string): ReactNode {
           <ExternalLink className="size-3 shrink-0" aria-hidden />
         </button>
       )
+      if (punctuation) nodes.push(punctuation)
     } else {
       nodes.push(
         <code
@@ -104,6 +140,7 @@ function renderToastMessage(text: string): ReactNode {
           {value}
         </code>
       )
+      if (punctuation) nodes.push(punctuation)
     }
     cursor = index + raw.length
   }
@@ -140,6 +177,11 @@ const ToastItem = memo(
     // Pointer and keyboard both keep the toast alive: a user tabbing to the
     // close/action button must not lose it mid-interaction.
     const isPaused = paused || isHovered || isFocusWithin
+    // A demoted card leaves the tab order and the accessibility tree, but only
+    // while focus is not inside it. Making a focused subtree inert drops focus
+    // to <body>; the card that the user was already interacting with therefore
+    // stays live until they leave it on their own.
+    const isBackgrounded = paused && !isFocusWithin
 
     const clearTimer = useCallback(() => {
       if (timerRef.current !== null) {
@@ -168,9 +210,9 @@ const ToastItem = memo(
     }, [clearTimer])
 
     const resumeTimer = useCallback(() => {
-      // Restarting the progress bar needs a new key; the timeout itself picks
-      // up from the remaining time captured when it was paused.
-      setAnimationKey((key) => key + 1)
+      // The timeout alone restarts. The progress bar is not remounted: it kept
+      // its CSS animation paused in place, so a new key would jump it back to
+      // 100% while only the remaining time is actually left.
       startTimer()
     }, [startTimer])
 
@@ -247,8 +289,13 @@ const ToastItem = memo(
         onMouseLeave={handleMouseLeave}
         onFocusCapture={handleFocusCapture}
         onBlurCapture={handleBlurCapture}
+        // `pointer-events` is owned by the stack wrapper: it flips the whole
+        // card off for background decks. Re-enabling it here made the visible
+        // sliver above the front card hoverable again.
+        inert={isBackgrounded ? true : undefined}
+        aria-hidden={isBackgrounded ? true : undefined}
         className={cn(
-          'group pointer-events-auto relative',
+          'group relative',
           'mb-2 w-full overflow-hidden rounded-xl',
           'flex items-start gap-0',
           'motion-slow transition-colors ease-out',
@@ -320,14 +367,19 @@ const ToastItem = memo(
           <div className="absolute right-0 bottom-0 left-0 h-[2px] bg-white/10">
             <div
               key={animationKey}
+              data-testid="toast-progress"
               className={cn('h-full', PROGRESS_COLORS[toast.type] || PROGRESS_COLORS.info)}
               style={{
                 width: '100%',
                 transformOrigin: 'left',
-                // Pausing keeps the bar where it is. Setting `animation: none`
-                // reset it to full width, so a hovered toast looked like it had
-                // just been shown again while its timer was actually frozen.
-                animation: `toast-progress-shrink ${remainingTimeRef.current}ms linear forwards`,
+                // The duration is the toast's *total* lifetime, not what is
+                // left: the animation element stays mounted through a pause and
+                // resumes from its own frozen offset. Feeding it the remaining
+                // time shortened the timeline mid-animation, so the bar jumped
+                // forward and then finished early on every hover. The key only
+                // changes when the duration itself changes, which restarts both
+                // the bar and the timeout together.
+                animation: `toast-progress-shrink ${configuredDuration}ms linear forwards`,
                 animationPlayState: isPaused ? 'paused' : 'running'
               }}
             />

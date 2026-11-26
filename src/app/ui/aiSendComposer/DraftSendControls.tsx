@@ -58,6 +58,11 @@ function DraftSendControls({
 
   const isIncomplete = showOutcome && feedback === 'incomplete'
   const canRetry = showOutcome && feedback === 'error' && isResendSafe
+  // Retry/dismiss are shrink-0 and cannot wrap their text. When one of them is
+  // present the status is moved to its own line on narrow panels instead of
+  // being squeezed to zero width: the failure reason is the part the reader
+  // needs, and the old row let it disappear entirely.
+  const hasSecondaryAction = canRetry || isIncomplete
 
   // Alt satır yalnızca **kısa durum** taşır; uzun hata metni içerik alanındaki
   // tek `role="alert"` yüzeyinde kalır (görsel tekrar ve satır büyümesi yok).
@@ -82,7 +87,7 @@ function DraftSendControls({
         : 'text-muted-foreground'
 
   return (
-    <div className="flex min-h-8 shrink-0 items-center gap-2 rounded-b-2xl border-t border-white/[0.07] bg-zinc-950/40 px-3.5 py-1.5">
+    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-b-2xl border-t border-white/[0.07] bg-zinc-950/40 px-3.5 py-1.5">
       <label
         className={cn(
           'flex shrink-0 items-center gap-2 select-none',
@@ -150,7 +155,14 @@ function DraftSendControls({
       {/* Durum yalnızca anlamlı olduğunda yer alır; başlık zaten içerik sayısını
           gösterdiği için boşta "0 öğe" tekrarı yoktur. */}
       {statusLabel && StatusIcon && (
-        <div className="flex min-w-0 shrink items-center gap-1" role="status" aria-live="polite">
+        <div
+          className={cn(
+            'flex min-w-0 shrink items-center gap-1',
+            hasSecondaryAction && '@max-[24rem]:w-full'
+          )}
+          role="status"
+          aria-live="polite"
+        >
           <StatusIcon
             className={cn(
               'size-3.5 shrink-0',
@@ -160,7 +172,11 @@ function DraftSendControls({
             aria-hidden
           />
           <span
-            className={cn('text-ql-11 max-w-[12rem] truncate font-medium', statusTone)}
+            className={cn(
+              'text-ql-11 max-w-[12rem] truncate font-medium',
+              hasSecondaryAction && '@max-[24rem]:max-w-full',
+              statusTone
+            )}
             title={statusLabel}
           >
             {statusLabel}

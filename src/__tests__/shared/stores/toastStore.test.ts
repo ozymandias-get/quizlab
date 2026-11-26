@@ -214,6 +214,40 @@ describe('toastStore', () => {
 
       expect(list.current.toasts.length).toBeLessThanOrEqual(3)
     })
+
+    it('stays bounded through a long burst', () => {
+      const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+
+      act(() => {
+        for (let index = 0; index < 20; index += 1) {
+          actions.current.addToast({ message: uniqueMessage(`burst-${index}`), type: 'info' })
+        }
+      })
+
+      expect(list.current.toasts).toHaveLength(3)
+    })
+
+    it('drops an informational card before an undo handle', () => {
+      const { result: actions } = renderHook(() => useToastActions())
+      const { result: list } = renderHook(() => useToastList())
+      const undoMessage = uniqueMessage('undo')
+
+      act(() => {
+        actions.current.addToast({ message: uniqueMessage('before'), type: 'info' })
+        actions.current.addToast({
+          message: undoMessage,
+          type: 'info',
+          actionLabel: 'undo',
+          onAction: vi.fn()
+        })
+        actions.current.addToast({ message: uniqueMessage('during'), type: 'info' })
+        actions.current.addToast({ message: uniqueMessage('after'), type: 'info' })
+      })
+
+      expect(list.current.toasts).toHaveLength(3)
+      expect(list.current.toasts.some((toast) => toast.message === undoMessage)).toBe(true)
+    })
   })
 
   describe('removeToast', () => {

@@ -21,7 +21,11 @@ interface FloatingDockIconProps {
   children: ReactNode
   id?: string
   onClick: () => void
-  /** Toggle-style tools keep a persistent active surface. */
+  /**
+   * Toggle-style tools pass their state here (including `false`): a toggle is
+   * announced as not pressed, not as an action. Action buttons omit it, so
+   * they never gain toggle semantics by accident.
+   */
   isActive?: boolean
   /** Action is currently unavailable; keeps the control out of the tab order. */
   disabled?: boolean
@@ -43,7 +47,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   children,
   id,
   onClick,
-  isActive = false,
+  isActive,
   disabled = false,
   status,
   statusLabel
@@ -57,10 +61,12 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (disabled) return
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        onClick()
-      }
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      // Holding the key must not fire the action over and over. The keydown is
+      // still swallowed so Space cannot scroll the workspace behind the dock.
+      e.preventDefault()
+      if (e.repeat) return
+      onClick()
     },
     [disabled, onClick]
   )
@@ -76,7 +82,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
           aria-disabled={disabled || undefined}
           aria-busy={status === 'generating' || undefined}
           aria-current={status === 'active' ? 'true' : undefined}
-          aria-pressed={isActive || undefined}
+          aria-pressed={isActive}
           onClick={disabled ? undefined : onClick}
           onKeyDown={handleKeyDown}
           size={DOCK_ICON_BASE}

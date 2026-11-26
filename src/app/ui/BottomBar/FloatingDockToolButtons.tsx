@@ -107,7 +107,13 @@ export const PickerToolButton = memo(function PickerToolButton() {
   }, [isPickerActive, togglePicker, startPickerWhenReady])
 
   return (
-    <FloatingDockIcon title={t('element_picker')} onClick={handleClick}>
+    <FloatingDockIcon
+      title={t('element_picker')}
+      onClick={handleClick}
+      // The picker is a real two-state tool: a second press stops it. Reporting
+      // the state keeps it distinct from the one-shot dock actions.
+      isActive={isPickerActive}
+    >
       <Crosshair className="h-5 w-5" />
     </FloatingDockIcon>
   )
