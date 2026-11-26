@@ -28,6 +28,7 @@
   "picker_intro_text": "Find the <b>text box</b> where you type your questions or messages and click on it. This teaches the system where to write.",
   "picker_intro_title": "Step 1: Select Message Box",
   "picker_maybe": "Maybe",
+  "picker_origin_unverified": "The page address could not be verified. Open the site again and repeat the selection.",
   "picker_saving": "Saving settings...",
   "picker_selection_missing": "Selection missing - try again.",
   "picker_started_hint": "Element Picker Mode Started. Please click on the Input and then the Send button in order.",

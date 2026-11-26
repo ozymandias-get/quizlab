@@ -162,6 +162,83 @@ describe('userElementPicker integration', () => {
     )
   }, 10000)
 
+  it('validates input and button selectors that live in different roots', async () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const frameDoc = iframe.contentDocument
+    if (!frameDoc || !frameDoc.body) {
+      throw new Error('Test environment must expose iframe.contentDocument')
+    }
+    if (iframe.contentWindow) {
+      iframe.contentWindow.requestAnimationFrame ??= (cb: FrameRequestCallback) =>
+        setTimeout(() => cb(0), 16) as unknown as number
+    }
+
+    // Input in the main document, send button inside a same-origin frame. Each
+    // locator is context-free CSS, and the runtime searches every root, so the
+    // saved pair must still resolve together.
+    const textbox = document.createElement('div')
+    textbox.setAttribute('role', 'textbox')
+    textbox.setAttribute('contenteditable', 'true')
+    document.body.appendChild(textbox)
+
+    const sendButton = frameDoc.createElement('button')
+    sendButton.setAttribute('aria-label', 'Send message')
+    Object.defineProperty(sendButton, 'offsetWidth', { configurable: true, get: () => 32 })
+    Object.defineProperty(sendButton, 'offsetHeight', { configurable: true, get: () => 32 })
+    frameDoc.body.appendChild(sendButton)
+
+    eval(generatePickerScript())
+
+    textbox.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
+    textbox.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, composed: true, cancelable: true })
+    )
+
+    const nextBtn = document.getElementById('_ai_picker_next_btn')
+    expect(nextBtn).not.toBeNull()
+    nextBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+    sendButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
+    sendButton.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, composed: true, cancelable: true })
+    )
+
+    const pickerResult = await waitForPickerResult()
+    expect(pickerResult).toEqual(
+      expect.objectContaining({
+        input: expect.any(String),
+        button: expect.any(String),
+        inputFingerprint: expect.any(Object),
+        buttonFingerprint: expect.any(Object)
+      })
+    )
+
+    const validateResult = await window.eval(generateValidateSelectorsScript(pickerResult as any))
+    expect(validateResult.success).toBe(true)
+  }, 10000)
+
+  it('cancels on Escape coming from inside a same-origin frame', () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const frameDoc = iframe.contentDocument
+    if (!frameDoc) {
+      throw new Error('Test environment must expose iframe.contentDocument')
+    }
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      eval(generatePickerScript({}, 'frame-session'))
+      frameDoc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+
+      expect(consoleSpy).toHaveBeenCalledWith('_aiPicker:cancelled:frame-session')
+      expect((window as PickerWindow)._aiPickerCancelled).toBe(true)
+    } finally {
+      consoleSpy.mockRestore()
+      ;(window as PickerWindow)._aiPickerCleanup?.()
+    }
+  })
+
   it('injects the picker stylesheet into same-origin frames and removes it on cleanup', () => {
     const iframe = document.createElement('iframe')
     document.body.appendChild(iframe)

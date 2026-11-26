@@ -239,6 +239,34 @@ describe('useElementPickerLifecycle', () => {
     expect(mockStartPicker).not.toHaveBeenCalled()
   })
 
+  it('injects exactly one session when readiness signals and arm calls race', async () => {
+    const controller = createController({
+      executeJavaScript: vi.fn().mockResolvedValue('loading')
+    })
+
+    const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
+
+    // Double click / two callers arming in the same tick.
+    await act(async () => {
+      result.current.startPickerWhenReady()
+      result.current.startPickerWhenReady()
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // dom-ready and did-stop-loading can land back to back for one load.
+    await act(async () => {
+      controller._trigger('dom-ready')
+      controller._trigger('did-stop-loading')
+    })
+
+    await vi.waitFor(() => {
+      expect(mockStartPicker).toHaveBeenCalledTimes(1)
+    })
+    expect(mockStartPicker).toHaveBeenCalledTimes(1)
+  })
+
   it('stops an active picker when the user switches tabs', async () => {
     mockPickerState.active = true
     const controllerA = createController()

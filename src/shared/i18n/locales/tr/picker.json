@@ -28,6 +28,7 @@
   "picker_intro_text": "Yapay zekaya soru sorduğunuz veya mesaj yazdığınız <b>metin kutusunu</b> bulun ve üzerine tıklayın. Bu, sistemin nereye yazı yazacağını öğrenmesini sağlar.",
   "picker_intro_title": "1. Adım: Mesaj Kutusunu Seçin",
   "picker_maybe": "Olabilir",
+  "picker_origin_unverified": "Sayfa adresi doğrulanamadı. Siteyi yeniden açıp seçimi tekrarlayın.",
   "picker_saving": "Ayarlar kaydediliyor...",
   "picker_selection_missing": "Seçim eksik - tekrar deneyin.",
   "picker_started_hint": "Element Seçici Modu Başlatıldı. Lütfen sırasıyla Input ve Gönder butonuna tıklayın.",

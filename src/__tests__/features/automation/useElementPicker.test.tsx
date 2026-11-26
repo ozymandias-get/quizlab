@@ -289,8 +289,30 @@ describe('useElementPicker', () => {
     })
 
     expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
-    expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
+    expect(mockToast.showError).toHaveBeenCalledWith('picker_origin_unverified')
     expect(result.current.isPickerActive).toBe(false)
+  })
+
+  it('stops the picker when Escape is pressed in the app window', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+    expect(result.current.isPickerActive).toBe(true)
+
+    mockContent.executeJavaScript.mockClear()
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    })
+
+    // The guest script never saw this key (focus was in the app window); the
+    // cleanup still has to reach the managed view.
+    expect(mockContent.executeJavaScript).toHaveBeenCalledWith(
+      'if (window._aiPickerCleanup) window._aiPickerCleanup(); delete window._aiPickerResult; delete window._aiPickerCancelled;'
+    )
+    expect(result.current.isPickerActive).toBe(false)
+    expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
   })
 
   it('ignores a stale result from a previous picker session', async () => {

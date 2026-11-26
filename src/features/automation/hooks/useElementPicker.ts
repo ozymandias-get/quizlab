@@ -125,7 +125,12 @@ export function useElementPicker(
           // the check.
           if (!startUrl && currentUrl) {
             Logger.info('[Picker] savePickerResult: pick origin was never captured, aborting')
-            showError('picker_selection_missing')
+            // This is NOT a missing selection: the pick itself was fine, but the
+            // page address could not be verified, so saving would risk writing
+            // the selectors onto the wrong hostname. Say that instead of the
+            // misleading "selection missing" so the user knows to reopen the
+            // site rather than re-pick the same elements.
+            showError('picker_origin_unverified')
             return
           }
           if (startUrl && currentUrl) {
@@ -368,6 +373,30 @@ export function useElementPicker(
       setIsPickerActive(false)
     }
   }, [showInfo, stopListening])
+
+  /**
+   * ESC from the app window.
+   *
+   * The injected script only sees keys that land in the guest document. When
+   * the settings panel, a dialog or any app chrome holds focus, ESC never
+   * reaches it and the picker could not be dismissed. This listener covers
+   * exactly that case; while the guest view is focused the event does not
+   * reach this window, so the two paths never double-fire.
+   */
+  useEffect(() => {
+    if (!isPickerActive) return
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      Logger.info('[Picker] Escape pressed in the app window; stopping picker')
+      void stopPicker()
+    }
+
+    window.addEventListener('keydown', onEscape, true)
+    return () => window.removeEventListener('keydown', onEscape, true)
+  }, [isPickerActive, stopPicker])
 
   const togglePicker = useCallback(async () => {
     const currentContent = getContentRef.current()
