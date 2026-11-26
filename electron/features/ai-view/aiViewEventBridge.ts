@@ -216,11 +216,32 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
 }
 
 /**
- * Replaces the default opaque Chromium scrollbars with the thin translucent
- * variant the embedded panels use. Done in the main process because a
- * `WebContentsView` has no renderer-side element to inject into.
+ * Page chrome for a guest document: thin scrollbars, and no window drag regions.
+ *
+ * Done in the main process because a `WebContentsView` has no renderer-side
+ * element to inject into.
+ *
+ * The drag rule is not cosmetic. Provider sites ship their own title bar for
+ * their desktop shells — ChatGPT marks a fixed, full-width
+ * `header.shell-header-controls` as `draggable` (`-webkit-app-region: drag`).
+ * Electron resolves draggable regions window-wide, ignoring which view is on
+ * top and whether a nested element says `no-drag`, so inside a managed view
+ * that strip turns the top of the panel into a caption area: clicks drag the
+ * app window instead of reaching the page, and the site's own buttons under it
+ * stop responding. Declaring `no-drag` on every element leaves the guest with
+ * no drag regions at all, which is the only correct answer for a page hosted
+ * inside another app. `!important` wins over the site's normal declaration;
+ * `[class]` repeats the rule at class specificity so a future `!draggable`
+ * utility on their side (which they already ship, marked `!important`) cannot
+ * take the region back by specificity.
  */
 const PAGE_CHROME_CSS = `
+  html,
+  html *,
+  [class] {
+    -webkit-app-region: no-drag !important;
+  }
+
   html, body {
     scrollbar-width: thin;
     scrollbar-color: rgba(255,255,255,0.28) rgba(255,255,255,0.08);
@@ -261,6 +282,8 @@ function applyPageChrome(webContents: WebContents): void {
   // insertCSS belongs to the current document. dom-ready fires once for each
   // new document, while in-page navigation keeps the existing stylesheet.
   void webContents.insertCSS(PAGE_CHROME_CSS).catch(() => {
-    // Cosmetic only; a rejected injection is not worth surfacing.
+    // A rejected injection is not fatal: the scrollbars stay default, and a
+    // site that declares a drag region keeps it (clicks at the top of the panel
+    // then move the window). The next document retries; nothing here can.
   })
 }

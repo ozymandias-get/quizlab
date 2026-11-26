@@ -15,6 +15,7 @@ import { setupAiSession } from '../../app/window/sessions.js'
 import { getMainWindow } from '../../app/windowManager.js'
 import { Logger } from '../../core/logger.js'
 import { CHROME_USER_AGENT } from '../ai/aiManager.js'
+import { installAiViewContextMenu } from './aiViewContextMenu.js'
 import { boundsEqual, isUsableBounds, parseBounds, parseViewId } from './aiViewContract.js'
 import { type AiViewLoadStateChange, bridgeWebContentsEvents } from './aiViewEventBridge.js'
 import { installChatGptShortcutGuard, isChatGptViewPartition } from './aiViewKeyboardGuard.js'
@@ -100,6 +101,14 @@ interface ManagedAiView {
    * has focus, and the next attachment creates a new `WebContents`.
    */
   disposeKeyboardGuard: () => void
+  /**
+   * Removes the clipboard context menu listener from this view's `WebContents`.
+   *
+   * Bound per view for the same reason as the shortcut guard: the listener is
+   * attached to the guest that was created for this attachment, and a new
+   * attachment builds a new `WebContents`.
+   */
+  disposeContextMenu: () => void
 }
 
 const views = new Map<string, ManagedAiView>()
@@ -370,7 +379,8 @@ function attachResolved(
     pendingNavigationStartedAt: 0,
     pendingNavigationEpoch: 0,
     disposeBridge: () => {},
-    disposeKeyboardGuard: () => {}
+    disposeKeyboardGuard: () => {},
+    disposeContextMenu: () => {}
   }
 
   const disposeBridge = bridgeWebContentsEvents({
@@ -396,6 +406,9 @@ function attachResolved(
   if (isChatGptViewPartition(target.partition)) {
     entry.disposeKeyboardGuard = installChatGptShortcutGuard(webContents)
   }
+  // A guest page has no context menu of its own in Electron, so every managed
+  // view gets the clipboard menu, not just the provider that reported it.
+  entry.disposeContextMenu = installAiViewContextMenu(webContents)
 
   views.set(viewId, entry)
   window.contentView.addChildView(view)
@@ -527,6 +540,12 @@ function destroyEntry(viewId: string): boolean {
     entry.disposeKeyboardGuard()
   } catch (error) {
     Logger.warn('[AiView] Failed to remove keyboard guard:', error)
+  }
+
+  try {
+    entry.disposeContextMenu()
+  } catch (error) {
+    Logger.warn('[AiView] Failed to remove context menu:', error)
   }
 
   const window = getMainWindow()

@@ -10,10 +10,14 @@ const releaseAllAiViewHosts = vi.hoisted(() => vi.fn())
 
 vi.mock('electron', () => ({
   // The reload watcher subscribes through `app.on('browser-window-created')`.
-  app: { on: appOn },
+  app: { on: appOn, getLocale: () => 'en' },
   ipcMain: { handle: ipcHandle, on: ipcOn },
   WebContentsView: class {},
-  shell: { openExternal: vi.fn(async () => undefined) }
+  shell: { openExternal: vi.fn(async () => undefined) },
+  // The per-view clipboard menu builds a native menu on right-click.
+  Menu: { buildFromTemplate: vi.fn(() => ({ popup: vi.fn() })) },
+  clipboard: { writeText: vi.fn() },
+  BrowserWindow: { fromWebContents: () => null }
 }))
 
 const requireTrustedIpcSender = vi.hoisted(() => vi.fn((_event: unknown) => true))

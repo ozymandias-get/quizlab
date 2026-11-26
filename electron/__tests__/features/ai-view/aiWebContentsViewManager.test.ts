@@ -142,7 +142,13 @@ function createFakeWebContents(viewId: string): FakeWebContents {
 vi.mock('electron', () => ({
   WebContentsView: FakeWebContentsView,
   shell: { openExternal: vi.fn(async () => undefined) },
-  session: { fromPartition }
+  session: { fromPartition },
+  // The per-view clipboard menu builds a native menu on right-click; these
+  // stand in for the main-process APIs it touches.
+  Menu: { buildFromTemplate: vi.fn(() => ({ popup: vi.fn() })) },
+  clipboard: { writeText: vi.fn() },
+  BrowserWindow: { fromWebContents: () => null },
+  app: { getLocale: () => 'en' }
 }))
 
 vi.mock('../../../app/windowManager.js', () => ({
@@ -1037,6 +1043,19 @@ describe('AiWebContentsViewManager - lifecycle', () => {
     await manager.destroyAiView('tab-1')
     entry.webContents.emit('dom-ready')
     expect(entry.webContents.insertCSS).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives the guest no draggable regions, so its title bar cannot move this window', async () => {
+    // ChatGPT marks its shell header `draggable`; Electron honours that inside
+    // a `WebContentsView` and the strip below the app's tab strip then drags the
+    // window and swallows the page's own clicks.
+    await reset()
+    await manager.attachAiView({ viewId: 'tab-1', source: CHATGPT })
+    const entry = manager.getManagedAiView('tab-1')!
+    entry.webContents.emit('dom-ready')
+
+    const css = vi.mocked(entry.webContents.insertCSS).mock.calls[0]?.[0] as string
+    expect(css).toContain('-webkit-app-region: no-drag !important')
   })
 
   it('stops bridging events once the view is destroyed', async () => {
