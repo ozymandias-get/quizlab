@@ -13,9 +13,14 @@
 import { generatePickerScript } from '@electron/features/automation/userElementPicker'
 import {
   buildCssCandidates,
-  generateLocatorBundle
+  GENERATED_TOKEN_REGEX,
+  generateLocatorBundle,
+  SAFE_CLASS_TOKEN_REGEX
 } from '@electron/features/automation/lib/dom/pickerDomRuntime'
-import { buildInjectedPickerDomHelpers } from '@electron/features/automation/lib/injectedPickerDom'
+import {
+  buildInjectedPickerDomHelpers,
+  buildInjectedStableSelectorHelper
+} from '@electron/features/automation/lib/injectedPickerDom'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -261,6 +266,124 @@ describe('picker target integrity', () => {
     const semantic = document.createElement('button')
     semantic.setAttribute('class', 'x16qrm4 ProseMirror send-btn')
     expect(injectedGetSafeClassTokens!(semantic)).toEqual(['ProseMirror', 'send-btn'])
+  })
+
+  /**
+   * The regex pair is the only module scope the emitted helpers may reference.
+   * It used to be copied by hand into injectedPickerDom.ts and had already
+   * drifted (spelling/ordering), so a later edit to the runtime pattern would
+   * have silently changed guest-page behaviour. Both builders must emit the
+   * live values.
+   */
+  it('T14: injected prefix is derived from the runtime regexes, not a hand copy', () => {
+    const generated = `const GENERATED_TOKEN_REGEX = ${String(GENERATED_TOKEN_REGEX)};`
+    const safeClass = `const SAFE_CLASS_TOKEN_REGEX = ${String(SAFE_CLASS_TOKEN_REGEX)};`
+
+    expect(buildInjectedPickerDomHelpers()).toContain(generated)
+    expect(buildInjectedPickerDomHelpers()).toContain(safeClass)
+    expect(buildInjectedStableSelectorHelper()).toContain(generated)
+    expect(buildInjectedStableSelectorHelper()).toContain(safeClass)
+  })
+
+  /**
+   * Privilege boundary: `fn.toString()` carries only the function body, so any
+   * module-level value referenced from inside a helper becomes a ReferenceError
+   * in the guest page (the picker then dies silently at click time). Evaluate
+   * the emitted block standalone and exercise EVERY exported helper.
+   */
+  it('T15: every emitted DOM helper is self-contained and callable', () => {
+    const create = () =>
+      new Function(`${buildInjectedPickerDomHelpers()}
+        return {
+          getSafeId, getNthChild, getSafeClassTokens, normalizeText, getVisibleText,
+          pushCandidate, getPrimaryAttribute, isElementContentEditable, cssEscape,
+          escapeCssStringValue, buildSelectorSegment, buildLocalPath, buildHostChain,
+          buildCssCandidates, safeMatchesSelector, pickVerifiedPrimary,
+          inferSendLikeControl, getElementInfo, generateLocatorBundle
+        };`)
+    const helpers = create()() as Record<string, (...args: any[]) => any>
+
+    const button = document.createElement('button')
+    button.setAttribute('id', 'send-btn')
+    button.setAttribute('aria-label', 'Send message')
+    button.setAttribute('class', 'composer-send x16qrm4')
+    button.textContent = 'Send'
+    document.body.appendChild(button)
+
+    const input = document.createElement('textarea')
+    input.setAttribute('placeholder', 'Ask anything')
+    document.body.appendChild(input)
+
+    expect(helpers.getSafeId(button)).toBe('send-btn')
+    expect(helpers.getNthChild(button)).toBe(1)
+    expect(helpers.getSafeClassTokens(button)).toEqual(['composer-send'])
+    expect(helpers.normalizeText('  a   b ')).toBe('a b')
+    expect(helpers.getVisibleText(button)).toContain('Send')
+    expect(helpers.getPrimaryAttribute(button, 'button')).toEqual({
+      attribute: 'aria-label',
+      value: 'Send message'
+    })
+    expect(helpers.isElementContentEditable(input)).toBe(false)
+    expect(helpers.cssEscape('a.b')).toBe('a\\.b')
+    expect(helpers.escapeCssStringValue('a"b')).toBe('a\\"b')
+    expect(helpers.buildSelectorSegment(button)).toBe('#send-btn')
+    expect(helpers.buildLocalPath(button).at(-1)).toBe('#send-btn')
+    expect(helpers.buildHostChain(button)).toEqual([])
+    expect(helpers.inferSendLikeControl(button)).toBe(true)
+    expect(helpers.getElementInfo(button).category).toBe('button')
+    expect(helpers.getElementInfo(input).category).toBe('input')
+    expect(helpers.pushCandidate([], 'x')).toBeUndefined()
+
+    const bundle = helpers.generateLocatorBundle(button, 'button')
+    expect(bundle?.primarySelector).toBe('#send-btn')
+    expect(helpers.safeMatchesSelector(button, '#send-btn')).toBe(true)
+    expect(helpers.pickVerifiedPrimary(button, ['#send-btn'])).toBe('#send-btn')
+    expect(helpers.buildCssCandidates(button, 'button')).toContain('#send-btn')
+
+    // The self-healing helper block is emitted separately; it must stand alone
+    // too (the same rules, only the transitive callees of buildCssCandidates).
+    const stable = new Function(
+      `${buildInjectedStableSelectorHelper()}\nreturn buildCssCandidates;`
+    )() as (el: Element, kind: 'input' | 'button') => string[]
+    expect(stable(input, 'input')).toContain('textarea[placeholder="Ask anything"]')
+  })
+
+  it('T16: leaving a hovered element clears its outline, re-entry repaints it', () => {
+    eval(generatePickerScript())
+
+    const editor = document.createElement('div')
+    editor.setAttribute('role', 'textbox')
+    editor.setAttribute('contenteditable', 'true')
+    const child = document.createElement('span')
+    editor.appendChild(child)
+    document.body.appendChild(editor)
+
+    mouseOver(editor)
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+
+    // Moving onto a descendant is not an exit: the outline must survive.
+    editor.dispatchEvent(
+      new MouseEvent('mouseout', {
+        bubbles: true,
+        composed: true,
+        relatedTarget: child
+      })
+    )
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+
+    // Leaving the element (pointer out of the view) must remove it.
+    editor.dispatchEvent(
+      new MouseEvent('mouseout', {
+        bubbles: true,
+        composed: true,
+        relatedTarget: document.body
+      })
+    )
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(false)
+
+    // Re-entering must repaint (lastHovered was reset, not just un-styled).
+    mouseOver(editor)
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
   })
 
   it('T11: voice and dictation buttons are rejected during the submit step', () => {

@@ -108,14 +108,21 @@ describe('usePickerConsoleBridge', () => {
     expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
   })
 
-  it('routes malformed result payloads to onError', () => {
+  it('routes malformed result payloads to onError and ends the run', () => {
     const { result, onResult, onCancelled, onError } = setup()
     result.current.startListening()
+
     handlerSink.current?.({ message: '_aiPicker:result:{not-json' })
 
     expect(onError).toHaveBeenCalledTimes(1)
     expect(onResult).not.toHaveBeenCalled()
     expect(onCancelled).not.toHaveBeenCalled()
+    // A malformed emit is unrecoverable for this run; keeping the subscription
+    // let `isPickerActive` stay stuck with no listener behind it.
+    expect(mockController._unsubscribed).toHaveBeenCalledTimes(1)
+
+    // Nothing can arrive any more.
+    expect(handlerSink.current).toBeNull()
   })
 
   it('ignores messages that are not picker messages', () => {

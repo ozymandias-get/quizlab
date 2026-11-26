@@ -8,6 +8,17 @@ export function buildPickerCleanupBlock(): string {
                     try { iframeObservers[f].disconnect(); } catch (e) { safePickerLog('cleanup.iframeDocObserver', e); }
                 }
                 iframeObservers.length = 0;
+                frameObservers.length = 0;
+                for (var w = 0; w < frameLoadWatches.length; w++) {
+                    try {
+                        var watch = frameLoadWatches[w];
+                        if (watch && watch.el) {
+                            watch.el.removeEventListener('load', watch.handler);
+                            try { delete watch.el.__aiPickerLoadWatched; } catch (e) { safePickerLog('cleanup.frameLoadFlag', e); }
+                        }
+                    } catch (e) { safePickerLog('cleanup.frameLoadWatch', e); }
+                }
+                frameLoadWatches.length = 0;
                 if (iframeScanRafId != null) {
                     try { safeCancelAnimationFrame(iframeScanRafId); } catch (e) { safePickerLog('cleanup.cancelIframeScan', e); }
                     iframeScanRafId = null;
@@ -26,10 +37,25 @@ export function buildPickerCleanupBlock(): string {
                         if (rootDoc.documentElement) {
                             try { delete rootDoc.documentElement.__aiPickerListenersAttached; } catch (e) { safePickerLog('cleanup.listenerFlag', e); }
                             try { delete rootDoc.documentElement.__aiPickerFrameObserved; } catch (e) { safePickerLog('cleanup.frameFlag', e); }
+                            try { delete rootDoc.documentElement.__aiPickerStylesAttached; } catch (e) { safePickerLog('cleanup.styleFlag', e); }
                         }
                     } catch (e) { safePickerLog('cleanup.listenerRoot', e); }
                 }
                 listenerRoots.length = 0;
+                // Frame stylesheet clones live in other documents; removing the
+                // top-document styleEl alone would leave them applied (and the
+                // "already styled" flag would stop the next pick from adding a
+                // fresh copy).
+                for (var s = 0; s < frameStyleEntries.length; s++) {
+                    try {
+                        var styleEntry = frameStyleEntries[s];
+                        if (styleEntry.el && styleEntry.el.parentNode) styleEntry.el.parentNode.removeChild(styleEntry.el);
+                        if (styleEntry.doc && styleEntry.doc.documentElement) {
+                            try { delete styleEntry.doc.documentElement.__aiPickerStylesAttached; } catch (e) { safePickerLog('cleanup.frameStyleFlag', e); }
+                        }
+                    } catch (e) { safePickerLog('cleanup.frameStyle', e); }
+                }
+                frameStyleEntries.length = 0;
                 if (typingAdvanceTimer) {
                     clearTimeout(typingAdvanceTimer);
                     typingAdvanceTimer = null;

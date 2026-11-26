@@ -68,6 +68,7 @@ export function buildPickerUiBlock(pickerStyles: string): string {
                             e.stopPropagation();
                             if (typingAdvanceTimer) {
                                 clearTimeout(typingAdvanceTimer);
+                                pendingTimers.delete(typingAdvanceTimer);
                                 typingAdvanceTimer = null;
                             }
                             step = 'submit';
@@ -117,14 +118,20 @@ export function buildPickerUiBlock(pickerStyles: string): string {
                     if (mainDoc.body) mountPickerUi();
                     return;
                 }
-                // Re-attach if the box got orphaned (parentNode gone or
-                // moved under a node that isn't the current body).
-                if (infoBox && (!infoBox.parentNode || infoBox.parentNode !== mainDoc.body)) {
-                    if (mainDoc.body) {
-                        mainDoc.body.appendChild(infoBox);
-                        mainDoc.body.appendChild(labelBox);
-                        updateInfoBox(null);
-                    }
+                // Re-attach if either box got orphaned (parentNode gone or
+                // moved under a node that isn't the current body). Checking
+                // only infoBox missed the case where the label survived but
+                // the panel was removed.
+                if (
+                    mainDoc.body &&
+                    (
+                        !infoBox || infoBox.parentNode !== mainDoc.body ||
+                        !labelBox || labelBox.parentNode !== mainDoc.body
+                    )
+                ) {
+                    if (infoBox) mainDoc.body.appendChild(infoBox);
+                    if (labelBox) mainDoc.body.appendChild(labelBox);
+                    updateInfoBox(null);
                 }
             });
             if (mainDoc.documentElement) {

@@ -249,6 +249,25 @@ describe('useElementPicker', () => {
     expect(result.current.isPickerActive).toBe(false)
   })
 
+  it('deactivates the picker when a malformed result arrives', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    await act(async () => {
+      fireConsoleMessage(`_aiPicker:result:${activeSessionId()}:{not-json`)
+    })
+
+    expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+    expect(mockToast.showError).toHaveBeenCalledWith('picker_init_failed')
+    // The bridge unsubscribed, so no later run can clear the flag: the hook
+    // must do it itself instead of leaving the toggle "active" forever.
+    expect(result.current.isPickerActive).toBe(false)
+    expect(() => fireConsoleMessage('_aiPicker:cancelled')).toThrow()
+  })
+
   it('ignores a stale result from a previous picker session', async () => {
     const { result } = renderPicker()
 

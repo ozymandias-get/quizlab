@@ -112,6 +112,11 @@ export function usePickerConsoleBridge({
         const separator = rest.indexOf(':')
         if (separator <= 0) {
           Logger.warn('[PickerConsoleBridge] Rejected malformed result prefix')
+          // A malformed emit cannot be retried by this run: the picker script
+          // emits once and then tears itself down. Leaving the subscription
+          // alive kept `isPickerActive` stuck (the toggle stayed "active" with
+          // no run behind it), so fail the run explicitly instead.
+          stopListening()
           onErrorRef.current(new Error('Malformed picker result'))
           return
         }
@@ -137,6 +142,9 @@ export function usePickerConsoleBridge({
         onResultRef.current(data, messageSessionId)
       } catch (error) {
         Logger.warn('[PickerConsoleBridge] Failed to parse result:', error)
+        // Same dead-end as the malformed prefix: stop listening so the
+        // consumer can reset the picker instead of leaving it "active".
+        stopListening()
         onErrorRef.current(error)
       }
     }

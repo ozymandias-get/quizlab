@@ -52,9 +52,14 @@ const INTERNAL_SELECTOR_MARKER =
  * Build-generated class names (CSS-in-JS, atomic CSS, hashed build output).
  * They survive `SAFE_CLASS_TOKEN_REGEX` but change on every build, so a
  * selector built on them must never become a permanent primary selector.
+ *
+ * The dashed-name branch requires a DIGIT in the suffix. Without it, ordinary
+ * semantic names the Magic Selector accepts (`btn-primary`, `form-input`,
+ * `msg-input`) were classified as build hashes and self-healing refused to
+ * promote a selector the picker itself had just produced.
  */
-const GENERATED_CLASS_TOKEN =
-  /^(?:css|sc|jsx|jss|emotion|styled|tw|atomic)-[a-z0-9]{4,}$|^[a-z]{1,4}-[a-z0-9]{5,}$|^[a-z]+[_-][a-f0-9]{6,}$/i
+export const GENERATED_CLASS_TOKEN =
+  /^(?:css|sc|jsx|jss|emotion|styled|tw|atomic)-[a-z0-9]{4,}$|^[a-z]{1,4}-(?=[a-z0-9]*\d)[a-z0-9]{5,}$|^[a-z]+[_-][a-f0-9]{6,}$/i
 
 import { VOICE_CONTROL_LABEL_PATTERN } from './siteStrategyRegistry.js'
 

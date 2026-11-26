@@ -5,6 +5,7 @@ import {
   buildSelectorSegment,
   cssEscape,
   escapeCssStringValue,
+  GENERATED_TOKEN_REGEX,
   generateLocatorBundle,
   getElementInfo,
   getNthChild,
@@ -17,6 +18,7 @@ import {
   normalizeText,
   pickVerifiedPrimary,
   pushCandidate,
+  SAFE_CLASS_TOKEN_REGEX,
   safeMatchesSelector
 } from './dom/pickerDomRuntime.js'
 
@@ -26,11 +28,12 @@ import {
  * value imports) so Vitest does not rewrite callees to __vite_ssr_import_* inside .toString().
  *
  * Module-level regex constants in pickerDomRuntime are not part of each function's .toString();
- * mirror them here so injected functions still resolve GENERATED_TOKEN_REGEX / SAFE_CLASS_TOKEN_REGEX.
+ * they are re-emitted here from the *same exported values*, so the guest page cannot drift from
+ * the runtime (a difference here silently changes what counts as a generated class/id).
  */
 const INJECTED_DOM_MODULE_PREFIX = [
-  '        const GENERATED_TOKEN_REGEX = /(^--)|(^\\d{5,}$)|([a-z0-9]{15,})|([a-z]+[-_]\\d{5,}$)/i;',
-  '        const SAFE_CLASS_TOKEN_REGEX = /^[a-zA-Z][\\w-]{0,63}$/;'
+  `        const GENERATED_TOKEN_REGEX = ${String(GENERATED_TOKEN_REGEX)};`,
+  `        const SAFE_CLASS_TOKEN_REGEX = ${String(SAFE_CLASS_TOKEN_REGEX)};`
 ].join('\n')
 
 export function buildInjectedPickerDomHelpers(): string {

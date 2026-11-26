@@ -7,7 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { memo } from 'react'
 
 import { getHealthTone } from '../selectorMappings'
-import { findSelectorEntry, hasSelectorLocator } from '../selectorUtils'
+import { findSelectorEntry, hasSelectorLocator, isValidationCurrent } from '../selectorUtils'
 import type { AiEntry, TranslateFn, ValidationState } from '../types'
 import SelectorActionBar from './SelectorActionBar'
 import SelectorCardDetails from './SelectorCardDetails'
@@ -75,6 +75,12 @@ export default memo(function SelectorCard({
   const submitMode = normalizeSubmitMode(selectorConfig?.submitMode) || 'mixed'
   const canTestOnCurrentTab = Boolean(hasSelectors && hasContent && currentAI === key)
   const existingTab = tabs.some((tab) => tab.modelId === key)
+  // A stored test result belongs to the config it was produced for. Once that
+  // config changed underneath (re-pick, repair, reset) it is stale and must not
+  // sit next to the new data as "Test successful".
+  const currentValidation = isValidationCurrent(validation, selectorConfig)
+    ? validation
+    : ({ status: 'idle' } as const)
 
   const panelTransition = {
     duration: prefersReducedMotion ? 0 : DURATION.slow,
@@ -131,7 +137,7 @@ export default memo(function SelectorCard({
                   instead of jumping; `initial={false}` keeps a card that is
                   reopened with a stored result from re-animating. */}
               <AnimatePresence initial={false}>
-                {validation.status !== 'idle' && (
+                {currentValidation.status !== 'idle' && (
                   <motion.div
                     key="validation"
                     initial={{ height: 0, opacity: 0, marginTop: 0 }}
@@ -140,7 +146,7 @@ export default memo(function SelectorCard({
                     transition={panelTransition}
                     className="overflow-hidden"
                   >
-                    <SelectorValidationPanel validation={validation} t={t} />
+                    <SelectorValidationPanel validation={currentValidation} t={t} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -149,7 +155,7 @@ export default memo(function SelectorCard({
                 hasSelectors={hasSelectors}
                 canTestOnCurrentTab={canTestOnCurrentTab}
                 isTesting={isTesting}
-                validation={validation}
+                validation={currentValidation}
                 selectorEntry={selectorEntry}
                 isDeleting={isDeleting}
                 onTestSelectors={() => onTestSelectors(key, selectorEntry, cardId)}

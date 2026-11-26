@@ -30,6 +30,7 @@ export function useElementPickerLifecycle(
 
   const {
     startPicker: pickerStartPicker,
+    stopPicker: pickerStopPicker,
     isPickerActive,
     togglePicker
   } = useElementPicker(getContentController)
@@ -97,12 +98,41 @@ export function useElementPickerLifecycle(
       armTimeoutRef.current = null
       if (!pendingPickerStartRef.current) return
       pendingPickerStartRef.current = false
+      // Drop the readiness subscriptions/abort listeners too; without this the
+      // abandoned request kept listening for dom-ready/did-stop-loading until
+      // some unrelated dependency changed.
+      lifecycleAbortRef.current?.abort()
+      lifecycleAbortRef.current = null
       Logger.warn('[ElementPickerLifecycle] timed out waiting for tab content')
       showError('picker_webview_not_found')
     }, PICKER_ARM_TIMEOUT_MS)
   }, [clearArmTimeout, showError])
 
   useEffect(() => () => clearArmTimeout(), [clearArmTimeout])
+
+  // A picker runs inside ONE managed view. When the user switches tabs, the
+  // old view keeps the picker script (and its listeners) alive while the new
+  // tab shows an "active" toggle backed by nothing: the console bridge only
+  // notices on the next emit, which never comes. Close the run as soon as the
+  // active tab actually changes.
+  //
+  // `previous == null` is not a real switch (the tab id arrives
+  // asynchronously after the picker starts); treating it as one would cancel a
+  // freshly started pick.
+  const lastActiveTabIdRef = useRef<string | undefined>(activeTabId)
+  useEffect(() => {
+    const previous = lastActiveTabIdRef.current
+    lastActiveTabIdRef.current = activeTabId
+    if (!isPickerActive) return
+    if (previous == null || activeTabId == null || previous === activeTabId) return
+    Logger.info('[PickerLifecycle] active tab changed while picker is active; stopping picker', {
+      previous,
+      activeTabId
+    })
+    void pickerStopPicker().catch((error) => {
+      Logger.warn('[PickerLifecycle] failed to stop picker after tab change:', error)
+    })
+  }, [activeTabId, isPickerActive, pickerStopPicker])
 
   useEffect(() => {
     if (!pendingPickerStartRef.current) return

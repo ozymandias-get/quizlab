@@ -47,6 +47,21 @@ export function useElementPicker(
   const pickerSessionRef = useRef<string | null>(null)
   const pickerStartUrlRef = useRef<string | null>(null)
 
+  /**
+   * Single teardown point for the renderer-side picker state.
+   *
+   * `session` scopes the reset to one run: the `finally` of an in-flight save
+   * must not deactivate a picker the user started in the meantime. Passing
+   * nothing clears unconditionally.
+   */
+  const clearPickerState = useCallback((session?: string | null) => {
+    if (session !== undefined && pickerSessionRef.current !== session) return
+    activePickerContentRef.current = null
+    pickerSessionRef.current = null
+    pickerStartUrlRef.current = null
+    setIsPickerActive(false)
+  }, [])
+
   function createPickerSessionId(): string {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
   }
@@ -78,28 +93,28 @@ export function useElementPicker(
 
   const savePickerResult = useCallback(
     async (config: AiSelectorConfig, sourceContent: AiContentController | null) => {
-      if (!sourceContent || getContentRef.current() !== sourceContent) {
-        Logger.info('[Picker] savePickerResult: source content is no longer active')
-        return
-      }
-
       const resultSession = pickerSessionRef.current
-      Logger.info('[Picker] savePickerResult: config received', {
-        inputFingerprint: config.inputFingerprint,
-        buttonFingerprint: config.buttonFingerprint,
-        submitMode: config.submitMode
-      })
-      const content = sourceContent
-      if (getContentRef.current() !== content) {
-        Logger.info('[Picker] savePickerResult: source content changed, aborting')
-        return
-      }
-
-      // The view may have navigated between the pick and the save (same
-      // webview, in-page navigation keeps the controller identity). Saving
-      // the old site's selectors onto the new hostname would silently aim
-      // future automation at the wrong site.
+      // The teardown lives in `finally` so EVERY exit path deactivates the
+      // picker. Previously the "no source content" guard returned before the
+      // try/finally, leaving `isPickerActive` true forever with no listening
+      // session behind it (the toggle stayed on and the next click re-armed).
       try {
+        if (!sourceContent || getContentRef.current() !== sourceContent) {
+          Logger.info('[Picker] savePickerResult: source content is no longer active')
+          return
+        }
+
+        Logger.info('[Picker] savePickerResult: config received', {
+          inputFingerprint: config.inputFingerprint,
+          buttonFingerprint: config.buttonFingerprint,
+          submitMode: config.submitMode
+        })
+        const content = sourceContent
+
+        // The view may have navigated between the pick and the save (same
+        // webview, in-page navigation keeps the controller identity). Saving
+        // the old site's selectors onto the new hostname would silently aim
+        // future automation at the wrong site.
         try {
           const startUrl = pickerStartUrlRef.current
           const currentUrl = readContentUrl(content)
@@ -170,15 +185,10 @@ export function useElementPicker(
           showError('picker_save_failed', undefined, { error: message })
         }
       } finally {
-        if (isMountedRef.current && pickerSessionRef.current === resultSession) {
-          activePickerContentRef.current = null
-          pickerSessionRef.current = null
-          pickerStartUrlRef.current = null
-          setIsPickerActive(false)
-        }
+        if (isMountedRef.current) clearPickerState(resultSession)
       }
     },
-    [saveAiConfig, showError, t]
+    [clearPickerState, saveAiConfig, showError, t]
   )
 
   const { startListening, stopListening } = usePickerConsoleBridge({
@@ -193,22 +203,30 @@ export function useElementPicker(
         Logger.info('[Picker] bridge onResult: stale session result ignored')
         return
       }
+      const content = activePickerContentRef.current
+      if (!content) {
+        // The bridge stops listening on this path too, so nothing else will
+        // clear the flag: a result without a target view would otherwise leave
+        // the toggle stuck "active".
+        Logger.info('[Picker] bridge onResult: no active picker content, dropping result')
+        if (isMountedRef.current) {
+          clearPickerState()
+          showError('picker_selection_missing')
+        }
+        return
+      }
       if (isPickerConfig(data)) {
-        await savePickerResult(data, activePickerContentRef.current)
+        await savePickerResult(data, content)
       } else if (isMountedRef.current) {
         Logger.info('[Picker] bridge onResult: !isPickerConfig, showing picker_selection_missing')
         showError('picker_selection_missing')
-        activePickerContentRef.current = null
-        setIsPickerActive(false)
+        clearPickerState()
       }
     },
     onCancelled: () => {
       Logger.info('[Picker] bridge onCancelled: user pressed ESC')
       if (isMountedRef.current) {
-        activePickerContentRef.current = null
-        pickerSessionRef.current = null
-        pickerStartUrlRef.current = null
-        setIsPickerActive(false)
+        clearPickerState()
         // User explicitly pressed Escape — confirm the dismissal with a
         // toast so the click that toggled the picker off feels acknowledged.
         showInfo('picker_cancelled')
@@ -217,6 +235,9 @@ export function useElementPicker(
     onError: (error) => {
       Logger.info('[Picker] bridge onError:', error)
       Logger.warn('[ElementPicker] Bridge error:', error)
+      // The bridge unsubscribes before calling onError: the run is dead, so the
+      // renderer state must not keep claiming an active picker.
+      clearPickerState()
       showError('picker_init_failed')
     }
   })

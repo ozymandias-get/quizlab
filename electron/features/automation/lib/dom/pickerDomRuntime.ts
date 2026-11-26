@@ -174,8 +174,16 @@ export function getElementInfo(el: PickerElement): PickerElementInfo {
 
   return { category, labelEN, labelKey, confidence, tag, hintKey, hintEN }
 }
-const GENERATED_TOKEN_REGEX = /(^--)|(^\d{5,}$)|([\da-z]{15,})|([a-z]+[_-]\d{5,}$)/i
-const SAFE_CLASS_TOKEN_REGEX = /^[A-Za-z][\w-]{0,63}$/
+/**
+ * Exported because `injectedPickerDom.ts` mirrors these two constants into the
+ * emitted helper prefix: only a function's own source travels through
+ * `fn.toString()`, so `getSafeId` / `getSafeClassTokens` would otherwise hit a
+ * ReferenceError inside the guest page. Exporting them turns the mirror from a
+ * hand-copied duplicate (which had already drifted in pattern spelling) into a
+ * single source of truth.
+ */
+export const GENERATED_TOKEN_REGEX = /(^--)|(^\d{5,}$)|([\da-z]{15,})|([a-z]+[_-]\d{5,}$)/i
+export const SAFE_CLASS_TOKEN_REGEX = /^[A-Za-z][\w-]{0,63}$/
 
 export function escapeCssStringValue(str: string): string {
   if (typeof str !== 'string' || !str) return ''

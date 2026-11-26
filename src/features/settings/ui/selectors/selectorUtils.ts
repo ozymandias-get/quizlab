@@ -10,9 +10,40 @@
 import { canonicalizeHostname, toAutomationConfig } from '@shared-core/selectorConfig'
 import type { AiPlatform, AiSelectorConfig } from '@shared-core/types'
 
-import type { SelectorEntry } from './types'
+import type { SelectorEntry, ValidationState } from './types'
 
 export { toAutomationConfig }
+
+/**
+ * Identity of the selector data a validation result belongs to.
+ *
+ * The Settings card keeps test results in local state while the config can
+ * change underneath it (a manual re-pick in another tab, a self-healing
+ * promotion, a reset). Without this signature a "Test successful" panel for the
+ * OLD selectors could sit next to the NEW config.
+ */
+export function getSelectorConfigSignature(config?: AiSelectorConfig | null): string {
+  if (!config) return 'none'
+  return JSON.stringify({
+    input: config.input ?? null,
+    button: config.button ?? null,
+    inputCandidates: config.inputCandidates ?? null,
+    buttonCandidates: config.buttonCandidates ?? null,
+    inputFingerprint: config.inputFingerprint ?? null,
+    buttonFingerprint: config.buttonFingerprint ?? null,
+    submitMode: config.submitMode ?? null
+  })
+}
+
+/** True when a stored validation result still describes the current config. */
+export function isValidationCurrent(
+  validation: ValidationState,
+  config?: AiSelectorConfig | null
+): boolean {
+  if (validation.status === 'idle') return true
+  if (!validation.configSignature) return true
+  return validation.configSignature === getSelectorConfigSignature(config)
+}
 
 export function normalizeSelectorsData(
   selectorsData: AiSelectorConfig | Record<string, AiSelectorConfig> | null | undefined

@@ -19,6 +19,11 @@ export interface ValidationState {
   status: 'idle' | 'loading' | 'success' | 'error'
   error?: string | null
   diagnostics?: AutomationExecutionDiagnostics | null
+  /**
+   * `getSelectorConfigSignature` of the config this result was produced for.
+   * Omitted for states not tied to a test run (idle, open-tab timeout).
+   */
+  configSignature?: string
 }
 
 export interface SubmitModeOption {

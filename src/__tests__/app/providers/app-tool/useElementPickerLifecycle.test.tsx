@@ -7,11 +7,15 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockStartPicker = vi.fn()
+const mockStopPicker = vi.fn()
+// Mutable so individual cases can present an already-running picker.
+const mockPickerState = { active: false }
 
 vi.mock('@features/automation', () => ({
   useElementPicker: () => ({
-    isPickerActive: false,
+    isPickerActive: mockPickerState.active,
     startPicker: mockStartPicker,
+    stopPicker: mockStopPicker,
     togglePicker: vi.fn()
   })
 }))
@@ -69,7 +73,9 @@ function createController(overrides: Partial<AiContentController> = {}): MockCon
 describe('useElementPickerLifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPickerState.active = false
     mockStartPicker.mockResolvedValue(undefined)
+    mockStopPicker.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
@@ -231,5 +237,77 @@ describe('useElementPickerLifecycle', () => {
     })
 
     expect(mockStartPicker).not.toHaveBeenCalled()
+  })
+
+  it('stops an active picker when the user switches tabs', async () => {
+    mockPickerState.active = true
+    const controllerA = createController()
+    const controllerB = createController()
+
+    const { rerender } = renderHook(
+      ({ controller, tabId }: { controller: AiContentController; tabId: string }) =>
+        useElementPickerLifecycle(() => controller, tabId),
+      { initialProps: { controller: controllerA as AiContentController, tabId: 'tab-a' } }
+    )
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockStopPicker).not.toHaveBeenCalled()
+
+    await act(async () => {
+      rerender({ controller: controllerB as AiContentController, tabId: 'tab-b' })
+    })
+
+    expect(mockStopPicker).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not cancel a picker when the tab id only arrives after the start', async () => {
+    const controller = createController()
+    mockPickerState.active = true
+
+    const { rerender } = renderHook(
+      ({ tabId }: { tabId?: string }) => useElementPickerLifecycle(() => controller, tabId),
+      { initialProps: { tabId: undefined as string | undefined } }
+    )
+
+    await act(async () => {
+      rerender({ tabId: 'tab-a' })
+    })
+
+    // undefined -> 'tab-a' is the id materialising, not a tab switch.
+    expect(mockStopPicker).not.toHaveBeenCalled()
+  })
+
+  it('drops readiness subscriptions when the arm timeout fires', async () => {
+    vi.useFakeTimers()
+    try {
+      const controller = createController({
+        executeJavaScript: vi.fn().mockResolvedValue('loading')
+      })
+
+      const { result } = renderHook(() => useElementPickerLifecycle(() => controller))
+
+      await act(async () => {
+        result.current.startPickerWhenReady()
+      })
+      await act(async () => {
+        // The readiness module is imported dynamically; let its microtasks run
+        // before asserting on the subscriptions.
+        for (let i = 0; i < 5; i++) await Promise.resolve()
+      })
+
+      const before = controller._unsubscribeCount()
+      expect(before).toBeGreaterThan(0)
+
+      await act(async () => {
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(controller._unsubscribeCount()).toBeLessThan(before)
+      expect(mockStartPicker).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

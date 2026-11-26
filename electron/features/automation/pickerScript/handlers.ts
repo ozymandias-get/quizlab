@@ -168,10 +168,36 @@ export function buildPickerHandlersBlock(): string {
             labelBox.style.top = top + 'px';
         };
         
-        const onMouseOut = () => {
+        const onMouseOut = (e) => {
             if (step === 'typing') return;
             if (window._aiPickerRaf) safeCancelAnimationFrame(window._aiPickerRaf);
             labelBox.style.display = 'none';
+
+            // Hover styling must not outlive the hover. Without this, leaving
+            // the page (or moving onto the picker chrome) left the last
+            // element outlined green/red until cleanup -- a stale visual that
+            // also survived body re-renders on SPA hosts.
+            if (!lastHovered) return;
+            var related = e && e.relatedTarget;
+            try {
+                // Moving between descendants of the same hovered element is
+                // not a real exit: keep the outline (no flicker).
+                if (
+                    related &&
+                    (related === lastHovered ||
+                        (typeof lastHovered.contains === 'function' &&
+                            lastHovered.contains(related)))
+                ) {
+                    return;
+                }
+            } catch (relatedErr) { safePickerLog('mouseout.related', relatedErr); }
+            if (lastHovered !== selectedInputElement) {
+                try {
+                    lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
+                } catch (err) { safePickerLog('mouseout.clearHover', err); }
+            }
+            // Reset so re-entering the same element re-applies the outline.
+            lastHovered = null;
         };
 
         const onClick = (e) => {

@@ -26,7 +26,12 @@ import { Logger } from '@shared/lib/logger'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { hasSelectorLocator, normalizeSelectorsData, toAutomationConfig } from '../selectorUtils'
+import {
+  getSelectorConfigSignature,
+  hasSelectorLocator,
+  normalizeSelectorsData,
+  toAutomationConfig
+} from '../selectorUtils'
 import type { AiEntry, SelectorEntry, ValidationState } from '../types'
 
 interface UseSelectorsTabControllerOptions {
@@ -126,7 +131,11 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
       cardId: string,
       contentController: AiContentController
     ) => {
-      setCardValidation(cardId, { status: 'loading' })
+      // Pin the result to the config it validates. If the config is rewritten
+      // while this test is in flight (manual re-pick, self-healing promotion,
+      // reset), the card drops the result instead of showing it over new data.
+      const configSignature = getSelectorConfigSignature(selectorEntry.config)
+      setCardValidation(cardId, { status: 'loading', configSignature })
 
       try {
         const script = await generateValidateSelectorsScript(
@@ -141,19 +150,24 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
         const diagnostics = result?.diagnostics || null
 
         if (result?.success) {
-          setCardValidation(cardId, { status: 'success', diagnostics })
+          setCardValidation(cardId, { status: 'success', diagnostics, configSignature })
           showSuccess(t('selectors_test_success'), t('toast_automation_title'))
           return
         }
 
         const errorKey = result?.error ? `error_${result.error}` : 'selectors_test_failed'
         const errorMessage = t(errorKey)
-        setCardValidation(cardId, { status: 'error', error: errorMessage, diagnostics })
+        setCardValidation(cardId, {
+          status: 'error',
+          error: errorMessage,
+          diagnostics,
+          configSignature
+        })
         showWarning(errorMessage, t('toast_automation_title'))
       } catch (err) {
         Logger.error('Failed to validate selectors', err)
         const errorMessage = t('selectors_test_failed')
-        setCardValidation(cardId, { status: 'error', error: errorMessage })
+        setCardValidation(cardId, { status: 'error', error: errorMessage, configSignature })
         showError(errorMessage, t('toast_automation_title'))
       }
     },

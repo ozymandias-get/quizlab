@@ -21,6 +21,7 @@ import {
   generateFocusScript,
   generateValidateSelectorsScript
 } from '@electron/features/automation/automationScripts'
+import { GENERATED_CLASS_TOKEN } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -431,5 +432,60 @@ describe('selector self-healing evidence', () => {
     expect(diagnostics.stableSelector ?? '').not.toMatch(
       /^(fingerprint|text|semantic|provider|heuristic|gemini|chatgpt|generic|builtin):/
     )
+  })
+
+  /**
+   * Cross-layer contract: the selector the Magic Selector persists is scored by
+   * the self-healing runtime. Both layers must agree on what a "build-generated"
+   * class is; a stricter repair-side rule silently disables healing for a
+   * selector the picker itself just produced.
+   */
+  it('keeps semantic dashed class names out of the generated-class verdict', () => {
+    // Ordinary BEM-ish names must survive.
+    for (const token of ['btn-primary', 'form-input', 'msg-input', 'composer-send']) {
+      expect(GENERATED_CLASS_TOKEN.test(token)).toBe(false)
+    }
+    // Real build hashes must not.
+    for (const token of ['css-1x2y3z', 'sc-9f8e7d', 'btn-1a2b3c', 'blk_deadbeef']) {
+      expect(GENERATED_CLASS_TOKEN.test(token)).toBe(true)
+    }
+  })
+
+  it('promotes a semantic class selector the picker itself generated', async () => {
+    document.body.innerHTML = `
+      <form role="form">
+        <textarea class="composer form-input"></textarea>
+      </form>
+    `
+    const textarea = document.querySelector('textarea')
+    if (textarea) setElementBox(textarea, 420, 60)
+
+    const result = await window.eval(
+      generateAutoSendScript(
+        {
+          input: '#stale',
+          inputCandidates: ['textarea'],
+          // The picker's fingerprint supplies the class evidence; without it the
+          // base score stays below the medium threshold and this test would pass
+          // for the wrong reason.
+          inputFingerprint: {
+            tag: 'textarea',
+            classTokens: ['composer', 'form-input'],
+            localPath: ['textarea'],
+            hostChain: []
+          },
+          submitMode: 'enter_key'
+        },
+        'hi',
+        false
+      )
+    )
+
+    const diagnostics = result.diagnostics.input as LocatorDiagnostics
+    expect(diagnostics.recovered).toBe(true)
+    expect(diagnostics.stableSelector).toBe('textarea.composer.form-input')
+    expect(diagnostics.unstableSelector).toBe(false)
+    expect(diagnostics.repairEligible).toBe(true)
+    expect(diagnostics.repairReason).toBe('eligible')
   })
 })

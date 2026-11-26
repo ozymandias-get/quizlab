@@ -194,10 +194,12 @@ describe('useSelectorsTabController', () => {
     })
 
     await vi.waitFor(() => {
-      expect(result.current.validationState['card-open']).toEqual({
-        status: 'success',
-        diagnostics: null
-      })
+      expect(result.current.validationState['card-open']).toEqual(
+        expect.objectContaining({
+          status: 'success',
+          diagnostics: null
+        })
+      )
     })
     expect(mocked.openAiWorkspace).toHaveBeenCalledWith('gemini')
     expect(mocked.showSuccess).toHaveBeenCalledWith(
@@ -229,11 +231,13 @@ describe('useSelectorsTabController', () => {
       'error_selector_not_found',
       'toast_automation_title'
     )
-    expect(result.current.validationState['card-c']).toEqual({
-      status: 'error',
-      error: 'error_selector_not_found',
-      diagnostics: { matched: 0 }
-    })
+    expect(result.current.validationState['card-c']).toEqual(
+      expect.objectContaining({
+        status: 'error',
+        error: 'error_selector_not_found',
+        diagnostics: { matched: 0 }
+      })
+    )
   })
 
   it('handles missing script and execute errors with toast + logger', async () => {

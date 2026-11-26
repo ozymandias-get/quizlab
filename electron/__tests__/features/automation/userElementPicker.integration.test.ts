@@ -162,6 +162,33 @@ describe('userElementPicker integration', () => {
     )
   }, 10000)
 
+  it('injects the picker stylesheet into same-origin frames and removes it on cleanup', () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const frameDoc = iframe.contentDocument
+    if (!frameDoc) {
+      throw new Error('Test environment must expose iframe.contentDocument')
+    }
+
+    eval(generatePickerScript())
+
+    const style = frameDoc.querySelector('style[data-ai-picker-style="true"]')
+    expect(style).not.toBeNull()
+    // The frame must receive the same rules the top document got; without them
+    // hover/selected classes were applied to frame elements but painted
+    // nothing.
+    expect(style?.textContent).toContain('_ai-picker-hover-good')
+    expect(style?.textContent).toContain('_ai-picker-selected')
+
+    ;(window as PickerWindow)._aiPickerCleanup?.()
+    expect(frameDoc.querySelector('style[data-ai-picker-style="true"]')).toBeNull()
+
+    // A second injection must re-add the sheet (the "already styled" flag was
+    // cleared with the node, not left behind).
+    eval(generatePickerScript())
+    expect(frameDoc.querySelector('style[data-ai-picker-style="true"]')).not.toBeNull()
+  })
+
   // S11: C3 — the picker used to leak non-Escape keys to the host site,
   // which could submit forms (Enter), open devtools (F12 / Ctrl+Shift+I),
   // or activate host-side shortcuts (Cmd+K). The fix preventDefaults on
