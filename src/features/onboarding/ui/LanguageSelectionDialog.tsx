@@ -74,8 +74,6 @@ export function LanguageSelectionDialog() {
                   <BlurFade key={lang.code} delay={index * 0.06} className="w-full">
                     <MagicCard
                       className="w-full rounded-xl border-white/[0.07]"
-                      gradientColor="#18181b"
-                      gradientOpacity={0.35}
                       gradientFrom="#27272a"
                       gradientTo="#18181b"
                     >

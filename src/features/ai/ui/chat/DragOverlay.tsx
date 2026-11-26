@@ -28,8 +28,9 @@ const DragOverlay = memo(function DragOverlay({ onDragLeave, onDrop }: DragOverl
     >
       {/* Drop gate sits next to the composer instead of painting the whole
           panel opaque: the conversation remains readable and the reader can
-          see where the image will land. */}
-      <div className="shadow-ambient-sm ring-primary/15 pointer-events-none mb-2 flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-zinc-950/90 px-4 py-3 text-center ring-2 backdrop-blur-xl motion-safe:animate-pulse">
+          see where the image will land. One border, one shadow: the previous
+          dashed + ring + blur + pulse stack read as a flickering frame. */}
+      <div className="border-primary/35 shadow-ambient-md pointer-events-none mb-2 flex w-full max-w-2xl flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-zinc-950/90 px-4 py-3 text-center">
         <div className="border-primary/20 bg-primary/10 text-primary mb-1.5 flex size-8 items-center justify-center rounded-lg border">
           <ImagePlus className="size-4" />
         </div>

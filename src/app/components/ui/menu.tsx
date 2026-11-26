@@ -24,7 +24,10 @@ const MenuSurface = React.forwardRef<HTMLDivElement, MenuSurfaceProps>(function 
       data-slot="menu-surface"
       data-escape-owned=""
       className={cn(
-        'z-dropdown rounded-xl border border-white/12 bg-zinc-950/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-xl',
+        // Near-opaque surface: a 95% fill underneath `backdrop-blur-xl` made the
+        // blur invisible while still paying for a composited layer. Crisp fill,
+        // design-system elevation instead of `shadow-2xl`.
+        'z-dropdown shadow-ambient-lg rounded-xl border border-white/12 bg-zinc-950 p-1 text-zinc-100',
         className
       )}
       {...props}

@@ -102,8 +102,6 @@ const AiHomeCardGrid = memo<AiHomeCardGridProps>(function AiHomeCardGrid({
             <BlurFade className="h-full">
               <MagicCard
                 className={`h-full rounded-xl ${isApiChatActive ? 'ring-ring/40 ring-1' : ''}`}
-                gradientColor="#18181b"
-                gradientOpacity={0.35}
                 gradientFrom="#27272a"
                 gradientTo="#18181b"
               >

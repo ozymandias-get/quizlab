@@ -134,8 +134,6 @@ function PdfRecentListItem({
     <BlurFade className="@container w-full">
       <MagicCard
         className={`w-full rounded-xl border-white/[0.07] ${isActive ? 'ring-ring/30 ring-1' : ''}`}
-        gradientColor="#18181b"
-        gradientOpacity={0.35}
         gradientFrom="#27272a"
         gradientTo="#18181b"
       >

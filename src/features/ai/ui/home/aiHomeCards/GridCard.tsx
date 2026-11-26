@@ -118,8 +118,6 @@ const GridCard = memo<GridCardProps>(function GridCard({
           className={`h-full rounded-xl ${
             isDropTarget ? 'ring-primary/70 ring-2' : isActive ? 'ring-ring/40 ring-1' : ''
           }`}
-          gradientColor="#18181b"
-          gradientOpacity={0.35}
           gradientFrom="#27272a"
           gradientTo="#18181b"
         >

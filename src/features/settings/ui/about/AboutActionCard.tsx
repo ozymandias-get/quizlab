@@ -47,8 +47,6 @@ const AboutActionCard = memo(function AboutActionCard({
         interactive && 'transition-colors hover:bg-white/[0.02]',
         className
       )}
-      gradientColor="#18181b"
-      gradientOpacity={0.35}
       gradientFrom="#27272a"
       gradientTo="#18181b"
     >

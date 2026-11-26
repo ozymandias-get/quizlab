@@ -73,8 +73,6 @@ function PdfPlaceholder({
           <BlurFade className="w-full self-center">
             <MagicCard
               className="w-full rounded-2xl border-white/[0.07]"
-              gradientColor="#18181b"
-              gradientOpacity={0.35}
               gradientFrom="#27272a"
               gradientTo="#18181b"
             >

@@ -58,8 +58,8 @@ export function MagicCard(props: MagicCardProps) {
     children,
     className,
     gradientSize = 200,
-    gradientColor = '#18181b',
-    gradientOpacity = 0.4,
+    gradientColor = '#27272a',
+    gradientOpacity = 0.45,
     gradientFrom = '#27272a',
     gradientTo = '#18181b',
     mode = 'gradient'
@@ -189,7 +189,11 @@ export function MagicCard(props: MagicCardProps) {
         `
       }}
     >
-      <div className="pointer-events-none absolute inset-px z-20 rounded-[inherit] bg-zinc-950/90" />
+      {/* Opaque, not /90: the translucent mask let the animated border
+          gradient bleed through the whole surface, which read as uneven
+          opacity on a dark card and washed out the hover spotlight. The
+          spotlight layer (z-30) still draws above it. */}
+      <div className="pointer-events-none absolute inset-px z-20 rounded-[inherit] bg-zinc-950" />
 
       {mode === 'gradient' && !prefersReducedMotion && (
         <motion.div

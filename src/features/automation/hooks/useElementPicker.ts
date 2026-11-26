@@ -413,7 +413,7 @@ export function useElementPicker(
     if (!isPickerActive) return
 
     const APP_OVERLAY_SELECTOR =
-      '[aria-modal="true"], [role="menu"], [role="listbox"], [data-slot="menu-surface"]'
+      '[aria-modal="true"], [data-escape-owned], [role="menu"], [role="listbox"], [data-slot="menu-surface"]'
 
     const onEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
