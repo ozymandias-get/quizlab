@@ -2,7 +2,7 @@ import { DURATION } from '@shared/lib/motion'
 import { cn } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { memo, type ReactNode } from 'react'
+import { memo, type ReactNode, useLayoutEffect, useRef } from 'react'
 
 interface CollapsiblePanelProps {
   isOpen: boolean
@@ -33,10 +33,28 @@ function CollapsiblePanel({
   keepMounted = false
 }: CollapsiblePanelProps) {
   const prefersReducedMotion = useReducedMotion()
+  const bodyRef = useRef<HTMLDivElement>(null)
   const transition = {
     duration: prefersReducedMotion ? 0 : DURATION.slow,
     ease: ACCORDION_EASE
   }
+
+  // AnimatePresence keeps the body mounted for the exit animation. Mark it
+  // inert as soon as it starts closing so Tab and clicks cannot land in content
+  // that is already collapsing and about to unmount. `keepMounted` already
+  // receives these attributes as props.
+  useLayoutEffect(() => {
+    if (keepMounted) return
+    const body = bodyRef.current
+    if (!body) return
+    if (isOpen) {
+      body.removeAttribute('inert')
+      body.removeAttribute('aria-hidden')
+    } else {
+      body.setAttribute('inert', '')
+      body.setAttribute('aria-hidden', 'true')
+    }
+  }, [isOpen, keepMounted])
 
   if (keepMounted) {
     return (
@@ -44,6 +62,7 @@ function CollapsiblePanel({
         initial={false}
         animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
         transition={transition}
+        data-collapsible-body=""
         className={cn('overflow-hidden', className)}
         aria-hidden={!isOpen ? true : undefined}
         inert={!isOpen ? true : undefined}
@@ -58,10 +77,12 @@ function CollapsiblePanel({
       {isOpen && (
         <motion.div
           key="panel"
+          ref={bodyRef}
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={transition}
+          data-collapsible-body=""
           className={cn('overflow-hidden', className)}
         >
           {children}

@@ -25,6 +25,11 @@ const VIEWPORT_MARGIN = 8
 const MAX_POPUP_HEIGHT = 300
 const FALLBACK_WIDTH = 240
 
+/** Options are the keyboard stops; the container/trigger are not. */
+const OPTION_SELECTOR = '[role="option"]:not([disabled]):not([aria-disabled="true"])'
+const FOCUSABLE_TRIGGER_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
 function InlineSelector({
   open,
   onClose,
@@ -41,6 +46,82 @@ function InlineSelector({
     maxHeight: MAX_POPUP_HEIGHT,
     ready: false
   })
+
+  const restoreTriggerFocus = React.useCallback(() => {
+    anchorRef.current?.querySelector<HTMLElement>(FOCUSABLE_TRIGGER_SELECTOR)?.focus()
+  }, [])
+
+  // A listbox is a keyboard widget, not a mouse-only menu: opening it moves
+  // focus to the first option (the search field in ModelSelector already holds
+  // focus, so there is nothing to move). Only run once the popup is visible;
+  // before that it is `visibility: hidden` and focus() is a no-op.
+  React.useEffect(() => {
+    if (!open || !position.ready) return
+    const menu = menuRef.current
+    if (!menu || menu.contains(document.activeElement)) return
+    const first =
+      menu.querySelector<HTMLElement>(OPTION_SELECTOR) ??
+      menu.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
+      )
+    first?.focus()
+  }, [open, position.ready])
+
+  // If focus was inside the popup when it closed (Escape, selection, click
+  // outside), return it to the trigger instead of dropping it on the body.
+  React.useEffect(() => {
+    if (!open) return
+    const menu = menuRef.current
+    return () => {
+      const active = document.activeElement
+      const focusWasInside =
+        !active || active === document.body || !active.isConnected || !!menu?.contains(active)
+      if (focusWasInside) restoreTriggerFocus()
+    }
+  }, [open, restoreTriggerFocus])
+
+  const handleMenuKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      // The ModelSelector search field owns Arrow/Enter/Escape while it is
+      // focused; it marks those events handled.
+      if (event.defaultPrevented) return
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+
+      if (
+        event.key !== 'ArrowDown' &&
+        event.key !== 'ArrowUp' &&
+        event.key !== 'Home' &&
+        event.key !== 'End'
+      ) {
+        return
+      }
+
+      const menu = menuRef.current
+      if (!menu) return
+      const items = [...menu.querySelectorAll<HTMLElement>(OPTION_SELECTOR)]
+      if (items.length === 0) return
+
+      event.preventDefault()
+      const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+      let nextIndex: number
+      if (event.key === 'Home') {
+        nextIndex = 0
+      } else if (event.key === 'End') {
+        nextIndex = items.length - 1
+      } else if (event.key === 'ArrowDown') {
+        nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, items.length - 1)
+      } else {
+        nextIndex = currentIndex < 0 ? items.length - 1 : Math.max(currentIndex - 1, 0)
+      }
+      items[nextIndex]?.focus()
+    },
+    [onClose]
+  )
 
   // Portalled + fixed so a parent with `overflow-hidden` (the chat input card)
   // cannot clip the list, and so the list can flip above/below the trigger
@@ -131,11 +212,17 @@ function InlineSelector({
               tabIndex={-1}
               aria-label={closeLabel}
               className="fixed inset-0 z-10 cursor-default"
-              onClick={onClose}
+              onClick={() => {
+                onClose()
+                // A tabindex=-1 button can take focus on click; the overlay
+                // unmounts immediately after, so hand focus back to the trigger.
+                restoreTriggerFocus()
+              }}
             />
             <MenuSurface
               ref={menuRef}
               role={null}
+              onKeyDown={handleMenuKeyDown}
               className={cn(
                 'animate-in fade-in zoom-in-98 motion-normal fixed flex flex-col overflow-y-auto p-1.5',
                 popupClassName

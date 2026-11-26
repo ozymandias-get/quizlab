@@ -127,6 +127,15 @@ describe('HistoryModal', () => {
     mockSessions = SESSIONS
   })
 
+  it('portals the modal to the document body', () => {
+    render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
+
+    const dialog = screen.getByRole('dialog')
+    // Backdrop -> body. Inside the AI panel the fixed backdrop was contained
+    // by an animated ancestor and only covered the right half of the window.
+    expect(dialog.parentElement?.parentElement).toBe(document.body)
+  })
+
   it('starts with an empty search every time it is reopened', () => {
     const { rerender } = render(<HistoryModal isOpen onClose={vi.fn()} tabId="tab-1" />)
 

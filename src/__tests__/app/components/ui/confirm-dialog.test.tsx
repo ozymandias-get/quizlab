@@ -58,7 +58,9 @@ describe('ConfirmDialog', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
 
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
-    expect(trigger).toHaveFocus()
+    // Presence holds the behavior hook until the exit animation finishes, so
+    // focus restoration lands with the same cleanup.
+    await waitFor(() => expect(trigger).toHaveFocus())
   })
 
   // A fixed backdrop is contained by an ancestor with a backdrop filter, so an
@@ -80,5 +82,23 @@ describe('ConfirmDialog', () => {
 
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.parentElement?.parentElement).toBe(document.body)
+  })
+
+  it('holds the shared dialog registration until the exit animation ends', async () => {
+    const props = {
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+      title: 'Delete this item?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel'
+    }
+    const { rerender } = render(<ConfirmDialog isOpen {...props} />)
+    expect(document.body.style.overflow).toBe('hidden')
+
+    rerender(<ConfirmDialog isOpen={false} {...props} />)
+    // The panel is still animating out, so the registry must not release yet.
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await waitFor(() => expect(document.body.style.overflow).toBe(''))
   })
 })

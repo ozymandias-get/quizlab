@@ -107,6 +107,7 @@ function PdfPlaceholder({
                   variant="default"
                   size="lg"
                   onClick={onSelectPdf}
+                  data-pdf-empty-cta=""
                   className="pdf-placeholder-cta focus-visible:ring-ring/70 h-9 cursor-pointer gap-2 rounded-xl border border-white/15 bg-zinc-900/90 px-4 text-zinc-100 shadow-sm hover:border-white/25 hover:bg-zinc-800/90"
                   aria-label={t('select_pdf')}
                 >

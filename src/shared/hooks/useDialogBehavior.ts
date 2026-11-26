@@ -11,6 +11,15 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
 
 /**
+ * Transient layers that own Escape while they are open. They are portaled to
+ * `document.body`, so a keydown event still reaches the dialog's capture
+ * listener first; closing the dialog before the layer sees the key would
+ * unmount the popup instead of dismissing it (and skip its focus restore).
+ * Same rule the focus workspace already applies to its own Escape handling.
+ */
+const POPUP_LAYER_SELECTOR = '[data-slot="menu-surface"], [role="menu"], [role="listbox"]'
+
+/**
  * Focusable elements that the user can actually reach right now.
  *
  * `querySelectorAll` alone also returns nodes hidden with `display:none`
@@ -20,6 +29,11 @@ const FOCUSABLE_SELECTOR =
  */
 function getFocusableElements(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => {
+    // A negative tabindex removes the control from the document tab order
+    // (roving tabindex groups, decorative steppers). The selector list above
+    // would still match it through its native tag selector, so check the
+    // resolved property rather than the attribute.
+    if (element.tabIndex < 0) return false
     if (element.closest('[inert]')) return false
     if (element.hidden) return false
     if (element.getAttribute('aria-hidden') === 'true') return false
@@ -93,6 +107,9 @@ export function useDialogBehavior({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (openDialogs.at(-1) !== token || e.defaultPrevented) return
       if (e.key === 'Escape') {
+        // Let an open menu/listbox dismiss itself first; the next Escape
+        // reaches this dialog.
+        if (document.querySelector(POPUP_LAYER_SELECTOR)) return
         e.preventDefault()
         e.stopPropagation()
         onCloseRef.current()

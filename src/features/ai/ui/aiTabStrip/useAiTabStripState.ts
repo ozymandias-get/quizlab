@@ -187,9 +187,9 @@ export function useAiTabStripState({
   }, [tabs, visibleTabIds])
 
   // Closing a tab unmounts the pill, or the close control inside it. If the
-  // browser then drops focus to the body, move it to the newly active pill
-  // instead of leaving the strip without a focus target. Same contract as the
-  // PDF strip; the overflow effect below covers only its own case.
+  // browser then drops focus to the body, move it to the newly active pill, or
+  // to the strip's first action when that was the last tab - the home control
+  // is always rendered and enabled.
   const previousTabCountRef = useRef(tabs.length)
   useEffect(() => {
     const previousCount = previousTabCountRef.current
@@ -198,7 +198,15 @@ export function useAiTabStripState({
 
     const active = document.activeElement
     if (active && active !== document.body && active.isConnected) return
-    rowRef.current?.querySelector<HTMLElement>('[data-ai-tab][aria-selected="true"]')?.focus()
+
+    const activePill = rowRef.current?.querySelector<HTMLElement>(
+      '[data-ai-tab][aria-selected="true"]'
+    )
+    if (activePill) {
+      activePill.focus()
+      return
+    }
+    rowRef.current?.querySelector<HTMLElement>('button:not([disabled])')?.focus()
   }, [tabs.length])
 
   // An overflow menu that loses its last tab (closed, or the panel grew enough

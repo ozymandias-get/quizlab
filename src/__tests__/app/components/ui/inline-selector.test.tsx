@@ -1,6 +1,7 @@
 import { InlineSelector } from '@app/components/ui/inline-selector'
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 function renderSelector(open: boolean) {
@@ -139,6 +140,77 @@ describe('InlineSelector placement', () => {
     rerender(renderSelector(true))
     rerender(renderSelector(false))
 
+    expect(trigger).toHaveFocus()
+  })
+})
+
+function KeyboardHarness({ onClose }: { onClose: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <InlineSelector
+      open={open}
+      onClose={() => {
+        setOpen(false)
+        onClose()
+      }}
+      closeLabel="Close"
+      trigger={
+        <button type="button" onClick={() => setOpen(true)}>
+          Trigger
+        </button>
+      }
+    >
+      <div role="listbox" aria-label="Options">
+        <button type="button" role="option" aria-selected={false}>
+          One
+        </button>
+        <button type="button" role="option" aria-selected={false}>
+          Two
+        </button>
+        <button type="button" role="option" aria-selected={false}>
+          Three
+        </button>
+      </div>
+    </InlineSelector>
+  )
+}
+
+describe('InlineSelector keyboard', () => {
+  it('moves focus into the options and follows Arrow/Home/End', async () => {
+    render(<KeyboardHarness onClose={vi.fn()} />)
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    fireEvent.click(trigger)
+
+    const first = await screen.findByRole('option', { name: 'One' })
+    await waitFor(() => expect(first).toHaveFocus())
+
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Two' })).toHaveFocus()
+
+    fireEvent.keyDown(screen.getByRole('option', { name: 'Two' }), { key: 'End' })
+    expect(screen.getByRole('option', { name: 'Three' })).toHaveFocus()
+
+    fireEvent.keyDown(screen.getByRole('option', { name: 'Three' }), { key: 'Home' })
+    expect(screen.getByRole('option', { name: 'One' })).toHaveFocus()
+  })
+
+  it('closes on Escape and returns focus to the trigger', async () => {
+    const onClose = vi.fn()
+    render(<KeyboardHarness onClose={onClose} />)
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    fireEvent.click(trigger)
+
+    const first = await screen.findByRole('option', { name: 'One' })
+    await waitFor(() => expect(first).toHaveFocus())
+
+    fireEvent.keyDown(first, { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: 'One' })).not.toBeInTheDocument()
+    )
     expect(trigger).toHaveFocus()
   })
 })

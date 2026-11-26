@@ -2,7 +2,7 @@ import { DURATION } from '@shared/lib/motion'
 
 import { ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { memo, type ReactNode, useId, useState } from 'react'
+import { memo, type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
 
 interface AiHomeSectionProps {
   children: ReactNode
@@ -24,10 +24,27 @@ const AiHomeSection = memo(function AiHomeSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
   const contentId = useId()
   const prefersReducedMotion = useReducedMotion()
+  const sectionRef = useRef<HTMLElement>(null)
   const handleToggle = () => setIsOpen((current) => !current)
+
+  // The body is kept mounted for the exit animation. Make it inert as soon as
+  // the section starts closing so Tab/clicks cannot enter content that is
+  // already collapsing and about to unmount.
+  useLayoutEffect(() => {
+    const body = sectionRef.current?.querySelector<HTMLElement>('[data-accordion-body]')
+    if (!body) return
+    if (isOpen) {
+      body.removeAttribute('inert')
+      body.removeAttribute('aria-hidden')
+    } else {
+      body.setAttribute('inert', '')
+      body.setAttribute('aria-hidden', 'true')
+    }
+  }, [isOpen])
 
   return (
     <section
+      ref={sectionRef}
       className={`overflow-hidden rounded-2xl border transition-colors ${
         isOpen ? 'border-white/[0.09] bg-zinc-950/70' : 'border-white/[0.07] bg-zinc-950/40'
       }`}
@@ -81,7 +98,7 @@ const AiHomeSection = memo(function AiHomeSection({
             }}
             className="overflow-hidden will-change-[height,opacity]"
           >
-            <div id={contentId} className="@container px-4 pt-2 pb-4">
+            <div id={contentId} data-accordion-body="" className="@container px-4 pt-2 pb-4">
               {children}
             </div>
           </motion.div>

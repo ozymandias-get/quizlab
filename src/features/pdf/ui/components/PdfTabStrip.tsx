@@ -75,7 +75,19 @@ function PdfTabStrip({
 
     const active = document.activeElement
     if (active && active !== document.body && active.isConnected) return
-    rowRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus()
+
+    const activePill = rowRef.current?.querySelector<HTMLElement>(
+      '[role="tab"][aria-selected="true"]'
+    )
+    if (activePill) {
+      activePill.focus()
+      return
+    }
+    // The last tab closed and the strip itself unmounted: move focus to the
+    // empty-state primary action instead of leaving it on the body.
+    if (tabs.length === 0) {
+      document.querySelector<HTMLElement>('[data-pdf-empty-cta]')?.focus()
+    }
   }, [tabs.length])
 
   const getInitialCapacity = useCallback(

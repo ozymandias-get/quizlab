@@ -14,6 +14,7 @@ import { Button, EmptyState, IconButton } from '@shared/ui/components/primitives
 import { CircleOff, Clock, Loader2, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -469,7 +470,12 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
 
   if (!isOpen) return null
 
-  return (
+  // Body portal like `Dialog`. The AI panel is inside an animated ancestor
+  // with a transform, which makes it the containing block for the fixed
+  // backdrop: the modal used to dim and block only the right panel, so a click
+  // on the PDF panel behind it still reached the PDF and its scroll lock did
+  // not match what was visually covered.
+  return createPortal(
     <>
       <DialogBackdrop onClick={onClose} className="bg-zinc-950/85 backdrop-blur-md">
         <motion.div
@@ -636,7 +642,8 @@ const HistoryModal = memo(function HistoryModal({ isOpen, onClose, tabId }: Hist
         </motion.div>
       </DialogBackdrop>
       <ConfirmDialog {...confirmProps} />
-    </>
+    </>,
+    document.body
   )
 })
 

@@ -77,10 +77,24 @@ export function Dialog({
   panelClassName
 }: DialogProps) {
   const dialogRef = React.useRef<HTMLDivElement>(null)
-  useDialogBehavior({ isOpen, onClose, dialogRef })
+  // `useDialogBehavior` releases the scroll lock and the native-view gate as
+  // soon as `isOpen` turns false, but AnimatePresence keeps the panel mounted
+  // for the exit animation. Registering presence instead of the open flag keeps
+  // the registry alive until the panel is really gone; otherwise a
+  // `WebContentsView` could paint over the fading dialog and the page behind it
+  // could scroll during the exit.
+  const [isPresent, setIsPresent] = React.useState(isOpen)
+  if (isOpen && !isPresent) setIsPresent(true)
+  const isOpenRef = React.useRef(isOpen)
+  isOpenRef.current = isOpen
+  useDialogBehavior({ isOpen: isPresent, onClose, dialogRef })
 
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence
+      onExitComplete={() => {
+        if (!isOpenRef.current) setIsPresent(false)
+      }}
+    >
       {isOpen && (
         <DialogBackdrop onClick={onClose}>
           <motion.div

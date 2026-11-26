@@ -241,6 +241,66 @@ describe('useIsAnyDialogOpen', () => {
     expect(screen.getByRole('button', { name: 'inert-button' })).not.toHaveFocus()
   })
 
+  it('skips negative tabindex controls when trapping Tab', () => {
+    function RovingDialog() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: vi.fn(), dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="roving">
+          <button tabIndex={-1}>negative-first</button>
+          <button>visible-first</button>
+          <button tabIndex={-1}>negative-last</button>
+          <button>visible-last</button>
+        </div>
+      )
+    }
+
+    render(<RovingDialog />)
+    const first = screen.getByRole('button', { name: 'visible-first' })
+    const last = screen.getByRole('button', { name: 'visible-last' })
+    first.focus()
+
+    // The negative-tabindex buttons are programmatically focusable but are not
+    // part of the document tab order, so they must not become the wrap target.
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true })
+    expect(last).toHaveFocus()
+    fireEvent.keyDown(window, { key: 'Tab' })
+    expect(first).toHaveFocus()
+  })
+
+  it('lets an open popup layer dismiss itself before closing the dialog', () => {
+    const close = vi.fn()
+    function DialogWithPopup() {
+      const ref = useRef<HTMLDivElement>(null)
+      const [popupOpen, setPopupOpen] = useState(true)
+      useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="with-popup">
+          {popupOpen && (
+            <div role="listbox" aria-label="options">
+              <button role="option" aria-selected={false}>
+                option
+              </button>
+            </div>
+          )}
+          <button type="button" onClick={() => setPopupOpen(false)}>
+            dismiss-popup
+          </button>
+        </div>
+      )
+    }
+
+    render(<DialogWithPopup />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).not.toHaveBeenCalled()
+
+    // Once the listbox has consumed Escape and unmounted, the next one closes
+    // the dialog.
+    fireEvent.click(screen.getByRole('button', { name: 'dismiss-popup' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('reports the same value to every subscriber', () => {
     render(
       <>
