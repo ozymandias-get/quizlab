@@ -4,7 +4,7 @@ import { SettingsTabIcon } from '@shared/ui/components/primitives'
 import { SettingsIcon } from '@ui/components/Icons'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { memo, Suspense, useEffect, useMemo, useState } from 'react'
+import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SETTINGS_TAB_COMPONENTS } from './settingsTabComponents'
@@ -89,6 +89,18 @@ export default memo(function SettingsModalContent({
 }: SettingsModalContentProps) {
   const { t } = useTranslation()
   const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(new Set())
+  const mainRef = useRef<HTMLElement>(null)
+
+  // Tabs share one scroll container. Without this reset, opening a tab while
+  // the previous one was scrolled down starts the new tab mid-page with its
+  // title and first controls above the viewport.
+  useLayoutEffect(() => {
+    if (!activeTab) return
+    const viewport = mainRef.current?.querySelector<HTMLElement>(
+      '[data-slot="scroll-area-viewport"]'
+    )
+    if (viewport) viewport.scrollTop = 0
+  }, [activeTab])
 
   useEffect(() => {
     if (!activeTab) return
@@ -104,6 +116,7 @@ export default memo(function SettingsModalContent({
 
   return (
     <main
+      ref={mainRef}
       id={SETTINGS_MODAL_MAIN_PANEL_ID}
       className="flex min-w-0 flex-1 flex-col overflow-hidden"
     >

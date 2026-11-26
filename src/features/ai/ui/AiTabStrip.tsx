@@ -15,7 +15,7 @@ import {
   TAB_STRIP_ROW_CLASS
 } from '@shared/ui/tabStripChrome'
 
-import { memo, useCallback, useState } from 'react'
+import { type KeyboardEvent as ReactKeyboardEvent, memo, useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -63,6 +63,7 @@ function AiTabStrip({
     t,
     hasPin: true
   })
+  const { rowRef } = refs
   const { draggedId, dropTarget, rowDragHandlers } = useTabStripReorder({ onReorder: moveTab })
 
   const handleSelectTab = useCallback(
@@ -71,6 +72,51 @@ function AiTabStrip({
       onHideHome?.()
     },
     [setActiveTab, onHideHome]
+  )
+
+  // WAI-ARIA tabs roving tabindex, the same contract as the PDF strip: only the
+  // active pill is in the tab order, and Arrow/Home/End move focus and
+  // activation along the visible pills. The AI pill nests its close control, so
+  // a key pressed there (`target !== targetTab`) must not change tabs.
+  const handleRowKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (
+        event.key !== 'ArrowLeft' &&
+        event.key !== 'ArrowRight' &&
+        event.key !== 'Home' &&
+        event.key !== 'End'
+      ) {
+        return
+      }
+      if (state.visibleTabs.length === 0) return
+
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const targetTab = target.closest('[role="tab"]')
+      if (!targetTab || !event.currentTarget.contains(targetTab)) return
+      if (target !== targetTab) return
+
+      event.preventDefault()
+
+      const currentIndex = state.visibleTabs.findIndex((tab) => tab.id === activeTabId)
+      let nextIndex: number
+      if (event.key === 'Home') {
+        nextIndex = 0
+      } else if (event.key === 'End') {
+        nextIndex = state.visibleTabs.length - 1
+      } else {
+        const step = event.key === 'ArrowRight' ? 1 : -1
+        nextIndex = Math.max(0, Math.min(state.visibleTabs.length - 1, currentIndex + step))
+      }
+
+      const nextTab = state.visibleTabs[nextIndex]
+      if (!nextTab) return
+      handleSelectTab(nextTab.id)
+      // The pills render in `visibleTabs` order; focus the matching DOM node
+      // without waiting for the activation state update.
+      rowRef.current?.querySelectorAll<HTMLElement>('[data-ai-tab]')[nextIndex]?.focus()
+    },
+    [activeTabId, handleSelectTab, rowRef, state.visibleTabs]
   )
 
   const handleOverflowSelectTab = useCallback(
@@ -113,7 +159,14 @@ function AiTabStrip({
       className={cn(TAB_STRIP_BAR_CLASS, !isLayoutSwapped && 'window-controls-safe')}
       data-window-edge={isLayoutSwapped ? 'left' : undefined}
     >
-      <div ref={refs.rowRef} className={TAB_STRIP_ROW_CLASS} {...rowDragHandlers}>
+      <div
+        ref={refs.rowRef}
+        role="tablist"
+        aria-label={helpers.tr('ai_tablist_label', 'AI tabs')}
+        className={TAB_STRIP_ROW_CLASS}
+        onKeyDown={handleRowKeyDown}
+        {...rowDragHandlers}
+      >
         <TabStripHomeButton isActive={showHome} tooltip={t('ai_home.home')} onClick={onShowHome} />
 
         <AiTabStripRefreshButton

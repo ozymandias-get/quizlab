@@ -303,14 +303,14 @@ const MessageBubble = memo(function MessageBubble({
                 <button
                   type="button"
                   onClick={() => setPreviewZoom(1)}
-                  className="text-ql-11 rounded-full px-2.5 py-1 font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+                  className="text-ql-11 focus-visible:ring-ring/70 rounded-full px-2.5 py-1 font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:ring-2 focus-visible:outline-none"
                 >
                   {t('fit_to_screen')}
                 </button>
                 <button
                   type="button"
                   onClick={showActualSize}
-                  className="text-ql-11 flex items-center gap-1 rounded-full px-2.5 py-1 font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+                  className="text-ql-11 focus-visible:ring-ring/70 flex items-center gap-1 rounded-full px-2.5 py-1 font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:ring-2 focus-visible:outline-none"
                 >
                   <Maximize2 className="size-3" aria-hidden />
                   100%

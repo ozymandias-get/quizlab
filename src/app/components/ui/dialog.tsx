@@ -4,6 +4,7 @@ import { cn } from '@shared/lib/uiUtils'
 
 import { AnimatePresence, motion } from 'motion/react'
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 /** Shared backdrop — single source of truth for every modal/dialog in the app. */
 export function DialogBackdrop({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -47,6 +48,12 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
  * body scroll lock, focus restore) and the standard backdrop + motion.
  * For simple confirm-style dialogs use <Dialog> directly; for complex
  * custom modals (History, Settings) compose Backdrop + Panel manually.
+ *
+ * The backdrop lives in a portal on `document.body`. A `position: fixed`
+ * backdrop is contained by the nearest ancestor with a filter/backdrop-filter
+ * or transform, so an inline dialog opened inside the settings panel (which has
+ * `backdrop-blur-xl` and `overflow-hidden`) used to cover and clip to that
+ * panel instead of the window, and was cut off at the minimum window height.
  */
 interface DialogProps {
   isOpen: boolean
@@ -72,7 +79,7 @@ export function Dialog({
   const dialogRef = React.useRef<HTMLDivElement>(null)
   useDialogBehavior({ isOpen, onClose, dialogRef })
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <DialogBackdrop onClick={onClose}>
@@ -89,7 +96,7 @@ export function Dialog({
             className={cn(
               panelSizeClasses[size],
               'shadow-ambient-xl border border-white/12 bg-zinc-950/95 backdrop-blur-xl',
-              size !== 'fullscreen' && 'rounded-2xl',
+              size !== 'fullscreen' && 'max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl',
               panelClassName
             )}
             onClick={(e) => e.stopPropagation()}
@@ -98,6 +105,7 @@ export function Dialog({
           </motion.div>
         </DialogBackdrop>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }

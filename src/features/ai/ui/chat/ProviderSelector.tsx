@@ -47,7 +47,7 @@ const ProviderSelector = memo(function ProviderSelector({
             size="sm"
             data-state={showProviderSelector ? 'open' : 'closed'}
             onClick={() => setShowProviderSelector(!showProviderSelector)}
-            className="text-ql-12 h-7 max-w-[220px] min-w-0 gap-1.5 rounded-lg border-white/[0.07] bg-white/[0.04] px-2.5 font-medium shadow-2xs hover:border-white/20 hover:bg-white/[0.08]"
+            className="text-ql-12 h-7 max-w-[220px] min-w-0 gap-1.5 rounded-lg border-white/[0.07] bg-white/[0.04] px-2.5 font-medium shadow-2xs hover:border-white/20 hover:bg-white/[0.08] focus-visible:ring-offset-0"
             aria-haspopup="listbox"
             aria-expanded={showProviderSelector}
           >
@@ -73,7 +73,7 @@ const ProviderSelector = memo(function ProviderSelector({
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleSelect(p.id)}
-                className={`text-ql-12 flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors ${
+                className={`text-ql-12 focus-visible:text-foreground flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-medium transition-colors focus-visible:bg-white/10 focus-visible:outline-none ${
                   isSelected
                     ? 'bg-primary/10 text-primary font-semibold'
                     : 'text-muted-foreground hover:text-foreground hover:bg-white/5'

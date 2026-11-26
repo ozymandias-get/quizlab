@@ -124,7 +124,7 @@ function PdfSearchBar({
                       aria-pressed={caseSensitive}
                       aria-label={t('search_match_case')}
                       title={t('search_match_case')}
-                      className={`text-ql-10 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors ${
+                      className={`text-ql-10 focus-visible:ring-ring/70 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                         caseSensitive
                           ? 'bg-primary/15 text-primary'
                           : 'text-muted-foreground hover:text-foreground hover:bg-white/10'
@@ -140,7 +140,7 @@ function PdfSearchBar({
                       aria-pressed={wholeWord}
                       aria-label={t('search_whole_word')}
                       title={t('search_whole_word')}
-                      className={`text-ql-10 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors ${
+                      className={`text-ql-10 focus-visible:ring-ring/70 flex h-5 min-w-5 items-center justify-center rounded px-1 font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none ${
                         wholeWord
                           ? 'bg-primary/15 text-primary'
                           : 'text-muted-foreground hover:text-foreground hover:bg-white/10'

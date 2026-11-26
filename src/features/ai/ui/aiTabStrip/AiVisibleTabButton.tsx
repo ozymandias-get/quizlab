@@ -74,8 +74,13 @@ function AiVisibleTabButton({
   )
 
   // A tab is a <div role="tab"> rather than a button because it nests the close
-  // control. The active tab keeps that control visible without hover, so its
-  // width is reserved permanently; hovering paints the same reserved gap.
+  // control. The control either paints (active, hover, focus-within) or is
+  // transparent (idle), but the pill always reserves its space: `pr-10` is 35px
+  // at the 14px root font, i.e. 4px inset + 21px button + clearance. The same
+  // reserve exists on a PDF pill (`TabPill withControls`), so hovering a tab
+  // never widens it, and the close button never paints over the label.
+  // A `group-hover:pr-*` variant cannot do this job: it matches descendants of
+  // a hovered `.group`, never the group element itself.
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -94,7 +99,7 @@ function AiVisibleTabButton({
             dropSide === 'after'
               ? 'after:bg-primary after:absolute after:inset-y-1 after:-right-0.5 after:z-10 after:w-0.5 after:rounded-full'
               : ''
-          } ${isActive ? 'pr-[4.5rem]' : 'pr-3 group-focus-within:pr-[4.5rem] group-hover:pr-[4.5rem]'}`}
+          } pr-10`}
           onClick={handleClick}
           onContextMenu={handleContextMenu}
           onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -103,8 +108,9 @@ function AiVisibleTabButton({
               onSelect(tabId)
             }
           }}
-          // make container focusable for keyboard roving (handled by parent)
-          tabIndex={0}
+          // Roving tabindex: the active pill is the strip's single tab stop.
+          // `AiTabStrip` moves focus with Arrow/Home/End.
+          tabIndex={isActive ? 0 : -1}
           aria-label={label}
         >
           <span className="relative flex shrink-0 items-center justify-center">

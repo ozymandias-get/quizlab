@@ -276,7 +276,7 @@ function ApiProviderCard({
                   key={m}
                   type="button"
                   onClick={() => onUpdate(provider.id, { defaultModel: m })}
-                  className={`w-full rounded-md px-2.5 py-1 text-left transition-colors ${
+                  className={`focus-visible:text-foreground w-full rounded-md px-2.5 py-1 text-left transition-colors focus-visible:bg-white/10 focus-visible:outline-none ${
                     isDefaultModel(m)
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-white/5'

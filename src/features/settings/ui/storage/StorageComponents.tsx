@@ -245,7 +245,7 @@ export const SmartRecommendationBanner = memo(function SmartRecommendationBanner
             type="button"
             onClick={() => onAction(recommendation.action)}
             className={cn(
-              'text-ql-12 shrink-0 rounded-lg border px-3 py-1.5 font-medium transition-colors',
+              'text-ql-12 focus-visible:ring-ring/70 shrink-0 rounded-lg border px-3 py-1.5 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none',
               isCold
                 ? 'border-sky-600 bg-sky-600 text-white hover:bg-sky-700'
                 : 'border-amber-600 bg-amber-600 text-white hover:bg-amber-700'

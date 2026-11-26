@@ -84,19 +84,33 @@ describe('AiVisibleTabButton', () => {
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  // The close control of an active tab is visible without hover, so its width
-  // has to come out of the label's box at all times; otherwise it paints over
-  // the label (a tab named "Gemini" used to show only its tail).
-  it('reserves space for the always-visible close button on the active tab', () => {
+  // The close control either paints or is transparent, but its space is always
+  // reserved. A `group-hover:pr-*` variant cannot reserve it: it matches
+  // descendants of `.group`, never the pill itself, so the button painted over
+  // the label on hover.
+  it('reserves the close-button space on the active tab', () => {
     renderTab({ isActive: true })
-    expect(screen.getByLabelText('Original').className).toContain('pr-[4.5rem]')
+    expect(screen.getByLabelText('Original').className.split(' ')).toContain('pr-10')
   })
 
-  it('keeps the collapsed padding for an inactive tab until hover', () => {
+  it('reserves the same space on an idle tab and never changes padding on hover', () => {
     renderTab({ isActive: false })
-    const className = screen.getByLabelText('Original').className
-    expect(className).toContain('pr-3')
-    expect(className.split(' ')).not.toContain('pr-[4.5rem]')
+    const classes = screen.getByLabelText('Original').className.split(' ')
+
+    expect(classes).toContain('pr-10')
+    expect(classes).not.toContain('pr-3')
+    expect(classes).not.toContain('pr-[4.5rem]')
+    expect(classes.some((name) => name.startsWith('group-hover:pr-'))).toBe(false)
+  })
+
+  it('keeps only the active tab in the tab order', () => {
+    renderTab({ isActive: true })
+    expect(screen.getByLabelText('Original')).toHaveAttribute('tabindex', '0')
+  })
+
+  it('removes an idle tab from the tab order so the strip has one tab stop', () => {
+    renderTab({ isActive: false })
+    expect(screen.getByLabelText('Original')).toHaveAttribute('tabindex', '-1')
   })
 
   it('exposes the drag identity and the insertion marker for reordering', () => {

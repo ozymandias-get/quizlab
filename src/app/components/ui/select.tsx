@@ -12,6 +12,16 @@ function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.V
   return <SelectPrimitive.Value data-slot="select-value" {...props} />
 }
 
+/**
+ * A select trigger is a form field, not a button: it shares the `Input` /
+ * `Textarea` contract - filled surface, no outline at rest, one 2px ring with
+ * no offset, and a single destructive border when invalid. Buttons keep the
+ * offset ring because they are bordered surfaces next to other bordered
+ * surfaces, not fields.
+ */
+const SELECT_FOCUS_RING =
+  'focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]'
+
 function SelectTrigger({
   className,
   size = 'default',
@@ -25,7 +35,8 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground motion-normal text-ql-14 focus-visible:ring-ring/70 focus-visible:ring-offset-background data-[size=sm]:text-ql-12 flex w-fit items-center justify-between gap-1.5 rounded-lg border border-white/[0.07] bg-zinc-950/80 px-3.5 py-0 whitespace-nowrap shadow-2xs transition-[color,box-shadow,border-color] outline-none hover:border-white/20 focus-visible:border-white/20 focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-2 data-[size=default]:h-8.5 data-[size=sm]:h-7 data-[size=sm]:rounded-md data-[size=sm]:px-2.5 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "aria-invalid:border-destructive data-placeholder:text-muted-foreground motion-normal text-ql-14 data-[size=sm]:text-ql-12 flex w-fit items-center justify-between gap-1.5 rounded-lg border border-transparent bg-white/[0.05] px-3.5 py-0 whitespace-nowrap transition-[color,box-shadow,background-color,border-color] outline-none disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-8.5 data-[size=sm]:h-7 data-[size=sm]:rounded-md data-[size=sm]:px-2.5 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        SELECT_FOCUS_RING,
         className
       )}
       {...props}

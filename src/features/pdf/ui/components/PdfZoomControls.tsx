@@ -105,7 +105,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                         onClick={() => props.zoomTo?.(preset / 100)}
                         disabled={!props.zoomTo}
                         className={cn(
-                          'text-ql-12 text-muted-foreground hover:text-foreground flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5',
+                          'text-ql-12 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:outline-none',
                           pct === preset && 'text-primary bg-primary/10 font-semibold'
                         )}
                       >
@@ -117,7 +117,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                       type="button"
                       onClick={() => props.fitWidth?.()}
                       disabled={!props.fitWidth}
-                      className="text-ql-12 text-muted-foreground hover:text-foreground flex w-full items-center rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5"
+                      className="text-ql-12 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex w-full items-center rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {t('fit_width')}
                     </button>
@@ -125,7 +125,7 @@ function PdfZoomControls({ ZoomIn, ZoomOut, CurrentScale }: PdfZoomControlsProps
                       type="button"
                       onClick={() => props.fitPage?.()}
                       disabled={!props.fitPage}
-                      className="text-ql-12 text-muted-foreground hover:text-foreground flex w-full items-center rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5"
+                      className="text-ql-12 text-muted-foreground hover:text-foreground focus-visible:ring-ring/70 flex w-full items-center rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {t('fit_page')}
                     </button>

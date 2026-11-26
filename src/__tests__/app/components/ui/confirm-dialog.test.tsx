@@ -60,4 +60,25 @@ describe('ConfirmDialog', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(trigger).toHaveFocus()
   })
+
+  // A fixed backdrop is contained by an ancestor with a backdrop filter, so an
+  // inline dialog inside the settings panel used to cover and clip to that
+  // panel. The portal keeps the backdrop on the window.
+  it('portals the backdrop to the body so a filtered ancestor cannot clip it', () => {
+    render(
+      <div style={{ backdropFilter: 'blur(4px)' }}>
+        <ConfirmDialog
+          isOpen
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+          title="Delete this item?"
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+        />
+      </div>
+    )
+
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog.parentElement?.parentElement).toBe(document.body)
+  })
 })
