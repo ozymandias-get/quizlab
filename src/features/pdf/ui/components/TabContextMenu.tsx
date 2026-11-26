@@ -2,11 +2,19 @@ import type { PdfTab } from '@features/pdf/hooks/types'
 
 import { MenuItem, MenuSurface } from '@app/components/ui/menu'
 import { useMenuKeyboardNavigation } from '@app/components/ui/useMenuKeyboardNavigation'
-import { fitMenuToViewport } from '@shared/lib/menuPosition'
+import { fitMenuElementToViewport } from '@shared/lib/menuPosition'
 import { DURATION } from '@shared/lib/motion'
 
 import { motion } from 'motion/react'
-import { memo, type RefObject, useLayoutEffect, useRef } from 'react'
+import {
+  memo,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { createPortal } from 'react-dom'
 
 interface TabContextMenuProps {
@@ -27,16 +35,24 @@ function TabContextMenu({
   triggerRef
 }: TabContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
   const setMenuRef = useMenuKeyboardNavigation(menuRef, { onClose: onDismiss, triggerRef })
 
-  useLayoutEffect(() => {
+  const positionMenu = useCallback(() => {
     const el = menuRef.current
     if (!contextMenu || !el) return
-    const rect = el.getBoundingClientRect()
-    const { left, top } = fitMenuToViewport(contextMenu.x, contextMenu.y, rect.width, rect.height)
-    el.style.left = `${left}px`
-    el.style.top = `${top}px`
+    setPosition(fitMenuElementToViewport(el, contextMenu.x, contextMenu.y))
   }, [contextMenu])
+
+  useLayoutEffect(positionMenu, [positionMenu])
+
+  // Unlike the PDF selection menu this one does not close on resize, so it has
+  // to be pulled back inside when the window shrinks under it.
+  useEffect(() => {
+    if (!contextMenu) return
+    window.addEventListener('resize', positionMenu)
+    return () => window.removeEventListener('resize', positionMenu)
+  }, [contextMenu, positionMenu])
 
   if (!contextMenu || !tab) return null
 
@@ -49,7 +65,10 @@ function TabContextMenu({
       exit={{ opacity: 0, y: 4, scale: 0.98 }}
       transition={{ duration: DURATION.normal }}
       className="z-dropdown fixed"
-      style={{ left: contextMenu.x, top: contextMenu.y }}
+      style={{
+        left: position?.left ?? contextMenu.x,
+        top: position?.top ?? contextMenu.y
+      }}
     >
       <MenuSurface className="min-w-[160px]">
         <MenuItem

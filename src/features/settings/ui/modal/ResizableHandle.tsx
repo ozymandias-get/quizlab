@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 
 interface ResizableHandleProps {
   onResize: (delta: number) => void
@@ -8,6 +8,8 @@ interface ResizableHandleProps {
   max?: number
   label?: string
 }
+
+const DRAG_CURSOR = 'col-resize'
 
 const ResizableHandle = memo(function ResizableHandle({
   onResize,
@@ -21,37 +23,66 @@ const ResizableHandle = memo(function ResizableHandle({
   const startXRef = useRef(0)
   const onResizeRef = useRef(onResize)
   onResizeRef.current = onResize
+  /**
+   * The body styles that were present *before* this handle started a drag.
+   * `null` means this component currently owns no body styles, so it must not
+   * clear anything on unmount — another surface may own them by then.
+   */
+  const previousBodyStylesRef = useRef<{ cursor: string; userSelect: string } | null>(null)
+
+  const restoreBodyStyles = useCallback(() => {
+    const previous = previousBodyStylesRef.current
+    previousBodyStylesRef.current = null
+    if (!previous) return
+    // Only roll back the values this handle set. If another interaction has
+    // already replaced them, leave that interaction's state alone.
+    if (document.body.style.cursor === DRAG_CURSOR) document.body.style.cursor = previous.cursor
+    if (document.body.style.userSelect === 'none') {
+      document.body.style.userSelect = previous.userSelect
+    }
+  }, [])
+
+  const endDrag = useCallback(() => {
+    if (!isDragging.current) return
+    isDragging.current = false
+    setIsDragActive(false)
+    restoreBodyStyles()
+  }, [restoreBodyStyles])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return
+      // The button was released while the pointer was outside the window, so
+      // no mouseup reached us. The next move reports no buttons; stop instead
+      // of resizing on a button-less gesture.
+      if (e.buttons === 0) {
+        endDrag()
+        return
+      }
       const delta = e.clientX - startXRef.current
       startXRef.current = e.clientX
       onResizeRef.current(delta)
     }
 
-    const handleMouseUp = () => {
-      if (isDragging.current) {
-        isDragging.current = false
-        setIsDragActive(false)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-      }
-    }
+    // mouseup can be lost (Alt+Tab, release outside the window, minimize).
+    // `blur` and a cancelled pointer both mean the gesture is over.
+    const handleCancel = () => endDrag()
 
     window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('mouseup', handleCancel)
+    window.addEventListener('pointercancel', handleCancel)
+    window.addEventListener('blur', handleCancel)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-      // Unmounting mid-drag must not leave the whole document stuck with the
-      // resize cursor and selection disabled.
+      window.removeEventListener('mouseup', handleCancel)
+      window.removeEventListener('pointercancel', handleCancel)
+      window.removeEventListener('blur', handleCancel)
+      // Unmounting mid-drag must not leave the document stuck with the resize
+      // cursor or selection disabled — but only roll back what it set.
       isDragging.current = false
-      setIsDragActive(false)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
+      restoreBodyStyles()
     }
-  }, [])
+  }, [endDrag, restoreBodyStyles])
 
   return (
     <div
@@ -64,11 +95,18 @@ const ResizableHandle = memo(function ResizableHandle({
       tabIndex={0}
       className="group relative w-3 shrink-0 cursor-col-resize outline-none select-none"
       onMouseDown={(e) => {
+        if (e.button !== 0) return
         e.preventDefault()
+        if (!isDragging.current) {
+          previousBodyStylesRef.current = {
+            cursor: document.body.style.cursor,
+            userSelect: document.body.style.userSelect
+          }
+        }
         isDragging.current = true
         setIsDragActive(true)
         startXRef.current = e.clientX
-        document.body.style.cursor = 'col-resize'
+        document.body.style.cursor = DRAG_CURSOR
         document.body.style.userSelect = 'none'
       }}
       onKeyDown={(e) => {

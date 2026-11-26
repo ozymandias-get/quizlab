@@ -176,7 +176,33 @@ function KeyboardHarness({ onClose }: { onClose: () => void }) {
   )
 }
 
+function SearchHarness() {
+  return (
+    <InlineSelector
+      open
+      onClose={vi.fn()}
+      closeLabel="Close"
+      trigger={<button type="button">Trigger</button>}
+    >
+      <input aria-label="Search" />
+      <div role="listbox" aria-label="Options">
+        <button type="button" role="option" aria-selected={false}>
+          One
+        </button>
+      </div>
+    </InlineSelector>
+  )
+}
+
 describe('InlineSelector keyboard', () => {
+  it('gives initial focus to a search field instead of the first option', async () => {
+    render(<SearchHarness />)
+
+    const search = screen.getByRole('textbox', { name: 'Search' })
+    await waitFor(() => expect(search).toHaveFocus())
+    expect(screen.getByRole('option', { name: 'One' })).not.toHaveFocus()
+  })
+
   it('moves focus into the options and follows Arrow/Home/End', async () => {
     render(<KeyboardHarness onClose={vi.fn()} />)
     const trigger = screen.getByRole('button', { name: 'Trigger' })

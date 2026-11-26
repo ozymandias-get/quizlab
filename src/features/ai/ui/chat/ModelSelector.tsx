@@ -35,6 +35,10 @@ const ModelSelector = memo(function ModelSelector({
   const [activeIndex, setActiveIndex] = useState(-1)
   const listRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  // A hidden-then-visible popup can make `autoFocus` a no-op, so the option
+  // focus path must not run after the selector has already started closing.
+  const isOpenRef = useRef(isOpen)
+  isOpenRef.current = isOpen
 
   const allModels = useMemo(() => activeProvider?.models ?? [], [activeProvider])
 
@@ -66,10 +70,23 @@ const ModelSelector = memo(function ModelSelector({
     [onSelectModel, handleClose]
   )
 
+  // Filtering can shrink the list without invalidating the index: the entry at
+  // that index is then a *different* model, so the highlight would silently jump
+  // and Enter would select a model the user never navigated to. Preserve the
+  // highlighted model by identity and fall back to the selected model only when
+  // the previous one is no longer in the results.
+  const previousFilteredRef = useRef<string[]>([])
   useEffect(() => {
+    const previousFiltered = previousFilteredRef.current
+    previousFilteredRef.current = filteredModels
     if (!isOpen) return
     setActiveIndex((prev) => {
-      if (prev >= 0 && prev < filteredModels.length) return prev
+      const previousModel =
+        prev >= 0 && prev < previousFiltered.length ? previousFiltered[prev] : undefined
+      if (previousModel !== undefined) {
+        const keptIndex = filteredModels.indexOf(previousModel)
+        if (keptIndex >= 0) return keptIndex
+      }
       const selectedIndex = filteredModels.indexOf(selectedModel)
       return selectedIndex >= 0 ? selectedIndex : -1
     })
@@ -117,6 +134,17 @@ const ModelSelector = memo(function ModelSelector({
       e.preventDefault()
       setActiveIndex(filteredModels.length - 1)
     }
+  }
+
+  // The active option is a real tab stop as well as an aria-activedescendant
+  // target. Tabbing onto it (or letting InlineSelector move focus across the
+  // options) must keep the highlight on the focused model, and Enter/Space must
+  // select it exactly like the pointer does.
+  const handleOptionKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>, model: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+    e.preventDefault()
+    e.stopPropagation()
+    handleSelect(model)
   }
 
   if (!activeProvider) return null
@@ -206,6 +234,10 @@ const ModelSelector = memo(function ModelSelector({
                   tabIndex={isActive ? 0 : -1}
                   data-model-index={index}
                   onPointerDown={() => handleSelect(model)}
+                  onFocus={() => {
+                    if (isOpenRef.current) setActiveIndex(index)
+                  }}
+                  onKeyDown={(e) => handleOptionKeyDown(e, model)}
                   title={model}
                   className={`text-ql-12 flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left font-mono font-medium transition-colors ${
                     isSelected

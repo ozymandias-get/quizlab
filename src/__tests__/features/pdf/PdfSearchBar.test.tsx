@@ -56,7 +56,7 @@ describe('PdfSearchBar', () => {
     expect(onClear).toHaveBeenCalled()
   })
 
-  it('always shows the match counter, including 0/0', () => {
+  it('shows the total match count without a fictional current match', () => {
     const { rerender } = renderWithTooltip(
       <PdfSearchBar
         isOpen
@@ -69,7 +69,8 @@ describe('PdfSearchBar', () => {
       />
     )
 
-    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('1/3')
+    // Every match is painted at once; there is no active match to index.
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('3')
     expect(screen.getByDisplayValue('cardiology')).not.toHaveAttribute('aria-invalid', 'true')
 
     rerender(
@@ -86,11 +87,11 @@ describe('PdfSearchBar', () => {
       </TooltipProvider>
     )
 
-    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0/0')
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0')
     expect(screen.getByDisplayValue('not-in-this-document')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('shows 0/0 without marking an empty query invalid', () => {
+  it('shows 0 without marking an empty query invalid', () => {
     renderWithTooltip(
       <PdfSearchBar
         isOpen
@@ -102,7 +103,7 @@ describe('PdfSearchBar', () => {
       />
     )
 
-    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0/0')
+    expect(screen.getByTestId('pdf-search-match-count')).toHaveTextContent('0')
     expect(screen.getByRole('textbox')).not.toHaveAttribute('aria-invalid', 'true')
   })
 })

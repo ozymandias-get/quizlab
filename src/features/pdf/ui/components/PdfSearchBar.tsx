@@ -13,7 +13,7 @@ import {
 
 import { FileText, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { type KeyboardEvent, memo, useEffect, useRef } from 'react'
+import { type KeyboardEvent, memo, useEffect, useLayoutEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface PdfSearchBarProps {
@@ -50,17 +50,44 @@ function PdfSearchBar({
 }: PdfSearchBarProps) {
   const { t } = useTranslation()
   const inputRef = useRef<HTMLInputElement>(null)
+  const controlsRef = useRef<HTMLDivElement>(null)
 
   const hasQuery = keyword.trim().length > 0
   const hasNoMatches = hasQuery && matchCount === 0
-  // Search paints every match at once; the counter keeps the conventional
-  // current/total shape, with the first match as the current one.
-  const currentMatch = matchCount > 0 ? 1 : 0
 
   useEffect(() => {
     if (isOpen) {
       const timeout = setTimeout(() => inputRef.current?.focus(), SEARCH_INPUT_FOCUS_MS)
       return () => clearTimeout(timeout)
+    }
+  }, [isOpen])
+
+  // The trailing controls (toggles, counter, clear) change width with the
+  // query, the digit count and the active toggles. Reserve exactly what they
+  // occupy instead of a fixed right padding, which either overlapped the text
+  // or wasted the field on a narrow panel. `offsetWidth` is the layout box, so
+  // the popover's entrance scale does not shrink the measurement.
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    const controls = controlsRef.current
+    if (!isOpen || !input || !controls) return
+
+    const applyReserve = () => {
+      // 8px inset of the controls plus a 4px gap before the caret.
+      input.style.paddingRight = `${Math.ceil(controls.offsetWidth) + 12}px`
+    }
+    applyReserve()
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        input.style.paddingRight = ''
+      }
+    }
+    const observer = new ResizeObserver(applyReserve)
+    observer.observe(controls)
+    return () => {
+      observer.disconnect()
+      input.style.paddingRight = ''
     }
   }, [isOpen])
 
@@ -112,11 +139,11 @@ function PdfSearchBar({
                   placeholder={t('search_placeholder')}
                   aria-invalid={hasNoMatches}
                   aria-describedby="pdf-search-match-count"
-                  className="text-ql-12 pr-32 pl-8 font-normal"
+                  className="text-ql-12 min-w-0 pl-8 font-normal"
                   // eslint-disable-next-line jsx-a11y/no-autofocus -- intentional: search bar auto-focuses on open
                   autoFocus
                 />
-                <div className="absolute right-2 flex items-center gap-0.5">
+                <div ref={controlsRef} className="absolute right-2 flex items-center gap-0.5">
                   {onToggleCaseSensitive && (
                     <button
                       type="button"
@@ -149,6 +176,10 @@ function PdfSearchBar({
                       W
                     </button>
                   )}
+                  {/* Every match is painted at once and there is no
+                      next/previous navigation, so there is no "current"
+                      match: `1/N` claimed a position that does not exist.
+                      The total is the whole truth. */}
                   <span
                     id="pdf-search-match-count"
                     data-testid="pdf-search-match-count"
@@ -157,7 +188,7 @@ function PdfSearchBar({
                       hasNoMatches ? 'text-destructive font-semibold' : 'text-muted-foreground'
                     }`}
                   >
-                    {currentMatch}/{matchCount}
+                    {matchCount}
                   </span>
                   {keyword ? (
                     <Tooltip>

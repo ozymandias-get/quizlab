@@ -31,3 +31,16 @@ export function fitMenuToViewport(
     top: Math.max(margin, Math.min(y, maxTop))
   }
 }
+
+/**
+ * Clamps an already-mounted menu to the viewport using its measured size.
+ *
+ * Measurement uses the element's layout box (`offsetWidth`/`offsetHeight`)
+ * instead of `getBoundingClientRect()`. These menus animate in with a scale
+ * transform; a rect taken during the entrance describes the shrunken box, so
+ * collision avoidance would allow the final, larger menu to settle past the
+ * bottom/right edge of the window.
+ */
+export function fitMenuElementToViewport(element: HTMLElement, x: number, y: number): MenuPosition {
+  return fitMenuToViewport(x, y, element.offsetWidth, element.offsetHeight)
+}

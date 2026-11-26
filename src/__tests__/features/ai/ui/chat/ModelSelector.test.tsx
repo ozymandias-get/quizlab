@@ -154,6 +154,86 @@ describe('ModelSelector', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
+  it('selects the tabbed-to option with Enter', () => {
+    const { onSelectModel } = renderSelector()
+    openSelector()
+
+    const listbox = screen.getByRole('listbox')
+    const activeOption = within(listbox)
+      .getAllByRole('option')
+      .find((option) => option.tabIndex === 0)!
+
+    activeOption.focus()
+    fireEvent.keyDown(activeOption, { key: 'Enter' })
+
+    expect(onSelectModel).toHaveBeenCalledTimes(1)
+    expect(onSelectModel).toHaveBeenCalledWith('gpt-4o')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('selects the focused option with Space', () => {
+    const { onSelectModel } = renderSelector()
+    openSelector()
+
+    const combobox = screen.getByRole('combobox')
+    const listbox = screen.getByRole('listbox')
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' })
+
+    const activeOption = within(listbox)
+      .getAllByRole('option')
+      .find((option) => option.tabIndex === 0)!
+    activeOption.focus()
+    fireEvent.keyDown(activeOption, { key: ' ' })
+
+    expect(onSelectModel).toHaveBeenCalledTimes(1)
+    expect(onSelectModel).toHaveBeenCalledWith('gpt-4o-mini')
+  })
+
+  it('keeps aria-activedescendant on the option that owns focus', () => {
+    renderSelector()
+    openSelector()
+
+    const combobox = screen.getByRole('combobox')
+    const listbox = screen.getByRole('listbox')
+    const options = within(listbox).getAllByRole('option')
+
+    options[0].focus()
+    expect(combobox).toHaveAttribute('aria-activedescendant', `${listbox.id}-option-0`)
+
+    fireEvent.keyDown(options[0], { key: 'ArrowDown' })
+    expect(options[1]).toHaveFocus()
+    expect(combobox).toHaveAttribute('aria-activedescendant', `${listbox.id}-option-1`)
+  })
+
+  it('keeps the highlight on the same model when filtering shifts indices', () => {
+    const { onSelectModel } = renderSelector()
+    openSelector()
+
+    const combobox = screen.getByRole('combobox')
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' })
+    expect(combobox).toHaveAttribute(
+      'aria-activedescendant',
+      `${screen.getByRole('listbox').id}-option-1`
+    )
+
+    // 'i' keeps gpt-4o-mini and o1-preview: the old index 1 now points at
+    // o1-preview, so the highlight has to follow the model, not the number.
+    fireEvent.change(combobox, { target: { value: 'i' } })
+    const listbox = screen.getByRole('listbox')
+    expect(within(listbox).getAllByRole('option')).toHaveLength(2)
+    expect(combobox).toHaveAttribute('aria-activedescendant', `${listbox.id}-option-0`)
+
+    fireEvent.keyDown(combobox, { key: 'Enter' })
+    expect(onSelectModel).toHaveBeenCalledWith('gpt-4o-mini')
+  })
+
+  it('keeps focus on the search field when the popup opens', () => {
+    renderSelector()
+    openSelector()
+
+    expect(screen.getByRole('combobox')).toHaveFocus()
+  })
+
   it('closes with Escape and returns focus to the trigger', async () => {
     renderSelector()
     openSelector()

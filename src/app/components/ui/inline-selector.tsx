@@ -29,6 +29,21 @@ const FALLBACK_WIDTH = 240
 const OPTION_SELECTOR = '[role="option"]:not([disabled]):not([aria-disabled="true"])'
 const FOCUSABLE_TRIGGER_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+/**
+ * Initial focus goes to the first focusable element in DOM order, so a search
+ * field that sits above the options owns focus (its popup may start hidden,
+ * which makes `autoFocus` a no-op). Plain listboxes have no field and land on
+ * their first option, as before.
+ */
+const INITIAL_FOCUS_SELECTOR = [
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'button:not([disabled])',
+  '[href]',
+  '[tabindex="0"]',
+  OPTION_SELECTOR
+].join(', ')
 
 function InlineSelector({
   open,
@@ -52,19 +67,16 @@ function InlineSelector({
   }, [])
 
   // A listbox is a keyboard widget, not a mouse-only menu: opening it moves
-  // focus to the first option (the search field in ModelSelector already holds
-  // focus, so there is nothing to move). Only run once the popup is visible;
-  // before that it is `visibility: hidden` and focus() is a no-op.
+  // focus into the popup (the ModelSelector search field if it has one,
+  // otherwise the first option). Only run once the popup is visible; before
+  // that it is `visibility: hidden` and focus() is a no-op, which is why the
+  // search field's own `autoFocus` can fail and this fallback has to know that
+  // the field — not the list — is the intended owner.
   React.useEffect(() => {
     if (!open || !position.ready) return
     const menu = menuRef.current
     if (!menu || menu.contains(document.activeElement)) return
-    const first =
-      menu.querySelector<HTMLElement>(OPTION_SELECTOR) ??
-      menu.querySelector<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
-      )
-    first?.focus()
+    menu.querySelector<HTMLElement>(INITIAL_FOCUS_SELECTOR)?.focus()
   }, [open, position.ready])
 
   // If focus was inside the popup when it closed (Escape, selection, click
