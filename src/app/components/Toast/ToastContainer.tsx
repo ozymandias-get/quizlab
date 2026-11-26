@@ -58,10 +58,10 @@ const ToastContainer = memo(function ToastContainer() {
     // region meant a critical failure waited behind informational messages.
     <div
       id="toast-root"
-      className="z-toast pointer-events-none fixed top-4 right-4 flex w-[calc(100vw-2rem)] max-w-[420px] flex-col items-end"
+      className="z-toast pointer-events-none fixed top-4 left-1/2 flex w-[calc(100vw-2rem)] max-w-[420px] -translate-x-1/2 flex-col items-center"
     >
       <div
-        className="flex w-full flex-col items-end"
+        className="flex w-full flex-col items-center"
         aria-live="assertive"
         role="alert"
         data-testid="toast-region-error"
@@ -70,7 +70,7 @@ const ToastContainer = memo(function ToastContainer() {
       </div>
 
       <div
-        className="flex w-full flex-col items-end"
+        className="flex w-full flex-col items-center"
         aria-live="polite"
         role="status"
         data-testid="toast-region-polite"
