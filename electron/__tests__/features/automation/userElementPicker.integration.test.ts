@@ -183,10 +183,47 @@ describe('userElementPicker integration', () => {
     ;(window as PickerWindow)._aiPickerCleanup?.()
     expect(frameDoc.querySelector('style[data-ai-picker-style="true"]')).toBeNull()
 
-    // A second injection must re-add the sheet (the "already styled" flag was
-    // cleared with the node, not left behind).
+    // A second injection must re-add the sheet (the "already styled" state is
+    // the live node, not a stale flag).
     eval(generatePickerScript())
     expect(frameDoc.querySelector('style[data-ai-picker-style="true"]')).not.toBeNull()
+  })
+
+  it('re-attaches the picker stylesheet after the page replaces <head>', async () => {
+    eval(generatePickerScript())
+    expect(document.querySelector('head style[data-ai-picker-style="true"]')).not.toBeNull()
+
+    // SPA hydration / root rewrites can replace the whole head. The observer on
+    // <html> sees it; the sheet must move to the new head instead of leaving
+    // the overlay mounted without any picker CSS.
+    const oldHead = document.head
+    oldHead.remove()
+    const newHead = document.createElement('head')
+    document.documentElement.appendChild(newHead)
+
+    await waitFor(() => {
+      expect(document.querySelector('head style[data-ai-picker-style="true"]')).not.toBeNull()
+    })
+  })
+
+  it('re-styles a frame whose head is replaced', async () => {
+    const iframe = document.createElement('iframe')
+    document.body.appendChild(iframe)
+    const frameDoc = iframe.contentDocument
+    if (!frameDoc) {
+      throw new Error('Test environment must expose iframe.contentDocument')
+    }
+
+    eval(generatePickerScript())
+    expect(frameDoc.querySelector('style[data-ai-picker-style="true"]')).not.toBeNull()
+
+    frameDoc.head.remove()
+    const newHead = frameDoc.createElement('head')
+    frameDoc.documentElement.appendChild(newHead)
+
+    await waitFor(() => {
+      expect(frameDoc.querySelector('head style[data-ai-picker-style="true"]')).not.toBeNull()
+    })
   })
 
   // S11: C3 — the picker used to leak non-Escape keys to the host site,

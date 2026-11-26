@@ -118,6 +118,16 @@ export function useElementPicker(
         try {
           const startUrl = pickerStartUrlRef.current
           const currentUrl = readContentUrl(content)
+          // The origin is only known if it was captured before injection. When
+          // the start snapshot is missing we cannot prove the view did not
+          // navigate mid-pick, and the whole point of this guard is to never
+          // aim one site's selectors at another. Fail safe instead of skipping
+          // the check.
+          if (!startUrl && currentUrl) {
+            Logger.info('[Picker] savePickerResult: pick origin was never captured, aborting')
+            showError('picker_selection_missing')
+            return
+          }
           if (startUrl && currentUrl) {
             const startHost = new URL(startUrl).hostname.toLowerCase()
             const currentHost = new URL(currentUrl).hostname.toLowerCase()

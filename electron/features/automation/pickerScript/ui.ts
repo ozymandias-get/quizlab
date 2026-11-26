@@ -35,6 +35,34 @@ export function buildPickerUiBlock(pickerStyles: string): string {
                 : function(id) { clearTimeout(id); };
         let styleEl = null;
 
+        /**
+         * Creates the stylesheet on first use and re-attaches it whenever the
+         * page replaces its head (SPA root swaps, hydration rewrites) or injects
+         * the picker before a head exists. Without this the overlay DOM stayed
+         * mounted while every hover/selected outline silently lost its CSS.
+         */
+        const ensurePickerStyle = () => {
+            try {
+                if (!mainDoc.documentElement) return null;
+                if (!styleEl) {
+                    styleEl = mainDoc.createElement('style');
+                    styleEl.setAttribute('data-ai-picker-style', 'true');
+                    try {
+                        styleEl.textContent = ttPolicy.createHTML(\`${pickerStyles}\`);
+                    } catch (e) {
+                        safePickerLog('ui.trustedStyle', e);
+                        styleEl.textContent = \`${pickerStyles}\`;
+                    }
+                }
+                var styleTarget = mainDoc.head || mainDoc.documentElement;
+                if (styleEl.parentNode !== styleTarget) styleTarget.appendChild(styleEl);
+                return styleEl;
+            } catch (e) {
+                safeConsole.error('Style injection failed', e);
+                return styleEl;
+            }
+        };
+
         const infoBox = mainDoc.createElement('div');
         infoBox.setAttribute('data-ai-picker-ui', 'true');
         Object.assign(infoBox.style, {
@@ -95,6 +123,7 @@ export function buildPickerUiBlock(pickerStyles: string): string {
 
         var uiMounted = false;
         const mountPickerUi = () => {
+            ensurePickerStyle();
             if (uiMounted || !mainDoc.body) return;
             if (!infoBox.parentNode) mainDoc.body.appendChild(infoBox);
             if (!labelBox.parentNode) mainDoc.body.appendChild(labelBox);
@@ -114,6 +143,10 @@ export function buildPickerUiBlock(pickerStyles: string): string {
         var bodyObserver = null;
         try {
             bodyObserver = new MutationObserver(() => {
+                // A rewritten <head> takes the stylesheet with it. The body
+                // observer sees that too because <head> is a direct child of
+                // <html>.
+                ensurePickerStyle();
                 if (!uiMounted) {
                     if (mainDoc.body) mountPickerUi();
                     return;
@@ -139,18 +172,9 @@ export function buildPickerUiBlock(pickerStyles: string): string {
             }
         } catch (err) { safePickerLog('ui.bodyObserver', err); }
 
-        try {
-            styleEl = mainDoc.createElement('style');
-            try {
-                styleEl.textContent = ttPolicy.createHTML(\`${pickerStyles}\`);
-            } catch(e) {
-                safePickerLog('ui.trustedStyle', e);
-                styleEl.textContent = \`${pickerStyles}\`;
-            }
-            if (mainDoc.head) mainDoc.head.appendChild(styleEl);
-        } catch(e) {
-            safeConsole.error('Style injection failed', e);
-        }
+        // Run at least once even when the UI mount was deferred to
+        // DOMContentLoaded: frame styling and hover rules need the sheet now.
+        ensurePickerStyle();
 
         let lastHovered = null;
 `

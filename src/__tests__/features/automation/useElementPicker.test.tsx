@@ -268,6 +268,31 @@ describe('useElementPicker', () => {
     expect(() => fireConsoleMessage('_aiPicker:cancelled')).toThrow()
   })
 
+  it('aborts the save when the pick origin could not be captured', async () => {
+    // The view never exposed a URL when the pick started, so a mid-pick
+    // navigation cannot be ruled out. Saving would aim the old site's
+    // selectors at whatever hostname is current now.
+    mockContent.getURL.mockReturnValueOnce(null).mockReturnValue('https://example.com/after')
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    await act(async () => {
+      fireSessionResult({
+        input: 'textarea',
+        button: 'button',
+        inputFingerprint: { tag: 'textarea' },
+        buttonFingerprint: { tag: 'button' }
+      })
+    })
+
+    expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+    expect(mockToast.showError).toHaveBeenCalledWith('picker_selection_missing')
+    expect(result.current.isPickerActive).toBe(false)
+  })
+
   it('ignores a stale result from a previous picker session', async () => {
     const { result } = renderPicker()
 

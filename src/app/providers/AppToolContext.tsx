@@ -124,7 +124,7 @@ interface AppToolActionsType {
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
   startPicker: () => void
-  startPickerWhenReady: () => void
+  startPickerWhenReady: (expectedTabId?: string) => void
   togglePicker: () => void
 }
 

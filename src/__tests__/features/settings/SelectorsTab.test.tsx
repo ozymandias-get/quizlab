@@ -199,6 +199,7 @@ describe('SelectorsTab', () => {
 
   it('opens the requested AI tab for re-pick and can reset selectors', async () => {
     const onCloseSettings = vi.fn()
+    mockOpenAiWorkspace.mockReturnValue('tab-chatgpt')
     render(<SelectorsTab onCloseSettings={onCloseSettings} />)
 
     fireEvent.click(screen.getByRole('button', { name: /chatgpt/i }))
@@ -207,6 +208,9 @@ describe('SelectorsTab', () => {
     )
 
     expect(mockOpenAiWorkspace).toHaveBeenCalledWith('chatgpt')
+    // The arm is bound to the tab that was just opened, so a quick tab switch
+    // cannot start the picker on the wrong view.
+    expect(mockStartPickerWhenReady).toHaveBeenCalledWith('tab-chatgpt')
     expect(mockStartPickerWhenReady).toHaveBeenCalledTimes(1)
     expect(onCloseSettings).toHaveBeenCalledTimes(1)
 

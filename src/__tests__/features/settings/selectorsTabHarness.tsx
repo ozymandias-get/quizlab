@@ -50,8 +50,8 @@ export interface SelectorsTabStubOptions {
   aiSites: Record<string, unknown>
   tabs: unknown[]
   currentAI: string
-  openAiWorkspace: (ai: string) => void
-  startPickerWhenReady: () => void
+  openAiWorkspace: (ai: string) => string
+  startPickerWhenReady: (expectedTabId?: string) => void
   showError: (...args: unknown[]) => void
   showSuccess: (...args: unknown[]) => void
   showWarning: (...args: unknown[]) => void

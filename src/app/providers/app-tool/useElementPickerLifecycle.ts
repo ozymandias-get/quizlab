@@ -37,6 +37,14 @@ export function useElementPickerLifecycle(
 
   const [armVersion, setArmVersion] = useState(0)
   const pendingPickerStartRef = useRef(false)
+  /**
+   * Tab the armed start belongs to. The settings re-pick flow opens a tab and
+   * arms in the same tick, so `activeTabId` can still name the previous tab;
+   * the caller passes the id `openAiWorkspace` returned. When absent (dock
+   * button) the tab active at arm time is used. A null target means "no tab
+   * yet", and the old wait-for-any-content behaviour applies.
+   */
+  const pendingTargetTabIdRef = useRef<string | null>(null)
   const requestSeqRef = useRef(0)
   const armTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pickerModRef = useRef<{
@@ -64,10 +72,25 @@ export function useElementPickerLifecycle(
     armTimeoutRef.current = null
   }, [])
 
+  /**
+   * Single, idempotent teardown for an armed start. The timer callback, a tab
+   * switch and unmount all race each other, so they must all reset the same
+   * four things: the pending flag, the target tab, the arm timer and the
+   * readiness subscriptions.
+   */
+  const cancelPendingStart = useCallback(() => {
+    pendingPickerStartRef.current = false
+    pendingTargetTabIdRef.current = null
+    clearArmTimeout()
+    lifecycleAbortRef.current?.abort()
+    lifecycleAbortRef.current = null
+  }, [clearArmTimeout])
+
   const clearPendingRequest = useCallback(
     (requestId: number) => {
       if (requestSeqRef.current === requestId) {
         pendingPickerStartRef.current = false
+        pendingTargetTabIdRef.current = null
         clearArmTimeout()
       }
     },
@@ -86,29 +109,34 @@ export function useElementPickerLifecycle(
    * silently. The effect below waits for the target tab (its `activeTabId` and
    * `hasActiveContent`) and starts once content exists; a timeout turns a tab
    * that never opens into a visible error instead of a lost click.
+   *
+   * `expectedTabId` is the id returned by `openAiWorkspace`. Binding the arm to
+   * that tab is what keeps a user tab switch from starting the picker on the
+   * wrong view; without a target the tab active at arm time is pinned instead.
    */
-  const startPickerWhenReady = useCallback(async () => {
-    requestSeqRef.current += 1
-    pendingPickerStartRef.current = true
-    setArmVersion((v) => v + 1)
-    Logger.info(`[PickerLifecycle] startPickerWhenReady: armed, requestId=${requestSeqRef.current}`)
+  const startPickerWhenReady = useCallback(
+    async (expectedTabId?: string) => {
+      requestSeqRef.current += 1
+      pendingPickerStartRef.current = true
+      pendingTargetTabIdRef.current = expectedTabId ?? activeTabId ?? null
+      setArmVersion((v) => v + 1)
+      Logger.info(
+        `[PickerLifecycle] startPickerWhenReady: armed, requestId=${requestSeqRef.current}, target=${pendingTargetTabIdRef.current ?? 'any'}`
+      )
 
-    clearArmTimeout()
-    armTimeoutRef.current = setTimeout(() => {
-      armTimeoutRef.current = null
-      if (!pendingPickerStartRef.current) return
-      pendingPickerStartRef.current = false
-      // Drop the readiness subscriptions/abort listeners too; without this the
-      // abandoned request kept listening for dom-ready/did-stop-loading until
-      // some unrelated dependency changed.
-      lifecycleAbortRef.current?.abort()
-      lifecycleAbortRef.current = null
-      Logger.warn('[ElementPickerLifecycle] timed out waiting for tab content')
-      showError('picker_webview_not_found')
-    }, PICKER_ARM_TIMEOUT_MS)
-  }, [clearArmTimeout, showError])
+      clearArmTimeout()
+      armTimeoutRef.current = setTimeout(() => {
+        armTimeoutRef.current = null
+        if (!pendingPickerStartRef.current) return
+        cancelPendingStart()
+        Logger.warn('[ElementPickerLifecycle] timed out waiting for tab content')
+        showError('picker_webview_not_found')
+      }, PICKER_ARM_TIMEOUT_MS)
+    },
+    [activeTabId, cancelPendingStart, clearArmTimeout, showError]
+  )
 
-  useEffect(() => () => clearArmTimeout(), [clearArmTimeout])
+  useEffect(() => () => cancelPendingStart(), [cancelPendingStart])
 
   // A picker runs inside ONE managed view. When the user switches tabs, the
   // old view keeps the picker script (and its listeners) alive while the new
@@ -123,8 +151,23 @@ export function useElementPickerLifecycle(
   useEffect(() => {
     const previous = lastActiveTabIdRef.current
     lastActiveTabIdRef.current = activeTabId
-    if (!isPickerActive) return
     if (previous == null || activeTabId == null || previous === activeTabId) return
+
+    // An armed start that no longer points at the active tab must die here
+    // instead of firing later against whatever view is in front (or burning
+    // the full arm timeout while the user is somewhere else).
+    if (pendingPickerStartRef.current) {
+      const targetTabId = pendingTargetTabIdRef.current
+      if (targetTabId && activeTabId !== targetTabId) {
+        Logger.info('[PickerLifecycle] armed tab changed before content was ready; cancelling', {
+          targetTabId,
+          activeTabId
+        })
+        cancelPendingStart()
+      }
+    }
+
+    if (!isPickerActive) return
     Logger.info('[PickerLifecycle] active tab changed while picker is active; stopping picker', {
       previous,
       activeTabId
@@ -132,10 +175,16 @@ export function useElementPickerLifecycle(
     void pickerStopPicker().catch((error) => {
       Logger.warn('[PickerLifecycle] failed to stop picker after tab change:', error)
     })
-  }, [activeTabId, isPickerActive, pickerStopPicker])
+  }, [activeTabId, cancelPendingStart, isPickerActive, pickerStopPicker])
 
   useEffect(() => {
     if (!pendingPickerStartRef.current) return
+
+    // Do not inject into a tab the arm was not meant for. For the settings
+    // re-pick flow the target tab may only become active a few renders later;
+    // after that the effect re-runs through `activeTabId`.
+    const targetTabId = pendingTargetTabIdRef.current
+    if (targetTabId && activeTabId !== targetTabId) return
 
     const currentInstance = getContentController()
     if (!currentInstance) {

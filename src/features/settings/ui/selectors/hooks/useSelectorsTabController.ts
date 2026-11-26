@@ -118,8 +118,11 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
       setExpandedIds((current) => (current.includes(cardId) ? current : [...current, cardId]))
       setCardValidation(cardId, { status: 'idle' })
 
-      openAiWorkspace(aiKey)
-      startPickerWhenReady()
+      // Bind the arm to the tab that was just opened/activated. Without the id
+      // the arm would follow whatever tab is active when content appears, so a
+      // quick switch could start the picker on the wrong view.
+      const targetTabId = openAiWorkspace(aiKey)
+      startPickerWhenReady(targetTabId)
       onCloseSettings?.()
     },
     [onCloseSettings, openAiWorkspace, startPickerWhenReady, setCardValidation]

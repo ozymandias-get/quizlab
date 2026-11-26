@@ -310,4 +310,78 @@ describe('useElementPickerLifecycle', () => {
       vi.useRealTimers()
     }
   })
+
+  it('cancels an armed start when the user switches to a different tab', async () => {
+    const controllerA = createController({
+      executeJavaScript: vi.fn().mockResolvedValue('loading')
+    })
+    const controllerB = createController({
+      executeJavaScript: vi.fn().mockResolvedValue('loading')
+    })
+
+    const { result, rerender } = renderHook(
+      ({ controller, tabId }: { controller: AiContentController; tabId: string }) =>
+        useElementPickerLifecycle(() => controller, tabId),
+      { initialProps: { controller: controllerA as AiContentController, tabId: 'tab-a' } }
+    )
+
+    await act(async () => {
+      result.current.startPickerWhenReady('tab-a')
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      rerender({ controller: controllerB as AiContentController, tabId: 'tab-b' })
+    })
+    await act(async () => {
+      controllerB._trigger('did-stop-loading')
+    })
+    expect(mockStartPicker).not.toHaveBeenCalled()
+
+    // The arm is gone, not merely paused: returning to the original tab must
+    // not revive it.
+    await act(async () => {
+      rerender({ controller: controllerA as AiContentController, tabId: 'tab-a' })
+    })
+    await act(async () => {
+      controllerA._trigger('did-stop-loading')
+    })
+    expect(mockStartPicker).not.toHaveBeenCalled()
+  })
+
+  it('starts on the armed target tab once it becomes active', async () => {
+    const controllerA = createController({
+      executeJavaScript: vi.fn().mockResolvedValue('loading')
+    })
+    const controllerB = createController({
+      executeJavaScript: vi.fn().mockResolvedValue('loading')
+    })
+
+    const { result, rerender } = renderHook(
+      ({ controller, tabId }: { controller: AiContentController; tabId: string }) =>
+        useElementPickerLifecycle(() => controller, tabId),
+      { initialProps: { controller: controllerA as AiContentController, tabId: 'tab-a' } }
+    )
+
+    // Settings flow: the id of the tab that was just opened is known before the
+    // tab itself becomes active.
+    await act(async () => {
+      result.current.startPickerWhenReady('tab-b')
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockStartPicker).not.toHaveBeenCalled()
+
+    await act(async () => {
+      rerender({ controller: controllerB as AiContentController, tabId: 'tab-b' })
+    })
+    await act(async () => {
+      controllerB._trigger('did-stop-loading')
+    })
+
+    expect(mockStartPicker).toHaveBeenCalledTimes(1)
+  })
 })

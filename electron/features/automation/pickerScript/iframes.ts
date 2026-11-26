@@ -8,18 +8,34 @@ export function buildPickerIframesBlock(): string {
         // (and the "already styled" flag) instead of leaving dead style nodes
         // behind in the frame document.
         var frameStyleEntries = [];
+        const frameHasLiveStyle = (rootDoc) => {
+            for (var s = 0; s < frameStyleEntries.length; s++) {
+                var entry = frameStyleEntries[s];
+                if (entry.doc === rootDoc && entry.el && entry.el.isConnected) return true;
+            }
+            return false;
+        };
+        // The "already styled" state is the LIVE node, not a flag on the root:
+        // a frame that replaces its <head> keeps the same documentElement, so a
+        // flag would suppress the re-injection and leave the frame unstyled.
         const ensureFrameStyles = (rootDoc) => {
             if (!rootDoc || rootDoc === mainDoc || !rootDoc.documentElement) return;
-            if (rootDoc.documentElement.__aiPickerStylesAttached) return;
+            if (frameHasLiveStyle(rootDoc)) return;
             if (!styleEl) return;
             try {
                 var frameHead = rootDoc.head || rootDoc.documentElement;
                 var clone = styleEl.cloneNode(true);
                 clone.setAttribute('data-ai-picker-style', 'true');
                 frameHead.appendChild(clone);
-                rootDoc.documentElement.__aiPickerStylesAttached = true;
                 frameStyleEntries.push({ doc: rootDoc, el: clone });
             } catch (err) { safePickerLog('iframe.styles', err); }
+        };
+        const refreshFrameStyles = () => {
+            for (var i = 0; i < listenerRoots.length; i++) {
+                var rootDoc = listenerRoots[i];
+                if (rootDoc === mainDoc) continue;
+                ensureFrameStyles(rootDoc);
+            }
         };
         const attachListeners = (rootDoc) => {
             if (!rootDoc || !rootDoc.documentElement) return;
@@ -121,6 +137,7 @@ export function buildPickerIframesBlock(): string {
                 pruneDeadFrameRoots();
                 scanDocumentForFrames(mainDoc);
                 observeFrameDocuments();
+                refreshFrameStyles();
             } catch (err) { safePickerLog('iframe.scan', err); }
         };
         const scheduleIframeScan = () => {
