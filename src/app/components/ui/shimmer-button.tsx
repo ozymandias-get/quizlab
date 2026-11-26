@@ -40,7 +40,7 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
         }
         className={cn(
           'group relative z-0 flex cursor-pointer items-center justify-center overflow-hidden [border-radius:var(--radius)] border border-white/[0.07] px-6 py-3 whitespace-nowrap text-white [background:var(--bg)]',
-          'transform-gpu transition-transform duration-300 ease-in-out active:translate-y-px',
+          'transform-gpu transition-transform duration-100 ease-out active:translate-y-px',
           'focus-visible:ring-ring/70 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className
@@ -73,7 +73,7 @@ export const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonPr
             'rounded-2xl px-4 py-1.5 text-sm font-medium shadow-[inset_0_-8px_10px_#ffffff1f]',
 
             // transition
-            'transform-gpu transition-all duration-300 ease-in-out',
+            'transform-gpu transition-shadow duration-200 ease-out',
 
             // on hover
             'group-hover:shadow-[inset_0_-6px_10px_#ffffff3f]',

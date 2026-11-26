@@ -207,7 +207,7 @@ function PdfSelectionMenu({
                   backgroundColor: 'var(--selection-color-source, oklch(var(--primary)))',
                   color: 'var(--selection-color-ink, oklch(var(--primary-foreground)))'
                 }}
-                className="focus-visible:ring-ring/70 group text-ql-12 relative flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-all hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+                className="focus-visible:ring-ring/70 group text-ql-12 relative flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-2.5 font-semibold whitespace-nowrap shadow-2xs transition-[filter,transform] hover:brightness-105 focus-visible:ring-2 focus-visible:outline-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
               >
                 <BorderBeam
                   size={44}

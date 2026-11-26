@@ -240,7 +240,7 @@ export function DraftSendButton({
         aria-label={label}
         data-testid="ai-draft-send"
         className={cn(
-          'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold transition-all @max-[330px]:min-w-0 @max-[330px]:px-2.5',
+          'text-ql-11 h-7 min-w-[120px] shrink-0 justify-center gap-1.5 rounded-full px-3 font-semibold transition-[background-color,color,box-shadow] @max-[330px]:min-w-0 @max-[330px]:px-2.5',
           isDisabled
             ? 'border-0 bg-zinc-800 text-zinc-400 opacity-100 shadow-none hover:bg-zinc-800'
             : 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'

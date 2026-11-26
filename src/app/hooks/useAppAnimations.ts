@@ -5,8 +5,14 @@ import { useMemo } from 'react'
 
 const ANIMATION_EASE: Easing = [0.4, 0, 0.2, 1]
 
+/**
+ * Panel transitions use `DURATION.slow` (200 ms), the same surface budget as an
+ * accordion or a focus handoff. They used to run at 400 ms with a 0.97 scale and
+ * a 30 ms-per-child stagger; a workspace swap is a positional change, not an
+ * entrance, so it must not be slower or heavier than the panel it moves.
+ */
 const DEFAULT_TRANSITION = {
-  duration: DURATION.deliberate,
+  duration: DURATION.slow,
   ease: ANIMATION_EASE
 }
 
@@ -16,13 +22,11 @@ const LEFT_PANEL_VARIANTS = {
   visible: {
     opacity: 1,
     x: 0,
-    scale: 1,
     transition: DEFAULT_TRANSITION
   },
   hidden: {
     opacity: 0,
     x: -30,
-    scale: 0.97,
     transition: DEFAULT_TRANSITION
   }
 }
@@ -31,45 +35,42 @@ const RIGHT_PANEL_VARIANTS = {
   visible: {
     opacity: 1,
     x: 0,
-    scale: 1,
     transition: DEFAULT_TRANSITION
   },
   hidden: {
     opacity: 0,
     x: 30,
-    scale: 0.97,
     transition: DEFAULT_TRANSITION
   }
 }
 
+/**
+ * The resizer belongs to the same gesture as the two panels: same duration and
+ * same curve, so a swap reads as one surface separating instead of three
+ * elements arriving one after another.
+ */
 const RESIZER_VARIANTS = {
   visible: {
     opacity: 1,
     scaleY: 1,
-    transition: { duration: DURATION.slower, ease: ANIMATION_EASE }
+    transition: DEFAULT_TRANSITION
   },
   hidden: {
     opacity: 0,
     scaleY: 0,
-    transition: { duration: DURATION.slow, ease: ANIMATION_EASE }
+    transition: DEFAULT_TRANSITION
   }
 }
 
+/**
+ * No `staggerChildren` / `when: 'beforeChildren'`. The panels and their divider
+ * are one unit; a 30 ms cascade made the right panel and the resizer visibly lag
+ * the left one, and the workspace is not a list whose children need reading in
+ * order.
+ */
 const CONTAINER_VARIANTS = {
-  visible: {
-    transition: {
-      staggerChildren: 0.03,
-      delayChildren: 0,
-      when: 'beforeChildren'
-    }
-  },
-  hidden: {
-    transition: {
-      staggerChildren: 0.03,
-      staggerDirection: -1,
-      when: 'afterChildren'
-    }
-  }
+  visible: {},
+  hidden: {}
 }
 
 export const useAppAnimations = (isLayoutSwapped: boolean = false) => {

@@ -298,8 +298,11 @@ const ToastItem = memo(
           'group relative',
           'mb-2 w-full overflow-hidden rounded-xl',
           'flex items-start gap-0',
-          'motion-slow transition-colors ease-out',
-          isHovered && 'scale-[1.015] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5)]',
+          // The card's own transform belongs to the entrance/exit motion above;
+          // a utility `scale-*` here would never reach the compositor because
+          // Motion owns the inline transform. Shadow is the hover cue instead.
+          'motion-slow transition-[color,background-color,box-shadow] ease-out',
+          isHovered && 'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5)]',
           STYLES[toast.type] || STYLES.info
         )}
       >

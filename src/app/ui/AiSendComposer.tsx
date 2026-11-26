@@ -562,7 +562,7 @@ function AiSendComposer({
                   yerine geçmez. */}
               <div
                 data-testid="ai-draft-composer"
-                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-white/[0.05] transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
+                className="@container relative mx-3 my-2 overflow-hidden rounded-xl border border-transparent bg-white/[0.05] transition-[background-color,border-color,box-shadow] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]"
               >
                 <DraftNoteField
                   value={noteText}

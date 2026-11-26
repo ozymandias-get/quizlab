@@ -124,34 +124,36 @@ function App() {
           className="app-drag-gutter absolute inset-x-0 top-0 z-10 h-3 sm:h-4 md:h-5 lg:h-6"
         />
 
-        {!isFocusActive && (
-          <div>
-            <MainWorkspace
-              isLayoutSwapped={isLayoutSwapped}
-              leftPanelWidth={leftPanelWidth}
-              leftPanelRef={leftPanelRef as RefObject<HTMLDivElement>}
-              resizerRef={resizerRef as RefObject<HTMLDivElement>}
-              containerVariants={animations.containerVariants}
-              leftPanelVariants={animations.leftPanelVariants}
-              rightPanelVariants={animations.rightPanelVariants}
-              resizerVariants={animations.resizerVariants}
-              handlePointerDown={handlePointerDown}
-              handlePointerMove={handlePointerMove}
-              handlePointerUp={handlePointerUp}
-              handleLostPointerCapture={handleLostPointerCapture}
-              handleResizerDoubleClick={handleResizerDoubleClick}
-              onKeyboardResize={nudgeLeftPanelWidth}
-              isResizeReversed={isLayoutSwapped}
-              isAiSurfaceMounted={isAiSurfaceMounted}
-              isResizing={isResizing}
-              leftPanelProps={combinedLeftPanelProps}
-              isInteractionBlocked={isInteractionBlocked}
-              isPanelResizing={isPanelResizing}
-              isAiSurfaceActive={!isAiFocusSurface}
-              aiViewSurfaceState={aiViewSurfaceState}
-            />
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {!isFocusActive && (
+            <div key="workspace">
+              <MainWorkspace
+                isLayoutSwapped={isLayoutSwapped}
+                leftPanelWidth={leftPanelWidth}
+                leftPanelRef={leftPanelRef as RefObject<HTMLDivElement>}
+                resizerRef={resizerRef as RefObject<HTMLDivElement>}
+                containerVariants={animations.containerVariants}
+                leftPanelVariants={animations.leftPanelVariants}
+                rightPanelVariants={animations.rightPanelVariants}
+                resizerVariants={animations.resizerVariants}
+                handlePointerDown={handlePointerDown}
+                handlePointerMove={handlePointerMove}
+                handlePointerUp={handlePointerUp}
+                handleLostPointerCapture={handleLostPointerCapture}
+                handleResizerDoubleClick={handleResizerDoubleClick}
+                onKeyboardResize={nudgeLeftPanelWidth}
+                isResizeReversed={isLayoutSwapped}
+                isAiSurfaceMounted={isAiSurfaceMounted}
+                isResizing={isResizing}
+                leftPanelProps={combinedLeftPanelProps}
+                isInteractionBlocked={isInteractionBlocked}
+                isPanelResizing={isPanelResizing}
+                isAiSurfaceActive={!isAiFocusSurface}
+                aiViewSurfaceState={aiViewSurfaceState}
+              />
+            </div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {focus.mode !== null && (

@@ -35,13 +35,19 @@ export function BlurFade({
   children,
   className,
   variant,
-  duration = 0.4,
+  duration = 0.3,
   delay = 0,
   offset = 6,
   direction = 'down',
   inView = false,
   inViewMargin = '-50px',
-  blur = '6px',
+  /**
+   * Kept shallow on purpose. Animating `filter` re-rasterises the whole element
+   * on every frame, and the home grids mount several cards at once; a 6 px
+   * radius turned a content entrance into a blurry full-card raster for the
+   * length of the stagger. 3 px still reads as a soft reveal.
+   */
+  blur = '3px',
   ...props
 }: BlurFadeProps) {
   const ref = useRef(null)

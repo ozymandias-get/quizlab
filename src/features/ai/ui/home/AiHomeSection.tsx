@@ -96,7 +96,7 @@ const AiHomeSection = memo(function AiHomeSection({
               duration: prefersReducedMotion ? 0 : DURATION.slow,
               ease: [0.4, 0, 0.2, 1]
             }}
-            className="overflow-hidden will-change-[height,opacity]"
+            className="overflow-hidden"
           >
             <div id={contentId} data-accordion-body="" className="@container px-4 pt-2 pb-4">
               {children}

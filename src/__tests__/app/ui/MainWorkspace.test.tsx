@@ -1,6 +1,8 @@
+import { useAppAnimations } from '@app/hooks/useAppAnimations'
 import MainWorkspace from '@app/ui/MainWorkspace'
 
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import { AnimatePresence } from 'motion/react'
 import { createRef, type RefObject } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -23,41 +25,67 @@ vi.mock('@ui/layout/LeftPanel', () => ({
   default: () => <div data-testid="left-panel">Left Panel</div>
 }))
 
-function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspace>>) {
+function workspaceProps(
+  props?: Partial<React.ComponentProps<typeof MainWorkspace>>
+): React.ComponentProps<typeof MainWorkspace> {
   const leftPanelRef = createRef<HTMLDivElement>() as RefObject<HTMLDivElement>
   const resizerRef = createRef<HTMLDivElement>() as RefObject<HTMLDivElement>
 
-  return render(
-    <MainWorkspace
-      isLayoutSwapped={false}
-      leftPanelWidth={50}
-      leftPanelRef={leftPanelRef}
-      resizerRef={resizerRef}
-      containerVariants={{}}
-      leftPanelVariants={{}}
-      rightPanelVariants={{}}
-      resizerVariants={{}}
-      handlePointerDown={vi.fn()}
-      handlePointerMove={vi.fn()}
-      handlePointerUp={vi.fn()}
-      handleLostPointerCapture={vi.fn()}
-      isAiSurfaceMounted
-      isResizing={false}
-      leftPanelProps={{} as never}
-      isAiSurfaceActive
-      aiViewSurfaceState={{
-        aliveTabIds: [],
-        showHome: true,
-        showHideHome: { show: vi.fn(), hide: vi.fn() },
-        coldTabIds: new Set<string>(),
-        recordTabUrl: vi.fn(),
-        getRestoredUrl: () => undefined,
-        tabUrlRequests: {},
-        requestTabUrl: vi.fn(),
-        clearTabUrlRequest: vi.fn()
-      }}
-      {...props}
-    />
+  return {
+    isLayoutSwapped: false,
+    leftPanelWidth: 50,
+    leftPanelRef,
+    resizerRef,
+    containerVariants: {},
+    leftPanelVariants: {},
+    rightPanelVariants: {},
+    resizerVariants: {},
+    handlePointerDown: vi.fn(),
+    handlePointerMove: vi.fn(),
+    handlePointerUp: vi.fn(),
+    handleLostPointerCapture: vi.fn(),
+    isAiSurfaceMounted: true,
+    isResizing: false,
+    leftPanelProps: {} as never,
+    isAiSurfaceActive: true,
+    aiViewSurfaceState: {
+      aliveTabIds: [],
+      showHome: true,
+      showHideHome: { show: vi.fn(), hide: vi.fn() },
+      coldTabIds: new Set<string>(),
+      recordTabUrl: vi.fn(),
+      getRestoredUrl: () => undefined,
+      tabUrlRequests: {},
+      requestTabUrl: vi.fn(),
+      clearTabUrlRequest: vi.fn()
+    },
+    ...props
+  }
+}
+
+function renderWorkspace(props?: Partial<React.ComponentProps<typeof MainWorkspace>>) {
+  return render(<MainWorkspace {...workspaceProps(props)} />)
+}
+
+/** The shell's focus handoff: the workspace is the exiting child of an `AnimatePresence`. */
+function WorkspaceHandoff({ isWorkspaceVisible }: { isWorkspaceVisible: boolean }) {
+  const animations = useAppAnimations()
+
+  return (
+    <AnimatePresence initial={false}>
+      {isWorkspaceVisible && (
+        <div key="workspace">
+          <MainWorkspace
+            {...workspaceProps({
+              containerVariants: animations.containerVariants,
+              leftPanelVariants: animations.leftPanelVariants,
+              rightPanelVariants: animations.rightPanelVariants,
+              resizerVariants: animations.resizerVariants
+            })}
+          />
+        </div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -78,5 +106,20 @@ describe('MainWorkspace', () => {
 
     expect(screen.getByTestId('panel-loading-placeholder')).toBeInTheDocument()
     expect(screen.queryByTestId('ai-content')).not.toBeInTheDocument()
+  })
+
+  it('exits on focus handoff and unmounts instead of being stranded under the overlay', async () => {
+    const { rerender } = render(<WorkspaceHandoff isWorkspaceVisible />)
+
+    rerender(<WorkspaceHandoff isWorkspaceVisible={false} />)
+
+    // The panels are kept for the exit animation ...
+    expect(screen.getByTestId('left-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('ai-content')).toBeInTheDocument()
+
+    // ... and then released, so focus mode never runs with two live surfaces.
+    await waitFor(() => {
+      expect(screen.queryByTestId('left-panel')).not.toBeInTheDocument()
+    })
   })
 })

@@ -217,7 +217,7 @@ function DraftItemChip({
     >
       <li
         className={cn(
-          'group motion-normal flex h-8 shrink-0 items-center gap-1 rounded-lg border pr-0.5 pl-1 transition-all',
+          'group motion-normal flex h-8 shrink-0 items-center gap-1 rounded-lg border pr-0.5 pl-1 transition-[background-color,border-color]',
           isPreviewOpen
             ? 'border-white/20 bg-white/[0.07]'
             : 'border-white/[0.07] bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.06]'

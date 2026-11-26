@@ -81,7 +81,7 @@ function PdfPlaceholder({
               <div className="group motion-normal relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/[0.07] bg-zinc-950/80 px-6 py-8 text-center transition-colors hover:border-white/15 hover:bg-zinc-900/40">
                 <span
                   aria-hidden
-                  className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-300 group-hover:-translate-y-0.5"
+                  className="relative flex size-14 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-200 group-hover:-translate-y-0.5"
                   style={{
                     color: 'var(--selection-color-source, oklch(var(--primary)))',
                     backgroundColor:

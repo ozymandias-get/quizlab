@@ -45,9 +45,7 @@ export const SwapToolButton = memo(function SwapToolButton() {
       isActive={isLayoutSwapped}
     >
       <ArrowLeftRight
-        className={`motion-normal h-5 w-5 transition-transform duration-300 ${
-          isLayoutSwapped ? 'rotate-180' : 'rotate-0'
-        }`}
+        className={`motion-slow h-5 w-5 transition-transform ${isLayoutSwapped ? 'rotate-180' : 'rotate-0'}`}
       />
     </FloatingDockIcon>
   )

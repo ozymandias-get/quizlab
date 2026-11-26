@@ -84,7 +84,7 @@ export function LanguageSelectionDialog() {
                         role="radio"
                         aria-checked={isSelected}
                         onClick={() => setSelectedLang(lang.code)}
-                        className={`focus-visible:inset-ring-ring/70 motion-normal group relative flex w-full items-center gap-3.5 overflow-hidden rounded-xl p-3 text-left transition-all focus-visible:inset-ring-2 focus-visible:outline-none ${
+                        className={`focus-visible:inset-ring-ring/70 motion-normal group relative flex w-full items-center gap-3.5 overflow-hidden rounded-xl p-3 text-left transition-[background-color,box-shadow] focus-visible:inset-ring-2 focus-visible:outline-none ${
                           isSelected
                             ? 'bg-primary/10 ring-primary/50 ring-1'
                             : 'bg-transparent hover:bg-white/5'

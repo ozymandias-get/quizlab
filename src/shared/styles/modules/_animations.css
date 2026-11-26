@@ -26,6 +26,11 @@
  * kept its offset for good, because the host dedupes identical messages and
  * nothing else ever moves those hosts. Opacity alone leaves the layout box and
  * the reported box in agreement on every frame.
+ *
+ * The duration sits at the top of the global surface budget (250–300 ms) rather
+ * than the old 700 ms: this class also lands on small mount-in elements (chat
+ * attachment thumbnails), and a full-window fade that outlasts the largest
+ * surface transition reads as a slow launch rather than a considered one.
  */
 @keyframes appEnter {
   0% {
@@ -38,7 +43,7 @@
 }
 
 .animate-app-enter {
-  animation: appEnter 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: appEnter 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

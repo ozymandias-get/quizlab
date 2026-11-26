@@ -117,7 +117,7 @@ const ChatInput = memo(function ChatInput({
       <div className="group relative mx-auto w-full max-w-4xl">
         {/* Floating glass composer — the single surface owns the fill and the
             one focus ring, so the textarea and toolbar read as one capsule. */}
-        <div className="motion-normal @container relative w-full overflow-hidden rounded-3xl border border-transparent bg-white/[0.05] transition-all focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]">
+        <div className="motion-normal @container relative w-full overflow-hidden rounded-3xl border border-transparent bg-white/[0.05] transition-[background-color,border-color,box-shadow] focus-within:ring-2 focus-within:ring-[color-mix(in_srgb,var(--selection-color-source,oklch(var(--ring)))_60%,transparent)]">
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2.5 border-b border-white/[0.07] px-4 pt-3 pb-2">
               {attachments.map((data, i) => {

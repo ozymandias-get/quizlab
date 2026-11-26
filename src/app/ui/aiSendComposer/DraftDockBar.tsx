@@ -96,7 +96,7 @@ function DraftDockBar({
   return (
     <div
       data-testid="ai-draft-dock-bar"
-      className="motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border border-white/[0.09] bg-zinc-950/95 p-1 shadow-xl backdrop-blur-xl transition-all hover:border-white/20"
+      className="motion-normal mx-auto flex h-10 max-w-full items-center gap-1 rounded-full border border-white/[0.09] bg-zinc-950/95 p-1 shadow-xl backdrop-blur-xl transition-colors hover:border-white/20"
     >
       <button
         type="button"
@@ -215,7 +215,7 @@ function DraftDockBar({
             aria-label={sendLabel}
             data-testid="ai-draft-pill-send"
             className={cn(
-              'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold transition-all',
+              'text-ql-11 h-8 shrink-0 gap-1.5 rounded-full px-3.5 font-semibold transition-[background-color,color,box-shadow]',
               canSend
                 ? 'bg-zinc-100 text-zinc-950 shadow-[0_0_20px_rgba(255,255,255,0.12)] hover:bg-white hover:shadow-[0_0_24px_rgba(255,255,255,0.18)]'
                 : 'border-0 bg-zinc-800 text-zinc-400 opacity-100 shadow-none hover:bg-zinc-800'
