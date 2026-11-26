@@ -37,6 +37,17 @@ interface AiViewSurfaceProps {
    * the first visible frame the settled one.
    */
   isRevealInProgress?: boolean
+  /**
+   * True for a surface that is still mounted underneath an open focus shell.
+   *
+   * The workspace now plays an exit animation while focus mode opens, so it
+   * keeps its DOM for a couple of hundred milliseconds after the shell has
+   * taken over. A `WebContentsView` is composited above every DOM layer and
+   * does not fade with its panel, so without this flag the exiting workspace
+   * would keep painting the AI site on top of the focus overlay (including the
+   * PDF-only shell, which mounts no host of its own to hide it).
+   */
+  isBehindFocusShell?: boolean
   surfaceState: AiViewSurfaceState
 }
 
@@ -51,6 +62,7 @@ function AiViewSurface({
   isResizing,
   isSurfaceActive,
   isRevealInProgress = false,
+  isBehindFocusShell = false,
   surfaceState
 }: AiViewSurfaceProps) {
   const { tabs, activeTabId } = useAiTabsSliceState()
@@ -109,7 +121,9 @@ function AiViewSurface({
   // overlay — or any dialog anywhere in the app — has to be able to hide it.
   // `isRevealInProgress` is the same rule for the focus shell's clip-path
   // expansion: `clip-path` cannot clip a view that is not in the DOM tree.
-  const isOverlayActive = showHome || isDialogOpen
+  // `isBehindFocusShell` extends it to a workspace that is still animating out
+  // under an open shell.
+  const isOverlayActive = showHome || isDialogOpen || isBehindFocusShell
 
   // Briefly cover the native view while a different AI tab takes over: the
   // outgoing WebContentsView paints its last frame above the DOM, so without
@@ -148,6 +162,7 @@ function AiViewSurface({
             isActive={isActive}
             isSurfaceActive={isSurfaceActive}
             isOverlayActive={overlayBlocksViews}
+            isBehindFocusShell={isBehindFocusShell}
             restoredUrl={getRestoredUrl(tab.id, tab.modelId)}
             urlRequest={tabUrlRequests[tab.id]}
             onUrlRequestHandled={clearTabUrlRequest}
@@ -161,6 +176,7 @@ function AiViewSurface({
       activeTabId,
       showHome,
       isSurfaceActive,
+      isBehindFocusShell,
       overlayBlocksViews,
       getRestoredUrl,
       tabUrlRequests,
@@ -228,8 +244,11 @@ function AiViewSurface({
                 data-testid="ai-view-switching-veil"
                 // The veil only has to hide the outgoing native frame; a brand
                 // mark here duplicated the incoming site's loader icon and the
-                // two painted on top of each other.
-                className="pointer-events-none absolute inset-0 z-20 bg-zinc-950/60 backdrop-blur-sm"
+                // two painted on top of each other. No `backdrop-filter` either:
+                // a `WebContentsView` is not part of the DOM's backdrop, so the
+                // blur could only soften the panel's own empty shell while
+                // costing a full-panel filter pass on every tab switch.
+                className="pointer-events-none absolute inset-0 z-20 bg-zinc-950/60"
               />
             )}
           </AnimatePresence>

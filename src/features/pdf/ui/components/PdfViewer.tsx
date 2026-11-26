@@ -31,6 +31,12 @@ interface PdfViewerProps {
   lastReadingInfo?: LastReadingInfo[] | null
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
+  /**
+   * True while this viewer is still mounted under an open focus shell. The
+   * embedded Drive page is a native view and must release the surface instead
+   * of painting over the shell while the panels animate out.
+   */
+  isBehindFocusShell?: boolean
 }
 
 function PdfViewer({
@@ -46,7 +52,8 @@ function PdfViewer({
   onReadingProgressChange,
   lastReadingInfo,
   isInteractionBlocked = false,
-  isPanelResizing = false
+  isPanelResizing = false,
+  isBehindFocusShell = false
 }: PdfViewerProps) {
   const { startScreenshot, offerFullPageCapture } = useAppToolActions()
   const { t: contextT } = useTranslation()
@@ -121,6 +128,7 @@ function PdfViewer({
           description={t('gdrive_pdf_desc')}
           reloadLabel={t('ctx_reload')}
           isInteractionBlocked={isInteractionBlocked}
+          isBehindFocusShell={isBehindFocusShell}
         />
       )}
 
@@ -151,6 +159,7 @@ export default memo(PdfViewer, (prev, next) => {
   if (prev.activePdfTab?.kind !== next.activePdfTab?.kind) return false
   if (prev.isInteractionBlocked !== next.isInteractionBlocked) return false
   if (prev.isPanelResizing !== next.isPanelResizing) return false
+  if (prev.isBehindFocusShell !== next.isBehindFocusShell) return false
 
   const isSameVisiblePdf =
     prevKey !== null && prev.activePdfTab?.kind !== 'drive' && next.activePdfTab?.kind !== 'drive'

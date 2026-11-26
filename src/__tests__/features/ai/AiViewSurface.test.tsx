@@ -148,6 +148,22 @@ describe('AiViewSurface', () => {
     expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
   })
 
+  it('hides the native view while the workspace is animating out under a focus shell', () => {
+    // The workspace keeps its DOM for the exit transition. A WebContentsView
+    // does not fade with its panel, so an un-gated host would paint the site
+    // over the focus overlay — including the PDF-only shell, which attaches no
+    // host that could hide it.
+    render(
+      <AiViewSurface
+        isResizing={false}
+        isSurfaceActive
+        isBehindFocusShell
+        surfaceState={createSurfaceState()}
+      />
+    )
+    expect(screen.getByText('GPT-4 - Active - Owner - Overlay')).toBeInTheDocument()
+  })
+
   it('renders a non-owning surface so a stale host cannot move the active view', () => {
     renderSurface({ aliveTabIds: ['1'] }, false)
     expect(screen.getByText('GPT-4 - Active - Passive')).toBeInTheDocument()

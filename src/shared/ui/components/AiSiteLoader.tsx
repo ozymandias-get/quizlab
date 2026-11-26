@@ -24,11 +24,15 @@ const AiSiteLoader = memo(function AiSiteLoader({ modelId, iconKey }: AiSiteLoad
   const initial = (iconKey || modelId).charAt(0).toUpperCase()
 
   return (
+    // No `backdrop-filter`: this surface only exists before the guest paints
+    // (and is never re-shown for an in-page load), so the backdrop is the empty
+    // panel shell. A full-panel blur there is invisible behind a 95 % opaque
+    // background and lands exactly while the page is loading.
     <div
       role="status"
       aria-label={t('loading')}
       data-testid="ai-site-loader"
-      className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/95 backdrop-blur-xl"
+      className="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/95"
     >
       <span
         aria-hidden

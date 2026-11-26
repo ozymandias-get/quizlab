@@ -41,6 +41,8 @@ interface MainWorkspaceProps {
   isPanelResizing?: boolean
   /** Which AI surface this workspace represents; only the active one positions native views. */
   isAiSurfaceActive: boolean
+  /** True while a focus shell is above this workspace (it may still be animating out). */
+  isBehindFocusShell?: boolean
   aiViewSurfaceState: AiViewSurfaceState
 }
 
@@ -66,6 +68,7 @@ function MainWorkspace({
   isInteractionBlocked,
   isPanelResizing,
   isAiSurfaceActive,
+  isBehindFocusShell = false,
   aiViewSurfaceState
 }: MainWorkspaceProps) {
   return (
@@ -93,6 +96,7 @@ function MainWorkspace({
           {...leftPanelProps}
           isInteractionBlocked={isInteractionBlocked}
           isPanelResizing={isPanelResizing}
+          isBehindFocusShell={isBehindFocusShell}
         />
       </motion.div>
 
@@ -123,6 +127,7 @@ function MainWorkspace({
             <AiViewSurface
               isResizing={isResizing}
               isSurfaceActive={isAiSurfaceActive}
+              isBehindFocusShell={isBehindFocusShell}
               surfaceState={aiViewSurfaceState}
             />
           ) : (

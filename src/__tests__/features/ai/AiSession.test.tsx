@@ -199,6 +199,28 @@ describe('AiSession', () => {
     expect(options.visible).toBe(false)
   })
 
+  it('releases the view while a focus shell is above it', () => {
+    // The workspace keeps its DOM for the exit animation. It may not position
+    // the view any more (`visible` false), but it must stay the owner long
+    // enough to publish that hide: the manager rejects the focus host until the
+    // stale claim is released, and a view painted above the shell is worse than
+    // a dark panel for those frames.
+    render(
+      <AiSession
+        tab={defaultTab}
+        isActive
+        {...defaultProps}
+        isSurfaceActive={false}
+        isOverlayActive
+        isBehindFocusShell
+      />
+    )
+
+    const options = lastOptions() as { isHostOwner: boolean; visible: boolean }
+    expect(options.isHostOwner).toBe(true)
+    expect(options.visible).toBe(false)
+  })
+
   it('shows loader when loading', () => {
     render(
       <AiSession tab={{ ...defaultTab, modelId: 'loading-model' }} isActive {...defaultProps} />

@@ -42,6 +42,11 @@ html[data-platform='darwin'] [data-window-edge='left'] {
 .custom-scrollbar {
   content-visibility: auto;
   contain-intrinsic-size: 400px;
+  /* The thumb is only 5px wide, but it still takes layout space the moment a
+     list crosses the overflow threshold. These containers toggle that threshold
+     constantly (search filtering, chips added/removed, accordions), and the old
+     behaviour shifted the whole column by the scrollbar width each time. */
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }

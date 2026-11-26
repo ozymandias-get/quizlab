@@ -47,6 +47,8 @@ interface LeftPanelProps {
   onPdfHome?: () => void
   isInteractionBlocked?: boolean
   isPanelResizing?: boolean
+  /** True while the panel is still animating out under an open focus shell. */
+  isBehindFocusShell?: boolean
 }
 
 const DropOverlay = ({ isVisible, t }: { isVisible: boolean; t: (key: string) => string }) => {
@@ -94,7 +96,8 @@ function LeftPanel({
   onAddEmptyPdfTab,
   onPdfHome,
   isInteractionBlocked,
-  isPanelResizing = false
+  isPanelResizing = false,
+  isBehindFocusShell = false
 }: LeftPanelProps) {
   const { t } = useTranslation()
   const { recentReadingInfo } = useReadingProgressPersistence()
@@ -153,6 +156,7 @@ function LeftPanel({
                       lastReadingInfo={recentReadingInfo}
                       isInteractionBlocked={isInteractionBlocked}
                       isPanelResizing={isPanelResizing}
+                      isBehindFocusShell={isBehindFocusShell}
                     />
                   </ErrorBoundary>
                 </div>

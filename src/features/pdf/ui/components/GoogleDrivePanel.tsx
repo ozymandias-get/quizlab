@@ -20,6 +20,8 @@ interface GoogleDrivePanelProps {
   description: string
   reloadLabel: string
   isInteractionBlocked: boolean
+  /** True while the panels are still animating out under an open focus shell. */
+  isBehindFocusShell?: boolean
 }
 
 /**
@@ -36,7 +38,8 @@ function GoogleDrivePanel({
   title,
   description,
   reloadLabel,
-  isInteractionBlocked
+  isInteractionBlocked,
+  isBehindFocusShell = false
 }: GoogleDrivePanelProps) {
   const { t } = useTranslation()
   const viewId = `gdrive:${tabId}`
@@ -62,7 +65,13 @@ function GoogleDrivePanel({
     // view paints above the DOM. `isInteractionBlocked` deliberately does not
     // drive this: it also covers "the dock is hovered", which used to blank the
     // whole panel every time the pointer crossed the divider.
-    visible: !isDialogOpen
+    //
+    // `isBehindFocusShell` is the same occlusion one surface up: the workspace
+    // keeps its DOM for the exit animation, and a Drive view painted above the
+    // focus overlay (or holding the claim the focus host needs) is worse than a
+    // dark panel for those frames. Ownership stays on so this host can publish
+    // the `visible: false` that releases the claim.
+    visible: !isDialogOpen && !isBehindFocusShell
   })
 
   return (

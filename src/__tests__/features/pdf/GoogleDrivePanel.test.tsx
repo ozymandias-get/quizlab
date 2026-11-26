@@ -52,4 +52,13 @@ describe('GoogleDrivePanel', () => {
     render(<GoogleDrivePanel {...baseProps} />)
     expect(lastOptions().visible).toBe(false)
   })
+
+  it('releases the page while the workspace is animating out under a focus shell', () => {
+    // The Drive page is a native view: it does not fade with the panel and is
+    // not clipped by the shell. Ownership stays on so this host can publish the
+    // hide that releases the claim the focus host needs.
+    render(<GoogleDrivePanel {...baseProps} isBehindFocusShell />)
+
+    expect(lastOptions()).toMatchObject({ isHostOwner: true, visible: false })
+  })
 })

@@ -45,6 +45,16 @@ interface AiSessionProps {
   isSurfaceActive: boolean
   /** True while a full-panel overlay (AI Home) is up. */
   isOverlayActive: boolean
+  /**
+   * True while a focus shell is above this host.
+   *
+   * The host may no longer position the view, but it must keep the *claim* long
+   * enough to release it. A `WebContentsView` is not clipped or faded by the
+   * DOM, so a surface that is animating out under the shell has to hand the
+   * token over instead of letting it expire with its unmount — the surface that
+   * took over is rejected while a stale token is held.
+   */
+  isBehindFocusShell?: boolean
   /** Last URL before cold unmount; must match current model (parent validates). */
   restoredUrl?: string
   /** One-shot "open this conversation" request coming from AI Home. */
@@ -68,6 +78,7 @@ const AiSession = memo(
     isActive,
     isSurfaceActive,
     isOverlayActive,
+    isBehindFocusShell = false,
     restoredUrl,
     urlRequest,
     onUrlRequestHandled,
@@ -143,7 +154,12 @@ const AiSession = memo(
       // last rectangle would stay painted over whatever is now on top. Keeping
       // ownership lets an inactive tab hide itself, which is what makes AI Home
       // and tab switching clear the view instead of stranding it.
-      isHostOwner: canHostRemoteView && isSurfaceActive,
+      //
+      // `isBehindFocusShell` follows the same rule for a workspace that is still
+      // animating out under the focus overlay: it may not position the view
+      // (`visible` is already false via `isOverlayActive`), but it has to be able
+      // to release the claim so the focus host can take over.
+      isHostOwner: canHostRemoteView && (isSurfaceActive || isBehindFocusShell),
       visible: canHostRemoteView && isActive && isSurfaceActive && !isOverlayActive,
       revealAfterFirstLoad: true,
       hideWhenError: true,

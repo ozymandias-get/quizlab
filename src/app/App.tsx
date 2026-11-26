@@ -149,6 +149,7 @@ function App() {
                 isInteractionBlocked={isInteractionBlocked}
                 isPanelResizing={isPanelResizing}
                 isAiSurfaceActive={!isAiFocusSurface}
+                isBehindFocusShell={isFocusActive}
                 aiViewSurfaceState={aiViewSurfaceState}
               />
             </div>
