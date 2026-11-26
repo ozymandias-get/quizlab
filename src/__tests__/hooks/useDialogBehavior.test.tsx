@@ -268,35 +268,122 @@ describe('useIsAnyDialogOpen', () => {
     expect(first).toHaveFocus()
   })
 
-  it('lets an open popup layer dismiss itself before closing the dialog', () => {
+  it('lets a focused Escape-owning popup dismiss itself before closing the dialog', () => {
     const close = vi.fn()
     function DialogWithPopup() {
       const ref = useRef<HTMLDivElement>(null)
-      const [popupOpen, setPopupOpen] = useState(true)
       useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
       return (
         <div ref={ref} role="dialog" aria-label="with-popup">
-          {popupOpen && (
-            <div role="listbox" aria-label="options">
-              <button role="option" aria-selected={false}>
-                option
-              </button>
-            </div>
-          )}
-          <button type="button" onClick={() => setPopupOpen(false)}>
-            dismiss-popup
-          </button>
+          <div role="listbox" aria-label="options" data-escape-owned="">
+            <button role="option" aria-selected={false}>
+              option
+            </button>
+          </div>
+          <button type="button">dialog-action</button>
         </div>
       )
     }
 
     render(<DialogWithPopup />)
-    fireEvent.keyDown(window, { key: 'Escape' })
+
+    const option = screen.getByRole('option', { name: 'option' })
+    option.focus()
+    fireEvent.keyDown(option, { key: 'Escape' })
     expect(close).not.toHaveBeenCalled()
 
-    // Once the listbox has consumed Escape and unmounted, the next one closes
-    // the dialog.
-    fireEvent.click(screen.getByRole('button', { name: 'dismiss-popup' }))
+    // The popup has handled (and closed) itself; focus is back in the dialog.
+    screen.getByRole('button', { name: 'dialog-action' }).focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let a plain listbox without Escape ownership hold the dialog', () => {
+    const close = vi.fn()
+    function DialogWithStaticList() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="with-static-list">
+          <div role="listbox" aria-label="static options">
+            <button role="option" aria-selected={false}>
+              static-option
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    render(<DialogWithStaticList />)
+    screen.getByRole('option', { name: 'static-option' }).focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let a hidden owned popup hold the dialog', () => {
+    const close = vi.fn()
+    function DialogWithHiddenPopup() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="with-hidden-popup">
+          <div role="listbox" aria-label="hidden options" data-escape-owned="" hidden>
+            <button role="option" aria-selected={false}>
+              hidden-option
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    render(<DialogWithHiddenPopup />)
+    const hiddenOption = screen.getByRole('option', { name: 'hidden-option', hidden: true })
+    hiddenOption.focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let a closed-state owned popup hold the dialog', () => {
+    const close = vi.fn()
+    function DialogWithClosedPopup() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="with-closed-popup">
+          <div role="listbox" aria-label="closed options" data-escape-owned="" data-state="closed">
+            <button role="option" aria-selected={false}>
+              closed-option
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    render(<DialogWithClosedPopup />)
+    screen.getByRole('option', { name: 'closed-option' }).focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let an owned popup outside the focus ring hold the dialog', () => {
+    const close = vi.fn()
+    function DialogWithIdlePopup() {
+      const ref = useRef<HTMLDivElement>(null)
+      useDialogBehavior({ isOpen: true, onClose: close, dialogRef: ref })
+      return (
+        <div ref={ref} role="dialog" aria-label="with-idle-popup">
+          <div role="listbox" aria-label="idle options" data-escape-owned="">
+            <button role="option" aria-selected={false}>
+              idle-option
+            </button>
+          </div>
+          <button type="button">dialog-action</button>
+        </div>
+      )
+    }
+
+    render(<DialogWithIdlePopup />)
+    screen.getByRole('button', { name: 'dialog-action' }).focus()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(close).toHaveBeenCalledTimes(1)
   })

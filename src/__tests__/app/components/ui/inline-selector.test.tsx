@@ -1,3 +1,4 @@
+import { Dialog } from '@app/components/ui/dialog'
 import { InlineSelector } from '@app/components/ui/inline-selector'
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -212,5 +213,37 @@ describe('InlineSelector keyboard', () => {
       expect(screen.queryByRole('option', { name: 'One' })).not.toBeInTheDocument()
     )
     expect(trigger).toHaveFocus()
+  })
+
+  it('closes only the selector first and leaves the surrounding dialog open', async () => {
+    const onDialogClose = vi.fn()
+    const onSelectorClose = vi.fn()
+    render(
+      <Dialog isOpen onClose={onDialogClose} size="sm">
+        <KeyboardHarness onClose={onSelectorClose} />
+      </Dialog>
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Trigger' })
+    trigger.focus()
+    fireEvent.click(trigger)
+
+    const first = await screen.findByRole('option', { name: 'One' })
+    // The dialog's initial-focus frame can land after this test renders; focus
+    // the option and press Escape in the same tick, as a user with the popup
+    // already open would.
+    first.focus()
+    expect(first).toHaveFocus()
+
+    fireEvent.keyDown(first, { key: 'Escape' })
+
+    await waitFor(() =>
+      expect(screen.queryByRole('option', { name: 'One' })).not.toBeInTheDocument()
+    )
+    expect(onSelectorClose).toHaveBeenCalledTimes(1)
+    expect(onDialogClose).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+    expect(onDialogClose).toHaveBeenCalledTimes(1)
   })
 })

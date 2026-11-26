@@ -22,6 +22,7 @@ const MenuSurface = React.forwardRef<HTMLDivElement, MenuSurfaceProps>(function 
       role={role ?? undefined}
       ref={ref}
       data-slot="menu-surface"
+      data-escape-owned=""
       className={cn(
         'z-dropdown rounded-xl border border-white/12 bg-zinc-950/95 p-1 text-zinc-100 shadow-2xl backdrop-blur-xl',
         className

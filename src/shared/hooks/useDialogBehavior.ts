@@ -11,13 +11,41 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [contenteditable="true"], [tabindex]:not([tabindex="-1"])'
 
 /**
- * Transient layers that own Escape while they are open. They are portaled to
- * `document.body`, so a keydown event still reaches the dialog's capture
- * listener first; closing the dialog before the layer sees the key would
- * unmount the popup instead of dismissing it (and skip its focus restore).
- * Same rule the focus workspace already applies to its own Escape handling.
+ * Marks a transient layer that consumes Escape itself (Radix select content,
+ * the shared menu surface, inline selectors). It is deliberately opt-in: a
+ * plain `role="menu"`/`role="listbox"` without this marker, or one hidden
+ * behind another layer, must not swallow the dialog's Escape.
+ *
+ * Popup layers are portaled to `document.body`, so a keydown event still
+ * reaches the dialog's window-capture listener first. Without this contract
+ * the dialog would close before the popup ever saw the key.
  */
-const POPUP_LAYER_SELECTOR = '[data-slot="menu-surface"], [role="menu"], [role="listbox"]'
+const ESCAPE_OWNED_SELECTOR = '[data-escape-owned]'
+
+/**
+ * True when the focused element belongs to a visible, non-inert popup layer
+ * that has opted into owning Escape. Focus containment is what makes this the
+ * *active* layer: a hidden popup cannot hold focus, and a popup behind the
+ * topmost dialog does not either.
+ */
+function focusedEscapeLayerOwnsKey(): boolean {
+  const active = document.activeElement
+  if (!(active instanceof Element)) return false
+
+  const layer = active.closest<HTMLElement>(ESCAPE_OWNED_SELECTOR)
+  if (!layer) return false
+  if (layer.getAttribute('data-state') === 'closed') return false
+  if (layer.closest('[inert], [hidden], [aria-hidden="true"]')) return false
+  if (layer.hidden) return false
+
+  const style = window.getComputedStyle(layer)
+  if (style.display === 'none' || style.visibility === 'hidden') return false
+
+  // jsdom has no layout, so the zero-rect check only applies when the document
+  // actually lays out (same rule as the focusable-element filter below).
+  const documentHasLayout = document.documentElement.getClientRects().length > 0
+  return !documentHasLayout || layer.getClientRects().length > 0
+}
 
 /**
  * Focusable elements that the user can actually reach right now.
@@ -107,9 +135,10 @@ export function useDialogBehavior({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (openDialogs.at(-1) !== token || e.defaultPrevented) return
       if (e.key === 'Escape') {
-        // Let an open menu/listbox dismiss itself first; the next Escape
-        // reaches this dialog.
-        if (document.querySelector(POPUP_LAYER_SELECTOR)) return
+        // Let the focused popup dismiss itself first; the next Escape reaches
+        // this dialog. Plain/static/inactive layers are not marked, so they
+        // cannot hold the dialog's Escape hostage.
+        if (focusedEscapeLayerOwnsKey()) return
         e.preventDefault()
         e.stopPropagation()
         onCloseRef.current()

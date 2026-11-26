@@ -50,8 +50,16 @@ function HistorySearchField({
 
     const measure = () => {
       const fieldRect = field.getBoundingClientRect()
+      // Before layout (or in jsdom) there is nothing to measure yet.
+      if (fieldRect.width === 0) return
+
       const railRect = rail.getBoundingClientRect()
-      if (fieldRect.width === 0 || railRect.width === 0) return
+      // An empty rail (search cleared) must give the field its normal padding
+      // back instead of keeping the last measured reserve.
+      if (railRect.width === 0) {
+        setRailReserve(0)
+        return
+      }
       setRailReserve(Math.ceil(fieldRect.right - railRect.left) + RAIL_GAP_PX)
     }
 
@@ -74,7 +82,7 @@ function HistorySearchField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={t('api_chat_modal_search_placeholder')}
-          className="text-ql-13 h-10 rounded-xl pr-28 pl-9"
+          className="text-ql-13 h-10 rounded-xl pl-9"
           style={railReserve > 0 ? { paddingRight: railReserve } : undefined}
           data-testid="history-search-input"
         />
@@ -90,9 +98,10 @@ function HistorySearchField({
             <span
               data-testid="history-search-count"
               aria-live="polite"
+              aria-label={isSearchPending ? t('api_chat_searching') : undefined}
               className="text-ql-10 max-w-[9rem] shrink-0 truncate rounded-full bg-white/[0.06] px-1.5 py-0.5 font-medium whitespace-nowrap text-zinc-300 tabular-nums"
             >
-              {isSearchPending ? '' : t('api_chat_search_results', { count: resultCount })}
+              {isSearchPending ? '…' : t('api_chat_search_results', { count: resultCount })}
             </span>
           )}
           {value && (
