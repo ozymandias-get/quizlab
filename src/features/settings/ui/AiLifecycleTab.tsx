@@ -77,7 +77,7 @@ const AiLifecycleTab = memo(() => {
 
   const sleepLabel = useMemo(() => {
     const matched = SLEEP_TIMEOUT_OPTIONS.find((o) => o.value === sleepTimeoutMs)
-    return matched ? t(matched.labelKey) : t('sleep_1m')
+    return matched ? t(matched.labelKey) : t('sleep_10m')
   }, [sleepTimeoutMs, t])
 
   return (

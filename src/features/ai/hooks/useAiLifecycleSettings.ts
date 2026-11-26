@@ -3,8 +3,17 @@ import { useLocalStorage } from '@shared/hooks'
 
 import { useCallback, useMemo, useRef } from 'react'
 
-const DEFAULT_MAX_ALIVE_TABS = 1
-const DEFAULT_SLEEP_TIMEOUT_MS = 60 * 1000
+/**
+ * Defaults are a compatibility contract with existing users: a user who never
+ * changed the sliders keeps whatever value this file resolves, and one who did
+ * keeps their stored value below.
+ *
+ * Three warm views cover the usual "compare ChatGPT, Gemini and Claude" loop
+ * without rebuilding each one on every switch. Ten minutes lets a provider
+ * finish a response (and lets the user read it) before its view is retired.
+ */
+export const DEFAULT_MAX_ALIVE_TABS = 3
+export const DEFAULT_SLEEP_TIMEOUT_MS = 10 * 60 * 1000
 
 export const SLEEP_TIMEOUT_OPTIONS = [
   { labelKey: 'sleep_30s', value: 30 * 1000 },
@@ -19,6 +28,36 @@ export const SLEEP_TIMEOUT_OPTIONS = [
 export const MAX_ALIVE_TABS_MIN = 1
 export const MAX_ALIVE_TABS_MAX = 10
 
+/**
+ * Every value the settings tab can write. `-1` is the persisted form of
+ * `Infinity` (JSON has no representation for it).
+ *
+ * A value stored by an older build, hand-edited storage or a corrupted settings
+ * file is not allowed to reach the sleep timer or the slider: an arbitrary
+ * number would make the timer fire at a moment the UI never offered and would
+ * leave the selected pill without a match.
+ */
+const VALID_SLEEP_TIMEOUTS = new Set<number>([
+  ...SLEEP_TIMEOUT_OPTIONS.map((option) => option.value),
+  -1
+])
+
+function isValidMaxAliveTabs(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MAX_ALIVE_TABS_MIN &&
+    value <= MAX_ALIVE_TABS_MAX
+  )
+}
+
+/** Persisted values use `-1` for "never sleep"; every other value is a duration. */
+function toSleepTimeoutMs(raw: unknown): number {
+  if (raw === -1) return Infinity
+  if (typeof raw === 'number' && VALID_SLEEP_TIMEOUTS.has(raw)) return raw
+  return DEFAULT_SLEEP_TIMEOUT_MS
+}
+
 interface AiLifecycleSettingsReturn {
   maxAliveTabs: number
   sleepTimeoutMs: number
@@ -31,7 +70,7 @@ interface AiLifecycleSettingsReturn {
 }
 
 export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
-  const [maxAliveTabs, setMaxAliveTabs] = useLocalStorage<number>(
+  const [storedMaxAliveTabs, setStoredMaxAliveTabs] = useLocalStorage<number>(
     STORAGE_KEYS.AI_MAX_ALIVE_TABS,
     DEFAULT_MAX_ALIVE_TABS
   )
@@ -41,10 +80,32 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
     DEFAULT_SLEEP_TIMEOUT_MS
   )
 
+  const setMaxAliveTabs = useCallback(
+    (value: number) => {
+      // Refuse to persist a value the reader would immediately replace with the
+      // default: that would leave the settings screen showing one number and the
+      // LRU applying another.
+      if (!isValidMaxAliveTabs(value)) return
+      setStoredMaxAliveTabs(value)
+    },
+    [setStoredMaxAliveTabs]
+  )
+
   const setSleepTimeoutMs = useCallback(
     (value: number | ((prev: number) => number)) => {
       const resolved = typeof value === 'function' ? value(rawSleepTimeoutMs) : value
-      setRawSleepTimeoutMs(Number.isFinite(resolved) ? resolved : -1)
+      // `Infinity` is the UI's "never sleep"; it is stored as -1. A `NaN` or any
+      // other non-finite number is a caller bug, not a request to disable sleep,
+      // so it falls back to the safe default instead of becoming -1.
+      if (resolved === Infinity) {
+        setRawSleepTimeoutMs(-1)
+        return
+      }
+      setRawSleepTimeoutMs(
+        typeof resolved === 'number' && VALID_SLEEP_TIMEOUTS.has(resolved)
+          ? resolved
+          : DEFAULT_SLEEP_TIMEOUT_MS
+      )
     },
     [rawSleepTimeoutMs, setRawSleepTimeoutMs]
   )
@@ -77,24 +138,16 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
   )
 
   const safeMaxAliveTabs = useMemo(
-    () =>
-      maxAliveTabs >= MAX_ALIVE_TABS_MIN && maxAliveTabs <= MAX_ALIVE_TABS_MAX
-        ? maxAliveTabs
-        : DEFAULT_MAX_ALIVE_TABS,
-    [maxAliveTabs]
+    () => (isValidMaxAliveTabs(storedMaxAliveTabs) ? storedMaxAliveTabs : DEFAULT_MAX_ALIVE_TABS),
+    [storedMaxAliveTabs]
   )
 
-  const sleepTimeoutMs = rawSleepTimeoutMs === -1 ? Infinity : rawSleepTimeoutMs
-
-  const safeSleepTimeoutMs = useMemo(
-    () => (sleepTimeoutMs > 0 ? sleepTimeoutMs : DEFAULT_SLEEP_TIMEOUT_MS),
-    [sleepTimeoutMs]
-  )
+  const sleepTimeoutMs = useMemo(() => toSleepTimeoutMs(rawSleepTimeoutMs), [rawSleepTimeoutMs])
 
   return useMemo(
     () => ({
       maxAliveTabs: safeMaxAliveTabs,
-      sleepTimeoutMs: safeSleepTimeoutMs,
+      sleepTimeoutMs,
       neverSleepSiteIds,
       setMaxAliveTabs,
       setSleepTimeoutMs,
@@ -104,7 +157,7 @@ export function useAiLifecycleSettings(): AiLifecycleSettingsReturn {
     }),
     [
       safeMaxAliveTabs,
-      safeSleepTimeoutMs,
+      sleepTimeoutMs,
       neverSleepSiteIds,
       setMaxAliveTabs,
       setSleepTimeoutMs,

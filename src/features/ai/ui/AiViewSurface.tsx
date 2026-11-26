@@ -1,4 +1,5 @@
 import type { AiViewSurfaceState } from '@features/ai/hooks/useAiViewSurfaceState'
+import { isViewlessAiTabModel } from '@features/ai/hooks/useAiViewSurfaceState'
 
 import { useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { useIsAnyDialogOpen } from '@shared/hooks'
@@ -147,11 +148,18 @@ function AiViewSurface({
   const overlayBlocksViews = isOverlayActive || isRevealInProgress || switchingTabId !== null
 
   const aliveSet = useMemo(() => new Set(aliveTabIds), [aliveTabIds])
+  // API Chat has no managed view, so `aliveTabIds` deliberately leaves it out of
+  // the warm-view budget. Its React session still has to be mounted while the
+  // tab exists, or selecting the tab would show nothing but the strip.
+  const viewlessSet = useMemo(
+    () => new Set(tabs.filter((tab) => isViewlessAiTabModel(tab.modelId)).map((tab) => tab.id)),
+    [tabs]
+  )
 
   const renderedSessions = useMemo(
     () =>
       tabs.map((tab) => {
-        if (!aliveSet.has(tab.id)) return null
+        if (!aliveSet.has(tab.id) && !viewlessSet.has(tab.id)) return null
 
         const isActive = tab.id === activeTabId && !showHome
 
@@ -173,6 +181,7 @@ function AiViewSurface({
     [
       tabs,
       aliveSet,
+      viewlessSet,
       activeTabId,
       showHome,
       isSurfaceActive,

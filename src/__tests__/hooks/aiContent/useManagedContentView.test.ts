@@ -451,11 +451,11 @@ describe('useManagedContentView - a replacement WebContents', () => {
       for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
     })
 
-    // A replacement is a new WebContents with a new generation, and the
-    // conversation is replayed into it.
+    // A replacement is a new WebContents with a new generation, and the URL the
+    // guest currently reports is replayed into it.
     expect(aiViewClient.attach).toHaveBeenCalledTimes(2)
     expect(aiViewClient.attach).toHaveBeenLastCalledWith(
-      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://x.test/c/keep' })
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://x/' })
     )
     expect(host.result.current.hasLoadedOnce).toBe(false)
     expect(host.result.current.isLoading).toBe(true)
@@ -469,6 +469,41 @@ describe('useManagedContentView - a replacement WebContents', () => {
     await settle(host.sink, 6)
     expect(host.result.current.hasLoadedOnce).toBe(true)
     expect(lastSync()?.visible).toBe(true)
+  })
+
+  it('resumes the conversation the user is on after a crash, not the entry URL', async () => {
+    vi.useFakeTimers()
+    generations(5, 6)
+    const host = await mountWithEvents({ restoredUrl: 'https://x.test/c/entry' })
+
+    await settle(host.sink, 5)
+    await act(async () => {
+      host.sink.emit?.({
+        viewId: 'tab-1',
+        generation: 5,
+        kind: 'did-navigate',
+        url: 'https://x.test/c/current',
+        isMainFrame: true
+      })
+    })
+
+    await act(async () => {
+      host.sink.emit?.({
+        viewId: 'tab-1',
+        generation: 5,
+        kind: 'render-process-gone',
+        reason: 'crashed',
+        exitCode: 9
+      })
+      vi.advanceTimersByTime(1000)
+    })
+    await act(async () => {
+      for (let turn = 0; turn < 8; turn += 1) await Promise.resolve()
+    })
+
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://x.test/c/current' })
+    )
   })
 
   it('starts the replacement view behind the splash after a sleep / wake', async () => {

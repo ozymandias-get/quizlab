@@ -204,4 +204,37 @@ describe('managed view LRU bound', () => {
       expect(manager.size()).toBe(0)
     }
   })
+
+  it('keeps ChatGPT, Gemini and Claude warm across the three-tab loop', async () => {
+    // The user-facing default: with three warm tabs, the second visit to each
+    // site must not create, destroy or re-attach a native view from scratch.
+    lifecycle.maxAliveTabs = 3
+    const tabIds = ['chatgpt', 'gemini', 'claude']
+    const { rerender } = renderHook(
+      (props: { tabIds: string[]; activeTabId: string | null }) => useTabLifecycle(props),
+      { initialProps: { tabIds, activeTabId: 'chatgpt' as string | null } }
+    )
+
+    for (const id of ['gemini', 'claude']) {
+      await act(async () => {
+        rerender({ tabIds, activeTabId: id })
+      })
+    }
+    expect(manager.liveCount()).toBe(3)
+    const generations = new Map(
+      [...manager.views].map(([id, view]) => [id, view.generation] as const)
+    )
+
+    for (const id of ['chatgpt', 'gemini', 'claude']) {
+      await act(async () => {
+        rerender({ tabIds, activeTabId: id })
+      })
+    }
+
+    expect([...manager.views.keys()].sort()).toEqual([...tabIds].sort())
+    for (const [id, generation] of generations) {
+      expect(manager.views.get(id)?.generation).toBe(generation)
+    }
+    expect(aiViewClient.destroy).not.toHaveBeenCalled()
+  })
 })

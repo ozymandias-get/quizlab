@@ -111,7 +111,13 @@ function createFakeWebContents(): FakeWebContents {
 vi.mock('electron', () => ({
   WebContentsView: FakeWebContentsView,
   shell: { openExternal: vi.fn(async () => undefined) },
-  session: { fromPartition }
+  session: { fromPartition },
+  // The per-view clipboard menu builds a native menu on right-click; these
+  // stand in for the main-process APIs it touches.
+  Menu: { buildFromTemplate: vi.fn(() => ({ popup: vi.fn() })) },
+  clipboard: { writeText: vi.fn() },
+  BrowserWindow: { fromWebContents: () => null },
+  app: { getLocale: () => 'en' }
 }))
 
 vi.mock('../../../app/windowManager.js', () => ({
@@ -294,5 +300,112 @@ describe('AiWebContentsViewManager - attach / destroy ordering', () => {
 
     expect(manager.listManagedAiViewIds()).toEqual([])
     expect(manager.getManagedAiView('tab-F')).toBeNull()
+  })
+})
+
+/**
+ * Duplicate navigation and dead-entry handling.
+ *
+ * A focus-mode handoff keeps two hosts mounted for the exit animation. Both can
+ * process the same one-shot "open this conversation" request, and both used to
+ * issue `loadURL` for the same document to the same view: the second load
+ * aborts the first request and any upload the site had started. The guard is
+ * per view and per in-flight URL, so it cannot block a deliberate visit later.
+ */
+describe('AiWebContentsViewManager - in-flight navigation and dead entries', () => {
+  const NAV_URL = 'https://local.test/c/1'
+
+  async function freshView(viewId: string) {
+    await manager.destroyAllAiViews()
+    WebContentsViewMock.mockClear()
+    addChildView.mockClear()
+    removeChildView.mockClear()
+    await manager.attachAiView({ viewId, source: CUSTOM })
+    return manager.getManagedAiView(viewId)!
+  }
+
+  it('drops an identical navigation only while the first one is still in flight', async () => {
+    const entry = await freshView('nav-1')
+    let resolveLoad: () => void = () => {}
+    const load = new Promise<void>((resolve) => {
+      resolveLoad = resolve
+    })
+    vi.mocked(entry.webContents.loadURL).mockClear()
+    vi.mocked(entry.webContents.loadURL).mockReturnValue(load as never)
+
+    expect(manager.loadAiViewUrl('nav-1', NAV_URL)).toBe(true)
+    expect(manager.loadAiViewUrl('nav-1', NAV_URL)).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(1)
+
+    resolveLoad()
+    await load
+    await Promise.resolve()
+
+    // The first document settled, so this is a new intent, not a duplicate.
+    vi.mocked(entry.webContents.loadURL).mockResolvedValue(undefined)
+    expect(manager.loadAiViewUrl('nav-1', NAV_URL)).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not suppress a different URL that arrives while one is loading', async () => {
+    const entry = await freshView('nav-2')
+    const load = new Promise<void>(() => {})
+    vi.mocked(entry.webContents.loadURL).mockClear()
+    vi.mocked(entry.webContents.loadURL).mockReturnValue(load as never)
+
+    expect(manager.loadAiViewUrl('nav-2', NAV_URL)).toBe(true)
+    expect(manager.loadAiViewUrl('nav-2', 'https://local.test/c/2')).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets a retry through after the first identical load failed', async () => {
+    const entry = await freshView('nav-3')
+    vi.mocked(entry.webContents.loadURL).mockClear()
+    vi.mocked(entry.webContents.loadURL).mockRejectedValueOnce(new Error('ERR_FAILED'))
+
+    expect(manager.loadAiViewUrl('nav-3', NAV_URL)).toBe(true)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    vi.mocked(entry.webContents.loadURL).mockResolvedValue(undefined)
+    expect(manager.loadAiViewUrl('nav-3', NAV_URL)).toBe(true)
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets an explicit reload supersede the in-flight marker', async () => {
+    const entry = await freshView('nav-4')
+    const load = new Promise<void>(() => {})
+    vi.mocked(entry.webContents.loadURL).mockClear()
+    vi.mocked(entry.webContents.loadURL).mockReturnValue(load as never)
+
+    expect(manager.loadAiViewUrl('nav-4', NAV_URL)).toBe(true)
+    manager.reloadAiView('nav-4')
+    vi.mocked(entry.webContents.loadURL).mockResolvedValue(undefined)
+    expect(manager.loadAiViewUrl('nav-4', NAV_URL)).toBe(true)
+    expect(entry.webContents.reload).toHaveBeenCalledTimes(1)
+    expect(entry.webContents.loadURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('retires a destroyed entry instead of leaving its native child on the window', async () => {
+    const entry = await freshView('nav-5')
+    ;(entry.webContents as unknown as { isDestroyed: () => boolean }).isDestroyed = () => true
+
+    entry.webContents.emit('destroyed')
+    for (let turn = 0; turn < 4; turn += 1) await Promise.resolve()
+
+    expect(manager.listManagedAiViewIds()).not.toContain('nav-5')
+    expect(removeChildView).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces a dead entry on attach instead of shadowing its native child', async () => {
+    const first = await freshView('nav-6')
+    ;(first.webContents as unknown as { isDestroyed: () => boolean }).isDestroyed = () => true
+
+    const second = await manager.attachAiView({ viewId: 'nav-6', source: CUSTOM })
+
+    expect(second.generation).not.toBe(first.generation)
+    expect(manager.listManagedAiViewIds()).toEqual(['nav-6'])
+    expect(WebContentsViewMock).toHaveBeenCalledTimes(2)
+    expect(removeChildView).toHaveBeenCalledTimes(1)
   })
 })

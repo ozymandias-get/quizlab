@@ -7,6 +7,7 @@ import type { AiContentController } from '@shared-core/types/aiContent'
 import type { AiViewEvent } from '@shared-core/types/aiView'
 
 import { act, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -292,6 +293,87 @@ describe('AiSession sleep / wake', () => {
     expect(secondGeneration).not.toBe(firstGeneration)
     expect(aiViewClient.attach).toHaveBeenLastCalledWith(
       expect.objectContaining({ viewId: 'tab-1' })
+    )
+  })
+
+  it('restores the latest navigation after a request-led wake, not the request URL', async () => {
+    const request = {
+      modelId: 'chatgpt',
+      url: 'https://chatgpt.com/c/requested',
+      nonce: 1
+    }
+    const onHandled = vi.fn()
+    aiViewClient.getUrl.mockResolvedValue(request.url)
+
+    /**
+     * Stands in for `AiViewSurface`: it caches every navigation the session
+     * reports and hands the latest one back as `restoredUrl`, exactly as the real
+     * surface state does.
+     */
+    function Harness({ isActive }: { isActive: boolean }) {
+      const [latestUrl, setLatestUrl] = useState<string | undefined>(undefined)
+      return (
+        <AiSession
+          tab={tab}
+          isActive={isActive}
+          isSurfaceActive
+          isOverlayActive={false}
+          restoredUrl={latestUrl}
+          urlRequest={request}
+          onUrlRequestHandled={onHandled}
+          onTabUrlRecorded={(_tabId, _modelId, url) => setLatestUrl(url)}
+        />
+      )
+    }
+
+    const view = render(<Harness isActive />)
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: request.url })
+    )
+
+    // The requested conversation loads, then the user moves on inside the site.
+    act(() => {
+      settle('tab-1', request.url)
+    })
+    await waitFor(() => {
+      expect(aiViewClient.getUrl).toHaveBeenCalled()
+    })
+    act(() => {
+      const generation = manager.views.get('tab-1')?.generation ?? 0
+      for (const subscriber of subscribers) {
+        subscriber({
+          viewId: 'tab-1',
+          generation,
+          kind: 'did-navigate',
+          url: 'https://chatgpt.com/c/latest',
+          isMainFrame: true
+        })
+      }
+    })
+
+    // Sleep retires the view; the wake has to replay the conversation the user
+    // is actually on, not the AI Home request that opened the tab originally.
+    view.rerender(<Harness isActive={false} />)
+    await waitFor(() => {
+      expect(screen.getByTestId('wake-up')).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(0)
+    })
+
+    act(() => {
+      screen.getByTestId('wake-up').click()
+    })
+    view.rerender(<Harness isActive />)
+
+    await waitFor(() => {
+      expect(manager.liveCount()).toBe(1)
+    })
+    expect(aiViewClient.attach).toHaveBeenLastCalledWith(
+      expect.objectContaining({ viewId: 'tab-1', restoredUrl: 'https://chatgpt.com/c/latest' })
     )
   })
 

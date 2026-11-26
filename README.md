@@ -317,10 +317,12 @@ placeholder releases its ownership token and hides/mutes the native view, but
 does not destroy it — focus mode reuses the same generation, URL and page state
 with no reload. Tab close, LRU eviction and sleep retire the managed view; wake
 attaches a fresh view with a new generation and keeps it hidden until its first
-load settles. The default `maxAliveTabs` is 1, so switching tabs normally
-retires the previous view too; raise it to keep more alive. Host bounds are
-coalesced into one animation frame, and native views are hidden while a dialog,
-overlay, tab switch or focus reveal covers them.
+load settles. The default `maxAliveTabs` is 3 and the default sleep timeout is
+10 minutes, so a ChatGPT → Gemini → Claude loop keeps all three views warm and
+reuses their conversations; raise or lower the limit in Settings for more speed
+or less RAM. API Chat has no native view and does not consume one of those warm
+slots. Host bounds are coalesced into one animation frame, and native views are
+hidden while a dialog, overlay, tab switch or focus reveal covers them.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layer boundaries, the
 import rules enforced by dependency-cruiser, and the selector self-healing flow.

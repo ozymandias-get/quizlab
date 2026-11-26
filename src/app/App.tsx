@@ -20,7 +20,7 @@ const LanguageSelectionDialog = lazy(() =>
     default: m.LanguageSelectionDialog
   }))
 )
-import { useAiViewSurfaceState } from '@features/ai/viewState'
+import { isViewlessAiTabModel, useAiViewSurfaceState } from '@features/ai/viewState'
 import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 
 import { useAppShellState } from '@app/hooks/useAppShellState'
@@ -84,10 +84,17 @@ function App() {
   const { tabs: aiTabs, activeTabId: activeAiTabId } = useAiTabsSliceState()
   const aiViewRequestNonce = useAiViewRequestNonce()
   const aiTabIds = useMemo(() => aiTabs.map((tab) => tab.id), [aiTabs])
+  // API Chat renders in the same panel without a native view. Keeping it out of
+  // the warm-view budget is what stops a chat tab from evicting a live site.
+  const aiViewlessTabIds = useMemo(
+    () => aiTabs.filter((tab) => isViewlessAiTabModel(tab.modelId)).map((tab) => tab.id),
+    [aiTabs]
+  )
   const aiViewSurfaceState = useAiViewSurfaceState({
     tabIds: aiTabIds,
     activeTabId: activeAiTabId,
-    aiViewRequestNonce
+    aiViewRequestNonce,
+    viewlessTabIds: aiViewlessTabIds
   })
   // Lifecycle ownership, deliberately above the two AI surfaces. A tab that
   // leaves the `maxAliveTabs` alive set (LRU eviction, or a close) no longer has

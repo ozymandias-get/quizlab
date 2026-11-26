@@ -119,8 +119,13 @@ export function useManagedContentView({
   })
 
   const handleCrashRecovery = useCallback(() => {
-    void controller.recreate(restoredUrl)
-  }, [controller, restoredUrl])
+    // A replacement must resume where the user actually is, not at the entry URL
+    // this host captured when it mounted. The controller mirrors every main-frame
+    // navigation, and `recreate()` without an argument replays that URL; passing
+    // `restoredUrl` here sent a crash back to the provider's home page and lost
+    // the conversation the retry was meant to save.
+    void controller.recreate()
+  }, [controller])
 
   const { isLoading, error, hasLoadedOnce, handleRetry } = useAiContentLifecycle({
     currentAI: modelId,

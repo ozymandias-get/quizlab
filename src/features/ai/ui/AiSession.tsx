@@ -104,10 +104,21 @@ const AiSession = memo(
         ? { url: urlRequest.url, seq: urlRequest.nonce }
         : null
     )
+    /**
+     * Last one-shot request nonce this host saw.
+     *
+     * Kept apart from `entryOverride` because that state is cleared once the
+     * navigation lands: the entry-generation key must not change then, or the
+     * attach effect would run again and release the host for no reason.
+     */
+    const requestSeqRef = useRef(
+      urlRequest && urlRequest.modelId === tab.modelId ? urlRequest.nonce : 0
+    )
     const pendingNavigationRef = useRef<{ url: string; nonce: number } | null>(null)
 
     useEffect(() => {
       if (!urlRequest || urlRequest.modelId !== tab.modelId) return
+      requestSeqRef.current = urlRequest.nonce
       pendingNavigationRef.current = { url: urlRequest.url, nonce: urlRequest.nonce }
       setEntryOverride((current) =>
         current?.seq === urlRequest.nonce ? current : { url: urlRequest.url, seq: urlRequest.nonce }
@@ -120,9 +131,16 @@ const AiSession = memo(
       isSleeping,
       entryOverride?.url ?? restoredUrl,
       siteConfig?.url,
-      entryOverride?.seq
+      requestSeqRef.current
     )
-    const { handlePageSettled } = useAiSessionStaleCheck(siteConfig?.url, isActive)
+    // A page-settled stale probe is a guest operation with a 500 ms delay. Only
+    // the surface the user is looking at may run it; during a focus-mode handoff
+    // both hosts stay mounted for the exit animation, and running it twice used
+    // to send the same navigation request to the same view twice.
+    const { handlePageSettled } = useAiSessionStaleCheck(
+      siteConfig?.url,
+      isActive && isSurfaceActive
+    )
 
     const canHostRemoteView = Boolean(siteConfig) && !isApiChat && !isSleeping
 
@@ -177,7 +195,7 @@ const AiSession = memo(
     // while the view was still being created.
     useEffect(() => {
       const pending = pendingNavigationRef.current
-      if (!pending || isSleeping || !canHostRemoteView || !hasLoadedOnce) return
+      if (!pending || !isSurfaceActive || isSleeping || !canHostRemoteView || !hasLoadedOnce) return
 
       let cancelled = false
       const isCurrentRequest = () =>
@@ -212,12 +230,19 @@ const AiSession = memo(
 
         // Only the request that is still current may clear the slot. A newer
         // request that arrived during the await must keep its target.
-        if (isCurrentRequest()) pendingNavigationRef.current = null
+        if (isCurrentRequest()) {
+          pendingNavigationRef.current = null
+          // The override is a one-shot bootstrap, not a permanent "this tab is
+          // about this URL" claim. Keeping it made a later sleep/wake replay the
+          // conversation that was opened from AI Home instead of the one the
+          // user actually navigated to afterwards.
+          setEntryOverride(null)
+        }
       })()
       return () => {
         cancelled = true
       }
-    }, [canHostRemoteView, entryOverride?.seq, hasLoadedOnce, isSleeping, tab.id])
+    }, [canHostRemoteView, entryOverride?.seq, hasLoadedOnce, isSleeping, isSurfaceActive, tab.id])
 
     const visibilityStyle = useMemo<CSSProperties>(
       () => ({

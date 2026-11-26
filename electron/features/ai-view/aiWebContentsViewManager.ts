@@ -78,6 +78,20 @@ interface ManagedAiView {
   radiusFailureLogged: number | null
   /** Token of the host placeholder currently allowed to move this view. */
   hostToken: string | null
+  /**
+   * URL of a renderer-requested navigation whose load has not settled yet.
+   *
+   * Two hosts can process the same one-shot "open this conversation" request
+   * during a focus-mode handoff, and a retry can race the original attempt. The
+   * duplicate is dropped only while this exact URL is still in flight, so an
+   * explicit reload, a failed load or a later visit to the same URL all keep
+   * working. This is per view and time-bounded; it is deliberately not a global
+   * "current URL equals request URL" shortcut.
+   */
+  pendingNavigationUrl: string | null
+  pendingNavigationStartedAt: number
+  /** Stamp that invalidates the completion of an older navigation attempt. */
+  pendingNavigationEpoch: number
   disposeBridge: () => void
   /**
    * Removes the provider shortcut guard from this view's `WebContents`.
@@ -90,6 +104,17 @@ interface ManagedAiView {
 
 const views = new Map<string, ManagedAiView>()
 let generationCounter = 0
+
+/**
+ * How long an identical navigation may stay "in flight" before a repeat is
+ * allowed again.
+ *
+ * `loadURL` resolves on `did-finish-load`; a page that never settles would
+ * otherwise suppress a legitimate retry for the rest of the session. Ten
+ * seconds covers the overlap this guard exists for without hiding a real hung
+ * load from the user.
+ */
+const PENDING_NAVIGATION_MAX_AGE_MS = 10_000
 
 /**
  * Per-view tail of the lifecycle queue.
@@ -224,6 +249,18 @@ function commitLoadState(entry: ManagedAiView, change: AiViewLoadStateChange): v
 }
 
 /**
+ * Clears the in-flight navigation marker for exactly one attempt.
+ *
+ * The epoch check is what keeps a superseded `loadURL` promise from clearing a
+ * newer request's marker when it eventually settles.
+ */
+function settlePendingNavigation(entry: ManagedAiView, epoch: number): void {
+  if (entry.pendingNavigationEpoch !== epoch) return
+  entry.pendingNavigationUrl = null
+  entry.pendingNavigationStartedAt = 0
+}
+
+/**
  * Chrome's desktop user agent keeps provider sites on their desktop layout,
  * which is what the `<webview useragent>` attribute used to do. The manager
  * applies it per view so the renderer cannot override it.
@@ -252,7 +289,8 @@ function attachResolved(
   target: AiViewTarget
 ): AiViewAttachResponse {
   const sourceKey = sourceKeyOf(request.source)
-  const existing = getManagedAiView(viewId)
+  const current = views.get(viewId)
+  const existing = isAlive(current) ? current : null
   if (existing && existing.sourceKey === sourceKey && existing.partition === target.partition) {
     const window = getMainWindow()
     if (window && !window.isDestroyed()) {
@@ -264,7 +302,10 @@ function attachResolved(
     releaseHostClaims(existing)
     return { ...snapshotOf(existing) }
   }
-  if (existing) destroyEntry(viewId)
+  // A destroyed-but-not-yet-removed entry still owns a child view. Replacing the
+  // map slot without retiring it would leave that native child on the window and
+  // the old bridge attached for the rest of the session.
+  if (current) destroyEntry(viewId)
 
   const window = getMainWindow()
   if (!window || window.isDestroyed()) throw new Error('main_window_unavailable')
@@ -325,6 +366,9 @@ function attachResolved(
     appliedBorderRadius: null,
     radiusFailureLogged: null,
     hostToken: null,
+    pendingNavigationUrl: null,
+    pendingNavigationStartedAt: 0,
+    pendingNavigationEpoch: 0,
     disposeBridge: () => {},
     disposeKeyboardGuard: () => {}
   }
@@ -370,13 +414,28 @@ function attachResolved(
 
   webContents.once('destroyed', () => {
     entry.disposeKeyboardGuard()
-    const current = views.get(viewId)
-    if (current && current.generation === generation) views.delete(viewId)
+    if (views.get(viewId)?.generation !== generation) return
+    // An unexpected `destroyed` (a guest that closed itself, a renderer teardown
+    // Electron initiated) leaves the native child of the window behind unless it
+    // is retired here. Queue it behind any lifecycle operation already running so
+    // this cleanup cannot race a re-attach for the same id.
+    void enqueueLifecycle(viewId, () => {
+      if (views.get(viewId)?.generation !== generation) return false
+      return destroyEntry(viewId)
+    })
   })
 
-  void webContents.loadURL(entry.currentUrl).catch((error: unknown) => {
-    Logger.warn('[AiView] Initial load failed:', { viewId, error })
-  })
+  const entryUrl = entry.currentUrl
+  entry.pendingNavigationUrl = entryUrl
+  entry.pendingNavigationStartedAt = Date.now()
+  const initialNavigationEpoch = ++entry.pendingNavigationEpoch
+  void webContents.loadURL(entryUrl).then(
+    () => settlePendingNavigation(entry, initialNavigationEpoch),
+    (error: unknown) => {
+      settlePendingNavigation(entry, initialNavigationEpoch)
+      Logger.warn('[AiView] Initial load failed:', { viewId, error })
+    }
+  )
 
   return { ...snapshotOf(entry) }
 }
@@ -654,6 +713,9 @@ export function getAiViewUrl(viewId: string): string | null {
 export function reloadAiView(viewId: string): boolean {
   const entry = getManagedAiView(viewId)
   if (!entry) return false
+  // An explicit reload supersedes any navigation whose load has not settled.
+  entry.pendingNavigationEpoch += 1
+  settlePendingNavigation(entry, entry.pendingNavigationEpoch)
   entry.webContents.reload()
   return true
 }
@@ -678,9 +740,35 @@ export function loadAiViewUrl(viewId: string, rawUrl: unknown): boolean {
     })
     return false
   }
-  void entry.webContents.loadURL(url).catch((error: unknown) => {
-    Logger.warn('[AiView] loadURL failed:', { viewId, error })
-  })
+
+  let normalized: string
+  try {
+    normalized = new URL(url).toString()
+  } catch {
+    return false
+  }
+
+  const now = Date.now()
+  if (
+    entry.pendingNavigationUrl === normalized &&
+    now - entry.pendingNavigationStartedAt < PENDING_NAVIGATION_MAX_AGE_MS
+  ) {
+    // The same document is already on its way into this view. A second
+    // `loadURL` would abort and restart the request, discarding the work the
+    // first one has done (and any upload the site started from it).
+    return true
+  }
+
+  entry.pendingNavigationUrl = normalized
+  entry.pendingNavigationStartedAt = now
+  const epoch = ++entry.pendingNavigationEpoch
+  void entry.webContents.loadURL(normalized).then(
+    () => settlePendingNavigation(entry, epoch),
+    (error: unknown) => {
+      settlePendingNavigation(entry, epoch)
+      Logger.warn('[AiView] loadURL failed:', { viewId, error })
+    }
+  )
   return true
 }
 

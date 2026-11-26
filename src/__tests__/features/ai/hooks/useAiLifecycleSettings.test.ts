@@ -17,8 +17,8 @@ describe('useAiLifecycleSettings', () => {
 
   it('returns safe defaults when storage is empty', () => {
     const { result } = renderHook(() => useAiLifecycleSettings())
-    expect(result.current.maxAliveTabs).toBe(1)
-    expect(result.current.sleepTimeoutMs).toBe(60_000)
+    expect(result.current.maxAliveTabs).toBe(3)
+    expect(result.current.sleepTimeoutMs).toBe(10 * 60_000)
     expect(result.current.neverSleepSiteIds).toEqual([])
     expect(result.current.isNeverSleepSite('any')).toBe(false)
   })
@@ -26,23 +26,62 @@ describe('useAiLifecycleSettings', () => {
   it('persists maxAliveTabs and sleepTimeoutMs to storage', () => {
     const { result } = renderHook(() => useAiLifecycleSettings())
 
-    act(() => result.current.setMaxAliveTabs(3))
+    act(() => result.current.setMaxAliveTabs(5))
     act(() => result.current.setSleepTimeoutMs(120_000))
 
-    expect(window.localStorage.getItem(STORAGE_KEYS.AI_MAX_ALIVE_TABS)).toBe('3')
+    expect(window.localStorage.getItem(STORAGE_KEYS.AI_MAX_ALIVE_TABS)).toBe('5')
     expect(window.localStorage.getItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS)).toBe('120000')
   })
 
   it('clamps out-of-range maxAliveTabs back to default', () => {
     window.localStorage.setItem(STORAGE_KEYS.AI_MAX_ALIVE_TABS, '999')
     const { result } = renderHook(() => useAiLifecycleSettings())
-    expect(result.current.maxAliveTabs).toBe(1)
+    expect(result.current.maxAliveTabs).toBe(3)
+  })
+
+  it('falls back to default for a fractional or non-numeric maxAliveTabs', () => {
+    for (const stored of ['2.5', '"3"', 'true', 'null']) {
+      window.localStorage.setItem(STORAGE_KEYS.AI_MAX_ALIVE_TABS, stored)
+      const { result, unmount } = renderHook(() => useAiLifecycleSettings())
+      expect(result.current.maxAliveTabs).toBe(3)
+      unmount()
+    }
   })
 
   it('falls back to default when sleepTimeoutMs is non-positive', () => {
     window.localStorage.setItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS, '0')
     const { result } = renderHook(() => useAiLifecycleSettings())
-    expect(result.current.sleepTimeoutMs).toBe(60_000)
+    expect(result.current.sleepTimeoutMs).toBe(10 * 60_000)
+  })
+
+  it('falls back to default for a sleep timeout the UI never offered', () => {
+    window.localStorage.setItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS, '12345')
+    const { result } = renderHook(() => useAiLifecycleSettings())
+    expect(result.current.sleepTimeoutMs).toBe(10 * 60_000)
+  })
+
+  it('keeps the persisted "never sleep" value (-1)', () => {
+    window.localStorage.setItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS, '-1')
+    const { result } = renderHook(() => useAiLifecycleSettings())
+    expect(result.current.sleepTimeoutMs).toBe(Infinity)
+  })
+
+  it('does not persist an invalid maxAliveTabs', () => {
+    const { result } = renderHook(() => useAiLifecycleSettings())
+    act(() => result.current.setMaxAliveTabs(2.5))
+    expect(result.current.maxAliveTabs).toBe(3)
+    expect(window.localStorage.getItem(STORAGE_KEYS.AI_MAX_ALIVE_TABS)).toBeNull()
+  })
+
+  it('stores Infinity as -1 and rejects non-finite sleep values safely', () => {
+    const { result } = renderHook(() => useAiLifecycleSettings())
+    act(() => result.current.setSleepTimeoutMs(Infinity))
+    expect(window.localStorage.getItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS)).toBe('-1')
+    expect(result.current.sleepTimeoutMs).toBe(Infinity)
+
+    act(() => result.current.setSleepTimeoutMs(Number.NaN))
+    expect(window.localStorage.getItem(STORAGE_KEYS.AI_SLEEP_TIMEOUT_MS)).toBe('600000')
+    expect(result.current.sleepTimeoutMs).toBe(10 * 60_000)
   })
 
   it('toggleNeverSleepSite adds and removes site ids', () => {

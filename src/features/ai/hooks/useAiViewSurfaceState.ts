@@ -20,7 +20,14 @@ export interface AiTabUrlRequest {
 }
 
 export interface AiViewSurfaceState {
-  /** Tabs that currently own a managed view, most-recently-used first. */
+  /**
+   * Tabs that currently own a managed view, most-recently-used first.
+   *
+   * Only tabs that can own a native `WebContentsView` are counted. API Chat
+   * tabs are rendered by the same surface but have no native view, so they must
+   * not take a warm-view slot away from a real site (see
+   * {@link isViewlessAiTabModel}).
+   */
   aliveTabIds: string[]
   showHome: boolean
   showHideHome: {
@@ -53,15 +60,37 @@ interface UseAiViewSurfaceStateOptions {
   tabIds: string[]
   activeTabId: string | null
   aiViewRequestNonce: number
+  /**
+   * Tabs that never own a native view — currently API Chat.
+   *
+   * They are transparent to the warm-view budget: activating one must not
+   * retire a site view, and two of them must not evict each other's site
+   * either. They still get their own bounded LRU so an unbounded number of
+   * mounted chat sessions cannot accumulate.
+   */
+  viewlessTabIds?: readonly string[]
+}
+
+/** Mirrors `AiSession`'s `isApiChat`: the one tab kind with no managed view. */
+export function isViewlessAiTabModel(modelId: string): boolean {
+  return modelId === 'api-chat'
 }
 
 export function useAiViewSurfaceState({
   tabIds,
   activeTabId,
-  aiViewRequestNonce
+  aiViewRequestNonce,
+  viewlessTabIds = []
 }: UseAiViewSurfaceStateOptions): AiViewSurfaceState {
   const { maxAliveTabs } = useAiLifecycleSettings()
-  const [aliveTabIds, setAliveTabIds] = useState<string[]>(activeTabId ? [activeTabId] : [])
+  const viewlessKey = [...new Set(viewlessTabIds)].sort().join('\u0000')
+  const viewlessSet = useMemo(
+    () => new Set(viewlessKey === '' ? [] : viewlessKey.split('\u0000')),
+    [viewlessKey]
+  )
+  const [aliveTabIds, setAliveTabIds] = useState<string[]>(() =>
+    activeTabId && !viewlessSet.has(activeTabId) ? [activeTabId] : []
+  )
   const [showHome, setShowHome] = useState(() => tabIds.length === 0 || !activeTabId)
   const [tabUrlRequests, setTabUrlRequests] = useState<Record<string, AiTabUrlRequest | undefined>>(
     {}
@@ -128,6 +157,15 @@ export function useAiViewSurfaceState({
   // when there is no active tab: a tab that was closed (or dropped by the LRU)
   // has to *leave* the set, otherwise its managed view would have no owner left
   // to retire it and would stay alive in the main process forever.
+  //
+  // Two independent budgets are applied in one recency-ordered pass:
+  //
+  // - site tabs, bounded by `maxAliveTabs` — these are the `WebContentsView`s
+  //   the setting exists to bound;
+  // - viewless tabs (API Chat), bounded by the same number so their React
+  //   sessions cannot accumulate, but never competing with a site tab for a
+  //   slot. Activating API Chat used to evict the least recent real site and
+  //   destroy its live conversation for no memory saving whatsoever.
   useEffect(() => {
     if (!isMountedRef.current) return
 
@@ -147,7 +185,19 @@ export function useAiViewSurfaceState({
         }
       }
 
-      const boundedNext = next.length > maxAliveTabs ? next.slice(0, maxAliveTabs) : next
+      let siteCount = 0
+      let viewlessCount = 0
+      const boundedNext = next.filter((id) => {
+        if (viewlessSet.has(id)) {
+          if (viewlessCount >= maxAliveTabs) return false
+          viewlessCount += 1
+          return true
+        }
+        if (siteCount >= maxAliveTabs) return false
+        siteCount += 1
+        return true
+      })
+
       const isUnchanged =
         boundedNext.length === prev.length && boundedNext.every((id, index) => id === prev[index])
 
@@ -156,15 +206,17 @@ export function useAiViewSurfaceState({
       // redundant render.
       return isUnchanged ? prev : boundedNext
     })
-  }, [activeTabId, maxAliveTabs, tabIds])
+  }, [activeTabId, maxAliveTabs, tabIds, viewlessSet])
 
   const show = useCallback(() => setShowHome(true), [])
   const hide = useCallback(() => setShowHome(false), [])
   const showHideHome = useMemo(() => ({ show, hide }), [show, hide])
   const coldTabIds = useMemo(() => {
     const aliveSet = new Set(aliveTabIds)
-    return new Set(tabIds.filter((id) => !aliveSet.has(id)))
-  }, [tabIds, aliveTabIds])
+    // A viewless tab is never "cold" in the retire sense: it owns no native view
+    // to evict, and the tab strip's sleeping glyph would be a lie for API Chat.
+    return new Set(tabIds.filter((id) => !aliveSet.has(id) && !viewlessSet.has(id)))
+  }, [tabIds, aliveTabIds, viewlessSet])
 
   return useMemo(
     () => ({

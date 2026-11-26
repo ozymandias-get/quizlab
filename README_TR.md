@@ -325,9 +325,11 @@ sahiplik token'ı bırakılır ve native görünüm gizlenip sessize alınır; g
 edilmez. Odak modu aynı generation, URL ve sayfa durumunu yeniden yüklemeden
 kullanır. Sekme kapatma, LRU çıkarma ve uyku yönetilen görünümü yok eder;
 uyandırma yeni generation'lı bir görünüm ekler ve ilk yükleme tamamlanana kadar
-gizli tutar. Varsayılan `maxAliveTabs` değeri 1'dir; sekme değiştirmek normalde
-önceki görünümü de kapatır, daha fazlasını canlı tutmak için bu değeri artırın.
-Host sınırları tek animasyon karesinde birleştirilir; dialog, örtü, sekme geçişi
+gizli tutar. Varsayılan `maxAliveTabs` değeri 3, varsayılan uyku süresi 10
+dakikadır; ChatGPT → Gemini → Claude döngüsünde üç görünüm de canlı kalır ve
+sohbetleri yeniden yüklenmez. Daha fazla hız için sınırı artırın, daha az RAM
+için düşürün. API Sohbet'in native görünümü yoktur ve bu canlı sekmelerden birini
+tüketmez. Host sınırları tek animasyon karesinde birleştirilir; dialog, örtü, sekme geçişi
 veya odak açılışı sırasında native görünüm gizlenir.
 
 Katman sınırları, dependency-cruiser'ın uyguladığı import kuralları ve seçici

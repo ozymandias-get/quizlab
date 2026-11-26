@@ -661,7 +661,10 @@ geometry and visibility are decided there, not by React:
 | close      | tab close retires the view via `retireManagedView()`                                              |
 
 Liveness settings live in `src/features/ai/hooks/useAiLifecycleSettings.ts`
-(`AI_MAX_ALIVE_TABS`, `AI_SLEEP_TIMEOUT_MS`, `AI_NEVER_SLEEP_SITES`).
+(`AI_MAX_ALIVE_TABS`, `AI_SLEEP_TIMEOUT_MS`, `AI_NEVER_SLEEP_SITES`). Their
+defaults are three warm views and a ten-minute sleep timeout. Only tabs that can
+own a native view take a warm slot: API Chat is mounted by the same surface but
+does not evict a site view.
 
 ### F.4 Persistence
 

@@ -7,4 +7,4 @@
  * rebuilding them.
  */
 export type { AiViewSurfaceState } from './hooks/useAiViewSurfaceState'
-export { useAiViewSurfaceState } from './hooks/useAiViewSurfaceState'
+export { isViewlessAiTabModel, useAiViewSurfaceState } from './hooks/useAiViewSurfaceState'

@@ -120,6 +120,18 @@ describe('AiViewSurface', () => {
     expect(screen.getByText('Claude 3 - Inactive - Owner')).toBeInTheDocument()
   })
 
+  it('keeps an API Chat tab mounted without a warm-view slot', () => {
+    mockAiState.tabs = [
+      { id: '1', modelId: 'gpt-4', title: 'GPT-4' },
+      { id: '2', modelId: 'api-chat', title: 'API Chat' }
+    ]
+
+    renderSurface({ aliveTabIds: ['1'] })
+
+    expect(screen.getByText('GPT-4 - Active - Owner')).toBeInTheDocument()
+    expect(screen.getByText('API Chat - Inactive - Owner')).toBeInTheDocument()
+  })
+
   it('marks every session as an overlay when AI Home is open', () => {
     renderSurface({ aliveTabIds: ['1'], showHome: true })
     expect(screen.getByText('GPT-4 - Inactive - Owner - Overlay')).toBeInTheDocument()

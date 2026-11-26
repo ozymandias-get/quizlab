@@ -75,6 +75,94 @@ describe('useAiViewSurfaceState - alive tab LRU', () => {
     act(() => rerender({ tabIds: ['b'], activeTabId: 'b', aiViewRequestNonce: 0 }))
     expect(result.current.aliveTabIds).toEqual(['b'])
   })
+
+  it('does not let an API Chat tab evict a warm site view', () => {
+    // Regression: the warm-view budget used to count every mounted session, so
+    // switching to API Chat retired the least recent provider even though API
+    // Chat owns no `WebContentsView` at all.
+    lifecycle.maxAliveTabs = 2
+    const { result, rerender } = renderHook(
+      (props: {
+        tabIds: string[]
+        activeTabId: string | null
+        aiViewRequestNonce: number
+        viewlessTabIds: string[]
+      }) => useAiViewSurfaceState(props),
+      {
+        initialProps: {
+          tabIds: ['a', 'b', 'chat'],
+          activeTabId: 'a',
+          aiViewRequestNonce: 0,
+          viewlessTabIds: ['chat']
+        }
+      }
+    )
+    act(() =>
+      rerender({
+        tabIds: ['a', 'b', 'chat'],
+        activeTabId: 'b',
+        aiViewRequestNonce: 0,
+        viewlessTabIds: ['chat']
+      })
+    )
+    expect(result.current.aliveTabIds).toEqual(['b', 'a'])
+
+    act(() =>
+      rerender({
+        tabIds: ['a', 'b', 'chat'],
+        activeTabId: 'chat',
+        aiViewRequestNonce: 0,
+        viewlessTabIds: ['chat']
+      })
+    )
+
+    // Both live sites survive the API Chat visit, and API Chat is mounted too.
+    expect(result.current.aliveTabIds).toEqual(['chat', 'b', 'a'])
+    expect(result.current.coldTabIds.size).toBe(0)
+  })
+
+  it('keeps the bounded viewless sessions out of the sleeping strip state', () => {
+    lifecycle.maxAliveTabs = 1
+    const { result, rerender } = renderHook(
+      (props: {
+        tabIds: string[]
+        activeTabId: string | null
+        aiViewRequestNonce: number
+        viewlessTabIds: string[]
+      }) => useAiViewSurfaceState(props),
+      {
+        initialProps: {
+          tabIds: ['a', 'chat1', 'chat2'],
+          activeTabId: 'a',
+          aiViewRequestNonce: 0,
+          viewlessTabIds: ['chat1', 'chat2']
+        }
+      }
+    )
+    expect(result.current.aliveTabIds).toEqual(['a'])
+
+    act(() =>
+      rerender({
+        tabIds: ['a', 'chat1', 'chat2'],
+        activeTabId: 'chat1',
+        aiViewRequestNonce: 0,
+        viewlessTabIds: ['chat1', 'chat2']
+      })
+    )
+    act(() =>
+      rerender({
+        tabIds: ['a', 'chat1', 'chat2'],
+        activeTabId: 'chat2',
+        aiViewRequestNonce: 0,
+        viewlessTabIds: ['chat1', 'chat2']
+      })
+    )
+
+    // One site slot plus one viewless slot, both bounded independently.
+    expect(result.current.aliveTabIds).toEqual(['chat2', 'a'])
+    // An evicted API Chat tab is not a sleeping native view.
+    expect(result.current.coldTabIds.has('chat1')).toBe(false)
+  })
 })
 
 describe('useAiViewSurfaceState - url restoration cache', () => {
