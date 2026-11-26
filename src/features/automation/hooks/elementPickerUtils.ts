@@ -5,6 +5,36 @@ import { Logger } from '@shared/lib/logger'
 
 import { PICKER_SCRIPTS } from '../lib/automationConstants'
 
+/**
+ * Upper bound for one guest script call. A managed view that is asleep,
+ * crashed or mid-navigation can leave `executeJavaScript` pending forever;
+ * without a bound, start/stop would keep their in-flight flags and the picker
+ * toggle would stay stuck. The page-side cleanup is idempotent, so a late
+ * completion is still safe.
+ */
+export const PICKER_SCRIPT_TIMEOUT_MS = 5_000
+
+export function runWithTimeout<T>(
+  promise: Promise<T>,
+  ms: number = PICKER_SCRIPT_TIMEOUT_MS
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error('Picker script execution timed out'))
+    }, ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      }
+    )
+  })
+}
+
 function hasElementIdentity(fingerprint: unknown): boolean {
   if (!fingerprint || typeof fingerprint !== 'object') return false
   const candidate = fingerprint as { tag?: unknown }
@@ -40,7 +70,7 @@ export async function resetPickerArtifacts(content: AiContentController | null):
     return
   }
   try {
-    await content.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
+    await runWithTimeout(content.executeJavaScript(PICKER_SCRIPTS.CLEANUP))
   } catch (error) {
     Logger.warn('[ElementPicker] cleanup script failed', error)
   }

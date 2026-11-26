@@ -315,6 +315,85 @@ describe('useElementPicker', () => {
     expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
   })
 
+  it('leaves the picker running when Escape belongs to an open app dialog', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    const dialog = document.createElement('div')
+    dialog.setAttribute('aria-modal', 'true')
+    document.body.appendChild(dialog)
+
+    try {
+      mockContent.executeJavaScript.mockClear()
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      })
+
+      // The dialog owns this Escape; the picker behind it must stay open.
+      expect(result.current.isPickerActive).toBe(true)
+      expect(mockContent.executeJavaScript).not.toHaveBeenCalled()
+    } finally {
+      dialog.remove()
+    }
+  })
+
+  it.each(['about:blank', 'data:text/html,hi', 'not a url'])(
+    'aborts the save when the page URL has no usable hostname (%s)',
+    async (pageUrl) => {
+      const { result } = renderPicker()
+
+      await act(async () => {
+        await result.current.startPicker()
+      })
+
+      mockContent.getURL.mockReturnValue(pageUrl)
+
+      await act(async () => {
+        fireSessionResult({
+          input: 'textarea',
+          button: 'button',
+          inputFingerprint: { tag: 'textarea' },
+          buttonFingerprint: { tag: 'button' }
+        })
+      })
+
+      // `new URL` must not throw into the generic save error, and an empty
+      // hostname must never reach the config store (which would reject it while
+      // the UI reports success).
+      expect(mockSaveAiConfigMutate).not.toHaveBeenCalled()
+      expect(mockToast.showError).toHaveBeenCalledWith('picker_origin_unverified')
+      expect(result.current.isPickerActive).toBe(false)
+    }
+  )
+
+  it('clears the picker state even when the cleanup script never settles', async () => {
+    const { result } = renderPicker()
+
+    await act(async () => {
+      await result.current.startPicker()
+    })
+
+    // A sleeping/crashed view: the cleanup promise never resolves.
+    mockContent.executeJavaScript.mockImplementationOnce(() => new Promise(() => {}))
+
+    let stopPromise: Promise<void> = Promise.resolve()
+    await act(async () => {
+      stopPromise = result.current.stopPicker()
+    })
+    // The toggle must not wait for the guest view to wake up.
+    expect(result.current.isPickerActive).toBe(false)
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000)
+      await stopPromise
+    })
+
+    expect(mockToast.showInfo).toHaveBeenCalledWith('picker_cancelled')
+  })
+
   it('ignores a stale result from a previous picker session', async () => {
     const { result } = renderPicker()
 

@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 
 import { PICKER_SCRIPTS, PICKER_TRANSLATION_KEYS } from '../lib/automationConstants'
 import type { UseElementPickerReturn } from './elementPickerUtils'
-import { isPickerConfig, resetPickerArtifacts } from './elementPickerUtils'
+import { isPickerConfig, resetPickerArtifacts, runWithTimeout } from './elementPickerUtils'
 import { usePickerConsoleBridge } from './usePickerConsoleBridge'
 
 /**
@@ -78,6 +78,21 @@ export function useElementPicker(
     return null
   }
 
+  /**
+   * Hostname of a page URL, or null when it has none (`about:blank`, `data:`,
+   * `blob:`) or cannot be parsed. Callers must treat null as "origin
+   * unverified" instead of letting `new URL` throw into the save path.
+   */
+  function readHostname(url: string | null | undefined): string | null {
+    if (!url) return null
+    try {
+      const hostname = new URL(url).hostname.toLowerCase()
+      return hostname || null
+    } catch {
+      return null
+    }
+  }
+
   // Stabilize the content getter so consumers passing an inline arrow
   // function don't churn the mount effect's identity on every render.
   const getContentRef = useRef(getContentController)
@@ -115,38 +130,31 @@ export function useElementPicker(
         // webview, in-page navigation keeps the controller identity). Saving
         // the old site's selectors onto the new hostname would silently aim
         // future automation at the wrong site.
-        try {
-          const startUrl = pickerStartUrlRef.current
-          const currentUrl = readContentUrl(content)
-          // The origin is only known if it was captured before injection. When
-          // the start snapshot is missing we cannot prove the view did not
-          // navigate mid-pick, and the whole point of this guard is to never
-          // aim one site's selectors at another. Fail safe instead of skipping
-          // the check.
-          if (!startUrl && currentUrl) {
-            Logger.info('[Picker] savePickerResult: pick origin was never captured, aborting')
-            // This is NOT a missing selection: the pick itself was fine, but the
-            // page address could not be verified, so saving would risk writing
-            // the selectors onto the wrong hostname. Say that instead of the
-            // misleading "selection missing" so the user knows to reopen the
-            // site rather than re-pick the same elements.
-            showError('picker_origin_unverified')
-            return
-          }
-          if (startUrl && currentUrl) {
-            const startHost = new URL(startUrl).hostname.toLowerCase()
-            const currentHost = new URL(currentUrl).hostname.toLowerCase()
-            if (startHost && currentHost && startHost !== currentHost) {
-              Logger.info(
-                `[Picker] savePickerResult: hostname changed during pick (${startHost} -> ${currentHost}), aborting`
-              )
-              showError('picker_selection_missing')
-              return
-            }
-          }
-        } catch {
-          // URL parsing must never block a save; the hostname save below still
-          // derives from the current URL.
+        const startUrl = pickerStartUrlRef.current
+        const currentUrl = readContentUrl(content)
+        const startHost = readHostname(startUrl)
+        const currentHost = readHostname(currentUrl)
+        // The origin is only known if it was captured before injection. When
+        // the start snapshot is missing (or unparseable) we cannot prove the
+        // view did not navigate mid-pick, and the whole point of this guard is
+        // to never aim one site's selectors at another. Fail safe instead of
+        // skipping the check.
+        if (currentHost && !startHost) {
+          Logger.info('[Picker] savePickerResult: pick origin was never captured, aborting')
+          // This is NOT a missing selection: the pick itself was fine, but the
+          // page address could not be verified, so saving would risk writing
+          // the selectors onto the wrong hostname. Say that instead of the
+          // misleading "selection missing" so the user knows to reopen the
+          // site rather than re-pick the same elements.
+          showError('picker_origin_unverified')
+          return
+        }
+        if (startHost && currentHost && startHost !== currentHost) {
+          Logger.info(
+            `[Picker] savePickerResult: hostname changed during pick (${startHost} -> ${currentHost}), aborting`
+          )
+          showError('picker_selection_missing')
+          return
         }
         await resetPickerArtifacts(content)
 
@@ -164,7 +172,17 @@ export function useElementPicker(
           return
         }
 
-        const normalizedHostname = new URL(url).hostname.toLowerCase()
+        // A privileged page URL (`about:blank`, `data:`, `blob:`, a malformed
+        // string) has no hostname to key the config by. Parsing it was the
+        // last unguarded `new URL` in this path: a throw became a generic
+        // `picker_save_failed`, and an empty hostname reached the save IPC,
+        // which rejects it while the UI still shows a success toast.
+        const normalizedHostname = readHostname(url)
+        if (!normalizedHostname) {
+          Logger.info('[Picker] savePickerResult: current url has no hostname, aborting')
+          showError('picker_origin_unverified')
+          return
+        }
         // A manual pick is a new baseline: staged self-healing state from the
         // previous locators must not survive (it would otherwise keep a dead
         // recovery alive and let stale evidence advance it). `lastRepair`
@@ -318,12 +336,12 @@ export function useElementPicker(
       }
 
       await resetPickerArtifacts(content)
-      await content.executeJavaScript(PICKER_SCRIPTS.RESET)
+      await runWithTimeout(content.executeJavaScript(PICKER_SCRIPTS.RESET))
       activePickerContentRef.current = content
       pickerSessionRef.current = sessionId
       pickerStartUrlRef.current = readContentUrl(content)
       startListening(content, sessionId)
-      await content.executeJavaScript(script)
+      await runWithTimeout(content.executeJavaScript(script))
       if (getContentRef.current() !== content || content.isDestroyed?.() === true) {
         stopListening()
         activePickerContentRef.current = null
@@ -339,11 +357,15 @@ export function useElementPicker(
     } catch (err) {
       Logger.error('[Picker] startPicker: error', err)
       showError('picker_init_failed')
+      // A timed-out injection may still land in the guest later. Best-effort
+      // teardown so it does not leave an orphaned overlay/listener set behind.
+      const failedContent = activePickerContentRef.current
       activePickerContentRef.current = null
       pickerSessionRef.current = null
       pickerStartUrlRef.current = null
       setIsPickerActive(false)
       stopListening()
+      void resetPickerArtifacts(failedContent)
     } finally {
       startInFlightRef.current = false
     }
@@ -352,11 +374,12 @@ export function useElementPicker(
   const stopPicker = useCallback(async () => {
     stopListening()
     const content = activePickerContentRef.current ?? getContentRef.current()
-    activePickerContentRef.current = null
-    pickerSessionRef.current = null
-    pickerStartUrlRef.current = null
+    // Clear the renderer state first: a sleeping/crashed view can leave
+    // `executeJavaScript` pending, and the toggle must not stay "active" while
+    // the cleanup never settles. The page-side cleanup is idempotent, so it is
+    // safe to let it finish after the UI is already back to neutral.
+    clearPickerState()
     if (!content) {
-      setIsPickerActive(false)
       return
     }
 
@@ -365,14 +388,12 @@ export function useElementPicker(
         throw new Error('content executeJavaScript not available')
       }
 
-      await content.executeJavaScript(PICKER_SCRIPTS.CLEANUP)
-      setIsPickerActive(false)
-      showInfo('picker_cancelled')
+      await runWithTimeout(content.executeJavaScript(PICKER_SCRIPTS.CLEANUP))
     } catch (err) {
       Logger.error('Failed to stop picker:', err)
-      setIsPickerActive(false)
     }
-  }, [showInfo, stopListening])
+    showInfo('picker_cancelled')
+  }, [clearPickerState, showInfo, stopListening])
 
   /**
    * ESC from the app window.
@@ -382,12 +403,21 @@ export function useElementPicker(
    * reaches it and the picker could not be dismissed. This listener covers
    * exactly that case; while the guest view is focused the event does not
    * reach this window, so the two paths never double-fire.
+   *
+   * An open app overlay owns ESC: closing a dialog or menu must not also kill
+   * the picker behind it. `[aria-modal]` is the app's own convention (see
+   * AiSendComposer); menu/listbox surfaces are included because they handle
+   * Escape themselves.
    */
   useEffect(() => {
     if (!isPickerActive) return
 
+    const APP_OVERLAY_SELECTOR =
+      '[aria-modal="true"], [role="menu"], [role="listbox"], [data-slot="menu-surface"]'
+
     const onEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      if (document.querySelector(APP_OVERLAY_SELECTOR)) return
       event.preventDefault()
       event.stopPropagation()
       Logger.info('[Picker] Escape pressed in the app window; stopping picker')
