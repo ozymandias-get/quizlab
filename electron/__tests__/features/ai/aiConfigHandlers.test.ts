@@ -712,4 +712,101 @@ describe('aiConfigHandlers', () => {
       button: { selector: '#concurrent-btn' }
     })
   })
+
+  it('ignores unmentioned candidate in snapshot when repairIntent only names the other field, and never persists repairIntent', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'intent.example': {
+        version: 2,
+        input: '#in',
+        button: '#btn',
+        health: 'ready',
+        repair: null,
+        timestamp: now
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    await saveAiConfigPatch('intent.example', {
+      version: 2,
+      repair: {
+        input: {
+          selector: '#new-in',
+          strategy: 'candidate',
+          confidenceScore: 70,
+          confidenceLevel: 'high',
+          firstSeenAt: now + 10,
+          lastSeenAt: now + 10,
+          successCount: 1,
+          consecutiveSuccessCount: 1,
+          baseSelector: '#in'
+        },
+        button: {
+          selector: '#stale-deleted-btn',
+          strategy: 'candidate',
+          confidenceScore: 70,
+          confidenceLevel: 'high',
+          firstSeenAt: now + 10,
+          lastSeenAt: now + 10,
+          successCount: 1,
+          consecutiveSuccessCount: 1,
+          baseSelector: '#btn'
+        }
+      },
+      repairIntent: { input: 'update', baseTimestamp: now }
+    })
+
+    const saved = managerState.data['intent.example'] as Record<string, unknown>
+    expect(saved.repairIntent).toBeUndefined()
+    expect((saved.repair as Record<string, unknown>).input).toMatchObject({ selector: '#new-in' })
+    expect((saved.repair as Record<string, unknown>).button).toBeNull()
+  })
+
+  it('allows clearing an unchanged input candidate even after button updated the site timestamp', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'clear.example': {
+        version: 2,
+        input: '#in',
+        button: '#btn',
+        health: 'ready',
+        repair: {
+          input: {
+            selector: '#old-in-cand',
+            strategy: 'candidate',
+            confidenceScore: 30,
+            confidenceLevel: 'low',
+            firstSeenAt: now - 100,
+            lastSeenAt: now,
+            successCount: 1,
+            consecutiveSuccessCount: 1,
+            baseSelector: '#in'
+          },
+          button: {
+            selector: '#updated-btn-cand',
+            strategy: 'candidate',
+            confidenceScore: 80,
+            confidenceLevel: 'high',
+            firstSeenAt: now - 100,
+            lastSeenAt: now + 200,
+            successCount: 2,
+            consecutiveSuccessCount: 2,
+            baseSelector: '#btn'
+          }
+        },
+        timestamp: now + 200
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    await saveAiConfigPatch('clear.example', {
+      version: 2,
+      repair: null,
+      repairIntent: { input: 'clear', baseTimestamp: now }
+    })
+
+    const saved = managerState.data['clear.example'] as { repair: Record<string, unknown> }
+    expect(saved.repair.input).toBeNull()
+    expect(saved.repair.button).toMatchObject({ selector: '#updated-btn-cand' })
+  })
 })

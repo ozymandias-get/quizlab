@@ -65,19 +65,30 @@ function asSingleSelectorConfig(
 }
 
 /**
- * True when the persisted locators no longer match the send-time snapshot —
- * i.e. somebody (a manual re-pick, a competing promotion) replaced the
- * selectors this evidence was captured against. Only the primaries are
- * compared: a re-pick always regenerates them, and identical primaries mean
- * identical locators, in which case the evidence is still about this config.
+ * True when the persisted locator for `kind` no longer matches the send-time
+ * snapshot (primary selector, candidates, or fingerprint changed).
+ *
+ * Compared per locator so an `input` re-pick does not discard valid `button`
+ * evidence, and so a re-pick that keeps the same primary CSS string still
+ * invalidates stale evidence when its fingerprint or candidates changed.
  * An unavailable send-time snapshot fails open (previous behavior).
  */
-function hasLocatorIdentityMoved(
+function hasFieldLocatorMoved(
   sendTime: AiSelectorConfig | null,
-  latest: AiSelectorConfig
+  latest: AiSelectorConfig,
+  kind: 'input' | 'button'
 ): boolean {
   if (!sendTime) return false
-  return sendTime.input !== latest.input || sendTime.button !== latest.button
+  if (sendTime[kind] !== latest[kind]) return true
+  const candidatesKey = kind === 'input' ? 'inputCandidates' : 'buttonCandidates'
+  if (
+    JSON.stringify(sendTime[candidatesKey] ?? null) !==
+    JSON.stringify(latest[candidatesKey] ?? null)
+  ) {
+    return true
+  }
+  const fpKey = kind === 'input' ? 'inputFingerprint' : 'buttonFingerprint'
+  return JSON.stringify(sendTime[fpKey] ?? null) !== JSON.stringify(latest[fpKey] ?? null)
 }
 
 /**
@@ -112,20 +123,31 @@ async function processRepair(params: {
   const latest = await readLatestSelectorConfig(hostname)
   const baseConfig = latest ?? aiConfig
 
-  // Compare-and-swap: the evidence was captured against the send-time
-  // locators. If the persisted primaries moved since (manual re-pick, another
-  // promotion), the evidence is stale and must never overwrite the newer
-  // manual selection — not even as a staged candidate.
-  if (latest && hasLocatorIdentityMoved(asSingleSelectorConfig(aiConfig), latest)) {
+  const sendTime = asSingleSelectorConfig(aiConfig)
+  const inputMoved = latest !== null && hasFieldLocatorMoved(sendTime, latest, 'input')
+  const buttonMoved = latest !== null && hasFieldLocatorMoved(sendTime, latest, 'button')
+
+  // Compare-and-swap per locator: if both moved, drop all stale evidence; if
+  // only one moved, keep evaluating the untouched locator.
+  if (inputMoved && buttonMoved) {
     Logger.info(
       `${SELECTOR_REPAIR_LOG_PREFIX} ${hostname} dropping stale evidence (locators changed since capture)`
     )
     return false
   }
 
+  const scopedDiagnostics: AutomationExecutionDiagnostics =
+    inputMoved || buttonMoved
+      ? {
+          ...evidence,
+          ...(inputMoved ? { input: undefined } : {}),
+          ...(buttonMoved ? { button: undefined } : {})
+        }
+      : evidence
+
   const evaluation = evaluateSelectorRepairEvidence({
     config: baseConfig,
-    diagnostics: evidence
+    diagnostics: scopedDiagnostics
   })
   if (!evaluation?.shouldPersist) return false
 

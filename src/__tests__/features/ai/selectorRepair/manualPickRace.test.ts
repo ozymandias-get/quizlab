@@ -25,6 +25,7 @@ import { reportSelectorRepair } from '@features/ai/lib/selectorRepair/reportSele
 import {
   createRepairStore,
   createSendDiagnostics,
+  recoveredButtonDiagnostics,
   recoveredInputDiagnostics,
   scriptDiagnostics,
   type RepairStore
@@ -171,5 +172,68 @@ describe('manual re-pick vs repair race', () => {
     const persisted = store.read('example.com')
     expect(persisted?.input).toBe('#brand-new')
     expect(persisted?.repair ?? null).toBeNull()
+  })
+
+  it('R1c: drops stale evidence when primary selector stays the same but fingerprint changes', async () => {
+    const sendTimeWithFp: AiSelectorConfig = {
+      ...SEND_TIME_CONFIG,
+      inputFingerprint: { tag: 'textarea', ariaLabel: 'Old prompt' }
+    }
+    const repickedSamePrimary: AiSelectorConfig = {
+      ...SEND_TIME_CONFIG,
+      inputFingerprint: { tag: 'textarea', ariaLabel: 'New prompt' }
+    }
+    const store = createRepairStore({ initial: { 'example.com': repickedSamePrimary } })
+    mockGetElectronApi.mockReturnValue(store)
+
+    const result = await send('example.com', sendTimeWithFp)
+
+    expect(result).toBe(false)
+    expect(store.writeCount()).toBe(0)
+  })
+
+  it('R1d: preserves valid button evidence when only input was manually re-picked', async () => {
+    const sendTimeBoth: AiSelectorConfig = {
+      version: 2,
+      input: '#old-in',
+      button: '#old-btn',
+      inputCandidates: ['#old-in'],
+      buttonCandidates: ['#old-btn'],
+      health: 'ready'
+    }
+    const repickedInputOnly: AiSelectorConfig = {
+      ...sendTimeBoth,
+      input: '#brand-new-in',
+      inputCandidates: ['#brand-new-in']
+    }
+    const store = createRepairStore({ initial: { 'example.com': repickedInputOnly } })
+    mockGetElectronApi.mockReturnValue(store)
+
+    const result = await reportSelectorRepair({
+      aiConfig: sendTimeBoth,
+      currentUrl: 'https://example.com/chat',
+      diagnostics: createSendDiagnostics({
+        script: scriptDiagnostics(
+          recoveredInputDiagnostics({
+            requestedSelector: '#old-in',
+            matchedSelector: '#stale-in-recovery',
+            stableSelector: '#stale-in-recovery'
+          }),
+          recoveredButtonDiagnostics({
+            requestedSelector: '#old-btn',
+            matchedSelector: '#new-btn-recovery',
+            stableSelector: '#new-btn-recovery'
+          })
+        )
+      }),
+      queryClient,
+      configCache
+    })
+
+    expect(result).toBe(true)
+    const persisted = store.read('example.com')
+    expect(persisted?.input).toBe('#brand-new-in')
+    expect(persisted?.repair?.input ?? null).toBeNull()
+    expect(persisted?.repair?.button?.selector).toBe('#new-btn-recovery')
   })
 })

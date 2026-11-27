@@ -106,10 +106,11 @@ function filterStaleRepairPatch(
           continue
         }
         if (fieldIntent === 'clear') {
-          // Intentional clear succeeds unless existing holds a newer candidate
-          // written after this repair read its base snapshot.
-          const newerOnDisk =
-            baseTs > 0 && (existingCandidate.lastSeenAt > baseTs || existingTs > baseTs)
+          // Intentional clear succeeds unless this field's own candidate was
+          // updated after this repair read its base snapshot. Do not use the
+          // site-wide `existingTs` here, or an unrelated field update would
+          // block a valid clear.
+          const newerOnDisk = baseTs > 0 && existingCandidate.lastSeenAt > baseTs
           if (newerOnDisk) {
             nextRepair[field] = existingCandidate
             repairModified = true
@@ -132,13 +133,24 @@ function filterStaleRepairPatch(
         continue
       }
 
+      if (intent && fieldIntent === undefined) {
+        // When repairIntent is present, an unmentioned field was not touched by
+        // this repair and must keep whatever is currently on disk.
+        if (existingCandidate) {
+          nextRepair[field] = existingCandidate
+        }
+        repairModified = true
+        continue
+      }
+
       const baseMoved =
         candidate.baseSelector !== undefined &&
         candidate.baseSelector !== (existing?.[field] ?? null)
       const startedBeforeLatestWrite =
         existingTs > 0 &&
         (candidate.lastSeenAt < existingTs ||
-          (candidate.baseSelector === undefined && candidate.firstSeenAt < existingTs)) &&
+          (candidate.baseSelector === undefined && candidate.firstSeenAt < existingTs) ||
+          (baseTs > 0 && existingTs > baseTs)) &&
         !existingCandidate
       const counterRegressed =
         Boolean(existingCandidate) && candidate.lastSeenAt < (existingCandidate?.lastSeenAt ?? 0)
