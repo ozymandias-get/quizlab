@@ -10,6 +10,7 @@ import { CONFIG_VERSION } from './aiConfigConstants.js'
 import type { AiConfigMap } from './aiConfigDomain.js'
 import {
   finalizeStoredConfig,
+  locatorHealthPatch,
   mergeConfig,
   readMigratedConfigMap,
   resolveConfigForHostname
@@ -36,6 +37,47 @@ export async function readAiConfigMap(): Promise<AiConfigMap> {
   return readMigratedConfigMap(getAiConfigManager())
 }
 
+function filterStaleRepairPatch(
+  existing: (AiSelectorConfig & { timestamp?: number }) | undefined,
+  incoming: AiSelectorConfig
+): AiSelectorConfig | null {
+  const existingTs = typeof existing?.timestamp === 'number' ? existing.timestamp : 0
+  if (!existingTs) return incoming
+
+  const isRepairPatch = incoming.repair !== undefined || incoming.lastRepair !== undefined
+  if (!isRepairPatch) return incoming
+
+  if (incoming.lastRepair && incoming.lastRepair.repairedAt < existingTs) {
+    return null
+  }
+
+  if (incoming.repair && typeof incoming.repair === 'object') {
+    const nextRepair: NonNullable<AiSelectorConfig['repair']> = {}
+    let droppedStale = false
+    for (const field of ['input', 'button'] as const) {
+      const candidate = incoming.repair[field]
+      if (!candidate) continue
+      if (candidate.lastSeenAt < existingTs && !existing?.repair?.[field]) {
+        droppedStale = true
+        continue
+      }
+      nextRepair[field] = candidate
+    }
+    if (droppedStale) {
+      const cleaned: AiSelectorConfig = {
+        ...incoming,
+        repair: nextRepair.input || nextRepair.button ? nextRepair : null
+      }
+      if (!cleaned.repair && !cleaned.lastRepair && cleaned.health === 'needs_repick') {
+        delete cleaned.health
+      }
+      return cleaned
+    }
+  }
+
+  return incoming
+}
+
 /**
  * Merges one patch into the stored config of a hostname.
  *
@@ -45,21 +87,37 @@ export async function readAiConfigMap(): Promise<AiConfigMap> {
  */
 export async function saveAiConfigPatch(
   hostname: string,
-  config: AiSelectorConfig
+  config: AiSelectorConfig,
+  options?: { pickedField?: 'input' | 'button' }
 ): Promise<boolean> {
   const normalizedHostname = normalizeHostname(hostname)
   const sanitizedConfig = sanitizeConfig(config)
   if (!normalizedHostname || !sanitizedConfig) return false
 
   const manager = getAiConfigManager()
-  return manager.update((currentMap) => {
+  let rejectedStale = false
+  const written = await manager.update((currentMap) => {
     const migrated = currentMap as AiConfigMap
-    const merged = mergeConfig(migrated[normalizedHostname], sanitizedConfig)
+    const existing = migrated[normalizedHostname]
+
+    let effectivePatch = sanitizedConfig
+    if (options?.pickedField) {
+      effectivePatch = {
+        ...sanitizedConfig,
+        ...locatorHealthPatch(existing, options.pickedField)
+      }
+    } else {
+      const filtered = filterStaleRepairPatch(existing, sanitizedConfig)
+      if (!filtered) {
+        rejectedStale = true
+        return migrated
+      }
+      effectivePatch = filtered
+    }
+
+    const merged = mergeConfig(existing, effectivePatch)
     const nextConfig = finalizeStoredConfig(normalizedHostname, merged, {
-      defaultHealth:
-        migrated[normalizedHostname]?.version === CONFIG_VERSION
-          ? migrated[normalizedHostname]?.health || 'ready'
-          : 'ready',
+      defaultHealth: existing?.version === CONFIG_VERSION ? existing?.health || 'ready' : 'ready',
       timestamp: Date.now()
     })
 
@@ -68,6 +126,7 @@ export async function saveAiConfigPatch(
       [normalizedHostname]: nextConfig
     } satisfies AiConfigMap
   })
+  return written && !rejectedStale
 }
 
 export function registerAiConfigHandlers() {

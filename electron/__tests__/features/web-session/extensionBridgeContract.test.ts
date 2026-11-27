@@ -309,7 +309,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
         return globalThis.crypto.subtle.sign(algorithm, key, data).finally(() => {
           pendingSignatures -= 1
         })
-      }
+      },
+      digest: (algorithm: AlgorithmIdentifier, data: BufferSource): Promise<ArrayBuffer> =>
+        globalThis.crypto.subtle.digest(algorithm, data)
     }
   }
 

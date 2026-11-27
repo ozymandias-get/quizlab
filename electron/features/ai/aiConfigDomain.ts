@@ -259,3 +259,34 @@ export function resolveConfigForHostname(
 
   return null
 }
+
+/**
+ * The health/repair part of a one-field pick.
+ *
+ * `health` is site-wide while `repair` is per locator. A pick clears only its
+ * own staged repair. When `needs_repick` was caused by this locator's staged
+ * candidate it becomes `ready` again; a problem staged for the other locator
+ * keeps the site in `needs_repick`, because this pick says nothing about it.
+ */
+export function locatorHealthPatch(
+  existing: AiSelectorConfig | undefined,
+  field: 'input' | 'button'
+): Pick<AiSelectorConfig, 'health' | 'repair'> {
+  const previousRepair = existing?.repair ?? null
+  let nextRepair = previousRepair
+  if (previousRepair) {
+    const remaining: NonNullable<AiSelectorConfig['repair']> = { ...previousRepair }
+    delete remaining[field]
+    nextRepair = remaining.input || remaining.button ? remaining : null
+  }
+
+  const other: 'input' | 'button' = field === 'input' ? 'button' : 'input'
+  let health: NonNullable<AiSelectorConfig['health']> = 'ready'
+  if (existing?.health === 'needs_repick') {
+    const attributedToThisPick = Boolean(previousRepair?.[field])
+    const otherStillBroken = Boolean(previousRepair?.[other])
+    health = otherStillBroken || !attributedToThisPick ? 'needs_repick' : 'ready'
+  }
+
+  return { health, repair: nextRepair }
+}

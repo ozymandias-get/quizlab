@@ -25,6 +25,7 @@ import {
   findSelectorSiteMatch,
   hostBelongsToSelectorSite,
   matchSelectorSite,
+  statusOfSite,
   type SelectorSiteTarget
 } from '../../../features/ai/selectorTargets.js'
 
@@ -98,14 +99,83 @@ describe('selector site catalogue', () => {
     expect(findSelectorSiteMatch('example.com', [first, second])?.ambiguous).toBe(true)
   })
 
-  it('uses the entry path when two sites share a host', () => {
-    const root = target({ siteId: 'root' })
-    const chat = target({ siteId: 'chat', hostname: 'example.com', pathPrefix: '/chat' })
-    const sites = [root, chat]
-    expect(matchSelectorSite('example.com', sites, '/chat/42')?.siteId).toBe('chat')
-    expect(matchSelectorSite('example.com', sites, '/other')?.siteId).toBe('root')
+  it('refuses two sites sharing a hostname even when their entry paths differ', () => {
+    const first = target({
+      siteId: 'assistant-a',
+      hostname: 'example.com',
+      pathPrefix: '/assistant-a'
+    })
+    const second = target({
+      siteId: 'assistant-b',
+      hostname: 'example.com',
+      pathPrefix: '/assistant-b'
+    })
+    const sites = [first, second]
+    expect(findSelectorSiteMatch('example.com', sites, '/assistant-a')?.ambiguous).toBe(true)
+    expect(matchSelectorSite('example.com', sites, '/assistant-a')).toBeNull()
+    expect(matchSelectorSite('example.com', sites, '/assistant-b')).toBeNull()
     // A path below a site that only exists elsewhere is not that site.
-    expect(matchSelectorSite('example.com', [chat], '/other')).toBeNull()
+    expect(matchSelectorSite('example.com', [first], '/other')).toBeNull()
+  })
+
+  it('refuses built-in and custom sites colliding on the same hostname', () => {
+    const builtin = target({ siteId: 'chatgpt', hostname: 'chatgpt.com', hosts: ['chatgpt.com'] })
+    const custom = target({
+      siteId: 'custom:my-gpt',
+      hostname: 'chatgpt.com',
+      hosts: ['chatgpt.com'],
+      pathPrefix: '/g/custom'
+    })
+    expect(findSelectorSiteMatch('chatgpt.com', [builtin, custom], '/g/custom')?.ambiguous).toBe(
+      true
+    )
+  })
+
+  it('keeps distinct subdomains with a shared canonical hostname independent', () => {
+    const a = target({
+      siteId: 'a',
+      hostname: 'a.example.com',
+      hosts: ['a.example.com'],
+      canonicalHostname: 'example.com'
+    })
+    const b = target({
+      siteId: 'b',
+      hostname: 'b.example.com',
+      hosts: ['b.example.com'],
+      canonicalHostname: 'example.com'
+    })
+    expect(matchSelectorSite('a.example.com', [a, b])?.siteId).toBe('a')
+    expect(matchSelectorSite('b.example.com', [a, b])?.siteId).toBe('b')
+  })
+
+  it('resolves statusOfSite using exact-host priority and per-field repair state', () => {
+    const chatgpt = target({
+      siteId: 'chatgpt',
+      hostname: 'chatgpt.com',
+      hosts: ['chatgpt.com', 'openai.com'],
+      canonicalHostname: 'openai.com'
+    })
+    const status = statusOfSite(chatgpt, {
+      'openai.com': { input: '#old', button: '#old-btn', health: 'ready' },
+      'chatgpt.com': {
+        input: '#prompt',
+        button: '#send',
+        health: 'needs_repick',
+        repair: {
+          button: { selector: '#new-send' }
+        }
+      }
+    })
+    expect(status).toEqual({ input: 'ready', button: 'needs_repick' })
+
+    const unattributed = statusOfSite(chatgpt, {
+      'chatgpt.com': {
+        input: '#prompt',
+        button: '#send',
+        health: 'needs_repick'
+      }
+    })
+    expect(unattributed).toEqual({ input: 'unknown', button: 'unknown' })
   })
 
   it('never targets a login or account page', () => {

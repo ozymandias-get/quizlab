@@ -1570,7 +1570,8 @@ function normalizeSelectorStatus(value) {
     value === 'migrated' ||
     value === 'repaired' ||
     value === 'needs_repick' ||
-    value === 'missing'
+    value === 'missing' ||
+    value === 'unknown'
   ) {
     return value
   }
@@ -1610,7 +1611,9 @@ function normalizeSelectorSessions(value) {
       startedAt,
       state: SELECTOR_SESSION_STATES.includes(entry.state) ? entry.state : 'active',
       outcome: typeof entry.outcome === 'string' ? entry.outcome : null,
-      lastSelector: typeof entry.lastSelector === 'string' ? entry.lastSelector : null
+      lastSelector: typeof entry.lastSelector === 'string' ? entry.lastSelector : null,
+      lastPayloadDigest:
+        typeof entry.lastPayloadDigest === 'string' ? entry.lastPayloadDigest : null
     })
   }
   return sessions.slice(-MAX_SELECTOR_SESSIONS)
@@ -1682,13 +1685,18 @@ function findSelectorSiteMatch(host, pathname) {
     return right.pathLength - left.pathLength
   })
   const best = ranked[0]
-  const ambiguous = ranked.some(
-    (entry) =>
-      entry.tier === best.tier &&
-      entry.hostLength === best.hostLength &&
-      entry.pathLength === best.pathLength &&
-      entry.site.siteId !== best.site.siteId
+  const storageConflict = selectorSites.some(
+    (other) => other.siteId !== best.site.siteId && other.hostname === best.site.hostname
   )
+  const ambiguous =
+    storageConflict ||
+    ranked.some(
+      (entry) =>
+        entry.tier === best.tier &&
+        entry.hostLength === best.hostLength &&
+        entry.pathLength === best.pathLength &&
+        entry.site.siteId !== best.site.siteId
+    )
   return { site: best.site, ambiguous }
 }
 
@@ -1912,8 +1920,15 @@ async function startSelectorPick(tabId, field) {
   // injection is attempted and its error is classified. A pre-check would
   // refuse a pick that Chrome would have allowed.
   const previous = selectorSessions.filter((session) => session.tabId === tabId)
+  let cancelledPrevious = false
   for (const session of previous) {
-    session.state = 'cancelled'
+    if (session.state !== 'saved' && session.state !== 'cancelled') {
+      session.state = 'cancelled'
+      cancelledPrevious = true
+    }
+  }
+  if (cancelledPrevious) {
+    await persistSelectorSessions()
   }
 
   const sessionId = crypto.randomUUID()
@@ -1954,7 +1969,8 @@ async function startSelectorPick(tabId, field) {
     startedAt: Date.now(),
     state: 'active',
     outcome: null,
-    lastSelector: null
+    lastSelector: null,
+    lastPayloadDigest: null
   }
   await openSelectorSession(session)
 
@@ -2107,15 +2123,48 @@ function broadcastSelectorOutcome(outcome) {
   }
 }
 
+function minimizeSelectorSourceUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl) return ''
+  try {
+    const parsed = new URL(rawUrl)
+    if (parsed.protocol !== 'https:') return rawUrl.trim()
+    return `${parsed.origin}${parsed.pathname || '/'}`
+  } catch {
+    return rawUrl.trim()
+  }
+}
+
+async function computeSelectorPayloadDigest(session, payload) {
+  const canonical = JSON.stringify({
+    version: SELECTOR_TRANSFER_VERSION,
+    hostname: session.hostname,
+    siteId: session.siteId || '',
+    field: session.field,
+    selector: payload.selector,
+    candidates: Array.isArray(payload.candidates) ? payload.candidates : [],
+    fingerprint: payload.fingerprint || null,
+    sourceUrl: payload.sourceUrl || ''
+  })
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 /** A result from one tab, bound to its own session and document. */
 async function handleSelectorPickResult(message, sender) {
+  await stateReady
+  pruneSelectorSessions()
+
   const tabId = sender?.tab?.id
   const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
   if (!Number.isInteger(tabId) || !sessionId) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu bulunamadı.' }
   }
   const session = selectorSessions.find((entry) => entry.sessionId === sessionId)
-  if (!session || session.tabId !== tabId) {
+  if (
+    !session ||
+    session.tabId !== tabId ||
+    Date.now() - session.startedAt > SELECTOR_SESSION_TTL_MS
+  ) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu bulunamadı.' }
   }
   // The document check keeps a result from a previous page (the tab navigated
@@ -2130,7 +2179,6 @@ async function handleSelectorPickResult(message, sender) {
   ) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim eski bir sayfadan geldi.' }
   }
-  if (session.state === 'saved') return { ok: true, state: SELECTOR_SAVED }
 
   const payload = message.payload
   if (!payload || typeof payload !== 'object') {
@@ -2143,35 +2191,125 @@ async function handleSelectorPickResult(message, sender) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Hedef alan uyuşmuyor.' }
   }
 
-  // Two confirms of one session must not produce two writes. A retry that
-  // arrives while the first is in flight shares its answer.
+  const minimizedSourceUrl = minimizeSelectorSourceUrl(payload.sourceUrl)
+  const normalizedFingerprint =
+    session.field === 'input' && payload.fingerprint && typeof payload.fingerprint === 'object'
+      ? (() => {
+          const copy = { ...payload.fingerprint }
+          delete copy.text
+          return copy
+        })()
+      : payload.fingerprint
+  const normalizedPayload = {
+    ...payload,
+    fingerprint: normalizedFingerprint,
+    sourceUrl: minimizedSourceUrl
+  }
+  const payloadDigest = await computeSelectorPayloadDigest(session, normalizedPayload)
+
+  if (session.state === 'cancelled') {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu iptal edildi.' }
+  }
+  if (session.state === 'failed') {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu geçersiz.' }
+  }
+  if (session.state === 'saved') {
+    if (session.lastPayloadDigest && session.lastPayloadDigest === payloadDigest) {
+      return { ok: true, state: SELECTOR_SAVED }
+    }
+    return {
+      ok: false,
+      state: SELECTOR_REJECTED,
+      message: 'Bu oturum zaten farklı bir seçimle tamamlandı.'
+    }
+  }
+
+  // Two confirms of the exact same payload share one write; a different
+  // payload arriving while another send is in flight must never share it.
   const running = selectorSends.get(sessionId)
-  if (running) return running
+  if (running) {
+    if (running.payloadDigest === payloadDigest) return running.promise
+    return {
+      ok: false,
+      state: SELECTOR_REJECTED,
+      message: 'Önceki seçim aktarımı devam ediyor.'
+    }
+  }
 
   let requestId = session.requestId
-  if (session.lastSelector && session.lastSelector !== payload.selector) {
-    // The user re-picked a different element after a refused attempt. Reusing
-    // the id would be a different payload under the same idempotency key, which
-    // the bridge refuses; a new pick gets a new id.
+  const payloadChanged = session.lastPayloadDigest
+    ? session.lastPayloadDigest !== payloadDigest
+    : Boolean(session.lastSelector && session.lastSelector !== payload.selector)
+  if (payloadChanged || !requestId) {
+    // Any meaningful payload change (selector, candidates, fingerprint, or URL)
+    // gets a fresh idempotency key so the bridge does not reject it as a conflict.
     requestId = crypto.randomUUID()
     session.requestId = requestId
   }
   session.lastSelector = payload.selector
+  session.lastPayloadDigest = payloadDigest
 
   const run = (async () => {
     await updateSelectorSession(sessionId, {
       state: 'sending',
       requestId,
-      lastSelector: payload.selector
+      lastSelector: payload.selector,
+      lastPayloadDigest: payloadDigest
     })
-    const outcome = await postSelectorPick(session, payload)
+    const outcome = await postSelectorPick(session, normalizedPayload)
+
+    const current = selectorSessions.find((entry) => entry.sessionId === sessionId)
+    const wasCancelled = current?.state === 'cancelled'
+    const hasNewerTabSession = selectorSessions.some(
+      (entry) =>
+        entry.tabId === session.tabId &&
+        entry.sessionId !== sessionId &&
+        entry.startedAt >= session.startedAt &&
+        entry.state !== 'cancelled'
+    )
+
+    if (outcome.state === SELECTOR_SAVED) {
+      await updateSelectorSession(sessionId, { state: 'saved', outcome: outcome.state })
+      if (!hasNewerTabSession) {
+        const record = {
+          state: outcome.state,
+          tabId: session.tabId,
+          hostname: session.hostname,
+          field: session.field,
+          selector: payload.selector,
+          at: Date.now()
+        }
+        selectorLastOutcome = record
+        await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
+        broadcastSelectorOutcome(record)
+      }
+      return { ok: true, state: SELECTOR_SAVED, retryable: false }
+    }
+
+    if (wasCancelled) {
+      if (!hasNewerTabSession) {
+        broadcastSelectorOutcome({
+          state: SELECTOR_REJECTED,
+          tabId: session.tabId,
+          hostname: session.hostname,
+          field: session.field,
+          selector: payload.selector,
+          at: Date.now(),
+          message: 'Seçim oturumu iptal edildi.'
+        })
+      }
+      return {
+        ok: false,
+        state: SELECTOR_REJECTED,
+        retryable: false,
+        message: 'Seçim oturumu iptal edildi.'
+      }
+    }
 
     const finalState =
-      outcome.state === SELECTOR_SAVED
-        ? 'saved'
-        : outcome.state === SELECTOR_REJECTED || outcome.state === SELECTOR_UNPAIRED
-          ? 'failed'
-          : 'retryable'
+      outcome.state === SELECTOR_REJECTED || outcome.state === SELECTOR_UNPAIRED
+        ? 'failed'
+        : 'retryable'
 
     const record = {
       state: outcome.state,
@@ -2183,13 +2321,15 @@ async function handleSelectorPickResult(message, sender) {
       ...(outcome.reason ? { reason: outcome.reason } : {}),
       ...(outcome.message ? { message: outcome.message } : {})
     }
-    selectorLastOutcome = record
     await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
-    await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
-    broadcastSelectorOutcome(record)
+    if (!hasNewerTabSession) {
+      selectorLastOutcome = record
+      await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
+      broadcastSelectorOutcome(record)
+    }
 
     return {
-      ok: outcome.state === SELECTOR_SAVED,
+      ok: false,
       state: outcome.state,
       retryable: finalState === 'retryable',
       ...(outcome.reason ? { reason: outcome.reason } : {}),
@@ -2197,11 +2337,11 @@ async function handleSelectorPickResult(message, sender) {
     }
   })()
 
-  selectorSends.set(sessionId, run)
+  selectorSends.set(sessionId, { payloadDigest, promise: run })
   try {
     return await run
   } finally {
-    if (selectorSends.get(sessionId) === run) selectorSends.delete(sessionId)
+    if (selectorSends.get(sessionId)?.promise === run) selectorSends.delete(sessionId)
   }
 }
 
@@ -2492,8 +2632,18 @@ if (chrome.runtime?.onMessage?.addListener) {
     if (message?.type === 'selector_pick_cancelled') {
       const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
       if (sessionId) {
-        updateSelectorSession(sessionId, { state: 'cancelled' })
-          .then(() => sendResponse({ ok: true }))
+        void (async () => {
+          await stateReady
+          const session = selectorSessions.find((entry) => entry.sessionId === sessionId)
+          if (!session) return { ok: false }
+          if (Number.isInteger(sender?.tab?.id) && sender.tab.id !== session.tabId) {
+            return { ok: false }
+          }
+          if (session.state === 'saved') return { ok: false, alreadySaved: true }
+          await updateSelectorSession(sessionId, { state: 'cancelled' })
+          return { ok: true }
+        })()
+          .then((result) => sendResponse(result))
           .catch(() => sendResponse({ ok: false }))
         return true
       }

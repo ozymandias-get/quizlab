@@ -22,7 +22,12 @@ interface SentMessage {
   type: string
   sessionId?: string
   field?: string
-  payload?: { selector: string; candidates: string[]; sourceUrl: string }
+  payload?: {
+    selector: string
+    candidates: string[]
+    fingerprint?: Record<string, unknown>
+    sourceUrl: string
+  }
 }
 
 interface ChromeDouble {
@@ -193,7 +198,33 @@ describe('chrome magic selector content script', () => {
     expect(result?.field).toBe('button')
     expect(result?.payload?.selector).toBe('button[data-testid="send-button"]')
     expect(result?.payload?.candidates).toContain('button[data-testid="send-button"]')
-    expect(result?.payload?.sourceUrl).toBe(window.location.href)
+    const expectedUrl = new URL(window.location.href)
+    expect(result?.payload?.sourceUrl).toBe(`${expectedUrl.origin}${expectedUrl.pathname || '/'}`)
+  })
+
+  it('omits query/fragment and user-entered input text from the transfer payload', () => {
+    const harness = createHarness()
+    const input = document.createElement('textarea')
+    input.setAttribute('data-testid', 'prompt-textarea')
+    input.value = 'my secret prompt'
+    input.textContent = 'my secret prompt'
+    document.body.appendChild(input)
+
+    const originalHref = window.location.href
+    window.history.replaceState({}, '', '/chat/room-1?token=secret#fragment')
+    try {
+      harness.init({ field: 'input' })
+      pointerDown(input)
+      clickButton(shadowButton(pickerHost() as HTMLElement, 0))
+
+      const result = harness.sent.find((message) => message.type === 'selector_pick_result')
+      expect(result?.payload?.sourceUrl).toBe(`${window.location.origin}/chat/room-1`)
+      expect(
+        (result?.payload?.fingerprint as Record<string, unknown> | undefined)?.text
+      ).toBeUndefined()
+    } finally {
+      window.history.replaceState({}, '', originalHref)
+    }
   })
 
   it('resolves an icon inside a button to the real button', () => {

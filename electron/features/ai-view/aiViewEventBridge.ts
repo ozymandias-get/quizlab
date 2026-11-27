@@ -73,6 +73,8 @@ export interface AiViewLoadStateChange {
   error?: { code: number; description: string } | null
   /** Current guest URL, when the transition revealed a newer one. */
   currentUrl?: string
+  /** True when the main frame committed a navigation, SPA route change, or crashed. */
+  documentChanged?: boolean
 }
 
 export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () => void {
@@ -148,7 +150,7 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     // Without this the manager's `currentUrl` would stay on the entry URL
     // forever, and the next host to attach to this view would be handed that
     // entry URL instead of the conversation the user is actually looking at.
-    onLoadStateChange({ currentUrl: url })
+    onLoadStateChange({ currentUrl: url, documentChanged: true })
     emit({ ...base, kind: 'did-navigate', url, isMainFrame: true })
   }
 
@@ -160,7 +162,7 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     _frameRoutingId: number
   ) => {
     if (!isMainFrame) return
-    onLoadStateChange({ currentUrl: url })
+    onLoadStateChange({ currentUrl: url, documentChanged: true })
     emit({ ...base, kind: 'did-navigate-in-page', url, isMainFrame })
   }
 
@@ -174,7 +176,7 @@ export function bridgeWebContentsEvents(context: AiViewEventBridgeContext): () =
     // crash-recovery path in the renderer owns the UX; this only keeps the
     // snapshot honest, so a host that attaches during the retry window does not
     // sit behind a splash for a guest that will never paint.
-    onLoadStateChange({ isLoading: false })
+    onLoadStateChange({ isLoading: false, documentChanged: true })
     emit({
       ...base,
       kind: 'render-process-gone',

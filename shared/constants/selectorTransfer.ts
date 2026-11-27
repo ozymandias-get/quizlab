@@ -89,8 +89,8 @@ export interface SelectorTransferPayload {
 
 /** The selector status of one site, as the settings store knows it. */
 export interface SelectorSiteStatus {
-  input: 'ready' | 'migrated' | 'repaired' | 'needs_repick' | 'missing'
-  button: 'ready' | 'migrated' | 'repaired' | 'needs_repick' | 'missing'
+  input: 'ready' | 'migrated' | 'repaired' | 'needs_repick' | 'missing' | 'unknown'
+  button: 'ready' | 'migrated' | 'repaired' | 'needs_repick' | 'missing' | 'unknown'
 }
 
 /** One site a pick may target. */

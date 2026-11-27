@@ -456,12 +456,28 @@
     }
     if (!primary) return { error: 'noSelector' }
 
+    const fingerprint =
+      expected === 'input' && bundle.fingerprint && typeof bundle.fingerprint === 'object'
+        ? { ...bundle.fingerprint }
+        : bundle.fingerprint
+    if (expected === 'input' && fingerprint && 'text' in fingerprint) {
+      delete fingerprint.text
+    }
+
+    let minimalUrl = ''
+    try {
+      const parsed = new URL(window.location.href)
+      minimalUrl = `${parsed.origin}${parsed.pathname || '/'}`
+    } catch {
+      minimalUrl = `${window.location.origin}${window.location.pathname || '/'}`
+    }
+
     return {
       payload: {
         selector: primary,
         candidates,
-        fingerprint: bundle.fingerprint,
-        sourceUrl: window.location.href
+        fingerprint,
+        sourceUrl: minimalUrl
       }
     }
   }

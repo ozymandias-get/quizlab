@@ -57,6 +57,8 @@ interface ManagedAiView {
   /** Last main-frame load failure, cleared by the next attempt or the next document. */
   loadError: { code: number; description: string } | null
   generation: number
+  /** Incremented on every main-frame navigation, SPA route change, or reload. */
+  documentRevision: number
   visible: boolean
   /** What `setVisible` was last called with, so repeat calls are skipped. */
   shown: boolean
@@ -237,6 +239,7 @@ function snapshotOf(entry: ManagedAiView): AiViewStateSnapshot {
 function commitLoadState(entry: ManagedAiView, change: AiViewLoadStateChange): void {
   let changed = false
 
+  if (change.documentChanged) entry.documentRevision += 1
   if (change.currentUrl) entry.currentUrl = change.currentUrl
   if (change.isLoading !== undefined && change.isLoading !== entry.isLoading) {
     entry.isLoading = change.isLoading
@@ -369,6 +372,7 @@ function attachResolved(
     hasLoadedOnce: false,
     loadError: null,
     generation,
+    documentRevision: 1,
     visible: false,
     shown: false,
     bounds: null,
@@ -729,10 +733,23 @@ export function getAiViewUrl(viewId: string): string | null {
   return liveUrlOf(entry)
 }
 
+/**
+ * Opaque lifecycle token for the view's current document.
+ *
+ * Changes when the view is closed, recreated, reloaded (even to the same URL),
+ * or navigates (including SPA route changes).
+ */
+export function getAiViewDocumentToken(viewId: string): string | null {
+  const entry = getManagedAiView(viewId)
+  if (!entry) return null
+  return `${entry.generation}:${entry.documentRevision}`
+}
+
 export function reloadAiView(viewId: string): boolean {
   const entry = getManagedAiView(viewId)
   if (!entry) return false
   // An explicit reload supersedes any navigation whose load has not settled.
+  entry.documentRevision += 1
   entry.pendingNavigationEpoch += 1
   settlePendingNavigation(entry, entry.pendingNavigationEpoch)
   entry.webContents.reload()
@@ -778,6 +795,7 @@ export function loadAiViewUrl(viewId: string, rawUrl: unknown): boolean {
     return true
   }
 
+  entry.documentRevision += 1
   entry.pendingNavigationUrl = normalized
   entry.pendingNavigationStartedAt = now
   const epoch = ++entry.pendingNavigationEpoch

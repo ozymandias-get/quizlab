@@ -93,6 +93,10 @@ function createIngest(
 
 const OPEN_VIEW = { viewId: 'tab-1', url: 'https://chatgpt.com/' }
 
+function depsIngest(ingest: ReturnType<typeof createSelectorIngest>) {
+  return ingest(payload())
+}
+
 describe('selector ingestion', () => {
   it('stores the verified pick and announces it', async () => {
     const deps = createIngest({ view: OPEN_VIEW })
@@ -105,7 +109,7 @@ describe('selector ingestion', () => {
     expect(patch).toMatchObject({
       version: 2,
       input: '#composer',
-      inputCandidates: ['#composer', 'textarea[data-testid="prompt"]'],
+      inputCandidates: ['#composer'],
       inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' },
       sourceHostname: 'chatgpt.com',
       canonicalHostname: 'chatgpt.com',
@@ -166,7 +170,7 @@ describe('selector ingestion', () => {
     const [, patch] = deps.savePatch.mock.calls[0]
     expect(patch).toMatchObject({
       input: 'textarea[data-testid="prompt"]',
-      inputCandidates: ['textarea[data-testid="prompt"]', '#composer']
+      inputCandidates: ['textarea[data-testid="prompt"]']
     })
   })
 
@@ -488,6 +492,90 @@ describe('selector ingestion', () => {
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
+  it('rejects a same-URL reload when the document lifecycle token changes', async () => {
+    const savePatch = vi.fn(async () => true)
+    const ingest = createSelectorIngest({
+      loadSites: async () => [CHATGPT],
+      readConfigs: async () => ({}),
+      savePatch,
+      findViewForSite: async () => ({
+        viewId: 'tab-1',
+        url: 'https://chatgpt.com/',
+        documentToken: '1:1'
+      }),
+      executeScript: async () => verified({ href: 'https://chatgpt.com/' }),
+      getViewUrl: async () => 'https://chatgpt.com/',
+      getViewDocumentToken: async () => '1:2',
+      broadcastConfigChanged: vi.fn()
+    })
+    await expect(depsIngest(ingest)).resolves.toEqual({
+      status: 'verification_failed',
+      reason: 'view_navigated'
+    })
+    expect(savePatch).not.toHaveBeenCalled()
+  })
+
+  it('rejects when verifier href path differs from the view path (SPA route change)', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({ href: 'https://chatgpt.com/c/other-chat' })
+    })
+    await expect(deps.ingest(payload())).resolves.toEqual({
+      status: 'verification_failed',
+      reason: 'view_navigated'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('rejects when the view closes or is replaced before save', async () => {
+    const savePatch = vi.fn(async () => true)
+    let calls = 0
+    const ingest = createSelectorIngest({
+      loadSites: async () => [CHATGPT],
+      readConfigs: async () => ({}),
+      savePatch,
+      findViewForSite: async () => ({
+        viewId: 'tab-1',
+        url: 'https://chatgpt.com/',
+        documentToken: '1:1'
+      }),
+      executeScript: async () => verified({ href: 'https://chatgpt.com/' }),
+      getViewUrl: async () => 'https://chatgpt.com/',
+      // First check (after executeScript) passes, second check (before savePatch) sees new view generation.
+      getViewDocumentToken: async () => (++calls === 1 ? '1:1' : '2:1'),
+      broadcastConfigChanged: vi.fn()
+    })
+    await expect(depsIngest(ingest)).resolves.toEqual({
+      status: 'verification_failed',
+      reason: 'view_navigated'
+    })
+    expect(savePatch).not.toHaveBeenCalled()
+  })
+
+  it('saves when the document token and URL remain unchanged', async () => {
+    const savePatch = vi.fn(async () => true)
+    const ingest = createSelectorIngest({
+      loadSites: async () => [CHATGPT],
+      readConfigs: async () => ({}),
+      savePatch,
+      findViewForSite: async () => ({
+        viewId: 'tab-1',
+        url: 'https://chatgpt.com/',
+        documentToken: '3:5'
+      }),
+      executeScript: async () => verified({ href: 'https://chatgpt.com/' }),
+      getViewUrl: async () => 'https://chatgpt.com/',
+      getViewDocumentToken: async () => '3:5',
+      broadcastConfigChanged: vi.fn()
+    })
+    await expect(depsIngest(ingest)).resolves.toEqual({
+      status: 'saved',
+      hostname: 'chatgpt.com',
+      field: 'input'
+    })
+    expect(savePatch).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps the other locator repair state when only the input is picked', async () => {
     const deps = createIngest({
       view: OPEN_VIEW,
@@ -713,10 +801,9 @@ describe('candidate selection', () => {
     const [, patch] = deps.savePatch.mock.calls[0]
     expect(patch).toMatchObject({
       button: 'button',
-      // The class candidate resolved to the voice button in the app's DOM, so
-      // it is dropped: the runtime orders candidates by priority and would
-      // otherwise pick it over the verified generic selector.
-      buttonCandidates: ['button', 'button[type="submit"]']
+      // Only the verified candidate stays stored; unverified and conflicting
+      // candidates are dropped so runtime priority cannot pick a twin.
+      buttonCandidates: ['button']
     })
   })
 
@@ -747,5 +834,168 @@ describe('candidate selection', () => {
     )
 
     expect(result.status).toBe('saved')
+  })
+
+  it('refuses a wrong button that only shares class tokens and generic type', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button.composer-btn',
+        attempts: [
+          {
+            selector: 'button.composer-btn',
+            matchedSelector: 'button.composer-btn',
+            strategy: 'direct',
+            descriptor: {
+              tag: 'button',
+              type: 'button',
+              classTokens: ['composer-btn', 'icon-btn'],
+              ariaLabel: 'Start voice mode',
+              text: ''
+            }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button.composer-btn',
+        candidates: ['button.composer-btn'],
+        fingerprint: {
+          tag: 'button',
+          type: 'button',
+          classTokens: ['composer-btn', 'icon-btn'],
+          ariaLabel: 'Send message',
+          text: 'Send'
+        }
+      })
+    )
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_insufficient' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('refuses a match supported only by generic role without strong or semantic identity', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'div[role="button"]',
+        attempts: [
+          {
+            selector: 'div[role="button"]',
+            matchedSelector: 'div[role="button"]',
+            strategy: 'direct',
+            descriptor: { tag: 'div', role: 'button', ariaLabel: 'Attach file' }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'div[role="button"]',
+        candidates: ['div[role="button"]'],
+        fingerprint: { tag: 'div', role: 'button', ariaLabel: 'Send' }
+      })
+    )
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_insufficient' })
+  })
+
+  it('accepts a localized element when stable id or data-testid agrees', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button[data-testid="send-button"]',
+        attempts: [
+          {
+            selector: 'button[data-testid="send-button"]',
+            matchedSelector: 'button[data-testid="send-button"]',
+            strategy: 'direct',
+            descriptor: {
+              tag: 'button',
+              dataTestId: 'send-button',
+              ariaLabel: 'Send message',
+              text: ''
+            }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[data-testid="send-button"]',
+        candidates: ['button[data-testid="send-button"]'],
+        fingerprint: {
+          tag: 'button',
+          dataTestId: 'send-button',
+          ariaLabel: 'Mesaj gönder',
+          text: 'Gönder'
+        }
+      })
+    )
+    expect(result.status).toBe('saved')
+  })
+
+  it('drops insufficient and unverified candidates and ignores fallback sourceSelector', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button[aria-label="Send"]',
+        attempts: [
+          {
+            selector: 'button.composer-btn',
+            matchedSelector: 'button.composer-btn',
+            strategy: 'direct',
+            elementKey: 1,
+            descriptor: {
+              tag: 'button',
+              type: 'button',
+              classTokens: ['composer-btn'],
+              ariaLabel: 'Voice mode'
+            }
+          },
+          {
+            selector: '#fallback-trigger',
+            matchedSelector: 'button[aria-label="Send"]',
+            strategy: 'candidate',
+            elementKey: 2,
+            descriptor: {
+              tag: 'button',
+              type: 'button',
+              ariaLabel: 'Send'
+            }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: '#fallback-trigger',
+        candidates: [
+          '#fallback-trigger',
+          'button.composer-btn',
+          '#never-resolved',
+          'button[aria-label="Send"]'
+        ],
+        fingerprint: {
+          tag: 'button',
+          type: 'button',
+          classTokens: ['composer-btn'],
+          ariaLabel: 'Send'
+        }
+      })
+    )
+    expect(result.status).toBe('saved')
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      button: 'button[aria-label="Send"]',
+      buttonCandidates: ['button[aria-label="Send"]']
+    })
   })
 })

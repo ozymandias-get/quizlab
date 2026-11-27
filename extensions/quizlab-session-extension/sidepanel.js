@@ -647,7 +647,8 @@ const SELECTOR_STATUS_TEXTS = {
   migrated: 'Taşındı',
   repaired: 'Otomatik onarıldı',
   needs_repick: 'Yeniden seçim gerekli',
-  missing: 'Ayarlanmadı'
+  missing: 'Ayarlanmadı',
+  unknown: 'Durum bilinmiyor'
 }
 
 /** The texts the magic selector section shows. */
@@ -659,7 +660,8 @@ const SELECTOR_TEXTS = {
   unsupported: 'QuizLab sürümü desteklemiyor',
   noSite: 'Bu sitede seçim yapılamaz',
   unknownSite: 'Quizlab bu siteyi tanımıyor.',
-  ambiguousSite: 'Bu alan adı birden fazla siteyle eşleşiyor; Quizlab’da doğru siteyi açın.',
+  ambiguousSite:
+    'Bu alan adı birden fazla siteyle eşleşiyor; aynı alan adındaki siteler için ayrı seçici saklanamaz.',
   unknownTab: 'Bu sekmede seçim yapılamaz.',
   unknownField: 'Bu site bu alanı desteklemiyor.',
   permissionMissing:

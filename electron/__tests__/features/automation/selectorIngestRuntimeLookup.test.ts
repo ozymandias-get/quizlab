@@ -143,4 +143,80 @@ describe('stored pick in the real automation lookup', () => {
     // resolved element is what this regression is about.
     expect(result.diagnostics.button?.matchedSelector).toBe('button.cursor-interaction')
   })
+
+  it('drops an insufficient-evidence twin candidate so runtime lookup never picks it', async () => {
+    const savePatch = vi.fn(async (_hostname: string, _patch: Record<string, unknown>) => true)
+    const ingest = createSelectorIngest({
+      loadSites: async () => [CHATGPT],
+      readConfigs: async () => ({}),
+      savePatch,
+      findViewForSite: async () => ({ viewId: 'tab-1', url: 'https://chatgpt.com/' }),
+      executeScript: async () => ({
+        success: true,
+        action: 'verify_locator',
+        field: 'button',
+        href: 'https://chatgpt.com/',
+        matchedSelector: 'button',
+        strategy: 'direct',
+        descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Send', text: 'Send' },
+        attempts: [
+          {
+            selector: 'button.cursor-interaction',
+            matchedSelector: 'button.cursor-interaction',
+            strategy: 'direct',
+            // Same tag + shared class only (no type mismatch, no semantic match) -> insufficient
+            descriptor: {
+              tag: 'button',
+              classTokens: ['cursor-interaction'],
+              ariaLabel: 'Start voice mode'
+            }
+          },
+          {
+            selector: 'button',
+            matchedSelector: 'button',
+            strategy: 'direct',
+            descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Send', text: 'Send' }
+          }
+        ],
+        diagnostics: { button: { ambiguous: false } }
+      }),
+      getViewUrl: async () => 'https://chatgpt.com/',
+      broadcastConfigChanged: vi.fn()
+    })
+
+    const ingestResult = await ingest({
+      version: 1,
+      requestId: 'runtime-lookup-insufficient-1',
+      hostname: 'chatgpt.com',
+      field: 'button',
+      selector: 'button',
+      candidates: ['button', 'button.cursor-interaction', '#unverified-id'],
+      fingerprint: {
+        tag: 'button',
+        type: 'submit',
+        classTokens: ['cursor-interaction'],
+        ariaLabel: 'Send',
+        text: 'Send'
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+    expect(ingestResult.status).toBe('saved')
+    const [, patch] = savePatch.mock.calls[0]
+    expect(patch.buttonCandidates).toEqual(['button'])
+
+    loadDom()
+    const script = generateValidateSelectorsScript({
+      version: 2,
+      ...INPUT,
+      button: patch.button as string,
+      buttonCandidates: patch.buttonCandidates as string[],
+      buttonFingerprint: patch.buttonFingerprint as never,
+      submitMode: 'mixed',
+      health: 'ready'
+    })
+    const lookupResult = (await window.eval(script)) as {
+      diagnostics: { button?: { matchedSelector?: string } }
+    }
+    expect(lookupResult.diagnostics.button?.matchedSelector).toBe('button')
+  })
 })

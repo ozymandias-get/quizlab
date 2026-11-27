@@ -34,37 +34,44 @@ vi.mock('../../../app/windowManager', () => ({
   }))
 }))
 
-vi.mock('../../../core/ConfigManager', () => ({
-  ConfigManager: class<T extends Record<string, unknown>> {
-    constructor(_filePath: string) {}
+vi.mock('../../../core/ConfigManager', () => {
+  let queue: Promise<unknown> = Promise.resolve()
+  return {
+    ConfigManager: class<T extends Record<string, unknown>> {
+      constructor(_filePath: string) {}
 
-    async read(): Promise<T> {
-      return managerState.data as T
-    }
+      async read(): Promise<T> {
+        return managerState.data as T
+      }
 
-    async write(data: T): Promise<boolean> {
-      managerState.data = data
-      managerState.writes.push(JSON.parse(JSON.stringify(data)) as Record<string, unknown>)
-      return true
-    }
+      async write(data: T): Promise<boolean> {
+        managerState.data = data
+        managerState.writes.push(JSON.parse(JSON.stringify(data)) as Record<string, unknown>)
+        return true
+      }
 
-    async update(updater: (current: T) => T | Promise<T>): Promise<boolean> {
-      const current = { ...managerState.data } as T
-      const updated = await updater(current)
-      managerState.data = updated as Record<string, unknown>
-      managerState.writes.push(JSON.parse(JSON.stringify(updated)) as Record<string, unknown>)
-      return true
-    }
+      async update(updater: (current: T) => T | Promise<T>): Promise<boolean> {
+        const run = queue.then(async () => {
+          const current = { ...managerState.data } as T
+          const updated = await updater(current)
+          managerState.data = updated as Record<string, unknown>
+          managerState.writes.push(JSON.parse(JSON.stringify(updated)) as Record<string, unknown>)
+          return true
+        })
+        queue = run.catch(() => undefined)
+        return run
+      }
 
-    async deleteItem(key: string): Promise<boolean> {
-      const next = { ...managerState.data }
-      delete next[key]
-      managerState.data = next
-      managerState.writes.push(JSON.parse(JSON.stringify(next)) as Record<string, unknown>)
-      return true
+      async deleteItem(key: string): Promise<boolean> {
+        const next = { ...managerState.data }
+        delete next[key]
+        managerState.data = next
+        managerState.writes.push(JSON.parse(JSON.stringify(next)) as Record<string, unknown>)
+        return true
+      }
     }
   }
-}))
+})
 
 function getHandler(channel: string) {
   return ipcHandle.mock.calls.find(([registeredChannel]) => registeredChannel === channel)?.[1]
@@ -256,5 +263,129 @@ describe('aiConfigHandlers', () => {
       ok: false,
       error: { code: 'unauthorized', message: 'Not authorized' }
     })
+  })
+
+  it('computes per-field repair clearing atomically across concurrent input and button picks', async () => {
+    managerState.data = {
+      'chatgpt.com': {
+        version: 2,
+        input: '#old-input',
+        button: '#old-button',
+        health: 'needs_repick',
+        repair: {
+          input: {
+            selector: '#repair-input',
+            strategy: 'candidate',
+            confidenceScore: 40,
+            confidenceLevel: 'low',
+            firstSeenAt: 1,
+            lastSeenAt: 2,
+            successCount: 1,
+            consecutiveSuccessCount: 1
+          },
+          button: {
+            selector: '#repair-button',
+            strategy: 'candidate',
+            confidenceScore: 40,
+            confidenceLevel: 'low',
+            firstSeenAt: 1,
+            lastSeenAt: 2,
+            successCount: 1,
+            consecutiveSuccessCount: 1
+          }
+        },
+        timestamp: 100
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+
+    // Simulate stale pre-read patches (both computed from the same snapshot where
+    // both repair.input and repair.button were still present).
+    await Promise.all([
+      saveAiConfigPatch(
+        'chatgpt.com',
+        {
+          version: 2,
+          input: '#new-input',
+          inputCandidates: ['#new-input'],
+          health: 'needs_repick',
+          repair: {
+            button: {
+              selector: '#repair-button',
+              strategy: 'candidate',
+              confidenceScore: 40,
+              confidenceLevel: 'low',
+              firstSeenAt: 1,
+              lastSeenAt: 2,
+              successCount: 1,
+              consecutiveSuccessCount: 1
+            }
+          }
+        },
+        { pickedField: 'input' }
+      ),
+      saveAiConfigPatch(
+        'chatgpt.com',
+        {
+          version: 2,
+          button: '#new-button',
+          buttonCandidates: ['#new-button'],
+          health: 'needs_repick',
+          repair: {
+            input: {
+              selector: '#repair-input',
+              strategy: 'candidate',
+              confidenceScore: 40,
+              confidenceLevel: 'low',
+              firstSeenAt: 1,
+              lastSeenAt: 2,
+              successCount: 1,
+              consecutiveSuccessCount: 1
+            }
+          }
+        },
+        { pickedField: 'button' }
+      )
+    ])
+
+    const finalConfig = managerState.data['chatgpt.com'] as Record<string, unknown>
+    expect(finalConfig).toMatchObject({
+      input: '#new-input',
+      button: '#new-button',
+      health: 'ready',
+      repair: null
+    })
+  })
+
+  it('prevents a stale auto-repair from overwriting a newer user pick', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'chatgpt.com': {
+        version: 2,
+        input: '#picked-input',
+        button: '#picked-button',
+        health: 'ready',
+        repair: null,
+        timestamp: now + 5000
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    const saved = await saveAiConfigPatch('chatgpt.com', {
+      version: 2,
+      input: '#stale-repaired-input',
+      health: 'repaired',
+      lastRepair: {
+        repairedAt: now,
+        inputSelector: '#stale-repaired-input',
+        inputStrategy: 'candidate'
+      }
+    })
+
+    expect(saved).toBe(false)
+    expect((managerState.data['chatgpt.com'] as Record<string, unknown>).input).toBe(
+      '#picked-input'
+    )
   })
 })

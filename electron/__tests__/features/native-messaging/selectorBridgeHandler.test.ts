@@ -54,7 +54,8 @@ vi.mock('electron', () => ({
 vi.mock('../../../../electron/features/ai-view/aiWebContentsViewManager.js', () => ({
   listManagedAiViewIds,
   getAiViewUrl,
-  executeAiViewScript
+  executeAiViewScript,
+  getAiViewDocumentToken: () => '1:1'
 }))
 
 vi.mock('../../../../electron/features/ai/aiConfigHandlers.js', () => ({
@@ -276,7 +277,8 @@ describe('selector bridge routes', () => {
     expect(saveAiConfigPatch).toHaveBeenCalledTimes(1)
     expect(saveAiConfigPatch).toHaveBeenCalledWith(
       'chatgpt.com',
-      expect.objectContaining({ input: '#composer' })
+      expect.objectContaining({ input: '#composer' }),
+      { pickedField: 'input' }
     )
   })
 

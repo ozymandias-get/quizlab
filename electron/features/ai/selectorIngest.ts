@@ -29,6 +29,7 @@ import {
 import { canonicalizeHostname } from '../../../shared/selectorConfig.js'
 import { isPersistableSelector } from '../../../shared/selectorRepair/selectorValidation.js'
 import { generateVerifyLocatorScript } from '../automation/automationScripts/generators/verifyLocator.js'
+import { locatorHealthPatch } from './aiConfigDomain.js'
 import { sanitizeFingerprint } from './aiConfigFingerprint.js'
 import { normalizeHostname } from './aiConfigSanitize.js'
 import { findSelectorSiteMatch, type SelectorSiteTarget } from './selectorTargets.js'
@@ -43,6 +44,8 @@ const MAX_SITE_ID_LENGTH = 120
 export interface SelectorLiveView {
   viewId: string
   url: string
+  /** Opaque token tied to the view generation and document revision. */
+  documentToken?: string
 }
 
 /** Everything the ingestion needs from the process, injectable for tests. */
@@ -50,12 +53,14 @@ export interface SelectorIngestDeps {
   loadSites: () => Promise<SelectorSiteTarget[]>
   /** Every stored config, keyed by hostname. */
   readConfigs: () => Promise<Record<string, AiSelectorConfig>>
-  savePatch: (hostname: string, patch: AiSelectorConfig) => Promise<boolean>
+  savePatch: (hostname: string, patch: AiSelectorConfig, field?: SelectorField) => Promise<boolean>
   /** The managed view whose page belongs to this site, or null. */
   findViewForSite: (site: SelectorSiteTarget) => Promise<SelectorLiveView | null>
   executeScript: (viewId: string, script: string) => Promise<unknown>
   /** The view's address after the script ran, or null when it is gone. */
   getViewUrl: (viewId: string) => Promise<string | null>
+  /** The view's document lifecycle token, or null when the view is gone. */
+  getViewDocumentToken?: (viewId: string) => Promise<string | null>
   broadcastConfigChanged: (hostname: string) => void
   /**
    * Records why a pick was not accepted.
@@ -86,7 +91,8 @@ export interface SelectorPickFailure {
     contentEditable: boolean
   }
   verifier: {
-    matchedSelector: string | null
+    matched: boolean
+    matchedInCandidates: boolean
     strategy: string | null
     attempts: number
     ambiguous: boolean
@@ -199,6 +205,9 @@ export function parseSelectorTransferPayload(
   // stored fingerprint are the same object, not a cast of the wire value.
   const sanitizedFingerprint = sanitizeFingerprint(fingerprint)
   if (!sanitizedFingerprint) return { reason: 'invalid_fingerprint' }
+  if (raw.field === 'input' && sanitizedFingerprint.text !== undefined) {
+    delete sanitizedFingerprint.text
+  }
 
   let siteId: string | undefined
   if (raw.siteId !== undefined) {
@@ -246,6 +255,12 @@ function presentString(value: unknown): string | null {
 
 type IdentityVerdict = 'match' | 'mismatch' | 'insufficient'
 
+function isDistinctiveSemanticValue(value: string, expectedTag: string): boolean {
+  if (value.length < 2) return false
+  if (value === expectedTag.toLowerCase()) return false
+  return /[\p{L}\p{N}]/u.test(value)
+}
+
 /**
  * Compares the element the Electron view resolved with the element Chrome
  * picked.
@@ -253,14 +268,16 @@ type IdentityVerdict = 'match' | 'mismatch' | 'insufficient'
  * Three outcomes, because "the attribute is missing" is not the same answer as
  * "the attribute says this is another element":
  *
- *   - `mismatch`: a *stable* identity attribute is present on both sides and
- *     differs, or the tag differs. The element is definitely not the pick.
- *   - `insufficient`: nothing contradicts the pick, but no positive identity
- *     evidence survived either (only the tag agrees, or every attribute the
- *     fingerprint carries is missing from the app's DOM). Storing a wrong twin
- *     on tag alone is exactly the failure this gate exists to stop.
- *   - `match`: at least one non-class identity field agrees and nothing stable
- *     contradicts it.
+ *   - `mismatch`: a stable or structural attribute (`tag`, `role`, `type`,
+ *     `dataTestId`, `id`, `name`, `contentEditable`) is present on both sides
+ *     and differs. The element is definitely not the pick.
+ *   - `insufficient`: nothing contradicts the pick, but only generic traits
+ *     (`tag`, `role`, `type`, `contentEditable`, `classTokens`) agreed without
+ *     any strong identity (`dataTestId`, `id`, `name`) or field-distinctive
+ *     semantic match (`ariaLabel`, `placeholder` for input; `ariaLabel`, `text`
+ *     for button).
+ *   - `match`: at least one strong identity or field-distinctive semantic field
+ *     agrees and nothing stable/structural contradicts it.
  *
  * Localisable text (`text`, `aria-label`, `placeholder`) only ever *adds*
  * evidence. A site rendered in another language does not reject a pick whose
@@ -269,7 +286,8 @@ type IdentityVerdict = 'match' | 'mismatch' | 'insufficient'
  */
 function compareDescriptorToFingerprint(
   descriptor: VerificationDescriptor | null | undefined,
-  fingerprint: AutomationElementFingerprint
+  fingerprint: AutomationElementFingerprint,
+  field: SelectorField
 ): IdentityVerdict {
   if (!isRecord(descriptor)) return 'insufficient'
   const actualTag = presentString(descriptor.tag)
@@ -277,60 +295,84 @@ function compareDescriptorToFingerprint(
   if (!actualTag || !expectedTag) return 'insufficient'
   if (actualTag.toLowerCase() !== expectedTag.toLowerCase()) return 'mismatch'
 
-  let evidence = 0
+  let strongMatches = 0
 
-  const stable: Array<{
+  const strongFields: Array<{
     actual: unknown
     expected: string | null | undefined
-    ignoreCase?: boolean
   }> = [
-    { actual: descriptor.role, expected: fingerprint.role, ignoreCase: true },
-    { actual: descriptor.type, expected: fingerprint.type, ignoreCase: true },
     { actual: descriptor.dataTestId, expected: fingerprint.dataTestId },
     { actual: descriptor.id, expected: fingerprint.safeId },
     { actual: descriptor.name, expected: fingerprint.name }
   ]
-  for (const field of stable) {
-    const expected = presentString(field.expected)
+  for (const entry of strongFields) {
+    const expected = presentString(entry.expected)
     if (!expected) continue
-    const actual = presentString(field.actual)
+    const actual = presentString(entry.actual)
     // Missing on the app's side is missing evidence, not a contradiction.
     if (!actual) continue
-    const same = field.ignoreCase
-      ? actual.toLowerCase() === expected.toLowerCase()
-      : actual === expected
-    if (!same) return 'mismatch'
-    evidence += 2
+    if (actual !== expected) return 'mismatch'
+    strongMatches += 1
   }
 
-  if (fingerprint.contentEditable === true) {
-    if (descriptor.contentEditable !== true) return 'mismatch'
-    evidence += 2
-  }
-
-  const semantic: Array<{ actual: unknown; expected: string | null | undefined }> = [
-    { actual: descriptor.ariaLabel, expected: fingerprint.ariaLabel },
-    { actual: descriptor.placeholder, expected: fingerprint.placeholder },
-    { actual: descriptor.text, expected: fingerprint.text }
+  const structuralFields: Array<{
+    actual: unknown
+    expected: string | null | undefined
+  }> = [
+    { actual: descriptor.role, expected: fingerprint.role },
+    { actual: descriptor.type, expected: fingerprint.type }
   ]
-  for (const field of semantic) {
-    const expected = normalizeComparisonText(field.expected)
+  for (const entry of structuralFields) {
+    const expected = presentString(entry.expected)
     if (!expected) continue
-    const actual = normalizeComparisonText(field.actual)
+    const actual = presentString(entry.actual)
     if (!actual) continue
-    if (actual === expected) evidence += 1
+    if (actual.toLowerCase() !== expected.toLowerCase()) return 'mismatch'
   }
 
-  // Class tokens are shared by twins (ChatGPT's send and voice buttons agree on
-  // the composer classes), so they can support a pick but never identify one.
-  if (Array.isArray(descriptor.classTokens) && Array.isArray(fingerprint.classTokens)) {
-    const actualTokens = new Set(
-      descriptor.classTokens.filter((token): token is string => typeof token === 'string')
-    )
-    if (fingerprint.classTokens.some((token) => actualTokens.has(token))) evidence += 1
+  if (fingerprint.contentEditable === true && descriptor.contentEditable !== true) {
+    return 'mismatch'
   }
 
-  return evidence > 0 ? 'match' : 'insufficient'
+  let distinctiveSemanticMatches = 0
+  const semanticFields: Array<{ actual: unknown; expected: string | null | undefined }> =
+    field === 'input'
+      ? [
+          { actual: descriptor.ariaLabel, expected: fingerprint.ariaLabel },
+          { actual: descriptor.placeholder, expected: fingerprint.placeholder }
+        ]
+      : [
+          { actual: descriptor.ariaLabel, expected: fingerprint.ariaLabel },
+          { actual: descriptor.text, expected: fingerprint.text }
+        ]
+  for (const entry of semanticFields) {
+    const expected = normalizeComparisonText(entry.expected)
+    if (!expected) continue
+    const actual = normalizeComparisonText(entry.actual)
+    if (!actual) continue
+    if (actual === expected && isDistinctiveSemanticValue(actual, expectedTag)) {
+      distinctiveSemanticMatches += 1
+    }
+  }
+
+  return strongMatches > 0 || distinctiveSemanticMatches > 0 ? 'match' : 'insufficient'
+}
+
+/** Mirrors `__SELECTOR_PRIORITY` in `selectorEngine.ts` so stored order matches runtime lookup. */
+function selectorPriority(selector: string): number {
+  const s = selector.trim()
+  if (!s) return 0
+  if (/^#[a-zA-Z][\w-]*$/.test(s)) return 100
+  if (/\[(?:data-testid|data-test-id)\s*=/.test(s)) return 90
+  if (/\[aria-label\s*=/.test(s)) return 75
+  if (/\[role\s*=/.test(s)) return 65
+  if (/\[name\s*=/.test(s)) return 60
+  if (/\[placeholder\s*=/.test(s)) return 50
+  if (/\[type\s*=/.test(s)) return 45
+  if (/\[contenteditable/.test(s)) return 40
+  if (/^\w+\.[\w.-]+/.test(s) || /^\w+\[class\*=/.test(s)) return 25
+  if (/:nth-child\(/.test(s)) return 10
+  return 0
 }
 
 /**
@@ -385,7 +427,7 @@ function verifyPick(
   const candidates = payload.candidates.map((candidate) => candidate.trim())
   /** Candidates that resolved to a *different* element in the app's DOM. */
   const conflicting = new Set<string>()
-  let verifiedSelector: string | null = null
+  const verifiedSelectors: string[] = []
   /** Distinct elements the matching attempts resolved to. */
   const verifiedElements = new Set<string>()
   let sawMismatch = false
@@ -410,17 +452,24 @@ function verifyPick(
       typeof attempt.selector === 'string' && candidates.includes(attempt.selector.trim())
         ? attempt.selector.trim()
         : matched
-    const verdict = compareDescriptorToFingerprint(attempt.descriptor, payload.fingerprint)
+    const verdict = compareDescriptorToFingerprint(
+      attempt.descriptor,
+      payload.fingerprint,
+      payload.field
+    )
     if (verdict === 'mismatch') {
       sawMismatch = true
       conflicting.add(sourceSelector)
+      conflicting.add(matched)
       continue
     }
     if (verdict === 'insufficient') {
       sawInsufficient = true
       continue
     }
-    if (!verifiedSelector) verifiedSelector = matched
+    if (!verifiedSelectors.includes(matched)) {
+      verifiedSelectors.push(matched)
+    }
     if (typeof attempt.elementKey === 'number') {
       verifiedElements.add(String(attempt.elementKey))
     } else {
@@ -437,7 +486,15 @@ function verifyPick(
     return { ok: false, reason: 'ambiguous' }
   }
 
-  if (!verifiedSelector) {
+  const safeCandidates = verifiedSelectors
+    .filter((candidate) => !conflicting.has(candidate))
+    .sort((left, right) => {
+      const diff = selectorPriority(right) - selectorPriority(left)
+      if (diff !== 0) return diff
+      return left < right ? -1 : left > right ? 1 : 0
+    })
+
+  if (safeCandidates.length === 0) {
     if (sawMismatch) return { ok: false, reason: 'identity_mismatch' }
     if (sawInsufficient) return { ok: false, reason: 'identity_insufficient' }
     if (sawUnknownMatch) return { ok: false, reason: 'unknown_match' }
@@ -445,18 +502,7 @@ function verifyPick(
     return { ok: false, reason: 'no_match' }
   }
 
-  // The runtime orders candidates by its own priority, not by the stored order.
-  // A candidate that resolved to a *different* element here would therefore be
-  // preferred over the verified one at automation time (a class candidate that
-  // matches the voice button outranks a generic `button`). It is dropped from
-  // the stored list; the verified selector becomes the primary, and the
-  // remaining candidates stay as fallbacks.
-  const safeCandidates: string[] = [verifiedSelector]
-  for (const candidate of candidates) {
-    if (candidate === verifiedSelector || conflicting.has(candidate)) continue
-    safeCandidates.push(candidate)
-  }
-  return { ok: true, selector: verifiedSelector, candidates: safeCandidates }
+  return { ok: true, selector: safeCandidates[0], candidates: safeCandidates }
 }
 
 export function createSelectorIngest(deps: SelectorIngestDeps) {
@@ -513,17 +559,25 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     }
     const verifiedSelector = verified.selector
 
-    // The view may navigate while the verifier runs (a redirect, a SPA route
-    // change, a reload). A result from a document that is no longer the one the
-    // view shows must not be stored: the next automation would look it up in a
-    // different document. The verifier reports the address it ran on, and the
-    // live view address is read again *after* the script.
-    const afterUrl = await deps.getViewUrl(view.viewId).catch(() => null)
-    if (!afterUrl || afterUrl !== view.url) {
+    // The view may navigate, reload (even to the same URL), or be recreated
+    // while the verifier runs. A result from a document that is no longer the
+    // one the view shows must not be stored.
+    const isSameDocument = async (): Promise<boolean> => {
+      const afterUrl = await deps.getViewUrl(view.viewId).catch(() => null)
+      if (!afterUrl || afterUrl !== view.url) return false
+      if (view.documentToken && deps.getViewDocumentToken) {
+        const afterToken = await deps.getViewDocumentToken(view.viewId).catch(() => null)
+        if (!afterToken || afterToken !== view.documentToken) return false
+      }
+      return true
+    }
+
+    if (!(await isSameDocument())) {
       return { status: 'verification_failed', reason: 'view_navigated' }
     }
     const resultHref = readResultHref(rawResult)
-    if (resultHref && normalizeUrlHost(resultHref) !== viewHost) {
+    const expectedSourceUrl = storedSourceUrl(view.url)
+    if (resultHref && (!expectedSourceUrl || storedSourceUrl(resultHref) !== expectedSourceUrl)) {
       return { status: 'verification_failed', reason: 'view_navigated' }
     }
 
@@ -532,6 +586,10 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     // not aim the stored locator at a key nothing looks up.
     const storedHost = viewHost
     const existing = deps.readConfigs ? (await deps.readConfigs())[storedHost] : undefined
+
+    if (!(await isSameDocument())) {
+      return { status: 'verification_failed', reason: 'view_navigated' }
+    }
 
     // Only the field this pick describes is replaced. The other field's staged
     // repair state, health evidence and candidates stay exactly as they were;
@@ -558,7 +616,7 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
       ...locatorHealthPatch(existing, payload.field)
     }
 
-    const saved = await deps.savePatch(storedHost, patch)
+    const saved = await deps.savePatch(storedHost, patch, payload.field)
     if (!saved) return { status: 'save_failed' }
 
     deps.broadcastConfigChanged(storedHost)
@@ -630,43 +688,13 @@ function summarizePickFailure(
       contentEditable: payload.fingerprint.contentEditable === true
     },
     verifier: {
-      matchedSelector: typeof result.matchedSelector === 'string' ? result.matchedSelector : null,
+      matched: typeof result.matchedSelector === 'string' && result.matchedSelector.length > 0,
+      matchedInCandidates:
+        typeof result.matchedSelector === 'string' &&
+        payload.candidates.includes(result.matchedSelector.trim()),
       strategy: typeof result.strategy === 'string' ? result.strategy : null,
       attempts: Array.isArray(result.attempts) ? result.attempts.length : 0,
       ambiguous: result.diagnostics?.[payload.field]?.ambiguous === true
     }
   }
-}
-
-/**
- * The health/repair part of a one-field pick.
- *
- * `health` is site-wide while `repair` is per locator. A pick clears only its
- * own staged repair. When `needs_repick` was caused by this locator's staged
- * candidate it becomes `ready` again; a problem staged for the other locator
- * keeps the site in `needs_repick`, because this pick says nothing about it.
- */
-function locatorHealthPatch(
-  existing: AiSelectorConfig | undefined,
-  field: SelectorField
-): Pick<AiSelectorConfig, 'health' | 'repair'> {
-  const previousRepair = existing?.repair ?? null
-  let nextRepair = previousRepair
-  if (previousRepair) {
-    const remaining: NonNullable<AiSelectorConfig['repair']> = { ...previousRepair }
-    delete remaining[field]
-    nextRepair = remaining.input || remaining.button ? remaining : null
-  }
-
-  const other: SelectorField = field === 'input' ? 'button' : 'input'
-  let health: NonNullable<AiSelectorConfig['health']> = 'ready'
-  if (existing?.health === 'needs_repick') {
-    // Keep the flag when the other locator still has a staged repair, or when
-    // nothing attributes the flag to the locator this pick just verified.
-    const attributedToThisPick = Boolean(previousRepair?.[field])
-    const otherStillBroken = Boolean(previousRepair?.[other])
-    health = otherStillBroken || !attributedToThisPick ? 'needs_repick' : 'ready'
-  }
-
-  return { health, repair: nextRepair }
 }

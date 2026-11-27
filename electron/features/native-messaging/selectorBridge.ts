@@ -245,7 +245,11 @@ async function getIngest(): Promise<(raw: unknown) => Promise<SelectorIngestResu
         continue
       }
       if (!targets.hostBelongsToSelectorSite(host, site)) continue
-      const candidate = { viewId, url }
+      const candidate: SelectorLiveView = {
+        viewId,
+        url,
+        documentToken: aiView.getAiViewDocumentToken?.(viewId) ?? undefined
+      }
       if (host === site.hostname) return candidate
       if (!fallback) fallback = candidate
     }
@@ -255,10 +259,12 @@ async function getIngest(): Promise<(raw: unknown) => Promise<SelectorIngestResu
   ingestSelector = createSelectorIngest({
     loadSites: targets.buildSelectorSiteTargets,
     readConfigs: aiConfig.readAiConfigMap,
-    savePatch: aiConfig.saveAiConfigPatch,
+    savePatch: (hostname, patch, field) =>
+      aiConfig.saveAiConfigPatch(hostname, patch, field ? { pickedField: field } : undefined),
     findViewForSite: async (site) => findViewForSite(site),
     executeScript: (viewId, script) => aiView.executeAiViewScript(viewId, script),
     getViewUrl: async (viewId) => aiView.getAiViewUrl(viewId),
+    getViewDocumentToken: async (viewId) => aiView.getAiViewDocumentToken?.(viewId) ?? null,
     broadcastConfigChanged,
     logVerificationFailure: (details) => {
       Logger.warn('[NativeMessaging] Selector verification failed:', JSON.stringify(details))

@@ -122,16 +122,13 @@ function resolveHosts(entries: SelectorSiteTarget[]): SelectorSiteTarget[] {
  */
 export async function buildSelectorSiteTargets(): Promise<SelectorSiteTarget[]> {
   const entries: SelectorSiteTarget[] = []
-  const seen = new Set<string>()
+  const seenSiteIds = new Set<string>()
 
   const add = (platform: AiPlatform, siteId: string) => {
+    if (seenSiteIds.has(siteId)) return
     const entry = usableEntry(platform, siteId, siteId.startsWith('custom:'))
     if (!entry) return
-    // A host may host several sites under different paths; host-only dedupe
-    // used to drop every entry after the first one.
-    const key = `${entry.hostname}\n${entry.pathPrefix ?? ''}`
-    if (seen.has(key)) return
-    seen.add(key)
+    seenSiteIds.add(siteId)
     entries.push(entry)
   }
 
@@ -239,13 +236,21 @@ export function findSelectorSiteMatch(
     return right.pathLength - left.pathLength
   })
   const best = ranked[0]
-  const ambiguous = ranked.some(
-    (entry) =>
-      entry.tier === best.tier &&
-      entry.hostLength === best.hostLength &&
-      entry.pathLength === best.pathLength &&
-      entry.site.siteId !== best.site.siteId
+  // The selector store is keyed by hostname, not by siteId or path. Two sites
+  // sharing the same storage hostname cannot keep independent selectors, so
+  // both are flagged as ambiguous rather than overwriting each other.
+  const storageConflict = sites.some(
+    (other) => other.siteId !== best.site.siteId && other.hostname === best.site.hostname
   )
+  const ambiguous =
+    storageConflict ||
+    ranked.some(
+      (entry) =>
+        entry.tier === best.tier &&
+        entry.hostLength === best.hostLength &&
+        entry.pathLength === best.pathLength &&
+        entry.site.siteId !== best.site.siteId
+    )
   return { site: best.site, ambiguous }
 }
 
@@ -259,33 +264,79 @@ export function matchSelectorSite(
   return match && !match.ambiguous ? match.site : null
 }
 
+interface SiteStatusConfig {
+  health?: string
+  input?: unknown
+  button?: unknown
+  repair?: { input?: unknown; button?: unknown } | null
+  lastRepair?: { inputSelector?: string | null; buttonSelector?: string | null } | null
+}
+
+/**
+ * Resolves the config automation will actually use for `site`, following
+ * `resolveConfigForHostname` priority: exact host -> canonical host -> any
+ * matching subdomain entry.
+ */
+function resolveSiteStatusConfig(
+  site: SelectorSiteTarget,
+  configs: Readonly<Record<string, SiteStatusConfig>>
+): SiteStatusConfig | undefined {
+  const normalizedConfigs = new Map<string, SiteStatusConfig>()
+  for (const [host, config] of Object.entries(configs)) {
+    const normalized = host.trim().toLowerCase()
+    if (normalized) normalizedConfigs.set(normalized, config)
+  }
+
+  const exact = normalizedConfigs.get(site.hostname)
+  if (exact) return exact
+
+  const canonical = site.canonicalHostname
+    ? normalizedConfigs.get(site.canonicalHostname)
+    : undefined
+  if (canonical) return canonical
+
+  for (const [host, config] of normalizedConfigs) {
+    if (site.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))) {
+      return config
+    }
+  }
+  return undefined
+}
+
 /** The status of a site's two locators, from the stored config map. */
 export function statusOfSite(
   site: SelectorSiteTarget,
-  configs: Readonly<Record<string, { health?: string; input?: unknown; button?: unknown }>>
+  configs: Readonly<Record<string, SiteStatusConfig>>
 ): SelectorSiteStatus | undefined {
-  const related = Object.entries(configs)
-    .filter(([host]) => {
-      const normalized = host.toLowerCase()
-      return site.hosts.some(
-        (allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`)
-      )
-    })
-    .map(([, config]) => config)
-  if (related.length === 0) return undefined
+  const config = resolveSiteStatusConfig(site, configs)
+  if (!config) return undefined
+
   const pick = (field: 'input' | 'button'): SelectorSiteStatus['input'] => {
-    const configured = related.find((config) => typeof config[field] === 'string' && config[field])
-    if (!configured) return 'missing'
-    const health = configured.health
-    if (
-      health === 'ready' ||
-      health === 'migrated' ||
-      health === 'repaired' ||
-      health === 'needs_repick'
-    ) {
-      return health
+    const selector = typeof config[field] === 'string' ? config[field] : ''
+    if (!selector) return 'missing'
+
+    const other: 'input' | 'button' = field === 'input' ? 'button' : 'input'
+    const repair = config.repair
+    const lastRepair = config.lastRepair
+    const thisRepaired = lastRepair?.[`${field}Selector`] === selector
+    const otherRepaired =
+      typeof config[other] === 'string' && lastRepair?.[`${other}Selector`] === config[other]
+
+    if (config.health === 'needs_repick') {
+      if (repair?.[field]) return 'needs_repick'
+      if (repair?.[other]) return thisRepaired ? 'repaired' : 'ready'
+      return 'unknown'
     }
-    return 'ready'
+    if (config.health === 'repaired') {
+      if (thisRepaired) return 'repaired'
+      if (otherRepaired) return 'ready'
+      return 'unknown'
+    }
+    if (config.health === 'ready' || config.health === 'migrated') {
+      return config.health
+    }
+    return 'unknown'
   }
+
   return { input: pick('input'), button: pick('button') }
 }
