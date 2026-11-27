@@ -402,6 +402,12 @@ async function handleSelectorSites(
       version: SELECTOR_TRANSFER_VERSION,
       sites: sites.map((site) => {
         const status = targets.statusOfSite(site, configs)
+        const canonicalStatus =
+          site.canonicalHostname &&
+          site.canonicalHostname !== site.hostname &&
+          Object.prototype.hasOwnProperty.call(configs, site.canonicalHostname)
+            ? targets.statusOfSite(site, configs, site.canonicalHostname)
+            : undefined
         const hostStatuses = targets.hostStatusesOfSite?.(site, configs, liveViewHosts)
         return {
           siteId: site.siteId,
@@ -411,6 +417,7 @@ async function handleSelectorSites(
           fields: site.fields,
           ...(site.pathPrefix ? { pathPrefix: site.pathPrefix } : {}),
           ...(status ? { status } : {}),
+          ...(canonicalStatus ? { canonicalStatus } : {}),
           ...(hostStatuses ? { hostStatuses } : {})
         }
       })

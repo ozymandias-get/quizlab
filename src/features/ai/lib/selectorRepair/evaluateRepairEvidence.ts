@@ -268,6 +268,12 @@ export function evaluateSelectorRepairEvidence(
     input: config.repair?.input ?? null,
     button: config.repair?.button ?? null
   }
+  const repairIntent: NonNullable<AiSelectorConfig['repairIntent']> = {
+    baseTimestamp:
+      typeof (config as AiSelectorConfig & { timestamp?: unknown }).timestamp === 'number'
+        ? ((config as AiSelectorConfig & { timestamp?: number }).timestamp as number)
+        : 0
+  }
   const patch: AiSelectorConfig = {}
   let shouldPersist = false
   let promoted = false
@@ -290,6 +296,7 @@ export function evaluateSelectorRepairEvidence(
       // and must not cause a config write.
       if (config.repair?.[kind] && evaluated.reason !== 'not_recovered') {
         nextRepair[kind] = null
+        repairIntent[kind] = 'clear'
         repairStateChanged = true
         shouldPersist = true
       }
@@ -301,6 +308,7 @@ export function evaluateSelectorRepairEvidence(
       baseSelector: evaluated.candidate.baseSelector ?? config[kind] ?? null
     }
     if (evaluated.shouldPersist) {
+      repairIntent[kind] = 'update'
       repairStateChanged = true
       shouldPersist = true
     }
@@ -313,6 +321,7 @@ export function evaluateSelectorRepairEvidence(
     }
     if (promotion.promoted) {
       promoted = true
+      repairIntent[kind] = 'promote'
       shouldPersist = true
       repairStateChanged = true
       Object.assign(patch, promotion.patch)
@@ -330,6 +339,9 @@ export function evaluateSelectorRepairEvidence(
   const repairState = nextRepair.input || nextRepair.button ? nextRepair : null
   if (repairStateChanged && JSON.stringify(repairState) !== JSON.stringify(config.repair ?? null)) {
     patch.repair = repairState
+    if (repairIntent.input || repairIntent.button) {
+      patch.repairIntent = repairIntent
+    }
     shouldPersist = true
   }
 

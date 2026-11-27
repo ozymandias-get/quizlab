@@ -29,6 +29,7 @@ export type {
   SelectorHealth,
   SelectorLastRepair,
   SelectorRepairCandidate,
+  SelectorRepairIntent,
   SelectorRepairKind,
   SelectorRepairReason,
   SelectorRepairState,

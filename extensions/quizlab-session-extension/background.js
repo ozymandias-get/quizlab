@@ -1551,6 +1551,7 @@ function normalizeSelectorSites(value) {
         ? entry.displayName.trim().slice(0, 120)
         : siteId
     const status = normalizeSelectorStatusPair(entry.status)
+    const canonicalStatus = normalizeSelectorStatusPair(entry.canonicalStatus)
     let hostStatuses = null
     if (entry.hostStatuses && typeof entry.hostStatuses === 'object') {
       const normalizedMap = {}
@@ -1569,6 +1570,7 @@ function normalizeSelectorSites(value) {
       ...(pathPrefix ? { pathPrefix } : {}),
       fields: fields.length > 0 ? fields : ['input', 'button'],
       ...(status ? { status } : {}),
+      ...(canonicalStatus ? { canonicalStatus } : {}),
       ...(hostStatuses ? { hostStatuses } : {})
     })
   }
@@ -2370,9 +2372,12 @@ async function buildSelectorState(tabId) {
   const host = hostOfUrl(url)
   const match = host ? findSelectorSiteMatch(host, pathOfUrl(url)) : null
   const site = match && !match.ambiguous ? match.site : null
+  const missingStatus = { input: 'missing', button: 'missing' }
   const status = site
     ? (host && site.hostStatuses && site.hostStatuses[host]) ||
-      site.status || { input: 'missing', button: 'missing' }
+      (host === site.hostname ? site.status : null) ||
+      site.canonicalStatus ||
+      missingStatus
     : null
   const capability =
     selectorSupported === null ? null : selectorSupported === true ? 'selectors' : 'none'

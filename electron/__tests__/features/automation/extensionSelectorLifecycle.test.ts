@@ -451,4 +451,16 @@ describe('extension selector transfer lifecycle', () => {
       button: 'repaired'
     })
   })
+
+  it('does not fall back to another hostname site.status when active host has no config and no canonicalStatus', async () => {
+    const context = createWorkerSandbox({
+      tabUrl: 'https://other.chatgpt.com/c/1'
+    })
+    const state = await context.send({ type: 'selector_state', tabId: 7 })
+    expect(state.host).toBe('other.chatgpt.com')
+    expect((state.site as Record<string, unknown>)?.status).toEqual({
+      input: 'missing',
+      button: 'missing'
+    })
+  })
 })

@@ -66,6 +66,8 @@ export type AiSelectorConfig = {
    * its send button drift for different reasons and carry different risk.
    */
   repair?: SelectorRepairState | null
+  /** Transient per-field intent for atomic repair merging (never persisted). */
+  repairIntent?: SelectorRepairIntent
   /**
    * Bounded repair history: only the last promotion is retained. Never holds
    * DOM snapshots, page text, prompts or credentials.
@@ -117,6 +119,13 @@ export interface SelectorRepairCandidate {
 export interface SelectorRepairState {
   input?: SelectorRepairCandidate | null
   button?: SelectorRepairCandidate | null
+}
+
+/** Transient per-field intent attached to a repair patch (not persisted). */
+export interface SelectorRepairIntent {
+  input?: 'update' | 'clear' | 'promote'
+  button?: 'update' | 'clear' | 'promote'
+  baseTimestamp?: number
 }
 
 /** Bounded repair history. Only the most recent promotion is kept. */

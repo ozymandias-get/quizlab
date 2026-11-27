@@ -1,4 +1,4 @@
-import type { AiSelectorConfig } from '@shared-core/types'
+import type { AiSelectorConfig, SelectorRepairIntent } from '@shared-core/types'
 
 import { failure, success } from '../../../shared/lib/typedIpc.js'
 import { APP_CONFIG } from '../../app/constants.js'
@@ -38,9 +38,24 @@ export async function readAiConfigMap(): Promise<AiConfigMap> {
   return readMigratedConfigMap(getAiConfigManager())
 }
 
+function parseRepairIntent(raw: unknown): SelectorRepairIntent | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const source = raw as Record<string, unknown>
+  const validAction = (v: unknown): v is 'update' | 'clear' | 'promote' =>
+    v === 'update' || v === 'clear' || v === 'promote'
+  const intent: SelectorRepairIntent = {}
+  if (validAction(source.input)) intent.input = source.input
+  if (validAction(source.button)) intent.button = source.button
+  if (typeof source.baseTimestamp === 'number' && Number.isFinite(source.baseTimestamp)) {
+    intent.baseTimestamp = source.baseTimestamp
+  }
+  return intent.input || intent.button || intent.baseTimestamp !== undefined ? intent : undefined
+}
+
 function filterStaleRepairPatch(
   existing: (AiSelectorConfig & { timestamp?: number }) | undefined,
-  incoming: AiSelectorConfig
+  incoming: AiSelectorConfig,
+  intent?: SelectorRepairIntent
 ): AiSelectorConfig | null {
   const existingTs = typeof existing?.timestamp === 'number' ? existing.timestamp : 0
   const isRepairPatch = incoming.repair !== undefined || incoming.lastRepair !== undefined
@@ -69,24 +84,54 @@ function filterStaleRepairPatch(
     }
   }
 
-  if (incoming.repair && typeof incoming.repair === 'object') {
+  if (incoming.repair !== undefined) {
+    const incomingRepairObj =
+      incoming.repair && typeof incoming.repair === 'object' ? incoming.repair : null
     const nextRepair: NonNullable<AiSelectorConfig['repair']> = {}
     let repairModified = false
+    const baseTs = intent?.baseTimestamp ?? 0
+
     for (const field of ['input', 'button'] as const) {
-      const candidate = incoming.repair[field]
+      const candidate = incomingRepairObj?.[field] ?? null
+      const fieldIntent = intent?.[field]
+      const existingCandidate = existing?.repair?.[field] ?? null
+
       if (!candidate) {
-        // Preserve a newer/valid staged repair on the untouched field when an
-        // overlapping repair snapshot for the other field arrives with null.
-        const existingCandidate = existing?.repair?.[field]
-        const promotedThisField = Boolean(
-          incoming.lastRepair?.[`${field}Selector` as 'inputSelector' | 'buttonSelector']
-        )
-        if (existingCandidate && !promotedThisField && !staleFields.has(field)) {
+        if (!existingCandidate) continue
+        const promotedThisField =
+          fieldIntent === 'promote' ||
+          Boolean(incoming.lastRepair?.[`${field}Selector` as 'inputSelector' | 'buttonSelector'])
+        if (promotedThisField && !staleFields.has(field)) {
+          // Promotion intentionally clears the staged candidate.
+          continue
+        }
+        if (fieldIntent === 'clear') {
+          // Intentional clear succeeds unless existing holds a newer candidate
+          // written after this repair read its base snapshot.
+          const newerOnDisk =
+            baseTs > 0 && (existingCandidate.lastSeenAt > baseTs || existingTs > baseTs)
+          if (newerOnDisk) {
+            nextRepair[field] = existingCandidate
+            repairModified = true
+          }
+          continue
+        }
+        // Untouched field (or null snapshot from a concurrent operation on the
+        // other locator): preserve existing unless this was an explicit full
+        // `{ repair: null }` reset with no intent and no other fields.
+        const explicitFullReset =
+          incomingRepairObj === null &&
+          !intent &&
+          !incoming.lastRepair &&
+          incoming.input === undefined &&
+          incoming.button === undefined
+        if (!explicitFullReset) {
           nextRepair[field] = existingCandidate
           repairModified = true
         }
         continue
       }
+
       const baseMoved =
         candidate.baseSelector !== undefined &&
         candidate.baseSelector !== (existing?.[field] ?? null)
@@ -94,15 +139,20 @@ function filterStaleRepairPatch(
         existingTs > 0 &&
         (candidate.lastSeenAt < existingTs ||
           (candidate.baseSelector === undefined && candidate.firstSeenAt < existingTs)) &&
-        !existing?.repair?.[field]
-      if (baseMoved || startedBeforeLatestWrite || staleFields.has(field)) {
+        !existingCandidate
+      const counterRegressed =
+        Boolean(existingCandidate) && candidate.lastSeenAt < (existingCandidate?.lastSeenAt ?? 0)
+      if (baseMoved || startedBeforeLatestWrite || counterRegressed || staleFields.has(field)) {
         repairModified = true
-        staleFields.add(field)
+        if (baseMoved || startedBeforeLatestWrite) staleFields.add(field)
+        if (counterRegressed && existingCandidate && !baseMoved && !startedBeforeLatestWrite) {
+          nextRepair[field] = existingCandidate
+        }
         continue
       }
       nextRepair[field] = candidate
     }
-    if (repairModified) {
+    if (repairModified || incomingRepairObj === null) {
       cleaned.repair = nextRepair.input || nextRepair.button ? nextRepair : null
     }
   }
@@ -172,6 +222,7 @@ export async function saveAiConfigPatch(
   options?: { pickedField?: 'input' | 'button' }
 ): Promise<boolean> {
   const normalizedHostname = normalizeHostname(hostname)
+  const repairIntent = parseRepairIntent(config?.repairIntent)
   const sanitizedConfig = sanitizeConfig(config)
   if (!normalizedHostname || !sanitizedConfig) return false
 
@@ -194,7 +245,7 @@ export async function saveAiConfigPatch(
         ...locatorHealthPatch(existing, options.pickedField)
       }
     } else {
-      const filtered = filterStaleRepairPatch(existing, sanitizedConfig)
+      const filtered = filterStaleRepairPatch(existing, sanitizedConfig, repairIntent)
       if (!filtered) {
         rejectedStale = true
         return migrated

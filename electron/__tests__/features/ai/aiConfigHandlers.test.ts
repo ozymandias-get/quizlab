@@ -623,4 +623,93 @@ describe('aiConfigHandlers', () => {
     expect(deletedRes).toBe(false)
     expect((managerState.data['deleted.example'] as Record<string, unknown>).input).toBeNull()
   })
+
+  it('applies intentional repair clear via repairIntent while preserving concurrent other-field candidates on repair:null', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'chatgpt.com': {
+        version: 2,
+        input: '#old-in',
+        button: '#old-btn',
+        health: 'ready',
+        repair: {
+          input: {
+            selector: '#untrusted-in',
+            strategy: 'candidate',
+            confidenceScore: 30,
+            confidenceLevel: 'low',
+            firstSeenAt: now - 500,
+            lastSeenAt: now,
+            successCount: 1,
+            consecutiveSuccessCount: 1,
+            baseSelector: '#old-in'
+          },
+          button: {
+            selector: '#staged-btn',
+            strategy: 'candidate',
+            confidenceScore: 70,
+            confidenceLevel: 'high',
+            firstSeenAt: now - 500,
+            lastSeenAt: now,
+            successCount: 2,
+            consecutiveSuccessCount: 2,
+            baseSelector: '#old-btn'
+          }
+        },
+        timestamp: now
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+
+    // 1. Intentional clear of input keeps button intact
+    await saveAiConfigPatch('chatgpt.com', {
+      version: 2,
+      repair: {
+        input: null,
+        button: (managerState.data['chatgpt.com'] as { repair: { button: never } }).repair.button
+      },
+      repairIntent: { input: 'clear', baseTimestamp: now }
+    })
+    expect(
+      (managerState.data['chatgpt.com'] as { repair: Record<string, unknown> }).repair
+    ).toMatchObject({
+      button: { selector: '#staged-btn' }
+    })
+    expect(
+      (managerState.data['chatgpt.com'] as { repair: Record<string, unknown> }).repair.input
+    ).toBeNull()
+
+    // 2. Concurrent repair:null from an older snapshot on input must not wipe newer button candidate
+    managerState.data['race.example'] = {
+      version: 2,
+      input: '#in',
+      button: '#btn',
+      health: 'ready',
+      repair: {
+        button: {
+          selector: '#concurrent-btn',
+          strategy: 'candidate',
+          confidenceScore: 75,
+          confidenceLevel: 'high',
+          firstSeenAt: now + 100,
+          lastSeenAt: now + 200,
+          successCount: 1,
+          consecutiveSuccessCount: 1,
+          baseSelector: '#btn'
+        }
+      },
+      timestamp: now + 200
+    }
+    await saveAiConfigPatch('race.example', {
+      version: 2,
+      repair: null,
+      repairIntent: { input: 'clear', baseTimestamp: now }
+    })
+    expect(
+      (managerState.data['race.example'] as { repair: Record<string, unknown> }).repair
+    ).toMatchObject({
+      button: { selector: '#concurrent-btn' }
+    })
+  })
 })

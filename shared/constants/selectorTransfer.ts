@@ -109,6 +109,8 @@ export interface SelectorSiteEntry {
   fields: SelectorField[]
   /** The stored status of the locators, when the site has a config. */
   status?: SelectorSiteStatus
+  /** Canonical domain fallback status when a canonical config exists for this site. */
+  canonicalStatus?: SelectorSiteStatus
   /** Per-host status when the active or live view host differs from `hostname`. */
   hostStatuses?: Record<string, SelectorSiteStatus>
 }
