@@ -1,27 +1,20 @@
 /**
  * The side panel of the Quizlab Reader site session extension.
  *
- * The extension reads the cookies of the sites the app names. The sites the
- * app ships with are covered by the host permissions the extension was
- * installed with; a site the user added afterwards is not. Chrome only grants
- * a permission that is asked for during a user gesture, so the user opens this
- * panel and presses the button of the site that is missing one.
- *
- * The panel selects a destination and asks the worker to import. It never reads a cookie
- * and never asks the network for anything. It reads the site list the service
- * worker persisted and asks Chrome for the permissions that are missing.
+ * The extension reads the cookies of the sites the app names and drives the
+ * on-demand Magic Selector on supported AI tabs.
  */
 
 /** The key the service worker persists the last site list under. */
 const TARGETS_KEY = 'knownTargets'
 
-/** The id of the element the status line lives in. */
+/** The id of the element the site-permission status line lives in. */
 const STATUS_ID = 'status'
 
 /** The id of the element the sites are rendered into. */
 const LIST_ID = 'sites'
 
-/** What the panel says to the user. */
+/** What the sessions panel says to the user. */
 const TEXTS = {
   appMissing: 'Önce Quizlab Reader uygulamasını açın ve site oturumunu etkinleştirin.',
   noSite: 'İzin gerektiren site yok.',
@@ -45,23 +38,10 @@ function hostOf(domain) {
   return domain.trim().toLowerCase().replace(/^\.+/, '')
 }
 
-/**
- * The pattern the panel asks for.
- *
- * The wildcard covers the host itself and every subdomain of it, so it covers
- * both patterns the service worker probes. Chrome lets the user narrow it out
- * of the optional host permissions the manifest declares.
- */
 function wildcardPattern(host) {
   return `https://*.${host}/*`
 }
 
-/**
- * The origin patterns of a host.
- *
- * The service worker asks for the same pattern, so the panel and the
- * worker agree on what "the extension may read this site" means.
- */
 function originPatterns(host) {
   return [wildcardPattern(host)]
 }
@@ -77,16 +57,9 @@ function hostsOf(target) {
   return hosts
 }
 
-/**
- * Whether the extension may read a host.
- *
- * A check that fails is a check that did not pass: a throwing permissions API
- * means that the permission could not be proven, not that it is there.
- */
+/** Whether the extension may read a host. */
 async function hasPermission(host) {
   if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') {
-    // Without the permissions API the host permissions of the manifest are
-    // the answer, and they were granted when the extension was installed.
     return true
   }
   for (const pattern of originPatterns(host)) {
@@ -114,13 +87,6 @@ async function missingHosts(hosts) {
   return missing
 }
 
-/**
- * The storage area the site list is read from.
- *
- * The service worker writes the list into the session storage and falls back
- * to the local storage when the browser has no session storage. The panel
- * reads it from the same place, or it would not find the list at all.
- */
 function storageArea() {
   try {
     return chrome.storage.session || chrome.storage.local || null
@@ -129,7 +95,6 @@ function storageArea() {
   }
 }
 
-/** Whether the app told the worker that the stored pairing code is not its own. */
 async function readPairingRejected() {
   const area = storageArea()
   if (!area) return false
@@ -141,12 +106,6 @@ async function readPairingRejected() {
   }
 }
 
-/**
- * The site list the service worker persisted, or null when there is none.
- *
- * The panel cannot ask the app itself: the app only answers a signed request
- * and the secret of the signature lives in the memory of the service worker.
- */
 async function readTargets() {
   const area = storageArea()
   if (!area) return null
@@ -173,25 +132,24 @@ function clearList() {
   list.replaceChildren()
 }
 
-/**
- * The name of a site.
- *
- * A user-added site carries an internal id (`custom:<id>`) that the user
- * never sees in the app, so the host of the site is its name. A built-in site
- * already has a readable id.
- */
+function updateSessionsBadge(missingCount) {
+  const badge = document.getElementById('sessions-badge')
+  if (!badge) return
+  if (missingCount > 0) {
+    badge.textContent = String(missingCount)
+    badge.hidden = false
+  } else {
+    badge.textContent = '0'
+    badge.hidden = true
+  }
+}
+
 function titleOf(site) {
   if (typeof site.label === 'string' && site.label.trim()) return site.label
   if (site.siteId.startsWith('custom:')) return site.hosts[0]
   return site.siteId
 }
 
-/**
- * The row of one site.
- *
- * A site that already has its permission says so and offers no button: there
- * is nothing for the user to do about it.
- */
 function renderRow(site) {
   const row = document.createElement('li')
   row.className = 'site'
@@ -202,8 +160,6 @@ function renderRow(site) {
 
   const domains = document.createElement('span')
   domains.className = 'site-domains'
-  // A site that misses a permission shows the hosts that miss it: the others
-  // are already taken care of.
   domains.textContent = (site.missing.length > 0 ? site.missing : site.hosts).join(', ')
 
   const state = document.createElement('span')
@@ -221,8 +177,6 @@ function renderRow(site) {
   button.className = 'grant'
   button.textContent = TEXTS.grant
   button.addEventListener('click', () => {
-    // The request has to be made inside the click handler: Chrome only grants
-    // a runtime permission to a request that comes from a user gesture.
     let request
     try {
       request = chrome.permissions.request({
@@ -239,7 +193,6 @@ function renderRow(site) {
   return row
 }
 
-/** The user allowed the permission. */
 async function onGranted(granted) {
   if (!granted) {
     setStatus(TEXTS.declined)
@@ -248,19 +201,16 @@ async function onGranted(granted) {
   await render()
 }
 
-/** The request itself failed. */
 function onFailed(error) {
   console.warn('[Quizlab Panel] The permission could not be requested:', errorMessage(error))
   setStatus(TEXTS.failed)
 }
 
-/**
- * Renders the sites of the app and the permissions they still miss.
- */
 async function renderSites() {
   const targets = await readTargets()
   if (targets === null) {
     clearList()
+    updateSessionsBadge(0)
     setStatus(TEXTS.appMissing)
     return
   }
@@ -279,21 +229,16 @@ async function renderSites() {
   if (list) list.replaceChildren(...sites.map(renderRow))
 
   const missingCount = sites.filter((site) => site.missing.length > 0).length
+  updateSessionsBadge(missingCount)
   if (sites.length === 0) setStatus(TEXTS.noSite)
   else if (missingCount === 0) setStatus(TEXTS.allGranted)
   else setStatus(TEXTS.someMissing)
 }
 
-/**
- * Whether a value looks like the pairing code the app shows.
- */
 function isPairingCode(value) {
   return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value.trim())
 }
 
-/**
- * Reads the code the user paired this browser with, or null.
- */
 async function readPairingCode() {
   try {
     const stored = await chrome.storage.local.get(['bridgeSecret'])
@@ -304,32 +249,80 @@ async function readPairingCode() {
   }
 }
 
-/** The default name of a profile the user has not named yet. */
 const DEFAULT_PROFILE_NAME = 'Chrome'
-
-/** The longest name the service worker accepts. */
 const MAX_PROFILE_NAME_LENGTH = 60
 
-/** The same normalization the service worker applies before saving. */
 function normalizeProfileName(value) {
   if (typeof value !== 'string') return ''
   return value.trim().replaceAll(/\s+/g, ' ').slice(0, MAX_PROFILE_NAME_LENGTH)
 }
 
-/** Shows the name in the panel header and in the Chrome tab title. */
 function applyProfileLabel(name) {
   const label = document.getElementById('profile-label')
   if (label) label.textContent = `Bu Chrome profili: ${name}`
-  document.title = `Quizlab site oturumları — ${name}`
+  document.title = `QuizLab — ${name}`
 }
 
-/**
- * Wires the profile name field.
- *
- * The name is display data only: it lets the app tell two Chrome profiles
- * apart. The id that does the real identification is generated by the service
- * worker and never shown to the user.
- */
+function setSettingsDrawerOpen(open) {
+  const drawer = document.getElementById('settings-drawer')
+  const toggle = document.getElementById('settings-toggle')
+  if (!drawer || !toggle) return
+  drawer.hidden = !open
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false')
+}
+
+function initNavigation() {
+  const tabSelector = document.getElementById('tab-selector')
+  const tabSessions = document.getElementById('tab-sessions')
+  const panelSelector = document.getElementById('panel-selector')
+  const panelSessions = document.getElementById('panel-sessions')
+  const toggle = document.getElementById('settings-toggle')
+  const drawer = document.getElementById('settings-drawer')
+
+  if (toggle && drawer && !toggle.dataset.initialized) {
+    toggle.dataset.initialized = 'true'
+    toggle.addEventListener('click', () => {
+      setSettingsDrawerOpen(drawer.hidden)
+    })
+  }
+
+  if (!tabSelector || !tabSessions || !panelSelector || !panelSessions) return
+  if (tabSelector.dataset.initialized) return
+  tabSelector.dataset.initialized = 'true'
+
+  const activate = (which) => {
+    const isSelector = which === 'selector'
+    tabSelector.setAttribute('aria-selected', isSelector ? 'true' : 'false')
+    tabSessions.setAttribute('aria-selected', isSelector ? 'false' : 'true')
+    tabSelector.tabIndex = isSelector ? 0 : -1
+    tabSessions.tabIndex = isSelector ? -1 : 0
+    panelSelector.hidden = !isSelector
+    panelSessions.hidden = isSelector
+  }
+
+  tabSelector.addEventListener('click', () => activate('selector'))
+  tabSessions.addEventListener('click', () => activate('sessions'))
+
+  const handleKey = (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      const next = event.currentTarget === tabSelector ? 'sessions' : 'selector'
+      activate(next)
+      ;(next === 'selector' ? tabSelector : tabSessions).focus()
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      activate('selector')
+      tabSelector.focus()
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      activate('sessions')
+      tabSessions.focus()
+    }
+  }
+  tabSelector.addEventListener('keydown', handleKey)
+  tabSessions.addEventListener('keydown', handleKey)
+}
+
 async function initProfileControls() {
   const input = document.getElementById('profile-name-input')
   const button = document.getElementById('profile-name-btn')
@@ -348,7 +341,7 @@ async function initProfileControls() {
       hasStoredName = true
     }
   } catch {
-    // The default name still works; the save below will report a failure.
+    // Default name still works.
   }
   input.value = storedName
   applyProfileLabel(storedName)
@@ -389,8 +382,6 @@ async function initProfileControls() {
           }
           showFeedback('Profil adı kaydedildi.', true)
         } else {
-          // The worker persists before it renames itself, so the name it still
-          // uses is the one that was stored. The header keeps saying it.
           applyProfileLabel(storedName)
           if (state) {
             state.textContent = hasStoredName ? 'Kaydedildi' : 'Kaydedilmedi'
@@ -416,26 +407,28 @@ async function initProfileControls() {
   })
 }
 
-/**
- * Wires the pairing form.
- *
- * The panel writes the code to the local store and asks the service worker to
- * pair immediately; the worker signs the site-list request with it, so a wrong
- * code is reported here instead of silently leaving the session sync broken.
- */
 async function initPairingControls() {
   const input = document.getElementById('pairing-code-input')
   const button = document.getElementById('pair-btn')
   const state = document.getElementById('pair-state')
   const feedback = document.getElementById('pair-feedback')
+  const settingsToggle = document.getElementById('settings-toggle')
   if (!input || !button || button.dataset.initialized) return
   button.dataset.initialized = 'true'
 
   const existing = await readPairingCode()
   const rejected = await readPairingRejected()
+  const needsPairing = !existing || rejected
+
   if (existing && !rejected && state) {
     state.textContent = 'Eşleştirildi'
     state.dataset.paired = 'true'
+  }
+  if (settingsToggle) {
+    settingsToggle.dataset.attention = needsPairing ? 'true' : 'false'
+  }
+  if (needsPairing) {
+    setSettingsDrawerOpen(true)
   }
 
   const showFeedback = (text, isSuccess) => {
@@ -472,18 +465,17 @@ async function initPairingControls() {
             state.textContent = 'Eşleştirildi'
             state.dataset.paired = 'true'
           }
+          if (settingsToggle) {
+            settingsToggle.dataset.attention = 'false'
+          }
           if (typeof document.dispatchEvent === 'function') {
-            // The magic selector card asks the worker for its own state; a new
-            // pairing is the moment its connection line changes.
             try {
               document.dispatchEvent(new CustomEvent('quizlab:paired'))
             } catch {
-              // A context without CustomEvent keeps the card on its first read.
+              // Ignore in restricted contexts.
             }
           }
           if (response.settingsSaved === false) {
-            // The code works for this worker but could not be written to the
-            // store: after a browser restart the user has to pair again.
             showFeedback(
               'Eşleştirildi ancak kod kalıcı olarak kaydedilemedi. Tarayıcı yeniden başlarsa yeniden eşleştirin.',
               false
@@ -509,6 +501,7 @@ async function initPairingControls() {
             showFeedback('Eşleştirildi, ancak bazı siteler için izin eksik.', false)
           } else {
             showFeedback('Eşleştirildi. Oturumlar aktarıldı.', true)
+            setSettingsDrawerOpen(false)
           }
           void renderSites()
         } else if (response && response.error === 'invalid_code') {
@@ -539,8 +532,6 @@ async function initImportControls() {
   syncBtn.dataset.initialized = 'true'
   const area = chrome.storage?.local
   const stored = area ? await area.get(['autoSync']) : {}
-  // The last preference the worker confirmed. The checkbox returns to it when
-  // a write fails, so it never shows a setting that is not on disk.
   let savedAutoSync = stored?.autoSync !== false
   if (auto) auto.checked = savedAutoSync
   if (siteSelect) {
@@ -564,8 +555,6 @@ async function initImportControls() {
   }
 
   auto?.addEventListener('change', () => {
-    // A second click while the first request is on its way would send another
-    // write for a value the panel has not confirmed yet.
     if (!auto || autoSyncPending) return
     const next = auto.checked
     autoSyncPending = true
@@ -579,14 +568,12 @@ async function initImportControls() {
         const error = chrome.runtime.lastError
         settle()
         if (error || response?.settingsSaved !== true) {
-          // The write did not land: the stored preference is still the truth.
           auto.checked = savedAutoSync
           showFeedback('Eşitleme ayarı kaydedilemedi.', false)
           return
         }
         applyAutoSync(next)
         if (!response.success) {
-          // The choice is safe; only the transfer it triggered was incomplete.
           showFeedback('Eşitleme ayarı kaydedildi ancak aktarım tamamlanamadı.', false)
         }
       })
@@ -597,6 +584,7 @@ async function initImportControls() {
       showFeedback('Eşitleme ayarı kaydedilemedi.', false)
     }
   })
+
   syncBtn?.addEventListener('click', () => {
     if (syncBtn.disabled) return
     syncBtn.disabled = true
@@ -606,8 +594,6 @@ async function initImportControls() {
       (response) => {
         const error = chrome.runtime.lastError
         syncBtn.disabled = false
-        // The worker reports the preference it really holds. A request that
-        // never arrived leaves the checkbox alone.
         if (auto && !error && typeof response?.autoSync === 'boolean') {
           applyAutoSync(response.autoSync)
         }
@@ -622,7 +608,7 @@ async function initImportControls() {
             false
           )
         } else if (!error && response?.result === 'permission_missing') {
-          showFeedback('Bu siteler için izin eksik. Yukarıdaki site listesinden izin verin.', false)
+          showFeedback('Bu siteler için izin eksik. Aşağıdaki site listesinden izin verin.', false)
         } else if (!error && response?.result === 'partial') {
           showFeedback(
             'Bazı oturumlar aktarıldı; bazı sitelerde Chrome oturumu yok ya da izin eksik.',
@@ -651,32 +637,35 @@ const SELECTOR_STATUS_TEXTS = {
   unknown: 'Durum bilinmiyor'
 }
 
-/** The texts the magic selector section shows. */
+/** Statuses that count as having a registered selector (separate from verified health). */
+const REGISTERED_STATUSES = new Set(['ready', 'migrated', 'repaired'])
+
 const SELECTOR_TEXTS = {
   checking: 'Kontrol ediliyor',
   connected: 'Bağlı',
   unpaired: 'Eşleştirilmedi',
   unreachable: 'QuizLab kapalı',
-  unsupported: 'QuizLab sürümü desteklemiyor',
-  noSite: 'Bu sitede seçim yapılamaz',
-  unknownSite: 'Quizlab bu siteyi tanımıyor.',
-  ambiguousSite:
-    'Bu alan adı birden fazla siteyle eşleşiyor; aynı alan adındaki siteler için ayrı seçici saklanamaz.',
+  unsupported: 'Desteklenmiyor',
+  emptyUnsupportedSite: 'Bu sekme Sihirli Seçici ile uyumlu değil. Desteklenen bir AI sitesini aç.',
+  emptyUnreachable: 'QuizLab uygulamasını aç ve tekrar dene.',
+  emptyUnpaired: 'Selektör göndermek için QuizLab ile eşleştir.',
+  emptyPermission: 'Bu sitede seçim yapabilmek için tarayıcı izni gerekiyor.',
+  emptyAmbiguous: 'Bu site birden fazla QuizLab hedefiyle eşleşiyor.',
+  emptyUnsupportedVersion: 'QuizLab sürümü Sihirli Seçici’yi desteklemiyor.',
   unknownTab: 'Bu sekmede seçim yapılamaz.',
   unknownField: 'Bu site bu alanı desteklemiyor.',
-  permissionMissing:
-    'Bu siteye erişim izni yok. Yukarıdaki site listesinden izin verip yeniden deneyin.',
-  permissionDeclined: 'İzin verilmedi. Siteyi QuizLab’da açıp seçimi tekrar deneyin.',
+  permissionDeclined: 'İzin verilmedi. Seçim başlatılamadı.',
   cannotInject: 'Bu sayfaya erişilemedi. Sayfayı yenileyip tekrar deneyin.',
-  started: 'Seçim modu açıldı. Sayfada elementi seçin; ESC ile iptal edebilirsiniz.',
-  saved: 'Seçici Quizlab’a ulaştı ve kaydedildi.',
-  siteNotOpen: 'Quizlab’da bu site açık değil. Siteyi Quizlab’da açıp seçimi tekrar gönderin.',
-  verificationFailed: 'Quizlab seçiciyi doğrulayamadı. Eski seçici korunuyor.',
+  startedInput: 'Seçim modu açıldı: Mesaj giriş alanı. Sayfada elementi seçin; ESC ile iptal edin.',
+  startedButton: 'Seçim modu açıldı: Gönderme butonu. Sayfada elementi seçin; ESC ile iptal edin.',
+  savedInput: 'Mesaj giriş alanı kaydedildi.',
+  savedButton: 'Gönderme butonu kaydedildi.',
+  siteNotOpen: 'Bu siteyi QuizLab’da aç ve tekrar dene.',
+  verificationFailed: 'Bu element QuizLab’da doğrulanamadı. Önceki selektör korunuyor.',
   rejected: 'Aktarım reddedildi. Site ve hedef alanı kontrol edin.',
-  retry: 'Bağlantı kurulamadı. QuizLab açık mı kontrol edin.'
+  retry: 'QuizLab bağlantısı kurulamadı.'
 }
 
-/** Resolves with the active tab id, or null when Chrome does not report one. */
 function readActiveTabId() {
   return new Promise((resolve) => {
     try {
@@ -694,7 +683,6 @@ function readActiveTabId() {
   })
 }
 
-/** Sends one message to the service worker and awaits its answer. */
 function sendWorkerMessage(message) {
   return new Promise((resolve) => {
     try {
@@ -707,43 +695,80 @@ function sendWorkerMessage(message) {
   })
 }
 
-/**
- * Wires the magic selector card.
- *
- * The card only shows state; the pick itself happens on the page. Starting a
- * pick keeps the panel open, because the in-page panel carries the selection
- * and the side panel keeps the result visible.
- */
+function statusToneOf(status) {
+  if (status === 'ready' || status === 'migrated') return 'ready'
+  if (status === 'repaired' || status === 'needs_repick') return 'warn'
+  return 'idle'
+}
+
 async function initSelectorControls() {
-  const button = document.getElementById('selector-btn')
-  if (!button || button.dataset.initialized) return
-  button.dataset.initialized = 'true'
+  const pickInputBtn = document.getElementById('pick-input-btn')
+  const pickButtonBtn = document.getElementById('pick-button-btn')
+  if (!pickInputBtn || !pickButtonBtn || pickInputBtn.dataset.initialized) return
+  pickInputBtn.dataset.initialized = 'true'
 
-  // A browser without the tabs API (an old harness, a restricted context) has
-  // no active tab to pick on. The section stays inert instead of throwing.
-  if (!chrome.tabs || typeof chrome.tabs.query !== 'function') {
-    button.disabled = true
-    return
-  }
-
-  const fieldSelect = document.getElementById('selector-field')
-  const connection = document.getElementById('selector-connection')
+  const connectionPill = document.getElementById('connection-pill')
+  const siteContext = document.getElementById('selector-site-context')
   const siteLabel = document.getElementById('selector-site')
+  const hostLabel = document.getElementById('selector-host')
+  const progressPill = document.getElementById('selector-progress')
+  const activeBanner = document.getElementById('selector-active-banner')
+  const activeText = document.getElementById('selector-active-text')
+  const emptyState = document.getElementById('selector-empty-state')
+  const emptyTitle = document.getElementById('selector-empty-title')
+  const emptyDesc = document.getElementById('selector-empty-desc')
+  const emptyAction = document.getElementById('selector-empty-action')
+  const targetsWrap = document.getElementById('selector-targets')
   const inputStatus = document.getElementById('selector-input-status')
   const buttonStatus = document.getElementById('selector-button-status')
   const feedback = document.getElementById('selector-feedback')
+  const nextStepCard = document.getElementById('selector-next-step')
+  const nextStepText = document.getElementById('selector-next-text')
+  const nextStepBtn = document.getElementById('selector-next-btn')
+  const techDetails = document.getElementById('selector-tech-details')
   const preview = document.getElementById('selector-preview')
+
+  const setConnection = (text, tone) => {
+    if (!connectionPill) return
+    connectionPill.textContent = text
+    connectionPill.dataset.tone = tone
+  }
+
+  let emptyActionHandler = null
+  const showEmptyState = (title, desc, actionLabel, onAction) => {
+    if (!emptyState || !emptyTitle || !emptyDesc || !emptyAction) return
+    emptyTitle.textContent = title
+    emptyDesc.textContent = desc
+    emptyActionHandler = typeof onAction === 'function' ? onAction : null
+    if (actionLabel && emptyActionHandler) {
+      emptyAction.textContent = actionLabel
+      emptyAction.hidden = false
+    } else {
+      emptyAction.hidden = true
+    }
+    emptyState.hidden = false
+  }
+
+  if (!chrome.tabs || typeof chrome.tabs.query !== 'function') {
+    pickInputBtn.disabled = true
+    pickButtonBtn.disabled = true
+    setConnection(SELECTOR_TEXTS.unreachable, 'error')
+    showEmptyState('QuizLab kapalı', SELECTOR_TEXTS.emptyUnreachable, null, null)
+    return
+  }
 
   let tabId = null
   let currentHost = null
   let currentPermission = true
-  /** Bumped on every refresh; a slow answer for an older tab is ignored. */
+  let currentSite = null
+  let currentConnection = 'idle'
+  let pickStartInFlight = false
   let refreshRevision = 0
 
-  const showFeedback = (text, isSuccess) => {
+  const showFeedback = (text, tone) => {
     if (!feedback) return
     feedback.textContent = text
-    feedback.dataset.state = isSuccess ? 'success' : 'error'
+    feedback.dataset.state = tone
   }
 
   const clearFeedback = () => {
@@ -752,64 +777,138 @@ async function initSelectorControls() {
     delete feedback.dataset.state
   }
 
-  const clearPreview = () => {
-    if (!preview) return
-    preview.textContent = ''
-    delete preview.dataset.state
+  const setTechPreview = (text) => {
+    if (!techDetails || !preview) return
+    if (text) {
+      preview.textContent = text
+      techDetails.hidden = false
+    } else {
+      preview.textContent = ''
+      techDetails.hidden = true
+      techDetails.open = false
+    }
   }
 
-  const setConnection = (text, tone) => {
-    if (!connection) return
-    connection.textContent = text
-    connection.dataset.selector = tone
+  const hideNextStep = () => {
+    if (nextStepCard) nextStepCard.hidden = true
   }
 
-  const renderStatus = (element, status) => {
+  const hideEmptyState = () => {
+    if (emptyState) emptyState.hidden = true
+    emptyActionHandler = null
+  }
+
+  emptyAction?.addEventListener('click', () => {
+    if (emptyActionHandler) void emptyActionHandler()
+  })
+
+  const renderFieldBadge = (element, status, supported) => {
     if (!element) return
+    if (!supported) {
+      element.textContent = 'Desteklenmiyor'
+      element.dataset.tone = 'idle'
+      return
+    }
     element.textContent = status
       ? SELECTOR_STATUS_TEXTS[status] || SELECTOR_STATUS_TEXTS.missing
-      : '-'
+      : SELECTOR_STATUS_TEXTS.missing
+    element.dataset.tone = statusToneOf(status)
   }
 
-  const renderOutcome = (lastOutcome, hostname) => {
+  const updateTargetCards = (site, connectionOk) => {
+    const fields = Array.isArray(site?.fields) ? site.fields : []
+    const inputSupported = fields.includes('input')
+    const buttonSupported = fields.includes('button')
+    const inputState = site?.status?.input || 'missing'
+    const buttonState = site?.status?.button || 'missing'
+
+    renderFieldBadge(inputStatus, inputState, inputSupported)
+    renderFieldBadge(buttonStatus, buttonState, buttonSupported)
+
+    const inputCard = pickInputBtn.closest('.target-card')
+    const buttonCard = pickButtonBtn.closest('.target-card')
+    if (inputCard) inputCard.dataset.disabled = inputSupported ? 'false' : 'true'
+    if (buttonCard) buttonCard.dataset.disabled = buttonSupported ? 'false' : 'true'
+
+    pickInputBtn.textContent = REGISTERED_STATUSES.has(inputState)
+      ? 'Alanı Yeniden Seç'
+      : 'Alanı Seç'
+    pickButtonBtn.textContent = REGISTERED_STATUSES.has(buttonState)
+      ? 'Butonu Yeniden Seç'
+      : 'Butonu Seç'
+
+    pickInputBtn.disabled = !connectionOk || !inputSupported || pickStartInFlight
+    pickButtonBtn.disabled = !connectionOk || !buttonSupported || pickStartInFlight
+
+    if (progressPill) {
+      const total = fields.length || 0
+      const registered = fields.filter((f) => REGISTERED_STATUSES.has(site?.status?.[f])).length
+      progressPill.textContent = `${registered}/${total} alan kayıtlı`
+      progressPill.dataset.complete = total > 0 && registered === total ? 'true' : 'false'
+    }
+  }
+
+  const renderActiveSession = (activeSession) => {
+    if (!activeBanner || !activeText) return
+    if (activeSession && activeSession.sessionId) {
+      const label = activeSession.field === 'button' ? 'Gönderme butonu' : 'Mesaj giriş alanı'
+      activeText.textContent = `Seçim modu aktif: ${label}. Sayfada elementi seçin veya ESC ile iptal edin.`
+      activeBanner.hidden = false
+    } else {
+      activeBanner.hidden = true
+    }
+  }
+
+  const renderOutcome = (lastOutcome, hostname, site) => {
+    hideNextStep()
     if (!lastOutcome || typeof lastOutcome !== 'object') return
-    // A result belongs to the pick it was produced for. Showing another tab's
-    // outcome as this site's result is exactly the confusion this guard
-    // prevents; the panel keeps the outcome of the current host only.
     if (!hostname || !lastOutcome.hostname || lastOutcome.hostname !== hostname) return
-    if (preview && typeof lastOutcome.selector === 'string') {
-      const fieldText = lastOutcome.field === 'button' ? 'gönder butonu' : 'mesaj alanı'
-      preview.textContent = `${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`
-      preview.dataset.state = 'shown'
-    }
-    if (lastOutcome.state === 'saved') showFeedback(SELECTOR_TEXTS.saved, true)
-    else if (lastOutcome.state === 'site_not_open') showFeedback(SELECTOR_TEXTS.siteNotOpen, false)
-    else if (lastOutcome.state === 'verification_failed') {
-      const reason =
-        typeof lastOutcome.reason === 'string' && lastOutcome.reason
-          ? ` (${lastOutcome.reason})`
-          : ''
-      showFeedback(SELECTOR_TEXTS.verificationFailed + reason, false)
-    } else if (lastOutcome.state === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
-    else showFeedback(SELECTOR_TEXTS.retry, false)
-  }
+    if (lastOutcome.state === 'cancelled') return
 
-  const applyFields = (fields) => {
-    if (!fieldSelect) return
-    const allowed = Array.isArray(fields) && fields.length > 0 ? fields : []
-    for (const option of fieldSelect.options) {
-      option.disabled = allowed.length > 0 && !allowed.includes(option.value)
+    const techParts = []
+    if (typeof lastOutcome.selector === 'string' && lastOutcome.selector) {
+      const fieldText = lastOutcome.field === 'button' ? 'Gönderme butonu' : 'Mesaj giriş alanı'
+      techParts.push(`${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`)
     }
-    if (allowed.length > 0 && !allowed.includes(fieldSelect.value)) {
-      fieldSelect.value = allowed[0]
+    if (typeof lastOutcome.reason === 'string' && lastOutcome.reason) {
+      techParts.push(`Neden: ${lastOutcome.reason}`)
     }
-  }
+    if (techParts.length > 0) setTechPreview(techParts.join('\n'))
 
-  /** The start button says which element it is waiting for. */
-  const applyStartLabel = () => {
-    if (!button) return
-    const field = fieldSelect ? fieldSelect.value : 'input'
-    button.textContent = field === 'button' ? 'Gönder Butonunu Seç' : 'Mesaj Alanını Seç'
+    if (lastOutcome.state === 'saved') {
+      const savedText =
+        lastOutcome.field === 'button' ? SELECTOR_TEXTS.savedButton : SELECTOR_TEXTS.savedInput
+      showFeedback(savedText, 'success')
+
+      // Guide to the remaining unconfigured field if applicable (never auto-starts).
+      const otherField = lastOutcome.field === 'button' ? 'input' : 'button'
+      const fields = Array.isArray(site?.fields) ? site.fields : []
+      const otherStatus = site?.status?.[otherField]
+      if (
+        fields.includes(otherField) &&
+        (!otherStatus || otherStatus === 'missing' || otherStatus === 'needs_repick') &&
+        nextStepCard &&
+        nextStepText &&
+        nextStepBtn
+      ) {
+        nextStepText.textContent =
+          otherField === 'button'
+            ? 'Mesaj giriş alanı kaydedildi. Şimdi gönderme butonunu seç.'
+            : 'Gönderme butonu kaydedildi. Şimdi mesaj giriş alanını seç.'
+        nextStepBtn.textContent =
+          otherField === 'button' ? 'Gönderme butonunu seç' : 'Mesaj giriş alanını seç'
+        nextStepBtn.dataset.field = otherField
+        nextStepCard.hidden = false
+      }
+    } else if (lastOutcome.state === 'site_not_open') {
+      showFeedback(SELECTOR_TEXTS.siteNotOpen, 'error')
+    } else if (lastOutcome.state === 'verification_failed') {
+      showFeedback(SELECTOR_TEXTS.verificationFailed, 'error')
+    } else if (lastOutcome.state === 'unpaired') {
+      showFeedback(SELECTOR_TEXTS.unpaired, 'error')
+    } else {
+      showFeedback(SELECTOR_TEXTS.retry, 'error')
+    }
   }
 
   const refresh = async () => {
@@ -821,113 +920,200 @@ async function initSelectorControls() {
     const response =
       tabId === null ? null : await sendWorkerMessage({ type: 'selector_state', tabId })
     if (revision !== refreshRevision) return
+
     if (!response || response.success !== true) {
+      currentConnection = 'unreachable'
+      currentSite = null
+      currentHost = null
       setConnection(SELECTOR_TEXTS.unreachable, 'error')
-      if (siteLabel) siteLabel.textContent = SELECTOR_TEXTS.noSite
-      renderStatus(inputStatus, null)
-      renderStatus(buttonStatus, null)
-      button.disabled = true
+      if (siteContext) siteContext.hidden = true
+      if (targetsWrap) targetsWrap.hidden = true
+      renderActiveSession(null)
+      hideNextStep()
+      clearFeedback()
+      setTechPreview('')
+      showEmptyState('QuizLab kapalı', SELECTOR_TEXTS.emptyUnreachable, 'Yeniden Dene', () =>
+        refresh()
+      )
       return
     }
 
     const nextHost = typeof response.host === 'string' ? response.host : null
     if (currentHost !== nextHost) {
-      // The result and the preview describe the previous site; keeping them
-      // would read as "this tab already has a saved selector".
       clearFeedback()
-      clearPreview()
+      setTechPreview('')
+      hideNextStep()
     }
     currentHost = nextHost
     currentPermission = response.permission !== false
+    currentSite = response.site || null
+    currentConnection = response.connection || 'unreachable'
 
-    const connectionState = response.connection
-    if (connectionState === 'ok') setConnection(SELECTOR_TEXTS.connected, 'ok')
-    else if (connectionState === 'unpaired') setConnection(SELECTOR_TEXTS.unpaired, 'error')
-    else if (connectionState === 'unsupported') {
-      setConnection(SELECTOR_TEXTS.unsupported, 'error')
-    } else setConnection(SELECTOR_TEXTS.unreachable, 'error')
+    if (currentConnection === 'ok') setConnection(SELECTOR_TEXTS.connected, 'ok')
+    else if (currentConnection === 'unpaired') setConnection(SELECTOR_TEXTS.unpaired, 'warn')
+    else if (currentConnection === 'unsupported') setConnection(SELECTOR_TEXTS.unsupported, 'error')
+    else setConnection(SELECTOR_TEXTS.unreachable, 'error')
 
-    const site = response.site
-    if (siteLabel) {
-      siteLabel.textContent = response.ambiguous
-        ? SELECTOR_TEXTS.ambiguousSite
-        : site
-          ? site.displayName
-          : SELECTOR_TEXTS.noSite
-    }
-    renderStatus(inputStatus, site?.status?.input)
-    renderStatus(buttonStatus, site?.status?.button)
-    applyFields(site?.fields)
-    applyStartLabel()
+    renderActiveSession(response.activeSession)
 
     const supported = response.supported !== 'none'
-    button.disabled = connectionState !== 'ok' || !site || !supported
-    if (connectionState === 'unsupported' || !supported) {
-      showFeedback(SELECTOR_TEXTS.unsupported, false)
+    const site = response.site
+
+    if (site && !response.ambiguous && siteContext && siteLabel && hostLabel) {
+      siteLabel.textContent = site.displayName
+      hostLabel.textContent = nextHost || site.hostname || ''
+      siteContext.hidden = false
+    } else if (siteContext) {
+      siteContext.hidden = true
     }
 
-    renderOutcome(response.lastOutcome, nextHost)
-  }
-
-  if (fieldSelect) {
-    fieldSelect.addEventListener('change', applyStartLabel)
-  }
-
-  button.addEventListener('click', async () => {
-    if (button.disabled) return
-    const field = fieldSelect ? fieldSelect.value : 'input'
-    // The tab may have changed since the last refresh. Read it again and let
-    // the worker refuse a stale id instead of injecting into another tab.
-    const activeId = await readActiveTabId()
-    if (activeId === null) {
-      showFeedback(SELECTOR_TEXTS.unknownTab, false)
+    // Determine empty/error states vs ready target cards
+    if (currentConnection === 'unpaired') {
+      if (targetsWrap) targetsWrap.hidden = true
+      showEmptyState('Eşleştirme gerekli', SELECTOR_TEXTS.emptyUnpaired, 'Eşleştirmeyi Aç', () => {
+        setSettingsDrawerOpen(true)
+        document.getElementById('pairing-code-input')?.focus()
+      })
       return
     }
-    tabId = activeId
 
-    // A custom site is not covered by the manifest's host permissions. The
-    // request has to be made from this click's user gesture; a granted
-    // permission is not required for `activeTab`, but asking here is what makes
-    // the second pick after the temporary grant works too.
+    if (currentConnection === 'unsupported' || !supported) {
+      if (targetsWrap) targetsWrap.hidden = true
+      showEmptyState('Sürüm desteklenmiyor', SELECTOR_TEXTS.emptyUnsupportedVersion, null, null)
+      return
+    }
+
+    if (currentConnection !== 'ok') {
+      if (targetsWrap) targetsWrap.hidden = true
+      showEmptyState('QuizLab kapalı', SELECTOR_TEXTS.emptyUnreachable, 'Yeniden Dene', () =>
+        refresh()
+      )
+      return
+    }
+
+    if (response.ambiguous) {
+      if (targetsWrap) targetsWrap.hidden = true
+      showEmptyState('Belirsiz site', SELECTOR_TEXTS.emptyAmbiguous, null, null)
+      return
+    }
+
+    if (!site) {
+      if (targetsWrap) targetsWrap.hidden = true
+      showEmptyState('Desteklenmeyen site', SELECTOR_TEXTS.emptyUnsupportedSite, null, null)
+      return
+    }
+
     if (currentPermission === false && currentHost) {
-      try {
-        const granted = await chrome.permissions.request({
-          origins: [`https://${currentHost}/*`, `https://*.${currentHost}/*`]
-        })
-        if (!granted) {
-          showFeedback(SELECTOR_TEXTS.permissionDeclined, false)
-        } else {
-          currentPermission = true
+      if (targetsWrap) targetsWrap.hidden = true
+      const hostSnapshot = currentHost
+      showEmptyState('İzin gerekli', SELECTOR_TEXTS.emptyPermission, 'Site İzni Ver', async () => {
+        try {
+          const granted = await chrome.permissions.request({
+            origins: [`https://${hostSnapshot}/*`, `https://*.${hostSnapshot}/*`]
+          })
+          if (!granted) {
+            showFeedback(SELECTOR_TEXTS.permissionDeclined, 'error')
+            return
+          }
+          await refresh()
+        } catch (error) {
+          console.warn('[Quizlab Panel] Permission request failed:', errorMessage(error))
+          showFeedback(SELECTOR_TEXTS.permissionDeclined, 'error')
         }
-      } catch (error) {
-        console.warn(
-          '[Quizlab Panel] The picker permission could not be requested:',
-          errorMessage(error)
-        )
-      }
-    }
-
-    button.disabled = true
-    clearFeedback()
-    const response = await sendWorkerMessage({ type: 'selector_start', tabId, field })
-    button.disabled = false
-    if (response && response.success === true) {
-      // The side panel stays open: the page shows the picker and the panel
-      // shows the result the worker broadcasts when the pick is done.
-      showFeedback(SELECTOR_TEXTS.started, true)
+      })
       return
     }
-    const error = response && typeof response.error === 'string' ? response.error : ''
-    if (error === 'unsupported_site') showFeedback(SELECTOR_TEXTS.unknownSite, false)
-    else if (error === 'ambiguous_site') showFeedback(SELECTOR_TEXTS.ambiguousSite, false)
-    else if (error === 'unsupported_tab') showFeedback(SELECTOR_TEXTS.unknownTab, false)
-    else if (error === 'unsupported_field') showFeedback(SELECTOR_TEXTS.unknownField, false)
-    else if (error === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
-    else if (error === 'unsupported') showFeedback(SELECTOR_TEXTS.unsupported, false)
-    else if (error === 'permission_missing') showFeedback(SELECTOR_TEXTS.permissionMissing, false)
-    else {
-      const detail = response && typeof response.detail === 'string' ? ` (${response.detail})` : ''
-      showFeedback(SELECTOR_TEXTS.cannotInject + detail, false)
+
+    hideEmptyState()
+    if (targetsWrap) targetsWrap.hidden = false
+    updateTargetCards(site, true)
+    renderOutcome(response.lastOutcome, nextHost, site)
+  }
+
+  const startPick = async (field) => {
+    if (pickStartInFlight) return
+    if (field !== 'input' && field !== 'button') return
+
+    pickStartInFlight = true
+    updateTargetCards(currentSite, currentConnection === 'ok')
+
+    try {
+      const activeId = await readActiveTabId()
+      if (activeId === null) {
+        showFeedback(SELECTOR_TEXTS.unknownTab, 'error')
+        return
+      }
+
+      // If the active tab changed since the last refresh, refresh first so we
+      // never request permissions or start a pick against stale host state.
+      if (activeId !== tabId) {
+        await refresh()
+        if (tabId !== activeId || currentConnection !== 'ok' || !currentSite) {
+          return
+        }
+      }
+
+      if (currentPermission === false && currentHost) {
+        try {
+          const granted = await chrome.permissions.request({
+            origins: [`https://${currentHost}/*`, `https://*.${currentHost}/*`]
+          })
+          if (!granted) {
+            showFeedback(SELECTOR_TEXTS.permissionDeclined, 'error')
+            return
+          }
+          currentPermission = true
+        } catch (error) {
+          console.warn(
+            '[Quizlab Panel] The picker permission could not be requested:',
+            errorMessage(error)
+          )
+        }
+      }
+
+      clearFeedback()
+      hideNextStep()
+      const response = await sendWorkerMessage({ type: 'selector_start', tabId: activeId, field })
+      if (response && response.success === true) {
+        showFeedback(
+          field === 'button' ? SELECTOR_TEXTS.startedButton : SELECTOR_TEXTS.startedInput,
+          'info'
+        )
+        renderActiveSession({ sessionId: response.sessionId, field })
+        return
+      }
+
+      const error = response && typeof response.error === 'string' ? response.error : ''
+      if (error === 'unsupported_site') showFeedback(SELECTOR_TEXTS.emptyUnsupportedSite, 'error')
+      else if (error === 'ambiguous_site') showFeedback(SELECTOR_TEXTS.emptyAmbiguous, 'error')
+      else if (error === 'unsupported_tab') showFeedback(SELECTOR_TEXTS.unknownTab, 'error')
+      else if (error === 'unsupported_field') showFeedback(SELECTOR_TEXTS.unknownField, 'error')
+      else if (error === 'unpaired') showFeedback(SELECTOR_TEXTS.emptyUnpaired, 'error')
+      else if (error === 'unsupported')
+        showFeedback(SELECTOR_TEXTS.emptyUnsupportedVersion, 'error')
+      else if (error === 'permission_missing') showFeedback(SELECTOR_TEXTS.emptyPermission, 'error')
+      else {
+        showFeedback(SELECTOR_TEXTS.cannotInject, 'error')
+        if (response && typeof response.detail === 'string' && response.detail) {
+          setTechPreview(response.detail)
+        }
+      }
+    } finally {
+      pickStartInFlight = false
+      updateTargetCards(currentSite, currentConnection === 'ok')
+    }
+  }
+
+  pickInputBtn.addEventListener('click', () => {
+    void startPick('input')
+  })
+  pickButtonBtn.addEventListener('click', () => {
+    void startPick('button')
+  })
+  nextStepBtn?.addEventListener('click', () => {
+    const field = nextStepBtn.dataset.field
+    if (field === 'input' || field === 'button') {
+      void startPick(field)
     }
   })
 
@@ -937,9 +1123,6 @@ async function initSelectorControls() {
     })
   }
 
-  // A popup was rebuilt every time it opened, so it never saw a tab change.
-  // The panel stays open while the user moves between tabs, so the site of the
-  // active tab and the result of a pick have to follow the browser.
   if (chrome.tabs && chrome.tabs.onActivated) {
     chrome.tabs.onActivated.addListener(() => {
       void refresh()
@@ -963,6 +1146,7 @@ async function initSelectorControls() {
 
 async function render() {
   try {
+    initNavigation()
     await initProfileControls()
     await initPairingControls()
     await initImportControls()

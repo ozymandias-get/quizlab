@@ -2,19 +2,22 @@
 <html lang="tr">
   <head>
     <meta charset="utf-8" />
-    <title>Quizlab site oturumları</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QuizLab</title>
     <style>
       :root {
-        color-scheme: dark;
+        color-scheme: dark light;
 
         --font-sans:
           'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-        /* Quizlab dark palette — mirrors desktop zinc surfaces */
+        /* QuizLab Obsidian/Zinc Dark Palette (default) */
         --background: #09090b;
-        --foreground: #f4f4f5;
+        --surface: #111113;
         --card: #18181b;
         --card-foreground: #f4f4f5;
+        --foreground: #f4f4f5;
         --primary: #fafafa;
         --primary-foreground: #18181b;
         --secondary: #27272a;
@@ -26,25 +29,75 @@
         --border: rgba(255, 255, 255, 0.1);
         --border-hover: rgba(255, 255, 255, 0.22);
         --input: rgba(255, 255, 255, 0.08);
-        --ring: rgba(255, 255, 255, 0.35);
+        --ring: rgba(255, 255, 255, 0.4);
 
-        /* Status colors */
+        /* Semantic Status Tokens */
         --granted-bg: rgba(16, 185, 129, 0.12);
-        --granted-border: rgba(16, 185, 129, 0.3);
+        --granted-border: rgba(16, 185, 129, 0.28);
         --granted-text: #6ee7b7;
 
         --missing-bg: rgba(245, 158, 11, 0.12);
-        --missing-border: rgba(245, 158, 11, 0.3);
+        --missing-border: rgba(245, 158, 11, 0.28);
         --missing-text: #fcd34d;
 
         --destructive-bg: rgba(239, 68, 68, 0.12);
-        --destructive-border: rgba(239, 68, 68, 0.3);
+        --destructive-border: rgba(239, 68, 68, 0.28);
         --destructive-text: #fca5a5;
 
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
-        --shadow-card:
-          0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.6),
-          0 0 0 1px var(--border);
+        --info-bg: rgba(59, 130, 246, 0.12);
+        --info-border: rgba(59, 130, 246, 0.3);
+        --info-text: #93c5fd;
+
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 10px;
+        --radius-xl: 12px;
+
+        --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28);
+        --duration-hover: 120ms;
+        --duration-state: 140ms;
+        --duration-panel: 180ms;
+        --ease-out: cubic-bezier(0.2, 0.9, 0.22, 1);
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --background: #fafafa;
+          --surface: #f4f4f5;
+          --card: #ffffff;
+          --card-foreground: #18181b;
+          --foreground: #18181b;
+          --primary: #18181b;
+          --primary-foreground: #fafafa;
+          --secondary: #f4f4f5;
+          --secondary-foreground: #18181b;
+          --muted: #f4f4f5;
+          --muted-foreground: #52525b;
+          --accent: #e4e4e7;
+          --accent-foreground: #18181b;
+          --border: rgba(24, 24, 27, 0.1);
+          --border-hover: rgba(24, 24, 27, 0.22);
+          --input: rgba(24, 24, 27, 0.06);
+          --ring: rgba(24, 24, 27, 0.35);
+
+          --granted-bg: rgba(16, 185, 129, 0.12);
+          --granted-border: rgba(5, 150, 105, 0.28);
+          --granted-text: #047857;
+
+          --missing-bg: rgba(245, 158, 11, 0.14);
+          --missing-border: rgba(217, 119, 6, 0.3);
+          --missing-text: #b45309;
+
+          --destructive-bg: rgba(239, 68, 68, 0.1);
+          --destructive-border: rgba(220, 38, 38, 0.26);
+          --destructive-text: #b91c1c;
+
+          --info-bg: rgba(59, 130, 246, 0.1);
+          --info-border: rgba(37, 99, 235, 0.28);
+          --info-text: #1d4ed8;
+
+          --shadow-card: 0 1px 3px rgba(24, 24, 27, 0.06);
+        }
       }
 
       *,
@@ -55,10 +108,13 @@
 
       html {
         background-color: var(--background);
+        max-width: 100%;
+        overflow-x: hidden;
       }
 
       body {
         width: 100%;
+        max-width: 100%;
         min-height: 100dvh;
         margin: 0;
         padding: 12px;
@@ -72,33 +128,49 @@
         overflow-x: hidden;
       }
 
-      /* Header */
-      .header {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        margin-bottom: 10px;
+      [hidden] {
+        display: none !important;
       }
 
-      .header-brand {
+      /* Top Header */
+      .header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+        max-width: 100%;
+      }
+
+      .header-left {
         display: flex;
         align-items: center;
         gap: 8px;
+        min-width: 0;
+        flex: 1 1 120px;
       }
 
       .app-icon {
-        width: 22px;
-        height: 22px;
-        border-radius: 5px;
+        width: 24px;
+        height: 24px;
+        border-radius: var(--radius-sm);
         flex-shrink: 0;
         display: block;
       }
 
+      .header-identity {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
       .app-title {
         margin: 0;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
+        line-height: 1.2;
         color: var(--foreground);
       }
 
@@ -106,65 +178,239 @@
         margin: 0;
         font-size: 11px;
         font-weight: 500;
+        line-height: 1.3;
         color: var(--muted-foreground);
-        overflow-wrap: anywhere;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      /* Status Pill */
-      #status {
-        display: inline-flex;
+      .header-actions {
+        display: flex;
         align-items: center;
         gap: 6px;
-        margin: 0;
-        padding: 4px 10px;
+        flex-shrink: 0;
+      }
+
+      /* Connection Status Pill */
+      .conn-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 9999px;
         font-size: 11px;
         font-weight: 500;
-        line-height: 1.35;
-        border-radius: 9999px;
-        background: var(--muted);
+        line-height: 1;
+        background: var(--secondary);
         border: 1px solid var(--border);
         color: var(--muted-foreground);
-        width: fit-content;
-        max-width: 100%;
-        overflow-wrap: anywhere;
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.03);
+        white-space: nowrap;
+        max-width: 132px;
+        overflow: hidden;
+        text-overflow: ellipsis;
         transition:
-          background-color 150ms ease,
-          border-color 150ms ease,
-          color 150ms ease;
+          background-color var(--duration-state) ease,
+          border-color var(--duration-state) ease,
+          color var(--duration-state) ease;
       }
 
-      #status:empty {
-        display: none;
-      }
-
-      #status::before {
+      .conn-pill::before {
         content: '';
         width: 6px;
         height: 6px;
         border-radius: 50%;
         background-color: currentColor;
-        opacity: 0.85;
         flex-shrink: 0;
       }
 
-      body:has(#sites .grant) #status {
+      .conn-pill[data-tone='ok'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      .conn-pill[data-tone='warn'] {
         background: var(--missing-bg);
         border-color: var(--missing-border);
         color: var(--missing-text);
       }
 
-      body:has(#sites .site):not(:has(#sites .grant)) #status {
-        background: var(--granted-bg);
-        border-color: var(--granted-border);
-        color: var(--granted-text);
+      .conn-pill[data-tone='error'] {
+        background: var(--destructive-bg);
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      /* Icon Button (Settings Toggle) */
+      .icon-btn {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--muted-foreground);
+        cursor: pointer;
+        flex-shrink: 0;
+        transition:
+          background-color var(--duration-hover) ease,
+          border-color var(--duration-hover) ease,
+          color var(--duration-hover) ease,
+          transform 100ms ease;
+      }
+
+      .icon-btn:hover {
+        background: var(--secondary);
+        border-color: var(--border-hover);
+        color: var(--foreground);
+      }
+
+      .icon-btn:active {
+        transform: translateY(1px);
+      }
+
+      .icon-btn[aria-expanded='true'] {
+        background: var(--secondary);
+        border-color: var(--border-hover);
+        color: var(--foreground);
+      }
+
+      .icon-btn:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      .icon-btn-dot {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--missing-text);
+        display: none;
+      }
+
+      .icon-btn[data-attention='true'] .icon-btn-dot {
+        display: block;
+      }
+
+      /* Collapsible Settings Drawer */
+      .settings-drawer {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        animation: panelReveal var(--duration-panel) var(--ease-out);
+      }
+
+      .settings-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .settings-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 0;
+        border: 0;
+      }
+
+      @keyframes panelReveal {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Segmented Navigation */
+      .segmented-nav {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        padding: 3px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        margin-bottom: 12px;
+      }
+
+      .nav-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted-foreground);
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        min-width: 0;
+        transition:
+          background-color var(--duration-state) ease,
+          color var(--duration-state) ease,
+          box-shadow var(--duration-state) ease;
+      }
+
+      .nav-tab:hover:not([aria-selected='true']) {
+        color: var(--foreground);
+      }
+
+      .nav-tab[aria-selected='true'] {
+        background: var(--card);
+        color: var(--foreground);
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.25),
+          0 0 0 1px var(--border);
+      }
+
+      .nav-tab:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
+      }
+
+      .tab-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 600;
+        background: var(--missing-bg);
+        color: var(--missing-text);
+        border: 1px solid var(--missing-border);
       }
 
       /* Card Surface */
       .card {
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 12px;
+        border-radius: var(--radius-xl);
         padding: 12px;
         box-shadow: var(--shadow-card);
         display: flex;
@@ -180,17 +426,71 @@
         color: var(--muted-foreground);
       }
 
-      /* Field Controls */
+      /* Form Controls */
       .field {
         display: flex;
         flex-direction: column;
         gap: 6px;
       }
 
+      .field-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .field-row .code-input {
+        flex: 1 1 140px;
+        min-width: 0;
+      }
+
       .field-label {
         font-size: 12px;
         font-weight: 600;
         color: var(--foreground);
+      }
+
+      .pair-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .pair-state {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--missing-text);
+        white-space: nowrap;
+      }
+
+      .pair-state[data-paired='true'],
+      .pair-state[data-saved='true'] {
+        color: var(--granted-text);
+      }
+
+      .code-input {
+        width: 100%;
+        height: 32px;
+        padding: 0 10px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--foreground);
+        background-color: var(--background);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        transition: border-color var(--duration-hover) ease;
+      }
+
+      .code-input:hover {
+        border-color: var(--border-hover);
+      }
+
+      .code-input:focus-visible {
+        border-color: var(--ring);
+        outline: 2px solid var(--ring);
+        outline-offset: 1px;
       }
 
       .select-wrapper {
@@ -212,12 +512,10 @@
         color: var(--foreground);
         background-color: var(--background);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
         outline: none;
         cursor: pointer;
-        transition:
-          border-color 150ms ease,
-          box-shadow 150ms ease;
+        transition: border-color var(--duration-hover) ease;
       }
 
       .select-control:hover {
@@ -233,95 +531,424 @@
       .select-arrow {
         position: absolute;
         right: 9px;
-        width: 15px;
-        height: 15px;
+        width: 14px;
+        height: 14px;
         pointer-events: none;
         color: var(--muted-foreground);
-        transition: color 150ms ease;
       }
 
-      .select-control:hover + .select-arrow {
-        color: var(--foreground);
-      }
-
-      .code-input {
-        width: 100%;
+      /* Buttons */
+      .btn {
         height: 32px;
-        padding: 0 10px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 11px;
-        color: var(--foreground);
-        background-color: var(--background);
-        border: 1px solid var(--border);
-        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 12px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          background-color var(--duration-state) ease,
+          border-color var(--duration-state) ease,
+          opacity var(--duration-state) ease,
+          transform 100ms ease;
       }
 
-      .code-input:hover {
+      .btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      .btn:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      .btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .btn-primary {
+        color: var(--primary-foreground);
+        background: var(--primary);
+        border: 1px solid transparent;
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+
+      .btn-secondary {
+        color: var(--foreground);
+        background: var(--secondary);
+        border: 1px solid var(--border);
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        background: var(--accent);
         border-color: var(--border-hover);
       }
 
-      .code-input:focus-visible {
-        border-color: var(--ring);
-        outline: 2px solid var(--ring);
-        outline-offset: 1px;
+      .btn-sm {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 11.5px;
       }
 
-      .pair-header {
+      .btn-full {
+        width: 100%;
+      }
+
+      .btn-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+
+      /* Inline Feedback */
+      .inline-feedback {
+        display: none;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+
+      .inline-feedback[data-state] {
+        display: block;
+      }
+
+      .inline-feedback[data-state='success'] {
+        color: var(--granted-text);
+      }
+
+      .inline-feedback[data-state='error'] {
+        color: var(--destructive-text);
+      }
+
+      .feedback-banner {
+        display: none;
+        padding: 8px 10px;
+        font-size: 11.5px;
+        line-height: 1.45;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        align-items: flex-start;
+        gap: 8px;
+        overflow-wrap: anywhere;
+      }
+
+      .feedback-banner[data-state] {
+        display: flex;
+      }
+
+      .feedback-banner[data-state='success'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      .feedback-banner[data-state='error'] {
+        background: var(--destructive-bg);
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      .feedback-banner[data-state='info'] {
+        background: var(--info-bg);
+        border-color: var(--info-border);
+        color: var(--info-text);
+      }
+
+      .feedback-banner::before {
+        content: '';
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        background-color: currentColor;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+      }
+
+      .feedback-banner[data-state='success']::before {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
+
+      .feedback-banner[data-state='error']::before {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+      }
+
+      .feedback-banner[data-state='info']::before {
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 7v4M8 5h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 7v4M8 5h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
+      }
+
+      /* Magic Selector View */
+      .site-context {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        margin-bottom: 10px;
+      }
+
+      .site-context-main {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .site-context-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--foreground);
+        overflow-wrap: anywhere;
+      }
+
+      .site-context-host {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--muted-foreground);
+        overflow-wrap: anywhere;
+      }
+
+      .progress-pill {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .progress-pill[data-complete='true'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      /* Active Picking Banner */
+      .active-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border-radius: var(--radius-lg);
+        background: var(--info-bg);
+        border: 1px solid var(--info-border);
+        color: var(--info-text);
+        font-size: 11.5px;
+        line-height: 1.4;
+      }
+
+      .active-banner-dot {
+        width: 8px;
+        height: 8px;
+        margin-top: 4px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+
+      /* Target Field Cards */
+      .target-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .target-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-card);
+        transition: border-color var(--duration-hover) ease;
+      }
+
+      .target-card:hover {
+        border-color: var(--border-hover);
+      }
+
+      .target-card[data-disabled='true'] {
+        opacity: 0.65;
+      }
+
+      .target-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
       }
 
-      .pair-state {
+      .target-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .target-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-md);
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--foreground);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .target-title {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--foreground);
+        line-height: 1.25;
+      }
+
+      .target-badge {
         font-size: 11px;
         font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+      }
+
+      .target-badge[data-tone='ready'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      .target-badge[data-tone='warn'] {
+        background: var(--missing-bg);
+        border-color: var(--missing-border);
         color: var(--missing-text);
       }
 
-      .pair-state[data-paired='true'],
-      .pair-state[data-saved='true'] {
-        color: var(--granted-text);
+      /* Empty / Error State Card */
+      .empty-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 16px 14px;
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        box-shadow: var(--shadow-card);
       }
 
-      #pair-feedback {
-        display: none;
-        font-size: 11px;
+      .empty-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .empty-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+
+      .empty-desc {
+        margin: 0;
+        font-size: 12px;
         line-height: 1.45;
-        font-weight: 500;
+        color: var(--muted-foreground);
         overflow-wrap: anywhere;
       }
 
-      #pair-feedback[data-state] {
-        display: block;
-      }
-
-      #pair-feedback[data-state='success'] {
+      /* Next-Step Guidance Banner */
+      .next-step-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        border-radius: var(--radius-lg);
+        background: var(--granted-bg);
+        border: 1px solid var(--granted-border);
         color: var(--granted-text);
+        font-size: 12px;
+        line-height: 1.4;
       }
 
-      #pair-feedback[data-state='error'] {
-        color: var(--destructive-text);
-      }
-
-      #profile-feedback {
-        display: none;
+      /* Technical Details Disclosure */
+      .tech-details {
+        margin-top: 8px;
         font-size: 11px;
-        line-height: 1.45;
+        color: var(--muted-foreground);
+      }
+
+      .tech-details summary {
+        cursor: pointer;
+        user-select: none;
         font-weight: 500;
+        padding: 2px 0;
+      }
+
+      .tech-details summary:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
+      #selector-preview {
+        margin-top: 6px;
+        padding: 8px 10px;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        line-height: 1.45;
+        color: var(--foreground);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
         overflow-wrap: anywhere;
-      }
-
-      #profile-feedback[data-state] {
-        display: block;
-      }
-
-      #profile-feedback[data-state='success'] {
-        color: var(--granted-text);
-      }
-
-      #profile-feedback[data-state='error'] {
-        color: var(--destructive-text);
       }
 
       /* Toggle Row */
@@ -330,9 +957,9 @@
         flex-direction: column;
         gap: 6px;
         padding: 10px;
-        background: var(--muted);
+        background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: var(--radius-md);
       }
 
       .toggle-row {
@@ -362,8 +989,8 @@
         border: 1px solid var(--border);
         border-radius: 9999px;
         transition:
-          background-color 150ms ease,
-          border-color 150ms ease;
+          background-color var(--duration-state) ease,
+          border-color var(--duration-state) ease;
         flex-shrink: 0;
       }
 
@@ -373,11 +1000,10 @@
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background-color: var(--card);
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.16);
+        background-color: var(--foreground);
         transition:
-          transform 150ms cubic-bezier(0.2, 0.9, 0.22, 1),
-          background-color 150ms ease;
+          transform var(--duration-state) var(--ease-out),
+          background-color var(--duration-state) ease;
       }
 
       .toggle-input:checked + .toggle-track {
@@ -409,169 +1035,68 @@
         color: var(--muted-foreground);
       }
 
-      /* Secondary Buttons */
-      #profile-name-btn,
-      #pair-btn {
-        width: 100%;
-        height: 32px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 0 14px;
-        font-family: inherit;
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--foreground);
-        background: var(--secondary);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        cursor: pointer;
-        transition:
-          background-color 150ms ease,
-          border-color 150ms ease,
-          transform 100ms ease;
-      }
-
-      #profile-name-btn:hover,
-      #pair-btn:hover {
-        background: var(--accent);
-        border-color: var(--border-hover);
-      }
-
-      #profile-name-btn:active,
-      #pair-btn:active {
-        transform: translateY(1px);
-      }
-
-      #profile-name-btn:focus-visible,
-      #pair-btn:focus-visible {
-        outline: 2px solid var(--ring);
-        outline-offset: 2px;
-      }
-
-      /* Primary Button */
-      #sync-btn {
-        width: 100%;
-        height: 32px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 0 14px;
-        font-family: inherit;
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--primary-foreground);
-        background: var(--primary);
-        border: 1px solid transparent;
-        border-radius: 8px;
-        cursor: pointer;
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.12);
-        transition:
-          opacity 150ms ease,
-          transform 100ms ease,
-          box-shadow 150ms ease;
-      }
-
-      #sync-btn:hover:not(:disabled) {
-        opacity: 0.9;
-        box-shadow: 0 2px 4px oklch(0 0 0 / 0.16);
-      }
-
-      #sync-btn:active:not(:disabled) {
-        transform: translateY(1px);
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.08);
-      }
-
-      #sync-btn:focus-visible {
-        outline: 2px solid var(--ring);
-        outline-offset: 2px;
-      }
-
-      #sync-btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-      }
-
-      .btn-icon {
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
-        pointer-events: none;
-      }
-
-      /* Feedback Area */
-      #sync-feedback {
-        display: none;
-        margin-top: 2px;
-        padding: 8px 10px;
-        font-size: 11px;
-        line-height: 1.45;
-        font-weight: 500;
-        border-radius: 8px;
-        border: 1px solid transparent;
-        align-items: flex-start;
-        gap: 8px;
-        overflow-wrap: anywhere;
-      }
-
-      #sync-feedback[data-state] {
+      /* Sessions: Permissions List */
+      .sites-header {
         display: flex;
-      }
-
-      #sync-feedback[data-state='success'] {
-        background: var(--granted-bg);
-        border-color: var(--granted-border);
-        color: var(--granted-text);
-      }
-
-      #sync-feedback[data-state='error'] {
-        background: var(--destructive-bg);
-        border-color: var(--destructive-border);
-        color: var(--destructive-text);
-      }
-
-      #sync-feedback::before {
-        content: '';
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        flex-shrink: 0;
-        margin-top: 1px;
-        background-color: currentColor;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-position: center;
-      }
-
-      #sync-feedback[data-state='success']::before {
-        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M13.333 4 6 11.333 2.667 8' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      }
-
-      #sync-feedback[data-state='error']::before {
-        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
-        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='8' cy='8' r='6' stroke='black' stroke-width='1.5'/%3E%3Cpath d='M8 5v3.5M8 11h.01' stroke='black' stroke-width='1.75' stroke-linecap='round'/%3E%3C/svg%3E");
-      }
-
-      /* Sites Section */
-      .sites-section:has(#sites:empty) {
-        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 4px 0 8px 0;
       }
 
       .sites-title {
-        margin: 0 0 8px 2px;
+        margin: 0;
         font-size: 11px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.06em;
         color: var(--muted-foreground);
+      }
+
+      #status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin: 0;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 1.3;
+        border-radius: 9999px;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      #status:empty {
+        display: none;
+      }
+
+      #status::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: currentColor;
+        flex-shrink: 0;
+      }
+
+      body:has(#sites .grant) #status {
+        background: var(--missing-bg);
+        border-color: var(--missing-border);
+        color: var(--missing-text);
+      }
+
+      body:has(#sites .site):not(:has(#sites .grant)) #status {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      .sites-section:has(#sites:empty) .sites-title {
+        display: none;
       }
 
       #sites {
@@ -580,44 +1105,19 @@
         list-style: none;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        overflow-x: hidden;
-        padding-right: 2px;
-        scrollbar-width: thin;
-        scrollbar-color: var(--border) transparent;
+        gap: 6px;
       }
 
-      #sites::-webkit-scrollbar {
-        width: 5px;
-      }
-
-      #sites::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      #sites::-webkit-scrollbar-thumb {
-        background: var(--border);
-        border-radius: 9999px;
-      }
-
-      #sites::-webkit-scrollbar-thumb:hover {
-        background: var(--muted-foreground);
-      }
-
-      /* Generated Site Card */
       .site {
         display: grid;
         grid-template-columns: 1fr auto;
         align-items: center;
-        gap: 4px 8px;
-        padding: 10px 12px;
+        gap: 3px 8px;
+        padding: 9px 10px;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        box-shadow: var(--shadow-sm);
-        transition:
-          border-color 150ms ease,
-          box-shadow 150ms ease;
+        border-radius: var(--radius-lg);
+        transition: border-color var(--duration-hover) ease;
       }
 
       .site:hover {
@@ -627,40 +1127,37 @@
       .site-name {
         grid-column: 1 / 2;
         grid-row: 1;
-        font-size: 12.5px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--foreground);
         overflow-wrap: anywhere;
-        word-break: break-word;
       }
 
       .site-state {
         grid-column: 2 / 3;
         grid-row: 1;
         justify-self: end;
-        align-self: start;
-        font-size: 11px;
-        font-weight: 500;
+        font-size: 10.5px;
+        font-weight: 600;
         padding: 2px 7px;
         border-radius: 9999px;
-        line-height: 1.35;
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        background: var(--muted);
-        border: 1px solid var(--border);
-        color: var(--muted-foreground);
+        background: var(--granted-bg);
+        border: 1px solid var(--granted-border);
+        color: var(--granted-text);
       }
 
       .site-domains {
         grid-column: 1 / -1;
         grid-row: 2;
-        font-size: 11px;
-        line-height: 1.4;
+        font-family: var(--font-mono);
+        font-size: 10.5px;
+        line-height: 1.35;
         color: var(--muted-foreground);
         overflow-wrap: anywhere;
-        word-break: break-word;
       }
 
       .site:has(.grant) {
@@ -671,28 +1168,6 @@
         background: var(--missing-bg);
         border-color: var(--missing-border);
         color: var(--missing-text);
-      }
-
-      .site:has(.grant) .site-state::before {
-        content: '';
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background-color: currentColor;
-      }
-
-      .site:not(:has(.grant)) .site-state {
-        background: var(--granted-bg);
-        border-color: var(--granted-border);
-        color: var(--granted-text);
-      }
-
-      .site:not(:has(.grant)) .site-state::before {
-        content: '';
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background-color: currentColor;
       }
 
       .grant {
@@ -708,24 +1183,20 @@
         color: var(--foreground);
         background: var(--secondary);
         border: 1px solid var(--border);
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
         gap: 4px;
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
         transition:
-          background-color 150ms ease,
-          border-color 150ms ease,
-          color 150ms ease,
+          background-color var(--duration-hover) ease,
+          border-color var(--duration-hover) ease,
           transform 100ms ease;
       }
 
       .grant:hover {
         background: var(--accent);
-        border-color: var(--ring);
-        color: var(--accent-foreground);
+        border-color: var(--border-hover);
       }
 
       .grant:active {
@@ -737,139 +1208,6 @@
         outline-offset: 1px;
       }
 
-      .grant::before {
-        content: '';
-        display: inline-block;
-        width: 9px;
-        height: 9px;
-        background-color: currentColor;
-        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 3v10M3 8h10' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M8 3v10M3 8h10' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-position: center;
-        mask-position: center;
-      }
-
-      /* Magic selector */
-      #selector-btn {
-        width: 100%;
-        height: 32px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 0 14px;
-        font-family: inherit;
-        font-size: 12.5px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        color: var(--primary-foreground);
-        background: var(--primary);
-        border: 1px solid transparent;
-        border-radius: 8px;
-        cursor: pointer;
-        box-shadow: 0 1px 2px oklch(0 0 0 / 0.12);
-        transition:
-          opacity 150ms ease,
-          transform 100ms ease;
-      }
-
-      #selector-btn:hover:not(:disabled) {
-        opacity: 0.9;
-      }
-
-      #selector-btn:active:not(:disabled) {
-        transform: translateY(1px);
-      }
-
-      #selector-btn:focus-visible {
-        outline: 2px solid var(--ring);
-        outline-offset: 2px;
-      }
-
-      #selector-btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-      }
-
-      .selector-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-
-      .selector-row {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 10px;
-        font-size: 11.5px;
-        line-height: 1.4;
-        color: var(--muted-foreground);
-      }
-
-      .selector-row strong {
-        color: var(--foreground);
-        font-weight: 600;
-        text-align: right;
-      }
-
-      #selector-preview {
-        display: none;
-        padding: 7px 9px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 10.5px;
-        line-height: 1.45;
-        color: var(--foreground);
-        background: var(--background);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow-wrap: anywhere;
-      }
-
-      #selector-preview[data-state] {
-        display: block;
-      }
-
-      #selector-feedback {
-        display: none;
-        padding: 8px 10px;
-        font-size: 11px;
-        line-height: 1.45;
-        font-weight: 500;
-        border-radius: 8px;
-        border: 1px solid transparent;
-        overflow-wrap: anywhere;
-      }
-
-      #selector-feedback[data-state] {
-        display: block;
-      }
-
-      #selector-feedback[data-state='success'] {
-        background: var(--granted-bg);
-        border-color: var(--granted-border);
-        color: var(--granted-text);
-      }
-
-      #selector-feedback[data-state='error'] {
-        background: var(--destructive-bg);
-        border-color: var(--destructive-border);
-        color: var(--destructive-text);
-      }
-
-      #selector-connection[data-selector='ok'] {
-        color: var(--granted-text);
-      }
-
-      #selector-connection[data-selector='error'] {
-        color: var(--destructive-text);
-      }
-
-      /* Reduced Motion */
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -884,168 +1222,306 @@
   </head>
   <body>
     <header class="header">
-      <div class="header-brand">
-        <img src="icons/icon48.png" alt="" class="app-icon" width="22" height="22" />
-        <h1 class="app-title">Quizlab site oturumları</h1>
-      </div>
-      <p id="profile-label" class="profile-label">Bu Chrome profili</p>
-      <p id="status" role="status"></p>
-    </header>
-
-    <section class="card" aria-label="Chrome profili adı">
-      <div class="pair-header">
-        <span class="field-label">Bu Chrome profili</span>
-        <span id="profile-state" class="pair-state" data-saved="false">Kaydedilmedi</span>
-      </div>
-      <p class="card-intro">
-        Bu eklenti her Chrome profilinde ayrı çalışır. Birden fazla profil kullanıyorsanız her
-        birine tanıyacağınız bir ad verin; Quizlab hangi profilden oturum alacağını bu adla seçer.
-      </p>
-      <div class="field">
-        <label for="profile-name-input" class="field-label">Profil adı:</label>
-        <input
-          id="profile-name-input"
-          class="code-input"
-          type="text"
-          maxlength="60"
-          autocomplete="off"
-          placeholder="Örn. Ana Chrome, İş Chrome"
-        />
-      </div>
-      <button id="profile-name-btn" type="button">Adı kaydet</button>
-      <div id="profile-feedback" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="card" aria-label="Quizlab eşleştirmesi">
-      <div class="pair-header">
-        <span class="field-label">Quizlab eşleştirmesi</span>
-        <span id="pair-state" class="pair-state" data-paired="false">Eşleştirilmedi</span>
-      </div>
-      <p class="card-intro">
-        Quizlab Ayarlar &rarr; Site Oturumları sayfasındaki eşleştirme kodunu buraya yapıştırın. Kod
-        yalnızca bu tarayıcıda saklanır ve uygulamaya imzalı istek göndermek için kullanılır.
-      </p>
-      <div class="field">
-        <label for="pairing-code-input" class="field-label">Eşleştirme kodu:</label>
-        <input
-          id="pairing-code-input"
-          class="code-input"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="64 karakterlik kod"
-        />
-      </div>
-      <button id="pair-btn" type="button">Eşleştir</button>
-      <div id="pair-feedback" role="status" aria-live="polite"></div>
-    </section>
-
-    <div class="card">
-      <p class="card-intro">
-        Chrome’daki site oturumunu uygulamaya aktarın. Aynı profildeki sekmeler ayrı çerez depoları
-        değildir. Her site, Google dahil, tek oturum kullanır.
-      </p>
-
-      <div class="field">
-        <label for="site-select" class="field-label">Aktarılacak site:</label>
-        <div class="select-wrapper">
-          <select id="site-select" class="select-control">
-            <option value="">Etkin tüm siteler</option>
-          </select>
-          <svg class="select-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M4 6l4 4 4-4"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+      <div class="header-left">
+        <img src="icons/icon48.png" alt="" class="app-icon" width="24" height="24" />
+        <div class="header-identity">
+          <h1 class="app-title">QuizLab</h1>
+          <p id="profile-label" class="profile-label">Bu Chrome profili: Chrome</p>
         </div>
       </div>
+      <div class="header-actions">
+        <span id="connection-pill" class="conn-pill" data-tone="idle" role="status">
+          Kontrol ediliyor
+        </span>
+        <button
+          id="settings-toggle"
+          type="button"
+          class="icon-btn"
+          aria-expanded="false"
+          aria-controls="settings-drawer"
+          aria-label="Bağlantı ve profil ayarları"
+          title="Bağlantı ve profil ayarları"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M6.67 1.75h2.66l.44 1.65a4.6 4.6 0 0 1 1.13.65l1.62-.45 1.33 2.3-1.18 1.2c.06.3.09.6.09.9s-.03.6-.09.9l1.18 1.2-1.33 2.3-1.62-.45a4.6 4.6 0 0 1-1.13.65l-.44 1.65H6.67l-.44-1.65a4.6 4.6 0 0 1-1.13-.65l-1.62.45-1.33-2.3 1.18-1.2A4.8 4.8 0 0 1 3.24 8c0-.3.03-.6.09-.9L2.15 5.9l1.33-2.3 1.62.45a4.6 4.6 0 0 1 1.13-.65l.44-1.65Z"
+              stroke="currentColor"
+              stroke-width="1.35"
+              stroke-linejoin="round"
+            />
+            <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.35" />
+          </svg>
+          <span class="icon-btn-dot" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
 
-      <div class="toggle-box">
-        <label class="toggle-row" for="auto-sync">
-          <input id="auto-sync" type="checkbox" class="toggle-input" />
-          <span class="toggle-track" aria-hidden="true">
-            <span class="toggle-thumb"></span>
-          </span>
-          <span class="toggle-label">Siteleri Chrome ile otomatik eşitle</span>
-        </label>
-        <p class="toggle-desc">
-          Elle aktarım tek seferliktir; bu tercihi değiştirmez. Google dışındaki sitelerde tek
-          oturum kullanılır.
+    <section
+      id="settings-drawer"
+      class="settings-drawer"
+      aria-label="Bağlantı ve profil ayarları"
+      hidden
+    >
+      <div class="settings-section">
+        <div class="pair-header">
+          <label for="pairing-code-input" class="field-label">QuizLab eşleştirmesi</label>
+          <span id="pair-state" class="pair-state" data-paired="false">Eşleştirilmedi</span>
+        </div>
+        <p class="card-intro">
+          QuizLab Ayarlar &rarr; Site Oturumları ekranındaki 64 karakterlik eşleştirme kodunu girin.
         </p>
+        <div class="field-row">
+          <input
+            id="pairing-code-input"
+            class="code-input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="64 karakterlik kod"
+          />
+          <button id="pair-btn" type="button" class="btn btn-primary btn-sm">Eşleştir</button>
+        </div>
+        <div id="pair-feedback" class="inline-feedback" role="status" aria-live="polite"></div>
       </div>
 
-      <button id="sync-btn" type="button">
+      <hr class="settings-divider" />
+
+      <div class="settings-section">
+        <div class="pair-header">
+          <label for="profile-name-input" class="field-label">Chrome profil adı</label>
+          <span id="profile-state" class="pair-state" data-saved="false">Kaydedilmedi</span>
+        </div>
+        <div class="field-row">
+          <input
+            id="profile-name-input"
+            class="code-input"
+            type="text"
+            maxlength="60"
+            autocomplete="off"
+            placeholder="Örn. Ana Chrome, İş"
+          />
+          <button id="profile-name-btn" type="button" class="btn btn-secondary btn-sm">
+            Kaydet
+          </button>
+        </div>
+        <div id="profile-feedback" class="inline-feedback" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <nav class="segmented-nav" role="tablist" aria-label="Ana bölümler">
+      <button
+        id="tab-selector"
+        type="button"
+        role="tab"
+        class="nav-tab"
+        aria-selected="true"
+        aria-controls="panel-selector"
+      >
         <svg class="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
-            d="M2.5 8a5.5 5.5 0 0 1 9.35-3.92l1.65-1.58v4.5h-4.5l1.73-1.73A3.5 3.5 0 0 0 4.5 8H2.5zm11 0a5.5 5.5 0 0 1-9.35 3.92l-1.65 1.58v-4.5h4.5l-1.73 1.73A3.5 3.5 0 0 0 11.5 8h2z"
+            d="M3 2.5 13 7l-4.5 1.5L7 13 3 2.5Z"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Sihirli Seçici</span>
+      </button>
+      <button
+        id="tab-sessions"
+        type="button"
+        role="tab"
+        class="nav-tab"
+        aria-selected="false"
+        aria-controls="panel-sessions"
+      >
+        <svg class="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path
+            d="M2.5 8a5.5 5.5 0 0 1 9.35-3.92l1.65-1.58v4.5h-4.5l1.73-1.73A3.5 3.5 0 0 0 4.5 8H2.5Zm11 0a5.5 5.5 0 0 1-9.35 3.92l-1.65 1.58v-4.5h4.5l-1.73 1.73A3.5 3.5 0 0 0 11.5 8h2Z"
             fill="currentColor"
           />
         </svg>
-        <span>Oturumları Quizlab'a Aktar</span>
+        <span>Oturumlar</span>
+        <span id="sessions-badge" class="tab-badge" hidden>0</span>
       </button>
+    </nav>
 
-      <div id="sync-feedback" role="status" aria-live="polite"></div>
-    </div>
+    <main>
+      <section id="panel-selector" role="tabpanel" aria-labelledby="tab-selector">
+        <div id="selector-site-context" class="site-context" hidden>
+          <div class="site-context-main">
+            <span id="selector-site" class="site-context-name">Bilinmiyor</span>
+            <span id="selector-host" class="site-context-host"></span>
+          </div>
+          <span id="selector-progress" class="progress-pill">0/2 alan kayıtlı</span>
+        </div>
 
-    <section class="card" aria-label="Sihirli Seçici">
-      <div class="pair-header">
-        <span class="field-label">Sihirli Seçici</span>
-        <span id="selector-connection" class="pair-state" data-selector="idle"
-          >Kontrol ediliyor</span
+        <div
+          id="selector-active-banner"
+          class="active-banner"
+          role="status"
+          aria-live="polite"
+          hidden
         >
-      </div>
-      <p class="card-intro">
-        Otomasyonların kullanacağı elementi Chrome’da seçin. Seçici yalnızca Quizlab’da
-        doğrulandıktan sonra kaydedilir; doğrulanmayan bir seçim mevcut çalışan seçicinin yerine
-        geçmez.
-      </p>
-      <div class="selector-rows">
-        <div class="selector-row">
-          <span>Bu sekmedeki site</span>
-          <strong id="selector-site">Bilinmiyor</strong>
+          <span class="active-banner-dot" aria-hidden="true"></span>
+          <span id="selector-active-text">Seçim modu aktif. Sayfada elementi seçin.</span>
         </div>
-        <div class="selector-row">
-          <span>Mesaj giriş alanı</span>
-          <strong id="selector-input-status">—</strong>
-        </div>
-        <div class="selector-row">
-          <span>Mesaj gönder butonu</span>
-          <strong id="selector-button-status">—</strong>
-        </div>
-      </div>
 
-      <div class="field">
-        <label for="selector-field" class="field-label">Hedef alan:</label>
-        <div class="select-wrapper">
-          <select id="selector-field" class="select-control">
-            <option value="input">Mesaj giriş alanı</option>
-            <option value="button">Mesaj gönder butonu</option>
-          </select>
-          <svg class="select-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M4 6l4 4 4-4"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+        <div id="selector-empty-state" class="empty-card" hidden>
+          <div class="empty-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" />
+              <path
+                d="M8 5v3.5M8 11h.01"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+          </div>
+          <p id="selector-empty-title" class="empty-title">Durum kontrol ediliyor</p>
+          <p id="selector-empty-desc" class="empty-desc"></p>
+          <button
+            id="selector-empty-action"
+            type="button"
+            class="btn btn-primary btn-sm"
+            hidden
+          ></button>
         </div>
-      </div>
 
-      <button id="selector-btn" type="button">Sihirli Seçici’yi Başlat</button>
-      <div id="selector-preview" aria-live="polite"></div>
-      <div id="selector-feedback" role="status" aria-live="polite"></div>
-    </section>
+        <div id="selector-targets" class="target-cards" hidden>
+          <article class="target-card" data-field="input">
+            <div class="target-head">
+              <div class="target-title-wrap">
+                <span class="target-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <rect
+                      x="2"
+                      y="3.5"
+                      width="12"
+                      height="9"
+                      rx="2"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                    />
+                    <path
+                      d="M5 6.5h6M5 9.5h3.5"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="target-title">Mesaj giriş alanı</span>
+              </div>
+              <span id="selector-input-status" class="target-badge">—</span>
+            </div>
+            <button
+              id="pick-input-btn"
+              type="button"
+              class="btn btn-primary btn-full"
+              data-field="input"
+            >
+              Alanı Seç
+            </button>
+          </article>
 
-    <section class="sites-section" aria-label="Site İzinleri">
-      <h2 class="sites-title">Site İzinleri</h2>
-      <ul id="sites"></ul>
-    </section>
+          <article class="target-card" data-field="button">
+            <div class="target-head">
+              <div class="target-title-wrap">
+                <span class="target-icon" aria-hidden="true">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M14 2 7.5 8.5M14 2l-4.2 12-2.3-5.5L2 6.2 14 2Z"
+                      stroke="currentColor"
+                      stroke-width="1.4"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span class="target-title">Gönderme butonu</span>
+              </div>
+              <span id="selector-button-status" class="target-badge">—</span>
+            </div>
+            <button
+              id="pick-button-btn"
+              type="button"
+              class="btn btn-primary btn-full"
+              data-field="button"
+            >
+              Butonu Seç
+            </button>
+          </article>
+        </div>
+
+        <div id="selector-feedback" class="feedback-banner" role="status" aria-live="polite"></div>
+
+        <div id="selector-next-step" class="next-step-card" hidden>
+          <span id="selector-next-text"></span>
+          <button id="selector-next-btn" type="button" class="btn btn-secondary btn-sm"></button>
+        </div>
+
+        <details id="selector-tech-details" class="tech-details" hidden>
+          <summary>Teknik ayrıntılar</summary>
+          <div id="selector-preview" aria-live="polite"></div>
+        </details>
+      </section>
+
+      <section id="panel-sessions" role="tabpanel" aria-labelledby="tab-sessions" hidden>
+        <div class="card">
+          <div class="toggle-box">
+            <label class="toggle-row" for="auto-sync">
+              <input id="auto-sync" type="checkbox" class="toggle-input" />
+              <span class="toggle-track" aria-hidden="true">
+                <span class="toggle-thumb"></span>
+              </span>
+              <span class="toggle-label">Siteleri Chrome ile otomatik eşitle</span>
+            </label>
+            <p class="toggle-desc">
+              Elle aktarım tek seferliktir; otomatik eşitleme tercihini değiştirmez.
+            </p>
+          </div>
+
+          <div class="field">
+            <label for="site-select" class="field-label">Aktarılacak site</label>
+            <div class="select-wrapper">
+              <select id="site-select" class="select-control">
+                <option value="">Etkin tüm siteler</option>
+              </select>
+              <svg class="select-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M4 6l4 4 4-4"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <button id="sync-btn" type="button" class="btn btn-primary btn-full">
+            <svg class="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2.5 8a5.5 5.5 0 0 1 9.35-3.92l1.65-1.58v4.5h-4.5l1.73-1.73A3.5 3.5 0 0 0 4.5 8H2.5Zm11 0a5.5 5.5 0 0 1-9.35 3.92l-1.65 1.58v-4.5h4.5l-1.73 1.73A3.5 3.5 0 0 0 11.5 8h2Z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>Oturumları QuizLab’a Aktar</span>
+          </button>
+
+          <div id="sync-feedback" class="feedback-banner" role="status" aria-live="polite"></div>
+        </div>
+
+        <section class="sites-section" aria-label="Site İzinleri">
+          <div class="sites-header">
+            <h2 class="sites-title">Site İzinleri</h2>
+            <p id="status" role="status"></p>
+          </div>
+          <ul id="sites"></ul>
+        </section>
+      </section>
+    </main>
 
     <script src="sidepanel.js"></script>
   </body>

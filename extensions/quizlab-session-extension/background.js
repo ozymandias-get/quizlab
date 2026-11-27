@@ -2382,6 +2382,9 @@ async function buildSelectorState(tabId) {
   const capability =
     selectorSupported === null ? null : selectorSupported === true ? 'selectors' : 'none'
   const permission = host ? await hasSelectorPermission(host) : false
+  const activeSession = selectorSessions.find(
+    (entry) => entry.tabId === tabId && entry.state === 'active'
+  )
 
   return {
     supported: capability,
@@ -2397,6 +2400,14 @@ async function buildSelectorState(tabId) {
           pathPrefix: site.pathPrefix || null,
           fields: site.fields,
           status
+        }
+      : null,
+    activeSession: activeSession
+      ? {
+          sessionId: activeSession.sessionId,
+          field: activeSession.field,
+          hostname: activeSession.hostname,
+          startedAt: activeSession.startedAt
         }
       : null,
     lastOutcome: selectorLastOutcome
@@ -2667,6 +2678,12 @@ if (chrome.runtime?.onMessage?.addListener) {
           }
           if (session.state === 'saved') return { ok: false, alreadySaved: true }
           await updateSelectorSession(sessionId, { state: 'cancelled' })
+          broadcastSelectorOutcome({
+            state: 'cancelled',
+            tabId: session.tabId,
+            hostname: session.hostname,
+            field: session.field
+          })
           return { ok: true }
         })()
           .then((result) => sendResponse(result))
