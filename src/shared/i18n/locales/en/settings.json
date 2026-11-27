@@ -90,7 +90,6 @@
   "tool_swap": "Swap Panels",
   "tool_pdf_focus": "PDF Focus",
   "tool_ai_focus": "AI Focus",
-  "tool_picker": "Element Picker",
   "text_input_flow_chat": "Chat",
   "text_input_flow_hint": "A selection waits in the draft strip when you choose a draft mode; direct mode sends it to the chat immediately.",
   "text_input_mode": "Text Input Method",

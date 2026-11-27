@@ -20,7 +20,7 @@ interface SelectorsListProps {
   isDeleting: boolean
   isTesting: boolean
   onToggleExpanded: (id: string) => void
-  onOpenRepick: (aiKey: string, cardId: string) => void
+  onOpenSite: (aiKey: string, cardId: string) => void
   onSubmitModeChange: (hostname: string, mode: SubmitMode) => void
   onTestSelectors: (aiKey: string, selectorEntry: SelectorEntry | null, cardId: string) => void
   onDeleteSelectors: (hostname: string) => void
@@ -40,7 +40,7 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
     isDeleting,
     isTesting,
     onToggleExpanded,
-    onOpenRepick,
+    onOpenSite,
     onSubmitModeChange,
     onTestSelectors,
     onDeleteSelectors,
@@ -66,7 +66,7 @@ export default memo(function SelectorsList(props: SelectorsListProps) {
             isDeleting={isDeleting}
             isTesting={isTesting}
             onToggleExpanded={onToggleExpanded}
-            onOpenRepick={onOpenRepick}
+            onOpenSite={onOpenSite}
             onSubmitModeChange={onSubmitModeChange}
             onTestSelectors={onTestSelectors}
             onDeleteSelectors={onDeleteSelectors}

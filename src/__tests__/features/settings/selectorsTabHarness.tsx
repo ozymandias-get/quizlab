@@ -51,7 +51,6 @@ export interface SelectorsTabStubOptions {
   tabs: unknown[]
   currentAI: string
   openAiWorkspace: (ai: string) => string
-  startPickerWhenReady: (expectedTabId?: string) => void
   showError: (...args: unknown[]) => void
   showSuccess: (...args: unknown[]) => void
   showWarning: (...args: unknown[]) => void
@@ -78,7 +77,6 @@ export interface SelectorsTabStubOptions {
 export function selectorsTabModuleStubs(options: SelectorsTabStubOptions) {
   return {
     '@app/providers': {
-      useAppToolActions: () => ({ startPickerWhenReady: options.startPickerWhenReady }),
       useToastActions: () => ({
         showError: options.showError,
         showSuccess: options.showSuccess,

@@ -25,6 +25,8 @@ export const IPC_CHANNELS = {
   SAVE_AI_CONFIG: 'save-ai-config',
   GET_AI_CONFIG: 'get-ai-config',
   DELETE_AI_CONFIG: 'delete-ai-config',
+  /** Main → renderer: the stored selectors of a hostname changed elsewhere. */
+  AI_CONFIG_CHANGED: 'ai-config-changed',
   GET_AI_REGISTRY: 'get-ai-registry',
   GET_AUTOMATION_SCRIPTS: 'get-automation-scripts',
 

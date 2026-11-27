@@ -13,7 +13,6 @@ import enNavigation from './locales/en/navigation.json'
 import enNotifications from './locales/en/notifications.json'
 import enPdf from './locales/en/pdf.json'
 import enPdfRecent from './locales/en/pdf-recent.json'
-import enPicker from './locales/en/picker.json'
 import enSelectors from './locales/en/selectors.json'
 import enSettings from './locales/en/settings.json'
 import enToasts from './locales/en/toasts.json'
@@ -30,7 +29,6 @@ import trNavigation from './locales/tr/navigation.json'
 import trNotifications from './locales/tr/notifications.json'
 import trPdf from './locales/tr/pdf.json'
 import trPdfRecent from './locales/tr/pdf-recent.json'
-import trPicker from './locales/tr/picker.json'
 import trSelectors from './locales/tr/selectors.json'
 import trSettings from './locales/tr/settings.json'
 import trToasts from './locales/tr/toasts.json'
@@ -47,7 +45,6 @@ const enResources = {
   ...enAiSend,
   ...enAiChat,
   ...enSelectors,
-  ...enPicker,
   ...enWs,
   ...enErrors,
   ...enToasts,
@@ -67,7 +64,6 @@ const trResources = {
   ...trAiSend,
   ...trAiChat,
   ...trSelectors,
-  ...trPicker,
   ...trWs,
   ...trErrors,
   ...trToasts,

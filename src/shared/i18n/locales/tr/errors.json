@@ -19,7 +19,7 @@
   "error_pdf_viewer": "PDF Görüntüleyici Hatası",
   "error_registry_not_loaded": "AI listesi yüklenemedi",
   "error_script_failed": "AI sayfasına metin yazılamadı",
-  "error_selector_repick_required": "Yapay zeka sitesinin arayüzü değişmiş olabilir. Quizlab gerekli mesaj alanını güvenli biçimde yeniden bulamadı. Sihirli Seçici ile yeniden seçim yapın.",
+  "error_selector_repick_required": "Yapay zeka sitesinin arayüzü değişmiş olabilir. Quizlab gerekli mesaj alanını güvenli biçimde yeniden bulamadı. Chrome eklentisindeki Sihirli Seçici ile yeniden seçim yapın.",
   "error_submit_not_ready": "Ek görsel hâlâ işleniyor. Biraz bekleyip tekrar deneyin.",
   "error_submit_ready_script_failed": "Görsel hazır olma kontrolü hazırlanamadı.",
   "error_unexpected_retry": "Beklenmeyen bir hata oluştu. Lütfen dosya izinlerini kontrol edip tekrar deneyin.",

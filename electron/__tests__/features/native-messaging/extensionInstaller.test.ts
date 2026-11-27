@@ -534,7 +534,7 @@ describe('BundledExtensionInstaller', () => {
         await fs.readFile(path.join(result.path, 'manifest.json'), 'utf-8')
       ) as { name: string; version: string; key: string; background: { service_worker: string } }
       expect(manifest.name).toBe(QUIZLAB_DEV_EXTENSION_NAME)
-      expect(manifest.version).toBe('1.4.0')
+      expect(manifest.version).toBe('1.5.0')
       expect(deriveExtensionIdFromKey(manifest.key)).toBe(QUIZLAB_DEV_EXTENSION_ID)
       expect(manifest.background.service_worker).toBe('background.js')
       await expect(

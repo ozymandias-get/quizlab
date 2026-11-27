@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 
@@ -436,7 +436,7 @@ describe('extension permission popup', () => {
 
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.4.0')
+    expect(manifest.version).toBe('1.5.0')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
@@ -447,6 +447,25 @@ describe('extension permission popup', () => {
   it('keeps the host permissions of the manifest', () => {
     expect(manifest.host_permissions).toEqual(HOST_PERMISSIONS)
     expect(manifest.optional_host_permissions).toEqual(OPTIONAL_HOST_PERMISSIONS)
+  })
+
+  it('offers the magic selector without a resident content script', () => {
+    // Picking needs an on-demand injection; the extension must not declare a
+    // content script that runs on every supported page.
+    expect(manifest.permissions).toEqual(expect.arrayContaining(['scripting', 'activeTab']))
+    expect(manifest).not.toHaveProperty('content_scripts')
+
+    expect(popupHtml).toContain('id="selector-btn"')
+    expect(popupHtml).toContain('id="selector-field"')
+    expect(popupHtml).toContain('id="selector-site"')
+    expect(popupHtml).toContain('id="selector-input-status"')
+    expect(popupHtml).toContain('id="selector-button-status"')
+    expect(popupHtml).toContain('id="selector-preview"')
+    expect(popupJs).toContain("type: 'selector_state'")
+    expect(popupJs).toContain("type: 'selector_start'")
+
+    expect(existsSync(path.join(EXT_DIR, 'content/picker.js'))).toBe(true)
+    expect(existsSync(path.join(EXT_DIR, 'content/selector-engine.js'))).toBe(true)
   })
 
   it('ships the extension inside the app bundle', () => {

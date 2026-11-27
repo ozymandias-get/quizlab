@@ -28,7 +28,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
     isDeleting,
     isTesting,
     handleToggleExpanded,
-    handleOpenRepick,
+    handleOpenSite,
     handleSubmitModeChange,
     handleTestSelectors,
     handleDeleteSelectors
@@ -43,6 +43,10 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
     <div className="space-y-4 pb-4">
       <SettingsTabIntro icon={SELECTORS_ICON} description={t('selectors_description_simple')} />
 
+      <div className="border-border bg-muted/40 text-muted-foreground text-ql-12 rounded-xl border px-3 py-2.5 leading-relaxed">
+        {t('selectors_chrome_hint')}
+      </div>
+
       <SelectorsList
         aiEntries={aiEntries}
         selectors={selectors}
@@ -55,7 +59,7 @@ const SelectorsTab = memo(({ onCloseSettings }: SelectorsTabProps) => {
         isDeleting={isDeleting}
         isTesting={isTesting}
         onToggleExpanded={handleToggleExpanded}
-        onOpenRepick={handleOpenRepick}
+        onOpenSite={handleOpenSite}
         onSubmitModeChange={handleSubmitModeChange}
         onTestSelectors={handleTestSelectors}
         onDeleteSelectors={handleDeleteSelectors}

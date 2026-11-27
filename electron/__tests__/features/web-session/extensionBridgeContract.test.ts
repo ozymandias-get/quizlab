@@ -9,12 +9,22 @@ import {
   QUIZLAB_DEV_EXTENSION_ID,
   QUIZLAB_DEV_EXTENSION_ORIGIN
 } from '../../../../shared/constants/extensionRelease.js'
+import {
+  SELECTOR_REQUEST_ID_HEADER,
+  SELECTOR_SITES_PATH as SHARED_SELECTOR_SITES_PATH,
+  SELECTOR_TRANSFER_PATH as SHARED_SELECTOR_TRANSFER_PATH,
+  SELECTOR_TRANSFER_VERSION
+} from '../../../../shared/constants/selectorTransfer.js'
 import { SITE_SESSION_PROTOCOL_VERSION } from '../../../../shared/constants/siteSessionProtocol.js'
 import { getSiteSessionCookieDomains } from '../../../../shared/constants/siteSessionCookieDomains.js'
 
 const BACKGROUND_PATH = path.join(
   process.cwd(),
   'extensions/quizlab-session-extension/background.js'
+)
+const PICKER_PATH = path.join(
+  process.cwd(),
+  'extensions/quizlab-session-extension/content/picker.js'
 )
 
 const source = readFileSync(BACKGROUND_PATH, 'utf-8')
@@ -30,6 +40,8 @@ const SCAN_ALARM = 'quizlabScan'
 const HEARTBEAT_ALARM = 'quizlabHeartbeat'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
+const SELECTOR_SITES_PATH = '/api/selectors/sites'
+const SELECTOR_TRANSFER_PATH = '/api/selectors'
 const HEALTH_PATH = '/api/health'
 
 interface FakeCookie {
@@ -132,6 +144,8 @@ interface HarnessOptions {
   permissionsThrow?: boolean
   /** Whether the browser already holds the pairing code. Defaults to true. */
   paired?: boolean
+  /** The address the active tab reports. */
+  tabUrl?: string
   /** The build the fake Chrome reports: the release build unless set. */
   extensionId?: string
   /**
@@ -144,13 +158,22 @@ interface HarnessOptions {
 }
 
 interface Harness {
-  message(message: Record<string, unknown>): Promise<{ success: boolean; result?: string }>
+  message(
+    message: Record<string, unknown>
+  ): Promise<Record<string, unknown> & { success: boolean; result?: string }>
+  messageFromTab(
+    message: Record<string, unknown>,
+    sender: { tab: { id: number }; frameId: number; documentId?: string }
+  ): Promise<Record<string, unknown>>
   readonly fetchCalls: FetchCall[]
   readonly cookieQueries: string[]
   /** Every packet the extension sent, accepted or not. */
   readonly attempts: Packet[]
   /** The packets the app accepted. */
   readonly packets: Packet[]
+  readonly selectorPosts: Array<{ body: string; headers: Record<string, string> }>
+  readonly injectionCalls: Array<{ tabId: number; files: string[] }>
+  readonly tabMessages: Array<{ tabId: number; message: Record<string, unknown> }>
   readonly permissionQueries: string[]
   readonly logs: LogEntry[]
   readonly storage: Map<string, unknown>
@@ -188,6 +211,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const cookieQueries: string[] = []
   const attempts: Packet[] = []
   const packets: Packet[] = []
+  const selectorPosts: Array<{ body: string; headers: Record<string, string> }> = []
+  const injectionCalls: Array<{ tabId: number; files: string[] }> = []
+  const tabMessages: Array<{ tabId: number; message: Record<string, unknown> }> = []
   const permissionQueries: string[] = []
   const logs: LogEntry[] = []
   // The user pairs the extension by hand; the worker finds the code in the
@@ -248,6 +274,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
    */
   let pendingSignatures = 0
   const harnessCrypto = {
+    randomUUID: () => `req-${String(++timerId).padStart(16, '0')}`,
     subtle: {
       importKey: (
         format: 'raw',
@@ -347,6 +374,21 @@ function createHarness(options: HarnessOptions = {}): Harness {
           if (index >= 0) navigationListeners.splice(index, 1)
         }
       }
+    },
+    tabs: {
+      get: async (tabId: number) => ({
+        id: tabId,
+        url: options.tabUrl ?? 'https://chatgpt.com/c/1'
+      }),
+      sendMessage: async (tabId: number, message: Record<string, unknown>) => {
+        tabMessages.push({ tabId, message })
+      }
+    },
+    scripting: {
+      executeScript: async (options: { target: { tabId: number }; files?: string[] }) => {
+        injectionCalls.push({ tabId: options.target.tabId, files: options.files ?? [] })
+        return [{ frameId: 0, documentId: 'doc-1' }]
+      }
     }
   }
 
@@ -380,6 +422,37 @@ function createHarness(options: HarnessOptions = {}): Harness {
         return jsonResponse({ error: 'Invalid signature' }, 401)
       }
       return jsonResponse(siteList)
+    }
+    if (target.endsWith(SELECTOR_SITES_PATH)) {
+      if (headers['x-hmac-signature'] !== sign(SELECTOR_SITES_PATH)) {
+        return jsonResponse({ error: 'Invalid signature' }, 401)
+      }
+      return jsonResponse({
+        version: 1,
+        sites: [
+          {
+            siteId: 'chatgpt',
+            displayName: 'ChatGPT',
+            hostname: 'chatgpt.com',
+            hosts: ['chatgpt.com', 'openai.com'],
+            fields: ['input', 'button'],
+            status: { input: 'missing', button: 'ready' }
+          }
+        ]
+      })
+    }
+    if (target.endsWith(SELECTOR_TRANSFER_PATH)) {
+      const requestId = headers['x-quizlab-request-id'] ?? ''
+      const expected = createHmac('sha256', BRIDGE_SECRET)
+        .update(
+          `${TEST_PROFILE_ID}\n${SELECTOR_TRANSFER_PATH}\n${requestId}\n${String(init?.body ?? '')}`
+        )
+        .digest('hex')
+      if (headers['x-hmac-signature'] !== expected) {
+        return jsonResponse({ error: 'Invalid signature' }, 401)
+      }
+      selectorPosts.push({ body: String(init?.body ?? ''), headers })
+      return jsonResponse({ status: 'saved', saved: true })
     }
     if (target.endsWith(COOKIE_PATH)) {
       const packet = JSON.parse(String(init?.body ?? '{}')) as Packet
@@ -419,6 +492,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
     crypto: harnessCrypto,
     TextEncoder: globalThis.TextEncoder,
     AbortSignal: globalThis.AbortSignal,
+    URL: globalThis.URL,
     console: {
       log: (...args: unknown[]) => logs.push({ level: 'log', message: args.map(String).join(' ') }),
       warn: (...args: unknown[]) =>
@@ -452,10 +526,23 @@ function createHarness(options: HarnessOptions = {}): Harness {
 
   return {
     message: (message) => new Promise((resolve) => messageListener(message, {}, resolve)),
+    messageFromTab: (message, sender) =>
+      new Promise((resolve) =>
+        (
+          messageListener as unknown as (
+            message: Record<string, unknown>,
+            sender: unknown,
+            respond: (response: Record<string, unknown>) => void
+          ) => void
+        )(message, sender, resolve)
+      ),
     fetchCalls,
     cookieQueries,
     attempts,
     packets,
+    selectorPosts,
+    injectionCalls,
+    tabMessages,
     permissionQueries,
     logs,
     storage,
@@ -540,6 +627,23 @@ describe('extension bridge contract', () => {
 
   it('lets the user name this Chrome profile', () => {
     expect(source).toContain('set_profile_name')
+  })
+
+  it('speaks the selector transfer contract of the app', () => {
+    expect(SELECTOR_TRANSFER_PATH).toBe(SHARED_SELECTOR_TRANSFER_PATH)
+    expect(SELECTOR_SITES_PATH).toBe(SHARED_SELECTOR_SITES_PATH)
+    expect(source).toContain(`const SELECTOR_TRANSFER_PATH = '${SHARED_SELECTOR_TRANSFER_PATH}'`)
+    expect(source).toContain(`const SELECTOR_SITES_PATH = '${SHARED_SELECTOR_SITES_PATH}'`)
+    expect(source).toContain(`const SELECTOR_TRANSFER_VERSION = ${SELECTOR_TRANSFER_VERSION}`)
+    expect(source).toContain(`const SELECTOR_REQUEST_ID_HEADER = '${SELECTOR_REQUEST_ID_HEADER}'`)
+  })
+
+  it('never lets the content script hold the pairing secret or sign a request', () => {
+    const picker = readFileSync(PICKER_PATH, 'utf-8')
+    expect(picker).not.toContain('bridgeSecret')
+    expect(picker).not.toContain('x-hmac-signature')
+    expect(picker).not.toContain('fetch(')
+    expect(picker).not.toContain('chrome.cookies')
   })
 })
 
@@ -1342,5 +1446,138 @@ describe('extension account snapshots', () => {
     await harness.message({ type: 'set_auto_sync', enabled: true })
     expect(harness.packets.at(-2)?.targetId).toBe('chatgpt')
     expect(harness.packets.at(-1)?.targetId).toBe('claude')
+  })
+})
+
+describe('extension magic selector', () => {
+  it('names the active tab site and its stored selector status', async () => {
+    const harness = createHarness()
+    await harness.settle()
+
+    const state = await harness.message({ type: 'selector_state', tabId: 7 })
+    expect(state).toMatchObject({
+      success: true,
+      connection: 'ok',
+      host: 'chatgpt.com'
+    })
+    expect((state as { site?: unknown }).site).toMatchObject({
+      displayName: 'ChatGPT',
+      fields: ['input', 'button'],
+      status: { input: 'missing', button: 'ready' }
+    })
+  })
+
+  it('injects the engine and the picker only when a pick starts', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    expect(harness.injectionCalls).toHaveLength(0)
+
+    const response = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    expect(response.success).toBe(true)
+    expect(harness.injectionCalls).toEqual([
+      { tabId: 7, files: ['content/selector-engine.js', 'content/picker.js'] }
+    ])
+    expect(harness.tabMessages[0]).toMatchObject({
+      tabId: 7,
+      message: {
+        type: 'quizlab_selector_init',
+        field: 'input',
+        sessionId: response.sessionId
+      }
+    })
+  })
+
+  it('refuses to start on a site the app did not name', async () => {
+    const harness = createHarness({ tabUrl: 'https://example.com/' })
+    await harness.settle()
+
+    const response = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    expect(response.success).toBe(false)
+    expect((response as { error?: string }).error).toBe('unsupported_site')
+    expect(harness.injectionCalls).toHaveLength(0)
+  })
+
+  it('signs the picked element and reports it saved', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+
+    const outcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'input',
+        payload: {
+          selector: '#composer',
+          candidates: ['#composer'],
+          fingerprint: { tag: 'textarea' },
+          sourceUrl: 'https://chatgpt.com/c/1'
+        }
+      },
+      { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    expect(outcome).toMatchObject({ ok: true, state: 'saved' })
+    expect(harness.selectorPosts).toHaveLength(1)
+    const body = JSON.parse(harness.selectorPosts[0].body) as Record<string, unknown>
+    expect(body).toMatchObject({
+      version: 1,
+      hostname: 'chatgpt.com',
+      field: 'input',
+      selector: '#composer'
+    })
+    expect(harness.selectorPosts[0].headers['x-quizlab-request-id']).toBe(body.requestId)
+    // The pick is a signed selector request, never a cookie packet.
+    expect(harness.packets).toHaveLength(2)
+  })
+
+  it('refuses a result that comes from another tab', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+
+    const outcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'input',
+        payload: {
+          selector: '#composer',
+          candidates: ['#composer'],
+          fingerprint: { tag: 'textarea' },
+          sourceUrl: 'https://chatgpt.com/c/1'
+        }
+      },
+      { tab: { id: 8 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    expect(outcome.ok).toBe(false)
+    expect(harness.selectorPosts).toHaveLength(0)
+  })
+
+  it('transfers a pick while the cookie sync is switched off', async () => {
+    const harness = createHarness({ storage: { autoSync: false } })
+    await harness.settle()
+    expect(harness.packets).toHaveLength(0)
+
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'button' })
+    const outcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'button',
+        payload: {
+          selector: '#send',
+          candidates: ['#send'],
+          fingerprint: { tag: 'button' },
+          sourceUrl: 'https://chatgpt.com/c/1'
+        }
+      },
+      { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    expect(outcome).toMatchObject({ ok: true, state: 'saved' })
+    // No cookie was pushed by the selector transfer.
+    expect(harness.packets).toHaveLength(0)
   })
 })

@@ -14,7 +14,6 @@ const {
   mockOpenAiWorkspace,
   mockSaveAiConfig,
   mockShowSuccess,
-  mockStartPickerWhenReady,
   mockContent,
   stubs
 } = vi.hoisted(() => {
@@ -62,7 +61,6 @@ const {
   const mockContent = { executeJavaScript: vi.fn() }
   const mocks = {
     openAiWorkspace: vi.fn(),
-    startPickerWhenReady: vi.fn(),
     showError: vi.fn(),
     showSuccess: vi.fn(),
     showWarning: vi.fn(),
@@ -80,7 +78,6 @@ const {
     mockOpenAiWorkspace: mocks.openAiWorkspace,
     mockSaveAiConfig: mocks.saveAiConfig,
     mockShowSuccess: mocks.showSuccess,
-    mockStartPickerWhenReady: mocks.startPickerWhenReady,
     // The harness turns this one object into every module namespace, so a new
     // icon or query hook is a change in selectorsTabHarness.tsx only.
     stubs: {
@@ -197,21 +194,19 @@ describe('SelectorsTab', () => {
     expect(screen.getAllByText('direct')).toHaveLength(2)
   })
 
-  it('opens the requested AI tab for re-pick and can reset selectors', async () => {
+  it('opens the requested AI tab and can reset selectors', async () => {
     const onCloseSettings = vi.fn()
     mockOpenAiWorkspace.mockReturnValue('tab-chatgpt')
     render(<SelectorsTab onCloseSettings={onCloseSettings} />)
 
     fireEvent.click(screen.getByRole('button', { name: /chatgpt/i }))
     fireEvent.click(
-      screen.getAllByRole('button', { name: /selectors_open_repick/ })[0] as HTMLElement
+      screen.getAllByRole('button', { name: /selectors_open_site/ })[0] as HTMLElement
     )
 
     expect(mockOpenAiWorkspace).toHaveBeenCalledWith('chatgpt')
-    // The arm is bound to the tab that was just opened, so a quick tab switch
-    // cannot start the picker on the wrong view.
-    expect(mockStartPickerWhenReady).toHaveBeenCalledWith('tab-chatgpt')
-    expect(mockStartPickerWhenReady).toHaveBeenCalledTimes(1)
+    // The card opens the app tab; the element itself is picked in Chrome, so
+    // nothing arms a picker inside the app any more.
     expect(onCloseSettings).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'delete_selectors' }))

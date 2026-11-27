@@ -18,8 +18,7 @@ vi.mock('@platform/electron/api/useSiteSessionApi', () => ({
 vi.mock('@app/providers', () => ({
   useAppearance: (select: (state: { bottomBarMaxIcons: number }) => unknown) =>
     select({ bottomBarMaxIcons: mockLimit }),
-  useAppToolActions: vi.fn(),
-  useAppToolPickerState: vi.fn()
+  useAppToolActions: vi.fn()
 }))
 vi.mock('@app/providers/ai-context', () => ({
   useAiModelsCatalog: () => ({

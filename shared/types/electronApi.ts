@@ -97,10 +97,6 @@ export interface ElectronApi {
       config: AutomationConfig,
       options?: WaitForSubmitReadyOptions
     ) => Promise<string | null>
-    generatePickerScript: (
-      translations: Record<string, string>,
-      sessionId?: string
-    ) => Promise<string | null>
   }
   selectPdf: (options?: PdfSelectOptions) => Promise<PdfSelection | null>
   getPdfStreamUrl: (filePath: string) => Promise<PdfStreamResult | null>
@@ -172,6 +168,8 @@ export interface ElectronApi {
     hostname?: string
   ) => Promise<AiSelectorConfig | Record<string, AiSelectorConfig> | null>
   deleteAiConfig: (hostname: string) => Promise<boolean>
+  /** Main → renderer: a stored selector config changed outside the renderer. */
+  onAiConfigChanged: (callback: (hostname: string) => void) => () => void
   addCustomAi: (data: CustomAiInput) => Promise<CustomAiResult>
   deleteCustomAi: (id: string) => Promise<boolean>
   /** Read all synced app settings (localStorage mirror) from the main process store. */

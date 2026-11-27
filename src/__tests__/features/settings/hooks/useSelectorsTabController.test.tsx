@@ -10,7 +10,6 @@ const mocked = vi.hoisted(() => ({
   contentController: { executeJavaScript: vi.fn() as any },
   aiSites: { gemini: { isSite: false, name: 'Gemini' } },
   openAiWorkspace: vi.fn(),
-  startPickerWhenReady: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   showWarning: vi.fn(),
@@ -22,9 +21,6 @@ const mocked = vi.hoisted(() => ({
 }))
 
 vi.mock('@app/providers', () => ({
-  useAppToolActions: () => ({
-    startPickerWhenReady: mocked.startPickerWhenReady
-  }),
   useToastActions: () => ({
     showError: mocked.showError,
     showSuccess: mocked.showSuccess,
@@ -127,8 +123,8 @@ describe('useSelectorsTabController', () => {
   it('openRepick expands once and resets validation state', async () => {
     const { result } = renderHook(() => useSelectorsTabController({}))
     await act(async () => {
-      result.current.handleOpenRepick('gemini', 'card-1')
-      result.current.handleOpenRepick('gemini', 'card-1')
+      result.current.handleOpenSite('gemini', 'card-1')
+      result.current.handleOpenSite('gemini', 'card-1')
     })
 
     expect(result.current.expandedIds).toEqual(['card-1'])

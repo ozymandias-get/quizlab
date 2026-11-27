@@ -50,6 +50,26 @@ const PROTOCOL_VERSION = 3
 const HEALTH_PATH = '/api/health'
 const SITE_LIST_PATH = '/api/sites'
 const COOKIE_PATH = '/api/cookies'
+/**
+ * The magic selector transfer.
+ *
+ * A picked element is not a cookie packet: it has its own path, its own signed
+ * payload and its own body, so it works while the session sync is off and can
+ * never enter the cookie queue. The values are pinned in
+ * `shared/constants/selectorTransfer.ts`; the bridge contract test re-reads
+ * them so the two cannot drift.
+ */
+const SELECTOR_TRANSFER_PATH = '/api/selectors'
+const SELECTOR_SITES_PATH = '/api/selectors/sites'
+const SELECTOR_TRANSFER_VERSION = 1
+const SELECTOR_REQUEST_ID_HEADER = 'x-quizlab-request-id'
+const SELECTOR_SITES_KEY = 'selectorSites'
+const SELECTOR_SESSIONS_KEY = 'selectorSessions'
+const SELECTOR_LAST_OUTCOME_KEY = 'selectorLastOutcome'
+/** A pick longer than this is forgotten; the content script is gone by then. */
+const SELECTOR_SESSION_TTL_MS = 10 * 60 * 1000
+/** How many live picks are remembered at once. */
+const MAX_SELECTOR_SESSIONS = 8
 const PROFILE_ID_KEY = 'profileId'
 const PROFILE_NAME_KEY = 'profileName'
 const DEFAULT_PROFILE_NAME = 'Chrome'
@@ -82,7 +102,10 @@ const STORAGE_KEYS = [
   'outdatedState',
   'tooLargeSiteIds',
   'lastSelectedProfileId',
-  'lastSelectionVersion'
+  'lastSelectionVersion',
+  SELECTOR_SITES_KEY,
+  SELECTOR_SESSIONS_KEY,
+  SELECTOR_LAST_OUTCOME_KEY
 ]
 
 /** The sync with the app went through. */
@@ -159,6 +182,16 @@ let pairingInFlight = false
 let pairingQueue = Promise.resolve()
 /** The last write of the changed-domain queue. */
 let changedDomainsWrite = Promise.resolve()
+/** The sites and fields the magic selector may target, as the app named them. */
+let selectorSites = []
+/** Whether the app understands the selector transfer (null: not asked yet). */
+let selectorSupported = null
+/** The picks this worker is driving; written to the session store. */
+let selectorSessions = []
+/** Serializes the session-store writes. */
+let selectorSessionsWrite = Promise.resolve()
+/** The last transfer result, so a reopened popup can show it. */
+let selectorLastOutcome = null
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -355,6 +388,18 @@ async function readPersistedState() {
     }
     if (typeof stored.lastSelectionVersion === 'number') {
       lastSelectionVersion = stored.lastSelectionVersion
+    }
+    if (Array.isArray(stored[SELECTOR_SITES_KEY])) {
+      selectorSites = normalizeSelectorSites(stored[SELECTOR_SITES_KEY])
+    }
+    if (Array.isArray(stored[SELECTOR_SESSIONS_KEY])) {
+      selectorSessions = normalizeSelectorSessions(stored[SELECTOR_SESSIONS_KEY])
+    }
+    if (
+      stored[SELECTOR_LAST_OUTCOME_KEY] &&
+      typeof stored[SELECTOR_LAST_OUTCOME_KEY] === 'object'
+    ) {
+      selectorLastOutcome = stored[SELECTOR_LAST_OUTCOME_KEY]
     }
   } catch (error) {
     console.warn('[Quizlab Bridge] The saved state could not be read:', errorMessage(error))
@@ -1433,6 +1478,543 @@ async function handleCookieChange(changeInfo) {
   }, COOKIE_DEBOUNCE_MS)
 }
 
+/* -------------------------------------------------------------------------
+ * Magic selector
+ *
+ * The popup drives this section; the page-side work happens in the injected
+ * `content/picker.js`. Three rules shape it:
+ *
+ *   1. The transfer never touches the cookie queue or the cookie alarm loop.
+ *      It has its own signed path, its own port discovery and its own state.
+ *   2. A pick is bound to one tab, one document and one session id, so two
+ *      tabs (or two picks) can never deliver into each other.
+ *   3. The worker may die between the confirm and the POST. The session is
+ *      therefore in the session store, the request id is stable, and the app
+ *      deduplicates a retried request instead of writing twice.
+ * ---------------------------------------------------------------------- */
+
+/** The transfer went through and the app stored the selector. */
+const SELECTOR_SAVED = 'saved'
+/** The app verified nothing because the site is not open in QuizLab. */
+const SELECTOR_SITE_NOT_OPEN = 'site_not_open'
+/** The app refused the selector after checking it in its own view. */
+const SELECTOR_VERIFICATION_FAILED = 'verification_failed'
+/** The app does not accept this build's pairing code. */
+const SELECTOR_UNPAIRED = 'unpaired'
+/** The app refused the request for good. */
+const SELECTOR_REJECTED = 'rejected'
+/** The bridge did not answer. */
+const SELECTOR_UNREACHABLE = 'unreachable'
+/** The app predates the selector feature. */
+const SELECTOR_UNSUPPORTED = 'unsupported'
+
+/** The selector states an outcome may have. */
+const SELECTOR_SESSION_STATES = ['active', 'sending', 'saved', 'cancelled', 'retryable', 'failed']
+
+function normalizeSelectorSites(value) {
+  if (!Array.isArray(value)) return []
+  const sites = []
+  const seen = new Set()
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const siteId = typeof entry.siteId === 'string' ? entry.siteId.trim() : ''
+    const hostname = typeof entry.hostname === 'string' ? entry.hostname.trim().toLowerCase() : ''
+    if (!siteId || !hostname || seen.has(hostname)) continue
+    seen.add(hostname)
+    const hosts = []
+    if (Array.isArray(entry.hosts)) {
+      for (const host of entry.hosts) {
+        if (typeof host !== 'string') continue
+        const normalized = host
+          .trim()
+          .toLowerCase()
+          .replace(/^\*?\./, '')
+        if (normalized && !hosts.includes(normalized)) hosts.push(normalized)
+      }
+    }
+    if (!hosts.includes(hostname)) hosts.unshift(hostname)
+    const fields = Array.isArray(entry.fields)
+      ? entry.fields.filter((field) => field === 'input' || field === 'button')
+      : []
+    const displayName =
+      typeof entry.displayName === 'string' && entry.displayName.trim()
+        ? entry.displayName.trim().slice(0, 120)
+        : siteId
+    const status = normalizeSelectorStatusPair(entry.status)
+    sites.push({
+      siteId,
+      displayName,
+      hostname,
+      hosts,
+      fields: fields.length > 0 ? fields : ['input', 'button'],
+      ...(status ? { status } : {})
+    })
+  }
+  return sites
+}
+
+function normalizeSelectorStatus(value) {
+  if (
+    value === 'ready' ||
+    value === 'migrated' ||
+    value === 'repaired' ||
+    value === 'needs_repick' ||
+    value === 'missing'
+  ) {
+    return value
+  }
+  return 'missing'
+}
+
+function normalizeSelectorStatusPair(value) {
+  if (!value || typeof value !== 'object') return null
+  return {
+    input: normalizeSelectorStatus(value.input),
+    button: normalizeSelectorStatus(value.button)
+  }
+}
+
+function normalizeSelectorSessions(value) {
+  if (!Array.isArray(value)) return []
+  const now = Date.now()
+  const sessions = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    if (typeof entry.sessionId !== 'string' || !entry.sessionId) continue
+    if (!Number.isInteger(entry.tabId)) continue
+    if (typeof entry.hostname !== 'string' || !entry.hostname) continue
+    if (entry.field !== 'input' && entry.field !== 'button') continue
+    const startedAt = typeof entry.startedAt === 'number' ? entry.startedAt : 0
+    if (!startedAt || now - startedAt > SELECTOR_SESSION_TTL_MS) continue
+    sessions.push({
+      sessionId: entry.sessionId,
+      requestId: typeof entry.requestId === 'string' ? entry.requestId : '',
+      tabId: entry.tabId,
+      frameId: Number.isInteger(entry.frameId) ? entry.frameId : 0,
+      documentId: typeof entry.documentId === 'string' ? entry.documentId : '',
+      hostname: entry.hostname.trim().toLowerCase(),
+      field: entry.field,
+      startHref: typeof entry.startHref === 'string' ? entry.startHref : '',
+      startedAt,
+      state: SELECTOR_SESSION_STATES.includes(entry.state) ? entry.state : 'active',
+      outcome: typeof entry.outcome === 'string' ? entry.outcome : null
+    })
+  }
+  return sessions.slice(-MAX_SELECTOR_SESSIONS)
+}
+
+/** Whether a host belongs to a site (the site's own host or a subdomain). */
+function hostBelongsToSelectorSite(host, site) {
+  const normalized = typeof host === 'string' ? host.trim().toLowerCase() : ''
+  if (!normalized) return false
+  return site.hosts.some((allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`))
+}
+
+/** The site a hostname belongs to, or null when the app did not name it. */
+function findSelectorSite(host) {
+  return selectorSites.find((site) => hostBelongsToSelectorSite(host, site)) || null
+}
+
+/** What the extension signs when it asks for the selector sites. */
+function selectorSitesSigningPayload() {
+  return `${profileId}\n${SELECTOR_SITES_PATH}`
+}
+
+/** What the extension signs when it sends a pick. */
+function selectorTransferSigningPayload(requestId, body) {
+  return `${profileId}\n${SELECTOR_TRANSFER_PATH}\n${requestId}\n${body}`
+}
+
+/**
+ * Writes the pick list, one write at a time.
+ *
+ * The snapshot is built when the write runs, so a pick that finishes while an
+ * earlier write is on its way is never overwritten by the older list.
+ */
+function persistSelectorSessions() {
+  selectorSessions = selectorSessions.slice(-MAX_SELECTOR_SESSIONS)
+  selectorSessionsWrite = selectorSessionsWrite
+    .catch(() => undefined)
+    .then(() => persistState({ [SELECTOR_SESSIONS_KEY]: selectorSessions }))
+  return selectorSessionsWrite
+}
+
+/** Forgets the picks whose content script is gone. */
+function pruneSelectorSessions() {
+  const now = Date.now()
+  selectorSessions = selectorSessions.filter(
+    (session) => now - session.startedAt <= SELECTOR_SESSION_TTL_MS
+  )
+}
+
+async function openSelectorSession(session) {
+  const existing = selectorSessions.findIndex((entry) => entry.sessionId === session.sessionId)
+  if (existing >= 0) selectorSessions[existing] = session
+  else selectorSessions.push(session)
+  pruneSelectorSessions()
+  await persistSelectorSessions()
+}
+
+async function updateSelectorSession(sessionId, patch) {
+  const index = selectorSessions.findIndex((entry) => entry.sessionId === sessionId)
+  if (index < 0) return
+  selectorSessions[index] = { ...selectorSessions[index], ...patch }
+  await persistSelectorSessions()
+}
+
+/** Asks the bridge for the selector sites on one port. */
+async function fetchSelectorSites(port, secret) {
+  try {
+    const headers = baseHeaders()
+    headers['x-hmac-signature'] = await computeHmac(selectorSitesSigningPayload(), secret)
+    const response = await fetch(`http://${BRIDGE_HOST}:${port}${SELECTOR_SITES_PATH}`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(2500)
+    })
+    if (response.status === 401) return { outcome: SELECTOR_UNPAIRED }
+    if (response.status === 404) {
+      // The app is there but predates the feature. The popup says so instead of
+      // pretending the extension is broken.
+      return { outcome: SELECTOR_UNSUPPORTED }
+    }
+    if (!response.ok) return { outcome: 'error', status: response.status }
+    const data = await response.json()
+    if (!data || typeof data !== 'object') return { outcome: 'error' }
+    const version = typeof data.version === 'number' ? data.version : 0
+    if (version < SELECTOR_TRANSFER_VERSION) return { outcome: SELECTOR_UNSUPPORTED }
+    return {
+      outcome: 'ok',
+      sites: normalizeSelectorSites(data.sites)
+    }
+  } catch {
+    return { outcome: 'unreachable' }
+  }
+}
+
+/**
+ * Finds the bridge without disturbing the cookie side of it.
+ *
+ * The remembered port is tried first; a stale one falls back to the range of
+ * this build. Nothing here pushes cookies, touches the alarms or advances the
+ * site-session rounds.
+ */
+async function resolveSelectorBridge() {
+  await stateReady
+  const secret = bridgeSecret
+  if (!secret) return { state: SELECTOR_UNPAIRED }
+  pruneSelectorSessions()
+
+  const ports = []
+  if (typeof bridgePort === 'number') ports.push(bridgePort)
+  else {
+    for (let port = PORT_START; port <= PORT_END; port++) ports.push(port)
+  }
+
+  for (const port of ports) {
+    const result = await fetchSelectorSites(port, secret)
+    if (result.outcome === SELECTOR_UNPAIRED) return { state: SELECTOR_UNPAIRED }
+    if (result.outcome === 'ok' || result.outcome === SELECTOR_UNSUPPORTED) {
+      if (bridgePort !== port) {
+        bridgePort = port
+        await persistState({ bridgePort })
+      }
+      if (result.outcome === 'ok') {
+        selectorSupported = true
+        selectorSites = result.sites
+        await persistState({ [SELECTOR_SITES_KEY]: selectorSites })
+        return { state: 'ok' }
+      }
+      selectorSupported = false
+      return { state: SELECTOR_UNSUPPORTED }
+    }
+  }
+
+  if (typeof bridgePort === 'number') {
+    // The remembered port did not answer. A restarted app may listen on another
+    // port of the range; the worker's own reconnect finds it and the next
+    // popup open uses it. The popup does not wait for a full scan here.
+    void scanForBridge({})
+  }
+  return { state: SELECTOR_UNREACHABLE }
+}
+
+/** The tab's address, or null when the extension may not read it. */
+async function readTabUrl(tabId) {
+  if (!Number.isInteger(tabId)) return null
+  try {
+    const tab = await chrome.tabs.get(tabId)
+    return typeof tab?.url === 'string' && tab.url ? tab.url : null
+  } catch {
+    return null
+  }
+}
+
+/** The host of a URL, or null when the URL is not a web page. */
+function hostOfUrl(url) {
+  if (typeof url !== 'string' || !url) return null
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.hostname.toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+/** The site and field a tab may be picked on, or an error code. */
+async function resolveSelectorTarget(tabId, field) {
+  const url = await readTabUrl(tabId)
+  const host = hostOfUrl(url)
+  if (!host) return { error: 'unsupported_tab' }
+  const site = findSelectorSite(host)
+  if (!site) return { error: 'unsupported_site' }
+  const requested = field === 'button' ? 'button' : field === 'input' ? 'input' : null
+  if (!requested) return { error: 'invalid_field' }
+  if (!site.fields.includes(requested)) return { error: 'unsupported_field' }
+  return { url, host, site, field: requested }
+}
+
+/** Starts one pick: injects the page-side scripts and remembers the session. */
+async function startSelectorPick(tabId, field) {
+  const bridge = await resolveSelectorBridge()
+  if (bridge.state !== 'ok') {
+    return { success: false, error: bridge.state }
+  }
+
+  const target = await resolveSelectorTarget(tabId, field)
+  if (target.error) return { success: false, error: target.error }
+
+  // A new pick on the same tab replaces the old one: two live sessions on one
+  // tab would both answer the user's clicks.
+  const previous = selectorSessions.filter((session) => session.tabId === tabId)
+  for (const session of previous) {
+    session.state = 'cancelled'
+  }
+
+  const sessionId = crypto.randomUUID()
+  const requestId = crypto.randomUUID()
+
+  let injection = null
+  try {
+    injection = await chrome.scripting.executeScript({
+      target: { tabId, frameIds: [0] },
+      files: ['content/selector-engine.js', 'content/picker.js']
+    })
+  } catch (error) {
+    console.warn('[Quizlab Bridge] The picker could not be injected:', errorMessage(error))
+    return { success: false, error: 'cannot_inject' }
+  }
+
+  const result = Array.isArray(injection) ? injection[0] : null
+  if (!result) return { success: false, error: 'cannot_inject' }
+
+  const session = {
+    sessionId,
+    requestId,
+    tabId,
+    frameId: Number.isInteger(result.frameId) ? result.frameId : 0,
+    documentId: typeof result.documentId === 'string' ? result.documentId : '',
+    hostname: target.host,
+    field: target.field,
+    startHref: target.url,
+    startedAt: Date.now(),
+    state: 'active',
+    outcome: null
+  }
+  await openSelectorSession(session)
+
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'quizlab_selector_init',
+      sessionId,
+      field: target.field,
+      startHref: target.url
+    })
+  } catch (error) {
+    await updateSelectorSession(sessionId, { state: 'failed', outcome: 'cannot_inject' })
+    console.warn('[Quizlab Bridge] The picker did not accept init:', errorMessage(error))
+    return { success: false, error: 'cannot_inject' }
+  }
+
+  return {
+    success: true,
+    sessionId,
+    field: target.field,
+    hostname: target.host,
+    site: {
+      siteId: target.site.siteId,
+      displayName: target.site.displayName,
+      hostname: target.site.hostname
+    }
+  }
+}
+
+/** Sends one pick to the app and tells the panel what the app did with it. */
+async function postSelectorPick(session, payload) {
+  const secret = bridgeSecret
+  if (!secret) return { state: SELECTOR_UNPAIRED }
+
+  if (!bridgePort || selectorSupported !== true) {
+    const bridge = await resolveSelectorBridge()
+    if (bridge.state !== 'ok') {
+      return {
+        state: bridge.state === SELECTOR_UNSUPPORTED ? SELECTOR_REJECTED : bridge.state
+      }
+    }
+  }
+
+  const body = JSON.stringify({
+    version: SELECTOR_TRANSFER_VERSION,
+    requestId: session.requestId,
+    hostname: session.hostname,
+    field: session.field,
+    selector: payload.selector,
+    candidates: payload.candidates,
+    fingerprint: payload.fingerprint,
+    sourceUrl: payload.sourceUrl
+  })
+  const headers = {
+    ...baseHeaders(),
+    'Content-Type': 'application/json',
+    [SELECTOR_REQUEST_ID_HEADER]: session.requestId
+  }
+
+  try {
+    headers['x-hmac-signature'] = await computeHmac(
+      selectorTransferSigningPayload(session.requestId, body),
+      secret
+    )
+    const response = await fetch(`http://${BRIDGE_HOST}:${bridgePort}${SELECTOR_TRANSFER_PATH}`, {
+      method: 'POST',
+      headers,
+      body,
+      signal: AbortSignal.timeout(12000)
+    })
+
+    let result = null
+    try {
+      result = await response.json()
+    } catch {
+      result = null
+    }
+    const error = typeof result?.error === 'string' ? result.error : ''
+
+    if (response.ok) {
+      if (result?.status === 'saved' || result?.saved === true) return { state: SELECTOR_SAVED }
+      return { state: SELECTOR_REJECTED, message: 'Aktarım kaydedilmedi.' }
+    }
+    if (response.status === 401) return { state: SELECTOR_UNPAIRED }
+    if (response.status === 409 && error === 'duplicate_request') {
+      // The first attempt reached the app; the retry must not write again.
+      return { state: SELECTOR_SAVED }
+    }
+    if (response.status === 409 && error === 'site_not_open') {
+      return { state: SELECTOR_SITE_NOT_OPEN }
+    }
+    if (response.status === 422) return { state: SELECTOR_VERIFICATION_FAILED }
+    if (response.status === 404) return { state: SELECTOR_REJECTED }
+    if (response.status >= 500) return { state: SELECTOR_UNREACHABLE }
+    return { state: SELECTOR_REJECTED, reason: error || `status_${response.status}` }
+  } catch (error) {
+    console.warn('[Quizlab Bridge] The pick could not be sent:', errorMessage(error))
+    return { state: SELECTOR_UNREACHABLE }
+  }
+}
+
+/** A result from one tab, bound to its own session and document. */
+async function handleSelectorPickResult(message, sender) {
+  const tabId = sender?.tab?.id
+  const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
+  if (!Number.isInteger(tabId) || !sessionId) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu bulunamadı.' }
+  }
+  const session = selectorSessions.find((entry) => entry.sessionId === sessionId)
+  if (!session || session.tabId !== tabId) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim oturumu bulunamadı.' }
+  }
+  // The document check keeps a result from a previous page (the tab navigated
+  // and the new page injected its own script) out of this session.
+  if (Number.isInteger(sender.frameId) && sender.frameId !== session.frameId) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim başka bir çerçeveden geldi.' }
+  }
+  if (
+    session.documentId &&
+    typeof sender.documentId === 'string' &&
+    sender.documentId !== session.documentId
+  ) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim eski bir sayfadan geldi.' }
+  }
+  if (session.state === 'saved') return { ok: true, state: SELECTOR_SAVED }
+
+  const payload = message.payload
+  if (!payload || typeof payload !== 'object') {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim verisi eksik.' }
+  }
+  if (typeof payload.selector !== 'string' || payload.selector.length === 0) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçici eksik.' }
+  }
+  if (session.field !== message.field) {
+    return { ok: false, state: SELECTOR_REJECTED, message: 'Hedef alan uyuşmuyor.' }
+  }
+
+  await updateSelectorSession(sessionId, { state: 'sending' })
+  const outcome = await postSelectorPick(session, payload)
+
+  const finalState =
+    outcome.state === SELECTOR_SAVED
+      ? 'saved'
+      : outcome.state === SELECTOR_REJECTED || outcome.state === SELECTOR_UNPAIRED
+        ? 'failed'
+        : 'retryable'
+
+  const record = {
+    state: outcome.state,
+    hostname: session.hostname,
+    field: session.field,
+    selector: payload.selector,
+    at: Date.now(),
+    ...(outcome.message ? { message: outcome.message } : {})
+  }
+  selectorLastOutcome = record
+  await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
+  await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
+
+  return {
+    ok: outcome.state === SELECTOR_SAVED,
+    state: outcome.state,
+    retryable: finalState === 'retryable',
+    ...(outcome.message ? { message: outcome.message } : {})
+  }
+}
+
+/** What the popup shows: connection, the active tab's site, the last result. */
+async function buildSelectorState(tabId) {
+  const bridge = await resolveSelectorBridge()
+  const url = await readTabUrl(tabId)
+  const host = hostOfUrl(url)
+  const site = host ? findSelectorSite(host) : null
+  const status = site ? site.status || { input: 'missing', button: 'missing' } : null
+  const capability =
+    selectorSupported === null ? null : selectorSupported === true ? 'selectors' : 'none'
+
+  return {
+    supported: capability,
+    connection: bridge.state,
+    host,
+    site: site
+      ? {
+          siteId: site.siteId,
+          displayName: site.displayName,
+          hostname: site.hostname,
+          fields: site.fields,
+          status
+        }
+      : null,
+    lastOutcome: selectorLastOutcome
+  }
+}
+
 // Event listeners registered synchronously at top level (MV3 requirement)
 
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -1527,7 +2109,7 @@ function applyWakeUpFilter() {
 }
 
 if (chrome.runtime?.onMessage?.addListener) {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === 'set_auto_sync') {
       const enabled = message.enabled === true
       stateReady
@@ -1642,6 +2224,37 @@ if (chrome.runtime?.onMessage?.addListener) {
           (error) => sendResponse({ success: false, error: errorMessage(error) })
         )
       return true
+    }
+    if (message?.type === 'selector_state') {
+      buildSelectorState(message.tabId)
+        .then((state) => sendResponse({ success: true, ...state }))
+        .catch((error) => sendResponse({ success: false, error: errorMessage(error) }))
+      return true
+    }
+    if (message?.type === 'selector_start') {
+      startSelectorPick(message.tabId, message.field)
+        .then((response) => sendResponse(response))
+        .catch((error) => sendResponse({ success: false, error: errorMessage(error) }))
+      return true
+    }
+    if (message?.type === 'selector_pick_result') {
+      handleSelectorPickResult(message, sender)
+        .then((response) => sendResponse(response))
+        .catch((error) =>
+          sendResponse({ ok: false, state: SELECTOR_UNREACHABLE, message: errorMessage(error) })
+        )
+      return true
+    }
+    if (message?.type === 'selector_pick_cancelled') {
+      const sessionId = typeof message.sessionId === 'string' ? message.sessionId : ''
+      if (sessionId) {
+        updateSelectorSession(sessionId, { state: 'cancelled' })
+          .then(() => sendResponse({ ok: true }))
+          .catch(() => sendResponse({ ok: false }))
+        return true
+      }
+      sendResponse({ ok: false })
+      return false
     }
   })
 }

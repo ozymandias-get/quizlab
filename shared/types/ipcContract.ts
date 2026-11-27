@@ -373,6 +373,10 @@ export interface IpcEventMap {
   [IPC_CHANNELS.AI_VIEW_EVENT]: {
     args: [event: AiViewEvent]
   }
+  /** Main → renderer: a stored selector config changed outside the renderer. */
+  [IPC_CHANNELS.AI_CONFIG_CHANGED]: {
+    args: [hostname: string]
+  }
   // Event-style channels not using invoke
   [IPC_CHANNELS.OPEN_PDF_FROM_SHELL]: {
     args: [filePath: string]
@@ -405,7 +409,6 @@ export type AutomationScriptAction =
   | 'generateAutoSendScript'
   | 'generateValidateSelectorsScript'
   | 'generateWaitForSubmitReadyScript'
-  | 'generatePickerScript'
 
 export type AutomationScriptArgsByAction = {
   generateFocusScript: [config: AutomationConfig]
@@ -420,7 +423,6 @@ export type AutomationScriptArgsByAction = {
   ]
   generateValidateSelectorsScript: [config: AutomationConfig]
   generateWaitForSubmitReadyScript: [config: AutomationConfig, options?: WaitForSubmitReadyOptions]
-  generatePickerScript: [translations: Record<string, string>, sessionId?: string]
 }
 
 export type AutomationScriptInvokeArgs = {

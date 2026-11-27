@@ -7,7 +7,6 @@ import {
   useGenerateAutoSendScript,
   useGenerateClickSendScript,
   useGenerateFocusScript,
-  useGeneratePickerScript,
   useGenerateValidateSelectorsScript,
   useGenerateWaitForSubmitReadyScript
 } from '@platform/electron/api/useAutomationApi'
@@ -44,8 +43,7 @@ describe('useAutomationApi', () => {
       generateClickSendScript: vi.fn().mockResolvedValue('console.log("clickSend")'),
       generateAutoSendScript: vi.fn().mockResolvedValue('console.log("autoSend")'),
       generateValidateSelectorsScript: vi.fn().mockResolvedValue('console.log("validate")'),
-      generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('console.log("wait")'),
-      generatePickerScript: vi.fn().mockResolvedValue('console.log("picker")')
+      generateWaitForSubmitReadyScript: vi.fn().mockResolvedValue('console.log("wait")')
     }
 
     vi.mocked(getElectronApi).mockReturnValue({
@@ -128,18 +126,6 @@ describe('useAutomationApi', () => {
       timeoutMs: 5000,
       settleMs: 500
     })
-  })
-
-  it('useGeneratePickerScript generates picker script with translations and an optional session id', async () => {
-    const { result } = renderHook(() => useGeneratePickerScript(), { wrapper })
-    const translations = { picker_title: 'Select element' }
-    const script = await result.current.mutateAsync({ translations })
-    expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, undefined)
-    expect(script).toBe('console.log("picker")')
-
-    mockAutomation.generatePickerScript.mockClear()
-    await result.current.mutateAsync({ translations, sessionId: 'session-1' })
-    expect(mockAutomation.generatePickerScript).toHaveBeenCalledWith(translations, 'session-1')
   })
 
   it('returns null when Electron API returns null', async () => {

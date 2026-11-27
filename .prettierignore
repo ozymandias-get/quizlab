@@ -11,3 +11,5 @@ artifacts
 patches
 .husky/_
 *.log
+# Generated: extensions/quizlab-session-extension/content/selector-engine.js
+extensions/quizlab-session-extension/content/selector-engine.js

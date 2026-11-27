@@ -17,7 +17,6 @@ import {
   generateValidateSelectorsScript,
   generateWaitForSubmitReadyScript
 } from './automationScripts.js'
-import { generatePickerScript } from './userElementPicker.js'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -25,10 +24,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function isOptionalObject(value: unknown): value is Record<string, unknown> | undefined {
   return value === undefined || isObject(value)
-}
-
-function isOptionalString(value: unknown): value is string | undefined {
-  return value === undefined || typeof value === 'string'
 }
 
 // SECURITY: Maximum size for text being embedded into generated scripts.
@@ -60,11 +55,7 @@ const actionGuard: {
   generateWaitForSubmitReadyScript: (
     args
   ): args is [config: Record<string, unknown>, options?: Record<string, unknown>] =>
-    isObject(args[0]) && isOptionalObject(args[1]),
-  generatePickerScript: (
-    args
-  ): args is [translations: Record<string, string>, sessionId?: string] =>
-    isObject(args[0]) && (args.length < 2 || isOptionalString(args[1]))
+    isObject(args[0]) && isOptionalObject(args[1])
 }
 
 const actionHandlers: {
@@ -76,8 +67,7 @@ const actionHandlers: {
     generateAutoSendScript(config, text, submit, append === true, textInputMode, typingSpeed),
   generateValidateSelectorsScript: (config) => generateValidateSelectorsScript(config),
   generateWaitForSubmitReadyScript: (config, options) =>
-    generateWaitForSubmitReadyScript(config, options),
-  generatePickerScript: (translations, sessionId) => generatePickerScript(translations, sessionId)
+    generateWaitForSubmitReadyScript(config, options)
 }
 
 let handlersRegistered = false

@@ -16,7 +16,7 @@ interface SelectorCardHeaderProps {
   tone: HealthTone
   isExpanded: boolean
   onToggleExpanded: (id: string) => void
-  onOpenRepick: (aiKey: string, cardId: string) => void
+  onOpenSite: (aiKey: string, cardId: string) => void
   t: TranslateFn
 }
 
@@ -29,7 +29,7 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
   tone,
   isExpanded,
   onToggleExpanded,
-  onOpenRepick,
+  onOpenSite,
   t
 }: SelectorCardHeaderProps) {
   const { key, ai } = aiEntry
@@ -78,11 +78,11 @@ const SelectorCardHeader = memo(function SelectorCardHeader({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => onOpenRepick(key, cardId)}
+          onClick={() => onOpenSite(key, cardId)}
           className="gap-1.5 rounded-lg"
         >
           <ExternalLinkIcon />
-          <span className="text-ql-11 font-semibold">{t('selectors_open_repick')}</span>
+          <span className="text-ql-11 font-semibold">{t('selectors_open_site')}</span>
         </Button>
 
         <IconButton

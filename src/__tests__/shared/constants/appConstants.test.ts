@@ -14,7 +14,6 @@ describe('APP_CONSTANTS', () => {
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('HUB_BTN')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOLS_PANEL')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('MODELS_LIST')
-    expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_PICKER')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_SWAP')
     expect(APP_CONSTANTS.TOUR_TARGETS).toHaveProperty('TOOL_SETTINGS')
 

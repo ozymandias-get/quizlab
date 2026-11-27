@@ -10,7 +10,6 @@ const generateClickSendScript = vi.fn()
 const generateAutoSendScript = vi.fn()
 const generateValidateSelectorsScript = vi.fn()
 const generateWaitForSubmitReadyScript = vi.fn()
-const generatePickerScript = vi.fn()
 
 vi.mock('electron', () => ({
   app: {
@@ -36,10 +35,6 @@ vi.mock('../../../app/windowManager', () => ({
   }))
 }))
 
-vi.mock('../../../features/automation/userElementPicker', () => ({
-  generatePickerScript
-}))
-
 function getHandler(channel: string) {
   return ipcHandle.mock.calls.find(([registeredChannel]) => registeredChannel === channel)?.[1]
 }
@@ -53,7 +48,6 @@ describe('automationHandlers', () => {
     generateAutoSendScript.mockReset()
     generateValidateSelectorsScript.mockReset()
     generateWaitForSubmitReadyScript.mockReset()
-    generatePickerScript.mockReset()
   })
 
   it('routes action-specific args and normalizes a missing append flag to false', async () => {
@@ -103,9 +97,8 @@ describe('automationHandlers', () => {
     )
   })
 
-  it('forwards optional args for wait action and picker translations', async () => {
+  it('forwards optional args for wait action', async () => {
     generateWaitForSubmitReadyScript.mockReturnValue('wait-script')
-    generatePickerScript.mockReturnValue('picker-script')
     const { registerAutomationHandlers } =
       await import('../../../features/automation/automationHandlers.js')
     registerAutomationHandlers()
@@ -113,7 +106,6 @@ describe('automationHandlers', () => {
     const handler = getHandler(APP_CONFIG.IPC_CHANNELS.GET_AUTOMATION_SCRIPTS)
     const config = { input: '#prompt' }
     const options = { timeoutMs: 9000, settleMs: 100 }
-    const translations = { pickInput: 'Pick input' }
 
     const waitResult = await handler?.(
       trustedEvent,
@@ -129,25 +121,9 @@ describe('automationHandlers', () => {
     expect(waitOk).toEqual({ ok: true, data: 'wait-script' })
     expect(generateWaitForSubmitReadyScript).toHaveBeenLastCalledWith(config, undefined)
 
-    const pickerResult = await handler?.(trustedEvent, 'generatePickerScript', translations)
-    expect(pickerResult).toEqual({ ok: true, data: 'picker-script' })
-    expect(generatePickerScript).toHaveBeenLastCalledWith(translations, undefined)
-
-    // The picker session id is forwarded so emitted results bind to it…
-    const sessionResult = await handler?.(
-      trustedEvent,
-      'generatePickerScript',
-      translations,
-      'session-7'
-    )
-    expect(sessionResult).toEqual({ ok: true, data: 'picker-script' })
-    expect(generatePickerScript).toHaveBeenLastCalledWith(translations, 'session-7')
-
-    // …while malformed payloads are rejected by the IPC guard.
+    // Malformed payloads are rejected by the IPC guard.
     for (const invalidCall of [
-      () => handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config, 123 as never),
-      () => handler?.(trustedEvent, 'generatePickerScript', null),
-      () => handler?.(trustedEvent, 'generatePickerScript', translations, 123 as never)
+      () => handler?.(trustedEvent, 'generateWaitForSubmitReadyScript', config, 123 as never)
     ]) {
       expect(await invalidCall()).toEqual({
         ok: false,
@@ -250,6 +226,5 @@ describe('automationHandlers', () => {
     expect(generateClickSendScript).not.toHaveBeenCalled()
     expect(generateValidateSelectorsScript).not.toHaveBeenCalled()
     expect(generateWaitForSubmitReadyScript).not.toHaveBeenCalled()
-    expect(generatePickerScript).not.toHaveBeenCalled()
   })
 })

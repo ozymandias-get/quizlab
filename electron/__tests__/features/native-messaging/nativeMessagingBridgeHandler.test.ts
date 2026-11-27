@@ -16,6 +16,13 @@ const recordOversizedSiteSessionPacket = vi.hoisted(() => vi.fn(async () => {}))
 const acceptPacket = vi.hoisted(() =>
   vi.fn(async (): Promise<Record<string, unknown>> => ({ accepted: true, imported: 1 }))
 )
+const handleSelectorBridgeRequest = vi.hoisted(() =>
+  vi.fn((_request?: unknown, _response?: unknown) => false)
+)
+
+vi.mock('../../../features/native-messaging/selectorBridge.js', () => ({
+  handleSelectorBridgeRequest
+}))
 
 vi.mock('electron', () => ({
   app: { isPackaged: false, getPath: vi.fn(() => '/tmp/quizlab-userdata') },
@@ -117,6 +124,7 @@ describe('the bridge of the site session', () => {
   beforeEach(async () => {
     recordOversizedSiteSessionPacket.mockClear()
     acceptPacket.mockClear()
+    handleSelectorBridgeRequest.mockClear()
     vi.mocked(openSiteSessionRound).mockClear()
     manager = createManager()
     server = http.createServer(createBridgeRequestHandler(manager))
@@ -637,6 +645,47 @@ describe('the bridge of the site session', () => {
     })
 
     expect(response.status).toBe(200)
+  })
+
+  it('applies the origin check to the selector endpoints before routing them', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/selectors`, {
+      method: 'POST',
+      headers: { Origin: 'https://evil.example', 'x-quizlab-profile-id': PROFILE_ID },
+      body: '{}'
+    })
+
+    expect(response.status).toBe(403)
+    expect(handleSelectorBridgeRequest).not.toHaveBeenCalled()
+  })
+
+  it('refuses a selector request that names the other environment', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/selectors/sites`, {
+      headers: { ...profileHeaders(), 'x-quizlab-environment': 'dev' }
+    })
+
+    expect(response.status).toBe(403)
+    expect(handleSelectorBridgeRequest).not.toHaveBeenCalled()
+  })
+
+  it('hands a selector request of this environment to the selector router', async () => {
+    handleSelectorBridgeRequest.mockImplementationOnce((_request, response) => {
+      const res = response as {
+        writeHead: (status: number, headers?: Record<string, string>) => void
+        end: (body?: string) => void
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ status: 'saved' }))
+      return true
+    })
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/selectors`, {
+      method: 'POST',
+      headers: { ...profileHeaders(), 'x-quizlab-environment': 'prod' },
+      body: '{}'
+    })
+
+    expect(response.status).toBe(200)
+    expect(handleSelectorBridgeRequest).toHaveBeenCalledTimes(1)
   })
 
   it('answers the signed site list request', async () => {

@@ -750,6 +750,122 @@
         mask-position: center;
       }
 
+      /* Magic selector */
+      #selector-btn {
+        width: 100%;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 14px;
+        font-family: inherit;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--primary-foreground);
+        background: var(--primary);
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 1px 2px oklch(0 0 0 / 0.12);
+        transition:
+          opacity 150ms ease,
+          transform 100ms ease;
+      }
+
+      #selector-btn:hover:not(:disabled) {
+        opacity: 0.9;
+      }
+
+      #selector-btn:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      #selector-btn:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+      }
+
+      #selector-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .selector-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .selector-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 11.5px;
+        line-height: 1.4;
+        color: var(--muted-foreground);
+      }
+
+      .selector-row strong {
+        color: var(--foreground);
+        font-weight: 600;
+        text-align: right;
+      }
+
+      #selector-preview {
+        display: none;
+        padding: 7px 9px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 10.5px;
+        line-height: 1.45;
+        color: var(--foreground);
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow-wrap: anywhere;
+      }
+
+      #selector-preview[data-state] {
+        display: block;
+      }
+
+      #selector-feedback {
+        display: none;
+        padding: 8px 10px;
+        font-size: 11px;
+        line-height: 1.45;
+        font-weight: 500;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        overflow-wrap: anywhere;
+      }
+
+      #selector-feedback[data-state] {
+        display: block;
+      }
+
+      #selector-feedback[data-state='success'] {
+        background: var(--granted-bg);
+        border-color: var(--granted-border);
+        color: var(--granted-text);
+      }
+
+      #selector-feedback[data-state='error'] {
+        background: var(--destructive-bg);
+        border-color: var(--destructive-border);
+        color: var(--destructive-text);
+      }
+
+      #selector-connection[data-selector='ok'] {
+        color: var(--granted-text);
+      }
+
+      #selector-connection[data-selector='error'] {
+        color: var(--destructive-text);
+      }
+
       /* Reduced Motion */
       @media (prefers-reduced-motion: reduce) {
         *,
@@ -871,6 +987,57 @@
 
       <div id="sync-feedback" role="status" aria-live="polite"></div>
     </div>
+
+    <section class="card" aria-label="Sihirli Seçici">
+      <div class="pair-header">
+        <span class="field-label">Sihirli Seçici</span>
+        <span id="selector-connection" class="pair-state" data-selector="idle"
+          >Kontrol ediliyor</span
+        >
+      </div>
+      <p class="card-intro">
+        Otomasyonların kullanacağı elementi Chrome’da seçin. Seçici yalnızca Quizlab’da
+        doğrulandıktan sonra kaydedilir; doğrulanmayan bir seçim mevcut çalışan seçicinin yerine
+        geçmez.
+      </p>
+      <div class="selector-rows">
+        <div class="selector-row">
+          <span>Bu sekmedeki site</span>
+          <strong id="selector-site">Bilinmiyor</strong>
+        </div>
+        <div class="selector-row">
+          <span>Mesaj giriş alanı</span>
+          <strong id="selector-input-status">—</strong>
+        </div>
+        <div class="selector-row">
+          <span>Mesaj gönder butonu</span>
+          <strong id="selector-button-status">—</strong>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="selector-field" class="field-label">Hedef alan:</label>
+        <div class="select-wrapper">
+          <select id="selector-field" class="select-control">
+            <option value="input">Mesaj giriş alanı</option>
+            <option value="button">Mesaj gönder butonu</option>
+          </select>
+          <svg class="select-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M4 6l4 4 4-4"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <button id="selector-btn" type="button">Sihirli Seçici’yi Başlat</button>
+      <div id="selector-preview" aria-live="polite"></div>
+      <div id="selector-feedback" role="status" aria-live="polite"></div>
+    </section>
 
     <section class="sites-section" aria-label="Site İzinleri">
       <h2 class="sites-title">Site İzinleri</h2>

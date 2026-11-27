@@ -38,8 +38,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@app/providers', () => ({
   useAppearance: () => ({}),
-  useAppToolActions: () => ({}),
-  useAppToolPickerState: () => ({})
+  useAppToolActions: () => ({})
 }))
 
 vi.mock('@app/providers/ai-context', () => ({

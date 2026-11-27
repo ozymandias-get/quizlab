@@ -42,15 +42,6 @@ const electronApi: ElectronApi = {
           config,
           options
         )
-      ),
-    generatePickerScript: (translations, sessionId?) =>
-      unwrapIpcResult(
-        typedInvoke(
-          IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
-          'generatePickerScript',
-          translations,
-          sessionId
-        )
       )
   },
 
@@ -113,6 +104,7 @@ const electronApi: ElectronApi = {
   getAiConfig: (hostname?) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.GET_AI_CONFIG, hostname)),
   deleteAiConfig: (hostname) =>
     unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_AI_CONFIG, hostname)),
+  onAiConfigChanged: (callback) => onEvent(IPC_CHANNELS.AI_CONFIG_CHANGED, callback),
   addCustomAi: (input) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.ADD_CUSTOM_AI, input)),
   deleteCustomAi: (id) => unwrapIpcResult(typedInvoke(IPC_CHANNELS.DELETE_CUSTOM_AI, id)),
 

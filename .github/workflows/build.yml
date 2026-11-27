@@ -45,6 +45,12 @@ jobs:
       - name: Version consistency
         run: npm run ci:check-version
 
+      # The Chrome selector engine is generated from the picker sources and
+      # committed so the extension folder Chrome loads is complete. This fails
+      # when the committed file no longer matches its source.
+      - name: Extension selector engine drift
+        run: npm run ci:check-extension-engine
+
       # The Node floor and every direct dependency's declared range floor are
       # stated in more than one place. `npm update` rewrites only the lockfile,
       # so the manifest and the installed tree can drift apart with nothing

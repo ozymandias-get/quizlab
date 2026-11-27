@@ -9,8 +9,6 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react'
 import type { PdfSourceMeta } from './ai/pdfSource'
 import type { AiDraftItem, AiSendResult } from './ai/types'
 import {
-  useAiContent,
-  useAiContentPresence,
   useAiMessagingActions,
   useAiSessionActions,
   useAiSessionUiPrefsState,
@@ -22,7 +20,6 @@ import {
   useAiDraftQueue
 } from './app-tool/useAiDraftQueue'
 import { useDraftSendOrchestration } from './app-tool/useDraftSendOrchestration'
-import { useElementPickerLifecycle } from './app-tool/useElementPickerLifecycle'
 import type {
   PendingAreaCapture,
   PendingFullPageCapture,
@@ -49,10 +46,6 @@ interface AppToolScreenshotState {
    * metin kuyruğa doğrudan yazılmaz, ikili menüde karar verilir.
    */
   pendingFullPageTextCapture: PendingFullPageTextCapture | null
-}
-
-interface AppToolPickerState {
-  isPickerActive: boolean
 }
 
 interface AppToolActionsType {
@@ -123,9 +116,6 @@ interface AppToolActionsType {
   sendImageDirectToAi: (dataUrl: string, options?: AiSendOptions) => Promise<AiSendResult>
   setAutoSend: (value: boolean) => void
   toggleAutoSend: () => void
-  startPicker: () => void
-  startPickerWhenReady: (expectedTabId?: string) => void
-  togglePicker: () => void
 }
 
 /**
@@ -136,17 +126,14 @@ interface AppToolActionsType {
  */
 const AppToolQueueContext = createContext<AppToolQueueState | null>(null)
 const AppToolScreenshotContext = createContext<AppToolScreenshotState | null>(null)
-const AppToolPickerContext = createContext<AppToolPickerState | null>(null)
 const AppToolActionsContext = createContext<AppToolActionsType | null>(null)
 
 function AppToolProvider({ children }: { children: ReactNode }) {
   const { sendTextToAI, sendImageToAI, sendBulkToAI, cancelOngoing } = useAiMessagingActions()
   const { setAutoSend, toggleAutoSend } = useAiSessionActions()
   const { autoSend } = useAiSessionUiPrefsState()
-  const { currentAI, activeTabId } = useAiTabFocus()
+  const { currentAI } = useAiTabFocus()
   const { showError } = useToastActions()
-  const { getContentController } = useAiContent()
-  const { hasActiveContent } = useAiContentPresence()
 
   const {
     pendingAiItems,
@@ -197,9 +184,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     setPendingAiItems
   })
 
-  const { isPickerActive, startPicker, startPickerWhenReady, togglePicker } =
-    useElementPickerLifecycle(getContentController, activeTabId, hasActiveContent)
-
   const queueValue = useMemo<AppToolQueueState>(
     () => ({ pendingAiItems, autoSend, unsafeSendIdsRef }),
     [pendingAiItems, autoSend, unsafeSendIdsRef]
@@ -214,8 +198,6 @@ function AppToolProvider({ children }: { children: ReactNode }) {
     }),
     [isScreenshotMode, pendingAreaCapture, pendingFullPageCapture, pendingFullPageTextCapture]
   )
-
-  const pickerValue = useMemo<AppToolPickerState>(() => ({ isPickerActive }), [isPickerActive])
 
   const actionsValue = useMemo<AppToolActionsType>(
     () => ({
@@ -241,10 +223,7 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       sendTextDirectToAi: sendTextToAI,
       sendImageDirectToAi: sendImageToAI,
       setAutoSend,
-      toggleAutoSend,
-      startPicker,
-      startPickerWhenReady,
-      togglePicker
+      toggleAutoSend
     }),
     [
       startScreenshot,
@@ -269,21 +248,16 @@ function AppToolProvider({ children }: { children: ReactNode }) {
       sendTextToAI,
       sendImageToAI,
       setAutoSend,
-      toggleAutoSend,
-      startPicker,
-      startPickerWhenReady,
-      togglePicker
+      toggleAutoSend
     ]
   )
 
   return (
     <AppToolQueueContext.Provider value={queueValue}>
       <AppToolScreenshotContext.Provider value={screenshotValue}>
-        <AppToolPickerContext.Provider value={pickerValue}>
-          <AppToolActionsContext.Provider value={actionsValue}>
-            {children}
-          </AppToolActionsContext.Provider>
-        </AppToolPickerContext.Provider>
+        <AppToolActionsContext.Provider value={actionsValue}>
+          {children}
+        </AppToolActionsContext.Provider>
       </AppToolScreenshotContext.Provider>
     </AppToolQueueContext.Provider>
   )
@@ -300,12 +274,6 @@ export const useAppToolQueueState = () => {
 export const useAppToolScreenshotState = () => {
   const context = useContext(AppToolScreenshotContext)
   if (!context) throw new Error('useAppToolScreenshotState must be used within AppToolProvider')
-  return context
-}
-
-export const useAppToolPickerState = () => {
-  const context = useContext(AppToolPickerContext)
-  if (!context) throw new Error('useAppToolPickerState must be used within AppToolProvider')
   return context
 }
 

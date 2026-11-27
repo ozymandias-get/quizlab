@@ -27,7 +27,7 @@ interface SelectorCardProps {
   isDeleting: boolean
   isTesting: boolean
   onToggleExpanded: (id: string) => void
-  onOpenRepick: (aiKey: string, cardId: string) => void
+  onOpenSite: (aiKey: string, cardId: string) => void
   onSubmitModeChange: (hostname: string, mode: SubmitMode) => void
   onTestSelectors: (
     aiKey: string,
@@ -54,7 +54,7 @@ export default memo(function SelectorCard({
   isDeleting,
   isTesting,
   onToggleExpanded,
-  onOpenRepick,
+  onOpenSite,
   onSubmitModeChange,
   onTestSelectors,
   onDeleteSelectors,
@@ -103,7 +103,7 @@ export default memo(function SelectorCard({
         tone={tone}
         isExpanded={isExpanded}
         onToggleExpanded={onToggleExpanded}
-        onOpenRepick={onOpenRepick}
+        onOpenSite={onOpenSite}
         t={t}
       />
 

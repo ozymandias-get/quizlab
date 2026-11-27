@@ -8,11 +8,11 @@ import {
 
 import { usePdfTabStore } from '@features/pdf'
 
-import { useAppearance, useAppToolActions, useAppToolPickerState } from '@app/providers'
+import { useAppearance } from '@app/providers'
 import { useAiModelsCatalog, useAiTabActions, useAiTabsSliceState } from '@app/providers/ai-context'
 import { getAiIcon } from '@ui/components/Icons'
 
-import { ArrowLeftRight, Crosshair, Globe, Maximize2, Settings, Sparkles } from 'lucide-react'
+import { ArrowLeftRight, Globe, Maximize2, Settings, Sparkles } from 'lucide-react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -88,31 +88,6 @@ export const AiFocusToolButton = memo(function AiFocusToolButton() {
   return (
     <FloatingDockIcon id="tour-target-tool-ai-focus" title={t('ai_focus')} onClick={handleClick}>
       <Sparkles className="h-5 w-5" />
-    </FloatingDockIcon>
-  )
-})
-
-export const PickerToolButton = memo(function PickerToolButton() {
-  const { t } = useTranslation()
-  const { isPickerActive } = useAppToolPickerState()
-  const { togglePicker, startPickerWhenReady } = useAppToolActions()
-  const handleClick = useCallback(() => {
-    if (isPickerActive) {
-      void togglePicker()
-      return
-    }
-    startPickerWhenReady()
-  }, [isPickerActive, togglePicker, startPickerWhenReady])
-
-  return (
-    <FloatingDockIcon
-      title={t('element_picker')}
-      onClick={handleClick}
-      // The picker is a real two-state tool: a second press stops it. Reporting
-      // the state keeps it distinct from the one-shot dock actions.
-      isActive={isPickerActive}
-    >
-      <Crosshair className="h-5 w-5" />
     </FloatingDockIcon>
   )
 })

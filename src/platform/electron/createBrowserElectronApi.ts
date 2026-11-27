@@ -106,8 +106,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       generateClickSendScript: stubReturn(null),
       generateAutoSendScript: stubReturn(null),
       generateValidateSelectorsScript: stubReturn(null),
-      generateWaitForSubmitReadyScript: stubReturn(null),
-      generatePickerScript: stubReturn(null)
+      generateWaitForSubmitReadyScript: stubReturn(null)
     },
 
     selectPdf: async () => selectPdfInBrowser(),
@@ -174,6 +173,7 @@ export function createBrowserElectronApi(): Window['electronAPI'] {
       return toMapRecord(aiConfigs)
     },
     deleteAiConfig: async (hostname) => aiConfigs.delete(hostname),
+    onAiConfigChanged: () => () => {},
     addCustomAi: async (input: CustomAiInput): Promise<CustomAiResult> => {
       const name = input?.name?.trim()
       const url = input?.url?.trim()

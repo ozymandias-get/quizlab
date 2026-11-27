@@ -23,8 +23,7 @@ beforeEach(() => {
       'tool-gemini-web': true,
       'tour-target-tool-swap': true,
       'tour-target-tool-pdf-focus': true,
-      'tour-target-tool-ai-focus': true,
-      'tour-target-tool-picker': true
+      'tour-target-tool-ai-focus': true
     },
     visibleModels: {}
   })

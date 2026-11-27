@@ -20,6 +20,8 @@
     "test:coverage": "vitest run --coverage",
     "ci:check-hygiene": "node scripts/check-repo-hygiene.mjs",
     "ci:check-version": "node scripts/check-version-consistency.mjs",
+    "ci:check-extension-engine": "node scripts/generate-extension-selector-engine.mjs --check",
+    "generate:extension-engine": "node scripts/generate-extension-selector-engine.mjs",
     "ci:check-declarations": "node scripts/check-declaration-consistency.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings=0",

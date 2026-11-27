@@ -65,7 +65,6 @@ vi.mock('@app/hooks/usePdfWorkspaceState', () => ({ usePdfWorkspaceState: () => 
 vi.mock('@app/providers', () => ({
   useAppearance: () => ({ bottomBarOpacity: 1, bottomBarScale: 1 }),
   useAppToolActions: () => ({}),
-  useAppToolPickerState: () => ({ isPickerActive: false }),
   useAppToolQueueState: () => ({}),
   useAppToolScreenshotState: () => ({})
 }))

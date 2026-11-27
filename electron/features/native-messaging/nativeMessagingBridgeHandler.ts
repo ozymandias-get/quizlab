@@ -2,6 +2,10 @@ import crypto from 'crypto'
 import type { IncomingMessage, ServerResponse } from 'http'
 
 import type { QuizlabEnvironment } from '../../../shared/constants/extensionRelease.js'
+import {
+  SELECTOR_REQUEST_ID_HEADER,
+  SELECTOR_TRANSFER_VERSION
+} from '../../../shared/constants/selectorTransfer.js'
 import { DEV_SERVER_ORIGIN } from '../../app/window/environment.js'
 import { Logger } from '../../core/logger.js'
 import {
@@ -17,6 +21,7 @@ import type { BridgeOriginPolicy } from './nativeMessagingOrigin.js'
 import { isAllowedBridgeOrigin } from './nativeMessagingOrigin.js'
 import { isProfileId, normalizeProfileName } from './nativeMessagingProfiles.js'
 import { MAX_COOKIE_BODY_SIZE, MAX_COOKIE_READ_SIZE } from './nativeMessagingTypes.js'
+import { handleSelectorBridgeRequest } from './selectorBridge.js'
 
 /** The payload the extension signs when it asks for the site list. */
 const SITE_LIST_SIGNING_PAYLOAD = '/api/sites'
@@ -255,7 +260,7 @@ export function createBridgeRequestHandler(manager: unknown) {
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
     res.setHeader(
       'Access-Control-Allow-Headers',
-      `Content-Type, x-hmac-signature, x-protocol-version, ${PROFILE_ID_HEADER}, ${PROFILE_NAME_HEADER}, ${ENVIRONMENT_HEADER}`
+      `Content-Type, x-hmac-signature, x-protocol-version, ${PROFILE_ID_HEADER}, ${PROFILE_NAME_HEADER}, ${ENVIRONMENT_HEADER}, ${SELECTOR_REQUEST_ID_HEADER}`
     )
     res.setHeader('Vary', 'Origin')
     if (originAllowed && requestOrigin) {
@@ -297,6 +302,11 @@ export function createBridgeRequestHandler(manager: unknown) {
     // and persisted after the request proves it holds the pairing code.
     markExtensionReachable(manager, profile)
 
+    // The magic selector transfer has its own endpoints, its own signature
+    // payload and its own body limit. Routed before the cookie paths, so a pick
+    // can never be read as a cookie packet.
+    if (handleSelectorBridgeRequest(req, res, manager, profile)) return
+
     if (req.method === 'GET' && req.url === '/api/health') {
       // The version is display-only (it tells an outdated extension from one
       // that is not installed), so the unsigned health probe may report it.
@@ -319,6 +329,10 @@ export function createBridgeRequestHandler(manager: unknown) {
           // from the same bridge without seeing the secret itself.
           instanceId: mgr.instanceId,
           protocolVersion: SITE_SESSION_PROTOCOL_VERSION,
+          // Additive feature advertisement: an extension that predates the
+          // field ignores it, and a new extension disables the magic selector
+          // against an app that does not name it instead of failing on a 404.
+          capabilities: { selectors: SELECTOR_TRANSFER_VERSION },
           // The extension refuses a bridge of the other environment. The field
           // is additive: an extension that predates it ignores it, and the port
           // range and the pinned origin keep the two apps apart anyway.

@@ -254,7 +254,6 @@ const invalidSelectPdfArgs: SelectPdfArgs = ['not-an-object']
 assertAutomationAction('generateFocusScript', { input: '#prompt' })
 assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 'hello', false, true)
 assertAutomationAction('generateWaitForSubmitReadyScript', { input: '#prompt' }, { timeoutMs: 5 })
-assertAutomationAction('generatePickerScript', { pickInput: 'Pick input' })
 
 // @ts-expect-error - generateAutoSendScript requires string text as second argument
 assertAutomationAction('generateAutoSendScript', { input: '#prompt' }, 123, false, true)

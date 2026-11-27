@@ -11,7 +11,6 @@ import {
   GeminiToolButton,
   ModelIconsList,
   PdfFocusToolButton,
-  PickerToolButton,
   SettingsToolButton,
   SwapToolButton
 } from './FloatingDockToolButtons'
@@ -76,8 +75,6 @@ const FloatingDockInner = memo(function FloatingDockInner({
           {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && (
             <AiFocusToolButton />
           )}
-
-          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
 
           {visibleTools['tool-gemini-web'] !== false && (
             <GeminiToolButton onOpenSettings={onOpenSettings} />

@@ -1,5 +1,7 @@
 import BottomBar from '@app/ui/BottomBar/index'
 
+import { TooltipProvider } from '@shared/ui/components/primitives'
+
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -12,16 +14,11 @@ vi.mock('@app/providers', () => ({
       'tour-target-tool-settings': true,
       'tour-target-tool-swap': true,
       'tour-target-tool-pdf-focus': true,
-      'tour-target-tool-ai-focus': true,
-      'tour-target-tool-picker': true
+      'tour-target-tool-ai-focus': true
     },
     visibleModels: {}
   }),
-  useAppToolActions: () => ({
-    togglePicker: vi.fn(),
-    startPickerWhenReady: vi.fn()
-  }),
-  useAppToolPickerState: () => ({ isPickerActive: false })
+  useAppToolActions: () => ({})
 }))
 
 vi.mock('@app/providers/ai-context', () => ({
@@ -111,13 +108,20 @@ vi.mock('motion/react', () => {
   }
 })
 
+const renderBar = (props: Record<string, unknown> = {}) =>
+  render(
+    <TooltipProvider delayDuration={0}>
+      <BottomBar {...props} />
+    </TooltipProvider>
+  )
+
 describe('BottomBar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renders the resizer hub with two drag areas, two pills and one sparkles canvas', async () => {
-    const { container } = render(<BottomBar />)
+    const { container } = renderBar()
 
     expect(container.querySelector('.resizer-hub-container')).toBeInTheDocument()
     // The vertical track is a `.resizer-drag-area::after` pseudo-element, so
@@ -135,7 +139,7 @@ describe('BottomBar', () => {
   it('opens and closes the settings modal from the dock', () => {
     // BottomBar keeps this state locally; the AI surface learns about it through
     // the shared dialog registry, not through props.
-    render(<BottomBar />)
+    renderBar()
     expect(screen.queryByTestId('settings-modal')).not.toBeInTheDocument()
 
     fireEvent.click(document.querySelector('#tour-target-tool-settings') as HTMLElement)
@@ -147,7 +151,7 @@ describe('BottomBar', () => {
 
   it('fires onMouseDown when drag area is clicked', () => {
     const onMouseDown = vi.fn()
-    const { container } = render(<BottomBar onMouseDown={onMouseDown} />)
+    const { container } = renderBar({ onMouseDown })
     const dragAreas = container.querySelectorAll('.resizer-drag-area')
     fireEvent.mouseDown(dragAreas[0])
     expect(onMouseDown).toHaveBeenCalledTimes(1)
@@ -155,7 +159,7 @@ describe('BottomBar', () => {
 
   it('fires onHoverChange on mouse enter/leave', () => {
     const onHoverChange = vi.fn()
-    const { container } = render(<BottomBar onHoverChange={onHoverChange} />)
+    const { container } = renderBar({ onHoverChange })
     const hub = container.querySelector('.resizer-hub-container')!
     fireEvent.mouseEnter(hub)
     expect(onHoverChange).toHaveBeenCalledWith(true)

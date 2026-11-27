@@ -50,6 +50,35 @@ The extension ships inside Quizlab Reader; there is no separate download.
 An app update refreshes the copied folder under the same path. Reload the
 extension from `chrome://extensions` after an update.
 
+## Magic Selector
+
+The popup can also pick the elements Quizlab's automation targets. The feature
+is part of this extension; there is no second extension and no extra build.
+
+1. Open the AI site in Chrome and press the extension icon.
+2. Under **Sihirli Seçici**, choose the target field (**Mesaj giriş alanı** or
+   **Mesaj gönder butonu**) and press **Sihirli Seçici'yi Başlat**.
+3. Move the pointer over the page and click the element. The click never reaches
+   the page: no message is sent, no file dialog opens and no link is followed.
+   `Esc` cancels.
+4. Confirm the pick in the page panel. The selector is sent to Quizlab, which
+   verifies it in its own view of the same site and stores it. The old selector
+   stays untouched until that verification succeeds.
+
+The page-side picker is injected on demand (`content/picker.js` plus the
+generated `content/selector-engine.js`) and removes every listener and overlay
+when it finishes. It never holds the pairing code and never talks to the bridge
+itself: signing happens in the service worker. `content/selector-engine.js` is
+generated from the Electron picker sources with
+`npm run generate:extension-engine`; `npm run ci:check-extension-engine` fails
+when the committed file is stale.
+
+If Quizlab does not have the site open, the transfer is refused
+(`site_not_open`) instead of writing an unverified selector. Open the site in
+Quizlab and send the same pick again. A pick works while **Siteleri Chrome ile
+otomatik eşitle** is off: the selector transfer has its own endpoint and never
+touches the cookie queue.
+
 ## Develop against the extension
 
 1. Run `npm run dev`. The development app prepares its own folder under the

@@ -42,7 +42,6 @@ type ExposedApi = {
       textInputMode?: 'auto' | 'paste' | 'typing',
       typingSpeed?: number
     ) => Promise<string | null>
-    generatePickerScript: (translations: Record<string, string>) => Promise<string | null>
   }
   onTriggerScreenshot: (callback: (type: 'selection' | 'window' | 'screen') => void) => () => void
   onPdfViewerZoom: (callback: (action: 'in' | 'out' | 'reset') => void) => () => void
@@ -75,7 +74,6 @@ describe('preload electronAPI', () => {
     const config = { input: '#prompt', button: '#send' }
 
     await api.automation.generateAutoSendScript(config, 'hello', false, true)
-    await api.automation.generatePickerScript({ pickInput: 'Pick input' })
     await api.automation.generateAutoSendScript(config, 'hello-2', true)
     await api.clearAiModelData({ id: 'chatgpt', partition: 'persist:ai_chatgpt' })
 
@@ -93,13 +91,6 @@ describe('preload electronAPI', () => {
     expect(invoke).toHaveBeenNthCalledWith(
       2,
       IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
-      'generatePickerScript',
-      { pickInput: 'Pick input' },
-      undefined
-    )
-    expect(invoke).toHaveBeenNthCalledWith(
-      3,
-      IPC_CHANNELS.GET_AUTOMATION_SCRIPTS,
       'generateAutoSendScript',
       config,
       'hello-2',
@@ -108,7 +99,7 @@ describe('preload electronAPI', () => {
       undefined,
       undefined
     )
-    expect(invoke).toHaveBeenNthCalledWith(4, IPC_CHANNELS.CLEAR_AI_MODEL_DATA, {
+    expect(invoke).toHaveBeenNthCalledWith(3, IPC_CHANNELS.CLEAR_AI_MODEL_DATA, {
       id: 'chatgpt',
       partition: 'persist:ai_chatgpt'
     })

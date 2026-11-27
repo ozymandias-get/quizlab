@@ -96,6 +96,8 @@ export default [
       'out.txt',
       'build/**',
       'coverage/**',
+      // Generated from the picker sources; see scripts/generate-extension-selector-engine.mjs
+      'extensions/quizlab-session-extension/content/selector-engine.js',
       '**/*.json',
       'config/dependency-cruiser.cjs'
     ]

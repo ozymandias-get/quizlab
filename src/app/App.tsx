@@ -25,6 +25,7 @@ import { useDriveViewRetirement, useShellOpenPdf } from '@features/pdf'
 
 import { useAppShellState } from '@app/hooks/useAppShellState'
 import { useCacheThresholdWarning } from '@app/hooks/useCacheThresholdWarning'
+import { useChromeSelectorSync } from '@app/hooks/useChromeSelectorSync'
 import { usePdfWorkspaceState } from '@app/hooks/usePdfWorkspaceState'
 import { useUpdateNoticeToast } from '@app/hooks/useUpdateNoticeToast'
 import { useAppToolActions, useAppToolQueueState, useAppToolScreenshotState } from '@app/providers'
@@ -35,6 +36,8 @@ import { useManagedViewRetirement } from '@shared/hooks/aiContent/managedViewLif
 function App() {
   // Önbellek boyutunu izler ve %80 eşiği aşıldığında kullanıcıya uyarı toast'ı gösterir.
   useCacheThresholdWarning()
+  // Chrome eklentisinden kaydedilen selektörleri anında devreye alır.
+  useChromeSelectorSync()
 
   const {
     updateAvailable,

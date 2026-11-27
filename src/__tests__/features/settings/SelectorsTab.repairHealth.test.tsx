@@ -66,7 +66,6 @@ const { selectorsData, stubs } = vi.hoisted(() => {
       getContentController: () => null,
       hasActiveContent: false,
       openAiWorkspace: vi.fn(),
-      startPickerWhenReady: vi.fn(),
       showError: vi.fn(),
       showSuccess: vi.fn(),
       showWarning: vi.fn(),

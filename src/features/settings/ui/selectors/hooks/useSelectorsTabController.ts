@@ -8,7 +8,7 @@ import { useAiConfig, useDeleteAiConfig } from '@platform/electron/api/useSettin
 
 import { normalizeExecutionResult } from '@features/ai'
 
-import { useAppToolActions, useToastActions } from '@app/providers'
+import { useToastActions } from '@app/providers'
 import {
   useAiContent,
   useAiContentPresence,
@@ -48,7 +48,6 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
   const { getContentController } = useAiContent()
   const { hasActiveContent } = useAiContentPresence()
   const { openAiWorkspace } = useAiTabActions()
-  const { startPickerWhenReady } = useAppToolActions()
   const { showError, showSuccess, showWarning } = useToastActions()
   const { t } = useTranslation()
   const { data: selectorsData } = useAiConfig()
@@ -113,19 +112,17 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     setValidationState((current) => ({ ...current, [cardId]: next }))
   }, [])
 
-  const handleOpenRepick = useCallback(
+  const handleOpenSite = useCallback(
     (aiKey: string, cardId: string) => {
+      // The manual pick now runs in the Chrome extension. Opening the platform
+      // here keeps the card expanded and shows where the user will pick; the
+      // selector arrives through the bridge and lands in this same store.
       setExpandedIds((current) => (current.includes(cardId) ? current : [...current, cardId]))
       setCardValidation(cardId, { status: 'idle' })
-
-      // Bind the arm to the tab that was just opened/activated. Without the id
-      // the arm would follow whatever tab is active when content appears, so a
-      // quick switch could start the picker on the wrong view.
-      const targetTabId = openAiWorkspace(aiKey)
-      startPickerWhenReady(targetTabId)
+      openAiWorkspace(aiKey)
       onCloseSettings?.()
     },
-    [onCloseSettings, openAiWorkspace, startPickerWhenReady, setCardValidation]
+    [onCloseSettings, openAiWorkspace, setCardValidation]
   )
 
   const executeSelectorTest = useCallback(
@@ -352,7 +349,7 @@ export function useSelectorsTabController({ onCloseSettings }: UseSelectorsTabCo
     handleDeleteSelectors,
     handleToggleExpanded,
     handleSubmitModeChange,
-    handleOpenRepick,
+    handleOpenSite,
     handleTestSelectors
   }
 }

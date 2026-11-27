@@ -472,6 +472,15 @@ async function initPairingControls() {
             state.textContent = 'Eşleştirildi'
             state.dataset.paired = 'true'
           }
+          if (typeof document.dispatchEvent === 'function') {
+            // The magic selector card asks the worker for its own state; a new
+            // pairing is the moment its connection line changes.
+            try {
+              document.dispatchEvent(new CustomEvent('quizlab:paired'))
+            } catch {
+              // A context without CustomEvent keeps the card on its first read.
+            }
+          }
           if (response.settingsSaved === false) {
             // The code works for this worker but could not be written to the
             // store: after a browser restart the user has to pair again.
@@ -632,11 +641,225 @@ async function initImportControls() {
   })
 }
 
+/** The labels of the stored selector state of one field. */
+const SELECTOR_STATUS_TEXTS = {
+  ready: 'Hazır',
+  migrated: 'Taşındı',
+  repaired: 'Otomatik onarıldı',
+  needs_repick: 'Yeniden seçim gerekli',
+  missing: 'Ayarlanmadı'
+}
+
+/** The texts the magic selector section shows. */
+const SELECTOR_TEXTS = {
+  checking: 'Kontrol ediliyor',
+  connected: 'Bağlı',
+  unpaired: 'Eşleştirilmedi',
+  unreachable: 'QuizLab kapalı',
+  unsupported: 'QuizLab sürümü desteklemiyor',
+  noSite: 'Bu sitede seçim yapılamaz',
+  unknownSite: 'Quizlab bu siteyi tanımıyor.',
+  unknownTab: 'Bu sekmede seçim yapılamaz.',
+  unknownField: 'Bu site bu alanı desteklemiyor.',
+  cannotInject: 'Bu sayfaya erişilemedi. Sayfayı yenileyip tekrar deneyin.',
+  started: 'Seçim modu açıldı. Sayfada elementi seçin; ESC ile iptal edebilirsiniz.',
+  saved: 'Seçici Quizlab’a ulaştı ve kaydedildi.',
+  siteNotOpen: 'Quizlab’da bu site açık değil. Siteyi Quizlab’da açıp seçimi tekrar gönderin.',
+  verificationFailed: 'Quizlab seçiciyi doğrulayamadı. Eski seçici korunuyor.',
+  rejected: 'Aktarım reddedildi. Site ve hedef alanı kontrol edin.',
+  retry: 'Bağlantı kurulamadı. QuizLab açık mı kontrol edin.'
+}
+
+/** Resolves with the active tab id, or null when Chrome does not report one. */
+function readActiveTabId() {
+  return new Promise((resolve) => {
+    try {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (chrome.runtime.lastError) {
+          resolve(null)
+          return
+        }
+        const tab = Array.isArray(tabs) ? tabs[0] : null
+        resolve(tab && Number.isInteger(tab.id) ? tab.id : null)
+      })
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/** Sends one message to the service worker and awaits its answer. */
+function sendWorkerMessage(message) {
+  return new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        resolve(chrome.runtime.lastError ? null : response)
+      })
+    } catch {
+      resolve(null)
+    }
+  })
+}
+
+/**
+ * Wires the magic selector card.
+ *
+ * The card only shows state; the pick itself happens on the page. Starting a
+ * pick closes the popup, because Chrome closes it anyway as soon as the user
+ * clicks the page, and the in-page panel carries the confirmation.
+ */
+async function initSelectorControls() {
+  const button = document.getElementById('selector-btn')
+  if (!button || button.dataset.initialized) return
+  button.dataset.initialized = 'true'
+
+  // A browser without the tabs API (an old harness, a restricted context) has
+  // no active tab to pick on. The section stays inert instead of throwing.
+  if (!chrome.tabs || typeof chrome.tabs.query !== 'function') {
+    button.disabled = true
+    return
+  }
+
+  const fieldSelect = document.getElementById('selector-field')
+  const connection = document.getElementById('selector-connection')
+  const siteLabel = document.getElementById('selector-site')
+  const inputStatus = document.getElementById('selector-input-status')
+  const buttonStatus = document.getElementById('selector-button-status')
+  const feedback = document.getElementById('selector-feedback')
+  const preview = document.getElementById('selector-preview')
+
+  let tabId = null
+
+  const showFeedback = (text, isSuccess) => {
+    if (!feedback) return
+    feedback.textContent = text
+    feedback.dataset.state = isSuccess ? 'success' : 'error'
+  }
+
+  const clearFeedback = () => {
+    if (!feedback) return
+    feedback.textContent = ''
+    delete feedback.dataset.state
+  }
+
+  const setConnection = (text, tone) => {
+    if (!connection) return
+    connection.textContent = text
+    connection.dataset.selector = tone
+  }
+
+  const renderStatus = (element, status) => {
+    if (!element) return
+    element.textContent = SELECTOR_STATUS_TEXTS[status] || SELECTOR_STATUS_TEXTS.missing
+  }
+
+  const renderOutcome = (lastOutcome) => {
+    if (!lastOutcome || typeof lastOutcome !== 'object') return
+    if (preview && typeof lastOutcome.selector === 'string') {
+      const fieldText = lastOutcome.field === 'button' ? 'gönder butonu' : 'mesaj alanı'
+      preview.textContent = `${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`
+      preview.dataset.state = 'shown'
+    }
+    if (lastOutcome.state === 'saved') showFeedback(SELECTOR_TEXTS.saved, true)
+    else if (lastOutcome.state === 'site_not_open') showFeedback(SELECTOR_TEXTS.siteNotOpen, false)
+    else if (lastOutcome.state === 'verification_failed') {
+      showFeedback(SELECTOR_TEXTS.verificationFailed, false)
+    } else if (lastOutcome.state === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
+    else showFeedback(SELECTOR_TEXTS.retry, false)
+  }
+
+  const applyFields = (fields) => {
+    if (!fieldSelect) return
+    const allowed = Array.isArray(fields) && fields.length > 0 ? fields : []
+    for (const option of fieldSelect.options) {
+      option.disabled = allowed.length > 0 && !allowed.includes(option.value)
+    }
+    if (allowed.length > 0 && !allowed.includes(fieldSelect.value)) {
+      fieldSelect.value = allowed[0]
+    }
+  }
+
+  const refresh = async () => {
+    setConnection(SELECTOR_TEXTS.checking, 'idle')
+    tabId = await readActiveTabId()
+    const response =
+      tabId === null ? null : await sendWorkerMessage({ type: 'selector_state', tabId })
+    if (!response || response.success !== true) {
+      setConnection(SELECTOR_TEXTS.unreachable, 'error')
+      if (siteLabel) siteLabel.textContent = SELECTOR_TEXTS.noSite
+      button.disabled = true
+      return
+    }
+
+    const connectionState = response.connection
+    if (connectionState === 'ok') setConnection(SELECTOR_TEXTS.connected, 'ok')
+    else if (connectionState === 'unpaired') setConnection(SELECTOR_TEXTS.unpaired, 'error')
+    else if (connectionState === 'unsupported') {
+      setConnection(SELECTOR_TEXTS.unsupported, 'error')
+    } else setConnection(SELECTOR_TEXTS.unreachable, 'error')
+
+    const site = response.site
+    if (siteLabel) siteLabel.textContent = site ? site.displayName : SELECTOR_TEXTS.noSite
+    renderStatus(inputStatus, site?.status?.input)
+    renderStatus(buttonStatus, site?.status?.button)
+    applyFields(site?.fields)
+
+    const supported = response.supported !== 'none'
+    button.disabled = connectionState !== 'ok' || !site || !supported
+    if (connectionState === 'unsupported' || !supported) {
+      showFeedback(SELECTOR_TEXTS.unsupported, false)
+    }
+
+    renderOutcome(response.lastOutcome)
+  }
+
+  button.addEventListener('click', async () => {
+    if (button.disabled) return
+    const field = fieldSelect ? fieldSelect.value : 'input'
+    if (tabId === null) tabId = await readActiveTabId()
+    if (tabId === null) {
+      showFeedback(SELECTOR_TEXTS.unknownTab, false)
+      return
+    }
+    button.disabled = true
+    clearFeedback()
+    const response = await sendWorkerMessage({ type: 'selector_start', tabId, field })
+    button.disabled = false
+    if (response && response.success === true) {
+      showFeedback(SELECTOR_TEXTS.started, true)
+      setTimeout(() => {
+        try {
+          window.close()
+        } catch {
+          // A window that cannot close itself still leaves the picker running.
+        }
+      }, 600)
+      return
+    }
+    const error = response && typeof response.error === 'string' ? response.error : ''
+    if (error === 'unsupported_site') showFeedback(SELECTOR_TEXTS.unknownSite, false)
+    else if (error === 'unsupported_tab') showFeedback(SELECTOR_TEXTS.unknownTab, false)
+    else if (error === 'unsupported_field') showFeedback(SELECTOR_TEXTS.unknownField, false)
+    else if (error === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
+    else if (error === 'unsupported') showFeedback(SELECTOR_TEXTS.unsupported, false)
+    else showFeedback(SELECTOR_TEXTS.cannotInject, false)
+  })
+
+  if (typeof document.addEventListener === 'function') {
+    document.addEventListener('quizlab:paired', () => {
+      void refresh()
+    })
+  }
+
+  await refresh()
+}
+
 async function render() {
   try {
     await initProfileControls()
     await initPairingControls()
     await initImportControls()
+    await initSelectorControls()
     await renderSites()
   } catch (error) {
     console.warn('[Quizlab Popup] The popup could not be rendered:', errorMessage(error))
