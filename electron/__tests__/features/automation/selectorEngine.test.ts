@@ -154,4 +154,35 @@ describe('generated chrome selector engine', () => {
     const resolved = engine.normalizeTargetForKind('input', composer)
     expect(resolved).toBe(editable)
   })
+
+  it('resolves a paragraph inside a contenteditable composer to the editing host', () => {
+    // A normal click lands on the text, i.e. on the <p> ProseMirror keeps
+    // inside the composer. Resolving that paragraph produced the selector "p"
+    // in Chrome, which the app could not identify as the composer and refused.
+    const engine = loadEngine()
+    const composer = append(document.createElement('div'))
+    composer.setAttribute('contenteditable', 'true')
+    composer.setAttribute('role', 'textbox')
+    composer.setAttribute('aria-label', 'Ask anything')
+    const paragraph = document.createElement('p')
+    paragraph.textContent = 'merhaba'
+    composer.appendChild(paragraph)
+
+    expect(engine.normalizeTargetForKind('input', paragraph)).toBe(composer)
+    const bundle = engine.generateLocatorBundle(composer, 'input')
+    expect(bundle?.fingerprint.tag).toBe('div')
+    expect(bundle?.primarySelector).not.toBe('p')
+  })
+
+  it('does not promote an inner paragraph to a text entry control of its own', () => {
+    const engine = loadEngine()
+    const composer = append(document.createElement('div'))
+    composer.setAttribute('contenteditable', 'true')
+    const paragraph = document.createElement('p')
+    composer.appendChild(paragraph)
+
+    // Only the editing host accepts automation writes; the paragraph is inline
+    // content, not a control.
+    expect(engine.normalizeTargetForKind('input', paragraph)).toBe(composer)
+  })
 })

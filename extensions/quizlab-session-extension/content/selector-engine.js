@@ -441,6 +441,17 @@ var QuizlabSelectorEngine = (function () {
         // root. A bare [role="textbox"] wrapper is deliberately NOT one — the
         // runtime's value setters would write a JS property on a plain <div>
         // and the text would never reach the editor (see resolveTextEntryControl).
+        //
+        // "contenteditable root" means the editing host, not any descendant:
+        // isContentEditable is inherited, so a <p> inside ChatGPT's
+        // ProseMirror composer reports true. Resolving that paragraph stored the
+        // selector "p", which the app's verifier cannot identify as the composer.
+        const isEditableHost = (node) => {
+            if (!isElementContentEditable(node)) return false;
+            var parent = node.parentElement;
+            return !parent || !isElementContentEditable(parent);
+        };
+
         const isTextEntryControl = (node) => {
             if (!node || node.nodeType !== 1) return false;
             try {
@@ -450,7 +461,7 @@ var QuizlabSelectorEngine = (function () {
                     var type = ((node.getAttribute && node.getAttribute('type')) || 'text').toLowerCase();
                     return ['text', 'search', 'email', 'url', 'tel', 'password', 'number', ''].indexOf(type) >= 0;
                 }
-                return isElementContentEditable(node);
+                return isEditableHost(node);
             } catch (e) { return false; }
         };
 

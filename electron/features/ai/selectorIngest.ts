@@ -110,6 +110,19 @@ export interface SelectorPickFailure {
     strategy: string | null
     attempts: number
     ambiguous: boolean
+    /** `ran` when the empty-composer probe executed, `skipped` when it could not. */
+    probe: string | null
+    /** Structural shape of the first resolved candidate; no text or labels. */
+    descriptor?: {
+      tag: string | null
+      type: string | null
+      role: string | null
+      contentEditable: boolean
+      dataTestId: boolean
+      id: boolean
+      name: boolean
+      tagAgrees: boolean
+    }
   }
 }
 
@@ -149,6 +162,7 @@ interface VerificationResult {
   descriptor?: VerificationDescriptor | null
   attempts?: unknown
   composerState?: unknown
+  probe?: unknown
   diagnostics?: Record<string, { ambiguous?: unknown } | undefined>
 }
 
@@ -573,6 +587,31 @@ function isEmptyComposerButtonFailure(raw: unknown, field: SelectorField): boole
 }
 
 /**
+ * Verdicts worth a composer probe.
+ *
+ * `ambiguous` is deliberately excluded: the app already found two elements that
+ * could be the pick, and typing into the composer could produce the same
+ * ambiguity after mutating the user's composer — a worse trade than refusing.
+ * `view_navigated`, `verification_threw` and `field_mismatch` are terminal.
+ */
+const PROBE_ELIGIBLE = new Set([
+  'not_found',
+  'button_not_rendered_empty_composer',
+  'identity_mismatch',
+  'identity_insufficient'
+])
+
+/** Whether the probe script ran, and why it may not have. */
+function readProbeState(raw: unknown): 'ran' | 'non_empty' | 'no_input' | 'not_run' | 'unknown' {
+  if (!isRecord(raw)) return 'unknown'
+  if (raw.probe === 'ran') return 'ran'
+  if (raw.composerState === 'non_empty') return 'non_empty'
+  if (raw.composerState === 'no_input') return 'no_input'
+  if (raw.probe === 'not_run') return 'not_run'
+  return 'unknown'
+}
+
+/**
  * Runs the generated verifier and decides whether the pick is trustworthy.
  *
  * Every candidate the verifier resolved is considered, in the order the pick
@@ -745,30 +784,95 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     ): Promise<
       { ok: true; selector: string; candidates: string[] } | { ok: false; reason: string }
     > => {
-      const script = generateVerifyLocatorScript({
-        field,
-        selectors: bundle.candidates,
-        fingerprint: bundle.fingerprint,
-        ...(composerInput ? { composerInput } : {})
-      })
+      const runScript = (probe: boolean): Promise<unknown> =>
+        deps.executeScript(
+          view.viewId,
+          generateVerifyLocatorScript({
+            field,
+            selectors: bundle.candidates,
+            fingerprint: bundle.fingerprint,
+            ...(composerInput ? { composerInput } : {}),
+            ...(probe ? { probe: true } : {})
+          })
+        )
+
+      const checkHref = (raw: unknown): { ok: false; reason: string } | null => {
+        const resultHref = readResultHref(raw)
+        if (
+          resultHref &&
+          (!expectedSourceUrl || storedSourceUrl(resultHref) !== expectedSourceUrl)
+        ) {
+          return { ok: false, reason: 'view_navigated' }
+        }
+        return null
+      }
+
       let rawResult: unknown
       try {
-        rawResult = await deps.executeScript(view.viewId, script)
+        rawResult = await runScript(false)
       } catch {
         return { ok: false, reason: 'verification_threw' }
       }
+
       const verified = verifyPick(rawResult, field, bundle)
+
+      // A send button can be absent from the app's view even though Chrome
+      // rendered it, because the app's composer is still empty (ChatGPT shows
+      // voice mode there). A failed verification — including one where a
+      // candidate resolved to a *twin* — gets one probe run on an empty
+      // composer. Candidates from the two DOM states are never merged; the
+      // probe's attempts go through the same `verifyPick` rules on their own.
+      let probed = false
+      if (
+        !verified.ok &&
+        field === 'button' &&
+        composerInput &&
+        PROBE_ELIGIBLE.has(verified.reason)
+      ) {
+        probed = true
+        let probeRaw: unknown = null
+        try {
+          probeRaw = await runScript(true)
+        } catch {
+          probeRaw = null
+        }
+        if (probeRaw) {
+          const probedPick = verifyPick(probeRaw, field, bundle)
+          if (probedPick.ok) {
+            const navigation = checkHref(probeRaw)
+            if (navigation) return navigation
+            return probedPick
+          }
+          const probeState = readProbeState(probeRaw)
+          if (probeState === 'ran') {
+            const reason =
+              probedPick.reason === 'not_found'
+                ? 'button_not_rendered_empty_composer'
+                : probedPick.reason
+            deps.logVerificationFailure?.(
+              summarizePickFailure(payload.hostname, field, bundle, reason, probeRaw, probeState)
+            )
+            return { ok: false, reason }
+          }
+          // The composer was not empty, or no composer was found: nothing was
+          // written, so the original read-only verdict still stands.
+        }
+      }
+
       if (!verified.ok) {
         deps.logVerificationFailure?.(
-          summarizePickFailure(payload.hostname, field, bundle, verified.reason, rawResult)
+          summarizePickFailure(
+            payload.hostname,
+            field,
+            bundle,
+            verified.reason,
+            rawResult,
+            probed ? 'skipped' : 'not_requested'
+          )
         )
         return verified
       }
-      const resultHref = readResultHref(rawResult)
-      if (resultHref && (!expectedSourceUrl || storedSourceUrl(resultHref) !== expectedSourceUrl)) {
-        return { ok: false, reason: 'view_navigated' }
-      }
-      return verified
+      return checkHref(rawResult) ?? verified
     }
 
     if (payload.field === 'pair') {
@@ -949,10 +1053,17 @@ function summarizePickFailure(
   field: SelectorField,
   bundle: SelectorLocatorBundle,
   reason: string,
-  raw: unknown
+  raw: unknown,
+  probeState?: string
 ): SelectorPickFailure {
   const result = isRecord(raw) ? (raw as VerificationResult) : {}
-  const has = (value: unknown) => typeof value === 'string' && value.length > 0
+  const has = (value: unknown): value is string => typeof value === 'string' && value.length > 0
+  const attempts = verificationAttempts(result)
+  // Only structural attributes: never text, aria-label, placeholder or class
+  // tokens, which can carry page or prompt content.
+  const descriptor = attempts[0]?.descriptor
+  const fingerprintTag = has(bundle.fingerprint.tag) ? bundle.fingerprint.tag : ''
+  const descriptorTag = isRecord(descriptor) && has(descriptor.tag) ? descriptor.tag : ''
   return {
     hostname,
     field,
@@ -975,8 +1086,25 @@ function summarizePickFailure(
         typeof result.matchedSelector === 'string' &&
         bundle.candidates.includes(result.matchedSelector.trim()),
       strategy: typeof result.strategy === 'string' ? result.strategy : null,
-      attempts: Array.isArray(result.attempts) ? result.attempts.length : 0,
-      ambiguous: result.diagnostics?.[field]?.ambiguous === true
+      attempts: attempts.length,
+      ambiguous: result.diagnostics?.[field]?.ambiguous === true,
+      probe: probeState ?? null,
+      ...(descriptor
+        ? {
+            descriptor: {
+              tag: has(descriptorTag) ? descriptorTag : null,
+              type: isRecord(descriptor) && has(descriptor.type) ? String(descriptor.type) : null,
+              role: isRecord(descriptor) && has(descriptor.role) ? String(descriptor.role) : null,
+              contentEditable: isRecord(descriptor) && descriptor.contentEditable === true,
+              dataTestId: isRecord(descriptor) && has(descriptor.dataTestId),
+              id: isRecord(descriptor) && has(descriptor.id),
+              name: isRecord(descriptor) && has(descriptor.name),
+              tagAgrees: Boolean(
+                fingerprintTag && descriptorTag && fingerprintTag === descriptorTag
+              )
+            }
+          }
+        : {})
     }
   }
 }

@@ -1141,6 +1141,152 @@ describe('candidate selection', () => {
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
+  it('accepts a send button the empty-composer probe rendered after a twin failed identity', async () => {
+    // Chrome's empty-composer DOM shows the voice button where the send button
+    // will appear. The first pass resolves that twin and fails identity; the
+    // probe types one character, the real send button renders, and only the
+    // probe's attempts decide the outcome. The two attempt lists are never
+    // merged, so the stale twin cannot poison the second verdict.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return verified({
+            field: 'input',
+            matchedSelector: '#prompt-textarea',
+            attempts: [
+              {
+                selector: '#prompt-textarea',
+                matchedSelector: '#prompt-textarea',
+                strategy: 'direct',
+                descriptor: { tag: 'div', contentEditable: true, ariaLabel: 'ChatGPT’ye sor' }
+              }
+            ]
+          })
+        }
+        if (script.includes("action: 'probe_composer'")) {
+          return {
+            success: true,
+            action: 'probe_composer',
+            field: 'button',
+            probe: 'ran',
+            composerState: 'empty_probed',
+            attempts: [
+              {
+                selector: 'button[type="submit"]',
+                matchedSelector: 'button[type="submit"]',
+                strategy: 'direct',
+                elementKey: 1,
+                descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Gönder', text: 'Gönder' }
+              }
+            ]
+          }
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              elementKey: 9,
+              descriptor: { tag: 'button', type: 'button', ariaLabel: 'Sesli iletişimi başlat' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-probe-0123456789',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#prompt-textarea',
+        candidates: ['#prompt-textarea'],
+        fingerprint: { tag: 'div', contentEditable: true, ariaLabel: 'ChatGPT’ye sor' }
+      },
+      button: {
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]', 'button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder', text: 'Gönder' }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({ status: 'saved', hostname: 'chatgpt.com', field: 'pair' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(3)
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      button: 'button[type="submit"]',
+      buttonCandidates: ['button[type="submit"]']
+    })
+  })
+
+  it('keeps the read-only verdict when the composer holds a draft and the probe is refused', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) return verified({ field: 'input' })
+        if (script.includes("action: 'probe_composer'")) {
+          return {
+            success: false,
+            action: 'probe_composer',
+            field: 'button',
+            probe: 'not_run',
+            composerState: 'non_empty',
+            attempts: []
+          }
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button', ariaLabel: 'Sesli iletişimi başlat' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-probe-draft-01234',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#composer',
+        candidates: ['#composer'],
+        fingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+      },
+      button: {
+        selector: 'button.composer-twin',
+        candidates: ['button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder' }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({
+      status: 'verification_failed',
+      reason: 'identity_mismatch',
+      failedField: 'button'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
   it('accepts localized Gemini contenteditable composer via structural + editor class agreement', async () => {
     const deps = createIngest({
       view: OPEN_VIEW,
@@ -1221,8 +1367,8 @@ describe('candidate selection', () => {
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
-  it('embeds non-destructive empty-composer probing and draft preservation in verifyLocator script', () => {
-    const script = generateVerifyLocatorScript({
+  it('keeps read-only verification free of composer writes and moves the probe into its own run', () => {
+    const verifyScript = generateVerifyLocatorScript({
       field: 'button',
       selectors: ['[data-composer-submit]'],
       fingerprint: { tag: 'button' },
@@ -1231,11 +1377,29 @@ describe('candidate selection', () => {
         fingerprint: { tag: 'div', safeId: 'prompt-textarea', contentEditable: true }
       }
     })
+    // The verification pass must not mutate the page at all; the app decides
+    // whether a probe is warranted after it has seen the real candidates.
+    expect(verifyScript).not.toContain('writeProbeText')
+    expect(verifyScript).toContain("composerState: 'not_checked'")
 
-    expect(script).toContain('writeProbeText')
-    expect(script).toContain('existingText.trim().length > 0')
-    expect(script).toContain('finally')
-    expect(script).toContain('composerState')
-    expect(script).not.toContain('waitForElement(')
+    const probeScript = generateVerifyLocatorScript({
+      field: 'button',
+      selectors: ['[data-composer-submit]'],
+      fingerprint: { tag: 'button' },
+      composerInput: {
+        selectors: ['#prompt-textarea'],
+        fingerprint: { tag: 'div', safeId: 'prompt-textarea', contentEditable: true }
+      },
+      probe: true
+    })
+    expect(probeScript).toContain("action: 'probe_composer'")
+    expect(probeScript).toContain('isComposerEmpty')
+    // Cleanup is gated on ownership, and focus is only restored when the
+    // composer still holds it: the unconditional clear that used to wipe a
+    // draft typed during the probe must not come back.
+    expect(probeScript).toContain('normalizeComposerText(composerEl) === probeText')
+    expect(probeScript).toContain('document.activeElement === composerEl')
+    expect(probeScript).not.toContain('existingText.trim().length > 0')
+    expect(probeScript).not.toContain('waitForElement(')
   })
 })

@@ -12,11 +12,20 @@
  *   - the caller compares the reported descriptor with the fingerprint the pick
  *     carried, so a selector that resolved to a twin is rejected.
  *
- * When verifying a send button that is not yet rendered in Electron because the
- * composer is empty (e.g. ChatGPT shows voice mode until text is typed), and
- * the composer input is confirmed empty, the verifier can safely probe with a
- * single non-submitted character and immediately restore the empty state in a
- * `finally` block. Non-empty user drafts are never touched.
+ * Two modes:
+ *
+ *   - `verify` (default) never touches the page. It reports every candidate and
+ *     leaves the decision to the caller, which owns the acceptance rules.
+ *   - `probe` is only requested by the caller when the normal verification
+ *     failed on a send button and the composer is empty (ChatGPT renders voice
+ *     mode until text is typed). It writes a single non-submitted character,
+ *     observes the newly rendered candidates, and removes the character again.
+ *     The probe never submits, never clears a draft and never removes anything
+ *     it cannot prove it wrote.
+ *
+ * The probe is a separate run, not a retry inside the verify run: the caller
+ * evaluates the probe's attempts with the same `verifyPick` rules and never
+ * merges attempts from the two DOM states.
  */
 import type { AutomationConfig, AutomationElementFingerprint } from '@shared-core/types'
 
@@ -33,10 +42,13 @@ interface VerifyLocatorInput {
     selectors: string[]
     fingerprint: AutomationElementFingerprint | null
   } | null
+  /** `true` runs the empty-composer probe instead of a read-only verification. */
+  probe?: boolean
 }
 
 const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
   const isInput = input.field === 'input'
+  const isProbe = input.probe === true && !isInput
   const composerSelectors =
     !isInput && input.composerInput
       ? input.composerInput.selectors
@@ -63,6 +75,262 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
   const selectors = input.selectors
     .map((selector) => selector.trim())
     .filter((selector) => selector.length > 0)
+
+  const writeHelpers = isProbe
+    ? `
+            const readComposerText = (element) => {
+                if (!element) return '';
+                const tag = (element.tagName || '').toLowerCase();
+                if (tag === 'textarea' || tag === 'input') {
+                    return String(element.value || '');
+                }
+                return String(element.innerText || element.textContent || '');
+            };
+
+            // A contenteditable composer reports a structural newline (or a
+            // <p><br></p> paragraph) when it is empty. Only *visible* characters
+            // count as a draft, so a real whitespace-only draft still blocks the
+            // probe instead of being overwritten.
+            const normalizeComposerText = (element) => {
+                const text = readComposerText(element);
+                const tag = (element && element.tagName || '').toLowerCase();
+                if (tag === 'textarea' || tag === 'input') return text;
+                return text.replace(/[\\n\\r\\u200b]/g, '');
+            };
+
+            const hasMeaningfulComposerContent = (element) => {
+                try {
+                    if (element.querySelector('img, figure, picture, video, audio, a[href]')) {
+                        return true;
+                    }
+                    if (element.querySelector('[data-mention], [data-testid="mention"]')) return true;
+                    const nestedEditable = element.querySelector('[contenteditable="true"], textarea, input');
+                    if (nestedEditable && nestedEditable !== element) return true;
+                } catch (_) {}
+                return false;
+            };
+
+            const isComposerEmpty = (element) => {
+                if (!element) return false;
+                return (
+                    normalizeComposerText(element).length === 0 &&
+                    !hasMeaningfulComposerContent(element)
+                );
+            };
+
+            const resolveComposerInput = () => {
+                const inputCfg = config.input;
+                if (!inputCfg) return null;
+                const expectedTag = String(inputCfg.fingerprint?.tag || '').toLowerCase();
+                const accept = (element) => {
+                    if (!element || !element.isConnected) return null;
+                    const tag = (element.tagName || '').toLowerCase();
+                    const isEntry =
+                        tag === 'textarea' ||
+                        tag === 'input' ||
+                        element.isContentEditable === true ||
+                        element.getAttribute('contenteditable') === 'true';
+                    if (!isEntry) return null;
+                    // Writing into the wrong editor is worse than not probing.
+                    if (expectedTag && tag !== expectedTag) return null;
+                    return element;
+                };
+                const inputSelectors = Array.isArray(inputCfg.selectors) ? inputCfg.selectors : [];
+                for (const sel of inputSelectors) {
+                    try {
+                        const match = findUniqueSelectorMatch(sel, inputCfg.fingerprint);
+                        const accepted = accept(match && match.element);
+                        if (accepted) return accepted;
+                    } catch (_) {}
+                }
+                if (inputCfg.fingerprint) {
+                    try {
+                        const fpMatch = findElementByFingerprint(inputCfg.fingerprint);
+                        const accepted = accept(fpMatch && fpMatch.element);
+                        if (accepted) return accepted;
+                    } catch (_) {}
+                }
+                return null;
+            };
+
+            const resolveNativeValueSetter = (element) => {
+                const proto = Object.getPrototypeOf(element);
+                return (
+                    (proto && Object.getOwnPropertyDescriptor(proto, 'value')?.set) ||
+                    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement?.prototype || {}, 'value')?.set ||
+                    Object.getOwnPropertyDescriptor(window.HTMLInputElement?.prototype || {}, 'value')?.set ||
+                    null
+                );
+            };
+
+            const writeProbeText = (element, text) => {
+                const isEditable = Boolean(
+                    element.isContentEditable || element.getAttribute('contenteditable') === 'true'
+                );
+                if (typeof element.focus === 'function') element.focus();
+                if (!isEditable) {
+                    const setter = resolveNativeValueSetter(element);
+                    if (setter) setter.call(element, text);
+                    else element.value = text;
+                    try {
+                        element.dispatchEvent(new InputEvent('input', {
+                            bubbles: true,
+                            composed: true,
+                            inputType: text ? 'insertText' : 'deleteContentBackward',
+                            data: text || null
+                        }));
+                    } catch (_) {
+                        element.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+                try {
+                    const sel = window.getSelection ? window.getSelection() : null;
+                    if (sel && typeof document.createRange === 'function') {
+                        const range = document.createRange();
+                        range.selectNodeContents(element);
+                        if (text) range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                } catch (_) {}
+                let applied = false;
+                if (typeof document.execCommand === 'function') {
+                    try {
+                        applied = text
+                            ? Boolean(document.execCommand('insertText', false, text))
+                            : Boolean(document.execCommand('delete', false, null));
+                    } catch (_) {
+                        applied = false;
+                    }
+                }
+                if (!applied || (text === '' && readComposerText(element).replace(/[\\s\\n\\r\\u200b]/g, '').length > 0)) {
+                    try {
+                        element.textContent = text;
+                        element.dispatchEvent(new InputEvent('input', {
+                            bubbles: true,
+                            composed: true,
+                            inputType: text ? 'insertText' : 'deleteContentBackward',
+                            data: text || null
+                        }));
+                    } catch (_) {}
+                }
+            };
+`
+    : ''
+
+  const body = isProbe
+    ? `
+            // Probe run: one character, one observation window, owned cleanup.
+            const composerEl = resolveComposerInput();
+            if (!composerEl) {
+                return {
+                    success: false,
+                    action: 'probe_composer',
+                    field: '${input.field}',
+                    href: String(location.href || ''),
+                    attempts: [],
+                    composerState: 'no_input',
+                    probe: 'not_run'
+                };
+            }
+            if (!isComposerEmpty(composerEl)) {
+                return {
+                    success: false,
+                    action: 'probe_composer',
+                    field: '${input.field}',
+                    href: String(location.href || ''),
+                    attempts: [],
+                    composerState: 'non_empty',
+                    probe: 'not_run'
+                };
+            }
+
+            const prevActive = document.activeElement;
+            const probeText = '.';
+            let attempts = [];
+            let probeState = 'empty_probe_no_button';
+            try {
+                writeProbeText(composerEl, probeText);
+                // Keep observing for the whole window instead of accepting the
+                // first element that appears: the first render during hydration
+                // can still be a twin (voice/mic) before the send button swaps in.
+                const probeDeadline = Date.now() + 1200;
+                while (Date.now() < probeDeadline) {
+                    const collected = collect();
+                    if (collected.length > 0) attempts = collected;
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                probeState = attempts.length > 0 ? 'empty_probed' : 'empty_probe_no_button';
+            } finally {
+                // Ownership-safe cleanup: remove the character only when the
+                // same live element still holds exactly our probe. A composer
+                // that was re-created, a draft the user started typing, or any
+                // other unexpected content is left untouched.
+                try {
+                    if (composerEl.isConnected && normalizeComposerText(composerEl) === probeText) {
+                        writeProbeText(composerEl, '');
+                    }
+                } catch (_) {}
+                try {
+                    // Never steal focus the user has already moved elsewhere.
+                    if (document.activeElement === composerEl) {
+                        if (prevActive && prevActive !== composerEl && typeof prevActive.focus === 'function') {
+                            prevActive.focus();
+                        } else if (typeof composerEl.blur === 'function') {
+                            composerEl.blur();
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            return {
+                success: attempts.length > 0,
+                action: 'probe_composer',
+                field: '${input.field}',
+                href: String(location.href || ''),
+                attempts,
+                composerState: probeState,
+                probe: 'ran',
+                diagnostics: finalizeDiagnostics(
+                    diagnostics,
+                    scriptStartedAt,
+                    attempts.length > 0 ? null : '${input.field}_not_found'
+                )
+            };
+`
+    : `
+            // The app view may still be loading when the pick arrives. Retrying
+            // only while *nothing* resolved keeps the normal path at one pass.
+            const initialWaitMs = ${!isInput && composerSelectors.length > 0 ? 1200 : 2500};
+            const deadline = Date.now() + initialWaitMs;
+            let attempts = [];
+            while (Date.now() < deadline) {
+                attempts = collect();
+                if (attempts.length > 0) break;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+
+            const first = attempts[0] || null;
+            const found = attempts.length > 0;
+            return {
+                success: found,
+                action: 'verify_locator',
+                field: '${input.field}',
+                href: String(location.href || ''),
+                matchedSelector: first ? first.matchedSelector : null,
+                strategy: first ? first.strategy : 'none',
+                descriptor: first ? first.descriptor : null,
+                attempts,
+                composerState: 'not_checked',
+                diagnostics: finalizeDiagnostics(
+                    diagnostics,
+                    scriptStartedAt,
+                    found ? null : '${input.field}_not_found'
+                )
+            };
+`
 
   return `
     ${createScriptPreamble('validate', serialized, true)}
@@ -140,179 +408,13 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 }
                 return attempts;
             };
-
-            const readComposerText = (element) => {
-                if (!element) return '';
-                const tag = (element.tagName || '').toLowerCase();
-                if (tag === 'textarea' || tag === 'input') {
-                    return String(element.value || '');
-                }
-                return String(element.innerText || element.textContent || '');
-            };
-
-            const resolveComposerInput = () => {
-                const inputCfg = config.input;
-                if (!inputCfg) return null;
-                const inputSelectors = Array.isArray(inputCfg.selectors) ? inputCfg.selectors : [];
-                for (const sel of inputSelectors) {
-                    try {
-                        const match = findUniqueSelectorMatch(sel, inputCfg.fingerprint);
-                        if (match && match.element && match.element.isConnected) return match.element;
-                    } catch (_) {}
-                }
-                if (inputCfg.fingerprint) {
-                    try {
-                        const fpMatch = findElementByFingerprint(inputCfg.fingerprint);
-                        if (fpMatch && fpMatch.element && fpMatch.element.isConnected) return fpMatch.element;
-                    } catch (_) {}
-                }
-                return null;
-            };
-
-            const resolveNativeValueSetter = (element) => {
-                const proto = Object.getPrototypeOf(element);
-                return (
-                    (proto && Object.getOwnPropertyDescriptor(proto, 'value')?.set) ||
-                    Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement?.prototype || {}, 'value')?.set ||
-                    Object.getOwnPropertyDescriptor(window.HTMLInputElement?.prototype || {}, 'value')?.set ||
-                    null
-                );
-            };
-
-            const writeProbeText = (element, text) => {
-                const isEditable = Boolean(
-                    element.isContentEditable || element.getAttribute('contenteditable') === 'true'
-                );
-                if (typeof element.focus === 'function') element.focus();
-                if (!isEditable) {
-                    const setter = resolveNativeValueSetter(element);
-                    if (setter) setter.call(element, text);
-                    else element.value = text;
-                    try {
-                        element.dispatchEvent(new InputEvent('input', {
-                            bubbles: true,
-                            composed: true,
-                            inputType: text ? 'insertText' : 'deleteContentBackward',
-                            data: text || null
-                        }));
-                    } catch (_) {
-                        element.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    element.dispatchEvent(new Event('change', { bubbles: true }));
-                    return;
-                }
-                try {
-                    const sel = window.getSelection ? window.getSelection() : null;
-                    if (sel && typeof document.createRange === 'function') {
-                        const range = document.createRange();
-                        range.selectNodeContents(element);
-                        if (text) range.collapse(false);
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                } catch (_) {}
-                let applied = false;
-                if (typeof document.execCommand === 'function') {
-                    try {
-                        applied = text
-                            ? Boolean(document.execCommand('insertText', false, text))
-                            : Boolean(document.execCommand('delete', false, null));
-                    } catch (_) {
-                        applied = false;
-                    }
-                }
-                if (!applied || (text === '' && readComposerText(element).trim().length > 0)) {
-                    try {
-                        element.textContent = text;
-                        element.dispatchEvent(new InputEvent('input', {
-                            bubbles: true,
-                            composed: true,
-                            inputType: text ? 'insertText' : 'deleteContentBackward',
-                            data: text || null
-                        }));
-                    } catch (_) {}
-                }
-            };
-
-            // The app view may still be loading when the pick arrives. Retrying
-            // only while *nothing* resolved keeps the normal path at one pass.
-            const initialWaitMs = ${!isInput && composerSelectors.length > 0 ? 1200 : 2500};
-            const deadline = Date.now() + initialWaitMs;
-            let attempts = [];
-            while (Date.now() < deadline) {
-                attempts = collect();
-                if (attempts.length > 0) break;
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-
-            let composerState = 'not_checked';
-            if (!${isInput} && attempts.length === 0) {
-                const composerEl = resolveComposerInput();
-                if (composerEl) {
-                    const existingText = readComposerText(composerEl);
-                    if (existingText.trim().length > 0) {
-                        composerState = 'non_empty';
-                    } else {
-                        composerState = 'empty';
-                        const prevActive = document.activeElement;
-                        try {
-                            writeProbeText(composerEl, '.');
-                            const probeDeadline = Date.now() + 1200;
-                            while (Date.now() < probeDeadline) {
-                                attempts = collect();
-                                if (attempts.length > 0) break;
-                                await new Promise((resolve) => setTimeout(resolve, 100));
-                            }
-                            composerState = attempts.length > 0 ? 'empty_probed' : 'empty_probe_no_button';
-                        } finally {
-                            // Always restore the empty composer state without ever submitting.
-                            writeProbeText(composerEl, '');
-                            try {
-                                if (prevActive && prevActive !== composerEl && typeof prevActive.focus === 'function') {
-                                    prevActive.focus();
-                                } else if (typeof composerEl.blur === 'function') {
-                                    composerEl.blur();
-                                }
-                            } catch (_) {}
-                        }
-                    }
-                } else {
-                    const fallbackEditors = Array.from(
-                        document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')
-                    ).filter(isElementVisible);
-                    if (fallbackEditors.length > 0) {
-                        const anyEmpty = fallbackEditors.some((ed) => readComposerText(ed).trim().length === 0);
-                        composerState = anyEmpty ? 'empty_unknown_input' : 'non_empty_unknown_input';
-                    } else {
-                        composerState = 'no_input';
-                    }
-                }
-            }
-
-            const first = attempts[0] || null;
-            const found = attempts.length > 0;
-            return {
-                success: found,
-                action: 'verify_locator',
-                field: '${input.field}',
-                href: String(location.href || ''),
-                matchedSelector: first ? first.matchedSelector : null,
-                strategy: first ? first.strategy : 'none',
-                descriptor: first ? first.descriptor : null,
-                attempts,
-                composerState,
-                diagnostics: finalizeDiagnostics(
-                    diagnostics,
-                    scriptStartedAt,
-                    found ? null : '${input.field}_not_found'
-                )
-            };
+${writeHelpers}${body}
         } catch (error) {
             return {
                 success: false,
-                action: 'verify_locator',
+                action: '${isProbe ? 'probe_composer' : 'verify_locator'}',
                 field: '${input.field}',
-                error: error instanceof Error ? error.message : 'verify_failed'
+                error: error instanceof Error ? error.message : '${isProbe ? 'probe_failed' : 'verify_failed'}'
             };
         }
     })();
