@@ -4,6 +4,7 @@ export function buildPickerCleanupBlock(): string {
             try {
                 try { iframeObserver.disconnect(); } catch (e) { safePickerLog('cleanup.iframeObserver', e); }
                 try { bodyObserver && bodyObserver.disconnect(); } catch (e) { safePickerLog('cleanup.bodyObserver', e); }
+                try { bodyChildObserver && bodyChildObserver.disconnect(); } catch (e) { safePickerLog('cleanup.bodyChildObserver', e); }
                 for (var f = 0; f < iframeObservers.length; f++) {
                     try { iframeObservers[f].disconnect(); } catch (e) { safePickerLog('cleanup.iframeDocObserver', e); }
                 }
@@ -33,6 +34,13 @@ export function buildPickerCleanupBlock(): string {
                         rootDoc.removeEventListener('click', onClick, true);
                         rootDoc.removeEventListener('beforeinput', onTypingDetected, true);
                         rootDoc.removeEventListener('input', onTypingDetected, true);
+                        rootDoc.removeEventListener('compositionend', onTypingDetected, true);
+                        rootDoc.removeEventListener('paste', onTypingDetected, true);
+                        rootDoc.removeEventListener('keyup', onTypingDetected, true);
+                        rootDoc.removeEventListener('pointerdown', onControlPointerEvent, true);
+                        rootDoc.removeEventListener('mousedown', onControlPointerEvent, true);
+                        rootDoc.removeEventListener('pointerup', onControlPointerEvent, true);
+                        rootDoc.removeEventListener('mouseup', onControlPointerEvent, true);
                         rootDoc.removeEventListener('keydown', onKeyDown, true);
                         rootDoc.removeEventListener('scroll', onScrollOrResize, true);
                         try {

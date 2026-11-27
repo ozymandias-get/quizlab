@@ -122,13 +122,55 @@ export function buildPickerUiBlock(pickerStyles: string): string {
         });
 
         var uiMounted = false;
+        // Declared before mountPickerUi runs so the first mount can subscribe.
+        var bodyChildObserver = null;
         const mountPickerUi = () => {
             ensurePickerStyle();
             if (uiMounted || !mainDoc.body) return;
             if (!infoBox.parentNode) mainDoc.body.appendChild(infoBox);
             if (!labelBox.parentNode) mainDoc.body.appendChild(labelBox);
             uiMounted = true;
+            watchBodyChildren();
             updateInfoBox(null);
+        };
+
+        // Host apps whose React root IS <body> (or that replace body children)
+        // can delete the picker chrome without replacing <body> — the <html>
+        // observer below never sees that. The step panel is the only place the
+        // user can tell which step they are on, so losing it silently makes a
+        // working picker look dead. Watch body's direct children and re-attach.
+        const ensurePickerUiMounted = () => {
+            if (!mainDoc.body) return false;
+            if (!uiMounted) {
+                mountPickerUi();
+                return true;
+            }
+            var repaired = false;
+            if (infoBox && infoBox.parentNode !== mainDoc.body) {
+                mainDoc.body.appendChild(infoBox);
+                repaired = true;
+            }
+            if (labelBox && labelBox.parentNode !== mainDoc.body) {
+                mainDoc.body.appendChild(labelBox);
+                repaired = true;
+            }
+            return repaired;
+        };
+        const watchBodyChildren = () => {
+            try {
+                if (!mainDoc.body) return;
+                if (!bodyChildObserver) {
+                    bodyChildObserver = new MutationObserver(() => {
+                        try {
+                            ensurePickerStyle();
+                            ensurePickerUiMounted();
+                        } catch (observerErr) { safePickerLog('ui.bodyChildren', observerErr); }
+                    });
+                } else {
+                    bodyChildObserver.disconnect();
+                }
+                bodyChildObserver.observe(mainDoc.body, { childList: true });
+            } catch (err) { safePickerLog('ui.bodyChildObserver', err); }
         };
         if (mainDoc.body) {
             mountPickerUi();
@@ -166,6 +208,9 @@ export function buildPickerUiBlock(pickerStyles: string): string {
                     if (labelBox) mainDoc.body.appendChild(labelBox);
                     updateInfoBox(null);
                 }
+                // <body> itself may be a fresh node now; the child observer must
+                // follow the current one.
+                watchBodyChildren();
             });
             if (mainDoc.documentElement) {
                 bodyObserver.observe(mainDoc.documentElement, { childList: true, subtree: false });

@@ -47,6 +47,18 @@ export function buildPickerIframesBlock(): string {
             rootDoc.addEventListener('click', onClick, true);
             rootDoc.addEventListener('beforeinput', onTypingDetected, true);
             rootDoc.addEventListener('input', onTypingDetected, true);
+            // Editors that handle their own key/composition/paste pipeline can
+            // suppress or re-target the plain input event. These three are the
+            // same "the user is typing" signal through other channels, and the
+            // handler filters by containment, so an event from another field
+            // still cannot advance the step.
+            rootDoc.addEventListener('compositionend', onTypingDetected, true);
+            rootDoc.addEventListener('paste', onTypingDetected, true);
+            rootDoc.addEventListener('keyup', onTypingDetected, true);
+            rootDoc.addEventListener('pointerdown', onControlPointerEvent, true);
+            rootDoc.addEventListener('mousedown', onControlPointerEvent, true);
+            rootDoc.addEventListener('pointerup', onControlPointerEvent, true);
+            rootDoc.addEventListener('mouseup', onControlPointerEvent, true);
             rootDoc.addEventListener('keydown', onKeyDown, true);
             // Scroll does not bubble, but capture listeners on the document see
             // every descendant scroller; the window-level resize covers layout

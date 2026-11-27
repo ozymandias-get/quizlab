@@ -494,4 +494,398 @@ describe('picker target integrity', () => {
       vi.useRealTimers()
     }
   })
+
+  function withElementFromPoint(
+    hit: (() => Element | null) | null,
+    run: () => void | Promise<void>
+  ) {
+    const doc = document as unknown as Record<string, unknown>
+    const original = doc.elementFromPoint as ((x: number, y: number) => Element | null) | undefined
+    doc.elementFromPoint = hit || (() => null)
+    try {
+      return run()
+    } finally {
+      if (original) doc.elementFromPoint = original
+      else delete doc.elementFromPoint
+    }
+  }
+
+  function pointerClick(el: Element, x = 24, y = 24) {
+    el.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y
+      })
+    )
+  }
+
+  function pointerOver(el: Element, x = 24, y = 24) {
+    el.dispatchEvent(
+      new MouseEvent('mouseover', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y
+      })
+    )
+  }
+
+  // A composer nested in a clickable shell (role="button" card, <a> wrapper).
+  // The old normalization promoted the shell first and then refused to climb
+  // back down to the textbox because it sat "inside a button", so the input
+  // step could never be completed on such a site — every click flashed red.
+  it('T17: a text box inside a clickable ancestor is still picked as the input', () => {
+    eval(generatePickerScript())
+
+    const shell = document.createElement('div')
+    shell.setAttribute('role', 'button')
+    const editor = document.createElement('div')
+    editor.setAttribute('contenteditable', 'true')
+    editor.setAttribute('role', 'textbox')
+    shell.appendChild(editor)
+    document.body.appendChild(shell)
+
+    mouseOver(editor)
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+
+    click(editor)
+    expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+    expect(document.querySelector('._ai-picker-selected')).toBe(editor)
+    expect(shell.classList.contains('_ai-picker-selected')).toBe(false)
+  })
+
+  it('T17b: picking a contenteditable focuses it and collapses the caret to the end', () => {
+    eval(generatePickerScript())
+
+    const editor = document.createElement('div')
+    editor.setAttribute('contenteditable', 'true')
+    editor.textContent = 'draft text'
+    document.body.appendChild(editor)
+
+    click(editor)
+
+    expect(document.activeElement).toBe(editor)
+    const selection = window.getSelection()
+    expect(selection?.rangeCount).toBe(1)
+    expect(selection?.getRangeAt(0)?.collapsed).toBe(true)
+  })
+
+  // role="textbox" on a non-editable wrapper: automation's value setters would
+  // write a property on a plain <div> and the text would never reach the
+  // editor. The picker must persist the control that accepts text.
+  it('T18: a role=textbox wrapper resolves to the inner control', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+
+      const wrapper = document.createElement('div')
+      wrapper.setAttribute('role', 'textbox')
+      const area = document.createElement('textarea')
+      area.setAttribute('placeholder', 'Ask anything')
+      wrapper.appendChild(area)
+      document.body.appendChild(wrapper)
+
+      click(wrapper)
+      expect(document.querySelector('._ai-picker-selected')).toBe(area)
+
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('aria-label', 'Send message')
+      document.body.appendChild(sendBtn)
+      document
+        .getElementById('_ai_picker_next_btn')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      click(sendBtn)
+      vi.advanceTimersByTime(1000)
+
+      const result = (window as PickerWindow)._aiPickerResult as unknown as {
+        inputFingerprint?: { tag?: string }
+      }
+      expect(result.inputFingerprint?.tag).toBe('textarea')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // Sites that hydrate or re-render the composer in response to a click can
+  // remove the clicked node while the event is still propagating. Rejecting the
+  // now-detached target left the user with a red flash on a node that is no
+  // longer on the page.
+  it('T19: a click whose target was removed mid-event is re-resolved at the pointer', () => {
+    const editor = document.createElement('textarea')
+    document.body.appendChild(editor)
+    const transient = document.createElement('div')
+    document.body.appendChild(transient)
+
+    // Registered BEFORE the picker so this capture listener runs first and the
+    // picker sees a path whose first element is already detached.
+    const removeClicked = (e: Event) => {
+      if (e.target === transient) transient.remove()
+    }
+    document.addEventListener('click', removeClicked, true)
+    try {
+      eval(generatePickerScript())
+
+      withElementFromPoint(
+        () => editor,
+        () => {
+          pointerClick(transient)
+        }
+      )
+    } finally {
+      document.removeEventListener('click', removeClicked, true)
+    }
+
+    expect(document.querySelector('._ai-picker-selected')).toBe(editor)
+  })
+
+  // 0a9d7bde blanked the hover on every scroll. Scrolling to reach a composer
+  // then made the picker look dead until the mouse moved again.
+  it('T20: scrolling keeps the hover when the pointer is still over the same element', () => {
+    eval(generatePickerScript())
+
+    const editor = document.createElement('textarea')
+    document.body.appendChild(editor)
+    const labelBox = document.querySelectorAll<HTMLElement>('[data-ai-picker-ui="true"]')[1]
+
+    withElementFromPoint(
+      () => editor,
+      () => {
+        pointerOver(editor, 40, 40)
+        expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+        expect(labelBox?.style.display).toBe('block')
+
+        document.dispatchEvent(new Event('scroll'))
+        expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+        expect(labelBox?.style.display).toBe('block')
+      }
+    )
+
+    // Pointer no longer over the element: the stale outline must still clear.
+    withElementFromPoint(
+      () => null,
+      () => {
+        document.dispatchEvent(new Event('scroll'))
+        expect(editor.classList.contains('_ai-picker-hover-good')).toBe(false)
+        expect(labelBox?.style.display).toBe('none')
+      }
+    )
+  })
+
+  // Editors that implement their own key pipeline can suppress or re-target the
+  // plain input event. keyup/compositionend/paste are the same signal through
+  // other channels and must advance the typing step too.
+  it('T21: keyup-only typing advances to the send step', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+
+      const editor = document.createElement('textarea')
+      document.body.appendChild(editor)
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('aria-label', 'Send message')
+      document.body.appendChild(sendBtn)
+
+      click(editor)
+      editor.dispatchEvent(new KeyboardEvent('keyup', { key: 'a', bubbles: true, composed: true }))
+      vi.advanceTimersByTime(300)
+
+      // In 'submit' only, hovering the button paints it green.
+      mouseOver(sendBtn)
+      expect(sendBtn.classList.contains('_ai-picker-hover-good')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('T22: the emitted script keeps the F-key regex backslash through the template literal', () => {
+    const script = generatePickerScript()
+    expect(script).toContain('/^F\\d+$/i')
+  })
+
+  // Sites can act on pointer/mouse down or up (ChatGPT's composer submits the
+  // draft on the pointer sequence even when the click's default is prevented).
+  // Picking the send button must not send anything.
+  it('T24: control-targeted pointer/mouse events are swallowed, text-box ones are not', () => {
+    eval(generatePickerScript())
+
+    const input = document.createElement('textarea')
+    document.body.appendChild(input)
+    const sendBtn = document.createElement('button')
+    sendBtn.setAttribute('aria-label', 'Send message')
+    document.body.appendChild(sendBtn)
+
+    let controlEvents = 0
+    let inputEvents = 0
+    const controlListener = () => {
+      controlEvents += 1
+    }
+    const inputListener = () => {
+      inputEvents += 1
+    }
+    sendBtn.addEventListener('pointerdown', controlListener)
+    sendBtn.addEventListener('mousedown', controlListener)
+    sendBtn.addEventListener('pointerup', controlListener)
+    sendBtn.addEventListener('mouseup', controlListener)
+    input.addEventListener('pointerdown', inputListener)
+    input.addEventListener('mousedown', inputListener)
+
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
+      sendBtn.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, composed: true, cancelable: true })
+      )
+    }
+    expect(controlEvents).toBe(0)
+
+    // The native focus/caret path of a text box must stay alive.
+    for (const type of ['pointerdown', 'mousedown']) {
+      input.dispatchEvent(new MouseEvent(type, { bubbles: true, composed: true, cancelable: true }))
+    }
+    expect(inputEvents).toBe(2)
+  })
+
+  // A host whose React root is <body> can delete the picker chrome without
+  // replacing body. The <html> observer cannot see that; the step panel is the
+  // only step feedback the user has.
+  it('T25: picker chrome removed from <body> is re-attached', async () => {
+    eval(generatePickerScript())
+
+    const boxes = () => document.querySelectorAll('[data-ai-picker-ui="true"]')
+    expect(boxes().length).toBe(2)
+
+    boxes()[0]?.remove()
+    boxes()[0]?.remove()
+    expect(boxes().length).toBe(0)
+
+    // Any later body mutation must restore both boxes.
+    const noise = document.createElement('div')
+    document.body.appendChild(noise)
+
+    await vi.waitFor(() => expect(boxes().length).toBe(2))
+    expect(boxes()[0]?.textContent).toContain('Step 1 / 3')
+  })
+
+  // Focus-time hydration can replace the picked composer node. Containment can
+  // never match the detached one again, so typing would be invisible and step 2
+  // would never advance.
+  it('T26: typing into a replaced composer re-binds it and advances to the send step', () => {
+    vi.useFakeTimers()
+    try {
+      eval(generatePickerScript())
+
+      const first = document.createElement('div')
+      first.setAttribute('contenteditable', 'true')
+      document.body.appendChild(first)
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('aria-label', 'Send message')
+      document.body.appendChild(sendBtn)
+
+      click(first)
+      expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+
+      first.remove()
+      const replacement = document.createElement('div')
+      replacement.setAttribute('contenteditable', 'true')
+      document.body.appendChild(replacement)
+
+      replacement.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
+      vi.advanceTimersByTime(300)
+
+      expect(document.querySelector('._ai-picker-selected')).toBe(replacement)
+      mouseOver(sendBtn)
+      expect(sendBtn.classList.contains('_ai-picker-hover-good')).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // infoBox/labelBox use pointer-events:none, so a click on their visible
+  // surface is delivered to the page element underneath. The picker must
+  // swallow it instead of classifying (and red-flashing) the hidden element.
+  it('T23: clicking the info panel surface does not reject the element beneath it', () => {
+    eval(generatePickerScript())
+
+    const beneath = document.createElement('span')
+    beneath.textContent = 'page content under the panel'
+    document.body.appendChild(beneath)
+
+    const infoBox = document.querySelectorAll<HTMLElement>('[data-ai-picker-ui="true"]')[0]
+    infoBox.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 320,
+        bottom: 200,
+        width: 320,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({})
+      }) as DOMRect
+
+    pointerClick(beneath, 100, 100)
+
+    expect(beneath.style.boxShadow).toBe('')
+    expect(document.querySelector('._ai-picker-selected')).toBeNull()
+    expect(document.getElementById('_ai_picker_next_btn')).toBeNull()
+  })
+
+  function stubRect(el: Element, x: number, y: number, width: number, height: number) {
+    el.getBoundingClientRect = () =>
+      ({
+        x,
+        y,
+        left: x,
+        top: y,
+        right: x + width,
+        bottom: y + height,
+        width,
+        height,
+        toJSON: () => ({})
+      }) as DOMRect
+  }
+
+  // A composer's rounded bar is mostly padding: the editable itself is a thin
+  // strip in the middle. Clicking the visible box but missing that strip used to
+  // be rejected as a container, which reads as "the click does nothing".
+  it('T27: clicking the composer shell resolves to the editable inside it', () => {
+    eval(generatePickerScript())
+
+    const shell = document.createElement('div')
+    shell.setAttribute('role', 'presentation')
+    const editor = document.createElement('div')
+    editor.setAttribute('contenteditable', 'true')
+    editor.setAttribute('role', 'textbox')
+    shell.appendChild(editor)
+    document.body.appendChild(shell)
+    stubRect(shell, 0, 0, 200, 48)
+    stubRect(editor, 10, 12, 180, 24)
+
+    // Hover must paint the same element the click will persist.
+    mouseOver(shell)
+    expect(editor.classList.contains('_ai-picker-hover-good')).toBe(true)
+
+    click(shell)
+    expect(document.getElementById('_ai_picker_next_btn')).not.toBeNull()
+    expect(document.querySelector('._ai-picker-selected')).toBe(editor)
+    expect(shell.classList.contains('_ai-picker-selected')).toBe(false)
+  })
+
+  it('T27b: a page-sized container that merely contains a text box is not treated as its shell', () => {
+    eval(generatePickerScript())
+
+    const section = document.createElement('section')
+    const area = document.createElement('textarea')
+    section.appendChild(area)
+    document.body.appendChild(section)
+    stubRect(section, 0, 0, 1200, 800)
+    stubRect(area, 20, 20, 300, 40)
+
+    click(section)
+    expect(document.querySelector('._ai-picker-selected')).toBeNull()
+    expect(document.getElementById('_ai_picker_next_btn')).toBeNull()
+  })
 })
