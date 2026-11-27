@@ -440,13 +440,15 @@
     }
 
     const state = typeof response.state === 'string' ? response.state : 'retry'
+    const reason =
+      typeof response.reason === 'string' && response.reason ? ` (${response.reason})` : ''
     const message =
       typeof response.message === 'string' && response.message
         ? response.message
         : state === 'site_not_open'
           ? TEXTS.siteNotOpen
           : state === 'verification_failed'
-            ? TEXTS.verificationFailed
+            ? TEXTS.verificationFailed + reason
             : state === 'unpaired'
               ? TEXTS.unpaired
               : state === 'rejected'

@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { SelectorSiteTarget } from '../../../features/ai/selectorTargets.js'
 
+import { generateVerifyLocatorScript } from '../../../features/automation/automationScripts/generators/verifyLocator.js'
 import {
   createSelectorIngest,
   parseSelectorTransferPayload
@@ -126,16 +127,34 @@ describe('selector ingestion', () => {
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
-  it('refuses a selector that resolved to a different element', async () => {
+  it('refuses a selector the runtime found outside the submitted candidates', async () => {
     const deps = createIngest({
       view: OPEN_VIEW,
       result: verified({ matchedSelector: '#some-other-input' })
     })
     await expect(deps.ingest(payload())).resolves.toEqual({
       status: 'verification_failed',
-      reason: 'primary_mismatch'
+      reason: 'unknown_match'
     })
     expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('stores the candidate the app resolved when priority differs between the two DOMs', async () => {
+    // Chrome called #composer primary; the app's DOM has a duplicate id and the
+    // runtime settled on the verified test-id candidate. The stored primary is
+    // the one the app can resolve, not the one that only worked in Chrome.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({ matchedSelector: 'textarea[data-testid="prompt"]' })
+    })
+    const result = await deps.ingest(payload())
+
+    expect(result.status).toBe('saved')
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      input: 'textarea[data-testid="prompt"]',
+      inputCandidates: ['#composer', 'textarea[data-testid="prompt"]']
+    })
   })
 
   it('refuses an ambiguous resolution', async () => {
@@ -272,5 +291,117 @@ describe('selector transfer payload validation', () => {
     expect(parseSelectorTransferPayload(payload({ fingerprint: { role: 'textbox' } }))).toEqual({
       reason: 'missing_fingerprint_tag'
     })
+  })
+})
+
+describe('the verification script', () => {
+  it('resolves every candidate instead of stopping at the first match', () => {
+    // ChatGPT's send and voice buttons share the composer class list. A script
+    // that stopped at the first resolved candidate reported the voice button
+    // and the pick was refused as an identity mismatch.
+    const script = generateVerifyLocatorScript({
+      field: 'button',
+      selectors: ['button[type="submit"]', 'button.cursor-interaction', 'button'],
+      fingerprint: { tag: 'button', type: 'submit' }
+    })
+
+    expect(script).toContain('findUniqueSelectorMatch(selector, fingerprint)')
+    expect(script).toContain('attempts.push')
+    expect(script).not.toContain('waitForElement(')
+    // Every candidate has to reach the caller, not only the first one.
+    expect(script).toContain('["button[type=\\"submit\\"]","button.cursor-interaction","button"]')
+  })
+
+  it('does not wait for a picked button to become enabled', () => {
+    // An empty composer keeps its send button disabled. Waiting for it to be
+    // interactive here rejected every button pick on those sites, even though
+    // the submit phase waits for it to become ready after the text is written.
+    const script = generateVerifyLocatorScript({
+      field: 'button',
+      selectors: ['button[type="submit"]'],
+      fingerprint: { tag: 'button' }
+    })
+
+    expect(script).not.toContain('waitForElement(')
+  })
+})
+
+describe('candidate selection', () => {
+  it('stores the candidate whose element matches the pick, not the first one', async () => {
+    // The class candidate resolves the voice button in the app DOM; the generic
+    // button candidate resolves the send button. The fingerprint decides.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button.cursor-interaction',
+        strategy: 'direct',
+        descriptor: { tag: 'button', type: 'button' },
+        attempts: [
+          {
+            selector: 'button.cursor-interaction',
+            matchedSelector: 'button.cursor-interaction',
+            strategy: 'direct',
+            descriptor: {
+              tag: 'button',
+              type: 'button',
+              ariaLabel: 'Sesli iletişimi başlat',
+              text: ''
+            }
+          },
+          {
+            selector: 'button',
+            matchedSelector: 'button',
+            strategy: 'direct',
+            descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Gönder', text: 'Gönder' }
+          }
+        ]
+      })
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]', 'button.cursor-interaction', 'button'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder', text: 'Gönder' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'saved', hostname: 'chatgpt.com', field: 'button' })
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      button: 'button',
+      buttonCandidates: ['button[type="submit"]', 'button.cursor-interaction', 'button']
+    })
+  })
+
+  it('treats an attribute the app DOM does not expose as missing evidence', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        descriptor: { tag: 'textarea', dataTestId: 'prompt' },
+        attempts: [
+          {
+            matchedSelector: '#composer',
+            strategy: 'direct',
+            descriptor: { tag: 'textarea', dataTestId: 'prompt' }
+          }
+        ]
+      })
+    })
+
+    const result = await deps.ingest(
+      payload({
+        fingerprint: {
+          tag: 'textarea',
+          dataTestId: 'prompt',
+          type: 'submit',
+          ariaLabel: 'Gönder'
+        }
+      })
+    )
+
+    expect(result.status).toBe('saved')
   })
 })

@@ -1803,11 +1803,11 @@ async function startSelectorPick(tabId, field) {
     })
   } catch (error) {
     console.warn('[Quizlab Bridge] The picker could not be injected:', errorMessage(error))
-    return { success: false, error: 'cannot_inject' }
+    return { success: false, error: 'cannot_inject', detail: errorMessage(error) }
   }
 
   const result = Array.isArray(injection) ? injection[0] : null
-  if (!result) return { success: false, error: 'cannot_inject' }
+  if (!result) return { success: false, error: 'cannot_inject', detail: 'no_injection_result' }
 
   const session = {
     sessionId,
@@ -1834,7 +1834,7 @@ async function startSelectorPick(tabId, field) {
   } catch (error) {
     await updateSelectorSession(sessionId, { state: 'failed', outcome: 'cannot_inject' })
     console.warn('[Quizlab Bridge] The picker did not accept init:', errorMessage(error))
-    return { success: false, error: 'cannot_inject' }
+    return { success: false, error: 'cannot_inject', detail: errorMessage(error) }
   }
 
   return {
@@ -1912,13 +1912,35 @@ async function postSelectorPick(session, payload) {
     if (response.status === 409 && error === 'site_not_open') {
       return { state: SELECTOR_SITE_NOT_OPEN }
     }
-    if (response.status === 422) return { state: SELECTOR_VERIFICATION_FAILED }
+    if (response.status === 422) {
+      return {
+        state: SELECTOR_VERIFICATION_FAILED,
+        reason: typeof result?.reason === 'string' ? result.reason : ''
+      }
+    }
     if (response.status === 404) return { state: SELECTOR_REJECTED }
     if (response.status >= 500) return { state: SELECTOR_UNREACHABLE }
     return { state: SELECTOR_REJECTED, reason: error || `status_${response.status}` }
   } catch (error) {
     console.warn('[Quizlab Bridge] The pick could not be sent:', errorMessage(error))
     return { state: SELECTOR_UNREACHABLE }
+  }
+}
+
+/**
+ * Tells the open side panel that a pick produced a result.
+ *
+ * The panel no longer closes itself while the pick runs, so the result has to
+ * reach it without a reload. Nobody listening (the panel is closed) is the
+ * normal case and not an error.
+ */
+function broadcastSelectorOutcome(outcome) {
+  try {
+    chrome.runtime.sendMessage({ type: 'selector_outcome', outcome }, () => {
+      void chrome.runtime.lastError
+    })
+  } catch {
+    // A worker without a runtime page to answer keeps the stored outcome.
   }
 }
 
@@ -1974,16 +1996,19 @@ async function handleSelectorPickResult(message, sender) {
     field: session.field,
     selector: payload.selector,
     at: Date.now(),
+    ...(outcome.reason ? { reason: outcome.reason } : {}),
     ...(outcome.message ? { message: outcome.message } : {})
   }
   selectorLastOutcome = record
   await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
   await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
+  broadcastSelectorOutcome(record)
 
   return {
     ok: outcome.state === SELECTOR_SAVED,
     state: outcome.state,
     retryable: finalState === 'retryable',
+    ...(outcome.reason ? { reason: outcome.reason } : {}),
     ...(outcome.message ? { message: outcome.message } : {})
   }
 }
@@ -2055,6 +2080,28 @@ chrome.cookies.onChanged.addListener((changeInfo) => {
 
 // Triggers on Chrome startup and whenever the SW is spun up.
 void scanForBridge()
+
+/**
+ * Opens the panel when the toolbar button is pressed.
+ *
+ * The toolbar button has no popup any more, so without this Chrome would open
+ * nothing. The call is repeated on every worker start because the preference
+ * lives in Chrome and an older Chrome that has no side panel API must not throw
+ * here.
+ */
+function enableSidePanelOnActionClick() {
+  if (!chrome.sidePanel || typeof chrome.sidePanel.setPanelBehavior !== 'function') return
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((error) =>
+      console.warn(
+        '[Quizlab Bridge] The side panel behaviour could not be set:',
+        errorMessage(error)
+      )
+    )
+}
+
+enableSidePanelOnActionClick()
 
 /**
  * The hosts the navigation wake-up listens for.

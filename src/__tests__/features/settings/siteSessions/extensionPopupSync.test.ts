@@ -3,8 +3,8 @@ import vm from 'node:vm'
 
 import { describe, expect, it, vi } from 'vitest'
 
-const source = readFileSync('extensions/quizlab-session-extension/popup.js', 'utf8')
-const html = readFileSync('extensions/quizlab-session-extension/popup.html', 'utf8')
+const source = readFileSync('extensions/quizlab-session-extension/sidepanel.js', 'utf8')
+const html = readFileSync('extensions/quizlab-session-extension/sidepanel.html', 'utf8')
 
 interface PopupOptions {
   /** The answer of the worker to a message. */

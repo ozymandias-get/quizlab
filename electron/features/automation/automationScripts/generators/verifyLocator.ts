@@ -6,14 +6,17 @@
  * Electron view, so this generator reuses the existing lookup pipeline rather
  * than trusting `querySelector() !== null`:
  *
- *   - `findUniqueSelectorMatch` requires a unique match that agrees with the
- *     fingerprint (tag, role, type, editable, id, test id, text, classes);
- *   - the caller compares the reported `matchedSelector` with the candidates
- *     that were sent, so a selector that silently resolved to a twin is
- *     rejected instead of stored.
+ *   - every candidate is resolved on its own and reported with the element it
+ *     produced, so the caller can choose the candidate that agrees with the
+ *     fingerprint instead of the first candidate that happened to match;
+ *   - the caller compares the reported descriptor with the fingerprint the pick
+ *     carried, so a selector that resolved to a twin is rejected.
  *
- * The script is the same validate pipeline with a single field, so no second
- * selector engine exists.
+ * Resolving every candidate matters: on ChatGPT the send button and the voice
+ * button share the composer class list. The class candidate therefore resolves
+ * to whichever of the two the engine prefers first, while the generic `button`
+ * candidate still finds the send button by its fingerprint. Stopping at the
+ * first candidate made a correct pick look like an identity mismatch.
  */
 import type { AutomationConfig, AutomationElementFingerprint } from '@shared-core/types'
 
@@ -41,21 +44,14 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
   }
   const serialized = serializeAutomationConfig(config)
   const lookup = isInput ? 'config.input' : 'config.button'
-  const diagnosticsField = isInput ? 'diagnostics.input' : 'diagnostics.button'
-  const mustBeInteractive = isInput ? 'false' : 'true'
+  const selectors = input.selectors
+    .map((selector) => selector.trim())
+    .filter((selector) => selector.length > 0)
 
   return `
     ${createScriptPreamble('validate', serialized, true)}
         try {
-            const result = await waitForElement(${lookup}, '${input.field}', ${diagnosticsField}, config, 2500, ${mustBeInteractive});
-            const found = Boolean(result && result.element);
-            const element = found && result ? result.element : null;
-            // The Chrome DOM and the Electron DOM are not the same document.
-            // A selector that happens to match exactly one *other* element here
-            // would still look "found"; the descriptor is what lets the caller
-            // compare the element it picked in Chrome with the one this
-            // document resolved, field by field.
-            const descriptor = element ? {
+            const describeElement = (element) => ({
                 tag: (element.tagName || '').toLowerCase(),
                 role: element.getAttribute('role'),
                 type: element.getAttribute('type'),
@@ -70,14 +66,54 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 text: String(
                     element.innerText || element.textContent || ''
                 ).replace(/\\s+/g, ' ').trim().slice(0, 256)
-            } : null;
+            });
+
+            const fingerprint = ${lookup} && ${lookup}.fingerprint;
+            const candidates = ${JSON.stringify(selectors)};
+
+            const collect = () => {
+                const attempts = [];
+                const seen = new Set();
+                for (const selector of candidates) {
+                    if (seen.has(selector)) continue;
+                    seen.add(selector);
+                    let match = null;
+                    try {
+                        match = findUniqueSelectorMatch(selector, fingerprint);
+                    } catch (_) {
+                        match = null;
+                    }
+                    if (!match || !match.element) continue;
+                    attempts.push({
+                        selector,
+                        matchedSelector: match.matchedSelector || selector,
+                        strategy: match.strategy || 'none',
+                        descriptor: describeElement(match.element)
+                    });
+                }
+                return attempts;
+            };
+
+            // The app view may still be loading when the pick arrives. Retrying
+            // only while *nothing* resolved keeps the normal path at one pass.
+            const deadline = Date.now() + 2500;
+            let attempts = [];
+            while (Date.now() < deadline) {
+                attempts = collect();
+                if (attempts.length > 0) break;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+
+            const first = attempts[0] || null;
+            const found = attempts.length > 0;
             return {
                 success: found,
                 action: 'verify_locator',
                 field: '${input.field}',
-                matchedSelector: found && result ? (result.matchedSelector || null) : null,
-                strategy: found && result ? result.strategy : 'none',
-                descriptor,
+                matchedSelector: first ? first.matchedSelector : null,
+                strategy: first ? first.strategy : 'none',
+                descriptor: first ? first.descriptor : null,
+                attempts,
                 diagnostics: finalizeDiagnostics(
                     diagnostics,
                     scriptStartedAt,

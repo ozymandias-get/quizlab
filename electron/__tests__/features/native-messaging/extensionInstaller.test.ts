@@ -42,8 +42,8 @@ const PINNED_KEY = (
 
 const EXTENSION_FILES = [
   'background.js',
-  'popup.html',
-  'popup.js',
+  'sidepanel.html',
+  'sidepanel.js',
   'icons/icon16.png',
   'icons/icon48.png',
   'icons/icon128.png'
@@ -61,7 +61,7 @@ async function writeExtension(
     version: options.version ?? '1.4.0',
     key: PINNED_KEY,
     background: { service_worker: 'background.js' },
-    action: { default_popup: 'popup.html' },
+    side_panel: { default_path: 'sidepanel.html' },
     icons: {
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',
@@ -151,7 +151,7 @@ describe('BundledExtensionInstaller', () => {
       refreshed: true
     })
     await expect(readTarget('manifest.json')).resolves.toContain('1.4.0')
-    await expect(readTarget('popup.js')).resolves.toContain('popup.js')
+    await expect(readTarget('sidepanel.js')).resolves.toContain('sidepanel.js')
     const saved = await marker()
     expect(saved.appVersion).toBe('7.5.2')
     expect(saved.extensionVersion).toBe('1.4.0')
@@ -209,12 +209,12 @@ describe('BundledExtensionInstaller', () => {
 
   it('copies again when the installed folder became incomplete', async () => {
     await installer().install()
-    await fs.rm(path.join(targetDirectory, 'popup.js'))
+    await fs.rm(path.join(targetDirectory, 'sidepanel.js'))
 
     const result = await installer().install()
 
     expect(result.refreshed).toBe(true)
-    await expect(exists(path.join(targetDirectory, 'popup.js'))).resolves.toBe(true)
+    await expect(exists(path.join(targetDirectory, 'sidepanel.js'))).resolves.toBe(true)
   })
 
   it('runs two overlapping installs as one consistent operation', async () => {
@@ -298,7 +298,7 @@ describe('BundledExtensionInstaller', () => {
         version: '1.4.0',
         key: PINNED_KEY,
         background: { service_worker: '../outside.js' },
-        action: { default_popup: 'popup.html' },
+        side_panel: { default_path: 'sidepanel.html' },
         icons: { '16': 'icons/icon16.png' }
       }
     })
@@ -315,7 +315,7 @@ describe('BundledExtensionInstaller', () => {
         version: '1.4.0',
         key: PINNED_KEY,
         background: { service_worker: path.join(os.tmpdir(), 'outside.js') },
-        action: { default_popup: 'popup.html' },
+        side_panel: { default_path: 'sidepanel.html' },
         icons: { '16': 'icons/icon16.png' }
       }
     })
@@ -337,7 +337,7 @@ describe('BundledExtensionInstaller', () => {
   })
 
   it('refuses a corrupted script', async () => {
-    await fs.writeFile(path.join(sourceDirectory, 'popup.js'), 'function (\n')
+    await fs.writeFile(path.join(sourceDirectory, 'sidepanel.js'), 'function (\n')
 
     await expect(installer().install()).rejects.toMatchObject({ failure: 'invalid_manifest' })
   })
@@ -382,15 +382,15 @@ describe('BundledExtensionInstaller', () => {
     await fs.rm(sourceDirectory, { recursive: true, force: true })
 
     await expect(installer().install()).rejects.toMatchObject({ failure: 'not_found' })
-    await expect(readTarget('popup.js')).resolves.toContain('popup.js')
+    await expect(readTarget('sidepanel.js')).resolves.toContain('sidepanel.js')
   })
 
   it('does not replace the install when a bundle file is missing', async () => {
     await installer().install()
-    await fs.rm(path.join(sourceDirectory, 'popup.js'))
+    await fs.rm(path.join(sourceDirectory, 'sidepanel.js'))
 
     await expect(installer().install()).rejects.toBeInstanceOf(ExtensionInstallError)
-    await expect(readTarget('popup.js')).resolves.toContain('popup.js')
+    await expect(readTarget('sidepanel.js')).resolves.toContain('sidepanel.js')
   })
 
   it('refuses a manifest that is not manifest v3', async () => {
@@ -409,7 +409,7 @@ describe('BundledExtensionInstaller', () => {
         version: '1.4.0',
         key: Buffer.from('another-extension-key').toString('base64'),
         background: { service_worker: 'background.js' },
-        action: { default_popup: 'popup.html' },
+        side_panel: { default_path: 'sidepanel.html' },
         icons: { '16': 'icons/icon16.png', '48': 'icons/icon48.png', '128': 'icons/icon128.png' }
       }
     })

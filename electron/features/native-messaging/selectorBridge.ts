@@ -189,7 +189,10 @@ async function getIngest(): Promise<(raw: unknown) => Promise<SelectorIngestResu
     savePatch: aiConfig.saveAiConfigPatch,
     findViewForSite: async (site) => findViewForSite(site),
     executeScript: (viewId, script) => aiView.executeAiViewScript(viewId, script),
-    broadcastConfigChanged
+    broadcastConfigChanged,
+    logVerificationFailure: (details) => {
+      Logger.warn('[NativeMessaging] Selector verification failed:', JSON.stringify(details))
+    }
   })
   return ingestSelector
 }

@@ -3,7 +3,15 @@
   "name": "Quizlab Site Session Bridge",
   "version": "1.5.0",
   "description": "Shares the session cookies of the AI sites you use with Quizlab Reader for workspace access, and picks the elements its automations target.",
-  "permissions": ["cookies", "alarms", "storage", "webNavigation", "scripting", "activeTab"],
+  "permissions": [
+    "cookies",
+    "alarms",
+    "storage",
+    "webNavigation",
+    "scripting",
+    "activeTab",
+    "sidePanel"
+  ],
   "host_permissions": [
     "https://google.com/*",
     "https://*.google.com/*",
@@ -34,8 +42,10 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "Quizlab Site Sessions"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "icons": {
     "16": "icons/icon16.png",

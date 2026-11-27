@@ -56,7 +56,20 @@ interface ExtensionManifest {
   key?: unknown
   background?: { service_worker?: unknown }
   action?: { default_popup?: unknown }
+  side_panel?: { default_path?: unknown }
   icons?: Record<string, unknown>
+}
+
+/**
+ * The page Chrome shows for the toolbar button, in either form.
+ *
+ * A popup and a side panel are mutually exclusive in Chrome, so a manifest
+ * names one of them. The installer accepts both.
+ */
+function extensionPagePath(manifest: ExtensionManifest): string | null {
+  if (typeof manifest.action?.default_popup === 'string') return manifest.action.default_popup
+  if (typeof manifest.side_panel?.default_path === 'string') return manifest.side_panel.default_path
+  return null
 }
 
 export interface ExtensionInstallerOptions {
@@ -642,7 +655,7 @@ export class BundledExtensionInstaller {
     }
     if (
       typeof parsed.background?.service_worker !== 'string' ||
-      typeof parsed.action?.default_popup !== 'string' ||
+      extensionPagePath(parsed) === null ||
       !parsed.icons ||
       typeof parsed.icons !== 'object'
     ) {
@@ -653,11 +666,15 @@ export class BundledExtensionInstaller {
 
   /** The files the manifest names, relative to the extension folder. */
   private manifestFiles(manifest: ExtensionManifest): string[] {
-    const files = new Set<string>(['manifest.json', 'popup.js'])
+    const files = new Set<string>(['manifest.json'])
     const worker = manifest.background?.service_worker
-    const popup = manifest.action?.default_popup
+    const page = extensionPagePath(manifest)
     if (typeof worker === 'string') files.add(worker)
-    if (typeof popup === 'string') files.add(popup)
+    if (page) {
+      files.add(page)
+      // The page's script sits next to it and is not named by the manifest.
+      if (page.endsWith('.html')) files.add(`${page.slice(0, -'.html'.length)}.js`)
+    }
     for (const icon of Object.values(manifest.icons ?? {})) {
       if (typeof icon === 'string') files.add(icon)
     }

@@ -53,6 +53,20 @@ export interface SelectorIngestDeps {
   findViewForSite: (site: SelectorSiteTarget) => Promise<SelectorLiveView | null>
   executeScript: (viewId: string, script: string) => Promise<unknown>
   broadcastConfigChanged: (hostname: string) => void
+  /**
+   * Records why a pick was not accepted.
+   *
+   * The refusal reason is what turns "the selector did not verify" into an
+   * actionable report; the raw verifier result carries the matched selector and
+   * the descriptor the app resolved.
+   */
+  logVerificationFailure?: (details: {
+    hostname: string
+    field: SelectorField
+    reason: string
+    fingerprint: AutomationElementFingerprint
+    result: unknown
+  }) => void
 }
 
 /** The result of one ingestion, mapped to HTTP by the bridge. */
@@ -83,7 +97,14 @@ interface VerificationResult {
   matchedSelector?: unknown
   strategy?: unknown
   descriptor?: VerificationDescriptor | null
+  attempts?: unknown
   diagnostics?: Record<string, { ambiguous?: unknown } | undefined>
+}
+
+interface VerificationAttempt {
+  matchedSelector?: unknown
+  strategy?: unknown
+  descriptor?: VerificationDescriptor | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -190,7 +211,11 @@ function descriptorMatchesFingerprint(
 
   const attributeMatches = (actual: unknown, expected: string | null | undefined): boolean => {
     if (typeof expected !== 'string' || expected.length === 0) return true
-    return typeof actual === 'string' && actual === expected
+    // The two browsers can render the same control differently: a value the
+    // app's DOM does not expose is missing evidence, not a contradiction. A
+    // *present* value that differs still rejects the element.
+    if (typeof actual !== 'string' || actual.length === 0) return true
+    return actual === expected
   }
 
   if (!attributeMatches(descriptor.role, fingerprint.role)) return false
@@ -201,31 +226,86 @@ function descriptorMatchesFingerprint(
   if (!attributeMatches(descriptor.placeholder, fingerprint.placeholder)) return false
   if (!attributeMatches(descriptor.name, fingerprint.name)) return false
   if (fingerprint.contentEditable === true && descriptor.contentEditable !== true) return false
-  if (
-    typeof fingerprint.text === 'string' &&
-    fingerprint.text.length > 0 &&
-    normalizeComparisonText(descriptor.text) !== normalizeComparisonText(fingerprint.text)
-  ) {
+  const expectedText = normalizeComparisonText(fingerprint.text)
+  const actualText = normalizeComparisonText(descriptor.text)
+  if (expectedText.length > 0 && actualText.length > 0 && actualText !== expectedText) {
     return false
   }
   return true
 }
 
-/** Runs the generated verifier and decides whether the pick is trustworthy. */
-function isVerified(raw: unknown, payload: SelectorTransferPayload): string | null {
-  if (!isRecord(raw)) return 'no_result'
-  const result = raw as VerificationResult
-  if (result.success !== true) return 'not_found'
-  if (result.field !== payload.field) return 'field_mismatch'
-  if (typeof result.matchedSelector !== 'string') return 'no_match'
-  if (result.matchedSelector.trim() !== payload.selector) return 'primary_mismatch'
-  if (result.strategy !== 'direct' && result.strategy !== 'candidate') return 'unstable_strategy'
-  if (!descriptorMatchesFingerprint(result.descriptor, payload.fingerprint)) {
-    return 'identity_mismatch'
+/**
+ * The candidates the verifier resolved, newest shape first.
+ *
+ * A verifier that ran before `attempts` existed reported one resolved element.
+ * Both shapes carry the same three fields per candidate, so the decision below
+ * does not need two code paths.
+ */
+function verificationAttempts(result: VerificationResult): VerificationAttempt[] {
+  if (Array.isArray(result.attempts)) {
+    return result.attempts.filter((attempt): attempt is VerificationAttempt => isRecord(attempt))
   }
-  const diagnostic = result.diagnostics?.[payload.field]
-  if (diagnostic?.ambiguous === true) return 'ambiguous'
-  return null
+  if (result.success === true && typeof result.matchedSelector === 'string') {
+    return [
+      {
+        matchedSelector: result.matchedSelector,
+        strategy: result.strategy,
+        descriptor: result.descriptor
+      }
+    ]
+  }
+  return []
+}
+
+/**
+ * Runs the generated verifier and decides whether the pick is trustworthy.
+ *
+ * Every candidate the verifier resolved is considered, in the order the pick
+ * submitted them. The runtime orders candidates by its own priority, so the
+ * first resolved candidate can be a twin of the intended element (ChatGPT's
+ * send and voice buttons share the composer classes). The pick is accepted only
+ * when some attempt agrees with the fingerprint; that attempt's selector is
+ * stored as the primary, because it is the one the app can actually resolve.
+ * A selector outside the submitted candidates means the runtime fell back to
+ * fingerprint/semantic recovery, which is not evidence for a stored primary.
+ */
+function verifyPick(
+  raw: unknown,
+  payload: SelectorTransferPayload
+): { ok: true; selector: string } | { ok: false; reason: string } {
+  if (!isRecord(raw)) return { ok: false, reason: 'no_result' }
+  const result = raw as VerificationResult
+  // An empty result has no field either; "found nothing" is the honest reason.
+  const attempts = verificationAttempts(result)
+  if (attempts.length === 0) return { ok: false, reason: 'not_found' }
+  if (result.field !== payload.field) return { ok: false, reason: 'field_mismatch' }
+  if (result.diagnostics?.[payload.field]?.ambiguous === true) {
+    return { ok: false, reason: 'ambiguous' }
+  }
+
+  const candidates = payload.candidates.map((candidate) => candidate.trim())
+  let reason = 'identity_mismatch'
+  for (const attempt of attempts) {
+    if (typeof attempt.matchedSelector !== 'string') {
+      reason = 'no_match'
+      continue
+    }
+    const matched = attempt.matchedSelector.trim()
+    if (!candidates.includes(matched)) {
+      reason = 'unknown_match'
+      continue
+    }
+    if (attempt.strategy !== 'direct' && attempt.strategy !== 'candidate') {
+      reason = 'unstable_strategy'
+      continue
+    }
+    if (!descriptorMatchesFingerprint(attempt.descriptor, payload.fingerprint)) {
+      reason = 'identity_mismatch'
+      continue
+    }
+    return { ok: true, selector: matched }
+  }
+  return { ok: false, reason }
 }
 
 export function createSelectorIngest(deps: SelectorIngestDeps) {
@@ -264,8 +344,18 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     } catch {
       return { status: 'verification_failed', reason: 'verification_threw' }
     }
-    const failure = isVerified(rawResult, payload)
-    if (failure) return { status: 'verification_failed', reason: failure }
+    const verified = verifyPick(rawResult, payload)
+    if (!verified.ok) {
+      deps.logVerificationFailure?.({
+        hostname: payload.hostname,
+        field: payload.field,
+        reason: verified.reason,
+        fingerprint: payload.fingerprint,
+        result: rawResult
+      })
+      return { status: 'verification_failed', reason: verified.reason }
+    }
+    const verifiedSelector = verified.selector
 
     // The config is keyed by the address the automation will run on, which is
     // the Electron view's host — a Chrome redirect between the two hosts must
@@ -274,12 +364,12 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     const fieldPatch: AiSelectorConfig =
       payload.field === 'input'
         ? {
-            input: payload.selector,
+            input: verifiedSelector,
             inputCandidates: payload.candidates,
             inputFingerprint: payload.fingerprint
           }
         : {
-            button: payload.selector,
+            button: verifiedSelector,
             buttonCandidates: payload.candidates,
             buttonFingerprint: payload.fingerprint
           }

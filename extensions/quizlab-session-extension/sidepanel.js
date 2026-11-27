@@ -1,13 +1,13 @@
 /**
- * The permission popup of the Quizlab Reader site session extension.
+ * The side panel of the Quizlab Reader site session extension.
  *
  * The extension reads the cookies of the sites the app names. The sites the
  * app ships with are covered by the host permissions the extension was
  * installed with; a site the user added afterwards is not. Chrome only grants
  * a permission that is asked for during a user gesture, so the user opens this
- * popup and presses the button of the site that is missing one.
+ * panel and presses the button of the site that is missing one.
  *
- * The popup selects a destination and asks the worker to import. It never reads a cookie
+ * The panel selects a destination and asks the worker to import. It never reads a cookie
  * and never asks the network for anything. It reads the site list the service
  * worker persisted and asks Chrome for the permissions that are missing.
  */
@@ -21,7 +21,7 @@ const STATUS_ID = 'status'
 /** The id of the element the sites are rendered into. */
 const LIST_ID = 'sites'
 
-/** What the popup says to the user. */
+/** What the panel says to the user. */
 const TEXTS = {
   appMissing: 'Önce Quizlab Reader uygulamasını açın ve site oturumunu etkinleştirin.',
   noSite: 'İzin gerektiren site yok.',
@@ -46,7 +46,7 @@ function hostOf(domain) {
 }
 
 /**
- * The pattern the popup asks for.
+ * The pattern the panel asks for.
  *
  * The wildcard covers the host itself and every subdomain of it, so it covers
  * both patterns the service worker probes. Chrome lets the user narrow it out
@@ -59,7 +59,7 @@ function wildcardPattern(host) {
 /**
  * The origin patterns of a host.
  *
- * The service worker asks for the same pattern, so the popup and the
+ * The service worker asks for the same pattern, so the panel and the
  * worker agree on what "the extension may read this site" means.
  */
 function originPatterns(host) {
@@ -94,7 +94,7 @@ async function hasPermission(host) {
       if (await chrome.permissions.contains({ origins: [pattern] })) return true
     } catch (error) {
       console.warn(
-        '[Quizlab Popup] The permission of',
+        '[Quizlab Panel] The permission of',
         pattern,
         'could not be read:',
         errorMessage(error)
@@ -118,7 +118,7 @@ async function missingHosts(hosts) {
  * The storage area the site list is read from.
  *
  * The service worker writes the list into the session storage and falls back
- * to the local storage when the browser has no session storage. The popup
+ * to the local storage when the browser has no session storage. The panel
  * reads it from the same place, or it would not find the list at all.
  */
 function storageArea() {
@@ -144,7 +144,7 @@ async function readPairingRejected() {
 /**
  * The site list the service worker persisted, or null when there is none.
  *
- * The popup cannot ask the app itself: the app only answers a signed request
+ * The panel cannot ask the app itself: the app only answers a signed request
  * and the secret of the signature lives in the memory of the service worker.
  */
 async function readTargets() {
@@ -156,7 +156,7 @@ async function readTargets() {
     if (!Array.isArray(targets)) return null
     return targets
   } catch (error) {
-    console.warn('[Quizlab Popup] The site list could not be read:', errorMessage(error))
+    console.warn('[Quizlab Panel] The site list could not be read:', errorMessage(error))
     return null
   }
 }
@@ -250,7 +250,7 @@ async function onGranted(granted) {
 
 /** The request itself failed. */
 function onFailed(error) {
-  console.warn('[Quizlab Popup] The permission could not be requested:', errorMessage(error))
+  console.warn('[Quizlab Panel] The permission could not be requested:', errorMessage(error))
   setStatus(TEXTS.failed)
 }
 
@@ -316,7 +316,7 @@ function normalizeProfileName(value) {
   return value.trim().replaceAll(/\s+/g, ' ').slice(0, MAX_PROFILE_NAME_LENGTH)
 }
 
-/** Shows the name in the popup header and in the Chrome tab title. */
+/** Shows the name in the panel header and in the Chrome tab title. */
 function applyProfileLabel(name) {
   const label = document.getElementById('profile-label')
   if (label) label.textContent = `Bu Chrome profili: ${name}`
@@ -402,7 +402,7 @@ async function initProfileControls() {
       .catch((error) => {
         button.disabled = false
         applyProfileLabel(storedName)
-        console.warn('[Quizlab Popup] The profile name could not be saved:', errorMessage(error))
+        console.warn('[Quizlab Panel] The profile name could not be saved:', errorMessage(error))
         showFeedback('Profil adı kaydedilemedi.', false)
       })
   }
@@ -419,7 +419,7 @@ async function initProfileControls() {
 /**
  * Wires the pairing form.
  *
- * The popup writes the code to the local store and asks the service worker to
+ * The panel writes the code to the local store and asks the service worker to
  * pair immediately; the worker signs the site-list request with it, so a wrong
  * code is reported here instead of silently leaving the session sync broken.
  */
@@ -524,7 +524,7 @@ async function initPairingControls() {
       })
       .catch((error) => {
         button.disabled = false
-        console.warn('[Quizlab Popup] The pairing failed:', errorMessage(error))
+        console.warn('[Quizlab Panel] The pairing failed:', errorMessage(error))
         showFeedback('Eşleştirilemedi.', false)
       })
   })
@@ -565,7 +565,7 @@ async function initImportControls() {
 
   auto?.addEventListener('change', () => {
     // A second click while the first request is on its way would send another
-    // write for a value the popup has not confirmed yet.
+    // write for a value the panel has not confirmed yet.
     if (!auto || autoSyncPending) return
     const next = auto.checked
     autoSyncPending = true
@@ -593,7 +593,7 @@ async function initImportControls() {
     } catch (error) {
       settle()
       auto.checked = savedAutoSync
-      console.warn('[Quizlab Popup] The automatic sync setting failed:', errorMessage(error))
+      console.warn('[Quizlab Panel] The automatic sync setting failed:', errorMessage(error))
       showFeedback('Eşitleme ayarı kaydedilemedi.', false)
     }
   })
@@ -705,8 +705,8 @@ function sendWorkerMessage(message) {
  * Wires the magic selector card.
  *
  * The card only shows state; the pick itself happens on the page. Starting a
- * pick closes the popup, because Chrome closes it anyway as soon as the user
- * clicks the page, and the in-page panel carries the confirmation.
+ * pick keeps the panel open, because the in-page panel carries the selection
+ * and the side panel keeps the result visible.
  */
 async function initSelectorControls() {
   const button = document.getElementById('selector-btn')
@@ -763,7 +763,11 @@ async function initSelectorControls() {
     if (lastOutcome.state === 'saved') showFeedback(SELECTOR_TEXTS.saved, true)
     else if (lastOutcome.state === 'site_not_open') showFeedback(SELECTOR_TEXTS.siteNotOpen, false)
     else if (lastOutcome.state === 'verification_failed') {
-      showFeedback(SELECTOR_TEXTS.verificationFailed, false)
+      const reason =
+        typeof lastOutcome.reason === 'string' && lastOutcome.reason
+          ? ` (${lastOutcome.reason})`
+          : ''
+      showFeedback(SELECTOR_TEXTS.verificationFailed + reason, false)
     } else if (lastOutcome.state === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
     else showFeedback(SELECTOR_TEXTS.retry, false)
   }
@@ -826,14 +830,9 @@ async function initSelectorControls() {
     const response = await sendWorkerMessage({ type: 'selector_start', tabId, field })
     button.disabled = false
     if (response && response.success === true) {
+      // The side panel stays open: the page shows the picker and the panel
+      // shows the result the worker broadcasts when the pick is done.
       showFeedback(SELECTOR_TEXTS.started, true)
-      setTimeout(() => {
-        try {
-          window.close()
-        } catch {
-          // A window that cannot close itself still leaves the picker running.
-        }
-      }, 600)
       return
     }
     const error = response && typeof response.error === 'string' ? response.error : ''
@@ -842,12 +841,36 @@ async function initSelectorControls() {
     else if (error === 'unsupported_field') showFeedback(SELECTOR_TEXTS.unknownField, false)
     else if (error === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
     else if (error === 'unsupported') showFeedback(SELECTOR_TEXTS.unsupported, false)
-    else showFeedback(SELECTOR_TEXTS.cannotInject, false)
+    else {
+      const detail = response && typeof response.detail === 'string' ? ` (${response.detail})` : ''
+      showFeedback(SELECTOR_TEXTS.cannotInject + detail, false)
+    }
   })
 
   if (typeof document.addEventListener === 'function') {
     document.addEventListener('quizlab:paired', () => {
       void refresh()
+    })
+  }
+
+  // A popup was rebuilt every time it opened, so it never saw a tab change.
+  // The panel stays open while the user moves between tabs, so the site of the
+  // active tab and the result of a pick have to follow the browser.
+  if (chrome.tabs && chrome.tabs.onActivated) {
+    chrome.tabs.onActivated.addListener(() => {
+      void refresh()
+    })
+  }
+  if (chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener((changedTabId, changeInfo) => {
+      if (changeInfo.status !== 'complete' && !changeInfo.url) return
+      if (tabId !== null && changedTabId !== tabId) return
+      void refresh()
+    })
+  }
+  if (chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message && message.type === 'selector_outcome') void refresh()
     })
   }
 
@@ -862,7 +885,7 @@ async function render() {
     await initSelectorControls()
     await renderSites()
   } catch (error) {
-    console.warn('[Quizlab Popup] The popup could not be rendered:', errorMessage(error))
+    console.warn('[Quizlab Panel] The panel could not be rendered:', errorMessage(error))
     setStatus(TEXTS.failed)
   }
 }

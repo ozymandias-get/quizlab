@@ -17,8 +17,8 @@ import { describe, expect, it } from 'vitest'
 
 const EXT_DIR = path.join(process.cwd(), 'extensions/quizlab-session-extension')
 const MANIFEST_PATH = path.join(EXT_DIR, 'manifest.json')
-const POPUP_HTML_PATH = path.join(EXT_DIR, 'popup.html')
-const POPUP_JS_PATH = path.join(EXT_DIR, 'popup.js')
+const PANEL_HTML_PATH = path.join(EXT_DIR, 'sidepanel.html')
+const PANEL_JS_PATH = path.join(EXT_DIR, 'sidepanel.js')
 
 /**
  * The host permissions of the extension.
@@ -81,8 +81,10 @@ interface ExtensionManifest {
   optional_host_permissions?: string[]
   icons?: Record<string, string>
   action?: {
-    default_popup?: string
     default_title?: string
+  }
+  side_panel?: {
+    default_path?: string
   }
 }
 
@@ -104,8 +106,8 @@ function readManifest(): ExtensionManifest {
 }
 
 const manifest = readManifest()
-const popupHtml = readExtensionFile(POPUP_HTML_PATH)
-const popupJs = readExtensionFile(POPUP_JS_PATH)
+const panelHtml = readExtensionFile(PANEL_HTML_PATH)
+const panelJs = readExtensionFile(PANEL_JS_PATH)
 
 interface SiteTarget {
   label?: string
@@ -130,7 +132,7 @@ interface LogEntry {
   message: string
 }
 
-/** A DOM element the popup can render into. */
+/** A DOM element the panel can render into. */
 function createElement(tagName: string): FakeElement {
   const listeners = new Map<string, Array<() => void>>()
   const element: FakeElement = {
@@ -230,12 +232,12 @@ const DEFAULT_TARGETS: SiteTarget[] = [
 const DEFAULT_GRANTED = ['https://*.chatgpt.com/*', 'https://*.openai.com/*']
 
 /**
- * Runs the popup against a fake Chrome and a fake DOM.
+ * Runs the panel against a fake Chrome and a fake DOM.
  *
  * The extension is plain JavaScript without a build step, so it cannot be
  * imported by the test runner. It is executed in a sandbox instead: the fake
  * Chrome records the permission questions and the fake DOM records what the
- * popup rendered, which lets the test pin the behaviour the user depends on.
+ * panel rendered, which lets the test pin the behaviour the user depends on.
  */
 function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
   const granted = [...(options.granted ?? DEFAULT_GRANTED)]
@@ -308,7 +310,7 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
     },
     get cookies() {
       cookieAccesses.push('chrome.cookies')
-      throw new Error('the popup must not touch the cookies')
+      throw new Error('the panel must not touch the cookies')
     }
   }
 
@@ -322,7 +324,7 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
     document: fakeDocument,
     fetch: async (url: string) => {
       networkCalls.push(String(url))
-      throw new Error('the popup must not use the network')
+      throw new Error('the panel must not use the network')
     },
     console: {
       log: (...args: unknown[]) => logs.push({ level: 'log', message: args.map(String).join(' ') }),
@@ -335,7 +337,7 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
     clearTimeout: (id: number) => clearTimeout(id)
   })
 
-  vm.runInContext(popupJs, context, { filename: POPUP_JS_PATH })
+  vm.runInContext(panelJs, context, { filename: PANEL_JS_PATH })
 
   const settle = async (): Promise<void> => {
     for (let turn = 0; turn < 3; turn++) {
@@ -364,7 +366,7 @@ function createHarness(options: PopupHarnessOptions = {}): PopupHarness {
   }
 }
 
-/** The buttons the popup rendered. */
+/** The buttons the panel rendered. */
 function buttonsOf(element: FakeElement): FakeElement[] {
   return findAll(element, (candidate) => candidate.tagName === 'BUTTON')
 }
@@ -375,43 +377,47 @@ function titleOf(element: FakeElement): string {
   return title?.textContent ?? ''
 }
 
-describe('extension permission popup', () => {
-  it('is registered as the extension popup', () => {
-    expect(manifest.action?.default_popup).toBe('popup.html')
+describe('extension side panel', () => {
+  it('is registered as the extension side panel', () => {
+    // The toolbar button opens the side panel instead of a popup, so there is
+    // one surface and it stays open while the user works in the page.
+    expect(manifest.side_panel?.default_path).toBe('sidepanel.html')
+    expect(manifest.action).not.toHaveProperty('default_popup')
+    expect(manifest.permissions).toContain('sidePanel')
   })
 
   it('requests the permission from a user gesture', () => {
-    expect(popupJs).toContain('chrome.permissions.request')
+    expect(panelJs).toContain('chrome.permissions.request')
   })
 
   it('never writes cookies itself', () => {
-    expect(popupJs).not.toContain('chrome.cookies.set')
-    expect(popupJs).not.toContain('chrome.cookies')
+    expect(panelJs).not.toContain('chrome.cookies.set')
+    expect(panelJs).not.toContain('chrome.cookies')
   })
 
   it('reads the site list the service worker persisted', () => {
-    expect(popupJs).toContain('knownTargets')
+    expect(panelJs).toContain('knownTargets')
   })
 
   it('renders into the elements the page provides', () => {
-    expect(popupHtml).toContain('id="status"')
-    expect(popupHtml).toContain('id="sites"')
-    expect(popupHtml).toContain('popup.js')
+    expect(panelHtml).toContain('id="status"')
+    expect(panelHtml).toContain('id="sites"')
+    expect(panelHtml).toContain('sidepanel.js')
   })
 
   it('is a plain page that loads nothing from the network', () => {
-    expect(popupHtml).not.toMatch(/src="https?:/)
-    expect(popupHtml).not.toMatch(/href="https?:/)
+    expect(panelHtml).not.toMatch(/src="https?:/)
+    expect(panelHtml).not.toMatch(/href="https?:/)
   })
 
   it('offers a pairing form for the separately installed extension', () => {
-    expect(popupHtml).toContain('id="pairing-code-input"')
-    expect(popupHtml).toContain('id="pair-btn"')
-    expect(popupHtml).toContain('id="pair-state"')
-    expect(popupJs).toContain("type: 'pair'")
-    expect(popupJs).toContain('chrome.storage.local')
-    expect(popupHtml).toContain('profile-name-input')
-    expect(popupJs).toContain("type: 'set_profile_name'")
+    expect(panelHtml).toContain('id="pairing-code-input"')
+    expect(panelHtml).toContain('id="pair-btn"')
+    expect(panelHtml).toContain('id="pair-state"')
+    expect(panelJs).toContain("type: 'pair'")
+    expect(panelJs).toContain('chrome.storage.local')
+    expect(panelHtml).toContain('profile-name-input')
+    expect(panelJs).toContain("type: 'set_profile_name'")
   })
 
   it('keeps the pinned Origin allowlist in sync with the manifest key', () => {
@@ -455,17 +461,32 @@ describe('extension permission popup', () => {
     expect(manifest.permissions).toEqual(expect.arrayContaining(['scripting', 'activeTab']))
     expect(manifest).not.toHaveProperty('content_scripts')
 
-    expect(popupHtml).toContain('id="selector-btn"')
-    expect(popupHtml).toContain('id="selector-field"')
-    expect(popupHtml).toContain('id="selector-site"')
-    expect(popupHtml).toContain('id="selector-input-status"')
-    expect(popupHtml).toContain('id="selector-button-status"')
-    expect(popupHtml).toContain('id="selector-preview"')
-    expect(popupJs).toContain("type: 'selector_state'")
-    expect(popupJs).toContain("type: 'selector_start'")
+    expect(panelHtml).toContain('id="selector-btn"')
+    expect(panelHtml).toContain('id="selector-field"')
+    expect(panelHtml).toContain('id="selector-site"')
+    expect(panelHtml).toContain('id="selector-input-status"')
+    expect(panelHtml).toContain('id="selector-button-status"')
+    expect(panelHtml).toContain('id="selector-preview"')
+    expect(panelJs).toContain("type: 'selector_state'")
+    expect(panelJs).toContain("type: 'selector_start'")
 
     expect(existsSync(path.join(EXT_DIR, 'content/picker.js'))).toBe(true)
     expect(existsSync(path.join(EXT_DIR, 'content/selector-engine.js'))).toBe(true)
+  })
+
+  it('parses every script it injects or runs', () => {
+    // A syntax error in an injected file does not reject executeScript in every
+    // Chrome version; the page simply never gets a listener. Parsing the files
+    // here is what keeps that from reaching a user.
+    for (const file of [
+      'background.js',
+      'sidepanel.js',
+      'content/picker.js',
+      'content/selector-engine.js'
+    ]) {
+      const source = readFileSync(path.join(EXT_DIR, file), 'utf-8')
+      expect(() => new vm.Script(source, { filename: file })).not.toThrow()
+    }
   })
 
   it('ships the extension inside the app bundle', () => {
@@ -497,7 +518,7 @@ describe('extension permission popup', () => {
   })
 })
 
-describe('extension permission popup behaviour', () => {
+describe('extension side panel behaviour', () => {
   it('lists the sites the app asks for', async () => {
     const harness = createHarness()
     await harness.settle()
@@ -647,7 +668,7 @@ describe('extension permission popup behaviour', () => {
     await harness.settle()
 
     // The service worker writes the list into the session storage, so the
-    // popup reads it from there and not from the local storage.
+    // panel reads it from there and not from the local storage.
     expect(harness.storageQueries).toContain('knownTargets')
     expect(harness.storageQueries).not.toContain('local:knownTargets')
   })
@@ -657,7 +678,7 @@ describe('extension permission popup behaviour', () => {
     await harness.settle()
 
     // A check that fails is a check that did not pass: the service worker
-    // refuses the site as well, so the popup has to ask for the permission.
+    // refuses the site as well, so the panel has to ask for the permission.
     expect(buttonsOf(harness.list)).toHaveLength(2)
     expect(harness.logs.some((entry) => entry.level === 'warn')).toBe(true)
   })

@@ -40,11 +40,11 @@ The extension ships inside Quizlab Reader; there is no separate download.
 2. Open `chrome://extensions`, enable Developer mode and choose **Load
    unpacked**. Paste the copied path into the folder picker.
 3. In Quizlab press **Eşleştir** and copy the pairing code.
-4. Open the extension popup, paste the code and press **Eşleştir**.
+4. Open the extension side panel, paste the code and press **Eşleştir**.
 5. Sign in to the desired service in Chrome.
 6. In Quizlab, enable that service's switch. This is separate from enabling
    its launcher in **Models**.
-7. In the extension popup, press **İzin ver** for a new service and grant the
+7. In the extension side panel, press **İzin ver** for a new service and grant the
    requested site domains. Then import its session.
 
 An app update refreshes the copied folder under the same path. Reload the
@@ -52,7 +52,7 @@ extension from `chrome://extensions` after an update.
 
 ## Magic Selector
 
-The popup can also pick the elements Quizlab's automation targets. The feature
+The side panel can also pick the elements Quizlab's automation targets. The feature
 is part of this extension; there is no second extension and no extra build.
 
 1. Open the AI site in Chrome and press the extension icon.
@@ -103,7 +103,7 @@ talking to its own app.
 
 Each Chrome profile has its own `chrome.storage.local`, so the same extension
 folder can be loaded in every profile and each copy pairs independently with the
-same Quizlab install. Give each copy a name in the extension popup (**Bu Chrome
+same Quizlab install. Give each copy a name in the extension side panel (**Bu Chrome
 profili**); the name is shown on the toolbar button and in Quizlab's Chrome
 profile picker. Quizlab imports sessions from the selected profile only and
 refuses signed packets from the other profiles, so two signed-in Chrome profiles
