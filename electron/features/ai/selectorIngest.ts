@@ -29,7 +29,7 @@ import {
 import { canonicalizeHostname } from '../../../shared/selectorConfig.js'
 import { isPersistableSelector } from '../../../shared/selectorRepair/selectorValidation.js'
 import { generateVerifyLocatorScript } from '../automation/automationScripts/generators/verifyLocator.js'
-import { locatorHealthPatch } from './aiConfigDomain.js'
+import { type AiConfigMap, locatorHealthPatch, resolveConfigForHostname } from './aiConfigDomain.js'
 import { sanitizeFingerprint } from './aiConfigFingerprint.js'
 import { normalizeHostname } from './aiConfigSanitize.js'
 import { findSelectorSiteMatch, type SelectorSiteTarget } from './selectorTargets.js'
@@ -588,7 +588,10 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     // the Electron view's host — a Chrome redirect between the two hosts must
     // not aim the stored locator at a key nothing looks up.
     const storedHost = viewHost
-    const existing = deps.readConfigs ? (await deps.readConfigs())[storedHost] : undefined
+    const configMap = deps.readConfigs ? ((await deps.readConfigs()) as AiConfigMap) : undefined
+    const existing = configMap
+      ? (resolveConfigForHostname(configMap, storedHost) ?? undefined)
+      : undefined
 
     if (!(await isSameDocument())) {
       return { status: 'verification_failed', reason: 'view_navigated' }

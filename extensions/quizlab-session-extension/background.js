@@ -1551,6 +1551,16 @@ function normalizeSelectorSites(value) {
         ? entry.displayName.trim().slice(0, 120)
         : siteId
     const status = normalizeSelectorStatusPair(entry.status)
+    let hostStatuses = null
+    if (entry.hostStatuses && typeof entry.hostStatuses === 'object') {
+      const normalizedMap = {}
+      for (const [hostKey, pair] of Object.entries(entry.hostStatuses)) {
+        const normalizedHost = typeof hostKey === 'string' ? hostKey.trim().toLowerCase() : ''
+        const normalizedPair = normalizeSelectorStatusPair(pair)
+        if (normalizedHost && normalizedPair) normalizedMap[normalizedHost] = normalizedPair
+      }
+      if (Object.keys(normalizedMap).length > 0) hostStatuses = normalizedMap
+    }
     sites.push({
       siteId,
       displayName,
@@ -1558,7 +1568,8 @@ function normalizeSelectorSites(value) {
       hosts,
       ...(pathPrefix ? { pathPrefix } : {}),
       fields: fields.length > 0 ? fields : ['input', 'button'],
-      ...(status ? { status } : {})
+      ...(status ? { status } : {}),
+      ...(hostStatuses ? { hostStatuses } : {})
     })
   }
   return sites
@@ -2074,7 +2085,14 @@ async function postSelectorPick(session, payload) {
     const error = typeof result?.error === 'string' ? result.error : ''
 
     if (response.ok) {
-      if (result?.status === 'saved' || result?.saved === true) return { state: SELECTOR_SAVED }
+      if (result?.status === 'saved' || result?.saved === true) {
+        return {
+          state: SELECTOR_SAVED,
+          ...(typeof result?.hostname === 'string' && result.hostname
+            ? { hostname: result.hostname }
+            : {})
+        }
+      }
       return { state: SELECTOR_REJECTED, message: 'Aktarım kaydedilmedi.' }
     }
     if (response.status === 401) return { state: SELECTOR_UNPAIRED }
@@ -2274,7 +2292,7 @@ async function handleSelectorPickResult(message, sender) {
         const record = {
           state: outcome.state,
           tabId: session.tabId,
-          hostname: session.hostname,
+          hostname: outcome.hostname || session.hostname,
           field: session.field,
           selector: payload.selector,
           at: Date.now()
@@ -2352,7 +2370,10 @@ async function buildSelectorState(tabId) {
   const host = hostOfUrl(url)
   const match = host ? findSelectorSiteMatch(host, pathOfUrl(url)) : null
   const site = match && !match.ambiguous ? match.site : null
-  const status = site ? site.status || { input: 'missing', button: 'missing' } : null
+  const status = site
+    ? (host && site.hostStatuses && site.hostStatuses[host]) ||
+      site.status || { input: 'missing', button: 'missing' }
+    : null
   const capability =
     selectorSupported === null ? null : selectorSupported === true ? 'selectors' : 'none'
   const permission = host ? await hasSelectorPermission(host) : false

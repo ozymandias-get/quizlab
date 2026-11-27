@@ -84,7 +84,8 @@ vi.mock('../../../../electron/features/ai/selectorTargets.js', () => ({
     sites.find((site) =>
       site.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))
     ) ?? null,
-  statusOfSite: () => ({ input: 'ready', button: 'missing' })
+  statusOfSite: () => ({ input: 'ready', button: 'missing' }),
+  hostStatusesOfSite: () => undefined
 }))
 
 import {
@@ -615,5 +616,23 @@ describe('selectLiveViewForSite', () => {
       realMatch
     )
     expect(selected).toBeNull()
+  })
+
+  it('prefers a healthy sibling view over an errored exact-host view', () => {
+    const selected = selectLiveViewForSite(
+      SITE,
+      [SITE],
+      {
+        listManagedAiViewIds: () => ['view-exact-errored', 'view-sibling-healthy'],
+        getAiViewUrl: (id) =>
+          id === 'view-exact-errored' ? 'https://chatgpt.com/' : 'https://openai.com/',
+        getViewRuntimeState: (id) =>
+          id === 'view-exact-errored'
+            ? { visible: true, isLoading: false, hasError: true, generation: 2 }
+            : { visible: true, isLoading: false, hasError: false, generation: 1 }
+      },
+      realMatch
+    )
+    expect(selected?.viewId).toBe('view-sibling-healthy')
   })
 })

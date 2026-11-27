@@ -24,6 +24,7 @@ import {
   buildSelectorSiteTargets,
   findSelectorSiteMatch,
   hostBelongsToSelectorSite,
+  hostStatusesOfSite,
   matchSelectorSite,
   statusOfSite,
   type SelectorSiteTarget
@@ -207,5 +208,24 @@ describe('selector site catalogue', () => {
         'sub.example.com': { input: '#in', button: '#btn', health: 'ready' }
       })
     ).toBeUndefined()
+  })
+
+  it('computes per-host statuses when active or live view host differs from registry hostname', () => {
+    const site = target({
+      siteId: 'example',
+      hostname: 'example.com',
+      hosts: ['example.com'],
+      canonicalHostname: 'example.com'
+    })
+    const hostStatuses = hostStatusesOfSite(
+      site,
+      {
+        'chat.example.com': { input: '#in', button: '#btn', health: 'ready' }
+      },
+      ['chat.example.com', 'app.example.com']
+    )
+    expect(hostStatuses).toEqual({
+      'chat.example.com': { input: 'ready', button: 'ready' }
+    })
   })
 })

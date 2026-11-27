@@ -56,16 +56,14 @@ function filterStaleRepairPatch(
     if (
       incoming.lastRepair.inputSelector &&
       incoming.lastRepair.baseInputSelector !== undefined &&
-      existing?.input &&
-      incoming.lastRepair.baseInputSelector !== existing.input
+      incoming.lastRepair.baseInputSelector !== (existing?.input ?? null)
     ) {
       staleFields.add('input')
     }
     if (
       incoming.lastRepair.buttonSelector &&
       incoming.lastRepair.baseButtonSelector !== undefined &&
-      existing?.button &&
-      incoming.lastRepair.baseButtonSelector !== existing.button
+      incoming.lastRepair.baseButtonSelector !== (existing?.button ?? null)
     ) {
       staleFields.add('button')
     }
@@ -73,24 +71,38 @@ function filterStaleRepairPatch(
 
   if (incoming.repair && typeof incoming.repair === 'object') {
     const nextRepair: NonNullable<AiSelectorConfig['repair']> = {}
-    let droppedStale = false
+    let repairModified = false
     for (const field of ['input', 'button'] as const) {
       const candidate = incoming.repair[field]
-      if (!candidate) continue
+      if (!candidate) {
+        // Preserve a newer/valid staged repair on the untouched field when an
+        // overlapping repair snapshot for the other field arrives with null.
+        const existingCandidate = existing?.repair?.[field]
+        const promotedThisField = Boolean(
+          incoming.lastRepair?.[`${field}Selector` as 'inputSelector' | 'buttonSelector']
+        )
+        if (existingCandidate && !promotedThisField && !staleFields.has(field)) {
+          nextRepair[field] = existingCandidate
+          repairModified = true
+        }
+        continue
+      }
       const baseMoved =
         candidate.baseSelector !== undefined &&
-        Boolean(existing?.[field]) &&
-        candidate.baseSelector !== existing?.[field]
-      const olderThanExisting =
-        existingTs > 0 && candidate.lastSeenAt < existingTs && !existing?.repair?.[field]
-      if (baseMoved || olderThanExisting || staleFields.has(field)) {
-        droppedStale = true
+        candidate.baseSelector !== (existing?.[field] ?? null)
+      const startedBeforeLatestWrite =
+        existingTs > 0 &&
+        (candidate.lastSeenAt < existingTs ||
+          (candidate.baseSelector === undefined && candidate.firstSeenAt < existingTs)) &&
+        !existing?.repair?.[field]
+      if (baseMoved || startedBeforeLatestWrite || staleFields.has(field)) {
+        repairModified = true
         staleFields.add(field)
         continue
       }
       nextRepair[field] = candidate
     }
-    if (droppedStale) {
+    if (repairModified) {
       cleaned.repair = nextRepair.input || nextRepair.button ? nextRepair : null
     }
   }
@@ -148,6 +160,11 @@ function filterStaleRepairPatch(
  * The same sanitize → merge → finalize path the renderer's save uses, so a
  * field-only patch (one picked locator) keeps the other field exactly as it
  * was and `health` reflects the two locators that remain.
+ *
+ * When no exact config exists for `normalizedHostname`, falls back to the
+ * effective canonical config (`resolveConfigForHostname`) as the merge base so
+ * picking one field on a subdomain does not shadow the inherited other field,
+ * `waitFor`, or `submitMode`.
  */
 export async function saveAiConfigPatch(
   hostname: string,
@@ -162,7 +179,8 @@ export async function saveAiConfigPatch(
   let rejectedStale = false
   const written = await manager.update((currentMap) => {
     const migrated = currentMap as AiConfigMap
-    const existing = migrated[normalizedHostname]
+    const exact = migrated[normalizedHostname]
+    const existing = exact ?? resolveConfigForHostname(migrated, normalizedHostname) ?? undefined
 
     let effectivePatch = sanitizedConfig
     if (options?.pickedField) {

@@ -776,7 +776,7 @@ async function initSelectorControls() {
     // A result belongs to the pick it was produced for. Showing another tab's
     // outcome as this site's result is exactly the confusion this guard
     // prevents; the panel keeps the outcome of the current host only.
-    if (lastOutcome.hostname && hostname && lastOutcome.hostname !== hostname) return
+    if (!hostname || !lastOutcome.hostname || lastOutcome.hostname !== hostname) return
     if (preview && typeof lastOutcome.selector === 'string') {
       const fieldText = lastOutcome.field === 'button' ? 'gönder butonu' : 'mesaj alanı'
       preview.textContent = `${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`

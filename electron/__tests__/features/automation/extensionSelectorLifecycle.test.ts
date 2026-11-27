@@ -137,7 +137,11 @@ function createWorkerSandbox(
               displayName: 'ChatGPT',
               hostname: 'chatgpt.com',
               hosts: ['chatgpt.com'],
-              fields: ['input', 'button']
+              fields: ['input', 'button'],
+              status: { input: 'missing', button: 'missing' },
+              hostStatuses: {
+                'chat.chatgpt.com': { input: 'ready', button: 'repaired' }
+              }
             }
           ]
         })
@@ -433,5 +437,18 @@ describe('extension selector transfer lifecycle', () => {
     )
     expect(lateCancelled.ok).toBe(false)
     expect(restarted.posts).toHaveLength(1)
+  })
+
+  it('uses per-host status when active tab host differs from registry site hostname', async () => {
+    const context = createWorkerSandbox({
+      tabUrl: 'https://chat.chatgpt.com/c/1'
+    })
+    // Override fetch via storage-backed site list or test selector_state directly:
+    const state = await context.send({ type: 'selector_state', tabId: 7 })
+    expect(state.host).toBe('chat.chatgpt.com')
+    expect((state.site as Record<string, unknown>)?.status).toEqual({
+      input: 'ready',
+      button: 'repaired'
+    })
   })
 })

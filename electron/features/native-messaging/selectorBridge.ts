@@ -288,8 +288,8 @@ export function selectLiveViewForSite(
 
   if (candidates.length === 0) return null
   candidates.sort((a, b) => {
-    if (a.exactHost !== b.exactHost) return a.exactHost ? -1 : 1
     if (a.healthy !== b.healthy) return a.healthy ? -1 : 1
+    if (a.exactHost !== b.exactHost) return a.exactHost ? -1 : 1
     if (a.settled !== b.settled) return a.settled ? -1 : 1
     if (a.visible !== b.visible) return a.visible ? -1 : 1
     if (a.generation !== b.generation) return b.generation - a.generation
@@ -378,18 +378,31 @@ async function handleSelectorSites(
     manager.markExtensionSeen?.(profile.id, profile.name)
     await manager.markExtensionPaired?.(profile.id)
 
-    const [targets, aiConfig] = await Promise.all([
+    const [targets, aiConfig, aiView] = await Promise.all([
       import('../ai/selectorTargets.js'),
-      import('../ai/aiConfigHandlers.js')
+      import('../ai/aiConfigHandlers.js'),
+      import('../ai-view/aiWebContentsViewManager.js')
     ])
     const [sites, configs] = await Promise.all([
       targets.buildSelectorSiteTargets(),
       aiConfig.readAiConfigMap().catch(() => ({}))
     ])
+    const liveViewHosts: string[] = []
+    for (const viewId of aiView.listManagedAiViewIds()) {
+      const url = aiView.getAiViewUrl(viewId)
+      if (!url) continue
+      try {
+        const host = new URL(url).hostname.toLowerCase()
+        if (host && !liveViewHosts.includes(host)) liveViewHosts.push(host)
+      } catch {
+        continue
+      }
+    }
     const payload: SelectorSitesResponse = {
       version: SELECTOR_TRANSFER_VERSION,
       sites: sites.map((site) => {
         const status = targets.statusOfSite(site, configs)
+        const hostStatuses = targets.hostStatusesOfSite?.(site, configs, liveViewHosts)
         return {
           siteId: site.siteId,
           displayName: site.displayName,
@@ -397,7 +410,8 @@ async function handleSelectorSites(
           hosts: site.hosts,
           fields: site.fields,
           ...(site.pathPrefix ? { pathPrefix: site.pathPrefix } : {}),
-          ...(status ? { status } : {})
+          ...(status ? { status } : {}),
+          ...(hostStatuses ? { hostStatuses } : {})
         }
       })
     }

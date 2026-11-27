@@ -274,12 +274,12 @@ interface SiteStatusConfig {
 }
 
 /**
- * Resolves the config automation will actually use for `site`, delegating to
- * `resolveConfigForHostname` (exact host -> canonical host -> null) so Side
- * Panel status never shows a subdomain config that automation will not load.
+ * Resolves the config automation will actually use for `targetHostname`,
+ * delegating to `resolveConfigForHostname` (exact host -> canonical host -> null)
+ * so Side Panel status never shows a subdomain config that automation will not load.
  */
 function resolveSiteStatusConfig(
-  site: SelectorSiteTarget,
+  targetHostname: string,
   configs: Readonly<Record<string, SiteStatusConfig>>
 ): SiteStatusConfig | undefined {
   const normalizedMap: Record<string, SiteStatusConfig> = {}
@@ -287,15 +287,19 @@ function resolveSiteStatusConfig(
     const normalized = host.trim().toLowerCase()
     if (normalized) normalizedMap[normalized] = config
   }
-  return resolveConfigForHostname(normalizedMap as AiConfigMap, site.hostname) ?? undefined
+  return resolveConfigForHostname(normalizedMap as AiConfigMap, targetHostname) ?? undefined
 }
 
 /** The status of a site's two locators, from the stored config map. */
 export function statusOfSite(
   site: SelectorSiteTarget,
-  configs: Readonly<Record<string, SiteStatusConfig>>
+  configs: Readonly<Record<string, SiteStatusConfig>>,
+  targetHostname?: string
 ): SelectorSiteStatus | undefined {
-  const config = resolveSiteStatusConfig(site, configs)
+  const config = resolveSiteStatusConfig(
+    targetHostname?.trim().toLowerCase() || site.hostname,
+    configs
+  )
   if (!config) return undefined
 
   const pick = (field: 'input' | 'button'): SelectorSiteStatus['input'] => {
@@ -326,4 +330,35 @@ export function statusOfSite(
   }
 
   return { input: pick('input'), button: pick('button') }
+}
+
+/**
+ * Per-host status map for any configured or live-view hosts belonging to `site`
+ * when the active host can differ from `site.hostname`.
+ */
+export function hostStatusesOfSite(
+  site: SelectorSiteTarget,
+  configs: Readonly<Record<string, SiteStatusConfig>>,
+  extraHosts: readonly string[] = []
+): Record<string, SelectorSiteStatus> | undefined {
+  const candidates = new Set<string>([site.hostname])
+  for (const host of Object.keys(configs)) {
+    const normalized = host.trim().toLowerCase()
+    if (normalized && hostBelongsToSelectorSite(normalized, site)) {
+      candidates.add(normalized)
+    }
+  }
+  for (const host of extraHosts) {
+    const normalized = host.trim().toLowerCase()
+    if (normalized && hostBelongsToSelectorSite(normalized, site)) {
+      candidates.add(normalized)
+    }
+  }
+
+  const result: Record<string, SelectorSiteStatus> = {}
+  for (const host of candidates) {
+    const status = statusOfSite(site, configs, host)
+    if (status) result[host] = status
+  }
+  return Object.keys(result).length > 0 ? result : undefined
 }

@@ -515,4 +515,112 @@ describe('aiConfigHandlers', () => {
     )
     expect((managerState.data['other.org'] as Record<string, unknown>).health).toBe('ready')
   })
+
+  it('inherits canonical config fields when picking one locator on a subdomain without mutating canonical', async () => {
+    managerState.data = {
+      'example.com': {
+        version: 2,
+        input: '#canon-input',
+        inputCandidates: ['#canon-input'],
+        button: '#canon-button',
+        buttonCandidates: ['#canon-button'],
+        waitFor: '#custom-ready',
+        submitMode: 'enter_key',
+        health: 'ready',
+        timestamp: 100
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    await saveAiConfigPatch(
+      'chat.example.com',
+      { version: 2, input: '#sub-input', inputCandidates: ['#sub-input'] },
+      { pickedField: 'input' }
+    )
+
+    const exact = managerState.data['chat.example.com'] as Record<string, unknown>
+    expect(exact).toMatchObject({
+      input: '#sub-input',
+      button: '#canon-button',
+      waitFor: '#custom-ready',
+      submitMode: 'enter_key',
+      health: 'ready'
+    })
+    expect((managerState.data['example.com'] as Record<string, unknown>).input).toBe('#canon-input')
+  })
+
+  it('preserves newer repair on untouched field when another repair snapshot arrives with null, and rejects stale repair on deleted primary', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'chatgpt.com': {
+        version: 2,
+        input: '#old-input',
+        button: '#old-button',
+        health: 'ready',
+        repair: {
+          button: {
+            selector: '#newer-btn-candidate',
+            strategy: 'candidate',
+            confidenceScore: 80,
+            confidenceLevel: 'high',
+            firstSeenAt: now + 100,
+            lastSeenAt: now + 200,
+            successCount: 2,
+            consecutiveSuccessCount: 2,
+            baseSelector: '#old-button'
+          }
+        },
+        timestamp: now + 200
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    await saveAiConfigPatch('chatgpt.com', {
+      version: 2,
+      repair: {
+        input: {
+          selector: '#new-input-candidate',
+          strategy: 'candidate',
+          confidenceScore: 75,
+          confidenceLevel: 'high',
+          firstSeenAt: now + 300,
+          lastSeenAt: now + 300,
+          successCount: 1,
+          consecutiveSuccessCount: 1,
+          baseSelector: '#old-input'
+        },
+        button: null
+      }
+    })
+
+    const merged = managerState.data['chatgpt.com'] as Record<string, unknown>
+    expect(merged.repair).toMatchObject({
+      input: { selector: '#new-input-candidate' },
+      button: { selector: '#newer-btn-candidate' }
+    })
+
+    // User deleted input (primary is null) -> stale repair with baseSelector '#old-input' must be rejected
+    managerState.data['deleted.example'] = {
+      version: 2,
+      input: null,
+      button: '#btn',
+      health: 'needs_repick',
+      repair: null,
+      timestamp: now + 500
+    }
+    const deletedRes = await saveAiConfigPatch('deleted.example', {
+      version: 2,
+      input: '#stale-promoted',
+      inputCandidates: ['#stale-promoted'],
+      health: 'repaired',
+      lastRepair: {
+        repairedAt: now + 600,
+        inputSelector: '#stale-promoted',
+        baseInputSelector: '#old-input',
+        inputStrategy: 'candidate'
+      }
+    })
+    expect(deletedRes).toBe(false)
+    expect((managerState.data['deleted.example'] as Record<string, unknown>).input).toBeNull()
+  })
 })
