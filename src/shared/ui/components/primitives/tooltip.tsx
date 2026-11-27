@@ -43,6 +43,18 @@ const handlePointerMove = (event: PointerEvent): void => {
   if (!isInsideOpenTooltip(event.target)) closeAllTooltips()
 }
 
+/**
+ * A pointer that leaves the document (`relatedTarget === null`) will never
+ * produce the follow-up `pointermove` the containment check relies on. That is
+ * exactly what happens at a window edge or when the cursor crosses into an
+ * overlaid native `WebContentsView`, which composites above the renderer and
+ * swallows the pointer. Close on that transition instead of leaving a frozen
+ * bubble behind.
+ */
+const handlePointerOut = (event: PointerEvent): void => {
+  if (!event.relatedTarget) closeAllTooltips()
+}
+
 const handlePointerDown = (): void => closeAllTooltips()
 
 const handleScroll = (): void => closeAllTooltips()
@@ -63,6 +75,7 @@ function attachGlobalDismiss(): void {
   if (isGlobalDismissAttached) return
   isGlobalDismissAttached = true
   document.addEventListener('pointermove', handlePointerMove, { capture: true, passive: true })
+  document.addEventListener('pointerout', handlePointerOut, true)
   document.addEventListener('pointerdown', handlePointerDown, true)
   document.addEventListener('scroll', handleScroll, true)
   document.addEventListener('dragstart', handleDragStart, true)
@@ -75,6 +88,7 @@ function detachGlobalDismiss(): void {
   if (!isGlobalDismissAttached) return
   isGlobalDismissAttached = false
   document.removeEventListener('pointermove', handlePointerMove, true)
+  document.removeEventListener('pointerout', handlePointerOut, true)
   document.removeEventListener('pointerdown', handlePointerDown, true)
   document.removeEventListener('scroll', handleScroll, true)
   document.removeEventListener('dragstart', handleDragStart, true)
@@ -96,28 +110,49 @@ function TooltipProvider({
   )
 }
 
+interface TooltipProps extends React.ComponentProps<typeof TooltipPrimitive.Root> {
+  /**
+   * Force the bubble closed while the trigger is disabled.
+   *
+   * A trigger that becomes disabled while its tooltip is open never delivers
+   * the `pointerleave`/`blur` Radix closes on, so the bubble stayed on screen
+   * describing an action the user can no longer take.
+   */
+  disabled?: boolean
+}
+
 /**
  * Controlled wrapper around the Radix root. Radix still owns the hover/focus
  * timing and reports every change through `onOpenChange`; owning `open` here
  * only lets the shared listeners force it shut.
  */
 function Tooltip({
+  disabled = false,
   open: openProp,
   defaultOpen,
   onOpenChange,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+}: TooltipProps) {
   const isControlled = openProp !== undefined
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen ?? false)
-  const open = isControlled ? openProp : uncontrolledOpen
+  const rawOpen = isControlled ? openProp : uncontrolledOpen
+  const open = !disabled && rawOpen
 
   const setOpen = React.useCallback(
     (next: boolean) => {
-      if (!isControlled) setUncontrolledOpen(next)
-      onOpenChange?.(next)
+      const effective = !disabled && next
+      if (!isControlled) setUncontrolledOpen(effective)
+      onOpenChange?.(effective)
     },
-    [isControlled, onOpenChange]
+    [disabled, isControlled, onOpenChange]
   )
+
+  // Reset the stored open state, not just the derived one: otherwise a tooltip
+  // that was open when its trigger got disabled would pop back up as soon as
+  // the trigger is enabled again, with no hover behind it.
+  React.useEffect(() => {
+    if (disabled && rawOpen) setOpen(false)
+  }, [disabled, rawOpen, setOpen])
 
   React.useEffect(() => {
     if (!open) return

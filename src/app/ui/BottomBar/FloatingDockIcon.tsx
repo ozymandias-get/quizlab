@@ -72,7 +72,7 @@ export const FloatingDockIcon = memo(function FloatingDockIcon({
   )
 
   return (
-    <Tooltip>
+    <Tooltip disabled={disabled}>
       <TooltipTrigger asChild>
         <DockIcon
           id={id}

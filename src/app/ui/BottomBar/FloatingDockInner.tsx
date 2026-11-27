@@ -1,7 +1,6 @@
 import { Dock } from '@app/components/ui/dock'
 import { useAppearance } from '@app/providers'
 import { APP_CONSTANTS } from '@shared/constants/appConstants'
-import { TooltipProvider } from '@shared/ui/components/primitives'
 
 import { memo, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
@@ -47,51 +46,49 @@ const FloatingDockInner = memo(function FloatingDockInner({
   const tooltipAlign: DockTooltipAlign = isLayoutSwapped ? 'start' : 'end'
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <DockTooltipAlignProvider value={tooltipAlign}>
-        <Dock
-          orientation="vertical"
-          iconSize={32}
-          iconMagnification={34}
-          iconDistance={56}
-          disableMagnification={isResizing}
-          // BottomBar measures the available rail slot and reserves room for
-          // the resize handles; divide by the scale so the visual dock fits its
-          // slot instead of growing over the handles in a short window.
-          style={{
-            maxHeight:
-              'calc(var(--dock-max-visual-height, calc(100dvh - 4rem)) / var(--bar-scale-factor, 1))'
-          }}
-          className="dock-surface mt-0 h-auto w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
-        >
-          <div className="flex w-full flex-col items-center gap-1">
-            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
-              <SettingsToolButton onOpenSettings={onOpenSettings} />
-            )}
+    <DockTooltipAlignProvider value={tooltipAlign}>
+      <Dock
+        orientation="vertical"
+        iconSize={32}
+        iconMagnification={34}
+        iconDistance={56}
+        disableMagnification={isResizing}
+        // BottomBar measures the available rail slot and reserves room for
+        // the resize handles; divide by the scale so the visual dock fits its
+        // slot instead of growing over the handles in a short window.
+        style={{
+          maxHeight:
+            'calc(var(--dock-max-visual-height, calc(100dvh - 4rem)) / var(--bar-scale-factor, 1))'
+        }}
+        className="dock-surface mt-0 h-auto w-full flex-col gap-0.5 overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/95 p-1.5 py-3 backdrop-blur-xl"
+      >
+        <div className="flex w-full flex-col items-center gap-1">
+          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SETTINGS] !== false && (
+            <SettingsToolButton onOpenSettings={onOpenSettings} />
+          )}
 
-            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
+          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_SWAP] !== false && <SwapToolButton />}
 
-            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && (
-              <PdfFocusToolButton />
-            )}
+          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PDF_FOCUS] !== false && (
+            <PdfFocusToolButton />
+          )}
 
-            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && (
-              <AiFocusToolButton />
-            )}
+          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_AI_FOCUS] !== false && (
+            <AiFocusToolButton />
+          )}
 
-            {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
+          {visibleTools[APP_CONSTANTS.TOUR_TARGETS.TOOL_PICKER] !== false && <PickerToolButton />}
 
-            {visibleTools['tool-gemini-web'] !== false && (
-              <GeminiToolButton onOpenSettings={onOpenSettings} />
-            )}
-          </div>
+          {visibleTools['tool-gemini-web'] !== false && (
+            <GeminiToolButton onOpenSettings={onOpenSettings} />
+          )}
+        </div>
 
-          <div className="my-1 h-px w-5 bg-white/[0.07]" role="separator" />
+        <div className="my-1 h-px w-5 bg-white/[0.07]" role="separator" />
 
-          <ModelIconsList visibleModels={visibleModels} />
-        </Dock>
-      </DockTooltipAlignProvider>
-    </TooltipProvider>
+        <ModelIconsList visibleModels={visibleModels} />
+      </Dock>
+    </DockTooltipAlignProvider>
   )
 })
 

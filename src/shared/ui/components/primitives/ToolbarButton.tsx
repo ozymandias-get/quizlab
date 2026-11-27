@@ -65,7 +65,7 @@ export const ToolbarButton = forwardRef<HTMLButtonElement, ToolbarButtonProps>(
     if (!tooltip) return content
 
     return (
-      <Tooltip>
+      <Tooltip disabled={disabled}>
         <TooltipTrigger asChild>{content}</TooltipTrigger>
         <TooltipContent side={tooltipSide} avoidCollisions={tooltipAvoidCollisions}>
           {tooltip}
