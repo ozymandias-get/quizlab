@@ -858,9 +858,7 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
         // The probe writes into the page, so the document it writes to must be
         // the one that was just verified. A navigation or reload between the two
         // runs would otherwise let the probe type into a fresh page.
-        if (!(await isSameDocument())) {
-          return { ok: false, reason: 'view_navigated' }
-        }
+        probed = true
 
         // A single-button pick has no verified input from this document: the
         // composer comes from the stored config. Probing it would write into an
@@ -899,6 +897,11 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
         probed = true
         let probeRaw: unknown = null
         try {
+          // Last check before the only write: the stored-composer verification
+          // above is asynchronous, so the document can change while it runs.
+          if (!(await isSameDocument())) {
+            return { ok: false, reason: 'view_navigated' }
+          }
           probeRaw = await deps.executeScript(
             view.viewId,
             generateVerifyLocatorScript({

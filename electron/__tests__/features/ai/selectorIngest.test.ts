@@ -66,6 +66,7 @@ function createIngest(
     result?: unknown
     view?: { viewId: string; url: string } | null
     viewAfter?: string | null
+    viewUrlSequence?: Array<string | null>
     configs?: Record<string, Record<string, unknown>>
     sites?: SelectorSiteTarget[]
   } = {}
@@ -82,11 +83,13 @@ function createIngest(
         : verified()
   )
   const findViewForSite = vi.fn(async () => options.view ?? null)
-  const getViewUrl = vi.fn(async (viewId: string) =>
-    'viewAfter' in options
+  const urlSequence = options.viewUrlSequence ? [...options.viewUrlSequence] : null
+  const getViewUrl = vi.fn(async (viewId: string) => {
+    if (urlSequence && urlSequence.length > 0) return urlSequence.shift() ?? null
+    return 'viewAfter' in options
       ? (options.viewAfter ?? null)
       : (options.view ?? { viewId, url: OPEN_VIEW.url }).url
-  )
+  })
   const ingest = createSelectorIngest({
     loadSites: async () => options.sites ?? [CHATGPT, CLAUDE],
     readConfigs: async () => options.configs ?? {},
@@ -1377,20 +1380,36 @@ describe('candidate selection', () => {
           inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
         }
       },
-      result: {
-        success: true,
-        action: 'verify_locator',
-        field: 'button',
-        matchedSelector: 'button.composer-twin',
-        strategy: 'direct',
-        attempts: [
-          {
-            selector: 'button.composer-twin',
-            matchedSelector: 'button.composer-twin',
-            strategy: 'direct',
-            descriptor: { tag: 'button', type: 'button' }
-          }
-        ]
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return verified({
+            field: 'input',
+            matchedSelector: '#composer',
+            attempts: [
+              {
+                selector: '#composer',
+                matchedSelector: '#composer',
+                strategy: 'direct',
+                descriptor: { tag: 'textarea', dataTestId: 'prompt' }
+              }
+            ]
+          })
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button' }
+            }
+          ]
+        }
       }
     })
 
@@ -1404,7 +1423,7 @@ describe('candidate selection', () => {
     )
 
     expect(result).toEqual({ status: 'verification_failed', reason: 'view_navigated' })
-    expect(deps.executeScript).toHaveBeenCalledTimes(1)
+    expect(deps.executeScript).toHaveBeenCalledTimes(2)
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
@@ -1547,6 +1566,68 @@ describe('candidate selection', () => {
     expect(deps.executeScript).toHaveBeenCalledTimes(2)
     const scripts = deps.executeScript.mock.calls.map((call) => call[1] as string)
     expect(scripts.some((script) => script.includes("field: 'input'"))).toBe(true)
+    expect(scripts.some((script) => script.includes("action: 'probe_composer'"))).toBe(false)
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('re-checks the document right before probing a stored composer', async () => {
+    // The stored-composer verification is asynchronous; the page can navigate
+    // while it runs. The write must not happen after that change.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      viewUrlSequence: ['https://chatgpt.com/c/another-conversation'],
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return verified({
+            field: 'input',
+            matchedSelector: '#composer',
+            attempts: [
+              {
+                selector: '#composer',
+                matchedSelector: '#composer',
+                strategy: 'direct',
+                descriptor: { tag: 'textarea', dataTestId: 'prompt' }
+              }
+            ]
+          })
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button.composer-twin',
+        candidates: ['button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'view_navigated' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(2)
+    const scripts = deps.executeScript.mock.calls.map((call) => call[1] as string)
     expect(scripts.some((script) => script.includes("action: 'probe_composer'"))).toBe(false)
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
