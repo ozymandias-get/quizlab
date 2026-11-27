@@ -59,6 +59,8 @@
       'Elementin kimliği QuizLab’da yeterince doğrulanamadı. Daha belirgin bir alan seçin.',
     verificationAmbiguous: 'QuizLab’da birden fazla benzer element eşleşti; seçim ayırt edilemedi.',
     verificationNavigated: 'Doğrulama sırasında QuizLab sayfası değişti. Tekrar deneyin.',
+    verificationCleanupFailed:
+      'Doğrulama güvenli biçimde tamamlanamadı. QuizLab’daki mesaj alanını kontrol edip yeniden deneyin. Önceki selektörleriniz korundu.',
     verificationSiteMismatch: 'QuizLab’da açık sayfa bu siteyle eşleşmiyor.',
     unpaired: 'QuizLab ile eşleştirme gerekli. Yan panelden eşleştirin.',
     rejected: 'Aktarım QuizLab tarafından reddedildi.',
@@ -1064,6 +1066,8 @@
         return `${stagePrefix}${TEXTS.verificationInsufficient}`
       if (reason === 'ambiguous') return `${stagePrefix}${TEXTS.verificationAmbiguous}`
       if (reason === 'view_navigated') return TEXTS.verificationNavigated
+      if (reason === 'probe_cleanup_failed')
+        return `${stagePrefix}${TEXTS.verificationCleanupFailed}`
       if (reason === 'view_site_mismatch') return TEXTS.verificationSiteMismatch
       return `${stagePrefix}${TEXTS.verificationFailed}`
     }

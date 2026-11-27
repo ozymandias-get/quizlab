@@ -675,6 +675,8 @@ const SELECTOR_TEXTS = {
     'Elementin kimliği QuizLab’da yeterince doğrulanamadı. Daha belirgin bir alan seçin.',
   verificationAmbiguous: 'QuizLab’da birden fazla benzer element eşleşti; seçim ayırt edilemedi.',
   verificationNavigated: 'Doğrulama sırasında QuizLab sayfası değişti. Tekrar deneyin.',
+  verificationCleanupFailed:
+    'Doğrulama güvenli biçimde tamamlanamadı. QuizLab’daki mesaj alanını kontrol edip yeniden deneyin. Önceki selektörleriniz korundu.',
   verificationSiteMismatch: 'QuizLab’da açık sayfa bu siteyle eşleşmiyor.',
   rejected: 'Aktarım reddedildi. Site ve hedef alanı kontrol edin.',
   retry: 'QuizLab bağlantısı kurulamadı.'
@@ -909,6 +911,8 @@ async function initSelectorControls() {
     }
     if (reason === 'ambiguous') return `${failedField}${SELECTOR_TEXTS.verificationAmbiguous}`
     if (reason === 'view_navigated') return SELECTOR_TEXTS.verificationNavigated
+    if (reason === 'probe_cleanup_failed')
+      return `${failedField}${SELECTOR_TEXTS.verificationCleanupFailed}`
     if (reason === 'view_site_mismatch') return SELECTOR_TEXTS.verificationSiteMismatch
     return `${failedField}${SELECTOR_TEXTS.verificationFailed}`
   }

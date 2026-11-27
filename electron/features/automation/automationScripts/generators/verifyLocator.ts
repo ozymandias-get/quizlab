@@ -305,6 +305,10 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 // can still be a twin (voice/mic) before the send button swaps in.
                 const probeDeadline = Date.now() + 1200;
                 while (Date.now() < probeDeadline) {
+                    // A user edit or a navigation makes the rest of the window
+                    // pointless: stop waiting and let the cleanup rules decide.
+                    if (externalEdit) break;
+                    if (String(location.href || '') !== startHref) break;
                     await new Promise((resolve) => setTimeout(resolve, 100));
                 }
                 // The *final* DOM state decides. A button that was found earlier

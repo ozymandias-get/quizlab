@@ -166,6 +166,7 @@ interface VerificationResult {
   composerState?: unknown
   probe?: unknown
   cleanup?: unknown
+  error?: unknown
   diagnostics?: Record<string, { ambiguous?: unknown } | undefined>
 }
 
@@ -648,6 +649,16 @@ function verifyPick(
   // The field has to be right before any verdict is trusted: a stale or failed
   // script answer must not be read as an eligible "nothing found" result.
   if (result.field !== field) return { ok: false, reason: 'field_mismatch' }
+  // A script that reported an error did not evaluate the DOM; probing from that
+  // answer would guess at the page state.
+  if (typeof result.error === 'string' && result.error) {
+    return { ok: false, reason: 'verification_error' }
+  }
+  // Ambiguity is terminal even when the attempt list came back empty: the
+  // runtime already saw more than one possible target.
+  if (result.diagnostics?.[field]?.ambiguous === true) {
+    return { ok: false, reason: 'ambiguous' }
+  }
   const attempts = verificationAttempts(result)
   if (attempts.length === 0) {
     return {
@@ -656,9 +667,6 @@ function verifyPick(
         ? 'button_not_rendered_empty_composer'
         : 'not_found'
     }
-  }
-  if (result.diagnostics?.[field]?.ambiguous === true) {
-    return { ok: false, reason: 'ambiguous' }
   }
 
   const candidates = bundle.candidates.map((candidate) => candidate.trim())
@@ -797,19 +805,20 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
       composerInput?: {
         selectors: string[]
         fingerprint: AutomationElementFingerprint | null
+        /** `true` when the pair flow already verified these selectors in this document. */
+        verified?: boolean
       } | null
     ): Promise<
       { ok: true; selector: string; candidates: string[] } | { ok: false; reason: string }
     > => {
-      const runScript = (probe: boolean): Promise<unknown> =>
+      const runScript = (): Promise<unknown> =>
         deps.executeScript(
           view.viewId,
           generateVerifyLocatorScript({
             field,
             selectors: bundle.candidates,
             fingerprint: bundle.fingerprint,
-            ...(composerInput ? { composerInput } : {}),
-            ...(probe ? { probe: true } : {})
+            ...(composerInput ? { composerInput } : {})
           })
         )
 
@@ -826,7 +835,7 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
 
       let rawResult: unknown
       try {
-        rawResult = await runScript(false)
+        rawResult = await runScript()
       } catch {
         return { ok: false, reason: 'verification_threw' }
       }
@@ -852,39 +861,84 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
         if (!(await isSameDocument())) {
           return { ok: false, reason: 'view_navigated' }
         }
+
+        // A single-button pick has no verified input from this document: the
+        // composer comes from the stored config. Probing it would write into an
+        // editor that was not verified here, so the input is verified first with
+        // the same acceptance rules. Without a verified composer there is no
+        // safe place to type, and no probe.
+        let probeComposer = composerInput
+        if (!composerInput.verified) {
+          if (!composerInput.fingerprint) return verified
+          let inputRaw: unknown
+          try {
+            inputRaw = await deps.executeScript(
+              view.viewId,
+              generateVerifyLocatorScript({
+                field: 'input',
+                selectors: composerInput.selectors,
+                fingerprint: composerInput.fingerprint
+              })
+            )
+          } catch {
+            return verified
+          }
+          const inputPick = verifyPick(inputRaw, 'input', {
+            selector: composerInput.selectors[0] ?? '',
+            candidates: composerInput.selectors,
+            fingerprint: composerInput.fingerprint
+          })
+          if (!inputPick.ok) return verified
+          probeComposer = {
+            selectors: inputPick.candidates,
+            fingerprint: composerInput.fingerprint,
+            verified: true
+          }
+        }
+
         probed = true
         let probeRaw: unknown = null
         try {
-          probeRaw = await runScript(true)
+          probeRaw = await deps.executeScript(
+            view.viewId,
+            generateVerifyLocatorScript({
+              field,
+              selectors: bundle.candidates,
+              fingerprint: bundle.fingerprint,
+              composerInput: probeComposer,
+              probe: true
+            })
+          )
         } catch {
           probeRaw = null
         }
         if (probeRaw) {
-          const cleanup = readProbeCleanup(probeRaw)
-          if (cleanup && cleanup !== 'not_started' && cleanup !== 'cleared') {
-            // The probe may have left its character in the user's composer. The
-            // pick itself could still be valid, but a verified save after an
-            // unconfirmed write would hide that from the user.
-            deps.logVerificationFailure?.(
-              summarizePickFailure(
-                payload.hostname,
-                field,
-                bundle,
-                'probe_cleanup_failed',
-                probeRaw,
-                'ran'
-              )
-            )
-            return { ok: false, reason: 'probe_cleanup_failed' }
-          }
-          const probedPick = verifyPick(probeRaw, field, bundle)
-          if (probedPick.ok) {
-            const navigation = checkHref(probeRaw)
-            if (navigation) return navigation
-            return probedPick
-          }
           const probeState = readProbeState(probeRaw)
+          const cleanup = readProbeCleanup(probeRaw)
           if (probeState === 'ran') {
+            // Fail closed: a probe that ran but did not report a confirmed clear
+            // may have left its character in the user's composer. The pick could
+            // still be valid, but saving after an unconfirmed write would hide
+            // that from the user.
+            if (cleanup !== 'cleared') {
+              deps.logVerificationFailure?.(
+                summarizePickFailure(
+                  payload.hostname,
+                  field,
+                  bundle,
+                  'probe_cleanup_failed',
+                  probeRaw,
+                  probeState
+                )
+              )
+              return { ok: false, reason: 'probe_cleanup_failed' }
+            }
+            const probedPick = verifyPick(probeRaw, field, bundle)
+            if (probedPick.ok) {
+              const navigation = checkHref(probeRaw)
+              if (navigation) return navigation
+              return probedPick
+            }
             const reason =
               probedPick.reason === 'not_found'
                 ? 'button_not_rendered_empty_composer'
@@ -931,7 +985,8 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
 
       const verifiedButton = await verifyOneField('button', payload.button, {
         selectors: verifiedInput.candidates,
-        fingerprint: payload.input.fingerprint
+        fingerprint: payload.input.fingerprint,
+        verified: true
       })
       if (!verifiedButton.ok) {
         return {

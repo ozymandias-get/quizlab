@@ -1182,6 +1182,7 @@ describe('candidate selection', () => {
             field: 'button',
             probe: 'ran',
             composerState: 'empty_probed',
+            cleanup: 'cleared',
             attempts: [
               {
                 selector: 'button[type="submit"]',
@@ -1430,6 +1431,187 @@ describe('candidate selection', () => {
     )
 
     expect(result).toEqual({ status: 'verification_failed', reason: 'field_mismatch' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails closed when a probe run does not report how it cleaned up', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) return verified({ field: 'input' })
+        if (script.includes("action: 'probe_composer'")) {
+          return {
+            success: true,
+            action: 'probe_composer',
+            field: 'button',
+            probe: 'ran',
+            composerState: 'empty_probed',
+            attempts: [
+              {
+                selector: 'button[type="submit"]',
+                matchedSelector: 'button[type="submit"]',
+                strategy: 'direct',
+                descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Send' }
+              }
+            ]
+          }
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-no-cleanup-012345',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#composer',
+        candidates: ['#composer'],
+        fingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+      },
+      button: {
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]', 'button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Send' }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({
+      status: 'verification_failed',
+      reason: 'probe_cleanup_failed',
+      failedField: 'button'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('verifies the stored composer before probing a single-button pick', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return { success: false, action: 'verify_locator', field: 'input', attempts: [] }
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button.composer-twin',
+        candidates: ['button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder' }
+      })
+    )
+
+    // The stored composer could not be verified here, so nothing was typed into
+    // it and the original read-only verdict stands.
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_mismatch' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(2)
+    const scripts = deps.executeScript.mock.calls.map((call) => call[1] as string)
+    expect(scripts.some((script) => script.includes("field: 'input'"))).toBe(true)
+    expect(scripts.some((script) => script.includes("action: 'probe_composer'"))).toBe(false)
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('treats a verifier script error as terminal instead of probing', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: {
+        success: false,
+        action: 'verify_locator',
+        field: 'button',
+        error: 'verify_failed',
+        attempts: []
+      }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]'],
+        fingerprint: { tag: 'button', type: 'submit' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'verification_error' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats ambiguity without any attempt as terminal', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: {
+        success: false,
+        action: 'verify_locator',
+        field: 'button',
+        attempts: [],
+        diagnostics: { button: { ambiguous: true } }
+      }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]'],
+        fingerprint: { tag: 'button', type: 'submit' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'ambiguous' })
     expect(deps.executeScript).toHaveBeenCalledTimes(1)
   })
 
