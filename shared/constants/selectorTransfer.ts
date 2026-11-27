@@ -73,6 +73,8 @@ export interface SelectorTransferPayload {
   requestId: string
   /** The hostname of the page the element was picked on. */
   hostname: string
+  /** The site the extension resolved, re-checked against the app registry. */
+  siteId?: string
   /** Which stored locator the pick describes. */
   field: SelectorField
   /** The verified primary CSS selector. */
@@ -101,6 +103,8 @@ export interface SelectorSiteEntry {
   hostname: string
   /** Every host (host suffix included) that belongs to this site. */
   hosts: string[]
+  /** The entry path when the site does not live at the host root. */
+  pathPrefix?: string
   /** The locator fields the picker may fill for this site. */
   fields: SelectorField[]
   /** The stored status of the locators, when the site has a config. */

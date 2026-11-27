@@ -212,21 +212,25 @@ export async function readMigratedConfigMap(
     return cached
   }
   const migrated = migrateConfigMap(raw)
-  if (migrated.changed) {
-    const written = await manager.write(migrated.data)
-    // A failed write leaves the manager's cache on `raw`. Recording the
-    // migration now would make the next read short-circuit and skip the
-    // retry, so the mapping is only remembered once the write landed.
-    if (!written) {
-      return migrated.data
-    }
+  if (!migrated.changed) {
+    migratedConfigMaps.set(raw, migrated.data)
+    migratedConfigMaps.set(migrated.data, migrated.data)
+    return migrated.data
   }
-  // Both directions are recorded: `raw` is what a read returns until the
-  // write replaces the manager's cache, and `migrated.data` is what it
-  // returns afterwards.
-  migratedConfigMaps.set(raw, migrated.data)
-  migratedConfigMaps.set(migrated.data, migrated.data)
-  return migrated.data
+  // The write goes through `update`, not `write`: a pick or a settings save can
+  // land between the read above and this write, and `write(migrated.data)`
+  // would replace that newer config with the pre-write snapshot. The updater
+  // re-migrates whatever the queue hands it.
+  const written = await manager.update((current) =>
+    current === raw ? migrated.data : migrateConfigMap(current).data
+  )
+  if (!written) {
+    return migrated.data
+  }
+  const persisted = await manager.read()
+  migratedConfigMaps.set(raw, persisted)
+  migratedConfigMaps.set(persisted, persisted)
+  return persisted
 }
 
 export function resolveConfigForHostname(

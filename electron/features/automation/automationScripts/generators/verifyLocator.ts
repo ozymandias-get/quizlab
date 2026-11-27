@@ -63,6 +63,7 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 contentEditable: Boolean(
                     element.isContentEditable || element.getAttribute('contenteditable') === 'true'
                 ),
+                classTokens: Array.from(element.classList || []).slice(0, 12),
                 text: String(
                     element.innerText || element.textContent || ''
                 ).replace(/\\s+/g, ' ').trim().slice(0, 256)
@@ -70,6 +71,16 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
 
             const fingerprint = ${lookup} && ${lookup}.fingerprint;
             const candidates = ${JSON.stringify(selectors)};
+            const elementKeys = new WeakMap();
+            let nextElementKey = 1;
+            const elementKeyOf = (element) => {
+                let key = elementKeys.get(element);
+                if (!key) {
+                    key = nextElementKey++;
+                    elementKeys.set(element, key);
+                }
+                return key;
+            };
 
             const collect = () => {
                 const attempts = [];
@@ -88,6 +99,7 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                         selector,
                         matchedSelector: match.matchedSelector || selector,
                         strategy: match.strategy || 'none',
+                        elementKey: elementKeyOf(match.element),
                         descriptor: describeElement(match.element)
                     });
                 }
@@ -110,6 +122,7 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 success: found,
                 action: 'verify_locator',
                 field: '${input.field}',
+                href: String(location.href || ''),
                 matchedSelector: first ? first.matchedSelector : null,
                 strategy: first ? first.strategy : 'none',
                 descriptor: first ? first.descriptor : null,

@@ -33,9 +33,29 @@ const SELECTOR_TARGET_FIELDS: readonly SelectorField[] = ['input', 'button'] as 
 /** A site entry plus the identity the ingestion needs. */
 export interface SelectorSiteTarget extends SelectorSiteEntry {
   canonicalHostname: string
+  /** The entry path when the site lives below the host root (`/chat`). */
+  pathPrefix?: string
 }
 
-function usableEntry(platform: AiPlatform, siteId: string): SelectorSiteTarget | null {
+/** The answer of the site matcher. */
+export interface SelectorSiteMatch {
+  site: SelectorSiteTarget
+  /** Several sites matched equally well; the caller must not pick one. */
+  ambiguous: boolean
+}
+
+/** The path an entry URL names, normalized for prefix comparison. */
+function entryPathPrefix(pathname: string): string | undefined {
+  const trimmed = pathname.replace(/\/+$/, '')
+  if (!trimmed || trimmed === '') return undefined
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+function usableEntry(
+  platform: AiPlatform,
+  siteId: string,
+  useEntryPath = false
+): SelectorSiteTarget | null {
   const rawUrl = typeof platform.url === 'string' ? platform.url.trim() : ''
   if (!rawUrl) return null
   let parsed: URL
@@ -52,13 +72,19 @@ function usableEntry(platform: AiPlatform, siteId: string): SelectorSiteTarget |
     (typeof platform.displayName === 'string' && platform.displayName.trim()) ||
     (typeof platform.name === 'string' && platform.name.trim()) ||
     siteId
+  // A built-in entry URL is the app's landing page, not a path boundary: Gemini
+  // opens on `/app`, AI Studio moves to `/prompts/...` after login, and a pick
+  // on those pages is legitimate. Only a user-added site's entry path is an
+  // identity, because two custom sites can share one host.
+  const pathPrefix = useEntryPath ? entryPathPrefix(parsed.pathname) : undefined
   return {
     siteId,
     displayName: displayName.slice(0, 120),
     hostname,
     hosts: [hostname],
     fields: [...SELECTOR_TARGET_FIELDS],
-    canonicalHostname
+    canonicalHostname,
+    ...(pathPrefix ? { pathPrefix } : {})
   }
 }
 
@@ -99,9 +125,13 @@ export async function buildSelectorSiteTargets(): Promise<SelectorSiteTarget[]> 
   const seen = new Set<string>()
 
   const add = (platform: AiPlatform, siteId: string) => {
-    const entry = usableEntry(platform, siteId)
-    if (!entry || seen.has(entry.hostname)) return
-    seen.add(entry.hostname)
+    const entry = usableEntry(platform, siteId, siteId.startsWith('custom:'))
+    if (!entry) return
+    // A host may host several sites under different paths; host-only dedupe
+    // used to drop every entry after the first one.
+    const key = `${entry.hostname}\n${entry.pathPrefix ?? ''}`
+    if (seen.has(key)) return
+    seen.add(key)
     entries.push(entry)
   }
 
@@ -119,19 +149,114 @@ export async function buildSelectorSiteTargets(): Promise<SelectorSiteTarget[]> 
   return resolveHosts(entries)
 }
 
-/** Whether a hostname belongs to a site, using the same rule as the extension. */
+/**
+ * Pages that are never a selector target: a login or account page is not the
+ * composer the automation uses, even when it belongs to the same host.
+ */
+const EXCLUDED_SELECTOR_PATHS =
+  /^\/(?:auth|login|signin|sign-in|signup|sign-up|register|account|accounts|oauth|sso|session)(?:\/|$)/i
+
+/** Whether a page path belongs to a site entry. */
+export function pathBelongsToSelectorSite(
+  pathname: string | undefined,
+  site: SelectorSiteTarget
+): boolean {
+  if (!pathname) return !site.pathPrefix
+  const path = pathname.startsWith('/') ? pathname : `/${pathname}`
+  if (EXCLUDED_SELECTOR_PATHS.test(path)) return false
+  if (!site.pathPrefix) return true
+  return path === site.pathPrefix || path.startsWith(`${site.pathPrefix}/`)
+}
+
+/**
+ * Whether a host belongs to a site, using the same rule as the extension.
+ *
+ * This is the host-level question only; the full decision, including the page
+ * path and ambiguity, is `findSelectorSiteMatch`.
+ */
 export function hostBelongsToSelectorSite(hostname: string, site: SelectorSiteTarget): boolean {
   const normalized = hostname.trim().toLowerCase()
   if (!normalized) return false
   return site.hosts.some((allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`))
 }
 
-/** The site a hostname belongs to, or null when the app did not name it. */
+/**
+ * The site a hostname (and optionally a page path) belongs to.
+ *
+ * `find()` used to decide this, so a custom site on `foo.chatgpt.com` lost to
+ * the built-in ChatGPT entry and two entries on one host were decided by list
+ * order. The match is ranked instead: an exact host beats another host of the
+ * same site, which beats a host suffix; a more specific entry path beats the
+ * host root. A tie between different sites is reported as ambiguous and the
+ * caller refuses instead of picking silently.
+ */
+export function findSelectorSiteMatch(
+  hostname: string,
+  sites: readonly SelectorSiteTarget[],
+  pathname?: string
+): SelectorSiteMatch | null {
+  const normalized = hostname.trim().toLowerCase()
+  if (!normalized) return null
+
+  interface Ranked {
+    site: SelectorSiteTarget
+    tier: number
+    hostLength: number
+    pathLength: number
+  }
+
+  const ranked: Ranked[] = []
+  for (const site of sites) {
+    if (!pathBelongsToSelectorSite(pathname, site)) continue
+    let tier = -1
+    let hostLength = 0
+    for (const allowed of site.hosts) {
+      if (normalized === allowed) {
+        const candidateTier = normalized === site.hostname ? 0 : 1
+        if (tier === -1 || candidateTier < tier) {
+          tier = candidateTier
+          hostLength = allowed.length
+        }
+        continue
+      }
+      if (normalized.endsWith(`.${allowed}`)) {
+        if (tier === -1 || 2 < tier) {
+          tier = 2
+          hostLength = allowed.length
+        } else if (tier === 2 && allowed.length > hostLength) {
+          hostLength = allowed.length
+        }
+      }
+    }
+    if (tier < 0) continue
+    ranked.push({ site, tier, hostLength, pathLength: site.pathPrefix?.length ?? 0 })
+  }
+
+  if (ranked.length === 0) return null
+  ranked.sort((left, right) => {
+    if (left.tier !== right.tier) return left.tier - right.tier
+    if (left.hostLength !== right.hostLength) return right.hostLength - left.hostLength
+    return right.pathLength - left.pathLength
+  })
+  const best = ranked[0]
+  const ambiguous = ranked.some(
+    (entry) =>
+      entry.tier === best.tier &&
+      entry.hostLength === best.hostLength &&
+      entry.pathLength === best.pathLength &&
+      entry.site.siteId !== best.site.siteId
+  )
+  return { site: best.site, ambiguous }
+}
+
+/** The site a hostname belongs to, or null when the match is absent/ambiguous. */
 export function matchSelectorSite(
   hostname: string,
-  sites: readonly SelectorSiteTarget[]
+  sites: readonly SelectorSiteTarget[],
+  pathname?: string
 ): SelectorSiteTarget | null {
-  return sites.find((site) => hostBelongsToSelectorSite(hostname, site)) ?? null
+  const match = findSelectorSiteMatch(hostname, sites, pathname)
+  return match && !match.ambiguous ? match.site : null
 }
 
 /** The status of a site's two locators, from the stored config map. */

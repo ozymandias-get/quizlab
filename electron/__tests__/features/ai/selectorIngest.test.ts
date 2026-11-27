@@ -62,21 +62,33 @@ function verified(overrides: Record<string, unknown> = {}) {
 }
 
 function createIngest(
-  options: { result?: unknown; view?: { viewId: string; url: string } | null } = {}
+  options: {
+    result?: unknown
+    view?: { viewId: string; url: string } | null
+    viewAfter?: string | null
+    configs?: Record<string, Record<string, unknown>>
+    sites?: SelectorSiteTarget[]
+  } = {}
 ) {
   const savePatch = vi.fn(async (_hostname: string, _patch: Record<string, unknown>) => true)
   const broadcastConfigChanged = vi.fn()
   const executeScript = vi.fn(async () => ('result' in options ? options.result : verified()))
   const findViewForSite = vi.fn(async () => options.view ?? null)
+  const getViewUrl = vi.fn(async (viewId: string) =>
+    'viewAfter' in options
+      ? (options.viewAfter ?? null)
+      : (options.view ?? { viewId, url: OPEN_VIEW.url }).url
+  )
   const ingest = createSelectorIngest({
-    loadSites: async () => [CHATGPT, CLAUDE],
-    readConfigs: async () => ({}),
+    loadSites: async () => options.sites ?? [CHATGPT, CLAUDE],
+    readConfigs: async () => options.configs ?? {},
     savePatch,
     findViewForSite,
     executeScript,
+    getViewUrl,
     broadcastConfigChanged
   })
-  return { ingest, savePatch, broadcastConfigChanged, executeScript, findViewForSite }
+  return { ingest, savePatch, broadcastConfigChanged, executeScript, findViewForSite, getViewUrl }
 }
 
 const OPEN_VIEW = { viewId: 'tab-1', url: 'https://chatgpt.com/' }
@@ -142,7 +154,8 @@ describe('selector ingestion', () => {
   it('stores the candidate the app resolved when priority differs between the two DOMs', async () => {
     // Chrome called #composer primary; the app's DOM has a duplicate id and the
     // runtime settled on the verified test-id candidate. The stored primary is
-    // the one the app can resolve, not the one that only worked in Chrome.
+    // the one the app can resolve, not the one that only worked in Chrome, and
+    // it comes first so the runtime does not prefer the unverified one.
     const deps = createIngest({
       view: OPEN_VIEW,
       result: verified({ matchedSelector: 'textarea[data-testid="prompt"]' })
@@ -153,7 +166,7 @@ describe('selector ingestion', () => {
     const [, patch] = deps.savePatch.mock.calls[0]
     expect(patch).toMatchObject({
       input: 'textarea[data-testid="prompt"]',
-      inputCandidates: ['#composer', 'textarea[data-testid="prompt"]']
+      inputCandidates: ['textarea[data-testid="prompt"]', '#composer']
     })
   })
 
@@ -196,8 +209,120 @@ describe('selector ingestion', () => {
     const deps = createIngest({ view: OPEN_VIEW, result: verified({ descriptor: null }) })
     await expect(deps.ingest(payload())).resolves.toEqual({
       status: 'verification_failed',
-      reason: 'identity_mismatch'
+      reason: 'identity_insufficient'
     })
+  })
+
+  it('refuses a tag-only match as insufficient identity evidence', async () => {
+    // The fingerprint has no attribute that can distinguish the element from a
+    // twin, so agreeing on <button> is not proof that this is the pick.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button',
+        descriptor: { tag: 'button' }
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button',
+        candidates: ['button'],
+        fingerprint: { tag: 'button' }
+      })
+    )
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_insufficient' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('refuses a stable identity contradiction', async () => {
+    // The pick says data-testid=send; the app's element has data-testid=voice.
+    // A missing attribute is missing evidence, but a different one is a
+    // contradiction and must reject even if another field happens to agree.
+    const logVerificationFailure = vi.fn()
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button[data-testid="voice"]',
+        descriptor: {
+          tag: 'button',
+          dataTestId: 'voice',
+          type: 'submit',
+          text: 'Send'
+        }
+      })
+    })
+    const ingest = createSelectorIngest({
+      loadSites: async () => [CHATGPT, CLAUDE],
+      readConfigs: async () => ({}),
+      savePatch: vi.fn(async () => true),
+      findViewForSite: async () => OPEN_VIEW,
+      executeScript: async () =>
+        verified({
+          field: 'button',
+          matchedSelector: 'button[data-testid="voice"]',
+          descriptor: {
+            tag: 'button',
+            dataTestId: 'voice',
+            type: 'submit',
+            text: 'Send'
+          }
+        }),
+      getViewUrl: async () => OPEN_VIEW.url,
+      broadcastConfigChanged: vi.fn(),
+      logVerificationFailure
+    })
+    const result = await ingest(
+      payload({
+        field: 'button',
+        selector: 'button[data-testid="send"]',
+        candidates: ['button[data-testid="send"]', 'button[data-testid="voice"]'],
+        fingerprint: { tag: 'button', dataTestId: 'send', type: 'submit', text: 'Send' }
+      })
+    )
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_mismatch' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+    const logged = logVerificationFailure.mock.calls[0][0]
+    // Debugging identifiers only: the fingerprint values and the verifier's
+    // element text never reach the log.
+    expect(logged).toMatchObject({
+      hostname: 'chatgpt.com',
+      field: 'button',
+      reason: 'identity_mismatch',
+      tag: 'button',
+      identity: { dataTestId: true, type: true, text: true }
+    })
+    expect(JSON.stringify(logged)).not.toContain('Send')
+  })
+
+  it('accepts a missing attribute when another identity field agrees', async () => {
+    // The app's DOM does not render data-testid on this build, but the same
+    // aria-label and text identify the send button. A missing attribute is not
+    // a contradiction on its own.
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button[aria-label="Send message"]',
+        descriptor: { tag: 'button', ariaLabel: 'Send message', text: 'Send message' }
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[data-testid="send"]',
+        candidates: ['button[data-testid="send"]', 'button[aria-label="Send message"]'],
+        fingerprint: {
+          tag: 'button',
+          dataTestId: 'send',
+          ariaLabel: 'Send message',
+          text: 'Send message'
+        }
+      })
+    )
+    expect(result.status).toBe('saved')
   })
 
   it('refuses a selector that found nothing', async () => {
@@ -235,11 +360,198 @@ describe('selector ingestion', () => {
     })
   })
 
+  it('refuses two candidates that agree but resolved to different elements', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button[data-testid="send"]',
+        attempts: [
+          {
+            selector: 'button[data-testid="send"]',
+            matchedSelector: 'button[data-testid="send"]',
+            strategy: 'direct',
+            elementKey: 1,
+            descriptor: { tag: 'button', dataTestId: 'send' }
+          },
+          {
+            selector: 'button',
+            matchedSelector: 'button',
+            strategy: 'direct',
+            elementKey: 2,
+            descriptor: { tag: 'button', dataTestId: 'send' }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button',
+        candidates: ['button', 'button[data-testid="send"]'],
+        fingerprint: { tag: 'button', dataTestId: 'send' }
+      })
+    )
+    expect(result).toEqual({ status: 'verification_failed', reason: 'ambiguous' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('accepts two candidates that resolved to the same element', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button',
+        attempts: [
+          {
+            selector: 'button[data-testid="send"]',
+            matchedSelector: 'button[data-testid="send"]',
+            strategy: 'direct',
+            elementKey: 7,
+            descriptor: { tag: 'button', dataTestId: 'send' }
+          },
+          {
+            selector: 'button',
+            matchedSelector: 'button',
+            strategy: 'direct',
+            elementKey: 7,
+            descriptor: { tag: 'button', dataTestId: 'send' }
+          }
+        ]
+      })
+    })
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button',
+        candidates: ['button', 'button[data-testid="send"]'],
+        fingerprint: { tag: 'button', dataTestId: 'send' }
+      })
+    )
+    expect(result.status).toBe('saved')
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      button: 'button[data-testid="send"]',
+      buttonCandidates: ['button[data-testid="send"]', 'button']
+    })
+  })
+
   it('reports a store failure instead of claiming success', async () => {
     const deps = createIngest({ view: OPEN_VIEW })
     deps.savePatch.mockResolvedValueOnce(false)
     await expect(deps.ingest(payload())).resolves.toEqual({ status: 'save_failed' })
     expect(deps.broadcastConfigChanged).not.toHaveBeenCalled()
+  })
+
+  it('refuses a pick whose site id no longer matches the hostname', async () => {
+    const deps = createIngest({ view: OPEN_VIEW })
+    await expect(deps.ingest(payload({ siteId: 'claude' }))).resolves.toEqual({
+      status: 'invalid_payload',
+      reason: 'site_id_mismatch'
+    })
+    expect(deps.executeScript).not.toHaveBeenCalled()
+  })
+
+  it('refuses a hostname that belongs to two sites', async () => {
+    const base: Omit<SelectorSiteTarget, 'siteId' | 'displayName'> = {
+      hostname: 'shared.example',
+      hosts: ['shared.example'],
+      fields: ['input', 'button'],
+      canonicalHostname: 'example'
+    }
+    const deps = createIngest({
+      view: { viewId: 'tab-1', url: 'https://shared.example/' },
+      sites: [
+        { ...base, siteId: 'site-a', displayName: 'A' },
+        { ...base, siteId: 'site-b', displayName: 'B' }
+      ]
+    })
+    const result = await deps.ingest(
+      payload({
+        hostname: 'shared.example',
+        sourceUrl: 'https://shared.example/'
+      })
+    )
+    expect(result).toEqual({ status: 'ambiguous_site' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('does not store a result whose view navigated during verification', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      viewAfter: 'https://chatgpt.com/c/another-conversation'
+    })
+    await expect(deps.ingest(payload())).resolves.toEqual({
+      status: 'verification_failed',
+      reason: 'view_navigated'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('keeps the other locator repair state when only the input is picked', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          version: 2,
+          input: '#old-input',
+          button: '#broken-button',
+          health: 'needs_repick',
+          repair: {
+            button: {
+              selector: '#maybe-button',
+              strategy: 'candidate',
+              confidenceScore: 40,
+              confidenceLevel: 'low',
+              firstSeenAt: 1,
+              lastSeenAt: 2,
+              successCount: 1,
+              consecutiveSuccessCount: 1
+            }
+          }
+        }
+      }
+    })
+
+    const result = await deps.ingest(payload())
+    expect(result.status).toBe('saved')
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({
+      input: '#composer',
+      health: 'needs_repick',
+      repair: { button: expect.objectContaining({ selector: '#maybe-button' }) }
+    })
+    expect(patch).not.toHaveProperty('button')
+  })
+
+  it('clears the staged repair of the locator being picked and heals the site', async () => {
+    const staged = {
+      selector: '#old-input',
+      strategy: 'candidate',
+      confidenceScore: 80,
+      confidenceLevel: 'high',
+      firstSeenAt: 1,
+      lastSeenAt: 2,
+      successCount: 2,
+      consecutiveSuccessCount: 2
+    }
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          version: 2,
+          input: '#old-input',
+          button: '#send',
+          health: 'needs_repick',
+          repair: { input: staged }
+        }
+      }
+    })
+
+    const result = await deps.ingest(payload())
+    expect(result.status).toBe('saved')
+    const [, patch] = deps.savePatch.mock.calls[0]
+    expect(patch).toMatchObject({ input: '#composer', health: 'ready', repair: null })
   })
 })
 
@@ -290,6 +602,35 @@ describe('selector transfer payload validation', () => {
   it('rejects a fingerprint without a tag', () => {
     expect(parseSelectorTransferPayload(payload({ fingerprint: { role: 'textbox' } }))).toEqual({
       reason: 'missing_fingerprint_tag'
+    })
+  })
+
+  it('drops unknown fingerprint fields instead of storing them', () => {
+    const parsed = parseSelectorTransferPayload(
+      payload({
+        fingerprint: {
+          tag: 'textarea',
+          dataTestId: 'prompt',
+          pageContent: 'a private prompt',
+          classTokens: ['composer', '', 42]
+        }
+      })
+    )
+    expect('payload' in parsed).toBe(true)
+    if (!('payload' in parsed)) return
+    expect(parsed.payload.fingerprint).toEqual({
+      tag: 'textarea',
+      dataTestId: 'prompt',
+      classTokens: ['composer']
+    })
+  })
+
+  it('rejects a site id that is not a bounded string', () => {
+    expect(parseSelectorTransferPayload(payload({ siteId: 42 }))).toEqual({
+      reason: 'invalid_site_id'
+    })
+    expect(parseSelectorTransferPayload(payload({ siteId: 'x'.repeat(200) }))).toEqual({
+      reason: 'invalid_site_id'
     })
   })
 })
@@ -372,7 +713,10 @@ describe('candidate selection', () => {
     const [, patch] = deps.savePatch.mock.calls[0]
     expect(patch).toMatchObject({
       button: 'button',
-      buttonCandidates: ['button[type="submit"]', 'button.cursor-interaction', 'button']
+      // The class candidate resolved to the voice button in the app's DOM, so
+      // it is dropped: the runtime orders candidates by priority and would
+      // otherwise pick it over the verified generic selector.
+      buttonCandidates: ['button', 'button[type="submit"]']
     })
   })
 

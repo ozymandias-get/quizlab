@@ -22,9 +22,22 @@ vi.mock('../../../features/ai/customPlatformStore.js', () => ({
 
 import {
   buildSelectorSiteTargets,
+  findSelectorSiteMatch,
   hostBelongsToSelectorSite,
-  matchSelectorSite
+  matchSelectorSite,
+  type SelectorSiteTarget
 } from '../../../features/ai/selectorTargets.js'
+
+function target(overrides: Partial<SelectorSiteTarget> & { siteId: string }): SelectorSiteTarget {
+  return {
+    displayName: overrides.siteId,
+    hostname: 'example.com',
+    hosts: ['example.com'],
+    fields: ['input', 'button'],
+    canonicalHostname: 'example.com',
+    ...overrides
+  }
+}
 
 describe('selector site catalogue', () => {
   it('offers the built-in platforms and the user-added site', async () => {
@@ -66,5 +79,49 @@ describe('selector site catalogue', () => {
     const sites = await buildSelectorSiteTargets()
     expect(matchSelectorSite('chat.example.org', sites)?.siteId).toBe('custom:my-site')
     expect(matchSelectorSite('app.chat.example.org', sites)?.siteId).toBe('custom:my-site')
+  })
+
+  it('prefers an exact host over a parent site that would also match', () => {
+    const parent = target({ siteId: 'parent', hostname: 'example.com', hosts: ['example.com'] })
+    const child = target({
+      siteId: 'child',
+      hostname: 'foo.example.com',
+      hosts: ['foo.example.com']
+    })
+    expect(matchSelectorSite('foo.example.com', [parent, child])?.siteId).toBe('child')
+  })
+
+  it('reports two sites on one host as ambiguous instead of picking the first', () => {
+    const first = target({ siteId: 'first' })
+    const second = target({ siteId: 'second' })
+    expect(matchSelectorSite('example.com', [first, second])).toBeNull()
+    expect(findSelectorSiteMatch('example.com', [first, second])?.ambiguous).toBe(true)
+  })
+
+  it('uses the entry path when two sites share a host', () => {
+    const root = target({ siteId: 'root' })
+    const chat = target({ siteId: 'chat', hostname: 'example.com', pathPrefix: '/chat' })
+    const sites = [root, chat]
+    expect(matchSelectorSite('example.com', sites, '/chat/42')?.siteId).toBe('chat')
+    expect(matchSelectorSite('example.com', sites, '/other')?.siteId).toBe('root')
+    // A path below a site that only exists elsewhere is not that site.
+    expect(matchSelectorSite('example.com', [chat], '/other')).toBeNull()
+  })
+
+  it('never targets a login or account page', () => {
+    const site = target({ siteId: 'site' })
+    expect(matchSelectorSite('example.com', [site], '/login')).toBeNull()
+    expect(matchSelectorSite('example.com', [site], '/account/security')).toBeNull()
+    expect(matchSelectorSite('example.com', [site], '/chat')).not.toBeNull()
+  })
+
+  it('does not turn a built-in landing path into a pick restriction', async () => {
+    const sites = await buildSelectorSiteTargets()
+    const gemini = sites.find((site) => site.siteId === 'gemini')
+    // The entry URL is /app, but Gemini opens nested conversation routes and a
+    // re-login can land on the host root. All of them are still Gemini.
+    expect(gemini?.pathPrefix).toBeUndefined()
+    expect(matchSelectorSite('gemini.google.com', sites, '/app/abc')?.siteId).toBe('gemini')
+    expect(matchSelectorSite('gemini.google.com', sites, '/')?.siteId).toBe('gemini')
   })
 })

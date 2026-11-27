@@ -192,6 +192,8 @@ let selectorSessions = []
 let selectorSessionsWrite = Promise.resolve()
 /** The last transfer result, so a reopened popup can show it. */
 let selectorLastOutcome = null
+/** The sends that are running, one per pick session. */
+const selectorSends = new Map()
 
 async function computeHmac(body, secret) {
   const encoder = new TextEncoder()
@@ -1519,8 +1521,16 @@ function normalizeSelectorSites(value) {
     if (!entry || typeof entry !== 'object') continue
     const siteId = typeof entry.siteId === 'string' ? entry.siteId.trim() : ''
     const hostname = typeof entry.hostname === 'string' ? entry.hostname.trim().toLowerCase() : ''
-    if (!siteId || !hostname || seen.has(hostname)) continue
-    seen.add(hostname)
+    if (!siteId || !hostname) continue
+    const pathPrefix =
+      typeof entry.pathPrefix === 'string' && entry.pathPrefix.trim()
+        ? entry.pathPrefix.trim().replace(/\/+$/, '')
+        : ''
+    // One host may carry several sites below different paths; the host alone is
+    // not their identity.
+    const key = `${hostname}\n${pathPrefix}`
+    if (seen.has(key)) continue
+    seen.add(key)
     const hosts = []
     if (Array.isArray(entry.hosts)) {
       for (const host of entry.hosts) {
@@ -1546,6 +1556,7 @@ function normalizeSelectorSites(value) {
       displayName,
       hostname,
       hosts,
+      ...(pathPrefix ? { pathPrefix } : {}),
       fields: fields.length > 0 ? fields : ['input', 'button'],
       ...(status ? { status } : {})
     })
@@ -1593,11 +1604,13 @@ function normalizeSelectorSessions(value) {
       frameId: Number.isInteger(entry.frameId) ? entry.frameId : 0,
       documentId: typeof entry.documentId === 'string' ? entry.documentId : '',
       hostname: entry.hostname.trim().toLowerCase(),
+      siteId: typeof entry.siteId === 'string' ? entry.siteId : '',
       field: entry.field,
       startHref: typeof entry.startHref === 'string' ? entry.startHref : '',
       startedAt,
       state: SELECTOR_SESSION_STATES.includes(entry.state) ? entry.state : 'active',
-      outcome: typeof entry.outcome === 'string' ? entry.outcome : null
+      outcome: typeof entry.outcome === 'string' ? entry.outcome : null,
+      lastSelector: typeof entry.lastSelector === 'string' ? entry.lastSelector : null
     })
   }
   return sessions.slice(-MAX_SELECTOR_SESSIONS)
@@ -1610,9 +1623,79 @@ function hostBelongsToSelectorSite(host, site) {
   return site.hosts.some((allowed) => normalized === allowed || normalized.endsWith(`.${allowed}`))
 }
 
-/** The site a hostname belongs to, or null when the app did not name it. */
-function findSelectorSite(host) {
-  return selectorSites.find((site) => hostBelongsToSelectorSite(host, site)) || null
+/** Pages that are never a pick target (login, account, OAuth). */
+const EXCLUDED_SELECTOR_PATH_PATTERNS =
+  /^\/(?:auth|login|signin|sign-in|signup|sign-up|register|account|accounts|oauth|sso|session)(?:\/|$)/i
+
+function pathBelongsToSelectorSite(pathname, site) {
+  const path = typeof pathname === 'string' && pathname ? pathname : '/'
+  if (EXCLUDED_SELECTOR_PATH_PATTERNS.test(path)) return false
+  if (!site.pathPrefix) return true
+  return path === site.pathPrefix || path.startsWith(`${site.pathPrefix}/`)
+}
+
+/**
+ * The site a hostname (and page path) belongs to.
+ *
+ * The same ranking as the app: exact host first, then the longest host suffix,
+ * then the most specific entry path. A tie between different sites is
+ * ambiguous and is refused instead of being decided by list order.
+ */
+function findSelectorSiteMatch(host, pathname) {
+  const normalized = typeof host === 'string' ? host.trim().toLowerCase() : ''
+  if (!normalized) return null
+  const ranked = []
+  for (const site of selectorSites) {
+    if (!pathBelongsToSelectorSite(pathname, site)) continue
+    let tier = -1
+    let hostLength = 0
+    for (const allowed of site.hosts) {
+      if (normalized === allowed) {
+        const candidateTier = normalized === site.hostname ? 0 : 1
+        if (tier === -1 || candidateTier < tier) {
+          tier = candidateTier
+          hostLength = allowed.length
+        }
+        continue
+      }
+      if (normalized.endsWith(`.${allowed}`)) {
+        if (tier === -1 || 2 < tier) {
+          tier = 2
+          hostLength = allowed.length
+        } else if (tier === 2 && allowed.length > hostLength) {
+          hostLength = allowed.length
+        }
+      }
+    }
+    if (tier < 0) continue
+    ranked.push({
+      site,
+      tier,
+      hostLength,
+      pathLength: site.pathPrefix ? site.pathPrefix.length : 0
+    })
+  }
+  if (ranked.length === 0) return null
+  ranked.sort((left, right) => {
+    if (left.tier !== right.tier) return left.tier - right.tier
+    if (left.hostLength !== right.hostLength) return right.hostLength - left.hostLength
+    return right.pathLength - left.pathLength
+  })
+  const best = ranked[0]
+  const ambiguous = ranked.some(
+    (entry) =>
+      entry.tier === best.tier &&
+      entry.hostLength === best.hostLength &&
+      entry.pathLength === best.pathLength &&
+      entry.site.siteId !== best.site.siteId
+  )
+  return { site: best.site, ambiguous }
+}
+
+/** The site a hostname belongs to, or null when it is absent or ambiguous. */
+function findSelectorSite(host, pathname) {
+  const match = findSelectorSiteMatch(host, pathname)
+  return match && !match.ambiguous ? match.site : null
 }
 
 /** What the extension signs when it asks for the selector sites. */
@@ -1707,8 +1790,11 @@ async function resolveSelectorBridge() {
 
   const ports = []
   if (typeof bridgePort === 'number') ports.push(bridgePort)
-  else {
-    for (let port = PORT_START; port <= PORT_END; port++) ports.push(port)
+  // A restarted app can listen on another port of the range. The remembered
+  // port is tried first, then the whole range: otherwise the user has to
+  // reopen the panel after every app restart.
+  for (let port = PORT_START; port <= PORT_END; port++) {
+    if (!ports.includes(port)) ports.push(port)
   }
 
   for (const port of ports) {
@@ -1762,13 +1848,49 @@ function hostOfUrl(url) {
   }
 }
 
+/** The path of a web page URL, or undefined. */
+function pathOfUrl(url) {
+  if (typeof url !== 'string' || !url) return undefined
+  try {
+    return new URL(url).pathname || '/'
+  } catch {
+    return undefined
+  }
+}
+
+/** The origin patterns that let the extension inject a picker into a host. */
+function selectorOriginPatterns(host) {
+  const normalized = typeof host === 'string' ? host.trim().toLowerCase() : ''
+  if (!normalized) return []
+  // Both spellings are probed: depending on the Chrome version and the grant,
+  // `contains` matches the exact host pattern and/or the wildcard one.
+  return [`https://${normalized}/*`, `https://*.${normalized}/*`]
+}
+
+/** Whether the extension may inject the picker into this host. */
+async function hasSelectorPermission(host) {
+  const patterns = selectorOriginPatterns(host)
+  if (patterns.length === 0) return false
+  if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') return true
+  for (const pattern of patterns) {
+    try {
+      if (await chrome.permissions.contains({ origins: [pattern] })) return true
+    } catch {
+      return false
+    }
+  }
+  return false
+}
+
 /** The site and field a tab may be picked on, or an error code. */
 async function resolveSelectorTarget(tabId, field) {
   const url = await readTabUrl(tabId)
   const host = hostOfUrl(url)
   if (!host) return { error: 'unsupported_tab' }
-  const site = findSelectorSite(host)
-  if (!site) return { error: 'unsupported_site' }
+  const match = findSelectorSiteMatch(host, pathOfUrl(url))
+  if (!match) return { error: 'unsupported_site' }
+  if (match.ambiguous) return { error: 'ambiguous_site' }
+  const site = match.site
   const requested = field === 'button' ? 'button' : field === 'input' ? 'input' : null
   if (!requested) return { error: 'invalid_field' }
   if (!site.fields.includes(requested)) return { error: 'unsupported_field' }
@@ -1785,8 +1907,10 @@ async function startSelectorPick(tabId, field) {
   const target = await resolveSelectorTarget(tabId, field)
   if (target.error) return { success: false, error: target.error }
 
-  // A new pick on the same tab replaces the old one: two live sessions on one
-  // tab would both answer the user's clicks.
+  // `activeTab` may grant access even when `permissions.contains` says the host
+  // is not granted (the user opened the panel from the toolbar button), so the
+  // injection is attempted and its error is classified. A pre-check would
+  // refuse a pick that Chrome would have allowed.
   const previous = selectorSessions.filter((session) => session.tabId === tabId)
   for (const session of previous) {
     session.state = 'cancelled'
@@ -1803,7 +1927,15 @@ async function startSelectorPick(tabId, field) {
     })
   } catch (error) {
     console.warn('[Quizlab Bridge] The picker could not be injected:', errorMessage(error))
-    return { success: false, error: 'cannot_inject', detail: errorMessage(error) }
+    const detail = errorMessage(error)
+    const denied = /cannot access|permission|not allowed|extensions gallery/i.test(detail)
+    return {
+      success: false,
+      error: denied ? 'permission_missing' : 'cannot_inject',
+      hostname: target.host,
+      origins: selectorOriginPatterns(target.host),
+      detail
+    }
   }
 
   const result = Array.isArray(injection) ? injection[0] : null
@@ -1816,25 +1948,49 @@ async function startSelectorPick(tabId, field) {
     frameId: Number.isInteger(result.frameId) ? result.frameId : 0,
     documentId: typeof result.documentId === 'string' ? result.documentId : '',
     hostname: target.host,
+    siteId: target.site.siteId,
     field: target.field,
     startHref: target.url,
     startedAt: Date.now(),
     state: 'active',
-    outcome: null
+    outcome: null,
+    lastSelector: null
   }
   await openSelectorSession(session)
 
+  const initMessage = {
+    type: 'quizlab_selector_init',
+    sessionId,
+    field: target.field,
+    startHref: target.url
+  }
   try {
-    await chrome.tabs.sendMessage(tabId, {
-      type: 'quizlab_selector_init',
-      sessionId,
-      field: target.field,
-      startHref: target.url
-    })
+    if (session.documentId) {
+      // Address the document the injection landed in. A navigation between the
+      // injection and this message otherwise lets the init reach another
+      // document, where no picker exists.
+      await chrome.tabs.sendMessage(tabId, initMessage, { documentId: session.documentId })
+    } else {
+      await chrome.tabs.sendMessage(tabId, initMessage)
+    }
   } catch (error) {
-    await updateSelectorSession(sessionId, { state: 'failed', outcome: 'cannot_inject' })
-    console.warn('[Quizlab Bridge] The picker did not accept init:', errorMessage(error))
-    return { success: false, error: 'cannot_inject', detail: errorMessage(error) }
+    const detail = errorMessage(error)
+    if (session.documentId) {
+      try {
+        await chrome.tabs.sendMessage(tabId, initMessage)
+      } catch (fallbackError) {
+        await updateSelectorSession(sessionId, { state: 'failed', outcome: 'cannot_inject' })
+        console.warn(
+          '[Quizlab Bridge] The picker did not accept init:',
+          errorMessage(fallbackError)
+        )
+        return { success: false, error: 'cannot_inject', detail: errorMessage(fallbackError) }
+      }
+    } else {
+      await updateSelectorSession(sessionId, { state: 'failed', outcome: 'cannot_inject' })
+      console.warn('[Quizlab Bridge] The picker did not accept init:', detail)
+      return { success: false, error: 'cannot_inject', detail }
+    }
   }
 
   return {
@@ -1868,6 +2024,7 @@ async function postSelectorPick(session, payload) {
     version: SELECTOR_TRANSFER_VERSION,
     requestId: session.requestId,
     hostname: session.hostname,
+    ...(session.siteId ? { siteId: session.siteId } : {}),
     field: session.field,
     selector: payload.selector,
     candidates: payload.candidates,
@@ -1906,8 +2063,14 @@ async function postSelectorPick(session, payload) {
     }
     if (response.status === 401) return { state: SELECTOR_UNPAIRED }
     if (response.status === 409 && error === 'duplicate_request') {
-      // The first attempt reached the app; the retry must not write again.
-      return { state: SELECTOR_SAVED }
+      // An older bridge answers a retry with this and no outcome. Claiming the
+      // pick was saved would be a false success: the first attempt may have
+      // been refused. The user re-picks while the site is open.
+      return {
+        state: SELECTOR_REJECTED,
+        message:
+          'Bu seçimin önceki sonucu bilinmiyor. Siteyi QuizLab’da açıp seçimi yeniden gönderin.'
+      }
     }
     if (response.status === 409 && error === 'site_not_open') {
       return { state: SELECTOR_SITE_NOT_OPEN }
@@ -1980,58 +2143,92 @@ async function handleSelectorPickResult(message, sender) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Hedef alan uyuşmuyor.' }
   }
 
-  await updateSelectorSession(sessionId, { state: 'sending' })
-  const outcome = await postSelectorPick(session, payload)
+  // Two confirms of one session must not produce two writes. A retry that
+  // arrives while the first is in flight shares its answer.
+  const running = selectorSends.get(sessionId)
+  if (running) return running
 
-  const finalState =
-    outcome.state === SELECTOR_SAVED
-      ? 'saved'
-      : outcome.state === SELECTOR_REJECTED || outcome.state === SELECTOR_UNPAIRED
-        ? 'failed'
-        : 'retryable'
-
-  const record = {
-    state: outcome.state,
-    hostname: session.hostname,
-    field: session.field,
-    selector: payload.selector,
-    at: Date.now(),
-    ...(outcome.reason ? { reason: outcome.reason } : {}),
-    ...(outcome.message ? { message: outcome.message } : {})
+  let requestId = session.requestId
+  if (session.lastSelector && session.lastSelector !== payload.selector) {
+    // The user re-picked a different element after a refused attempt. Reusing
+    // the id would be a different payload under the same idempotency key, which
+    // the bridge refuses; a new pick gets a new id.
+    requestId = crypto.randomUUID()
+    session.requestId = requestId
   }
-  selectorLastOutcome = record
-  await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
-  await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
-  broadcastSelectorOutcome(record)
+  session.lastSelector = payload.selector
 
-  return {
-    ok: outcome.state === SELECTOR_SAVED,
-    state: outcome.state,
-    retryable: finalState === 'retryable',
-    ...(outcome.reason ? { reason: outcome.reason } : {}),
-    ...(outcome.message ? { message: outcome.message } : {})
+  const run = (async () => {
+    await updateSelectorSession(sessionId, {
+      state: 'sending',
+      requestId,
+      lastSelector: payload.selector
+    })
+    const outcome = await postSelectorPick(session, payload)
+
+    const finalState =
+      outcome.state === SELECTOR_SAVED
+        ? 'saved'
+        : outcome.state === SELECTOR_REJECTED || outcome.state === SELECTOR_UNPAIRED
+          ? 'failed'
+          : 'retryable'
+
+    const record = {
+      state: outcome.state,
+      tabId: session.tabId,
+      hostname: session.hostname,
+      field: session.field,
+      selector: payload.selector,
+      at: Date.now(),
+      ...(outcome.reason ? { reason: outcome.reason } : {}),
+      ...(outcome.message ? { message: outcome.message } : {})
+    }
+    selectorLastOutcome = record
+    await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
+    await persistState({ [SELECTOR_LAST_OUTCOME_KEY]: record })
+    broadcastSelectorOutcome(record)
+
+    return {
+      ok: outcome.state === SELECTOR_SAVED,
+      state: outcome.state,
+      retryable: finalState === 'retryable',
+      ...(outcome.reason ? { reason: outcome.reason } : {}),
+      ...(outcome.message ? { message: outcome.message } : {})
+    }
+  })()
+
+  selectorSends.set(sessionId, run)
+  try {
+    return await run
+  } finally {
+    if (selectorSends.get(sessionId) === run) selectorSends.delete(sessionId)
   }
 }
 
-/** What the popup shows: connection, the active tab's site, the last result. */
+/** What the panel shows: connection, the active tab's site, the last result. */
 async function buildSelectorState(tabId) {
   const bridge = await resolveSelectorBridge()
   const url = await readTabUrl(tabId)
   const host = hostOfUrl(url)
-  const site = host ? findSelectorSite(host) : null
+  const match = host ? findSelectorSiteMatch(host, pathOfUrl(url)) : null
+  const site = match && !match.ambiguous ? match.site : null
   const status = site ? site.status || { input: 'missing', button: 'missing' } : null
   const capability =
     selectorSupported === null ? null : selectorSupported === true ? 'selectors' : 'none'
+  const permission = host ? await hasSelectorPermission(host) : false
 
   return {
     supported: capability,
     connection: bridge.state,
     host,
+    permission,
+    ambiguous: Boolean(match && match.ambiguous),
     site: site
       ? {
           siteId: site.siteId,
           displayName: site.displayName,
           hostname: site.hostname,
+          pathPrefix: site.pathPrefix || null,
           fields: site.fields,
           status
         }

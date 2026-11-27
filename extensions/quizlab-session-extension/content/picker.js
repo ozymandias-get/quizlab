@@ -76,17 +76,52 @@
     }
   }
 
+  /**
+   * Whether an event is a real user action.
+   *
+   * `isTrusted` is the only signal the isolated world gets; a page script can
+   * dispatch any event it likes, but it cannot make one trusted. The optional
+   * test set exists because jsdom reports every dispatched event as untrusted;
+   * a page can never reach this script's world to populate it.
+   */
+  function isUserEvent(event) {
+    if (!event) return false
+    if (event.isTrusted === true) return true
+    const testTrusted = globalThis.__quizlabPickerTestTrustedEvents
+    return Boolean(testTrusted) && typeof testTrusted.has === 'function' && testTrusted.has(event)
+  }
+
   function elementOf(node) {
     if (!node) return null
     if (node.nodeType === 1) return node
     return node.parentElement || null
   }
 
+  /**
+   * Whether a node belongs to this picker's own UI.
+   *
+   * The `data-quizlab-picker-ui` attribute is not an authority: the page can
+   * put the same attribute on its own element. The comparison is against the
+   * live host/shadow references the session owns.
+   */
   function isOwnUi(node) {
+    const current = active
+    if (!current || !node) return false
     const element = elementOf(node)
     if (!element) return false
+    if (element === current.ui.host) return true
     try {
-      return element.closest(`[${UI_ATTRIBUTE}]`) !== null
+      if (
+        typeof element.getRootNode === 'function' &&
+        element.getRootNode() === current.ui.shadow
+      ) {
+        return true
+      }
+    } catch {
+      // A detached tree cannot be ours; fall through.
+    }
+    try {
+      return current.ui.host.contains(element)
     } catch {
       return false
     }
@@ -138,10 +173,12 @@
    * The overlay, the label and the confirm panel.
    *
    * They live in a closed shadow root appended to the document element: page
-   * CSS cannot restyle them, page scripts cannot read the panel, and events
-   * retarget to the host so the capture handlers can recognise their own UI.
-   * Every style is set from JavaScript, because an injected <style> element is
-   * subject to the page's CSP.
+   * CSS cannot restyle them and page scripts cannot read or click the panel
+   * through its DOM. Shadow DOM is *not* a security boundary on its own — the
+   * real gate is that only trusted user events drive a pick and that the worker
+   * verifies the payload — but a closed root keeps the page from scripting the
+   * confirmation UI directly. Every style is set from JavaScript, because an
+   * injected <style> element is subject to the page's CSP.
    */
   function createUi() {
     const host = document.createElement('div')
@@ -155,7 +192,7 @@
       'contain: layout style'
     ].join(';')
 
-    const shadow = host.attachShadow({ mode: 'open' })
+    const shadow = host.attachShadow({ mode: 'closed' })
 
     const box = document.createElement('div')
     box.style.cssText = [
@@ -239,8 +276,9 @@
     shadow.append(box, label, panel)
     document.documentElement.appendChild(host)
 
-    return {
+    const ui = {
       host,
+      shadow,
       box,
       label,
       panel,
@@ -251,6 +289,13 @@
       reselectButton,
       cancelButton
     }
+    // A closed root cannot be reached from a test either. The content script
+    // runs in its own world, so this handle is never visible to the page even
+    // when a test harness opts in before loading the script.
+    if (globalThis.__quizlabPickerTestHandles === true) {
+      globalThis.__quizlabPickerTestUi = ui
+    }
+    return ui
   }
 
   /** Drops the running session, its listeners and its overlay. */
@@ -258,6 +303,17 @@
     const current = active
     if (!current) return
     active = null
+    // A response that arrives after this point belongs to a dead session.
+    current.sendToken += 1
+    if (current.frame !== null) {
+      try {
+        window.cancelAnimationFrame(current.frame)
+      } catch {
+        // The frame already ran.
+      }
+      current.frame = null
+    }
+    current.pending = null
     try {
       current.abort.abort()
     } catch {
@@ -276,6 +332,9 @@
     } catch {
       // Already detached.
     }
+    if (globalThis.__quizlabPickerTestUi === current.ui) {
+      delete globalThis.__quizlabPickerTestUi
+    }
   }
 
   /** Ends the pick entirely: the injected script has nothing left to do. */
@@ -288,6 +347,11 @@
   }
 
   function paintSelection(current, element) {
+    if (!element || !element.isConnected) {
+      current.ui.box.style.display = 'none'
+      current.ui.label.style.display = 'none'
+      return
+    }
     const rect = element.getBoundingClientRect()
     if (!rect || rect.width <= 0 || rect.height <= 0) {
       current.ui.box.style.display = 'none'
@@ -303,20 +367,29 @@
 
     label.style.display = 'block'
     label.textContent = `${categoryLabel(element)} — ${describeElement(element)}`
-    const labelHeight = 26
+    // The label is positioned after its text is set, so a long test id does not
+    // run past the viewport (and under a side panel) on the right edge.
+    const labelWidth = Math.min(320, label.offsetWidth || 200)
+    const labelHeight = label.offsetHeight || 26
     const labelTop = rect.top >= labelHeight + 6 ? rect.top - labelHeight - 6 : rect.bottom + 6
-    label.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - 200))}px`
-    label.style.top = `${Math.max(4, labelTop)}px`
+    const maxLeft = Math.max(4, window.innerWidth - labelWidth - 4)
+    const maxTop = Math.max(4, window.innerHeight - labelHeight - 4)
+    label.style.left = `${Math.min(Math.max(4, rect.left), maxLeft)}px`
+    label.style.top = `${Math.min(Math.max(4, labelTop), maxTop)}px`
   }
 
   function schedulePaint(current, element) {
-    if (current.frame !== null) return
+    // Always keep the latest pointer target: returning early because a frame
+    // is already queued used to drop the last element of a frame.
     current.pending = element
+    if (current.frame !== null) return
     current.frame = window.requestAnimationFrame(() => {
       current.frame = null
       if (!active || active !== current || current.frozen) return
-      if (!current.pending || !current.pending.isConnected) return
-      paintSelection(current, current.pending)
+      const target = current.pending
+      current.pending = null
+      if (!target) return
+      paintSelection(current, target)
     })
   }
 
@@ -411,6 +484,7 @@
       return
     }
     current.sending = true
+    const token = (current.sendToken += 1)
     current.confirmButton.disabled = true
     current.confirmButton.style.opacity = '0.6'
     showPanel(
@@ -427,6 +501,12 @@
       field: current.field,
       payload: built.payload
     })
+
+    // The session may have been reset, cancelled or replaced while the answer
+    // was on its way. That answer describes the old selection and must not
+    // drive the new UI (or tear it down).
+    if (active !== current || current.sendToken !== token) return
+
     current.sending = false
     current.confirmButton.disabled = false
     current.confirmButton.style.opacity = '1'
@@ -454,11 +534,13 @@
               : state === 'rejected'
                 ? TEXTS.rejected
                 : TEXTS.retry
+    if (state === 'site_not_open') current.confirmButton.textContent = 'Tekrar Gönder'
     showPanel(current, TEXTS.confirmTitle, describeElement(current.element), message, 'error')
   }
 
   function startHover(current, event) {
     if (current.frozen) return
+    if (!isUserEvent(event)) return
     if (isOwnUi(event.target)) return
     const path = typeof event.composedPath === 'function' ? event.composedPath() : []
     const raw = elementOf(path[0] || event.target)
@@ -491,6 +573,12 @@
 
   function onPointerDown(current, event) {
     if (isOwnUi(event.target)) return
+    // Only a real pointer event picks. A page script can dispatch a synthetic
+    // pointerdown on the send button, but it cannot make the event trusted.
+    if (!isUserEvent(event)) {
+      blockEvent(event)
+      return
+    }
     // Only the primary button picks; the rest is swallowed so the page cannot
     // react to it while the picker is up.
     const blocked = blockEvent(event)
@@ -523,18 +611,53 @@
 
   function onKeyDown(current, event) {
     if (isOwnUi(event.target)) return
+    const target = elementOf(event.target)
     if (event.key === 'Escape') {
+      if (!isUserEvent(event)) return
       blockEvent(event)
       sendToWorker({ type: 'selector_pick_cancelled', sessionId: current.sessionId })
       teardown()
       return
     }
     // Enter must not reach a focused composer: the picker would send the
-    // message the user only meant to select.
-    if (event.key === 'Enter' || event.key === 'NumpadEnter') blockEvent(event)
+    // message the user only meant to select. Space activates a focused button
+    // on keyup in Chrome, so it is swallowed for buttons and roles only; other
+    // typing (and scrolling) stays with the page.
+    const isButtonTarget =
+      Boolean(target) &&
+      (target.tagName === 'BUTTON' ||
+        target.tagName === 'A' ||
+        target.getAttribute('role') === 'button' ||
+        target.getAttribute('type') === 'submit')
+    if (
+      event.key === 'Enter' ||
+      event.key === 'NumpadEnter' ||
+      (event.key === ' ' && isButtonTarget)
+    ) {
+      blockEvent(event)
+    }
+  }
+
+  /** Space activates a focused button on keyup; keep that from sending. */
+  function onKeyUp(current, event) {
+    if (isOwnUi(event.target)) return
+    if (!isUserEvent(event)) return
+    if (event.key !== ' ' && event.key !== 'Enter' && event.key !== 'NumpadEnter') return
+    const target = elementOf(event.target)
+    if (!target) return
+    const isButtonTarget =
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'A' ||
+      target.getAttribute('role') === 'button' ||
+      target.getAttribute('type') === 'submit'
+    if (isButtonTarget) blockEvent(event)
   }
 
   function resetToHover(current) {
+    // A reset while the transfer is in flight would detach the answer from the
+    // selection; the user waits for the result or cancels the whole pick.
+    if (current.sending) return
+    current.sendToken += 1
     current.frozen = false
     current.element = null
     current.sending = false
@@ -542,6 +665,7 @@
     current.ui.box.style.display = 'none'
     current.ui.label.style.display = 'none'
     current.hovered = null
+    current.confirmButton.textContent = TEXTS.confirm
     showPanel(
       current,
       'Sihirli Seçici açık',
@@ -577,6 +701,7 @@
       frame: null,
       frozen: false,
       sending: false,
+      sendToken: 0,
       hintVisible: false,
       startHref: window.location.href,
       confirmButton: ui.confirmButton
@@ -594,13 +719,18 @@
 
     listen(window, 'pointermove', (event) => startHover(current, event))
     listen(window, 'pointerdown', (event) => onPointerDown(current, event))
+    listen(window, 'pointerup', (event) => blockEvent(event))
     listen(window, 'mousedown', (event) => blockEvent(event))
     listen(window, 'mouseup', (event) => blockEvent(event))
     listen(window, 'click', (event) => blockEvent(event))
+    listen(window, 'dblclick', (event) => blockEvent(event))
     listen(window, 'auxclick', (event) => blockEvent(event))
     listen(window, 'contextmenu', (event) => blockEvent(event))
     listen(window, 'submit', (event) => blockEvent(event))
+    listen(window, 'dragstart', (event) => blockEvent(event))
+    listen(window, 'drop', (event) => blockEvent(event))
     listen(window, 'keydown', (event) => onKeyDown(current, event))
+    listen(window, 'keyup', (event) => onKeyUp(current, event))
     listenPassive(window, 'scroll', () => {
       if (current.frozen && current.element) paintSelection(current, current.element)
       else if (current.hovered) schedulePaint(current, current.hovered)
@@ -616,9 +746,16 @@
     window.addEventListener('beforeunload', onUnload)
     current.listeners.push([window, 'beforeunload', onUnload, undefined])
 
-    ui.confirmButton.addEventListener('click', () => void confirmSelection(current))
-    ui.reselectButton.addEventListener('click', () => resetToHover(current))
-    ui.cancelButton.addEventListener('click', () => {
+    ui.confirmButton.addEventListener('click', (event) => {
+      if (!isUserEvent(event)) return
+      void confirmSelection(current)
+    })
+    ui.reselectButton.addEventListener('click', (event) => {
+      if (!isUserEvent(event)) return
+      resetToHover(current)
+    })
+    ui.cancelButton.addEventListener('click', (event) => {
+      if (!isUserEvent(event)) return
       if (current.sessionId) {
         sendToWorker({ type: 'selector_pick_cancelled', sessionId: current.sessionId })
       }

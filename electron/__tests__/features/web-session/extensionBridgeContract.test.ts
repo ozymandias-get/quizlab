@@ -155,6 +155,10 @@ interface HarnessOptions {
    * way a bridge installed before the two builds existed answers.
    */
   healthEnvironment?: 'dev' | 'prod' | 'legacy'
+  /** The answer the fake bridge gives to a selector transfer. */
+  selectorResponse?: { status: number; body: unknown }
+  /** The error `chrome.scripting.executeScript` throws, if any. */
+  injectionError?: string
 }
 
 interface Harness {
@@ -179,6 +183,8 @@ interface Harness {
   readonly storage: Map<string, unknown>
   bridgePort: number | null
   setSiteList(siteList: SiteList): void
+  /** The answer the fake bridge gives to the next selector transfers. */
+  setSelectorResponse(response: { status: number; body: unknown }): void
   failNextPackets(count: number): void
   failNextCookieRead(domain: string): void
   /** The hosts the navigation wake-up listens for at the moment. */
@@ -262,6 +268,10 @@ function createHarness(options: HarnessOptions = {}): Harness {
   let tooLargePackets = options.tooLargePackets ?? 0
   let failingPosts = options.failPosts ?? 0
   let failingCookieDomain: string | null = null
+  let selectorResponseAnswer = options.selectorResponse ?? {
+    status: 200,
+    body: { status: 'saved', saved: true }
+  }
   let timerId = 0
   let bridgePort: number | null = null
 
@@ -385,8 +395,12 @@ function createHarness(options: HarnessOptions = {}): Harness {
       }
     },
     scripting: {
-      executeScript: async (options: { target: { tabId: number }; files?: string[] }) => {
-        injectionCalls.push({ tabId: options.target.tabId, files: options.files ?? [] })
+      executeScript: async (scriptOptions: { target: { tabId: number }; files?: string[] }) => {
+        injectionCalls.push({
+          tabId: scriptOptions.target.tabId,
+          files: scriptOptions.files ?? []
+        })
+        if (options.injectionError) throw new Error(options.injectionError)
         return [{ frameId: 0, documentId: 'doc-1' }]
       }
     }
@@ -452,7 +466,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
         return jsonResponse({ error: 'Invalid signature' }, 401)
       }
       selectorPosts.push({ body: String(init?.body ?? ''), headers })
-      return jsonResponse({ status: 'saved', saved: true })
+      return jsonResponse(selectorResponseAnswer.body, selectorResponseAnswer.status)
     }
     if (target.endsWith(COOKIE_PATH)) {
       const packet = JSON.parse(String(init?.body ?? '{}')) as Packet
@@ -551,6 +565,9 @@ function createHarness(options: HarnessOptions = {}): Harness {
     },
     setSiteList(next: SiteList) {
       siteList = next
+    },
+    setSelectorResponse(next: { status: number; body: unknown }) {
+      selectorResponseAnswer = next
     },
     failNextPackets(count: number) {
       failingPackets = count
@@ -1497,6 +1514,19 @@ describe('extension magic selector', () => {
     expect(harness.injectionCalls).toHaveLength(0)
   })
 
+  it('tells a missing host permission apart from a broken page', async () => {
+    const harness = createHarness({
+      injectionError:
+        'Cannot access contents of the page. Extension manifest must request permission.'
+    })
+    await harness.settle()
+
+    const response = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    expect(response.success).toBe(false)
+    expect((response as { error?: string }).error).toBe('permission_missing')
+    expect((response as { origins?: string[] }).origins).toContain('https://*.chatgpt.com/*')
+  })
+
   it('signs the picked element and reports it saved', async () => {
     const harness = createHarness()
     await harness.settle()
@@ -1579,5 +1609,137 @@ describe('extension magic selector', () => {
     expect(outcome).toMatchObject({ ok: true, state: 'saved' })
     // No cookie was pushed by the selector transfer.
     expect(harness.packets).toHaveLength(0)
+  })
+
+  it('transfers a pick while another Chrome profile owns the cookie source', async () => {
+    const harness = createHarness({
+      siteList: { ...DEFAULT_SITE_LIST, selectedProfileId: 'another-profile' }
+    })
+    await harness.settle()
+
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    const outcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'input',
+        payload: {
+          selector: '#composer',
+          candidates: ['#composer'],
+          fingerprint: { tag: 'textarea' },
+          sourceUrl: 'https://chatgpt.com/c/1'
+        }
+      },
+      { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    // The selector transfer is not a cookie packet: the donor profile choice
+    // must not block a pick made in this Chrome profile.
+    expect(outcome).toMatchObject({ ok: true, state: 'saved' })
+    expect(harness.packets).toHaveLength(0)
+  })
+
+  it('does not report a legacy duplicate answer as a saved pick', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    harness.setSelectorResponse({
+      status: 409,
+      body: { error: 'duplicate_request', retryable: false }
+    })
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+
+    const outcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'input',
+        payload: {
+          selector: '#composer',
+          candidates: ['#composer'],
+          fingerprint: { tag: 'textarea' },
+          sourceUrl: 'https://chatgpt.com/c/1'
+        }
+      },
+      { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    // An older bridge gives no outcome with a duplicate answer. Saying "saved"
+    // would tell the user a pick landed that may have been refused.
+    expect(outcome).toMatchObject({ ok: false, state: 'rejected' })
+    expect(outcome.retryable).toBe(false)
+  })
+
+  it('lets the same pick be retried after the site was opened in QuizLab', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    harness.setSelectorResponse({
+      status: 409,
+      body: { error: 'site_not_open', retryable: true }
+    })
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    const pick = () =>
+      harness.messageFromTab(
+        {
+          type: 'selector_pick_result',
+          sessionId: String(started.sessionId),
+          field: 'input',
+          payload: {
+            selector: '#composer',
+            candidates: ['#composer'],
+            fingerprint: { tag: 'textarea' },
+            sourceUrl: 'https://chatgpt.com/c/1'
+          }
+        },
+        { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+      )
+
+    expect(await pick()).toMatchObject({ ok: false, state: 'site_not_open', retryable: true })
+
+    harness.setSelectorResponse({ status: 200, body: { status: 'saved', saved: true } })
+    expect(await pick()).toMatchObject({ ok: true, state: 'saved' })
+    const ids = harness.selectorPosts.map(
+      (post) => (JSON.parse(post.body) as { requestId: string }).requestId
+    )
+    // The retry is the same request (the bridge did not store the open-site
+    // answer), so it can be processed once the site is open.
+    expect(ids[1]).toBe(ids[0])
+  })
+
+  it('keeps the request id for the same payload and mints one for a different pick', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    harness.setSelectorResponse({
+      status: 422,
+      body: { error: 'verification_failed', reason: 'identity_insufficient' }
+    })
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'input' })
+    const send = (selector: string) =>
+      harness.messageFromTab(
+        {
+          type: 'selector_pick_result',
+          sessionId: String(started.sessionId),
+          field: 'input',
+          payload: {
+            selector,
+            candidates: [selector],
+            fingerprint: { tag: 'textarea' },
+            sourceUrl: 'https://chatgpt.com/c/1'
+          }
+        },
+        { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+      )
+
+    await send('#composer')
+    await send('#composer')
+    await send('textarea[data-testid="prompt"]')
+
+    const ids = harness.selectorPosts.map(
+      (post) => (JSON.parse(post.body) as { requestId: string }).requestId
+    )
+    expect(ids).toHaveLength(3)
+    // A retry of the very same payload keeps the idempotency key; a re-pick of
+    // a different element is a new request, not a new body under the old id.
+    expect(ids[1]).toBe(ids[0])
+    expect(ids[2]).not.toBe(ids[0])
   })
 })

@@ -66,6 +66,12 @@ vi.mock('../../../../electron/features/ai/selectorTargets.js', () => ({
   buildSelectorSiteTargets: async () => [SITE],
   hostBelongsToSelectorSite: (host: string, site: typeof SITE) =>
     site.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`)),
+  findSelectorSiteMatch: (host: string, sites: Array<typeof SITE>) => {
+    const site = sites.find((entry) =>
+      entry.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))
+    )
+    return site ? { site, ambiguous: false } : null
+  },
   matchSelectorSite: (host: string, sites: Array<typeof SITE>) =>
     sites.find((site) =>
       site.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))
@@ -302,7 +308,7 @@ describe('selector bridge routes', () => {
     expect(response.body).toMatchObject({ error: 'invalid_request_id' })
   })
 
-  it('answers a retried request with duplicate_request instead of writing twice', async () => {
+  it('replays the real result of a retried request instead of writing twice', async () => {
     const body = payloadBody({ requestId: 'first-request-0123456789' })
     const headers = {
       'x-hmac-signature': signPost(body, 'first-request-0123456789'),
@@ -313,13 +319,135 @@ describe('selector bridge routes', () => {
       body
     )
     expect(first.status).toBe(200)
+    expect(first.body).toMatchObject({ status: 'saved', saved: true })
 
     const second = await send(
       createRequest({ method: 'POST', url: SELECTOR_TRANSFER_PATH, headers }),
       body
     )
+    // The retry gets the first attempt's real answer, not a bare "duplicate".
+    expect(second.status).toBe(200)
+    expect(second.body).toMatchObject({ status: 'saved', saved: true })
+    expect(saveAiConfigPatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('replays a deterministic refusal instead of turning it into a success', async () => {
+    const body = payloadBody({ requestId: 'refused-request-0123456789', version: 9 })
+    const headers = {
+      'x-hmac-signature': signPost(body, 'refused-request-0123456789'),
+      [SELECTOR_REQUEST_ID_HEADER]: 'refused-request-0123456789'
+    }
+    const first = await send(
+      createRequest({ method: 'POST', url: SELECTOR_TRANSFER_PATH, headers }),
+      body
+    )
+    expect(first.status).toBe(400)
+    expect(first.body).toMatchObject({ error: 'invalid_payload' })
+
+    const second = await send(
+      createRequest({ method: 'POST', url: SELECTOR_TRANSFER_PATH, headers }),
+      body
+    )
+    expect(second.status).toBe(400)
+    expect(second.body).toMatchObject({ error: 'invalid_payload' })
+  })
+
+  it('refuses the same request id with a different body', async () => {
+    const requestId = 'reuse-request-0123456789'
+    const firstBody = payloadBody({ requestId })
+    const firstHeaders = {
+      'x-hmac-signature': signPost(firstBody, requestId),
+      [SELECTOR_REQUEST_ID_HEADER]: requestId
+    }
+    expect(
+      (
+        await send(
+          createRequest({ method: 'POST', url: SELECTOR_TRANSFER_PATH, headers: firstHeaders }),
+          firstBody
+        )
+      ).status
+    ).toBe(200)
+
+    const secondBody = payloadBody({
+      requestId,
+      selector: 'textarea[data-testid="prompt"]',
+      candidates: ['textarea[data-testid="prompt"]'],
+      fingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+    })
+    const second = await send(
+      createRequest({
+        method: 'POST',
+        url: SELECTOR_TRANSFER_PATH,
+        headers: {
+          'x-hmac-signature': signPost(secondBody, requestId),
+          [SELECTOR_REQUEST_ID_HEADER]: requestId
+        }
+      }),
+      secondBody
+    )
     expect(second.status).toBe(409)
-    expect(second.body).toMatchObject({ error: 'duplicate_request' })
+    expect(second.body).toMatchObject({ error: 'request_id_reuse', retryable: false })
+    expect(saveAiConfigPatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires the header and the body to name the same request id', async () => {
+    const body = payloadBody({ requestId: 'another-request-0123456789' })
+    const response = await send(
+      createRequest({
+        method: 'POST',
+        url: SELECTOR_TRANSFER_PATH,
+        headers: {
+          'x-hmac-signature': signPost(body, REQUEST_ID),
+          [SELECTOR_REQUEST_ID_HEADER]: REQUEST_ID
+        }
+      }),
+      body
+    )
+    expect(response.status).toBe(400)
+    expect(response.body).toMatchObject({ error: 'invalid_payload', reason: 'request_id_mismatch' })
+    expect(saveAiConfigPatch).not.toHaveBeenCalled()
+  })
+
+  it('answers two concurrent copies of one request with one write', async () => {
+    const body = payloadBody({ requestId: 'concurrent-request-0123456789' })
+    const headers = {
+      'x-hmac-signature': signPost(body, 'concurrent-request-0123456789'),
+      [SELECTOR_REQUEST_ID_HEADER]: 'concurrent-request-0123456789'
+    }
+    const firstRequest = createRequest({
+      method: 'POST',
+      url: SELECTOR_TRANSFER_PATH,
+      headers
+    })
+    const secondRequest = createRequest({
+      method: 'POST',
+      url: SELECTOR_TRANSFER_PATH,
+      headers
+    })
+    const firstResponse = createResponse()
+    const secondResponse = createResponse()
+    expect(
+      handleSelectorBridgeRequest(firstRequest as never, firstResponse as never, MANAGER, PROFILE)
+    ).toBe(true)
+    expect(
+      handleSelectorBridgeRequest(secondRequest as never, secondResponse as never, MANAGER, PROFILE)
+    ).toBe(true)
+    firstRequest.emit('data', Buffer.from(body))
+    secondRequest.emit('data', Buffer.from(body))
+    firstRequest.emit('end')
+    secondRequest.emit('end')
+
+    const deadline = Date.now() + 2000
+    while (
+      (firstResponse.status === null || secondResponse.status === null) &&
+      Date.now() < deadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    expect(firstResponse.status).toBe(200)
+    expect(secondResponse.status).toBe(200)
+    expect(firstResponse.body).toMatchObject({ status: 'saved' })
+    expect(secondResponse.body).toMatchObject({ status: 'saved' })
     expect(saveAiConfigPatch).toHaveBeenCalledTimes(1)
   })
 

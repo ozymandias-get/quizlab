@@ -659,8 +659,12 @@ const SELECTOR_TEXTS = {
   unsupported: 'QuizLab sürümü desteklemiyor',
   noSite: 'Bu sitede seçim yapılamaz',
   unknownSite: 'Quizlab bu siteyi tanımıyor.',
+  ambiguousSite: 'Bu alan adı birden fazla siteyle eşleşiyor; Quizlab’da doğru siteyi açın.',
   unknownTab: 'Bu sekmede seçim yapılamaz.',
   unknownField: 'Bu site bu alanı desteklemiyor.',
+  permissionMissing:
+    'Bu siteye erişim izni yok. Yukarıdaki site listesinden izin verip yeniden deneyin.',
+  permissionDeclined: 'İzin verilmedi. Siteyi QuizLab’da açıp seçimi tekrar deneyin.',
   cannotInject: 'Bu sayfaya erişilemedi. Sayfayı yenileyip tekrar deneyin.',
   started: 'Seçim modu açıldı. Sayfada elementi seçin; ESC ile iptal edebilirsiniz.',
   saved: 'Seçici Quizlab’a ulaştı ve kaydedildi.',
@@ -729,6 +733,10 @@ async function initSelectorControls() {
   const preview = document.getElementById('selector-preview')
 
   let tabId = null
+  let currentHost = null
+  let currentPermission = true
+  /** Bumped on every refresh; a slow answer for an older tab is ignored. */
+  let refreshRevision = 0
 
   const showFeedback = (text, isSuccess) => {
     if (!feedback) return
@@ -742,6 +750,12 @@ async function initSelectorControls() {
     delete feedback.dataset.state
   }
 
+  const clearPreview = () => {
+    if (!preview) return
+    preview.textContent = ''
+    delete preview.dataset.state
+  }
+
   const setConnection = (text, tone) => {
     if (!connection) return
     connection.textContent = text
@@ -750,11 +764,17 @@ async function initSelectorControls() {
 
   const renderStatus = (element, status) => {
     if (!element) return
-    element.textContent = SELECTOR_STATUS_TEXTS[status] || SELECTOR_STATUS_TEXTS.missing
+    element.textContent = status
+      ? SELECTOR_STATUS_TEXTS[status] || SELECTOR_STATUS_TEXTS.missing
+      : '-'
   }
 
-  const renderOutcome = (lastOutcome) => {
+  const renderOutcome = (lastOutcome, hostname) => {
     if (!lastOutcome || typeof lastOutcome !== 'object') return
+    // A result belongs to the pick it was produced for. Showing another tab's
+    // outcome as this site's result is exactly the confusion this guard
+    // prevents; the panel keeps the outcome of the current host only.
+    if (lastOutcome.hostname && hostname && lastOutcome.hostname !== hostname) return
     if (preview && typeof lastOutcome.selector === 'string') {
       const fieldText = lastOutcome.field === 'button' ? 'gönder butonu' : 'mesaj alanı'
       preview.textContent = `${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`
@@ -783,17 +803,40 @@ async function initSelectorControls() {
     }
   }
 
+  /** The start button says which element it is waiting for. */
+  const applyStartLabel = () => {
+    if (!button) return
+    const field = fieldSelect ? fieldSelect.value : 'input'
+    button.textContent = field === 'button' ? 'Gönder Butonunu Seç' : 'Mesaj Alanını Seç'
+  }
+
   const refresh = async () => {
+    const revision = (refreshRevision += 1)
     setConnection(SELECTOR_TEXTS.checking, 'idle')
-    tabId = await readActiveTabId()
+    const nextTabId = await readActiveTabId()
+    if (revision !== refreshRevision) return
+    tabId = nextTabId
     const response =
       tabId === null ? null : await sendWorkerMessage({ type: 'selector_state', tabId })
+    if (revision !== refreshRevision) return
     if (!response || response.success !== true) {
       setConnection(SELECTOR_TEXTS.unreachable, 'error')
       if (siteLabel) siteLabel.textContent = SELECTOR_TEXTS.noSite
+      renderStatus(inputStatus, null)
+      renderStatus(buttonStatus, null)
       button.disabled = true
       return
     }
+
+    const nextHost = typeof response.host === 'string' ? response.host : null
+    if (currentHost !== nextHost) {
+      // The result and the preview describe the previous site; keeping them
+      // would read as "this tab already has a saved selector".
+      clearFeedback()
+      clearPreview()
+    }
+    currentHost = nextHost
+    currentPermission = response.permission !== false
 
     const connectionState = response.connection
     if (connectionState === 'ok') setConnection(SELECTOR_TEXTS.connected, 'ok')
@@ -803,10 +846,17 @@ async function initSelectorControls() {
     } else setConnection(SELECTOR_TEXTS.unreachable, 'error')
 
     const site = response.site
-    if (siteLabel) siteLabel.textContent = site ? site.displayName : SELECTOR_TEXTS.noSite
+    if (siteLabel) {
+      siteLabel.textContent = response.ambiguous
+        ? SELECTOR_TEXTS.ambiguousSite
+        : site
+          ? site.displayName
+          : SELECTOR_TEXTS.noSite
+    }
     renderStatus(inputStatus, site?.status?.input)
     renderStatus(buttonStatus, site?.status?.button)
     applyFields(site?.fields)
+    applyStartLabel()
 
     const supported = response.supported !== 'none'
     button.disabled = connectionState !== 'ok' || !site || !supported
@@ -814,17 +864,47 @@ async function initSelectorControls() {
       showFeedback(SELECTOR_TEXTS.unsupported, false)
     }
 
-    renderOutcome(response.lastOutcome)
+    renderOutcome(response.lastOutcome, nextHost)
+  }
+
+  if (fieldSelect) {
+    fieldSelect.addEventListener('change', applyStartLabel)
   }
 
   button.addEventListener('click', async () => {
     if (button.disabled) return
     const field = fieldSelect ? fieldSelect.value : 'input'
-    if (tabId === null) tabId = await readActiveTabId()
-    if (tabId === null) {
+    // The tab may have changed since the last refresh. Read it again and let
+    // the worker refuse a stale id instead of injecting into another tab.
+    const activeId = await readActiveTabId()
+    if (activeId === null) {
       showFeedback(SELECTOR_TEXTS.unknownTab, false)
       return
     }
+    tabId = activeId
+
+    // A custom site is not covered by the manifest's host permissions. The
+    // request has to be made from this click's user gesture; a granted
+    // permission is not required for `activeTab`, but asking here is what makes
+    // the second pick after the temporary grant works too.
+    if (currentPermission === false && currentHost) {
+      try {
+        const granted = await chrome.permissions.request({
+          origins: [`https://${currentHost}/*`, `https://*.${currentHost}/*`]
+        })
+        if (!granted) {
+          showFeedback(SELECTOR_TEXTS.permissionDeclined, false)
+        } else {
+          currentPermission = true
+        }
+      } catch (error) {
+        console.warn(
+          '[Quizlab Panel] The picker permission could not be requested:',
+          errorMessage(error)
+        )
+      }
+    }
+
     button.disabled = true
     clearFeedback()
     const response = await sendWorkerMessage({ type: 'selector_start', tabId, field })
@@ -837,10 +917,12 @@ async function initSelectorControls() {
     }
     const error = response && typeof response.error === 'string' ? response.error : ''
     if (error === 'unsupported_site') showFeedback(SELECTOR_TEXTS.unknownSite, false)
+    else if (error === 'ambiguous_site') showFeedback(SELECTOR_TEXTS.ambiguousSite, false)
     else if (error === 'unsupported_tab') showFeedback(SELECTOR_TEXTS.unknownTab, false)
     else if (error === 'unsupported_field') showFeedback(SELECTOR_TEXTS.unknownField, false)
     else if (error === 'unpaired') showFeedback(SELECTOR_TEXTS.unpaired, false)
     else if (error === 'unsupported') showFeedback(SELECTOR_TEXTS.unsupported, false)
+    else if (error === 'permission_missing') showFeedback(SELECTOR_TEXTS.permissionMissing, false)
     else {
       const detail = response && typeof response.detail === 'string' ? ` (${response.detail})` : ''
       showFeedback(SELECTOR_TEXTS.cannotInject + detail, false)
