@@ -200,6 +200,23 @@ export function buildPickerHandlersBlock(): string {
             lastHovered = null;
         };
 
+        // Scroll and resize move the element under a stationary pointer without
+        // firing pointer events, so the label (placed at the last pointer
+        // coordinates) and the hover outline would keep pointing at where the
+        // element used to be. Drop both; the next pointer move re-resolves the
+        // target. The info panel is deliberately not rebuilt: doing that on
+        // every scroll frame is far more expensive than the delay it hides.
+        const onScrollOrResize = () => {
+            if (window._aiPickerRaf) safeCancelAnimationFrame(window._aiPickerRaf);
+            labelBox.style.display = 'none';
+            if (lastHovered && lastHovered !== selectedInputElement) {
+                try {
+                    lastHovered.classList.remove('_ai-picker-hover-good', '_ai-picker-hover-medium', '_ai-picker-hover-low');
+                } catch (err) { safePickerLog('scroll.clearHover', err); }
+            }
+            lastHovered = null;
+        };
+
         const onClick = (e) => {
             if (step === 'done') return;
             

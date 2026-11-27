@@ -239,6 +239,31 @@ describe('userElementPicker integration', () => {
     }
   })
 
+  it('clears the floating label and hover outline when the page scrolls', () => {
+    eval(generatePickerScript())
+
+    const textarea = document.createElement('textarea')
+    document.body.appendChild(textarea)
+    textarea.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
+
+    // infoBox is created first, labelBox second.
+    const labelBox = document.querySelectorAll<HTMLElement>('[data-ai-picker-ui="true"]')[1]
+    expect(labelBox?.style.display).toBe('block')
+    expect(textarea.classList.contains('_ai-picker-hover-good')).toBe(true)
+
+    // Scroll moves the element under a stationary pointer without firing a
+    // pointer event. A label left at the old coordinates would point at a
+    // different element and the outline would mark something else.
+    document.dispatchEvent(new Event('scroll'))
+
+    expect(labelBox?.style.display).toBe('none')
+    expect(textarea.classList.contains('_ai-picker-hover-good')).toBe(false)
+
+    // The next pointer move re-resolves the target.
+    textarea.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, composed: true }))
+    expect(textarea.classList.contains('_ai-picker-hover-good')).toBe(true)
+  })
+
   it('injects the picker stylesheet into same-origin frames and removes it on cleanup', () => {
     const iframe = document.createElement('iframe')
     document.body.appendChild(iframe)

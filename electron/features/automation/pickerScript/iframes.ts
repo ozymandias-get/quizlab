@@ -48,6 +48,14 @@ export function buildPickerIframesBlock(): string {
             rootDoc.addEventListener('beforeinput', onTypingDetected, true);
             rootDoc.addEventListener('input', onTypingDetected, true);
             rootDoc.addEventListener('keydown', onKeyDown, true);
+            // Scroll does not bubble, but capture listeners on the document see
+            // every descendant scroller; the window-level resize covers layout
+            // shifts that move the hovered element.
+            rootDoc.addEventListener('scroll', onScrollOrResize, { capture: true, passive: true });
+            try {
+                var rootWin = rootDoc.defaultView;
+                if (rootWin) rootWin.addEventListener('resize', onScrollOrResize, { passive: true });
+            } catch (err) { safePickerLog('iframe.resizeListener', err); }
             listenerRoots.push(rootDoc);
             ensureFrameStyles(rootDoc);
         };

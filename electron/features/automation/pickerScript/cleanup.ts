@@ -34,6 +34,11 @@ export function buildPickerCleanupBlock(): string {
                         rootDoc.removeEventListener('beforeinput', onTypingDetected, true);
                         rootDoc.removeEventListener('input', onTypingDetected, true);
                         rootDoc.removeEventListener('keydown', onKeyDown, true);
+                        rootDoc.removeEventListener('scroll', onScrollOrResize, true);
+                        try {
+                            var rootWindow = rootDoc.defaultView;
+                            if (rootWindow) rootWindow.removeEventListener('resize', onScrollOrResize);
+                        } catch (e) { safePickerLog('cleanup.resizeListener', e); }
                         if (rootDoc.documentElement) {
                             try { delete rootDoc.documentElement.__aiPickerListenersAttached; } catch (e) { safePickerLog('cleanup.listenerFlag', e); }
                             try { delete rootDoc.documentElement.__aiPickerFrameObserved; } catch (e) { safePickerLog('cleanup.frameFlag', e); }
