@@ -112,6 +112,8 @@ export interface SelectorPickFailure {
     ambiguous: boolean
     /** `ran` when the empty-composer probe executed, `skipped` when it could not. */
     probe: string | null
+    /** How the probe left the composer (`cleared`, `left_external_edit`, ...). */
+    cleanup: string | null
     /** Structural shape of the first resolved candidate; no text or labels. */
     descriptor?: {
       tag: string | null
@@ -163,6 +165,7 @@ interface VerificationResult {
   attempts?: unknown
   composerState?: unknown
   probe?: unknown
+  cleanup?: unknown
   diagnostics?: Record<string, { ambiguous?: unknown } | undefined>
 }
 
@@ -612,6 +615,18 @@ function readProbeState(raw: unknown): 'ran' | 'non_empty' | 'no_input' | 'not_r
 }
 
 /**
+ * How the probe left the composer.
+ *
+ * `cleared` is the only outcome that proves the probe removed exactly what it
+ * wrote. `element_replaced`, `left_external_edit`, `content_changed` and
+ * `failed` all mean the app cannot prove the state it left behind.
+ */
+function readProbeCleanup(raw: unknown): string | null {
+  if (!isRecord(raw)) return null
+  return typeof raw.cleanup === 'string' && raw.cleanup ? raw.cleanup : null
+}
+
+/**
  * Runs the generated verifier and decides whether the pick is trustworthy.
  *
  * Every candidate the verifier resolved is considered, in the order the pick
@@ -630,6 +645,9 @@ function verifyPick(
 ): { ok: true; selector: string; candidates: string[] } | { ok: false; reason: string } {
   if (!isRecord(raw)) return { ok: false, reason: 'no_result' }
   const result = raw as VerificationResult
+  // The field has to be right before any verdict is trusted: a stale or failed
+  // script answer must not be read as an eligible "nothing found" result.
+  if (result.field !== field) return { ok: false, reason: 'field_mismatch' }
   const attempts = verificationAttempts(result)
   if (attempts.length === 0) {
     return {
@@ -639,7 +657,6 @@ function verifyPick(
         : 'not_found'
     }
   }
-  if (result.field !== field) return { ok: false, reason: 'field_mismatch' }
   if (result.diagnostics?.[field]?.ambiguous === true) {
     return { ok: false, reason: 'ambiguous' }
   }
@@ -829,6 +846,12 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
         composerInput &&
         PROBE_ELIGIBLE.has(verified.reason)
       ) {
+        // The probe writes into the page, so the document it writes to must be
+        // the one that was just verified. A navigation or reload between the two
+        // runs would otherwise let the probe type into a fresh page.
+        if (!(await isSameDocument())) {
+          return { ok: false, reason: 'view_navigated' }
+        }
         probed = true
         let probeRaw: unknown = null
         try {
@@ -837,6 +860,23 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
           probeRaw = null
         }
         if (probeRaw) {
+          const cleanup = readProbeCleanup(probeRaw)
+          if (cleanup && cleanup !== 'not_started' && cleanup !== 'cleared') {
+            // The probe may have left its character in the user's composer. The
+            // pick itself could still be valid, but a verified save after an
+            // unconfirmed write would hide that from the user.
+            deps.logVerificationFailure?.(
+              summarizePickFailure(
+                payload.hostname,
+                field,
+                bundle,
+                'probe_cleanup_failed',
+                probeRaw,
+                'ran'
+              )
+            )
+            return { ok: false, reason: 'probe_cleanup_failed' }
+          }
           const probedPick = verifyPick(probeRaw, field, bundle)
           if (probedPick.ok) {
             const navigation = checkHref(probeRaw)
@@ -1089,6 +1129,7 @@ function summarizePickFailure(
       attempts: attempts.length,
       ambiguous: result.diagnostics?.[field]?.ambiguous === true,
       probe: probeState ?? null,
+      cleanup: readProbeCleanup(raw),
       ...(descriptor
         ? {
             descriptor: {

@@ -122,17 +122,31 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 const inputCfg = config.input;
                 if (!inputCfg) return null;
                 const expectedTag = String(inputCfg.fingerprint?.tag || '').toLowerCase();
+                const expectedRole = String(inputCfg.fingerprint?.role || '').toLowerCase();
+                const expectedAria = String(inputCfg.fingerprint?.ariaLabel || '');
+                const expectedEditable = inputCfg.fingerprint?.contentEditable === true;
                 const accept = (element) => {
                     if (!element || !element.isConnected) return null;
                     const tag = (element.tagName || '').toLowerCase();
-                    const isEntry =
-                        tag === 'textarea' ||
-                        tag === 'input' ||
+                    const editable =
                         element.isContentEditable === true ||
                         element.getAttribute('contenteditable') === 'true';
+                    const isEntry = tag === 'textarea' || tag === 'input' || editable;
                     if (!isEntry) return null;
-                    // Writing into the wrong editor is worse than not probing.
+                    // Writing into the wrong editor is worse than not probing. A
+                    // second empty editor on the page must not be mistaken for the
+                    // verified composer, so every identity trait the pick carried
+                    // has to agree when both sides expose it.
                     if (expectedTag && tag !== expectedTag) return null;
+                    if (expectedEditable && !editable) return null;
+                    if (expectedRole) {
+                        const role = (element.getAttribute('role') || '').toLowerCase();
+                        if (role && role !== expectedRole) return null;
+                    }
+                    if (expectedAria) {
+                        const aria = element.getAttribute('aria-label') || '';
+                        if (aria && aria !== expectedAria) return null;
+                    }
                     return element;
                 };
                 const inputSelectors = Array.isArray(inputCfg.selectors) ? inputCfg.selectors : [];
@@ -143,7 +157,9 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                         if (accepted) return accepted;
                     } catch (_) {}
                 }
-                if (inputCfg.fingerprint) {
+                // Fingerprint recovery is a fallback for a config without usable
+                // selectors only; with selectors present it would widen the target.
+                if (inputSelectors.length === 0 && inputCfg.fingerprint) {
                     try {
                         const fpMatch = findElementByFingerprint(inputCfg.fingerprint);
                         const accepted = accept(fpMatch && fpMatch.element);
@@ -163,11 +179,12 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 );
             };
 
-            const writeProbeText = (element, text) => {
+            const writeProbeText = (element, text, focus) => {
                 const isEditable = Boolean(
                     element.isContentEditable || element.getAttribute('contenteditable') === 'true'
                 );
-                if (typeof element.focus === 'function') element.focus();
+                // Cleanup must never pull focus back into the composer.
+                if (focus !== false && typeof element.focus === 'function') element.focus();
                 if (!isEditable) {
                     const setter = resolveNativeValueSetter(element);
                     if (setter) setter.call(element, text);
@@ -232,7 +249,8 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                     href: String(location.href || ''),
                     attempts: [],
                     composerState: 'no_input',
-                    probe: 'not_run'
+                    probe: 'not_run',
+                    cleanup: 'not_started'
                 };
             }
             if (!isComposerEmpty(composerEl)) {
@@ -243,44 +261,100 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                     href: String(location.href || ''),
                     attempts: [],
                     composerState: 'non_empty',
-                    probe: 'not_run'
+                    probe: 'not_run',
+                    cleanup: 'not_started'
                 };
             }
 
             const prevActive = document.activeElement;
             const probeText = '.';
+            const startHref = String(location.href || '');
             let attempts = [];
             let probeState = 'empty_probe_no_button';
+            let cleanup = 'not_started';
+            let ownWrite = false;
+            let externalEdit = false;
+
+            // Any input the probe did not perform itself is a user edit (typing,
+            // paste, wrapping, IME composition, drag/drop). Tracking it means a
+            // user who types the same character as the probe — or only presses
+            // Enter, which content comparison cannot see — is never overwritten.
+            const onExternalEdit = (event) => {
+                if (ownWrite) return;
+                try {
+                    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+                    const target = event.target;
+                    if (path.includes(composerEl) || (target && composerEl.contains(target))) {
+                        externalEdit = true;
+                    }
+                } catch (_) {}
+            };
+            const editEvents = ['beforeinput', 'input', 'paste', 'drop', 'compositionstart'];
+            for (const type of editEvents) {
+                document.addEventListener(type, onExternalEdit, true);
+            }
+
             try {
-                writeProbeText(composerEl, probeText);
-                // Keep observing for the whole window instead of accepting the
-                // first element that appears: the first render during hydration
+                ownWrite = true;
+                writeProbeText(composerEl, probeText, true);
+                ownWrite = false;
+                if (!composerEl.isConnected) {
+                    throw new Error('composer_detached');
+                }
+                // Observe for the whole window: the first render during hydration
                 // can still be a twin (voice/mic) before the send button swaps in.
                 const probeDeadline = Date.now() + 1200;
                 while (Date.now() < probeDeadline) {
-                    const collected = collect();
-                    if (collected.length > 0) attempts = collected;
                     await new Promise((resolve) => setTimeout(resolve, 100));
                 }
+                // The *final* DOM state decides. A button that was found earlier
+                // and disappeared again must not be verified from a stale snapshot.
+                attempts = collect();
                 probeState = attempts.length > 0 ? 'empty_probed' : 'empty_probe_no_button';
+            } catch (_) {
+                attempts = [];
+                probeState = 'empty_probe_no_button';
             } finally {
-                // Ownership-safe cleanup: remove the character only when the
-                // same live element still holds exactly our probe. A composer
-                // that was re-created, a draft the user started typing, or any
-                // other unexpected content is left untouched.
+                for (const type of editEvents) {
+                    document.removeEventListener(type, onExternalEdit, true);
+                }
+                // Ownership-safe cleanup: remove the character only when this is
+                // still the same live element, nothing else edited it, and it
+                // holds exactly our probe. Everything else is left untouched.
                 try {
-                    if (composerEl.isConnected && normalizeComposerText(composerEl) === probeText) {
-                        writeProbeText(composerEl, '');
+                    if (!composerEl.isConnected) {
+                        cleanup = 'element_replaced';
+                    } else if (externalEdit) {
+                        cleanup = 'left_external_edit';
+                    } else if (
+                        normalizeComposerText(composerEl) !== probeText ||
+                        hasMeaningfulComposerContent(composerEl)
+                    ) {
+                        cleanup = 'content_changed';
+                    } else {
+                        ownWrite = true;
+                        writeProbeText(composerEl, '', false);
+                        ownWrite = false;
+                        cleanup =
+                            normalizeComposerText(composerEl) === '' &&
+                            !hasMeaningfulComposerContent(composerEl)
+                                ? 'cleared'
+                                : 'failed';
                     }
-                } catch (_) {}
+                } catch (_) {
+                    cleanup = 'failed';
+                }
                 try {
-                    // Never steal focus the user has already moved elsewhere.
-                    if (document.activeElement === composerEl) {
-                        if (prevActive && prevActive !== composerEl && typeof prevActive.focus === 'function') {
-                            prevActive.focus();
-                        } else if (typeof composerEl.blur === 'function') {
-                            composerEl.blur();
-                        }
+                    // Restore the focus the probe took over, never take focus the
+                    // user has moved elsewhere, and never blur what was focused
+                    // before the probe started.
+                    if (
+                        prevActive &&
+                        prevActive !== composerEl &&
+                        document.activeElement === composerEl &&
+                        typeof prevActive.focus === 'function'
+                    ) {
+                        prevActive.focus();
                     }
                 } catch (_) {}
             }
@@ -290,9 +364,11 @@ const generateVerifyLocatorScript = (input: VerifyLocatorInput): string => {
                 action: 'probe_composer',
                 field: '${input.field}',
                 href: String(location.href || ''),
+                startHref,
                 attempts,
                 composerState: probeState,
                 probe: 'ran',
+                cleanup,
                 diagnostics: finalizeDiagnostics(
                     diagnostics,
                     scriptStartedAt,

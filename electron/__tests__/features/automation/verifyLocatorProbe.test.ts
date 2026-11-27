@@ -18,6 +18,7 @@ interface ProbeResult {
   attempts: Array<{ selector: string; descriptor: { tag: string } }>
   composerState: string
   probe?: string
+  cleanup?: string
 }
 
 function buildPage(options: { initialText?: string; controls?: 'button-on-text' | 'none' } = {}) {
@@ -88,6 +89,7 @@ describe('the empty-composer probe', () => {
 
     expect(result.action).toBe('probe_composer')
     expect(result.probe).toBe('ran')
+    expect(result.cleanup).toBe('cleared')
     expect(result.composerState).toBe('empty_probed')
     expect(result.attempts.length).toBeGreaterThan(0)
     // The probe character is gone again; nothing was submitted.
@@ -128,9 +130,41 @@ describe('the empty-composer probe', () => {
     const result = await runProbeScript()
 
     expect(result.probe).toBe('ran')
+    expect(result.cleanup).toBe('content_changed')
     // The ownership check refuses to clear '.x': the probe only removes its own
     // character from a composer that still holds exactly that character.
     expect(composer.textContent).toBe('.x')
+  })
+
+  it('treats any input event from the user as an edit, even when the text still matches', async () => {
+    // A key that leaves the text matching the probe (Enter in a contenteditable
+    // adds structure that text normalisation hides) is still a user edit.
+    const { composer } = buildPage()
+    window.setTimeout(() => {
+      if (composer.textContent !== '.') return
+      composer.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }))
+    }, 400)
+
+    const result = await runProbeScript()
+
+    expect(result.probe).toBe('ran')
+    expect(result.cleanup).toBe('left_external_edit')
+    expect(composer.textContent).toBe('.')
+  })
+
+  it('does not verify a button that disappeared before the observation ended', async () => {
+    buildPage()
+    window.setTimeout(() => {
+      document.querySelector('[data-testid="send"]')?.remove()
+    }, 500)
+
+    const result = await runProbeScript()
+
+    expect(result.probe).toBe('ran')
+    expect(result.attempts).toEqual([])
+    expect(result.composerState).toBe('empty_probe_no_button')
+    expect(result.cleanup).toBe('cleared')
+    expect(document.getElementById('prompt-textarea')?.textContent).toBe('')
   })
 
   it('does not clear a composer that was replaced during the probe', async () => {
@@ -150,6 +184,7 @@ describe('the empty-composer probe', () => {
     const result = await runProbeScript()
 
     expect(result.probe).toBe('ran')
+    expect(result.cleanup).toBe('element_replaced')
     // The detached original is gone; the new composer was never written to or
     // cleared by the probe, even though it now holds text.
     expect(document.getElementById('prompt-textarea')?.textContent).toBe('kullanıcı taslağı')

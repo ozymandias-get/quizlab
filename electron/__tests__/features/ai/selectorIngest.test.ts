@@ -338,10 +338,21 @@ describe('selector ingestion', () => {
   })
 
   it('refuses a selector that found nothing', async () => {
-    const deps = createIngest({ view: OPEN_VIEW, result: { success: false } })
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: { success: false, action: 'verify_locator', field: 'input', attempts: [] }
+    })
     await expect(deps.ingest(payload())).resolves.toEqual({
       status: 'verification_failed',
       reason: 'not_found'
+    })
+  })
+
+  it('treats a verifier answer without a field as untrustworthy', async () => {
+    const deps = createIngest({ view: OPEN_VIEW, result: { success: false } })
+    await expect(deps.ingest(payload())).resolves.toEqual({
+      status: 'verification_failed',
+      reason: 'field_mismatch'
     })
   })
 
@@ -1287,6 +1298,141 @@ describe('candidate selection', () => {
     expect(deps.savePatch).not.toHaveBeenCalled()
   })
 
+  it('refuses to save when the probe could not confirm it cleaned up', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) return verified({ field: 'input' })
+        if (script.includes("action: 'probe_composer'")) {
+          return {
+            success: true,
+            action: 'probe_composer',
+            field: 'button',
+            probe: 'ran',
+            composerState: 'empty_probed',
+            cleanup: 'left_external_edit',
+            attempts: [
+              {
+                selector: 'button[type="submit"]',
+                matchedSelector: 'button[type="submit"]',
+                strategy: 'direct',
+                descriptor: { tag: 'button', type: 'submit', ariaLabel: 'Send' }
+              }
+            ]
+          }
+        }
+        return {
+          success: true,
+          action: 'verify_locator',
+          field: 'button',
+          matchedSelector: 'button.composer-twin',
+          strategy: 'direct',
+          attempts: [
+            {
+              selector: 'button.composer-twin',
+              matchedSelector: 'button.composer-twin',
+              strategy: 'direct',
+              descriptor: { tag: 'button', type: 'button' }
+            }
+          ]
+        }
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-cleanup-01234567',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#composer',
+        candidates: ['#composer'],
+        fingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+      },
+      button: {
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]', 'button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Send' }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({
+      status: 'verification_failed',
+      reason: 'probe_cleanup_failed',
+      failedField: 'button'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('does not probe when the view navigated between the two runs', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      viewAfter: 'https://chatgpt.com/c/another-conversation',
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: {
+        success: true,
+        action: 'verify_locator',
+        field: 'button',
+        matchedSelector: 'button.composer-twin',
+        strategy: 'direct',
+        attempts: [
+          {
+            selector: 'button.composer-twin',
+            matchedSelector: 'button.composer-twin',
+            strategy: 'direct',
+            descriptor: { tag: 'button', type: 'button' }
+          }
+        ]
+      }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button.composer-twin',
+        candidates: ['button.composer-twin'],
+        fingerprint: { tag: 'button', type: 'submit', ariaLabel: 'Gönder' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'view_navigated' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(1)
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('treats a verifier answer for another field as terminal, not as an empty composer', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          input: '#composer',
+          inputCandidates: ['#composer'],
+          inputFingerprint: { tag: 'textarea', dataTestId: 'prompt' }
+        }
+      },
+      result: { success: false, action: 'verify_locator', field: 'input', attempts: [] }
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button[type="submit"]',
+        candidates: ['button[type="submit"]'],
+        fingerprint: { tag: 'button', type: 'submit' }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'field_mismatch' })
+    expect(deps.executeScript).toHaveBeenCalledTimes(1)
+  })
+
   it('accepts localized Gemini contenteditable composer via structural + editor class agreement', async () => {
     const deps = createIngest({
       view: OPEN_VIEW,
@@ -1394,10 +1540,13 @@ describe('candidate selection', () => {
     })
     expect(probeScript).toContain("action: 'probe_composer'")
     expect(probeScript).toContain('isComposerEmpty')
-    // Cleanup is gated on ownership, and focus is only restored when the
-    // composer still holds it: the unconditional clear that used to wipe a
-    // draft typed during the probe must not come back.
-    expect(probeScript).toContain('normalizeComposerText(composerEl) === probeText')
+    // Cleanup is gated on ownership: the same live element, no external edit,
+    // and only the probe's own character. The unconditional clear that used to
+    // wipe a draft typed during the probe must not come back.
+    expect(probeScript).toContain('onExternalEdit')
+    expect(probeScript).toContain("cleanup = 'left_external_edit'")
+    expect(probeScript).toContain("cleanup = 'element_replaced'")
+    expect(probeScript).toContain('removeEventListener')
     expect(probeScript).toContain('document.activeElement === composerEl')
     expect(probeScript).not.toContain('existingText.trim().length > 0')
     expect(probeScript).not.toContain('waitForElement(')
