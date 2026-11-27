@@ -56,7 +56,12 @@ function buildExportsBlock(): string {
   return {
       generateLocatorBundle: generateLocatorBundle,
       getElementInfo: getElementInfo,
-      normalizeTargetForKind: normalizeTargetForKind
+      normalizeTargetForKind: normalizeTargetForKind,
+      isTextEntryControl: isTextEntryControl,
+      findTextEntryControl: findTextEntryControl,
+      isButtonLikeNode: isButtonLikeNode,
+      inferSendLikeControl: inferSendLikeControl,
+      deepActiveElement: deepActiveElement
   };
 `
 }

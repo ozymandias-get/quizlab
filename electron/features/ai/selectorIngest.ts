@@ -20,10 +20,12 @@
 import type { AiSelectorConfig, AutomationElementFingerprint } from '@shared-core/types'
 
 import {
-  isSelectorField,
   isSelectorRequestId,
+  isSelectorTransferField,
   SELECTOR_TRANSFER_VERSION,
   type SelectorField,
+  type SelectorLocatorBundle,
+  type SelectorTransferField,
   type SelectorTransferPayload
 } from '../../../shared/constants/selectorTransfer.js'
 import { canonicalizeHostname } from '../../../shared/selectorConfig.js'
@@ -40,6 +42,11 @@ const MAX_CANDIDATES = 12
 const MAX_URL_LENGTH = 2048
 const MAX_SITE_ID_LENGTH = 120
 
+const SEND_LIKE_PATTERN =
+  /\b(send|gönder|gonder|submit|reply|yanıtla|yanitla)\b|send-?message|sendmessage|send_message|composer-?send|send-button|sendbutton|submit_message|message_send|send_/i
+const NON_SEND_CONTROL_PATTERN =
+  /(^|\s|-|_)(mikrofon|sesli|dikte|konuş|konus|mic|microphone|dictate|dictation|voice|speak|speech|talk|record|recording|transcribe|transcription|audio|attach|attachment|upload|file|dosya|ekle|camera|kamera|image|photo|görsel|gorsel|add-file)(\s|-|_|$)/i
+
 /** What a live managed view is, for the verification. */
 export interface SelectorLiveView {
   viewId: string
@@ -53,7 +60,11 @@ export interface SelectorIngestDeps {
   loadSites: () => Promise<SelectorSiteTarget[]>
   /** Every stored config, keyed by hostname. */
   readConfigs: () => Promise<Record<string, AiSelectorConfig>>
-  savePatch: (hostname: string, patch: AiSelectorConfig, field?: SelectorField) => Promise<boolean>
+  savePatch: (
+    hostname: string,
+    patch: AiSelectorConfig,
+    field?: SelectorTransferField
+  ) => Promise<boolean>
   /** The managed view whose page belongs to this site, or null. */
   findViewForSite: (
     site: SelectorSiteTarget,
@@ -104,12 +115,12 @@ export interface SelectorPickFailure {
 
 /** The result of one ingestion, mapped to HTTP by the bridge. */
 export type SelectorIngestResult =
-  | { status: 'saved'; hostname: string; field: SelectorField }
+  | { status: 'saved'; hostname: string; field: SelectorTransferField }
   | { status: 'invalid_payload'; reason: string }
   | { status: 'unknown_site' }
   | { status: 'ambiguous_site' }
   | { status: 'site_not_open' }
-  | { status: 'verification_failed'; reason: string }
+  | { status: 'verification_failed'; reason: string; failedField?: SelectorField }
   | { status: 'save_failed' }
 
 interface VerificationDescriptor {
@@ -120,7 +131,10 @@ interface VerificationDescriptor {
   dataTestId?: unknown
   ariaLabel?: unknown
   placeholder?: unknown
+  title?: unknown
   name?: unknown
+  dataComposerSubmit?: unknown
+  hasDictationAttr?: unknown
   contentEditable?: unknown
   classTokens?: unknown
   text?: unknown
@@ -129,10 +143,12 @@ interface VerificationDescriptor {
 interface VerificationResult {
   success?: unknown
   field?: unknown
+  href?: unknown
   matchedSelector?: unknown
   strategy?: unknown
   descriptor?: VerificationDescriptor | null
   attempts?: unknown
+  composerState?: unknown
   diagnostics?: Record<string, { ambiguous?: unknown } | undefined>
 }
 
@@ -158,8 +174,60 @@ function normalizeUrlHost(value: string): string | null {
   }
 }
 
+function parseLocatorBundle(
+  raw: unknown,
+  field: SelectorField,
+  prefix = ''
+): { bundle: SelectorLocatorBundle } | { reason: string } {
+  if (!isRecord(raw)) return { reason: `${prefix}not_an_object` }
+
+  const rawSelector = raw.selector
+  if (typeof rawSelector !== 'string' || !isPersistableSelector(rawSelector)) {
+    return { reason: `${prefix}invalid_selector` }
+  }
+  const selector = rawSelector.trim()
+
+  if (!Array.isArray(raw.candidates) || raw.candidates.length === 0) {
+    return { reason: `${prefix}missing_candidates` }
+  }
+  if (raw.candidates.length > MAX_CANDIDATES) return { reason: `${prefix}too_many_candidates` }
+  const candidates: string[] = []
+  for (const candidate of raw.candidates) {
+    if (!isPersistableSelector(candidate)) return { reason: `${prefix}invalid_candidate` }
+    const normalized = candidate.trim()
+    if (!candidates.includes(normalized)) candidates.push(normalized)
+  }
+  if (!candidates.includes(selector)) return { reason: `${prefix}primary_not_in_candidates` }
+
+  const fingerprint = raw.fingerprint
+  if (!isRecord(fingerprint)) return { reason: `${prefix}missing_fingerprint` }
+  if (typeof fingerprint.tag !== 'string' || !fingerprint.tag.trim()) {
+    return { reason: `${prefix}missing_fingerprint_tag` }
+  }
+  if (fingerprint.tag.length > MAX_FINGERPRINT_TAG_LENGTH) {
+    return { reason: `${prefix}fingerprint_tag_too_long` }
+  }
+  // The same field-by-field sanitizer the config store applies: unknown keys are
+  // dropped, values are length-bounded and a fingerprint that does not describe
+  // an element at all is refused. Validating here means the verifier and the
+  // stored fingerprint are the same object, not a cast of the wire value.
+  const sanitizedFingerprint = sanitizeFingerprint(fingerprint)
+  if (!sanitizedFingerprint) return { reason: `${prefix}invalid_fingerprint` }
+  if (field === 'input' && sanitizedFingerprint.text !== undefined) {
+    delete sanitizedFingerprint.text
+  }
+
+  return {
+    bundle: {
+      selector,
+      candidates,
+      fingerprint: sanitizedFingerprint
+    }
+  }
+}
+
 /**
- * Parses and bounds one transfer payload.
+ * Parses and bounds one transfer payload (single field or guided pair).
  *
  * Every string is length-bounded and every selector passes the same
  * persistability gate the sanitizer applies, so a payload that reaches the
@@ -171,46 +239,10 @@ export function parseSelectorTransferPayload(
   if (!isRecord(raw)) return { reason: 'not_an_object' }
   if (raw.version !== SELECTOR_TRANSFER_VERSION) return { reason: 'unsupported_version' }
   if (!isSelectorRequestId(raw.requestId)) return { reason: 'invalid_request_id' }
-  if (!isSelectorField(raw.field)) return { reason: 'invalid_field' }
+  if (!isSelectorTransferField(raw.field)) return { reason: 'invalid_field' }
 
   const hostname = normalizeHostname(raw.hostname)
   if (!hostname) return { reason: 'invalid_hostname' }
-
-  const rawSelector = raw.selector
-  if (typeof rawSelector !== 'string' || !isPersistableSelector(rawSelector)) {
-    return { reason: 'invalid_selector' }
-  }
-  const selector = rawSelector.trim()
-
-  if (!Array.isArray(raw.candidates) || raw.candidates.length === 0) {
-    return { reason: 'missing_candidates' }
-  }
-  if (raw.candidates.length > MAX_CANDIDATES) return { reason: 'too_many_candidates' }
-  const candidates: string[] = []
-  for (const candidate of raw.candidates) {
-    if (!isPersistableSelector(candidate)) return { reason: 'invalid_candidate' }
-    const normalized = candidate.trim()
-    if (!candidates.includes(normalized)) candidates.push(normalized)
-  }
-  if (!candidates.includes(selector)) return { reason: 'primary_not_in_candidates' }
-
-  const fingerprint = raw.fingerprint
-  if (!isRecord(fingerprint)) return { reason: 'missing_fingerprint' }
-  if (typeof fingerprint.tag !== 'string' || !fingerprint.tag.trim()) {
-    return { reason: 'missing_fingerprint_tag' }
-  }
-  if (fingerprint.tag.length > MAX_FINGERPRINT_TAG_LENGTH) {
-    return { reason: 'fingerprint_tag_too_long' }
-  }
-  // The same field-by-field sanitizer the config store applies: unknown keys are
-  // dropped, values are length-bounded and a fingerprint that does not describe
-  // an element at all is refused. Validating here means the verifier and the
-  // stored fingerprint are the same object, not a cast of the wire value.
-  const sanitizedFingerprint = sanitizeFingerprint(fingerprint)
-  if (!sanitizedFingerprint) return { reason: 'invalid_fingerprint' }
-  if (raw.field === 'input' && sanitizedFingerprint.text !== undefined) {
-    delete sanitizedFingerprint.text
-  }
 
   let siteId: string | undefined
   if (raw.siteId !== undefined) {
@@ -231,6 +263,28 @@ export function parseSelectorTransferPayload(
   if (!sourceHost) return { reason: 'invalid_url' }
   if (sourceHost !== hostname) return { reason: 'hostname_url_mismatch' }
 
+  if (raw.field === 'pair') {
+    const inputParsed = parseLocatorBundle(raw.input, 'input', 'input_')
+    if ('reason' in inputParsed) return inputParsed
+    const buttonParsed = parseLocatorBundle(raw.button, 'button', 'button_')
+    if ('reason' in buttonParsed) return buttonParsed
+    return {
+      payload: {
+        version: SELECTOR_TRANSFER_VERSION,
+        requestId: raw.requestId,
+        hostname,
+        ...(siteId ? { siteId } : {}),
+        field: 'pair',
+        input: inputParsed.bundle,
+        button: buttonParsed.bundle,
+        sourceUrl: raw.sourceUrl.trim()
+      }
+    }
+  }
+
+  const parsedBundle = parseLocatorBundle(raw, raw.field)
+  if ('reason' in parsedBundle) return parsedBundle
+
   return {
     payload: {
       version: SELECTOR_TRANSFER_VERSION,
@@ -238,9 +292,7 @@ export function parseSelectorTransferPayload(
       hostname,
       ...(siteId ? { siteId } : {}),
       field: raw.field,
-      selector,
-      candidates,
-      fingerprint: sanitizedFingerprint,
+      ...parsedBundle.bundle,
       sourceUrl: raw.sourceUrl.trim()
     }
   }
@@ -264,6 +316,39 @@ function isDistinctiveSemanticValue(value: string, expectedTag: string): boolean
   return /[\p{L}\p{N}]/u.test(value)
 }
 
+function stringListOf(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+function hasSendLikeSignal(values: Array<string | null | undefined>): boolean {
+  return values.some((value) => typeof value === 'string' && SEND_LIKE_PATTERN.test(value))
+}
+
+function hasNonSendControlSignal(values: Array<string | null | undefined>): boolean {
+  return values.some((value) => typeof value === 'string' && NON_SEND_CONTROL_PATTERN.test(value))
+}
+
+function isRealTextEntryDescriptor(descriptor: VerificationDescriptor, tag: string): boolean {
+  const lowerTag = tag.toLowerCase()
+  if (lowerTag === 'textarea') return true
+  if (lowerTag === 'input') {
+    const type = (presentString(descriptor.type) || 'text').toLowerCase()
+    return ['text', 'search', 'email', 'url', 'tel', 'password', 'number', ''].includes(type)
+  }
+  return descriptor.contentEditable === true
+}
+
+function countSharedClassTokens(actual: unknown, expected: string[] | null | undefined): number {
+  if (!Array.isArray(expected) || expected.length === 0) return 0
+  const actualTokens = new Set(stringListOf(actual))
+  let shared = 0
+  for (const token of expected) {
+    if (actualTokens.has(token)) shared += 1
+  }
+  return shared
+}
+
 /**
  * Compares the element the Electron view resolved with the element Chrome
  * picked.
@@ -277,20 +362,21 @@ function isDistinctiveSemanticValue(value: string, expectedTag: string): boolean
  *   - `insufficient`: nothing contradicts the pick, but only generic traits
  *     (`tag`, `role`, `type`, `contentEditable`, `classTokens`) agreed without
  *     any strong identity (`dataTestId`, `id`, `name`) or field-distinctive
- *     semantic match (`ariaLabel`, `placeholder` for input; `ariaLabel`, `text`
- *     for button).
+ *     semantic match (`ariaLabel`, `placeholder` for input; `ariaLabel`, `text`,
+ *     `title`, `dataComposerSubmit` or cross-locale send signal for button).
  *   - `match`: at least one strong identity or field-distinctive semantic field
  *     agrees and nothing stable/structural contradicts it.
  *
  * Localisable text (`text`, `aria-label`, `placeholder`) only ever *adds*
  * evidence. A site rendered in another language does not reject a pick whose
- * stable identity agrees; it simply stops being evidence when a strong
- * attribute is absent.
+ * stable identity or structural/semantic role agrees, while voice, mic and
+ * attachment controls are strictly prevented from masquerading as send buttons.
  */
 function compareDescriptorToFingerprint(
   descriptor: VerificationDescriptor | null | undefined,
   fingerprint: AutomationElementFingerprint,
-  field: SelectorField
+  field: SelectorField,
+  matchedSelector?: string
 ): IdentityVerdict {
   if (!isRecord(descriptor)) return 'insufficient'
   const actualTag = presentString(descriptor.tag)
@@ -337,6 +423,46 @@ function compareDescriptorToFingerprint(
     return 'mismatch'
   }
 
+  const descriptorSignals = [
+    presentString(descriptor.ariaLabel),
+    presentString(descriptor.title),
+    presentString(descriptor.dataTestId),
+    presentString(descriptor.name),
+    presentString(descriptor.text)
+  ]
+  const fingerprintSignals = [
+    presentString(fingerprint.ariaLabel),
+    presentString(fingerprint.dataTestId),
+    presentString(fingerprint.name),
+    presentString(fingerprint.text),
+    ...stringListOf(fingerprint.classTokens)
+  ]
+
+  // Strict anti-confusion guard for send buttons: dictation, voice mode,
+  // microphone, and attachment controls must never pass as a send button.
+  if (field === 'button') {
+    const descriptorIsSend =
+      descriptor.dataComposerSubmit === true ||
+      hasSendLikeSignal([
+        presentString(descriptor.ariaLabel),
+        presentString(descriptor.title),
+        presentString(descriptor.dataTestId),
+        presentString(descriptor.name),
+        ...stringListOf(descriptor.classTokens)
+      ])
+    const descriptorIsNonSend =
+      descriptor.hasDictationAttr === true || hasNonSendControlSignal(descriptorSignals)
+    if (descriptorIsNonSend && !descriptorIsSend) {
+      return 'insufficient'
+    }
+    if (
+      descriptor.dataComposerSubmit === true &&
+      (matchedSelector === '[data-composer-submit]' || hasSendLikeSignal(fingerprintSignals))
+    ) {
+      strongMatches += 1
+    }
+  }
+
   let distinctiveSemanticMatches = 0
   const semanticFields: Array<{ actual: unknown; expected: string | null | undefined }> =
     field === 'input'
@@ -346,7 +472,8 @@ function compareDescriptorToFingerprint(
         ]
       : [
           { actual: descriptor.ariaLabel, expected: fingerprint.ariaLabel },
-          { actual: descriptor.text, expected: fingerprint.text }
+          { actual: descriptor.text, expected: fingerprint.text },
+          { actual: descriptor.title, expected: fingerprint.ariaLabel }
         ]
   for (const entry of semanticFields) {
     const expected = normalizeComparisonText(entry.expected)
@@ -354,6 +481,44 @@ function compareDescriptorToFingerprint(
     const actual = normalizeComparisonText(entry.actual)
     if (!actual) continue
     if (actual === expected && isDistinctiveSemanticValue(actual, expectedTag)) {
+      distinctiveSemanticMatches += 1
+    }
+  }
+
+  // Cross-language send-button semantic agreement (e.g. Chrome TR "Mesaj gönder"
+  // vs Electron EN "Send message").
+  if (
+    field === 'button' &&
+    distinctiveSemanticMatches === 0 &&
+    (descriptor.dataComposerSubmit === true || hasSendLikeSignal(descriptorSignals)) &&
+    hasSendLikeSignal(fingerprintSignals)
+  ) {
+    distinctiveSemanticMatches += 1
+  }
+
+  // Cross-language editor agreement for localized composers without id/data-testid
+  // (e.g. Gemini `div.ql-editor[contenteditable="true"][role="textbox"]` or ProseMirror).
+  if (
+    field === 'input' &&
+    strongMatches === 0 &&
+    distinctiveSemanticMatches === 0 &&
+    isRealTextEntryDescriptor(descriptor, actualTag)
+  ) {
+    const sharedClasses = countSharedClassTokens(descriptor.classTokens, fingerprint.classTokens)
+    const bothTextbox =
+      presentString(descriptor.role)?.toLowerCase() === 'textbox' &&
+      presentString(fingerprint.role)?.toLowerCase() === 'textbox'
+    const bothEditable = fingerprint.contentEditable === true && descriptor.contentEditable === true
+    const bothHavePromptLabel =
+      (Boolean(presentString(descriptor.placeholder)) &&
+        Boolean(presentString(fingerprint.placeholder))) ||
+      (Boolean(presentString(descriptor.ariaLabel)) &&
+        Boolean(presentString(fingerprint.ariaLabel)))
+    if (
+      (bothEditable && (bothTextbox || sharedClasses > 0)) ||
+      (actualTag.toLowerCase() === 'textarea' &&
+        (sharedClasses > 0 || bothTextbox || bothHavePromptLabel))
+    ) {
       distinctiveSemanticMatches += 1
     }
   }
@@ -401,6 +566,12 @@ function verificationAttempts(result: VerificationResult): VerificationAttempt[]
   return []
 }
 
+function isEmptyComposerButtonFailure(raw: unknown, field: SelectorField): boolean {
+  if (field !== 'button' || !isRecord(raw)) return false
+  const state = raw.composerState
+  return state === 'empty_probe_no_button' || state === 'empty_unknown_input'
+}
+
 /**
  * Runs the generated verifier and decides whether the pick is trustworthy.
  *
@@ -415,19 +586,26 @@ function verificationAttempts(result: VerificationResult): VerificationAttempt[]
  */
 function verifyPick(
   raw: unknown,
-  payload: SelectorTransferPayload
+  field: SelectorField,
+  bundle: SelectorLocatorBundle
 ): { ok: true; selector: string; candidates: string[] } | { ok: false; reason: string } {
   if (!isRecord(raw)) return { ok: false, reason: 'no_result' }
   const result = raw as VerificationResult
-  // An empty result has no field either; "found nothing" is the honest reason.
   const attempts = verificationAttempts(result)
-  if (attempts.length === 0) return { ok: false, reason: 'not_found' }
-  if (result.field !== payload.field) return { ok: false, reason: 'field_mismatch' }
-  if (result.diagnostics?.[payload.field]?.ambiguous === true) {
+  if (attempts.length === 0) {
+    return {
+      ok: false,
+      reason: isEmptyComposerButtonFailure(raw, field)
+        ? 'button_not_rendered_empty_composer'
+        : 'not_found'
+    }
+  }
+  if (result.field !== field) return { ok: false, reason: 'field_mismatch' }
+  if (result.diagnostics?.[field]?.ambiguous === true) {
     return { ok: false, reason: 'ambiguous' }
   }
 
-  const candidates = payload.candidates.map((candidate) => candidate.trim())
+  const candidates = bundle.candidates.map((candidate) => candidate.trim())
   /** Candidates that resolved to a *different* element in the app's DOM. */
   const conflicting = new Set<string>()
   const verifiedSelectors: string[] = []
@@ -445,7 +623,11 @@ function verifyPick(
       sawUnknownMatch = true
       continue
     }
-    if (attempt.strategy !== 'direct' && attempt.strategy !== 'candidate') {
+    if (
+      attempt.strategy !== 'direct' &&
+      attempt.strategy !== 'candidate' &&
+      attempt.strategy !== 'recursive'
+    ) {
       sawUnstable = true
       continue
     }
@@ -457,8 +639,9 @@ function verifyPick(
         : matched
     const verdict = compareDescriptorToFingerprint(
       attempt.descriptor,
-      payload.fingerprint,
-      payload.field
+      bundle.fingerprint,
+      field,
+      matched
     )
     if (verdict === 'mismatch') {
       sawMismatch = true
@@ -476,16 +659,11 @@ function verifyPick(
     if (typeof attempt.elementKey === 'number') {
       verifiedElements.add(String(attempt.elementKey))
     } else {
-      // An older verifier reported no element identity; the matched selector
-      // is the best identity it could prove.
       verifiedElements.add(matched)
     }
   }
 
   if (verifiedElements.size > 1) {
-    // Two candidates agree with the fingerprint but resolved to different
-    // elements. Which one the runtime would act on is its priority order, not
-    // the user's pick, so nothing is stored.
     return { ok: false, reason: 'ambiguous' }
   }
 
@@ -526,45 +704,24 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     if (payload.siteId && payload.siteId !== site.siteId) {
       return { status: 'invalid_payload', reason: 'site_id_mismatch' }
     }
-    if (!site.fields.includes(payload.field))
+    if (payload.field === 'pair') {
+      if (!site.fields.includes('input') || !site.fields.includes('button')) {
+        return { status: 'invalid_payload', reason: 'unsupported_field' }
+      }
+    } else if (!site.fields.includes(payload.field)) {
       return { status: 'invalid_payload', reason: 'unsupported_field' }
+    }
 
     const view = await deps.findViewForSite(site, sites)
     if (!view) return { status: 'site_not_open' }
 
     const viewHost = normalizeUrlHost(view.url)
     if (!viewHost) return { status: 'verification_failed', reason: 'invalid_view_url' }
-    // The view has to be the same *site*, not merely a host that happens to
-    // match a suffix: a view on another site must never verify this selector.
-    // The pick's path also has to belong to the entry, so an unrelated login or
-    // account page on the same host cannot be stored as the site's composer.
     const viewMatch = findSelectorSiteMatch(viewHost, sites, urlPathOf(view.url))
     if (!viewMatch || viewMatch.ambiguous || viewMatch.site.siteId !== site.siteId) {
       return { status: 'verification_failed', reason: 'view_site_mismatch' }
     }
 
-    const script = generateVerifyLocatorScript({
-      field: payload.field,
-      selectors: payload.candidates,
-      fingerprint: payload.fingerprint
-    })
-
-    let rawResult: unknown
-    try {
-      rawResult = await deps.executeScript(view.viewId, script)
-    } catch {
-      return { status: 'verification_failed', reason: 'verification_threw' }
-    }
-    const verified = verifyPick(rawResult, payload)
-    if (!verified.ok) {
-      deps.logVerificationFailure?.(summarizePickFailure(payload, verified.reason, rawResult))
-      return { status: 'verification_failed', reason: verified.reason }
-    }
-    const verifiedSelector = verified.selector
-
-    // The view may navigate, reload (even to the same URL), or be recreated
-    // while the verifier runs. A result from a document that is no longer the
-    // one the view shows must not be stored.
     const isSameDocument = async (): Promise<boolean> => {
       const afterUrl = await deps.getViewUrl(view.viewId).catch(() => null)
       if (!afterUrl || afterUrl !== view.url) return false
@@ -575,19 +732,136 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
       return true
     }
 
+    const storedHost = viewHost
+    const expectedSourceUrl = storedSourceUrl(view.url)
+
+    const verifyOneField = async (
+      field: SelectorField,
+      bundle: SelectorLocatorBundle,
+      composerInput?: {
+        selectors: string[]
+        fingerprint: AutomationElementFingerprint | null
+      } | null
+    ): Promise<
+      { ok: true; selector: string; candidates: string[] } | { ok: false; reason: string }
+    > => {
+      const script = generateVerifyLocatorScript({
+        field,
+        selectors: bundle.candidates,
+        fingerprint: bundle.fingerprint,
+        ...(composerInput ? { composerInput } : {})
+      })
+      let rawResult: unknown
+      try {
+        rawResult = await deps.executeScript(view.viewId, script)
+      } catch {
+        return { ok: false, reason: 'verification_threw' }
+      }
+      const verified = verifyPick(rawResult, field, bundle)
+      if (!verified.ok) {
+        deps.logVerificationFailure?.(
+          summarizePickFailure(payload.hostname, field, bundle, verified.reason, rawResult)
+        )
+        return verified
+      }
+      const resultHref = readResultHref(rawResult)
+      if (resultHref && (!expectedSourceUrl || storedSourceUrl(resultHref) !== expectedSourceUrl)) {
+        return { ok: false, reason: 'view_navigated' }
+      }
+      return verified
+    }
+
+    if (payload.field === 'pair') {
+      const verifiedInput = await verifyOneField('input', payload.input)
+      if (!verifiedInput.ok) {
+        return {
+          status: 'verification_failed',
+          reason: verifiedInput.reason,
+          failedField: 'input'
+        }
+      }
+
+      if (!(await isSameDocument())) {
+        return { status: 'verification_failed', reason: 'view_navigated', failedField: 'input' }
+      }
+
+      const verifiedButton = await verifyOneField('button', payload.button, {
+        selectors: verifiedInput.candidates,
+        fingerprint: payload.input.fingerprint
+      })
+      if (!verifiedButton.ok) {
+        return {
+          status: 'verification_failed',
+          reason: verifiedButton.reason,
+          failedField: 'button'
+        }
+      }
+
+      if (!(await isSameDocument())) {
+        return { status: 'verification_failed', reason: 'view_navigated' }
+      }
+
+      const configMap = deps.readConfigs ? ((await deps.readConfigs()) as AiConfigMap) : undefined
+      const existing = configMap
+        ? (resolveConfigForHostname(configMap, storedHost) ?? undefined)
+        : undefined
+
+      if (!(await isSameDocument())) {
+        return { status: 'verification_failed', reason: 'view_navigated' }
+      }
+
+      const patch: AiSelectorConfig = {
+        version: 2,
+        input: verifiedInput.selector,
+        inputCandidates: verifiedInput.candidates,
+        inputFingerprint: payload.input.fingerprint,
+        button: verifiedButton.selector,
+        buttonCandidates: verifiedButton.candidates,
+        buttonFingerprint: payload.button.fingerprint,
+        sourceUrl: storedSourceUrl(view.url),
+        sourceHostname: storedHost,
+        canonicalHostname: canonicalizeHostname(storedHost) || storedHost,
+        ...locatorHealthPatch(existing, 'pair')
+      }
+
+      const saved = await deps.savePatch(storedHost, patch, 'pair')
+      if (!saved) return { status: 'save_failed' }
+
+      deps.broadcastConfigChanged(storedHost)
+      return { status: 'saved', hostname: storedHost, field: 'pair' }
+    }
+
+    const configMapBefore = deps.readConfigs
+      ? ((await deps.readConfigs()) as AiConfigMap)
+      : undefined
+    const existingBefore = configMapBefore
+      ? (resolveConfigForHostname(configMapBefore, storedHost) ?? undefined)
+      : undefined
+
+    const existingComposerInput =
+      payload.field === 'button' && existingBefore
+        ? {
+            selectors: [
+              ...(typeof existingBefore.input === 'string' && existingBefore.input
+                ? [existingBefore.input]
+                : []),
+              ...(Array.isArray(existingBefore.inputCandidates)
+                ? existingBefore.inputCandidates
+                : [])
+            ],
+            fingerprint: existingBefore.inputFingerprint ?? null
+          }
+        : null
+
+    const verified = await verifyOneField(payload.field, payload, existingComposerInput)
+    if (!verified.ok) {
+      return { status: 'verification_failed', reason: verified.reason }
+    }
+
     if (!(await isSameDocument())) {
       return { status: 'verification_failed', reason: 'view_navigated' }
     }
-    const resultHref = readResultHref(rawResult)
-    const expectedSourceUrl = storedSourceUrl(view.url)
-    if (resultHref && (!expectedSourceUrl || storedSourceUrl(resultHref) !== expectedSourceUrl)) {
-      return { status: 'verification_failed', reason: 'view_navigated' }
-    }
 
-    // The config is keyed by the address the automation will run on, which is
-    // the Electron view's host — a Chrome redirect between the two hosts must
-    // not aim the stored locator at a key nothing looks up.
-    const storedHost = viewHost
     const configMap = deps.readConfigs ? ((await deps.readConfigs()) as AiConfigMap) : undefined
     const existing = configMap
       ? (resolveConfigForHostname(configMap, storedHost) ?? undefined)
@@ -603,12 +877,12 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     const fieldPatch: AiSelectorConfig =
       payload.field === 'input'
         ? {
-            input: verifiedSelector,
+            input: verified.selector,
             inputCandidates: verified.candidates,
             inputFingerprint: payload.fingerprint
           }
         : {
-            button: verifiedSelector,
+            button: verified.selector,
             buttonCandidates: verified.candidates,
             buttonFingerprint: payload.fingerprint
           }
@@ -671,36 +945,38 @@ function readResultHref(raw: unknown): string | null {
 
 /** A failure summary with no page content, prompt text or raw descriptor. */
 function summarizePickFailure(
-  payload: SelectorTransferPayload,
+  hostname: string,
+  field: SelectorField,
+  bundle: SelectorLocatorBundle,
   reason: string,
   raw: unknown
 ): SelectorPickFailure {
   const result = isRecord(raw) ? (raw as VerificationResult) : {}
   const has = (value: unknown) => typeof value === 'string' && value.length > 0
   return {
-    hostname: payload.hostname,
-    field: payload.field,
+    hostname,
+    field,
     reason,
-    tag: payload.fingerprint.tag,
+    tag: bundle.fingerprint.tag,
     identity: {
-      role: has(payload.fingerprint.role),
-      type: has(payload.fingerprint.type),
-      dataTestId: has(payload.fingerprint.dataTestId),
-      id: has(payload.fingerprint.safeId),
-      name: has(payload.fingerprint.name),
-      ariaLabel: has(payload.fingerprint.ariaLabel),
-      placeholder: has(payload.fingerprint.placeholder),
-      text: has(payload.fingerprint.text),
-      contentEditable: payload.fingerprint.contentEditable === true
+      role: has(bundle.fingerprint.role),
+      type: has(bundle.fingerprint.type),
+      dataTestId: has(bundle.fingerprint.dataTestId),
+      id: has(bundle.fingerprint.safeId),
+      name: has(bundle.fingerprint.name),
+      ariaLabel: has(bundle.fingerprint.ariaLabel),
+      placeholder: has(bundle.fingerprint.placeholder),
+      text: has(bundle.fingerprint.text),
+      contentEditable: bundle.fingerprint.contentEditable === true
     },
     verifier: {
       matched: typeof result.matchedSelector === 'string' && result.matchedSelector.length > 0,
       matchedInCandidates:
         typeof result.matchedSelector === 'string' &&
-        payload.candidates.includes(result.matchedSelector.trim()),
+        bundle.candidates.includes(result.matchedSelector.trim()),
       strategy: typeof result.strategy === 'string' ? result.strategy : null,
       attempts: Array.isArray(result.attempts) ? result.attempts.length : 0,
-      ambiguous: result.diagnostics?.[payload.field]?.ambiguous === true
+      ambiguous: result.diagnostics?.[field]?.ambiguous === true
     }
   }
 }

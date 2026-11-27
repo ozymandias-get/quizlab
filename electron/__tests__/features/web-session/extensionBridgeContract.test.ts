@@ -1744,4 +1744,65 @@ describe('extension magic selector', () => {
     expect(ids[1]).toBe(ids[0])
     expect(ids[2]).not.toBe(ids[0])
   })
+
+  it('supports guided pair transfer with failedField propagation', async () => {
+    const harness = createHarness()
+    await harness.settle()
+    const started = await harness.message({ type: 'selector_start', tabId: 7, field: 'pair' })
+    expect(started.success).toBe(true)
+    expect(harness.tabMessages[0]).toMatchObject({
+      tabId: 7,
+      message: {
+        type: 'quizlab_selector_init',
+        mode: 'guided',
+        field: 'pair',
+        sessionId: started.sessionId
+      }
+    })
+
+    harness.setSelectorResponse({
+      status: 422,
+      body: {
+        error: 'verification_failed',
+        reason: 'button_not_rendered_empty_composer',
+        failedField: 'button'
+      }
+    })
+    const failedOutcome = await harness.messageFromTab(
+      {
+        type: 'selector_pick_result',
+        sessionId: String(started.sessionId),
+        field: 'pair',
+        payload: {
+          input: {
+            selector: '#composer',
+            candidates: ['#composer'],
+            fingerprint: { tag: 'textarea', text: 'secret draft' }
+          },
+          button: {
+            selector: '[data-composer-submit]',
+            candidates: ['[data-composer-submit]'],
+            fingerprint: { tag: 'button' }
+          },
+          sourceUrl: 'https://chatgpt.com/c/1?token=secret'
+        }
+      },
+      { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+    )
+
+    expect(failedOutcome).toMatchObject({
+      ok: false,
+      state: 'verification_failed',
+      reason: 'button_not_rendered_empty_composer',
+      failedField: 'button'
+    })
+    const sentBody = JSON.parse(harness.selectorPosts[0].body) as {
+      field: string
+      input: { fingerprint: Record<string, unknown> }
+      sourceUrl: string
+    }
+    expect(sentBody.field).toBe('pair')
+    expect(sentBody.input.fingerprint.text).toBeUndefined()
+    expect(sentBody.sourceUrl).toBe('https://chatgpt.com/c/1')
+  })
 })

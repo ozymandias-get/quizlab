@@ -4,6 +4,11 @@
  * Injected on demand when the user starts a pick from the Side Panel. Lives in
  * a closed Shadow DOM with inline styles only (CSP-safe, zero external assets)
  * and removes every listener, overlay and piece of state on completion or cancel.
+ *
+ * Supports two modes:
+ *   - `single`: pick & verify one locator (`input` or `button`) for re-picks;
+ *   - `guided`: Master-parity 3-stage setup (`input` -> safe `typing` -> `submit` -> `review`)
+ *     that transfers both verified locators together without ever submitting test text.
  */
 ;(() => {
   'use strict'
@@ -14,28 +19,53 @@
   const TEXTS = {
     toolbarTitleInput: 'Sihirli Seçici · Mesaj giriş alanı',
     toolbarTitleButton: 'Sihirli Seçici · Gönderme butonu',
+    toolbarGuidedInput: 'Adım 1/3 · Mesaj giriş alanını seçin',
+    toolbarGuidedTyping: 'Adım 2/3 · Deneme metni yazın (gönderilmeyecek)',
+    toolbarGuidedButton: 'Adım 3/3 · Gönderme butonunu seçin',
+    toolbarHintInput: 'Mesaj yazdığınız alanın üzerine gelip tıklayın.',
+    toolbarHintTyping: 'Seçilen kutuya kısa bir metin yazın; gönderme butonu görününce geçin.',
+    toolbarHintButton: 'Şimdi gönderme butonunun üzerine gelip tıklayın.',
     toolbarHint: 'Alanı seçmek için üzerine gel ve tıkla.',
     toolbarIncompatible: 'Bu alan uygun değil. Lütfen doğru alanı seçin.',
+    toolbarTypingOutside: 'Lütfen yalnızca seçili mesaj giriş alanına yazın.',
+    nextToButton: 'Buton Seçimine Geç',
     confirmTitleInput: 'Mesaj giriş alanı seçildi',
     confirmTitleButton: 'Gönderme butonu seçildi',
+    confirmTitlePair: 'Kurulum tamamlanmaya hazır',
     confirmSubtitle: 'Seçilen alanı QuizLab’a gönderip doğrulayabilirsiniz.',
+    confirmSubtitlePair: 'İki seçim doğrulandıktan sonra birlikte kaydedilir.',
     confirm: 'QuizLab’a Gönder',
+    confirmPair: 'QuizLab’a Aktar',
     retrySend: 'Tekrar Gönder',
     retryConnect: 'Tekrar Dene',
     reselect: 'Yeniden Seç',
+    reselectInput: 'Giriş Alanını Seç',
+    reselectButton: 'Butonu Seç',
     cancel: 'İptal',
     close: 'Kapat',
     sending: 'QuizLab’da doğrulanıyor…',
     savedInput: 'Mesaj giriş alanı kaydedildi.',
     savedButton: 'Gönderme butonu kaydedildi.',
+    savedPair: 'Giriş alanı ve gönderme butonu kaydedildi.',
     siteNotOpen: 'Bu siteyi QuizLab’da aç ve tekrar dene.',
     verificationFailed: 'Bu element QuizLab’da doğrulanamadı. Önceki selektör korunuyor.',
+    verificationNotFound:
+      'Seçilen element QuizLab’daki sayfada bulunamadı. Önceki selektör korunuyor.',
+    verificationEmptyComposer:
+      'QuizLab’daki mesaj alanı boş olduğu için gönderme butonu henüz DOM’da görünmüyor. QuizLab’daki mesaj kutusuna deneme metni yazıp (göndermeden) tekrar deneyin.',
+    verificationMismatch:
+      'Chrome’daki seçim QuizLab’daki elementle uyuşmuyor (farklı buton/mikrofon/ekleme kontrolü olabilir). Önceki selektör korunuyor.',
+    verificationInsufficient:
+      'Elementin kimliği QuizLab’da yeterince doğrulanamadı. Daha belirgin bir alan seçin.',
+    verificationAmbiguous: 'QuizLab’da birden fazla benzer element eşleşti; seçim ayırt edilemedi.',
+    verificationNavigated: 'Doğrulama sırasında QuizLab sayfası değişti. Tekrar deneyin.',
+    verificationSiteMismatch: 'QuizLab’da açık sayfa bu siteyle eşleşmiyor.',
     unpaired: 'QuizLab ile eşleştirme gerekli. Yan panelden eşleştirin.',
     rejected: 'Aktarım QuizLab tarafından reddedildi.',
     retry: 'QuizLab bağlantısı kurulamadı.',
     wrongKind: 'Bu alan hedef türüyle uyumlu değil. Doğru alanı seçin.',
     noSelector: 'Bu element için güvenilir bir seçici üretilemedi. Farklı bir element deneyin.',
-    unsupported: 'Bu element Shadow DOM içinde olduğu için desteklenmiyor.',
+    unsupported: 'Bu element erişilemeyen bir çerçeve veya kapalı Shadow DOM içinde.',
     detached: 'Seçilen element sayfadan kaldırıldı. Yeniden seçin.'
   }
 
@@ -105,6 +135,7 @@
 
   /** Technical summary placed inside collapsed <details>, never in main hover UI. */
   function describeElement(element) {
+    if (!element || element.nodeType !== 1) return ''
     const tag = element.tagName.toLowerCase()
     const testId = shortValue(element.getAttribute('data-testid'), 40)
     if (testId) return `${tag} · testid=${testId}`
@@ -118,6 +149,7 @@
 
   /** Human-friendly hint for the confirmation panel. */
   function humanSummary(element, field) {
+    if (!element || element.nodeType !== 1) return TEXTS.confirmSubtitle
     const aria = shortValue(element.getAttribute('aria-label'), 48)
     if (aria) return aria
     const placeholder = shortValue(element.getAttribute('placeholder'), 48)
@@ -126,7 +158,7 @@
     if (title) return title
     const text = shortValue(element.textContent, 40)
     if (text && field === 'button') return `“${text}”`
-    return TEXTS.confirmSubtitle
+    return element.tagName ? element.tagName.toLowerCase() : TEXTS.confirmSubtitle
   }
 
   function sendToWorker(message) {
@@ -233,7 +265,7 @@
 
     const shadow = host.attachShadow({ mode: 'closed' })
 
-    // 1. Highlight Box (zero transition on geometry for 1:1 rAF tracking)
+    // 1. Hover / Active Highlight Box (zero transition on geometry for 1:1 rAF tracking)
     const box = document.createElement('div')
     box.style.cssText = [
       'position: fixed',
@@ -242,6 +274,19 @@
       'border: 2px solid #3b82f6',
       'border-radius: 6px',
       'background: rgba(59, 130, 246, 0.10)',
+      'pointer-events: none',
+      'transition: none'
+    ].join(';')
+
+    // Persistent highlight box for the selected input during typing / submit stages
+    const selectedBox = document.createElement('div')
+    selectedBox.style.cssText = [
+      'position: fixed',
+      'display: none',
+      'box-sizing: border-box',
+      'border: 2px solid #10b981',
+      'border-radius: 6px',
+      'background: rgba(16, 185, 129, 0.08)',
       'pointer-events: none',
       'transition: none'
     ].join(';')
@@ -313,6 +358,34 @@
 
     toolbarTextWrap.append(toolbarTitle, toolbarHint)
 
+    const styleFocus = (btn) => {
+      btn.addEventListener('focus', () => {
+        btn.style.outline = `2px solid ${theme.ring}`
+        btn.style.outlineOffset = '2px'
+      })
+      btn.addEventListener('blur', () => {
+        btn.style.outline = 'none'
+      })
+    }
+
+    const toolbarNextBtn = document.createElement('button')
+    toolbarNextBtn.type = 'button'
+    toolbarNextBtn.setAttribute('data-quizlab-action', 'next')
+    toolbarNextBtn.textContent = TEXTS.nextToButton
+    toolbarNextBtn.style.cssText = [
+      'all: unset',
+      'cursor: pointer',
+      'display: none',
+      'padding: 5px 10px',
+      'border-radius: 7px',
+      `background: ${theme.primaryBg}`,
+      `color: ${theme.primaryText}`,
+      'font: 600 11.5px/1 Inter, system-ui, -apple-system, Segoe UI, sans-serif',
+      'flex-shrink: 0',
+      'white-space: nowrap'
+    ].join(';')
+    styleFocus(toolbarNextBtn)
+
     const escBadge = document.createElement('kbd')
     escBadge.textContent = 'ESC'
     escBadge.style.cssText = [
@@ -325,18 +398,9 @@
       'flex-shrink: 0'
     ].join(';')
 
-    const styleFocus = (btn) => {
-      btn.addEventListener('focus', () => {
-        btn.style.outline = `2px solid ${theme.ring}`
-        btn.style.outlineOffset = '2px'
-      })
-      btn.addEventListener('blur', () => {
-        btn.style.outline = 'none'
-      })
-    }
-
     const toolbarCancelBtn = document.createElement('button')
     toolbarCancelBtn.type = 'button'
+    toolbarCancelBtn.setAttribute('data-quizlab-action', 'toolbar-cancel')
     toolbarCancelBtn.textContent = TEXTS.cancel
     toolbarCancelBtn.setAttribute('aria-label', 'Seçimi iptal et')
     toolbarCancelBtn.style.cssText = [
@@ -353,7 +417,7 @@
     ].join(';')
     styleFocus(toolbarCancelBtn)
 
-    toolbar.append(toolbarIcon, toolbarTextWrap, escBadge, toolbarCancelBtn)
+    toolbar.append(toolbarIcon, toolbarTextWrap, toolbarNextBtn, escBadge, toolbarCancelBtn)
 
     // 4. Confirmation Panel (smart top/bottom placement)
     const panel = document.createElement('div')
@@ -365,7 +429,7 @@
       'bottom: 20px',
       'transform: translateX(-50%)',
       'display: none',
-      'width: min(400px, calc(100vw - 24px))',
+      'width: min(440px, calc(100vw - 24px))',
       'box-sizing: border-box',
       'padding: 14px 16px',
       'border-radius: 12px',
@@ -390,6 +454,10 @@
 
     const panelDetail = document.createElement('div')
     panelDetail.style.cssText = `color: ${theme.muted}; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;`
+
+    const panelReviewList = document.createElement('div')
+    panelReviewList.style.cssText =
+      'display: none; flex-direction: column; gap: 6px; margin-top: 10px;'
 
     const panelMessage = document.createElement('div')
     panelMessage.setAttribute('role', 'status')
@@ -418,7 +486,8 @@
       `border: 1px solid ${theme.border}`,
       'font-family: ui-monospace, SFMono-Regular, Menlo, monospace',
       'font-size: 10.5px',
-      'word-break: break-all'
+      'word-break: break-all',
+      'white-space: pre-wrap'
     ].join(';')
     techDetails.append(techSummary, techBody)
 
@@ -426,10 +495,11 @@
     buttons.style.cssText =
       'display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;'
 
-    const makeButton = (text, variant) => {
+    const makeButton = (text, variant, actionName) => {
       const button = document.createElement('button')
       button.type = 'button'
       button.textContent = text
+      button.setAttribute('data-quizlab-action', actionName)
       const isPrimary = variant === 'primary'
       const isGhost = variant === 'ghost'
       button.style.cssText = [
@@ -448,33 +518,40 @@
       return button
     }
 
-    const confirmButton = makeButton(TEXTS.confirm, 'primary')
-    const reselectButton = makeButton(TEXTS.reselect, 'secondary')
-    const cancelButton = makeButton(TEXTS.cancel, 'ghost')
+    const confirmButton = makeButton(TEXTS.confirm, 'primary', 'confirm')
+    const reselectButton = makeButton(TEXTS.reselect, 'secondary', 'reselect')
+    const reselectButtonBtn = makeButton(TEXTS.reselectButton, 'secondary', 'reselect-button')
+    reselectButtonBtn.style.display = 'none'
+    const cancelButton = makeButton(TEXTS.cancel, 'ghost', 'cancel')
 
-    buttons.append(confirmButton, reselectButton, cancelButton)
-    panel.append(panelHead, panelDetail, panelMessage, techDetails, buttons)
-    shadow.append(box, label, toolbar, panel)
+    buttons.append(confirmButton, reselectButton, reselectButtonBtn, cancelButton)
+    panel.append(panelHead, panelDetail, panelReviewList, panelMessage, techDetails, buttons)
+    shadow.append(selectedBox, box, label, toolbar, panel)
     document.documentElement.appendChild(host)
 
     const ui = {
       theme,
       host,
       shadow,
+      selectedBox,
       box,
       label,
       toolbar,
+      toolbarTitle,
       toolbarHint,
+      toolbarNextBtn,
       toolbarCancelBtn,
       panel,
       panelStatusIcon,
       panelTitle,
       panelDetail,
+      panelReviewList,
       panelMessage,
       techDetails,
       techBody,
       confirmButton,
       reselectButton,
+      reselectButtonBtn,
       cancelButton
     }
     if (globalThis.__quizlabPickerTestHandles === true) {
@@ -483,11 +560,19 @@
     return ui
   }
 
+  function clearTypingTimer(current) {
+    if (current && current.typingTimer !== null) {
+      window.clearTimeout(current.typingTimer)
+      current.typingTimer = null
+    }
+  }
+
   function disposeSession() {
     const current = active
     if (!current) return
     active = null
     current.sendToken += 1
+    clearTypingTimer(current)
     if (current.frame !== null) {
       try {
         window.cancelAnimationFrame(current.frame)
@@ -546,20 +631,12 @@
     }
   }
 
-  function paintSelection(current, element, mode) {
-    if (!element || !element.isConnected) {
-      current.ui.box.style.display = 'none'
-      current.ui.label.style.display = 'none'
-      return
+  function clipRectToViewport(element) {
+    if (!element || !element.isConnected || typeof element.getBoundingClientRect !== 'function') {
+      return null
     }
     const rawRect = element.getBoundingClientRect()
-    if (!rawRect || rawRect.width <= 0 || rawRect.height <= 0) {
-      current.ui.box.style.display = 'none'
-      current.ui.label.style.display = 'none'
-      return
-    }
-
-    // Clip to visible viewport so offscreen areas do not stretch outside.
+    if (!rawRect || rawRect.width <= 0 || rawRect.height <= 0) return null
     const vw = window.innerWidth || document.documentElement.clientWidth || 0
     const vh = window.innerHeight || document.documentElement.clientHeight || 0
     const left = Math.max(0, rawRect.left)
@@ -568,8 +645,32 @@
     const bottom = Math.min(vh, rawRect.bottom)
     const width = right - left
     const height = bottom - top
+    if (width <= 0 || height <= 0) return null
+    return { left, top, bottom, width, height, vw, vh }
+  }
 
-    if (width <= 0 || height <= 0) {
+  function paintPersistentInputBox(current) {
+    const { selectedBox } = current.ui
+    const el = current.inputElement
+    if (!el || current.mode !== 'guided') {
+      selectedBox.style.display = 'none'
+      return
+    }
+    const rect = clipRectToViewport(el)
+    if (!rect) {
+      selectedBox.style.display = 'none'
+      return
+    }
+    selectedBox.style.display = 'block'
+    selectedBox.style.left = `${rect.left}px`
+    selectedBox.style.top = `${rect.top}px`
+    selectedBox.style.width = `${Math.max(1, rect.width)}px`
+    selectedBox.style.height = `${Math.max(1, rect.height)}px`
+  }
+
+  function paintSelection(current, element, mode) {
+    const rect = clipRectToViewport(element)
+    if (!rect) {
       current.ui.box.style.display = 'none'
       current.ui.label.style.display = 'none'
       return
@@ -592,10 +693,10 @@
 
     const { box, label } = current.ui
     box.style.display = 'block'
-    box.style.left = `${left}px`
-    box.style.top = `${top}px`
-    box.style.width = `${Math.max(1, width)}px`
-    box.style.height = `${Math.max(1, height)}px`
+    box.style.left = `${rect.left}px`
+    box.style.top = `${rect.top}px`
+    box.style.width = `${Math.max(1, rect.width)}px`
+    box.style.height = `${Math.max(1, rect.height)}px`
 
     const fieldText = current.field === 'button' ? 'Gönderme butonu' : 'Mesaj giriş alanı'
     label.style.display = 'inline-flex'
@@ -606,10 +707,10 @@
 
     const labelWidth = Math.min(260, label.offsetWidth || 160)
     const labelHeight = label.offsetHeight || 24
-    const preferredTop = top >= labelHeight + 70 ? top - labelHeight - 6 : bottom + 6
-    const maxLeft = Math.max(4, vw - labelWidth - 4)
-    const maxTop = Math.max(4, vh - labelHeight - 4)
-    label.style.left = `${Math.min(Math.max(4, left), maxLeft)}px`
+    const preferredTop = rect.top >= labelHeight + 70 ? rect.top - labelHeight - 6 : rect.bottom + 6
+    const maxLeft = Math.max(4, rect.vw - labelWidth - 4)
+    const maxTop = Math.max(4, rect.vh - labelHeight - 4)
+    label.style.left = `${Math.min(Math.max(4, rect.left), maxLeft)}px`
     label.style.top = `${Math.min(Math.max(4, preferredTop), maxTop)}px`
   }
 
@@ -619,6 +720,7 @@
     current.frame = window.requestAnimationFrame(() => {
       current.frame = null
       if (!active || active !== current || current.frozen) return
+      if (current.stage === 'typing') return
       const target = current.pending
       current.pending = null
       if (!target) return
@@ -639,13 +741,63 @@
     }
   }
 
+  function renderReviewCards(current) {
+    const { panelReviewList, theme } = current.ui
+    if (current.mode !== 'guided' || !current.inputPayload || !current.buttonPayload) {
+      panelReviewList.style.display = 'none'
+      panelReviewList.replaceChildren()
+      return
+    }
+    const makeRow = (title, summary, selector) => {
+      const row = document.createElement('div')
+      row.style.cssText = [
+        'display: flex',
+        'flex-direction: column',
+        'gap: 2px',
+        'padding: 8px 10px',
+        'border-radius: 8px',
+        `background: ${theme.surface}`,
+        `border: 1px solid ${theme.border}`
+      ].join(';')
+      const head = document.createElement('div')
+      head.style.cssText =
+        'display: flex; align-items: center; justify-content: space-between; gap: 8px;'
+      const labelEl = document.createElement('span')
+      labelEl.textContent = title
+      labelEl.style.cssText = 'font-weight: 600; font-size: 12px;'
+      const sumEl = document.createElement('span')
+      sumEl.textContent = summary
+      sumEl.style.cssText = `font-size: 11.5px; color: ${theme.muted}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`
+      head.append(labelEl, sumEl)
+      const selEl = document.createElement('div')
+      selEl.textContent = selector
+      selEl.style.cssText = `font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; color: ${theme.muted}; word-break: break-all;`
+      row.append(head, selEl)
+      return row
+    }
+    panelReviewList.replaceChildren(
+      makeRow(
+        'Mesaj giriş alanı',
+        humanSummary(current.inputElement, 'input'),
+        current.inputPayload.selector
+      ),
+      makeRow(
+        'Gönderme butonu',
+        humanSummary(current.buttonElement, 'button'),
+        current.buttonPayload.selector
+      )
+    )
+    panelReviewList.style.display = 'flex'
+  }
+
   function showPanel(current, { title, detail, message, messageTone, tech, mode, iconTone }) {
     const { ui } = current
-    positionPanelForElement(current, current.element)
+    positionPanelForElement(current, current.buttonElement || current.element)
     ui.panel.style.display = 'block'
     ui.panelTitle.textContent = title
     ui.panelDetail.textContent = detail
     ui.toolbar.style.display = 'none'
+    renderReviewCards(current)
 
     if (iconTone === 'error') {
       ui.panelStatusIcon.style.color = ui.theme.errText
@@ -689,24 +841,104 @@
       ui.techDetails.open = false
     }
 
-    ui.confirmButton.style.display = mode === 'done' ? 'none' : 'inline-flex'
-    ui.reselectButton.style.display = mode === 'done' ? 'none' : 'inline-flex'
+    if (mode === 'done') {
+      ui.confirmButton.style.display = 'none'
+      ui.reselectButton.style.display = 'none'
+      ui.reselectButtonBtn.style.display = 'none'
+    } else {
+      ui.confirmButton.style.display = 'inline-flex'
+      ui.reselectButton.style.display = 'inline-flex'
+      if (current.mode === 'guided') {
+        ui.reselectButton.textContent = TEXTS.reselectInput
+        ui.reselectButtonBtn.style.display = 'inline-flex'
+      } else {
+        ui.reselectButton.textContent = TEXTS.reselect
+        ui.reselectButtonBtn.style.display = 'none'
+      }
+    }
     ui.cancelButton.textContent = mode === 'done' ? TEXTS.close : TEXTS.cancel
     ui.cancelButton.style.display = 'inline-flex'
   }
 
   function hidePanel(current) {
     current.ui.panel.style.display = 'none'
+    current.ui.panelReviewList.style.display = 'none'
     current.ui.toolbar.style.display = 'flex'
   }
 
-  function buildPayload(current) {
-    const element = current.element
+  function updateToolbarForStage(current, hintOverride, isWarning) {
+    const { ui } = current
+    if (current.mode === 'guided') {
+      if (current.stage === 'input') {
+        ui.toolbarTitle.textContent = TEXTS.toolbarGuidedInput
+        ui.toolbarHint.textContent = hintOverride || TEXTS.toolbarHintInput
+        ui.toolbarNextBtn.style.display = 'none'
+      } else if (current.stage === 'typing') {
+        ui.toolbarTitle.textContent = TEXTS.toolbarGuidedTyping
+        ui.toolbarHint.textContent = hintOverride || TEXTS.toolbarHintTyping
+        ui.toolbarNextBtn.style.display = 'inline-flex'
+      } else {
+        ui.toolbarTitle.textContent = TEXTS.toolbarGuidedButton
+        ui.toolbarHint.textContent = hintOverride || TEXTS.toolbarHintButton
+        ui.toolbarNextBtn.style.display = 'none'
+      }
+    } else {
+      ui.toolbarTitle.textContent =
+        current.field === 'button' ? TEXTS.toolbarTitleButton : TEXTS.toolbarTitleInput
+      ui.toolbarHint.textContent = hintOverride || TEXTS.toolbarHint
+      ui.toolbarNextBtn.style.display = 'none'
+    }
+    ui.toolbarHint.style.color = isWarning ? ui.theme.warnText : ui.theme.muted
+  }
+
+  function isElementVisible(el) {
+    if (!el || !el.isConnected) return false
+    try {
+      const style = window.getComputedStyle(el)
+      if (style.display === 'none' || style.visibility === 'hidden') return false
+      if (typeof el.getBoundingClientRect === 'function') {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      }
+    } catch {
+      return false
+    }
+    return true
+  }
+
+  function hasDistinguishingIdentity(fp) {
+    if (!fp || typeof fp !== 'object') return false
+    if (fp.dataTestId || fp.safeId || fp.name || fp.ariaLabel || fp.placeholder || fp.text) {
+      return true
+    }
+    if (fp.role || fp.type || fp.contentEditable === true) return true
+    if (Array.isArray(fp.classTokens) && fp.classTokens.length > 0) return true
+    if (Array.isArray(fp.localPath) && fp.localPath.length > 0) return true
+    return false
+  }
+
+  function safeMatches(element, selector) {
+    try {
+      return Boolean(element && typeof element.matches === 'function' && element.matches(selector))
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Builds a verified selector bundle for `element` using the shared
+   * `QuizlabSelectorEngine` rules (matching Master's `generateLocatorBundle`
+   * + Electron runtime lookup contract).
+   */
+  function buildPayloadForElement(element, field) {
     if (!element || !element.isConnected) return { error: 'detached' }
     if (element.ownerDocument !== document) return { error: 'unsupported' }
-    if (element.getRootNode() !== document) return { error: 'unsupported' }
+    const rootNode = typeof element.getRootNode === 'function' ? element.getRootNode() : document
+    if (!rootNode || typeof rootNode.querySelectorAll !== 'function') {
+      return { error: 'unsupported' }
+    }
 
-    const expected = current.field === 'input' ? 'input' : 'button'
+    const expected = field === 'input' ? 'input' : 'button'
     let bundle = null
     try {
       const info = ENGINE.getElementInfo(element)
@@ -723,9 +955,10 @@
     if (!candidates.includes(bundle.primarySelector)) candidates.unshift(bundle.primarySelector)
 
     let primary = null
+    // 1. Prefer an exact unique selector in the element's root (document or open shadow root).
     for (const candidate of candidates) {
       try {
-        const matches = document.querySelectorAll(candidate)
+        const matches = rootNode.querySelectorAll(candidate)
         if (matches.length === 1 && matches[0] === element) {
           primary = candidate
           break
@@ -734,7 +967,38 @@
         // Ignore invalid candidate.
       }
     }
+
+    // 2. Responsive DOM fallback: if duplicates exist (e.g. hidden mobile/desktop twin),
+    //    accept the first candidate where `element` is the sole visible match.
+    if (!primary) {
+      for (const candidate of candidates) {
+        try {
+          const matches = [...rootNode.querySelectorAll(candidate)]
+          if (!matches.includes(element)) continue
+          const visibleMatches = matches.filter(isElementVisible)
+          if (visibleMatches.length === 1 && visibleMatches[0] === element) {
+            primary = candidate
+            break
+          }
+        } catch {
+          // Ignore invalid candidate.
+        }
+      }
+    }
+
+    // 3. Master parity: if runtime fingerprint disambiguation has distinguishing identity
+    //    (e.g., generic CSS selector + ProseMirror/contenteditable/localPath/ariaLabel),
+    //    accept the engine's primary selector (or first matching candidate).
+    if (!primary && hasDistinguishingIdentity(bundle.fingerprint)) {
+      if (safeMatches(element, bundle.primarySelector)) {
+        primary = bundle.primarySelector
+      } else {
+        primary = candidates.find((candidate) => safeMatches(element, candidate)) || null
+      }
+    }
+
     if (!primary) return { error: 'noSelector' }
+    if (!candidates.includes(primary)) candidates.unshift(primary)
 
     const fingerprint =
       expected === 'input' && bundle.fingerprint && typeof bundle.fingerprint === 'object'
@@ -762,12 +1026,264 @@
     }
   }
 
+  function buildPayload(current) {
+    return buildPayloadForElement(current.element, current.field)
+  }
+
   function errorText(code) {
     return TEXTS[code] || TEXTS.noSelector
   }
 
+  function formatTransferError(response) {
+    const state = typeof response.state === 'string' ? response.state : 'retry'
+    const reason = typeof response.reason === 'string' && response.reason ? response.reason : ''
+    const failedField =
+      response.failedField === 'input' || response.failedField === 'button'
+        ? response.failedField
+        : ''
+    const stagePrefix =
+      failedField === 'input'
+        ? '[Mesaj giriş alanı] '
+        : failedField === 'button'
+          ? '[Gönderme butonu] '
+          : ''
+
+    if (typeof response.message === 'string' && response.message) {
+      return `${stagePrefix}${response.message}`
+    }
+    if (state === 'site_not_open') return TEXTS.siteNotOpen
+    if (state === 'unpaired') return TEXTS.unpaired
+    if (state === 'rejected') return `${stagePrefix}${TEXTS.rejected}`
+    if (state === 'verification_failed') {
+      if (reason === 'button_not_rendered_empty_composer') {
+        return `${stagePrefix}${TEXTS.verificationEmptyComposer}`
+      }
+      if (reason === 'not_found') return `${stagePrefix}${TEXTS.verificationNotFound}`
+      if (reason === 'identity_mismatch') return `${stagePrefix}${TEXTS.verificationMismatch}`
+      if (reason === 'identity_insufficient')
+        return `${stagePrefix}${TEXTS.verificationInsufficient}`
+      if (reason === 'ambiguous') return `${stagePrefix}${TEXTS.verificationAmbiguous}`
+      if (reason === 'view_navigated') return TEXTS.verificationNavigated
+      if (reason === 'view_site_mismatch') return TEXTS.verificationSiteMismatch
+      return `${stagePrefix}${TEXTS.verificationFailed}`
+    }
+    return TEXTS.retry
+  }
+
+  /**
+   * Focus a picked text control deterministically, placing the caret at the end
+   * so existing draft text is preserved rather than overwritten.
+   */
+  function focusTextEntry(el) {
+    if (!el) return
+    try {
+      const editable =
+        typeof ENGINE.findTextEntryControl === 'function'
+          ? ENGINE.findTextEntryControl(el) || el
+          : el
+      if (typeof editable.focus === 'function') editable.focus()
+      if (editable.isContentEditable && typeof document.createRange === 'function') {
+        const selection = document.getSelection ? document.getSelection() : null
+        if (selection) {
+          const range = document.createRange()
+          range.selectNodeContents(editable)
+          range.collapse(false)
+          selection.removeAllRanges()
+          selection.addRange(range)
+        }
+      }
+    } catch {
+      // Focus may fail in restricted environments; non-fatal.
+    }
+  }
+
+  function isTargetInsideSelectedInput(current, target, path) {
+    const selected = current.inputElement
+    if (!selected || !target) return false
+    if (target === selected) return true
+    if (Array.isArray(path) && path.includes(selected)) return true
+    try {
+      if (
+        selected.isConnected &&
+        typeof selected.contains === 'function' &&
+        selected.contains(target)
+      ) {
+        return true
+      }
+    } catch {
+      // Ignore containment errors.
+    }
+    // Some editors dispatch input/beforeinput on their direct wrapper instead of the editable node.
+    try {
+      if (
+        target !== selected &&
+        target.isConnected &&
+        typeof target.contains === 'function' &&
+        target.contains(selected) &&
+        target !== document.body &&
+        target !== document.documentElement
+      ) {
+        return true
+      }
+    } catch {
+      // Ignore wrapper check errors.
+    }
+    return false
+  }
+
+  function enterSubmitStage(current) {
+    clearTypingTimer(current)
+    current.stage = 'submit'
+    current.field = 'button'
+    current.frozen = false
+    current.hovered = null
+    updateToolbarForStage(current)
+    paintPersistentInputBox(current)
+  }
+
+  function enterTypingStage(current) {
+    clearTypingTimer(current)
+    current.stage = 'typing'
+    current.field = 'input'
+    current.frozen = false
+    current.hovered = null
+    current.ui.box.style.display = 'none'
+    current.ui.label.style.display = 'none'
+    paintPersistentInputBox(current)
+    updateToolbarForStage(current)
+    focusTextEntry(current.inputElement)
+  }
+
+  function enterReviewStage(current) {
+    clearTypingTimer(current)
+    current.stage = 'review'
+    current.frozen = true
+    current.element = current.buttonElement
+    current.hovered = current.buttonElement
+    current.confirmButton.textContent = TEXTS.confirmPair
+    paintPersistentInputBox(current)
+    paintSelection(current, current.buttonElement, 'selected')
+    showPanel(current, {
+      title: TEXTS.confirmTitlePair,
+      detail: TEXTS.confirmSubtitlePair,
+      message: null,
+      messageTone: 'info',
+      tech: `${describeElement(current.inputElement)}\n${describeElement(current.buttonElement)}`,
+      mode: 'confirm',
+      iconTone: 'ok'
+    })
+  }
+
   async function confirmSelection(current) {
     if (current.sending) return
+
+    if (current.mode === 'guided') {
+      const rebuiltInput = buildPayloadForElement(current.inputElement, 'input')
+      if (!rebuiltInput.payload) {
+        showPanel(current, {
+          title: TEXTS.confirmTitlePair,
+          detail: TEXTS.confirmSubtitlePair,
+          message: `[Mesaj giriş alanı] ${errorText(rebuiltInput.error)}`,
+          messageTone: 'error',
+          tech: describeElement(current.inputElement),
+          mode: 'error',
+          iconTone: 'error'
+        })
+        return
+      }
+      const rebuiltButton = buildPayloadForElement(current.buttonElement, 'button')
+      if (!rebuiltButton.payload) {
+        showPanel(current, {
+          title: TEXTS.confirmTitlePair,
+          detail: TEXTS.confirmSubtitlePair,
+          message: `[Gönderme butonu] ${errorText(rebuiltButton.error)}`,
+          messageTone: 'error',
+          tech: describeElement(current.buttonElement),
+          mode: 'error',
+          iconTone: 'error'
+        })
+        return
+      }
+      current.inputPayload = rebuiltInput.payload
+      current.buttonPayload = rebuiltButton.payload
+
+      current.sending = true
+      const token = (current.sendToken += 1)
+      current.confirmButton.disabled = true
+      current.confirmButton.setAttribute('aria-busy', 'true')
+      current.confirmButton.style.opacity = '0.6'
+      current.reselectButton.disabled = true
+      current.reselectButtonBtn.disabled = true
+      showPanel(current, {
+        title: TEXTS.confirmTitlePair,
+        detail: TEXTS.confirmSubtitlePair,
+        message: TEXTS.sending,
+        messageTone: 'info',
+        tech: `Giriş: ${rebuiltInput.payload.selector}\nButon: ${rebuiltButton.payload.selector}`,
+        mode: 'confirm',
+        iconTone: 'ok'
+      })
+
+      const response = await sendToWorker({
+        type: 'selector_pick_result',
+        sessionId: current.sessionId,
+        field: 'pair',
+        payload: {
+          input: rebuiltInput.payload,
+          button: rebuiltButton.payload,
+          sourceUrl: rebuiltButton.payload.sourceUrl || rebuiltInput.payload.sourceUrl
+        }
+      })
+
+      if (active !== current || current.sendToken !== token) return
+
+      current.sending = false
+      current.confirmButton.disabled = false
+      current.confirmButton.removeAttribute('aria-busy')
+      current.confirmButton.style.opacity = '1'
+      current.reselectButton.disabled = false
+      current.reselectButtonBtn.disabled = false
+
+      if (response.ok === true) {
+        current.stage = 'done'
+        paintPersistentInputBox(current)
+        paintSelection(current, current.buttonElement, 'saved')
+        showPanel(current, {
+          title: TEXTS.savedPair,
+          detail: TEXTS.confirmSubtitlePair,
+          message: null,
+          messageTone: 'success',
+          tech: `Giriş: ${rebuiltInput.payload.selector}\nButon: ${rebuiltButton.payload.selector}`,
+          mode: 'done',
+          iconTone: 'ok'
+        })
+        window.setTimeout(() => {
+          if (active === current) teardown()
+        }, 2200)
+        return
+      }
+
+      const state = typeof response.state === 'string' ? response.state : 'retry'
+      const reason = typeof response.reason === 'string' && response.reason ? response.reason : ''
+      if (state === 'site_not_open') current.confirmButton.textContent = TEXTS.retrySend
+      else if (state === 'retry' || state === 'unreachable') {
+        current.confirmButton.textContent = TEXTS.retryConnect
+      }
+
+      showPanel(current, {
+        title: TEXTS.confirmTitlePair,
+        detail: TEXTS.confirmSubtitlePair,
+        message: formatTransferError(response),
+        messageTone: 'error',
+        tech: reason
+          ? `Giriş: ${rebuiltInput.payload.selector}\nButon: ${rebuiltButton.payload.selector}\nNeden: ${reason}`
+          : `Giriş: ${rebuiltInput.payload.selector}\nButon: ${rebuiltButton.payload.selector}`,
+        mode: 'error',
+        iconTone: 'error'
+      })
+      return
+    }
+
     const titleText =
       current.field === 'button' ? TEXTS.confirmTitleButton : TEXTS.confirmTitleInput
     const techSummary = describeElement(current.element)
@@ -837,29 +1353,17 @@
 
     const state = typeof response.state === 'string' ? response.state : 'retry'
     const reason = typeof response.reason === 'string' && response.reason ? response.reason : ''
-    const message =
-      typeof response.message === 'string' && response.message
-        ? response.message
-        : state === 'site_not_open'
-          ? TEXTS.siteNotOpen
-          : state === 'verification_failed'
-            ? TEXTS.verificationFailed
-            : state === 'unpaired'
-              ? TEXTS.unpaired
-              : state === 'rejected'
-                ? TEXTS.rejected
-                : TEXTS.retry
 
     if (state === 'site_not_open') {
       current.confirmButton.textContent = TEXTS.retrySend
-    } else if (state === 'retry') {
+    } else if (state === 'retry' || state === 'unreachable') {
       current.confirmButton.textContent = TEXTS.retryConnect
     }
 
     showPanel(current, {
       title: titleText,
       detail: humanSummary(current.element, current.field),
-      message,
+      message: formatTransferError(response),
       messageTone: 'error',
       tech: reason ? `${techSummary}\nNeden: ${reason}` : techSummary,
       mode: 'error',
@@ -868,7 +1372,7 @@
   }
 
   function startHover(current, event) {
-    if (current.frozen) return
+    if (current.frozen || current.stage === 'typing') return
     if (!isUserEvent(event)) return
     if (isOwnUi(event.target)) return
     const path = typeof event.composedPath === 'function' ? event.composedPath() : []
@@ -883,8 +1387,7 @@
     if (!resolved || resolved.nodeType !== 1) return
     if (current.hovered === resolved) return
     current.hovered = resolved
-    current.ui.toolbarHint.textContent = TEXTS.toolbarHint
-    current.ui.toolbarHint.style.color = current.ui.theme.muted
+    updateToolbarForStage(current)
     schedulePaint(current, resolved)
   }
 
@@ -896,8 +1399,119 @@
     return true
   }
 
+  function isButtonControlTarget(raw, path) {
+    if (!raw || raw.nodeType !== 1) return false
+    try {
+      const resolved = ENGINE.normalizeTargetForKind('button', raw, path)
+      if (!resolved) return false
+      const info = ENGINE.getElementInfo(resolved)
+      return info.category === 'button'
+    } catch {
+      return false
+    }
+  }
+
+  function onPointerPassThroughOrBlock(current, event) {
+    if (isOwnUi(event.target)) return
+    if (current.stage === 'typing') {
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+      const raw = elementOf(path[0] || event.target)
+      if (
+        raw &&
+        isTargetInsideSelectedInput(current, raw, path) &&
+        !isButtonControlTarget(raw, path)
+      ) {
+        return
+      }
+    }
+    blockEvent(event)
+  }
+
+  function commitButtonPick(current, resolved) {
+    if (current.mode === 'guided') {
+      const built = buildPayloadForElement(resolved, 'button')
+      if (!built.payload) {
+        current.hovered = resolved
+        paintSelection(current, resolved, 'hover')
+        updateToolbarForStage(current, errorText(built.error), true)
+        return
+      }
+      current.buttonElement = resolved
+      current.buttonPayload = built.payload
+      current.reselectMode = null
+      enterReviewStage(current)
+      return
+    }
+
+    current.frozen = true
+    current.element = resolved
+    current.hovered = resolved
+    current.confirmButton.textContent = TEXTS.confirm
+    paintSelection(current, resolved, 'selected')
+    showPanel(current, {
+      title: TEXTS.confirmTitleButton,
+      detail: humanSummary(resolved, 'button'),
+      message: null,
+      messageTone: 'info',
+      tech: describeElement(resolved),
+      mode: 'confirm',
+      iconTone: 'ok'
+    })
+  }
+
   function onPointerDown(current, event) {
     if (isOwnUi(event.target)) return
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+    const raw = elementOf(path[0] || event.target)
+
+    if (current.stage === 'typing') {
+      if (!isUserEvent(event)) {
+        blockEvent(event)
+        return
+      }
+      if (
+        raw &&
+        isTargetInsideSelectedInput(current, raw, path) &&
+        !isButtonControlTarget(raw, path)
+      ) {
+        focusTextEntry(current.inputElement)
+        return
+      }
+      blockEvent(event)
+      if (event.button !== undefined && event.button !== 0) return
+      if (!raw || !raw.isConnected) return
+      // Re-bind if the SPA replaced the selected input node after focus/typing.
+      if (
+        (!current.inputElement || current.inputElement.isConnected === false) &&
+        typeof ENGINE.isTextEntryControl === 'function'
+      ) {
+        const entry = ENGINE.normalizeTargetForKind('input', raw, path)
+        if (entry && ENGINE.getElementInfo(entry).category === 'input') {
+          const rebuilt = buildPayloadForElement(entry, 'input')
+          if (rebuilt.payload) {
+            current.inputElement = entry
+            current.inputPayload = rebuilt.payload
+            paintPersistentInputBox(current)
+            focusTextEntry(entry)
+            return
+          }
+        }
+      }
+      // If the user clicked a valid send button directly during typing stage, capture it.
+      const maybeBtn = ENGINE.normalizeTargetForKind('button', raw, path)
+      if (
+        maybeBtn &&
+        maybeBtn.nodeType === 1 &&
+        ENGINE.getElementInfo(maybeBtn).category === 'button'
+      ) {
+        enterSubmitStage(current)
+        commitButtonPick(current, maybeBtn)
+        return
+      }
+      updateToolbarForStage(current, TEXTS.toolbarTypingOutside, true)
+      return
+    }
+
     if (!isUserEvent(event)) {
       blockEvent(event)
       return
@@ -906,9 +1520,8 @@
     if (!blocked) return
     if (event.button !== undefined && event.button !== 0) return
     if (current.frozen) return
-    const path = typeof event.composedPath === 'function' ? event.composedPath() : []
-    const raw = elementOf(path[0] || event.target)
     if (!raw || !raw.isConnected) return
+
     let resolved
     try {
       resolved = ENGINE.normalizeTargetForKind(current.field, raw, path)
@@ -917,15 +1530,40 @@
     }
     if (!resolved || resolved.nodeType !== 1) return
 
-    // Check category compatibility before freezing: keep user in selection mode
-    // with a clear notice if the clicked element does not match target field.
     const expected = current.field === 'button' ? 'button' : 'input'
     const info = ENGINE.getElementInfo(resolved)
     if (info.category !== expected) {
       current.hovered = resolved
       paintSelection(current, resolved, 'hover')
-      current.ui.toolbarHint.textContent = TEXTS.toolbarIncompatible
-      current.ui.toolbarHint.style.color = current.ui.theme.warnText
+      updateToolbarForStage(current, TEXTS.toolbarIncompatible, true)
+      return
+    }
+
+    if (current.mode === 'guided') {
+      if (current.field === 'input') {
+        const built = buildPayloadForElement(resolved, 'input')
+        if (!built.payload) {
+          current.hovered = resolved
+          paintSelection(current, resolved, 'hover')
+          updateToolbarForStage(current, errorText(built.error), true)
+          return
+        }
+        current.inputElement = resolved
+        current.inputPayload = built.payload
+        if (
+          current.reselectMode === 'input' &&
+          current.buttonPayload &&
+          current.buttonElement?.isConnected
+        ) {
+          current.reselectMode = null
+          enterReviewStage(current)
+          return
+        }
+        current.reselectMode = null
+        enterTypingStage(current)
+        return
+      }
+      commitButtonPick(current, resolved)
       return
     }
 
@@ -945,9 +1583,47 @@
     })
   }
 
+  function scheduleTypingAdvance(current) {
+    clearTypingTimer(current)
+    current.typingTimer = window.setTimeout(() => {
+      current.typingTimer = null
+      if (!active || active !== current || current.stage !== 'typing') return
+      enterSubmitStage(current)
+    }, 150)
+  }
+
+  function handleTypingSignal(current, event) {
+    if (current.stage !== 'typing' || current.frozen) return
+    if (isOwnUi(event.target)) return
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+    const raw = elementOf(path[0] || event.target)
+    if (!raw) return
+
+    // SPA composer hydration may replace the picked node after focus.
+    if (current.inputElement && current.inputElement.isConnected === false && raw.isConnected) {
+      const candidate =
+        typeof ENGINE.findTextEntryControl === 'function'
+          ? ENGINE.findTextEntryControl(raw) || raw
+          : raw
+      if (typeof ENGINE.isTextEntryControl === 'function' && ENGINE.isTextEntryControl(candidate)) {
+        const rebuilt = buildPayloadForElement(candidate, 'input')
+        if (rebuilt.payload) {
+          current.inputElement = candidate
+          current.inputPayload = rebuilt.payload
+          paintPersistentInputBox(current)
+        }
+      }
+    }
+
+    if (!isTargetInsideSelectedInput(current, raw, path)) return
+    scheduleTypingAdvance(current)
+  }
+
   function onKeyDown(current, event) {
     if (isOwnUi(event.target)) return
-    const target = elementOf(event.target)
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+    const target = elementOf(path[0] || event.target)
+
     if (event.key === 'Escape') {
       if (!isUserEvent(event)) return
       blockEvent(event)
@@ -955,23 +1631,67 @@
       teardown()
       return
     }
+
+    // NEVER let Enter submit a draft on the AI page while the picker is open.
+    if (event.key === 'Enter' || event.key === 'NumpadEnter') {
+      blockEvent(event)
+      if (
+        current.stage === 'typing' &&
+        target &&
+        isTargetInsideSelectedInput(current, target, path)
+      ) {
+        enterSubmitStage(current)
+      }
+      return
+    }
+
+    if (
+      current.stage === 'typing' &&
+      target &&
+      isTargetInsideSelectedInput(current, target, path)
+    ) {
+      if (
+        event.key === 'Tab' ||
+        /^F\d+$/i.test(event.key || '') ||
+        ((event.ctrlKey || event.metaKey || event.altKey) && event.key && event.key.length > 1)
+      ) {
+        blockEvent(event)
+        return
+      }
+      if (
+        typeof event.key === 'string' &&
+        (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        scheduleTypingAdvance(current)
+      }
+      return
+    }
+
+    if (current.stage === 'typing') {
+      blockEvent(event)
+      return
+    }
+
     const isButtonTarget =
       Boolean(target) &&
       (target.tagName === 'BUTTON' ||
         target.tagName === 'A' ||
         target.getAttribute('role') === 'button' ||
         target.getAttribute('type') === 'submit')
-    if (
-      event.key === 'Enter' ||
-      event.key === 'NumpadEnter' ||
-      (event.key === ' ' && isButtonTarget)
-    ) {
+    if (event.key === ' ' && isButtonTarget) {
       blockEvent(event)
     }
   }
 
   function onKeyUp(current, event) {
     if (isOwnUi(event.target)) return
+    if (current.stage === 'typing') {
+      handleTypingSignal(current, event)
+      return
+    }
     if (!isUserEvent(event)) return
     if (event.key !== ' ' && event.key !== 'Enter' && event.key !== 'NumpadEnter') return
     const target = elementOf(event.target)
@@ -984,8 +1704,9 @@
     if (isButtonTarget) blockEvent(event)
   }
 
-  function resetToHover(current) {
+  function resetToHover(current, targetField) {
     if (current.sending) return
+    clearTypingTimer(current)
     current.sendToken += 1
     current.frozen = false
     current.element = null
@@ -994,9 +1715,20 @@
     current.ui.box.style.display = 'none'
     current.ui.label.style.display = 'none'
     current.hovered = null
+
+    if (current.mode === 'guided') {
+      const nextField = targetField === 'input' ? 'input' : 'button'
+      current.reselectMode = nextField
+      current.field = nextField
+      current.stage = nextField === 'input' ? 'input' : 'submit'
+      current.confirmButton.textContent = TEXTS.confirmPair
+      paintPersistentInputBox(current)
+      updateToolbarForStage(current)
+      return
+    }
+
     current.confirmButton.textContent = TEXTS.confirm
-    current.ui.toolbarHint.textContent = TEXTS.toolbarHint
-    current.ui.toolbarHint.style.color = current.ui.theme.muted
+    updateToolbarForStage(current)
   }
 
   function initSession(config) {
@@ -1007,16 +1739,25 @@
       return
     }
     disposeSession()
-    const field = config.field === 'button' ? 'button' : 'input'
+    const mode = config.mode === 'guided' || config.field === 'pair' ? 'guided' : 'single'
+    const field = mode === 'guided' ? 'input' : config.field === 'button' ? 'button' : 'input'
     const ui = createUi(field)
     const current = {
       sessionId: config.sessionId,
+      mode,
+      stage: field,
       field,
       ui,
       listeners: [],
       abort: new AbortController(),
       hovered: null,
       element: null,
+      inputElement: null,
+      inputPayload: null,
+      buttonElement: null,
+      buttonPayload: null,
+      reselectMode: null,
+      typingTimer: null,
       pending: null,
       frame: null,
       frozen: false,
@@ -1024,9 +1765,11 @@
       sendToken: 0,
       startHref: window.location.href,
       confirmButton: ui.confirmButton,
-      reselectButton: ui.reselectButton
+      reselectButton: ui.reselectButton,
+      reselectButtonBtn: ui.reselectButtonBtn
     }
     active = current
+    updateToolbarForStage(current)
 
     const listen = (target, type, handler, options) => {
       target.addEventListener(type, handler, { capture: true, passive: false, ...options })
@@ -1039,10 +1782,10 @@
 
     listen(window, 'pointermove', (event) => startHover(current, event))
     listen(window, 'pointerdown', (event) => onPointerDown(current, event))
-    listen(window, 'pointerup', (event) => blockEvent(event))
-    listen(window, 'mousedown', (event) => blockEvent(event))
-    listen(window, 'mouseup', (event) => blockEvent(event))
-    listen(window, 'click', (event) => blockEvent(event))
+    listen(window, 'pointerup', (event) => onPointerPassThroughOrBlock(current, event))
+    listen(window, 'mousedown', (event) => onPointerPassThroughOrBlock(current, event))
+    listen(window, 'mouseup', (event) => onPointerPassThroughOrBlock(current, event))
+    listen(window, 'click', (event) => onPointerPassThroughOrBlock(current, event))
     listen(window, 'dblclick', (event) => blockEvent(event))
     listen(window, 'auxclick', (event) => blockEvent(event))
     listen(window, 'contextmenu', (event) => blockEvent(event))
@@ -1051,13 +1794,21 @@
     listen(window, 'drop', (event) => blockEvent(event))
     listen(window, 'keydown', (event) => onKeyDown(current, event))
     listen(window, 'keyup', (event) => onKeyUp(current, event))
+    listen(window, 'beforeinput', (event) => handleTypingSignal(current, event))
+    listen(window, 'input', (event) => handleTypingSignal(current, event))
+    listen(window, 'compositionend', (event) => handleTypingSignal(current, event))
+    listen(window, 'paste', (event) => handleTypingSignal(current, event))
     listenPassive(window, 'scroll', () => {
+      paintPersistentInputBox(current)
       if (current.frozen && current.element) paintSelection(current, current.element, 'selected')
-      else if (current.hovered) schedulePaint(current, current.hovered)
+      else if (current.hovered && current.stage !== 'typing')
+        schedulePaint(current, current.hovered)
     })
     listenPassive(window, 'resize', () => {
+      paintPersistentInputBox(current)
       if (current.frozen && current.element) paintSelection(current, current.element, 'selected')
-      else if (current.hovered) schedulePaint(current, current.hovered)
+      else if (current.hovered && current.stage !== 'typing')
+        schedulePaint(current, current.hovered)
     })
     const onUnload = () => {
       sendToWorker({ type: 'selector_pick_cancelled', sessionId: current.sessionId })
@@ -1074,6 +1825,10 @@
       teardown()
     }
 
+    ui.toolbarNextBtn.addEventListener('click', (event) => {
+      if (!isUserEvent(event)) return
+      if (current.stage === 'typing') enterSubmitStage(current)
+    })
     ui.toolbarCancelBtn.addEventListener('click', cancelAll)
     ui.cancelButton.addEventListener('click', cancelAll)
     ui.confirmButton.addEventListener('click', (event) => {
@@ -1082,7 +1837,11 @@
     })
     ui.reselectButton.addEventListener('click', (event) => {
       if (!isUserEvent(event)) return
-      resetToHover(current)
+      resetToHover(current, current.mode === 'guided' ? 'input' : current.field)
+    })
+    ui.reselectButtonBtn.addEventListener('click', (event) => {
+      if (!isUserEvent(event)) return
+      resetToHover(current, 'button')
     })
   }
 
@@ -1096,6 +1855,7 @@
       if (!sessionId) return
       initSession({
         sessionId,
+        mode: message.mode,
         field: message.field,
         startHref: typeof message.startHref === 'string' ? message.startHref : ''
       })

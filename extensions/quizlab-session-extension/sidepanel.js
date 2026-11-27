@@ -658,10 +658,24 @@ const SELECTOR_TEXTS = {
   cannotInject: 'Bu sayfaya erişilemedi. Sayfayı yenileyip tekrar deneyin.',
   startedInput: 'Seçim modu açıldı: Mesaj giriş alanı. Sayfada elementi seçin; ESC ile iptal edin.',
   startedButton: 'Seçim modu açıldı: Gönderme butonu. Sayfada elementi seçin; ESC ile iptal edin.',
+  startedPair:
+    'Tam kurulum açıldı: Önce mesaj giriş alanını seçin, deneme metni yazın, sonra gönderme butonunu seçin.',
   savedInput: 'Mesaj giriş alanı kaydedildi.',
   savedButton: 'Gönderme butonu kaydedildi.',
+  savedPair: 'Mesaj giriş alanı ve gönderme butonu doğrulandı ve kaydedildi.',
   siteNotOpen: 'Bu siteyi QuizLab’da aç ve tekrar dene.',
   verificationFailed: 'Bu element QuizLab’da doğrulanamadı. Önceki selektör korunuyor.',
+  verificationEmptyComposer:
+    'QuizLab’daki mesaj alanı boş olduğu için gönderme butonu henüz DOM’da görünmüyor. QuizLab’daki mesaj kutusuna deneme metni yazıp (göndermeden) tekrar deneyin.',
+  verificationNotFound:
+    'Seçilen element QuizLab’daki sayfada bulunamadı. Önceki selektör korunuyor.',
+  verificationMismatch:
+    'Chrome’daki seçim QuizLab’daki elementle uyuşmuyor (farklı buton/mikrofon/ekleme kontrolü olabilir). Önceki selektör korunuyor.',
+  verificationInsufficient:
+    'Elementin kimliği QuizLab’da yeterince doğrulanamadı. Daha belirgin bir alan seçin.',
+  verificationAmbiguous: 'QuizLab’da birden fazla benzer element eşleşti; seçim ayırt edilemedi.',
+  verificationNavigated: 'Doğrulama sırasında QuizLab sayfası değişti. Tekrar deneyin.',
+  verificationSiteMismatch: 'QuizLab’da açık sayfa bu siteyle eşleşmiyor.',
   rejected: 'Aktarım reddedildi. Site ve hedef alanı kontrol edin.',
   retry: 'QuizLab bağlantısı kurulamadı.'
 }
@@ -702,6 +716,8 @@ function statusToneOf(status) {
 }
 
 async function initSelectorControls() {
+  const pickPairBtn = document.getElementById('pick-pair-btn')
+  const guidedCard = document.getElementById('selector-guided-card')
   const pickInputBtn = document.getElementById('pick-input-btn')
   const pickButtonBtn = document.getElementById('pick-button-btn')
   if (!pickInputBtn || !pickButtonBtn || pickInputBtn.dataset.initialized) return
@@ -840,6 +856,16 @@ async function initSelectorControls() {
     pickInputBtn.disabled = !connectionOk || !inputSupported || pickStartInFlight
     pickButtonBtn.disabled = !connectionOk || !buttonSupported || pickStartInFlight
 
+    const pairSupported = inputSupported && buttonSupported
+    if (guidedCard) guidedCard.hidden = !pairSupported
+    if (pickPairBtn) {
+      pickPairBtn.textContent =
+        REGISTERED_STATUSES.has(inputState) && REGISTERED_STATUSES.has(buttonState)
+          ? 'Tam Kurulumu Yeniden Yap'
+          : 'Tam Kurulumu Başlat'
+      pickPairBtn.disabled = !connectionOk || !pairSupported || pickStartInFlight
+    }
+
     if (progressPill) {
       const total = fields.length || 0
       const registered = fields.filter((f) => REGISTERED_STATUSES.has(site?.status?.[f])).length
@@ -851,12 +877,40 @@ async function initSelectorControls() {
   const renderActiveSession = (activeSession) => {
     if (!activeBanner || !activeText) return
     if (activeSession && activeSession.sessionId) {
-      const label = activeSession.field === 'button' ? 'Gönderme butonu' : 'Mesaj giriş alanı'
-      activeText.textContent = `Seçim modu aktif: ${label}. Sayfada elementi seçin veya ESC ile iptal edin.`
+      const label =
+        activeSession.field === 'pair'
+          ? 'Tam kurulum (Giriş + Deneme yazımı + Gönder)'
+          : activeSession.field === 'button'
+            ? 'Gönderme butonu'
+            : 'Mesaj giriş alanı'
+      activeText.textContent = `Seçim modu aktif: ${label}. Sayfada adımları izleyin veya ESC ile iptal edin.`
       activeBanner.hidden = false
     } else {
       activeBanner.hidden = true
     }
+  }
+
+  const formatVerificationFailure = (lastOutcome) => {
+    const failedField =
+      lastOutcome.failedField === 'input'
+        ? '[Mesaj giriş alanı] '
+        : lastOutcome.failedField === 'button'
+          ? '[Gönderme butonu] '
+          : ''
+    const reason = typeof lastOutcome.reason === 'string' ? lastOutcome.reason : ''
+    if (reason === 'button_not_rendered_empty_composer') {
+      return `${failedField}${SELECTOR_TEXTS.verificationEmptyComposer}`
+    }
+    if (reason === 'not_found') return `${failedField}${SELECTOR_TEXTS.verificationNotFound}`
+    if (reason === 'identity_mismatch')
+      return `${failedField}${SELECTOR_TEXTS.verificationMismatch}`
+    if (reason === 'identity_insufficient') {
+      return `${failedField}${SELECTOR_TEXTS.verificationInsufficient}`
+    }
+    if (reason === 'ambiguous') return `${failedField}${SELECTOR_TEXTS.verificationAmbiguous}`
+    if (reason === 'view_navigated') return SELECTOR_TEXTS.verificationNavigated
+    if (reason === 'view_site_mismatch') return SELECTOR_TEXTS.verificationSiteMismatch
+    return `${failedField}${SELECTOR_TEXTS.verificationFailed}`
   }
 
   const renderOutcome = (lastOutcome, hostname, site) => {
@@ -867,7 +921,12 @@ async function initSelectorControls() {
 
     const techParts = []
     if (typeof lastOutcome.selector === 'string' && lastOutcome.selector) {
-      const fieldText = lastOutcome.field === 'button' ? 'Gönderme butonu' : 'Mesaj giriş alanı'
+      const fieldText =
+        lastOutcome.field === 'pair'
+          ? 'Tam kurulum'
+          : lastOutcome.field === 'button'
+            ? 'Gönderme butonu'
+            : 'Mesaj giriş alanı'
       techParts.push(`${lastOutcome.hostname} · ${fieldText}: ${lastOutcome.selector}`)
     }
     if (typeof lastOutcome.reason === 'string' && lastOutcome.reason) {
@@ -877,33 +936,39 @@ async function initSelectorControls() {
 
     if (lastOutcome.state === 'saved') {
       const savedText =
-        lastOutcome.field === 'button' ? SELECTOR_TEXTS.savedButton : SELECTOR_TEXTS.savedInput
+        lastOutcome.field === 'pair'
+          ? SELECTOR_TEXTS.savedPair
+          : lastOutcome.field === 'button'
+            ? SELECTOR_TEXTS.savedButton
+            : SELECTOR_TEXTS.savedInput
       showFeedback(savedText, 'success')
 
       // Guide to the remaining unconfigured field if applicable (never auto-starts).
-      const otherField = lastOutcome.field === 'button' ? 'input' : 'button'
-      const fields = Array.isArray(site?.fields) ? site.fields : []
-      const otherStatus = site?.status?.[otherField]
-      if (
-        fields.includes(otherField) &&
-        (!otherStatus || otherStatus === 'missing' || otherStatus === 'needs_repick') &&
-        nextStepCard &&
-        nextStepText &&
-        nextStepBtn
-      ) {
-        nextStepText.textContent =
-          otherField === 'button'
-            ? 'Mesaj giriş alanı kaydedildi. Şimdi gönderme butonunu seç.'
-            : 'Gönderme butonu kaydedildi. Şimdi mesaj giriş alanını seç.'
-        nextStepBtn.textContent =
-          otherField === 'button' ? 'Gönderme butonunu seç' : 'Mesaj giriş alanını seç'
-        nextStepBtn.dataset.field = otherField
-        nextStepCard.hidden = false
+      if (lastOutcome.field === 'input' || lastOutcome.field === 'button') {
+        const otherField = lastOutcome.field === 'button' ? 'input' : 'button'
+        const fields = Array.isArray(site?.fields) ? site.fields : []
+        const otherStatus = site?.status?.[otherField]
+        if (
+          fields.includes(otherField) &&
+          (!otherStatus || otherStatus === 'missing' || otherStatus === 'needs_repick') &&
+          nextStepCard &&
+          nextStepText &&
+          nextStepBtn
+        ) {
+          nextStepText.textContent =
+            otherField === 'button'
+              ? 'Mesaj giriş alanı kaydedildi. Şimdi gönderme butonunu seç.'
+              : 'Gönderme butonu kaydedildi. Şimdi mesaj giriş alanını seç.'
+          nextStepBtn.textContent =
+            otherField === 'button' ? 'Gönderme butonunu seç' : 'Mesaj giriş alanını seç'
+          nextStepBtn.dataset.field = otherField
+          nextStepCard.hidden = false
+        }
       }
     } else if (lastOutcome.state === 'site_not_open') {
       showFeedback(SELECTOR_TEXTS.siteNotOpen, 'error')
     } else if (lastOutcome.state === 'verification_failed') {
-      showFeedback(SELECTOR_TEXTS.verificationFailed, 'error')
+      showFeedback(formatVerificationFailure(lastOutcome), 'error')
     } else if (lastOutcome.state === 'unpaired') {
       showFeedback(SELECTOR_TEXTS.unpaired, 'error')
     } else {
@@ -1032,7 +1097,7 @@ async function initSelectorControls() {
 
   const startPick = async (field) => {
     if (pickStartInFlight) return
-    if (field !== 'input' && field !== 'button') return
+    if (field !== 'input' && field !== 'button' && field !== 'pair') return
 
     pickStartInFlight = true
     updateTargetCards(currentSite, currentConnection === 'ok')
@@ -1076,7 +1141,11 @@ async function initSelectorControls() {
       const response = await sendWorkerMessage({ type: 'selector_start', tabId: activeId, field })
       if (response && response.success === true) {
         showFeedback(
-          field === 'button' ? SELECTOR_TEXTS.startedButton : SELECTOR_TEXTS.startedInput,
+          field === 'pair'
+            ? SELECTOR_TEXTS.startedPair
+            : field === 'button'
+              ? SELECTOR_TEXTS.startedButton
+              : SELECTOR_TEXTS.startedInput,
           'info'
         )
         renderActiveSession({ sessionId: response.sessionId, field })
@@ -1104,6 +1173,9 @@ async function initSelectorControls() {
     }
   }
 
+  pickPairBtn?.addEventListener('click', () => {
+    void startPick('pair')
+  })
   pickInputBtn.addEventListener('click', () => {
     void startPick('input')
   })

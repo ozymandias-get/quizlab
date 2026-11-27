@@ -1608,7 +1608,7 @@ function normalizeSelectorSessions(value) {
     if (typeof entry.sessionId !== 'string' || !entry.sessionId) continue
     if (!Number.isInteger(entry.tabId)) continue
     if (typeof entry.hostname !== 'string' || !entry.hostname) continue
-    if (entry.field !== 'input' && entry.field !== 'button') continue
+    if (entry.field !== 'input' && entry.field !== 'button' && entry.field !== 'pair') continue
     const startedAt = typeof entry.startedAt === 'number' ? entry.startedAt : 0
     if (!startedAt || now - startedAt > SELECTOR_SESSION_TTL_MS) continue
     sessions.push({
@@ -1912,9 +1912,16 @@ async function resolveSelectorTarget(tabId, field) {
   if (!match) return { error: 'unsupported_site' }
   if (match.ambiguous) return { error: 'ambiguous_site' }
   const site = match.site
-  const requested = field === 'button' ? 'button' : field === 'input' ? 'input' : null
+  const requested =
+    field === 'pair' ? 'pair' : field === 'button' ? 'button' : field === 'input' ? 'input' : null
   if (!requested) return { error: 'invalid_field' }
-  if (!site.fields.includes(requested)) return { error: 'unsupported_field' }
+  if (requested === 'pair') {
+    if (!site.fields.includes('input') || !site.fields.includes('button')) {
+      return { error: 'unsupported_field' }
+    }
+  } else if (!site.fields.includes(requested)) {
+    return { error: 'unsupported_field' }
+  }
   return { url, host, site, field: requested }
 }
 
@@ -1990,6 +1997,7 @@ async function startSelectorPick(tabId, field) {
   const initMessage = {
     type: 'quizlab_selector_init',
     sessionId,
+    mode: target.field === 'pair' ? 'guided' : 'single',
     field: target.field,
     startHref: target.url
   }
@@ -2049,17 +2057,30 @@ async function postSelectorPick(session, payload) {
     }
   }
 
-  const body = JSON.stringify({
-    version: SELECTOR_TRANSFER_VERSION,
-    requestId: session.requestId,
-    hostname: session.hostname,
-    ...(session.siteId ? { siteId: session.siteId } : {}),
-    field: session.field,
-    selector: payload.selector,
-    candidates: payload.candidates,
-    fingerprint: payload.fingerprint,
-    sourceUrl: payload.sourceUrl
-  })
+  const body = JSON.stringify(
+    session.field === 'pair'
+      ? {
+          version: SELECTOR_TRANSFER_VERSION,
+          requestId: session.requestId,
+          hostname: session.hostname,
+          ...(session.siteId ? { siteId: session.siteId } : {}),
+          field: 'pair',
+          input: payload.input,
+          button: payload.button,
+          sourceUrl: payload.sourceUrl
+        }
+      : {
+          version: SELECTOR_TRANSFER_VERSION,
+          requestId: session.requestId,
+          hostname: session.hostname,
+          ...(session.siteId ? { siteId: session.siteId } : {}),
+          field: session.field,
+          selector: payload.selector,
+          candidates: payload.candidates,
+          fingerprint: payload.fingerprint,
+          sourceUrl: payload.sourceUrl
+        }
+  )
   const headers = {
     ...baseHeaders(),
     'Content-Type': 'application/json',
@@ -2114,7 +2135,10 @@ async function postSelectorPick(session, payload) {
     if (response.status === 422) {
       return {
         state: SELECTOR_VERIFICATION_FAILED,
-        reason: typeof result?.reason === 'string' ? result.reason : ''
+        reason: typeof result?.reason === 'string' ? result.reason : '',
+        ...(typeof result?.failedField === 'string' && result.failedField
+          ? { failedField: result.failedField }
+          : {})
       }
     }
     if (response.status === 404) return { state: SELECTOR_REJECTED }
@@ -2155,18 +2179,36 @@ function minimizeSelectorSourceUrl(rawUrl) {
 }
 
 async function computeSelectorPayloadDigest(session, payload) {
-  const canonical = JSON.stringify({
-    version: SELECTOR_TRANSFER_VERSION,
-    hostname: session.hostname,
-    siteId: session.siteId || '',
-    field: session.field,
-    selector: payload.selector,
-    candidates: Array.isArray(payload.candidates) ? payload.candidates : [],
-    fingerprint: payload.fingerprint || null,
-    sourceUrl: payload.sourceUrl || ''
-  })
+  const canonical =
+    session.field === 'pair'
+      ? JSON.stringify({
+          version: SELECTOR_TRANSFER_VERSION,
+          hostname: session.hostname,
+          siteId: session.siteId || '',
+          field: 'pair',
+          input: payload.input,
+          button: payload.button,
+          sourceUrl: payload.sourceUrl || ''
+        })
+      : JSON.stringify({
+          version: SELECTOR_TRANSFER_VERSION,
+          hostname: session.hostname,
+          siteId: session.siteId || '',
+          field: session.field,
+          selector: payload.selector,
+          candidates: Array.isArray(payload.candidates) ? payload.candidates : [],
+          fingerprint: payload.fingerprint || null,
+          sourceUrl: payload.sourceUrl || ''
+        })
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical))
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function stripInputFingerprintText(fingerprint) {
+  if (!fingerprint || typeof fingerprint !== 'object') return fingerprint
+  const copy = { ...fingerprint }
+  delete copy.text
+  return copy
 }
 
 /** A result from one tab, bound to its own session and document. */
@@ -2204,26 +2246,50 @@ async function handleSelectorPickResult(message, sender) {
   if (!payload || typeof payload !== 'object') {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Seçim verisi eksik.' }
   }
-  if (typeof payload.selector !== 'string' || payload.selector.length === 0) {
-    return { ok: false, state: SELECTOR_REJECTED, message: 'Seçici eksik.' }
-  }
   if (session.field !== message.field) {
     return { ok: false, state: SELECTOR_REJECTED, message: 'Hedef alan uyuşmuyor.' }
   }
 
   const minimizedSourceUrl = minimizeSelectorSourceUrl(payload.sourceUrl)
-  const normalizedFingerprint =
-    session.field === 'input' && payload.fingerprint && typeof payload.fingerprint === 'object'
-      ? (() => {
-          const copy = { ...payload.fingerprint }
-          delete copy.text
-          return copy
-        })()
-      : payload.fingerprint
-  const normalizedPayload = {
-    ...payload,
-    fingerprint: normalizedFingerprint,
-    sourceUrl: minimizedSourceUrl
+  let normalizedPayload
+  let displaySelector
+  if (session.field === 'pair') {
+    const input = payload.input
+    const button = payload.button
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof input.selector !== 'string' ||
+      input.selector.length === 0 ||
+      !button ||
+      typeof button !== 'object' ||
+      typeof button.selector !== 'string' ||
+      button.selector.length === 0
+    ) {
+      return { ok: false, state: SELECTOR_REJECTED, message: 'Seçici eksik.' }
+    }
+    normalizedPayload = {
+      input: {
+        ...input,
+        fingerprint: stripInputFingerprintText(input.fingerprint)
+      },
+      button: { ...button },
+      sourceUrl: minimizedSourceUrl
+    }
+    displaySelector = `${input.selector} · ${button.selector}`
+  } else {
+    if (typeof payload.selector !== 'string' || payload.selector.length === 0) {
+      return { ok: false, state: SELECTOR_REJECTED, message: 'Seçici eksik.' }
+    }
+    normalizedPayload = {
+      ...payload,
+      fingerprint:
+        session.field === 'input'
+          ? stripInputFingerprintText(payload.fingerprint)
+          : payload.fingerprint,
+      sourceUrl: minimizedSourceUrl
+    }
+    displaySelector = payload.selector
   }
   const payloadDigest = await computeSelectorPayloadDigest(session, normalizedPayload)
 
@@ -2259,21 +2325,21 @@ async function handleSelectorPickResult(message, sender) {
   let requestId = session.requestId
   const payloadChanged = session.lastPayloadDigest
     ? session.lastPayloadDigest !== payloadDigest
-    : Boolean(session.lastSelector && session.lastSelector !== payload.selector)
+    : Boolean(session.lastSelector && session.lastSelector !== displaySelector)
   if (payloadChanged || !requestId) {
     // Any meaningful payload change (selector, candidates, fingerprint, or URL)
     // gets a fresh idempotency key so the bridge does not reject it as a conflict.
     requestId = crypto.randomUUID()
     session.requestId = requestId
   }
-  session.lastSelector = payload.selector
+  session.lastSelector = displaySelector
   session.lastPayloadDigest = payloadDigest
 
   const run = (async () => {
     await updateSelectorSession(sessionId, {
       state: 'sending',
       requestId,
-      lastSelector: payload.selector,
+      lastSelector: displaySelector,
       lastPayloadDigest: payloadDigest
     })
     const outcome = await postSelectorPick(session, normalizedPayload)
@@ -2296,7 +2362,7 @@ async function handleSelectorPickResult(message, sender) {
           tabId: session.tabId,
           hostname: outcome.hostname || session.hostname,
           field: session.field,
-          selector: payload.selector,
+          selector: displaySelector,
           at: Date.now()
         }
         selectorLastOutcome = record
@@ -2313,7 +2379,7 @@ async function handleSelectorPickResult(message, sender) {
           tabId: session.tabId,
           hostname: session.hostname,
           field: session.field,
-          selector: payload.selector,
+          selector: displaySelector,
           at: Date.now(),
           message: 'Seçim oturumu iptal edildi.'
         })
@@ -2336,9 +2402,10 @@ async function handleSelectorPickResult(message, sender) {
       tabId: session.tabId,
       hostname: session.hostname,
       field: session.field,
-      selector: payload.selector,
+      selector: displaySelector,
       at: Date.now(),
       ...(outcome.reason ? { reason: outcome.reason } : {}),
+      ...(outcome.failedField ? { failedField: outcome.failedField } : {}),
       ...(outcome.message ? { message: outcome.message } : {})
     }
     await updateSelectorSession(sessionId, { state: finalState, outcome: outcome.state })
@@ -2353,6 +2420,7 @@ async function handleSelectorPickResult(message, sender) {
       state: outcome.state,
       retryable: finalState === 'retryable',
       ...(outcome.reason ? { reason: outcome.reason } : {}),
+      ...(outcome.failedField ? { failedField: outcome.failedField } : {}),
       ...(outcome.message ? { message: outcome.message } : {})
     }
   })()

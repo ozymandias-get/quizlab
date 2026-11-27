@@ -23,9 +23,21 @@ interface SentMessage {
   sessionId?: string
   field?: string
   payload?: {
-    selector: string
-    candidates: string[]
+    selector?: string
+    candidates?: string[]
     fingerprint?: Record<string, unknown>
+    input?: {
+      selector: string
+      candidates: string[]
+      fingerprint?: Record<string, unknown>
+      sourceUrl: string
+    }
+    button?: {
+      selector: string
+      candidates: string[]
+      fingerprint?: Record<string, unknown>
+      sourceUrl: string
+    }
     sourceUrl: string
   }
 }
@@ -46,7 +58,11 @@ interface Harness {
   sent: SentMessage[]
   respond: (response: unknown) => void
   listeners: ((message: unknown) => void)[]
-  init: (options?: { sessionId?: string; field?: 'input' | 'button' }) => void
+  init: (options?: {
+    sessionId?: string
+    field?: 'input' | 'button' | 'pair'
+    mode?: 'single' | 'guided'
+  }) => void
 }
 
 function createHarness(): Harness {
@@ -86,6 +102,7 @@ function createHarness(): Harness {
         listener({
           type: 'quizlab_selector_init',
           sessionId: options.sessionId ?? 'session-1',
+          mode: options.mode ?? (options.field === 'pair' ? 'guided' : 'single'),
           field: options.field ?? 'input'
         })
       }
@@ -118,14 +135,33 @@ function pickerHost(): HTMLElement | null {
 }
 
 function shadowButton(_host: HTMLElement, index: number): HTMLButtonElement {
-  const root = (
-    globalThis as { __quizlabPickerTestUi?: { shadow?: ShadowRoot; host?: HTMLElement } }
-  ).__quizlabPickerTestUi?.shadow
-  if (!root) throw new Error('the picker UI must expose its shadow root to the test harness')
-  const buttons = root.querySelectorAll('button')
-  const button = buttons[index]
+  const ui = (
+    globalThis as {
+      __quizlabPickerTestUi?: {
+        panel?: HTMLElement
+        shadow?: ShadowRoot
+        confirmButton?: HTMLButtonElement
+        reselectButton?: HTMLButtonElement
+        cancelButton?: HTMLButtonElement
+      }
+    }
+  ).__quizlabPickerTestUi
+  if (!ui?.shadow) throw new Error('the picker UI must expose its shadow root to the test harness')
+  const panelButtons = ui.panel
+    ? [...ui.panel.querySelectorAll('button')].filter((btn) => btn.style.display !== 'none')
+    : []
+  const button = panelButtons[index] ?? ui.shadow.querySelectorAll('button')[index]
   if (!button) throw new Error(`missing picker button ${index}`)
-  return button
+  return button as HTMLButtonElement
+}
+
+function shadowActionButton(action: string): HTMLButtonElement {
+  const root = (globalThis as { __quizlabPickerTestUi?: { shadow?: ShadowRoot } })
+    .__quizlabPickerTestUi?.shadow
+  if (!root) throw new Error('the picker UI must expose its shadow root to the test harness')
+  const button = root.querySelector(`button[data-quizlab-action="${action}"]`)
+  if (!button) throw new Error(`missing picker action button ${action}`)
+  return button as HTMLButtonElement
 }
 
 function pointerDown(element: Element, trusted = true): MouseEvent {
@@ -364,9 +400,16 @@ describe('chrome magic selector content script', () => {
     // The page event is swallowed, but nothing is selected and nothing is sent.
     expect(event.defaultPrevented).toBe(true)
     const ui = (
-      globalThis as { __quizlabPickerTestUi?: { panelTitle?: HTMLElement; box?: HTMLElement } }
+      globalThis as {
+        __quizlabPickerTestUi?: {
+          toolbarTitle?: HTMLElement
+          panel?: HTMLElement
+          box?: HTMLElement
+        }
+      }
     ).__quizlabPickerTestUi
-    expect(ui?.panelTitle?.textContent).toContain('Sihirli Seçici açık')
+    expect(ui?.toolbarTitle?.textContent).toContain('Sihirli Seçici')
+    expect(ui?.panel?.style.display).toBe('none')
     expect(ui?.box?.style.display).not.toBe('block')
     expect(harness.sent.some((message) => message.type === 'selector_pick_result')).toBe(false)
   })
@@ -402,8 +445,116 @@ describe('chrome magic selector content script', () => {
       globalThis as { __quizlabPickerTestUi?: { shadow?: ShadowRoot; panel?: HTMLElement } }
     ).__quizlabPickerTestUi
     // The new session is still running and did not inherit the old success.
-    expect(ui?.panel?.style.display).toBe('block')
+    expect(ui?.panel?.style.display).toBe('none')
     expect(ui?.shadow?.textContent).not.toContain('kaydedildi')
     expect(pickerHost()).not.toBeNull()
+  })
+
+  it('supports Master-parity 3-stage guided setup with safe typing, draft preservation and pair transfer', async () => {
+    vi.useFakeTimers()
+    try {
+      const harness = createHarness()
+      const composer = document.createElement('div')
+      composer.setAttribute('contenteditable', 'true')
+      composer.setAttribute('role', 'textbox')
+      composer.className = 'ProseMirror'
+      composer.textContent = 'existing draft '
+      const sendBtn = document.createElement('button')
+      sendBtn.setAttribute('data-composer-submit', '')
+      sendBtn.setAttribute('aria-label', 'Mesaj gönder')
+      const pageSendClick = vi.fn()
+      sendBtn.addEventListener('click', pageSendClick)
+      document.body.append(composer, sendBtn)
+
+      harness.init({ field: 'pair', mode: 'guided' })
+
+      // Stage 1: select message input area
+      pointerDown(composer)
+      expect(composer.textContent).toBe('existing draft ')
+
+      // Stage 2: type inside selected composer without Enter submitting
+      const enterEvent = new window.KeyboardEvent('keydown', {
+        key: 'Enter',
+        bubbles: true,
+        cancelable: true
+      })
+      trustedEvent(enterEvent)
+      composer.dispatchEvent(enterEvent)
+      expect(enterEvent.defaultPrevented).toBe(true)
+      expect(pageSendClick).not.toHaveBeenCalled()
+
+      // Advance cleanly or click send button in Stage 3
+      vi.advanceTimersByTime(200)
+      pointerDown(sendBtn)
+
+      // Review panel appears with QuizLab'a Aktar
+      const ui = (
+        globalThis as {
+          __quizlabPickerTestUi?: { panel?: HTMLElement; panelTitle?: HTMLElement }
+        }
+      ).__quizlabPickerTestUi
+      expect(ui?.panel?.style.display).toBe('block')
+      expect(ui?.panelTitle?.textContent).toContain('hazır')
+
+      clickButton(shadowActionButton('confirm'))
+      const result = harness.sent.find((message) => message.type === 'selector_pick_result')
+      expect(result).toBeDefined()
+      expect(result?.field).toBe('pair')
+      expect(result?.payload?.input?.selector).toBeTruthy()
+      expect(result?.payload?.button?.selector).toBe('[data-composer-submit]')
+      expect(pageSendClick).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('accepts a visible editor even when a hidden responsive duplicate shares the selector', () => {
+    const harness = createHarness()
+    const hidden = document.createElement('textarea')
+    hidden.setAttribute('placeholder', 'Ask anything')
+    hidden.style.display = 'none'
+    const visible = document.createElement('textarea')
+    visible.setAttribute('placeholder', 'Ask anything')
+    vi.spyOn(visible, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      top: 10,
+      right: 300,
+      bottom: 80,
+      width: 290,
+      height: 70,
+      x: 10,
+      y: 10,
+      toJSON: () => ({})
+    })
+    document.body.append(hidden, visible)
+
+    harness.init({ field: 'input' })
+    pointerDown(visible)
+    clickButton(shadowActionButton('confirm'))
+
+    const result = harness.sent.find((message) => message.type === 'selector_pick_result')
+    expect(result).toBeDefined()
+    expect(result?.payload?.selector).toBe('textarea[placeholder="Ask anything"]')
+  })
+
+  it('shows a clear stage message when Electron composer is empty and button is not rendered yet', async () => {
+    const harness = createHarness()
+    const sendBtn = document.createElement('button')
+    sendBtn.setAttribute('data-testid', 'send-button')
+    document.body.appendChild(sendBtn)
+
+    harness.init({ field: 'button' })
+    pointerDown(sendBtn)
+    clickButton(shadowActionButton('confirm'))
+    harness.respond({
+      ok: false,
+      state: 'verification_failed',
+      reason: 'button_not_rendered_empty_composer'
+    })
+    await Promise.resolve()
+
+    const ui = (globalThis as { __quizlabPickerTestUi?: { panelMessage?: HTMLElement } })
+      .__quizlabPickerTestUi
+    expect(ui?.panelMessage?.textContent).toContain('mesaj alanı boş olduğu için')
   })
 })

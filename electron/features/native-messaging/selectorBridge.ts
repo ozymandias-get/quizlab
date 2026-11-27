@@ -565,7 +565,11 @@ async function handleSelectorTransfer(
             // because nothing was written.
             answer = {
               status: 422,
-              body: { error: 'verification_failed', reason: outcome.reason }
+              body: {
+                error: 'verification_failed',
+                reason: outcome.reason,
+                ...(outcome.failedField ? { failedField: outcome.failedField } : {})
+              }
             }
             deterministic = false
             break

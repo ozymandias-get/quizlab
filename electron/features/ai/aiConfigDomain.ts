@@ -270,8 +270,12 @@ export function resolveConfigForHostname(
  */
 export function locatorHealthPatch(
   existing: AiSelectorConfig | undefined,
-  field: 'input' | 'button'
+  field: 'input' | 'button' | 'pair'
 ): Pick<AiSelectorConfig, 'health' | 'repair'> {
+  if (field === 'pair') {
+    return { health: 'ready', repair: null }
+  }
+
   const previousRepair = existing?.repair ?? null
   let nextRepair = previousRepair
   if (previousRepair) {

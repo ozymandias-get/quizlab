@@ -231,7 +231,7 @@ function filterStaleRepairPatch(
 export async function saveAiConfigPatch(
   hostname: string,
   config: AiSelectorConfig,
-  options?: { pickedField?: 'input' | 'button' }
+  options?: { pickedField?: 'input' | 'button' | 'pair' }
 ): Promise<boolean> {
   const normalizedHostname = normalizeHostname(hostname)
   const repairIntent = parseRepairIntent(config?.repairIntent)
@@ -248,7 +248,7 @@ export async function saveAiConfigPatch(
     let effectivePatch = sanitizedConfig
     if (options?.pickedField) {
       const syncedWaitFor =
-        options.pickedField === 'input'
+        options.pickedField === 'input' || options.pickedField === 'pair'
           ? syncWaitForOnInputPick(existing, sanitizedConfig.input)
           : undefined
       effectivePatch = {

@@ -70,9 +70,17 @@ function createIngest(
     sites?: SelectorSiteTarget[]
   } = {}
 ) {
-  const savePatch = vi.fn(async (_hostname: string, _patch: Record<string, unknown>) => true)
+  const savePatch = vi.fn(
+    async (_hostname: string, _patch: Record<string, unknown>, _field?: string) => true
+  )
   const broadcastConfigChanged = vi.fn()
-  const executeScript = vi.fn(async () => ('result' in options ? options.result : verified()))
+  const executeScript = vi.fn(async (_viewId: string, script: string) =>
+    typeof options.result === 'function'
+      ? (options.result as (script: string) => unknown)(script)
+      : 'result' in options
+        ? options.result
+        : verified()
+  )
   const findViewForSite = vi.fn(async () => options.view ?? null)
   const getViewUrl = vi.fn(async (viewId: string) =>
     'viewAfter' in options
@@ -705,7 +713,7 @@ describe('selector transfer payload validation', () => {
       })
     )
     expect('payload' in parsed).toBe(true)
-    if (!('payload' in parsed)) return
+    if (!('payload' in parsed) || parsed.payload.field === 'pair') return
     expect(parsed.payload.fingerprint).toEqual({
       tag: 'textarea',
       dataTestId: 'prompt',
@@ -997,5 +1005,237 @@ describe('candidate selection', () => {
       button: 'button[aria-label="Send"]',
       buttonCandidates: ['button[aria-label="Send"]']
     })
+  })
+
+  it('verifies and saves both input and button atomically for guided pair setup', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      configs: {
+        'chatgpt.com': {
+          version: 2,
+          submitMode: 'enter_key',
+          waitFor: '#old-input',
+          input: '#old-input',
+          button: '#old-button'
+        }
+      },
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return verified({
+            field: 'input',
+            matchedSelector: '#prompt-textarea',
+            attempts: [
+              {
+                selector: '#prompt-textarea',
+                matchedSelector: '#prompt-textarea',
+                strategy: 'direct',
+                descriptor: { tag: 'div', id: 'prompt-textarea', contentEditable: true }
+              }
+            ]
+          })
+        }
+        return verified({
+          field: 'button',
+          matchedSelector: '[data-composer-submit]',
+          attempts: [
+            {
+              selector: '[data-composer-submit]',
+              matchedSelector: '[data-composer-submit]',
+              strategy: 'direct',
+              descriptor: {
+                tag: 'button',
+                dataComposerSubmit: true,
+                ariaLabel: 'Send message'
+              }
+            }
+          ]
+        })
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-pair-0123456789',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#prompt-textarea',
+        candidates: ['#prompt-textarea'],
+        fingerprint: { tag: 'div', safeId: 'prompt-textarea', contentEditable: true }
+      },
+      button: {
+        selector: '[data-composer-submit]',
+        candidates: ['[data-composer-submit]', 'button[aria-label="Mesaj gönder"]'],
+        fingerprint: {
+          tag: 'button',
+          ariaLabel: 'Mesaj gönder',
+          text: 'Gönder'
+        }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({ status: 'saved', hostname: 'chatgpt.com', field: 'pair' })
+    expect(deps.savePatch).toHaveBeenCalledTimes(1)
+    const [, patch, field] = deps.savePatch.mock.calls[0]
+    expect(field).toBe('pair')
+    expect(patch).toMatchObject({
+      input: '#prompt-textarea',
+      button: '[data-composer-submit]',
+      health: 'ready',
+      repair: null
+    })
+  })
+
+  it('leaves existing config untouched when button verification fails during guided pair setup', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: (script: string) => {
+        if (script.includes("field: 'input'")) {
+          return verified({
+            field: 'input',
+            matchedSelector: '#prompt-textarea',
+            attempts: [
+              {
+                selector: '#prompt-textarea',
+                matchedSelector: '#prompt-textarea',
+                strategy: 'direct',
+                descriptor: { tag: 'textarea', id: 'prompt-textarea' }
+              }
+            ]
+          })
+        }
+        return {
+          success: false,
+          action: 'verify_locator',
+          field: 'button',
+          attempts: [],
+          composerState: 'empty_probe_no_button'
+        }
+      }
+    })
+
+    const result = await deps.ingest({
+      version: 1,
+      requestId: 'request-pair-fail-012345',
+      hostname: 'chatgpt.com',
+      field: 'pair',
+      input: {
+        selector: '#prompt-textarea',
+        candidates: ['#prompt-textarea'],
+        fingerprint: { tag: 'textarea', safeId: 'prompt-textarea' }
+      },
+      button: {
+        selector: '[data-testid="send-button"]',
+        candidates: ['[data-testid="send-button"]'],
+        fingerprint: { tag: 'button', dataTestId: 'send-button' }
+      },
+      sourceUrl: 'https://chatgpt.com/'
+    })
+
+    expect(result).toEqual({
+      status: 'verification_failed',
+      reason: 'button_not_rendered_empty_composer',
+      failedField: 'button'
+    })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('accepts localized Gemini contenteditable composer via structural + editor class agreement', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'input',
+        matchedSelector: 'div[contenteditable="true"][role="textbox"]',
+        attempts: [
+          {
+            selector: 'div[contenteditable="true"][role="textbox"]',
+            matchedSelector: 'div[contenteditable="true"][role="textbox"]',
+            strategy: 'direct',
+            descriptor: {
+              tag: 'div',
+              role: 'textbox',
+              contentEditable: true,
+              ariaLabel: 'Enter a prompt here',
+              classTokens: ['ql-editor', 'textarea']
+            }
+          }
+        ]
+      })
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'input',
+        selector: 'div[contenteditable="true"][role="textbox"]',
+        candidates: ['div[contenteditable="true"][role="textbox"]', 'div.ql-editor'],
+        fingerprint: {
+          tag: 'div',
+          role: 'textbox',
+          contentEditable: true,
+          ariaLabel: 'Gemini için bir istem girin',
+          classTokens: ['ql-editor']
+        }
+      })
+    )
+
+    expect(result).toEqual({ status: 'saved', hostname: 'chatgpt.com', field: 'input' })
+  })
+
+  it('rejects a dictation or voice button even if it shares composer attributes', async () => {
+    const deps = createIngest({
+      view: OPEN_VIEW,
+      result: verified({
+        field: 'button',
+        matchedSelector: 'button.composer-btn',
+        attempts: [
+          {
+            selector: 'button.composer-btn',
+            matchedSelector: 'button.composer-btn',
+            strategy: 'direct',
+            descriptor: {
+              tag: 'button',
+              hasDictationAttr: true,
+              ariaLabel: 'Dictate button',
+              classTokens: ['composer-btn']
+            }
+          }
+        ]
+      })
+    })
+
+    const result = await deps.ingest(
+      payload({
+        field: 'button',
+        selector: 'button.composer-btn',
+        candidates: ['button.composer-btn'],
+        fingerprint: {
+          tag: 'button',
+          ariaLabel: 'Mesaj gönder',
+          classTokens: ['composer-btn']
+        }
+      })
+    )
+
+    expect(result).toEqual({ status: 'verification_failed', reason: 'identity_insufficient' })
+    expect(deps.savePatch).not.toHaveBeenCalled()
+  })
+
+  it('embeds non-destructive empty-composer probing and draft preservation in verifyLocator script', () => {
+    const script = generateVerifyLocatorScript({
+      field: 'button',
+      selectors: ['[data-composer-submit]'],
+      fingerprint: { tag: 'button' },
+      composerInput: {
+        selectors: ['#prompt-textarea'],
+        fingerprint: { tag: 'div', safeId: 'prompt-textarea', contentEditable: true }
+      }
+    })
+
+    expect(script).toContain('writeProbeText')
+    expect(script).toContain('existingText.trim().length > 0')
+    expect(script).toContain('finally')
+    expect(script).toContain('composerState')
+    expect(script).not.toContain('waitForElement(')
   })
 })

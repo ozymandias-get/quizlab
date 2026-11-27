@@ -461,8 +461,9 @@ describe('extension side panel', () => {
     expect(manifest.permissions).toEqual(expect.arrayContaining(['scripting', 'activeTab']))
     expect(manifest).not.toHaveProperty('content_scripts')
 
-    expect(panelHtml).toContain('id="selector-btn"')
-    expect(panelHtml).toContain('id="selector-field"')
+    expect(panelHtml).toContain('id="pick-pair-btn"')
+    expect(panelHtml).toContain('id="pick-input-btn"')
+    expect(panelHtml).toContain('id="pick-button-btn"')
     expect(panelHtml).toContain('id="selector-site"')
     expect(panelHtml).toContain('id="selector-input-status"')
     expect(panelHtml).toContain('id="selector-button-status"')

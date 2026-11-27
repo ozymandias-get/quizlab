@@ -30,7 +30,7 @@ export const SELECTOR_SITES_PATH = '/api/selectors/sites'
 export const SELECTOR_TRANSFER_VERSION = 1
 
 /** The largest selector payload the bridge accepts. */
-export const MAX_SELECTOR_BODY_SIZE = 16 * 1024
+export const MAX_SELECTOR_BODY_SIZE = 32 * 1024
 
 /**
  * The most bytes the bridge ever reads from a selector POST.
@@ -53,9 +53,17 @@ export const MAX_SELECTOR_REQUEST_IDS = 500
 /** The locator fields a pick can target: the existing selector schema only knows these two. */
 export type SelectorField = 'input' | 'button'
 
+/** Transfer payload field kind: a single locator or a joint guided pair. */
+export type SelectorTransferField = SelectorField | 'pair'
+
 /** Whether a value is a targetable locator field. */
 export function isSelectorField(value: unknown): value is SelectorField {
   return value === 'input' || value === 'button'
+}
+
+/** Whether a value is a valid selector transfer field (`input`, `button`, or `pair`). */
+export function isSelectorTransferField(value: unknown): value is SelectorTransferField {
+  return value === 'input' || value === 'button' || value === 'pair'
 }
 
 /** A request id is a bounded token; it is signed together with the body. */
@@ -66,8 +74,18 @@ export function isSelectorRequestId(value: unknown): value is string {
   return typeof value === 'string' && REQUEST_ID_REGEX.test(value)
 }
 
+/** A single verified locator bundle (selector + candidates + fingerprint). */
+export interface SelectorLocatorBundle {
+  /** The verified primary CSS selector. */
+  selector: string
+  /** The candidate selectors, primary included, in priority order. */
+  candidates: string[]
+  /** Structural identity of the picked element. */
+  fingerprint: AutomationElementFingerprint
+}
+
 /** The payload one picked element travels in. */
-export interface SelectorTransferPayload {
+export interface SelectorSingleTransferPayload extends SelectorLocatorBundle {
   version: typeof SELECTOR_TRANSFER_VERSION
   /** Idempotency key of this pick; also the header value. */
   requestId: string
@@ -77,15 +95,28 @@ export interface SelectorTransferPayload {
   siteId?: string
   /** Which stored locator the pick describes. */
   field: SelectorField
-  /** The verified primary CSS selector. */
-  selector: string
-  /** The candidate selectors, primary included, in priority order. */
-  candidates: string[]
-  /** Structural identity of the picked element. */
-  fingerprint: AutomationElementFingerprint
   /** The full address of the page the element was picked on. */
   sourceUrl: string
 }
+
+/** The payload for a guided two-locator setup (`input` + `button` saved atomically). */
+export interface SelectorPairTransferPayload {
+  version: typeof SELECTOR_TRANSFER_VERSION
+  /** Idempotency key of this transfer; also the header value. */
+  requestId: string
+  /** The hostname of the page the elements were picked on. */
+  hostname: string
+  /** The site the extension resolved, re-checked against the app registry. */
+  siteId?: string
+  /** Joint guided setup marker. */
+  field: 'pair'
+  input: SelectorLocatorBundle
+  button: SelectorLocatorBundle
+  /** The full address of the page the elements were picked on. */
+  sourceUrl: string
+}
+
+export type SelectorTransferPayload = SelectorSingleTransferPayload | SelectorPairTransferPayload
 
 /** The selector status of one site, as the settings store knows it. */
 export interface SelectorSiteStatus {
