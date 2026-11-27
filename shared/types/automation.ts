@@ -109,6 +109,8 @@ export interface SelectorRepairCandidate {
   lastSeenAt: number
   successCount: number
   consecutiveSuccessCount: number
+  /** Primary selector this repair streak was observed against, for CAS validation. */
+  baseSelector?: string | null
   sourceFingerprint?: AutomationElementFingerprint | null
 }
 
@@ -122,6 +124,8 @@ export interface SelectorLastRepair {
   repairedAt: number
   inputSelector?: string | null
   buttonSelector?: string | null
+  baseInputSelector?: string | null
+  baseButtonSelector?: string | null
   inputStrategy?: AutomationLookupStrategy | null
   buttonStrategy?: AutomationLookupStrategy | null
 }

@@ -1,3 +1,4 @@
+import { selectorPriority as ingestSelectorPriority } from '@electron/features/ai/selectorIngest'
 import { selectorEngine } from '@electron/features/automation/automationScripts/lib/selectorEngine'
 import { selectorRepairRuntime } from '@electron/features/automation/automationScripts/lib/selectorRepairRuntime'
 import { siteStrategyRuntime } from '@electron/features/automation/automationScripts/lib/siteStrategyRuntime'
@@ -240,5 +241,28 @@ describe('selectorEngine template behavior', () => {
       const result = h.trySemanticFallback('button', undefined)
       expect(result).toBeNull()
     })
+  })
+
+  it('keeps selectorIngest.selectorPriority aligned with runtime __selectorPriority', () => {
+    const { priority } = (window.eval(buildHarness()) as () => unknown)() as {
+      priority: (sel: string) => number
+    }
+    const samples = [
+      '#composer',
+      '[data-testid="send"]',
+      'button[data-test-id="send"]',
+      'button[aria-label="Send"]',
+      'div[role="button"]',
+      'textarea[name="prompt"]',
+      'textarea[placeholder="Ask"]',
+      'button[type="submit"]',
+      'div[contenteditable="true"]',
+      'button.primary-btn',
+      'div > button:nth-child(2)',
+      'button'
+    ]
+    for (const selector of samples) {
+      expect(ingestSelectorPriority(selector)).toBe(priority(selector))
+    }
   })
 })

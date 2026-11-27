@@ -285,8 +285,32 @@ export function locatorHealthPatch(
   if (existing?.health === 'needs_repick') {
     const attributedToThisPick = Boolean(previousRepair?.[field])
     const otherStillBroken = Boolean(previousRepair?.[other])
-    health = otherStillBroken || !attributedToThisPick ? 'needs_repick' : 'ready'
+    const wasMissingThisField = !existing?.[field]
+    health =
+      otherStillBroken || (!attributedToThisPick && !wasMissingThisField) ? 'needs_repick' : 'ready'
   }
 
   return { health, repair: nextRepair }
+}
+
+/**
+ * Returns the new `waitFor` selector when an `input` pick replaces an
+ * auto-derived `waitFor` (empty, equal to the previous `input`, or in
+ * `inputCandidates`). Independent custom `waitFor` values are preserved.
+ */
+export function syncWaitForOnInputPick(
+  existing: AiSelectorConfig | undefined,
+  nextInput: string | null | undefined
+): string | undefined {
+  if (!nextInput) return undefined
+  const previousWaitFor = typeof existing?.waitFor === 'string' ? existing.waitFor.trim() : ''
+  if (!previousWaitFor) return nextInput
+  const previousInput = typeof existing?.input === 'string' ? existing.input.trim() : ''
+  const previousCandidates = Array.isArray(existing?.inputCandidates)
+    ? existing.inputCandidates
+    : []
+  if (previousWaitFor === previousInput || previousCandidates.includes(previousWaitFor)) {
+    return nextInput
+  }
+  return undefined
 }

@@ -24,6 +24,7 @@ import type {
 } from '../../../shared/constants/selectorTransfer.js'
 import { canonicalizeHostname } from '../../../shared/selectorConfig.js'
 import type { AiPlatform } from '../../../shared/types/ai.js'
+import { type AiConfigMap, resolveConfigForHostname } from './aiConfigDomain.js'
 import { AI_REGISTRY, INACTIVE_PLATFORMS } from './aiManager.js'
 import { readCustomPlatforms } from './customPlatformStore.js'
 
@@ -273,34 +274,20 @@ interface SiteStatusConfig {
 }
 
 /**
- * Resolves the config automation will actually use for `site`, following
- * `resolveConfigForHostname` priority: exact host -> canonical host -> any
- * matching subdomain entry.
+ * Resolves the config automation will actually use for `site`, delegating to
+ * `resolveConfigForHostname` (exact host -> canonical host -> null) so Side
+ * Panel status never shows a subdomain config that automation will not load.
  */
 function resolveSiteStatusConfig(
   site: SelectorSiteTarget,
   configs: Readonly<Record<string, SiteStatusConfig>>
 ): SiteStatusConfig | undefined {
-  const normalizedConfigs = new Map<string, SiteStatusConfig>()
+  const normalizedMap: Record<string, SiteStatusConfig> = {}
   for (const [host, config] of Object.entries(configs)) {
     const normalized = host.trim().toLowerCase()
-    if (normalized) normalizedConfigs.set(normalized, config)
+    if (normalized) normalizedMap[normalized] = config
   }
-
-  const exact = normalizedConfigs.get(site.hostname)
-  if (exact) return exact
-
-  const canonical = site.canonicalHostname
-    ? normalizedConfigs.get(site.canonicalHostname)
-    : undefined
-  if (canonical) return canonical
-
-  for (const [host, config] of normalizedConfigs) {
-    if (site.hosts.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))) {
-      return config
-    }
-  }
-  return undefined
+  return resolveConfigForHostname(normalizedMap as AiConfigMap, site.hostname) ?? undefined
 }
 
 /** The status of a site's two locators, from the stored config map. */

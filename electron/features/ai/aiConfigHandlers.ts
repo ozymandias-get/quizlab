@@ -13,7 +13,8 @@ import {
   locatorHealthPatch,
   mergeConfig,
   readMigratedConfigMap,
-  resolveConfigForHostname
+  resolveConfigForHostname,
+  syncWaitForOnInputPick
 } from './aiConfigDomain.js'
 import { normalizeHostname, sanitizeConfig } from './aiConfigSanitize.js'
 
@@ -42,13 +43,32 @@ function filterStaleRepairPatch(
   incoming: AiSelectorConfig
 ): AiSelectorConfig | null {
   const existingTs = typeof existing?.timestamp === 'number' ? existing.timestamp : 0
-  if (!existingTs) return incoming
-
   const isRepairPatch = incoming.repair !== undefined || incoming.lastRepair !== undefined
   if (!isRepairPatch) return incoming
 
-  if (incoming.lastRepair && incoming.lastRepair.repairedAt < existingTs) {
-    return null
+  const staleFields = new Set<'input' | 'button'>()
+  const cleaned: AiSelectorConfig = { ...incoming }
+
+  if (incoming.lastRepair) {
+    if (existingTs && incoming.lastRepair.repairedAt < existingTs) {
+      return null
+    }
+    if (
+      incoming.lastRepair.inputSelector &&
+      incoming.lastRepair.baseInputSelector !== undefined &&
+      existing?.input &&
+      incoming.lastRepair.baseInputSelector !== existing.input
+    ) {
+      staleFields.add('input')
+    }
+    if (
+      incoming.lastRepair.buttonSelector &&
+      incoming.lastRepair.baseButtonSelector !== undefined &&
+      existing?.button &&
+      incoming.lastRepair.baseButtonSelector !== existing.button
+    ) {
+      staleFields.add('button')
+    }
   }
 
   if (incoming.repair && typeof incoming.repair === 'object') {
@@ -57,25 +77,69 @@ function filterStaleRepairPatch(
     for (const field of ['input', 'button'] as const) {
       const candidate = incoming.repair[field]
       if (!candidate) continue
-      if (candidate.lastSeenAt < existingTs && !existing?.repair?.[field]) {
+      const baseMoved =
+        candidate.baseSelector !== undefined &&
+        Boolean(existing?.[field]) &&
+        candidate.baseSelector !== existing?.[field]
+      const olderThanExisting =
+        existingTs > 0 && candidate.lastSeenAt < existingTs && !existing?.repair?.[field]
+      if (baseMoved || olderThanExisting || staleFields.has(field)) {
         droppedStale = true
+        staleFields.add(field)
         continue
       }
       nextRepair[field] = candidate
     }
     if (droppedStale) {
-      const cleaned: AiSelectorConfig = {
-        ...incoming,
-        repair: nextRepair.input || nextRepair.button ? nextRepair : null
-      }
-      if (!cleaned.repair && !cleaned.lastRepair && cleaned.health === 'needs_repick') {
-        delete cleaned.health
-      }
-      return cleaned
+      cleaned.repair = nextRepair.input || nextRepair.button ? nextRepair : null
     }
   }
 
-  return incoming
+  if (staleFields.has('input')) {
+    delete cleaned.input
+    delete cleaned.inputCandidates
+    if (cleaned.lastRepair) {
+      const {
+        inputSelector: _i,
+        baseInputSelector: _bi,
+        inputStrategy: _is,
+        ...rest
+      } = cleaned.lastRepair
+      cleaned.lastRepair = rest.buttonSelector ? rest : undefined
+    }
+  }
+  if (staleFields.has('button')) {
+    delete cleaned.button
+    delete cleaned.buttonCandidates
+    if (cleaned.lastRepair) {
+      const {
+        buttonSelector: _b,
+        baseButtonSelector: _bb,
+        buttonStrategy: _bs,
+        ...rest
+      } = cleaned.lastRepair
+      cleaned.lastRepair = rest.inputSelector ? rest : undefined
+    }
+  }
+
+  if (staleFields.size > 0) {
+    if (!cleaned.repair && !cleaned.lastRepair && cleaned.health === 'needs_repick') {
+      delete cleaned.health
+    }
+    if (!cleaned.lastRepair && cleaned.health === 'repaired') {
+      delete cleaned.health
+    }
+    if (
+      cleaned.input === undefined &&
+      cleaned.button === undefined &&
+      cleaned.repair === undefined &&
+      cleaned.lastRepair === undefined
+    ) {
+      return null
+    }
+  }
+
+  return cleaned
 }
 
 /**
@@ -102,8 +166,13 @@ export async function saveAiConfigPatch(
 
     let effectivePatch = sanitizedConfig
     if (options?.pickedField) {
+      const syncedWaitFor =
+        options.pickedField === 'input'
+          ? syncWaitForOnInputPick(existing, sanitizedConfig.input)
+          : undefined
       effectivePatch = {
         ...sanitizedConfig,
+        ...(syncedWaitFor ? { waitFor: syncedWaitFor } : {}),
         ...locatorHealthPatch(existing, options.pickedField)
       }
     } else {

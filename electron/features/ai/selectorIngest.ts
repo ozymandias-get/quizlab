@@ -55,7 +55,10 @@ export interface SelectorIngestDeps {
   readConfigs: () => Promise<Record<string, AiSelectorConfig>>
   savePatch: (hostname: string, patch: AiSelectorConfig, field?: SelectorField) => Promise<boolean>
   /** The managed view whose page belongs to this site, or null. */
-  findViewForSite: (site: SelectorSiteTarget) => Promise<SelectorLiveView | null>
+  findViewForSite: (
+    site: SelectorSiteTarget,
+    sites?: readonly SelectorSiteTarget[]
+  ) => Promise<SelectorLiveView | null>
   executeScript: (viewId: string, script: string) => Promise<unknown>
   /** The view's address after the script ran, or null when it is gone. */
   getViewUrl: (viewId: string) => Promise<string | null>
@@ -359,7 +362,7 @@ function compareDescriptorToFingerprint(
 }
 
 /** Mirrors `__SELECTOR_PRIORITY` in `selectorEngine.ts` so stored order matches runtime lookup. */
-function selectorPriority(selector: string): number {
+export function selectorPriority(selector: string): number {
   const s = selector.trim()
   if (!s) return 0
   if (/^#[a-zA-Z][\w-]*$/.test(s)) return 100
@@ -526,7 +529,7 @@ export function createSelectorIngest(deps: SelectorIngestDeps) {
     if (!site.fields.includes(payload.field))
       return { status: 'invalid_payload', reason: 'unsupported_field' }
 
-    const view = await deps.findViewForSite(site)
+    const view = await deps.findViewForSite(site, sites)
     if (!view) return { status: 'site_not_open' }
 
     const viewHost = normalizeUrlHost(view.url)

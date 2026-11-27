@@ -388,4 +388,131 @@ describe('aiConfigHandlers', () => {
       '#picked-input'
     )
   })
+
+  it('syncs auto-derived waitFor on new input pick while preserving custom waitFor and ignoring button picks', async () => {
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+
+    await saveAiConfigPatch(
+      'chatgpt.com',
+      { version: 2, input: '#old-input', inputCandidates: ['#old-input'] },
+      { pickedField: 'input' }
+    )
+    expect((managerState.data['chatgpt.com'] as Record<string, unknown>).waitFor).toBe('#old-input')
+
+    await saveAiConfigPatch(
+      'chatgpt.com',
+      { version: 2, button: '#send', buttonCandidates: ['#send'] },
+      { pickedField: 'button' }
+    )
+    expect((managerState.data['chatgpt.com'] as Record<string, unknown>).waitFor).toBe('#old-input')
+
+    await saveAiConfigPatch(
+      'chatgpt.com',
+      { version: 2, input: '#new-input', inputCandidates: ['#new-input'] },
+      { pickedField: 'input' }
+    )
+    expect((managerState.data['chatgpt.com'] as Record<string, unknown>).waitFor).toBe('#new-input')
+
+    await saveAiConfigPatch('chatgpt.com', { version: 2, waitFor: '#custom-ready-marker' })
+    await saveAiConfigPatch(
+      'chatgpt.com',
+      { version: 2, input: '#newer-input', inputCandidates: ['#newer-input'] },
+      { pickedField: 'input' }
+    )
+    expect((managerState.data['chatgpt.com'] as Record<string, unknown>).waitFor).toBe(
+      '#custom-ready-marker'
+    )
+  })
+
+  it('rejects a stale repair with a newer timestamp when baseSelector moved, while keeping valid other-field repair', async () => {
+    const now = Date.now()
+    managerState.data = {
+      'chatgpt.com': {
+        version: 2,
+        input: '#manual-new-input',
+        button: '#old-button',
+        health: 'ready',
+        repair: null,
+        timestamp: now
+      }
+    }
+
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+    const saved = await saveAiConfigPatch('chatgpt.com', {
+      version: 2,
+      input: '#stale-repaired-input',
+      inputCandidates: ['#stale-repaired-input'],
+      health: 'repaired',
+      repair: {
+        input: {
+          selector: '#stale-repaired-input',
+          strategy: 'candidate',
+          confidenceScore: 80,
+          confidenceLevel: 'high',
+          firstSeenAt: now - 5000,
+          lastSeenAt: now + 1000,
+          successCount: 3,
+          consecutiveSuccessCount: 3,
+          baseSelector: '#old-input'
+        },
+        button: {
+          selector: '#valid-button-candidate',
+          strategy: 'candidate',
+          confidenceScore: 75,
+          confidenceLevel: 'high',
+          firstSeenAt: now - 1000,
+          lastSeenAt: now + 1000,
+          successCount: 1,
+          consecutiveSuccessCount: 1,
+          baseSelector: '#old-button'
+        }
+      },
+      lastRepair: {
+        repairedAt: now + 1000,
+        inputSelector: '#stale-repaired-input',
+        baseInputSelector: '#old-input',
+        inputStrategy: 'candidate'
+      }
+    })
+
+    expect(saved).toBe(true)
+    const updated = managerState.data['chatgpt.com'] as Record<string, unknown>
+    expect(updated.input).toBe('#manual-new-input')
+    expect(updated.health).toBe('ready')
+    expect(updated.repair).toMatchObject({
+      button: { selector: '#valid-button-candidate', baseSelector: '#old-button' }
+    })
+  })
+
+  it('transitions health to ready after initial two-step setup in either order, unless other field is broken', async () => {
+    const { saveAiConfigPatch } = await import('../../../features/ai/aiConfigHandlers.js')
+
+    await saveAiConfigPatch(
+      'example.org',
+      { version: 2, input: '#in', inputCandidates: ['#in'] },
+      { pickedField: 'input' }
+    )
+    expect((managerState.data['example.org'] as Record<string, unknown>).health).toBe(
+      'needs_repick'
+    )
+    await saveAiConfigPatch(
+      'example.org',
+      { version: 2, button: '#btn', buttonCandidates: ['#btn'] },
+      { pickedField: 'button' }
+    )
+    expect((managerState.data['example.org'] as Record<string, unknown>).health).toBe('ready')
+
+    await saveAiConfigPatch(
+      'other.org',
+      { version: 2, button: '#btn', buttonCandidates: ['#btn'] },
+      { pickedField: 'button' }
+    )
+    expect((managerState.data['other.org'] as Record<string, unknown>).health).toBe('needs_repick')
+    await saveAiConfigPatch(
+      'other.org',
+      { version: 2, input: '#in', inputCandidates: ['#in'] },
+      { pickedField: 'input' }
+    )
+    expect((managerState.data['other.org'] as Record<string, unknown>).health).toBe('ready')
+  })
 })

@@ -229,8 +229,16 @@ function promoteLocator(params: {
     ...(config.lastRepair ?? {}),
     repairedAt: now,
     ...(kind === 'input'
-      ? { inputSelector: promoted.primary, inputStrategy: candidate.strategy }
-      : { buttonSelector: promoted.primary, buttonStrategy: candidate.strategy })
+      ? {
+          inputSelector: promoted.primary,
+          baseInputSelector: currentPrimary ?? null,
+          inputStrategy: candidate.strategy
+        }
+      : {
+          buttonSelector: promoted.primary,
+          baseButtonSelector: currentPrimary ?? null,
+          buttonStrategy: candidate.strategy
+        })
   } satisfies SelectorLastRepair
 
   return {
@@ -288,7 +296,10 @@ export function evaluateSelectorRepairEvidence(
       continue
     }
 
-    nextRepair[kind] = evaluated.candidate
+    nextRepair[kind] = {
+      ...evaluated.candidate,
+      baseSelector: evaluated.candidate.baseSelector ?? config[kind] ?? null
+    }
     if (evaluated.shouldPersist) {
       repairStateChanged = true
       shouldPersist = true

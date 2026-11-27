@@ -33,7 +33,7 @@ import {
 import { APP_CONFIG } from '../../app/constants.js'
 import { Logger } from '../../core/logger.js'
 import type { SelectorIngestResult, SelectorLiveView } from '../ai/selectorIngest.js'
-import type { SelectorSiteTarget } from '../ai/selectorTargets.js'
+import { findSelectorSiteMatch, type SelectorSiteTarget } from '../ai/selectorTargets.js'
 
 /** The success answer of a stored pick. */
 const STATUS_PICK_TOO_LARGE = 413
@@ -217,6 +217,87 @@ function broadcastConfigChanged(hostname: string): void {
   }
 }
 
+export interface ViewSelectionDeps {
+  listManagedAiViewIds: () => string[]
+  getAiViewUrl: (viewId: string) => string | null
+  getAiViewDocumentToken?: (viewId: string) => string | null
+  getViewRuntimeState?: (viewId: string) => {
+    visible: boolean
+    isLoading: boolean
+    hasError: boolean
+    generation: number
+  } | null
+}
+
+/**
+ * Selects the best live managed view for `site`.
+ *
+ * Candidates are validated against `findSelectorSiteMatch` (rejecting login/
+ * account paths, wrong paths, sibling sites on a shared canonical domain, and
+ * ambiguous matches) and ranked deterministically by exact host, health,
+ * load state, visibility, and generation.
+ */
+export function selectLiveViewForSite(
+  site: SelectorSiteTarget,
+  sites: readonly SelectorSiteTarget[],
+  deps: ViewSelectionDeps,
+  matchSite: typeof findSelectorSiteMatch = findSelectorSiteMatch
+): SelectorLiveView | null {
+  interface RankedView {
+    view: SelectorLiveView
+    exactHost: boolean
+    healthy: boolean
+    settled: boolean
+    visible: boolean
+    generation: number
+  }
+
+  const candidates: RankedView[] = []
+  for (const viewId of deps.listManagedAiViewIds()) {
+    const url = deps.getAiViewUrl(viewId)
+    if (!url) continue
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      continue
+    }
+    if (parsed.protocol !== 'https:') continue
+    const host = parsed.hostname.toLowerCase()
+    if (!host) continue
+
+    const match = matchSite(host, sites, parsed.pathname)
+    if (!match || match.ambiguous || match.site.siteId !== site.siteId) continue
+
+    const runtime = deps.getViewRuntimeState ? deps.getViewRuntimeState(viewId) : undefined
+    if (deps.getViewRuntimeState && runtime === null) continue
+
+    candidates.push({
+      view: {
+        viewId,
+        url,
+        documentToken: deps.getAiViewDocumentToken?.(viewId) ?? undefined
+      },
+      exactHost: host === site.hostname,
+      healthy: !(runtime?.hasError ?? false),
+      settled: !(runtime?.isLoading ?? false),
+      visible: runtime?.visible ?? false,
+      generation: runtime?.generation ?? 0
+    })
+  }
+
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => {
+    if (a.exactHost !== b.exactHost) return a.exactHost ? -1 : 1
+    if (a.healthy !== b.healthy) return a.healthy ? -1 : 1
+    if (a.settled !== b.settled) return a.settled ? -1 : 1
+    if (a.visible !== b.visible) return a.visible ? -1 : 1
+    if (a.generation !== b.generation) return b.generation - a.generation
+    return a.view.viewId < b.view.viewId ? -1 : a.view.viewId > b.view.viewId ? 1 : 0
+  })
+  return candidates[0].view
+}
+
 async function getIngest(): Promise<(raw: unknown) => Promise<SelectorIngestResult>> {
   if (ingestSelector) return ingestSelector
   const [{ createSelectorIngest }, targets, aiConfig, aiView] = await Promise.all([
@@ -226,42 +307,37 @@ async function getIngest(): Promise<(raw: unknown) => Promise<SelectorIngestResu
     import('../ai-view/aiWebContentsViewManager.js')
   ])
 
-  /**
-   * The managed Electron view of a site, or null when the site is not open.
-   *
-   * The exact host wins; a view on a sibling host of the same site is accepted
-   * because the ingestion re-checks the site identity and stores under the
-   * view's own host.
-   */
-  const findViewForSite = (site: SelectorSiteTarget): SelectorLiveView | null => {
-    let fallback: SelectorLiveView | null = null
-    for (const viewId of aiView.listManagedAiViewIds()) {
-      const url = aiView.getAiViewUrl(viewId)
-      if (!url) continue
-      let host: string
-      try {
-        host = new URL(url).hostname.toLowerCase()
-      } catch {
-        continue
-      }
-      if (!targets.hostBelongsToSelectorSite(host, site)) continue
-      const candidate: SelectorLiveView = {
-        viewId,
-        url,
-        documentToken: aiView.getAiViewDocumentToken?.(viewId) ?? undefined
-      }
-      if (host === site.hostname) return candidate
-      if (!fallback) fallback = candidate
-    }
-    return fallback
-  }
+  const findViewForSite = (
+    site: SelectorSiteTarget,
+    sites?: readonly SelectorSiteTarget[]
+  ): SelectorLiveView | null =>
+    selectLiveViewForSite(
+      site,
+      sites && sites.length > 0 ? sites : [site],
+      {
+        listManagedAiViewIds: aiView.listManagedAiViewIds,
+        getAiViewUrl: aiView.getAiViewUrl,
+        getAiViewDocumentToken: aiView.getAiViewDocumentToken,
+        getViewRuntimeState: (viewId) => {
+          const entry = aiView.getManagedAiView?.(viewId)
+          if (!entry) return null
+          return {
+            visible: entry.visible,
+            isLoading: entry.isLoading,
+            hasError: entry.loadError !== null,
+            generation: entry.generation
+          }
+        }
+      },
+      targets.findSelectorSiteMatch
+    )
 
   ingestSelector = createSelectorIngest({
     loadSites: targets.buildSelectorSiteTargets,
     readConfigs: aiConfig.readAiConfigMap,
     savePatch: (hostname, patch, field) =>
       aiConfig.saveAiConfigPatch(hostname, patch, field ? { pickedField: field } : undefined),
-    findViewForSite: async (site) => findViewForSite(site),
+    findViewForSite: async (site, sites) => findViewForSite(site, sites),
     executeScript: (viewId, script) => aiView.executeAiViewScript(viewId, script),
     getViewUrl: async (viewId) => aiView.getAiViewUrl(viewId),
     getViewDocumentToken: async (viewId) => aiView.getAiViewDocumentToken?.(viewId) ?? null,

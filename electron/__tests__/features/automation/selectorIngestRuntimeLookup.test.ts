@@ -13,6 +13,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SelectorSiteTarget } from '../../../features/ai/selectorTargets.js'
 
 import { generateValidateSelectorsScript } from '../../../features/automation/automationScripts/generators/validate.js'
+import { serializeAutomationConfig } from '../../../features/automation/scripts/config.js'
 import { createSelectorIngest } from '../../../features/ai/selectorIngest.js'
 
 const CHATGPT: SelectorSiteTarget = {
@@ -218,5 +219,19 @@ describe('stored pick in the real automation lookup', () => {
       diagnostics: { button?: { matchedSelector?: string } }
     }
     expect(lookupResult.diagnostics.button?.matchedSelector).toBe('button')
+  })
+
+  it('serializes the updated waitFor selector first after a new input pick', () => {
+    const serialized = serializeAutomationConfig({
+      version: 2,
+      input: '#new-input',
+      inputCandidates: ['#new-input'],
+      waitFor: '#new-input',
+      button: 'button',
+      buttonCandidates: ['button'],
+      submitMode: 'mixed',
+      health: 'ready'
+    })
+    expect(serialized.waitFor.selectors).toEqual(['#new-input'])
   })
 })

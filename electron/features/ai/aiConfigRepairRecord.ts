@@ -49,6 +49,7 @@ const REPAIR_CANDIDATE_KEYS = new Set([
   'lastSeenAt',
   'successCount',
   'consecutiveSuccessCount',
+  'baseSelector',
   'sourceFingerprint'
 ])
 
@@ -95,6 +96,12 @@ function sanitizeRepairCandidate(value: unknown): SelectorRepairCandidate | null
     raw.sourceFingerprint === undefined ? null : sanitizeFingerprint(raw.sourceFingerprint)
   if (sourceFingerprint === undefined) return undefined
 
+  let baseSelector: string | null | undefined
+  if (raw.baseSelector !== undefined) {
+    baseSelector = sanitizeRepairSelector(raw.baseSelector)
+    if (baseSelector === undefined) return undefined
+  }
+
   return {
     selector,
     strategy,
@@ -104,6 +111,7 @@ function sanitizeRepairCandidate(value: unknown): SelectorRepairCandidate | null
     lastSeenAt,
     successCount,
     consecutiveSuccessCount,
+    ...setIfDefined('baseSelector', baseSelector),
     sourceFingerprint
   }
 }
@@ -154,6 +162,18 @@ export function sanitizeLastRepair(value: unknown): SelectorLastRepair | null | 
     if (buttonSelector === undefined) return undefined
   }
 
+  let baseInputSelector: string | null | undefined
+  if (raw.baseInputSelector !== undefined) {
+    baseInputSelector = sanitizeRepairSelector(raw.baseInputSelector)
+    if (baseInputSelector === undefined) return undefined
+  }
+
+  let baseButtonSelector: string | null | undefined
+  if (raw.baseButtonSelector !== undefined) {
+    baseButtonSelector = sanitizeRepairSelector(raw.baseButtonSelector)
+    if (baseButtonSelector === undefined) return undefined
+  }
+
   const inputStrategy = normalizeLookupStrategy(raw.inputStrategy)
   if (raw.inputStrategy !== undefined && raw.inputStrategy !== null && !inputStrategy) {
     return undefined
@@ -167,6 +187,8 @@ export function sanitizeLastRepair(value: unknown): SelectorLastRepair | null | 
     repairedAt,
     ...setIfDefined('inputSelector', inputSelector ?? undefined),
     ...setIfDefined('buttonSelector', buttonSelector ?? undefined),
+    ...setIfDefined('baseInputSelector', baseInputSelector),
+    ...setIfDefined('baseButtonSelector', baseButtonSelector),
     ...setIfDefined('inputStrategy', inputStrategy),
     ...setIfDefined('buttonStrategy', buttonStrategy)
   }

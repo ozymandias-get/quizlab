@@ -194,4 +194,18 @@ describe('selector site catalogue', () => {
     expect(matchSelectorSite('gemini.google.com', sites, '/app/abc')?.siteId).toBe('gemini')
     expect(matchSelectorSite('gemini.google.com', sites, '/')?.siteId).toBe('gemini')
   })
+
+  it('does not fall back to a sibling subdomain config that automation will not load', () => {
+    const rootSite = target({
+      siteId: 'root',
+      hostname: 'example.com',
+      hosts: ['example.com'],
+      canonicalHostname: 'example.com'
+    })
+    expect(
+      statusOfSite(rootSite, {
+        'sub.example.com': { input: '#in', button: '#btn', health: 'ready' }
+      })
+    ).toBeUndefined()
+  })
 })

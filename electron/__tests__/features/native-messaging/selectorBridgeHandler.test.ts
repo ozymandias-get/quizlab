@@ -43,7 +43,7 @@ const SITE = {
   displayName: 'ChatGPT',
   hostname: 'chatgpt.com',
   hosts: ['chatgpt.com', 'openai.com'],
-  fields: ['input', 'button'],
+  fields: ['input', 'button'] as Array<'input' | 'button'>,
   canonicalHostname: 'openai.com'
 }
 
@@ -55,7 +55,14 @@ vi.mock('../../../../electron/features/ai-view/aiWebContentsViewManager.js', () 
   listManagedAiViewIds,
   getAiViewUrl,
   executeAiViewScript,
-  getAiViewDocumentToken: () => '1:1'
+  getAiViewDocumentToken: () => '1:1',
+  getManagedAiView: (viewId: string) => ({
+    viewId,
+    visible: true,
+    isLoading: false,
+    loadError: null,
+    generation: 1
+  })
 }))
 
 vi.mock('../../../../electron/features/ai/aiConfigHandlers.js', () => ({
@@ -80,7 +87,10 @@ vi.mock('../../../../electron/features/ai/selectorTargets.js', () => ({
   statusOfSite: () => ({ input: 'ready', button: 'missing' })
 }))
 
-import { handleSelectorBridgeRequest as importBridgeHandler } from '../../../../electron/features/native-messaging/selectorBridge.js'
+import {
+  handleSelectorBridgeRequest as importBridgeHandler,
+  selectLiveViewForSite
+} from '../../../../electron/features/native-messaging/selectorBridge.js'
 
 let handleSelectorBridgeRequest: typeof importBridgeHandler
 
@@ -511,5 +521,99 @@ describe('selector bridge routes', () => {
     const response = await send(request, body)
     expect(response.status).toBe(413)
     expect(saveAiConfigPatch).not.toHaveBeenCalled()
+  })
+})
+
+describe('selectLiveViewForSite', () => {
+  const realMatch = (host: string, sites: readonly (typeof SITE)[], pathname?: string) => {
+    if (pathname && /^\/(?:auth|login|signin|account|oauth)(?:\/|$)/i.test(pathname)) {
+      return null
+    }
+    const exact = sites.find((s) => s.hostname === host)
+    if (exact) return { site: exact, ambiguous: false }
+    const sibling = sites.find((s) => s.hosts.some((h) => host === h || host.endsWith(`.${h}`)))
+    return sibling ? { site: sibling, ambiguous: false } : null
+  }
+
+  it('skips a login view and selects the second valid chat view', () => {
+    const selected = selectLiveViewForSite(
+      SITE,
+      [SITE],
+      {
+        listManagedAiViewIds: () => ['view-login', 'view-chat'],
+        getAiViewUrl: (id) =>
+          id === 'view-login' ? 'https://chatgpt.com/auth/login' : 'https://chatgpt.com/c/123',
+        getAiViewDocumentToken: (id) => (id === 'view-chat' ? '2:1' : '1:1')
+      },
+      realMatch
+    )
+    expect(selected).toEqual({
+      viewId: 'view-chat',
+      url: 'https://chatgpt.com/c/123',
+      documentToken: '2:1'
+    })
+  })
+
+  it('ignores a sibling site under the same canonical domain', () => {
+    const gemini = {
+      siteId: 'gemini',
+      displayName: 'Gemini',
+      hostname: 'gemini.google.com',
+      hosts: ['gemini.google.com'],
+      fields: ['input', 'button'] as Array<'input' | 'button'>,
+      canonicalHostname: 'google.com'
+    }
+    const aistudio = {
+      siteId: 'aistudio',
+      displayName: 'AI Studio',
+      hostname: 'aistudio.google.com',
+      hosts: ['aistudio.google.com'],
+      fields: ['input', 'button'] as Array<'input' | 'button'>,
+      canonicalHostname: 'google.com'
+    }
+    const selected = selectLiveViewForSite(
+      gemini,
+      [gemini, aistudio],
+      {
+        listManagedAiViewIds: () => ['view-studio', 'view-gemini'],
+        getAiViewUrl: (id) =>
+          id === 'view-studio'
+            ? 'https://aistudio.google.com/prompts/new'
+            : 'https://gemini.google.com/app'
+      },
+      realMatch
+    )
+    expect(selected?.viewId).toBe('view-gemini')
+  })
+
+  it('deterministically prefers healthy, settled, visible views when multiple are valid', () => {
+    const selected = selectLiveViewForSite(
+      SITE,
+      [SITE],
+      {
+        listManagedAiViewIds: () => ['view-hidden', 'view-visible'],
+        getAiViewUrl: () => 'https://chatgpt.com/',
+        getViewRuntimeState: (id) =>
+          id === 'view-visible'
+            ? { visible: true, isLoading: false, hasError: false, generation: 2 }
+            : { visible: false, isLoading: false, hasError: false, generation: 5 }
+      },
+      realMatch
+    )
+    expect(selected?.viewId).toBe('view-visible')
+  })
+
+  it('skips a view that closes during selection and returns null when none remain', () => {
+    const selected = selectLiveViewForSite(
+      SITE,
+      [SITE],
+      {
+        listManagedAiViewIds: () => ['view-closing'],
+        getAiViewUrl: () => 'https://chatgpt.com/',
+        getViewRuntimeState: () => null
+      },
+      realMatch
+    )
+    expect(selected).toBeNull()
   })
 })
