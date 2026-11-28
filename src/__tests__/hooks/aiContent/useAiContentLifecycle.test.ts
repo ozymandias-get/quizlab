@@ -107,6 +107,33 @@ describe('useAiContentLifecycle - loading and splash', () => {
     ])
   })
 
+  it('recovers the url from a state snapshot when a navigation event was dropped', () => {
+    // Main sends navigation events once, and only while the window is ready.
+    // A state snapshot is the second channel: it carries the live url, so a
+    // host that missed `did-navigate` still converges on the conversation the
+    // guest is actually showing instead of staying on the entry url.
+    const controller = createController()
+    const onUrlChange = vi.fn()
+    render(controller, { onUrlChange })
+
+    act(() => {
+      controller._emit('did-navigate', { url: 'https://x.test/c/1', isMainFrame: true })
+    })
+    act(() => {
+      controller._emit('state', {
+        currentUrl: 'https://x.test/c/2',
+        isLoading: false,
+        hasLoadedOnce: true,
+        error: null
+      } as never)
+    })
+
+    expect(onUrlChange.mock.calls.map(([url]) => url)).toEqual([
+      'https://x.test/c/1',
+      'https://x.test/c/2'
+    ])
+  })
+
   it('aborts pending automation on every navigation', () => {
     const controller = createController()
     render(controller)
