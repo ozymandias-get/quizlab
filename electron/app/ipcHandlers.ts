@@ -4,6 +4,7 @@ import { registerAiConfigHandlers } from '../features/ai/aiConfigHandlers.js'
 import { registerAiRegistryHandlers } from '../features/ai/aiRegistryHandlers.js'
 import { registerApiChatHandlers } from '../features/ai/apiChatHandlers/apiChatHandlers.js'
 import { registerAiViewHandlers } from '../features/ai-view/aiViewHandlers.js'
+import { reloadManagedViewsInPartition } from '../features/ai-view/aiWebContentsViewManager.js'
 import { registerAutomationHandlers } from '../features/automation/automationHandlers.js'
 import { getBundledExtensionInstaller } from '../features/native-messaging/extensionInstaller.js'
 import { registerNativeMessagingHandlers } from '../features/native-messaging/nativeMessagingHandlers.js'
@@ -13,6 +14,7 @@ import { registerScreenshotHandlers } from '../features/screenshot/screenshotHan
 import { registerAppSettingsHandlers } from '../features/settings/appSettingsHandlers.js'
 import { registerShellOpenHandlers } from '../features/shell-open/shellOpenHandlers.js'
 import { registerSiteSessionHandlers } from '../features/web-session/siteSessionHandlers.js'
+import { setSiteSessionViewRefresher } from '../features/web-session/siteSessionViews.js'
 
 let handlersRegistered = false
 
@@ -31,6 +33,10 @@ export function registerGeneralHandlers() {
   registerApiChatHandlers()
   registerAutomationHandlers()
   registerSiteSessionHandlers()
+  // An import writes into a partition, not into the page already loaded there.
+  // The bridge asks this refresher to reload the open views of the site once,
+  // and only when the imported cookies changed the identities of its session.
+  setSiteSessionViewRefresher(reloadManagedViewsInPartition)
   registerAppSettingsHandlers()
   registerNativeMessagingHandlers()
   registerAiViewHandlers()

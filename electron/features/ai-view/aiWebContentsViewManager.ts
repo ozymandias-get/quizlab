@@ -757,6 +757,28 @@ export function reloadAiView(viewId: string): boolean {
 }
 
 /**
+ * Reloads every live view that runs in a partition.
+ *
+ * Used after an import that changed the cookie identities of the site: the
+ * cookies are in the network service already, but a page that rendered before
+ * the import keeps its old signed-out state. Only the partition named by the
+ * import is touched — the Google apps share one, every other site has its own.
+ */
+export function reloadManagedViewsInPartition(partition: string): number {
+  if (!partition) return 0
+  let reloaded = 0
+  for (const [viewId, entry] of views) {
+    if (entry.partition !== partition || !isAlive(entry)) continue
+    try {
+      if (reloadAiView(viewId)) reloaded += 1
+    } catch (error) {
+      Logger.warn('[AiView] A view of the imported session could not be reloaded:', error)
+    }
+  }
+  return reloaded
+}
+
+/**
  * Renderer-initiated navigation into an existing view.
  *
  * Validated against the same partition policy the entry URL went through, so a

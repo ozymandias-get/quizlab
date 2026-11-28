@@ -11,7 +11,7 @@ const remove = vi.fn()
 const get = vi.fn()
 
 function fakeSession() {
-  return { cookies: { set, remove, get }, flushStorageData: vi.fn() } as never
+  return { cookies: { set, remove, get, flushStore: vi.fn() } } as never
 }
 
 const ALLOWED = ['.chatgpt.com']
@@ -235,12 +235,16 @@ describe('importExternalCookies', () => {
     get.mockResolvedValue([previous])
     set.mockRejectedValueOnce(new Error('rejected'))
     const session = {
-      cookies: { set, remove, get },
-      // The snapshot import flushes first; the final rollback flush fails.
-      flushStorageData: vi
-        .fn()
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValueOnce(new Error('disk full'))
+      cookies: {
+        set,
+        remove,
+        get,
+        // The snapshot import flushes first; the final rollback flush fails.
+        flushStore: vi
+          .fn()
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error('disk full'))
+      }
     } as never
 
     const result = await importExternalCookies(
@@ -259,8 +263,7 @@ describe('importExternalCookies', () => {
 
   it('separates a disk flush failure from a successful cookie write', async () => {
     const session = {
-      cookies: { set, remove, get },
-      flushStorageData: vi.fn().mockRejectedValue(new Error('disk full'))
+      cookies: { set, remove, get, flushStore: vi.fn().mockRejectedValue(new Error('disk full')) }
     } as never
 
     const result = await importExternalCookies(
@@ -685,12 +688,12 @@ describe('importExternalCookies', () => {
               jar.delete(key)
             }
             return {}
-          }
-        },
-        flushStorageData: async () => {
-          flushCalls += 1
-          if (options.failFlush !== undefined && flushCalls <= options.failFlush) {
-            throw new Error('disk full')
+          },
+          flushStore: async () => {
+            flushCalls += 1
+            if (options.failFlush !== undefined && flushCalls <= options.failFlush) {
+              throw new Error('disk full')
+            }
           }
         }
       }
@@ -765,5 +768,126 @@ describe('importExternalCookies', () => {
       expect(result.flushFailed).toBeUndefined()
       expect([...jar.keys()]).toEqual(['chatgpt.com::session::/::domain'])
     })
+  })
+
+  it('writes a non-Secure Google cookie under http so its flags stay as Chrome had them', async () => {
+    // Chrome exposes SID/HSID/APISID only as plain cookies; writing them over
+    // https would add Secure and change what Gemini is sent.
+    const result = await importExternalCookies(
+      fakeSession(),
+      [
+        {
+          name: 'SID',
+          value: 'v',
+          domain: '.google.com',
+          path: '/',
+          secure: false,
+          httpOnly: false,
+          sameSite: 'Unspecified',
+          expires: Math.floor(Date.now() / 1000) + 3600
+        }
+      ],
+      ['.google.com']
+    )
+
+    expect(result.imported).toBe(1)
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'SID',
+        url: 'http://google.com/',
+        domain: '.google.com',
+        secure: false,
+        httpOnly: false
+      })
+    )
+  })
+
+  it('flushes the cookie store, not only the DOM storage', async () => {
+    const flushStore = vi.fn().mockResolvedValue(undefined)
+    const flushStorageData = vi.fn()
+    const session = { cookies: { set, remove, get, flushStore }, flushStorageData } as never
+
+    await importExternalCookies(
+      session,
+      [{ name: 'session', value: 'v', domain: '.chatgpt.com', secure: true }],
+      ALLOWED
+    )
+
+    expect(flushStore).toHaveBeenCalledTimes(1)
+    expect(flushStorageData).not.toHaveBeenCalled()
+  })
+
+  it('marks an added cookie identity as a change', async () => {
+    get.mockResolvedValue([
+      {
+        name: 'SID',
+        value: 'old',
+        domain: '.google.com',
+        path: '/',
+        secure: false,
+        hostOnly: false
+      }
+    ])
+    const result = await importExternalCookies(
+      fakeSession(),
+      [
+        { name: 'SID', value: 'old', domain: '.google.com', secure: false },
+        { name: 'HSID', value: 'new', domain: '.google.com', secure: false }
+      ],
+      ['.google.com'],
+      { rollbackOnPartialFailure: true }
+    )
+    expect(result).toMatchObject({ imported: 2, failed: 0, identitySetChanged: true })
+  })
+
+  it('does not report a value-only rotation as a set change', async () => {
+    // A rotation keeps every identity; reloading a view for it would throw the
+    // page away during the session.
+    get.mockResolvedValue([
+      {
+        name: '__Secure-1PSIDTS',
+        value: 'old',
+        domain: '.google.com',
+        path: '/',
+        secure: true,
+        hostOnly: false
+      }
+    ])
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: '__Secure-1PSIDTS', value: 'rotated', domain: '.google.com', secure: true }],
+      ['.google.com'],
+      { rollbackOnPartialFailure: true }
+    )
+    expect(result.imported).toBe(1)
+    expect(result.identitySetChanged).toBeUndefined()
+  })
+
+  it('marks a removed cookie identity as a change', async () => {
+    get.mockResolvedValue([
+      {
+        name: 'SID',
+        value: 'old',
+        domain: '.google.com',
+        path: '/',
+        secure: false,
+        hostOnly: false
+      },
+      {
+        name: 'HSID',
+        value: 'old',
+        domain: 'google.com',
+        path: '/',
+        secure: false,
+        hostOnly: true
+      }
+    ])
+    const result = await importExternalCookies(
+      fakeSession(),
+      [{ name: 'SID', value: 'old', domain: '.google.com', secure: false }],
+      ['.google.com'],
+      { rollbackOnPartialFailure: true }
+    )
+    expect(result).toMatchObject({ imported: 1, failed: 0, identitySetChanged: true })
   })
 })

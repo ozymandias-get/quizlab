@@ -29,7 +29,13 @@ const PANEL_JS_PATH = path.join(EXT_DIR, 'sidepanel.js')
 const HOST_PERMISSIONS = [
   'https://google.com/*',
   'https://*.google.com/*',
+  // Google's SID/HSID/APISID are not Secure; Chrome exposes a plain cookie
+  // only under an http pattern, so the https ones alone import an incomplete
+  // Google session.
+  'http://google.com/*',
+  'http://*.google.com/*',
   'https://*.youtube.com/*',
+  'http://*.youtube.com/*',
   'https://*.chatgpt.com/*',
   'https://*.openai.com/*',
   'https://*.claude.ai/*',
@@ -442,7 +448,7 @@ describe('extension side panel', () => {
 
   it('keeps the identity of the extension', () => {
     expect(fingerprint(manifest.key)).toBe(EXTENSION_KEY_FINGERPRINT)
-    expect(manifest.version).toBe('1.5.0')
+    expect(manifest.version).toBe('1.5.1')
     expect(manifest.icons).toEqual({
       '16': 'icons/icon16.png',
       '48': 'icons/icon48.png',

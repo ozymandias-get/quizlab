@@ -11,6 +11,19 @@ const TARGET = {
   memberAppIds: ['chatgpt']
 }
 
+const GOOGLE_TARGET = {
+  siteId: 'google',
+  hostname: 'gemini.google.com, aistudio.google.com',
+  origins: ['https://gemini.google.com', 'https://aistudio.google.com'],
+  partition: 'persist:gemini_web_profile',
+  cookieDomains: ['.google.com', '.gemini.google.com', '.aistudio.google.com', '.youtube.com'],
+  labelKey: 'ws_target_google',
+  kind: 'google' as const,
+  memberAppIds: ['gemini', 'aistudio', 'youtube', 'gdrive', 'notebooklm']
+}
+
+const activeTargets = vi.hoisted(() => ({ list: [] as unknown[] }))
+
 const set = vi.fn().mockResolvedValue({})
 const remove = vi.fn().mockResolvedValue({})
 const get = vi.fn().mockResolvedValue([])
@@ -18,7 +31,7 @@ const clearStorageData = vi.fn().mockResolvedValue(undefined)
 const send = vi.fn()
 
 const fakeSession = {
-  cookies: { get, set, remove },
+  cookies: { get, set, remove, flushStore: vi.fn() },
   clearStorageData,
   flushStorageData: vi.fn()
 }
@@ -32,6 +45,13 @@ const { partitionExistsOnDisk, readQuarantineMarker, writeQuarantineMarker } = v
   partitionExistsOnDisk: vi.fn(async () => true),
   readQuarantineMarker: vi.fn(async (): Promise<'present' | 'absent' | 'unknown'> => 'absent'),
   writeQuarantineMarker: vi.fn(async () => true)
+}))
+
+const refreshSiteSessionViews = vi.fn((_partition: string) => 1)
+
+vi.mock('../../../features/web-session/siteSessionViews.js', () => ({
+  setSiteSessionViewRefresher: vi.fn(),
+  refreshSiteSessionViews: (partition: string) => refreshSiteSessionViews(partition)
 }))
 
 vi.mock('electron', () => ({
@@ -58,7 +78,7 @@ vi.mock('../../../features/web-session/siteSessionConfig.js', () => ({
 }))
 
 vi.mock('../../../features/web-session/siteSessionTargets.js', () => ({
-  buildSiteSessionTargets: async () => [TARGET],
+  buildSiteSessionTargets: async () => activeTargets.list,
   isPartitionShared: (
     partition: string,
     targets: { siteId: string; partition: string }[],
@@ -100,6 +120,21 @@ function stateWith(enabled: boolean, configVersion = 3) {
     configVersion,
     targets: {
       chatgpt: {
+        enabled,
+        importedAt: null,
+        lastResult: null,
+        lastError: null
+      }
+    }
+  }
+}
+
+function stateWithGoogle(enabled: boolean) {
+  return {
+    version: 1,
+    configVersion: 3,
+    targets: {
+      google: {
         enabled,
         importedAt: null,
         lastResult: null,
@@ -162,7 +197,8 @@ describe('site session bridge', () => {
   beforeEach(() => {
     set.mockClear()
     remove.mockClear()
-    get.mockClear()
+    get.mockReset()
+    get.mockResolvedValue([])
     clearStorageData.mockClear()
     read.mockReset()
     recordResult.mockReset()
@@ -174,7 +210,10 @@ describe('site session bridge', () => {
     readQuarantineMarker.mockResolvedValue('absent')
     writeQuarantineMarker.mockReset()
     writeQuarantineMarker.mockResolvedValue(true)
+    refreshSiteSessionViews.mockClear()
+    activeTargets.list = [TARGET]
     clearSiteSessionQuarantine('chatgpt')
+    clearSiteSessionQuarantine('google')
     read.mockResolvedValue(stateWith(false))
   })
 
@@ -248,6 +287,55 @@ describe('site session bridge', () => {
       url: 'https://chatgpt.com/'
     })
     expect(recordResult).toHaveBeenCalledWith('chatgpt', 'imported', undefined)
+  })
+
+  it('reloads the open views of the Google group when the import adds a cookie identity', async () => {
+    // An empty partition has no session to compare with: every imported
+    // identity is new, so a Google view that rendered the signed-out page has
+    // to be reloaded once to pick up the imported session.
+    activeTargets.list = [GOOGLE_TARGET]
+    read.mockResolvedValue(stateWithGoogle(true))
+    await acceptSiteSessionPacket({
+      targetId: 'google',
+      status: 'ok',
+      cookies: [{ name: 'SID', value: 'v', domain: '.google.com', secure: false }]
+    })
+    expect(refreshSiteSessionViews).toHaveBeenCalledWith('persist:gemini_web_profile')
+  })
+
+  it('does not reload a Google view for a rotated value of the same cookie', async () => {
+    // Google rotates __Secure-1PSIDTS and the *CC tokens during a session. A
+    // reload per rotation would throw the page away while the user is in it.
+    activeTargets.list = [GOOGLE_TARGET]
+    read.mockResolvedValue(stateWithGoogle(true))
+    get.mockResolvedValue([
+      {
+        name: 'SID',
+        value: 'old',
+        domain: '.google.com',
+        path: '/',
+        secure: false,
+        hostOnly: false
+      }
+    ])
+    await acceptSiteSessionPacket({
+      targetId: 'google',
+      status: 'ok',
+      cookies: [{ name: 'SID', value: 'new', domain: '.google.com', secure: false }]
+    })
+    expect(refreshSiteSessionViews).not.toHaveBeenCalled()
+  })
+
+  it('does not reload the views of a site that is not the shared Google group', async () => {
+    // ChatGPT creates a per-conversation cookie for every chat. Reloading its
+    // view whenever the donor adds one would throw the user out of a chat.
+    read.mockResolvedValue(stateWith(true))
+    await acceptSiteSessionPacket({
+      targetId: 'chatgpt',
+      status: 'ok',
+      cookies: [{ name: 'conv_key_123', value: 'v', domain: '.chatgpt.com', secure: true }]
+    })
+    expect(refreshSiteSessionViews).not.toHaveBeenCalled()
   })
 
   it('translates the same site attribute of the extension into the importer spelling', async () => {
@@ -456,7 +544,7 @@ describe('site session bridge', () => {
     read.mockResolvedValue(stateWith(true))
     const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => {})
     clearStorageData.mockClear()
-    fakeSession.flushStorageData.mockRejectedValueOnce(new Error('disk full'))
+    fakeSession.cookies.flushStore.mockRejectedValueOnce(new Error('disk full'))
 
     const outcome = await acceptSiteSessionPacket({
       targetId: 'chatgpt',

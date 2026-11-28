@@ -409,3 +409,19 @@ describe('AiWebContentsViewManager - in-flight navigation and dead entries', () 
     expect(removeChildView).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('AiWebContentsViewManager - reload in a partition', () => {
+  it('reloads the live views of that partition and nothing else', async () => {
+    await manager.destroyAllAiViews()
+
+    await manager.attachAiView({ viewId: 'tab-R1', source: CUSTOM })
+    await manager.attachAiView({ viewId: 'tab-R2', source: CUSTOM })
+
+    expect(manager.reloadManagedViewsInPartition('persist:ai_custom_custom_1')).toBe(2)
+    expect(manager.getManagedAiView('tab-R1')?.webContents.reload).toHaveBeenCalledTimes(1)
+    expect(manager.getManagedAiView('tab-R2')?.webContents.reload).toHaveBeenCalledTimes(1)
+
+    // A site with its own partition is not touched by another site's import.
+    expect(manager.reloadManagedViewsInPartition('persist:ai_chatgpt')).toBe(0)
+  })
+})

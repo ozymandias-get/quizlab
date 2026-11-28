@@ -753,6 +753,20 @@ Google Drive share one account and one partition, so they are **one row**
 (`siteId: 'google'`) — see `shared/constants/googleAiWebApps.ts`. The row owns
 the five origins of its apps, so a wipe clears the storage of all of them.
 
+Two consequences of that shared row matter:
+
+- Chrome exposes a cookie under the scheme its `Secure` flag implies. Google's
+  session cookies (`SID`, `HSID`, `APISID`, `SIDCC`) are plain, so the
+  extension declares the `http://` host patterns next to the https ones; a
+  packet read with only https would silently miss them. The worker requires
+  every declared scheme to be granted, so a partial read is reported as a
+  missing permission instead of an import.
+- Writing cookies into the partition does not change a page that is already
+  loaded in it. When an import adds or removes a cookie identity (a sign-in,
+  a sign-out or an account switch) the bridge asks the view manager to reload
+  the live views of that partition once. A rotated value keeps the identity
+  set, so token rotation never causes a reload loop.
+
 ### F.6 Automation and selector self-healing
 
 The flow: `pendingAiItems` (the composer queue,

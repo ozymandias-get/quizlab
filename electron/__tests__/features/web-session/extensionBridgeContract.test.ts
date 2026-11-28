@@ -22,12 +22,32 @@ const BACKGROUND_PATH = path.join(
   process.cwd(),
   'extensions/quizlab-session-extension/background.js'
 )
+const MANIFEST_PATH = path.join(process.cwd(), 'extensions/quizlab-session-extension/manifest.json')
 const PICKER_PATH = path.join(
   process.cwd(),
   'extensions/quizlab-session-extension/content/picker.js'
 )
 
 const source = readFileSync(BACKGROUND_PATH, 'utf-8')
+const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf-8')) as {
+  host_permissions?: string[]
+  optional_host_permissions?: string[]
+}
+
+/**
+ * The host patterns the extension ships with.
+ *
+ * The harness answers `chrome.permissions.contains` and the cookie read from
+ * these patterns the way Chrome does: a cookie is read under the URL its
+ * `Secure` flag implies, and a pattern of another scheme does not grant it.
+ * The optional wildcards only count when the harness grants them, which is why
+ * they are kept apart from the required list the fake manifest reports.
+ */
+const MANIFEST_HOST_PERMISSIONS = manifest.host_permissions ?? []
+const MANIFEST_ALL_PATTERNS = [
+  ...MANIFEST_HOST_PERMISSIONS,
+  ...(manifest.optional_host_permissions ?? [])
+]
 
 const BRIDGE_SECRET = 'ab'.repeat(32)
 const EXTENSION_ID = 'quizlab-test-extension'
@@ -159,6 +179,8 @@ interface HarnessOptions {
   selectorResponse?: { status: number; body: unknown }
   /** The error `chrome.scripting.executeScript` throws, if any. */
   injectionError?: string
+  /** The host patterns the fake manifest declares. Defaults to the shipped ones. */
+  manifestHostPermissions?: string[]
 }
 
 interface Harness {
@@ -202,6 +224,55 @@ function jsonResponse(payload: unknown, status = 200) {
     status,
     json: async () => payload
   }
+}
+
+/** Whether a match-pattern host covers a host, wildcard included. */
+function patternHostCovers(host: string, patternHostname: string): boolean {
+  if (patternHostname === '*') return true
+  const wildcard = patternHostname.startsWith('*.')
+  const base = patternHostname.replace(/^\*\./, '')
+  if (!base) return false
+  return wildcard ? host === base || host.endsWith(`.${base}`) : host === base
+}
+
+/**
+ * Whether one match pattern contains another, the way `permissions.contains`
+ * checks it: a wildcard grant covers the bare host and every subdomain.
+ */
+function patternContains(grantedPattern: string, requestedPattern: string): boolean {
+  try {
+    const granted = new URL(grantedPattern)
+    const requested = new URL(requestedPattern)
+    if (granted.protocol !== requested.protocol) return false
+    if (granted.hostname === '*') return true
+    const grantedWildcard = granted.hostname.startsWith('*.')
+    const grantedHost = granted.hostname.replace(/^\*\./, '')
+    const requestedHost = requested.hostname.replace(/^\*\./, '')
+    // An exact-host grant never covers a wildcard request.
+    if (!grantedWildcard) return requested.hostname === granted.hostname
+    return requestedHost === grantedHost || requestedHost.endsWith(`.${grantedHost}`)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The patterns that would let the extension read this cookie.
+ *
+ * Chrome checks a cookie against the URL it would be sent to, so a `Secure`
+ * cookie is matched under https and a plain one under http.
+ */
+function patternsForCookie(cookie: FakeCookie, hostPermissions: readonly string[]): string[] {
+  const scheme = cookie.secure === true ? 'https:' : 'http:'
+  const host = (cookie.domain || '').replace(/^\.+/, '').toLowerCase()
+  return hostPermissions.filter((pattern) => {
+    try {
+      const parsed = new URL(pattern)
+      return parsed.protocol === scheme && patternHostCovers(host, parsed.hostname)
+    } catch {
+      return false
+    }
+  })
 }
 
 /**
@@ -259,6 +330,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   }
   const cookies = options.cookies ?? DEFAULT_COOKIES
   const granted = options.grantedOrigins ?? 'all'
+  const manifestHostPermissions = options.manifestHostPermissions ?? MANIFEST_HOST_PERMISSIONS
   const bridgePortOption = options.bridgePort ?? null
   const permissionsThrow = options.permissionsThrow === true
   const extensionId = options.extensionId ?? EXTENSION_ID
@@ -339,7 +411,26 @@ function createHarness(options: HarnessOptions = {}): Harness {
           failingCookieDomain = null
           throw new Error('cookie read failed')
         }
-        return cookies[domain] ?? []
+        const found = cookies[domain] ?? []
+        // Chrome reads a cookie under the URL its Secure flag implies, so a
+        // plain cookie is invisible to an extension that declared only https.
+        // "all" grants the required patterns and the optional wildcards; a
+        // list grants exactly the patterns it names.
+        const activeOrigins =
+          granted === 'all'
+            ? [...manifestHostPermissions, ...MANIFEST_ALL_PATTERNS]
+            : granted === 'none'
+              ? []
+              : granted
+        return found.filter((cookie) => {
+          const patterns = patternsForCookie(cookie, [
+            ...manifestHostPermissions,
+            ...MANIFEST_ALL_PATTERNS
+          ])
+          return patterns.some((pattern) =>
+            activeOrigins.some((entry) => patternContains(entry, pattern))
+          )
+        })
       },
       onChanged: {
         addListener: (
@@ -370,7 +461,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
         if (permissionsThrow) throw new Error('the permissions API is not available')
         if (granted === 'all') return true
         if (granted === 'none') return false
-        return origins.every((origin) => granted.includes(origin))
+        return origins.every((origin) => granted.some((entry) => patternContains(entry, origin)))
       }
     },
     webNavigation: {
@@ -414,7 +505,11 @@ function createHarness(options: HarnessOptions = {}): Harness {
       addListener: (listener: typeof messageListener) => {
         messageListener = listener
       }
-    }
+    },
+    getManifest: () => ({
+      manifest_version: 3,
+      host_permissions: [...manifestHostPermissions]
+    })
   })
 
   const fakeFetch = async (url: string, init?: RequestInit) => {
@@ -614,6 +709,15 @@ describe('extension bridge contract', () => {
   it('pulls the site list from the bridge instead of a hardcoded domain list', () => {
     expect(source).toContain('/api/sites')
     expect(source).not.toContain('const GOOGLE_COOKIE_DOMAINS')
+  })
+
+  it('declares the plain scheme for the sites whose session cookies are not Secure', () => {
+    // Chrome reads a cookie under the scheme its Secure flag implies: a plain
+    // cookie is checked against http. Google's SID/HSID/APISID are plain, so an
+    // https-only manifest silently drops them and imports an incomplete
+    // session - the failure this contract exists to prevent.
+    expect(MANIFEST_HOST_PERMISSIONS).toContain('http://*.google.com/*')
+    expect(MANIFEST_HOST_PERMISSIONS).toContain('http://*.youtube.com/*')
   })
 
   it('sends one packet per target', () => {
@@ -916,6 +1020,117 @@ describe('extension bridge behaviour', () => {
 
     const chatgpt = harness.packets.find((packet) => packet.targetId === 'chatgpt')
     expect(chatgpt?.status).toBe('permission_missing')
+  })
+
+  it('reads the plain Google session cookies under the http permission', async () => {
+    // Google's SID/HSID/APISID are not Secure. Chrome only hands them to an
+    // extension that declared the http pattern; without them Gemini's server
+    // sees an incomplete session and the imported cookies sign nobody in.
+    const harness = createHarness({
+      siteList: {
+        protocolVersion: 3,
+        configVersion: 9,
+        targets: [
+          {
+            siteId: 'google',
+            label: 'Google',
+            cookieDomains: [
+              '.google.com',
+              '.gemini.google.com',
+              '.aistudio.google.com',
+              '.youtube.com'
+            ]
+          }
+        ]
+      },
+      cookies: {
+        '.google.com': [
+          { name: '__Secure-1PSID', value: 'v', domain: '.google.com', path: '/', secure: true },
+          { name: 'SID', value: 'v', domain: '.google.com', path: '/', secure: false },
+          {
+            name: 'HSID',
+            value: 'v',
+            domain: '.google.com',
+            path: '/',
+            secure: false,
+            httpOnly: true
+          },
+          { name: 'APISID', value: 'v', domain: '.google.com', path: '/', secure: false }
+        ],
+        '.youtube.com': [
+          { name: 'SID', value: 'v', domain: '.youtube.com', path: '/', secure: false }
+        ],
+        '.gemini.google.com': [
+          {
+            name: '__Secure-OSID',
+            value: 'v',
+            domain: '.gemini.google.com',
+            path: '/',
+            secure: true
+          }
+        ]
+      },
+      // Exactly the Google patterns the manifest declares. The plain cookies
+      // are readable only because the http patterns are part of that list.
+      grantedOrigins: MANIFEST_HOST_PERMISSIONS.filter(
+        (pattern) => pattern.includes('google.com') || pattern.includes('youtube.com')
+      )
+    })
+    await harness.settle()
+
+    const packet = harness.packets.find((entry) => entry.targetId === 'google')
+    expect(packet?.status).toBe('ok')
+    expect(
+      packet?.cookies
+        .filter((cookie) => cookie.name === 'SID')
+        .map((cookie) => cookie.domain)
+        .sort()
+    ).toEqual(['.google.com', '.youtube.com'])
+    expect(packet?.cookies.some((cookie) => cookie.name === 'HSID')).toBe(true)
+    expect(packet?.cookies.some((cookie) => cookie.name === 'APISID')).toBe(true)
+  })
+
+  it('reports the missing plain scheme instead of importing a partial Google session', async () => {
+    // Only the https patterns are granted here. Chrome would hand back the
+    // Secure cookies and hide SID/HSID/APISID; reporting that partial read as
+    // "ok" is what made the import look successful while Google stayed signed
+    // out. The site is refused before a cookie is read.
+    const harness = createHarness({
+      siteList: {
+        protocolVersion: 3,
+        configVersion: 9,
+        targets: [
+          {
+            siteId: 'google',
+            label: 'Google',
+            cookieDomains: [
+              '.google.com',
+              '.gemini.google.com',
+              '.aistudio.google.com',
+              '.youtube.com'
+            ]
+          }
+        ]
+      },
+      cookies: {
+        '.google.com': [
+          { name: '__Secure-1PSID', value: 'v', domain: '.google.com', path: '/', secure: true },
+          { name: 'SID', value: 'v', domain: '.google.com', path: '/', secure: false }
+        ]
+      },
+      grantedOrigins: [
+        'https://*.google.com/*',
+        'https://*.gemini.google.com/*',
+        'https://*.aistudio.google.com/*',
+        'https://*.youtube.com/*'
+      ]
+    })
+    await harness.settle()
+
+    expect(harness.cookieQueries).toEqual([])
+    const packet = harness.packets.find((entry) => entry.targetId === 'google')
+    expect(packet?.status).toBe('permission_missing')
+    expect(packet?.cookies).toEqual([])
   })
 
   it('does not push when nothing changed', async () => {

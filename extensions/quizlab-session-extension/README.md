@@ -133,3 +133,11 @@ Domain configuration is in `shared/constants/siteSessionCookieDomains.ts`.
 Provider-specific auth domains should be added only when verified; unrelated
 account domains are not collected speculatively. Real authenticated Chrome/Electron
 login checks are separate from the mocked bridge, permission and routing tests.
+
+Chrome reads every cookie under the URL its `Secure` flag implies: a plain
+cookie is checked against `http://<domain>/`, a `Secure` one against
+`https://<domain>/`. A provider whose session cookies are plain — Google's
+`SID`, `HSID`, `APISID` and `SIDCC` are — therefore needs the `http://`
+host pattern next to the `https://` one in `manifest.json`. With only the
+https pattern Chrome silently omits those cookies and the packet looks
+complete while the imported Google session stays signed out.

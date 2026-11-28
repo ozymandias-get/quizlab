@@ -38,12 +38,62 @@ function hostOf(domain) {
   return domain.trim().toLowerCase().replace(/^\.+/, '')
 }
 
-function wildcardPattern(host) {
-  return `https://*.${host}/*`
+/** The host patterns the extension manifest declares. */
+function manifestHostPatterns() {
+  try {
+    const manifest = chrome.runtime && chrome.runtime.getManifest()
+    const patterns = manifest && manifest.host_permissions
+    return Array.isArray(patterns) ? patterns : []
+  } catch {
+    return []
+  }
+}
+
+/** The bare host of a match pattern, or an empty string. */
+function patternHostOf(pattern) {
+  try {
+    return new URL(pattern).hostname.toLowerCase().replace(/^\*\./, '')
+  } catch {
+    return ''
+  }
+}
+
+/** The URL scheme of a match pattern, or an empty string. */
+function patternSchemeOf(pattern) {
+  try {
+    return new URL(pattern).protocol.replace(/:$/, '')
+  } catch {
+    return ''
+  }
+}
+
+/** Whether a host is the pattern host itself or one of its subdomains. */
+function hostIsCovered(host, patternHost) {
+  return host === patternHost || host.endsWith(`.${patternHost}`)
+}
+
+/**
+ * The URL schemes the manifest declares for a host.
+ *
+ * The cookies API reads a `Secure` cookie under https and a plain one under
+ * http; both schemes have to be granted or the plain cookies are hidden from
+ * the read. Unknown hosts (a site added later through the optional wildcard)
+ * stay on https.
+ */
+function declaredSchemes(host) {
+  const schemes = new Set()
+  for (const pattern of manifestHostPatterns()) {
+    const coveredHost = patternHostOf(pattern)
+    if (!coveredHost || !hostIsCovered(host, coveredHost)) continue
+    const scheme = patternSchemeOf(pattern)
+    if (scheme) schemes.add(scheme)
+  }
+  if (schemes.size === 0) schemes.add('https')
+  return [...schemes]
 }
 
 function originPatterns(host) {
-  return [wildcardPattern(host)]
+  return declaredSchemes(host).map((scheme) => `${scheme}://*.${host}/*`)
 }
 
 /** The hosts a site needs a permission for. */
@@ -57,14 +107,14 @@ function hostsOf(target) {
   return hosts
 }
 
-/** Whether the extension may read a host. */
+/** Whether the extension may read a host, under every scheme it has to read. */
 async function hasPermission(host) {
   if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') {
     return true
   }
   for (const pattern of originPatterns(host)) {
     try {
-      if (await chrome.permissions.contains({ origins: [pattern] })) return true
+      if (!(await chrome.permissions.contains({ origins: [pattern] }))) return false
     } catch (error) {
       console.warn(
         '[Quizlab Panel] The permission of',
@@ -75,7 +125,7 @@ async function hasPermission(host) {
       return false
     }
   }
-  return false
+  return true
 }
 
 /** The hosts of a site that still need a permission. */
@@ -180,7 +230,7 @@ function renderRow(site) {
     let request
     try {
       request = chrome.permissions.request({
-        origins: site.missing.map(wildcardPattern)
+        origins: [...new Set(site.missing.flatMap(originPatterns))]
       })
     } catch (error) {
       onFailed(error)

@@ -92,7 +92,7 @@ function makeService(
   const clearStorageData = vi.fn().mockResolvedValue(undefined)
   const clearAuthCache = vi.fn().mockResolvedValue(undefined)
   const session = {
-    cookies: { get, set, remove },
+    cookies: { get, set, remove, flushStore: vi.fn().mockResolvedValue(undefined) },
     clearStorageData,
     clearAuthCache,
     flushStorageData: vi.fn()

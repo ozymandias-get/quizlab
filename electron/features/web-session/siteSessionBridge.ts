@@ -41,6 +41,7 @@ import {
   type SiteSessionTargetRow,
   siteSessionTargetsFingerprint
 } from './siteSessionTargets.js'
+import { refreshSiteSessionViews } from './siteSessionViews.js'
 import { wipeSiteSession } from './siteSessionWipe.js'
 
 export { SITE_SESSION_PROTOCOL_VERSION }
@@ -551,19 +552,36 @@ async function handleSiteSessionPacket(
   // layout state: importing ChatGPT's sidebar cookie re-opens a panel the user
   // closed inside the app on every sync.
   const preserveCookieNames = getSiteUiStateCookieNames(target.siteId)
-  const { imported, failed, rolledBack, rollbackFailed, flushFailed, staleCookiesKept } =
-    await importExternalCookies(
-      targetSession,
-      packet.cookies.map(toImporterCookie),
-      target.cookieDomains,
-      { rollbackOnPartialFailure: true, preserveCookieNames }
-    )
+  const {
+    imported,
+    failed,
+    rolledBack,
+    rollbackFailed,
+    flushFailed,
+    staleCookiesKept,
+    identitySetChanged
+  } = await importExternalCookies(
+    targetSession,
+    packet.cookies.map(toImporterCookie),
+    target.cookieDomains,
+    { rollbackOnPartialFailure: true, preserveCookieNames }
+  )
 
   // An import that wrote nothing is a failure the user has to see: without a
   // reason code the row would show the outcome without saying what went wrong,
   // and `lastError` would stay empty. A failed rollback gets its own code so
   // the partition is treated as unverified rather than merely "not imported".
   const wroteSomething = imported > 0 && failed === 0 && !flushFailed
+
+  // Cookies written into a partition do not change the page that is already
+  // loaded there. Only the Google group is reloaded: it is the one site whose
+  // sign-in is handed to the external browser and whose apps share a partition,
+  // so a view can sit signed out while the cookies arrive. Other providers have
+  // their own per-conversation cookies (ChatGPT's `conv_key_*`), whose changing
+  // identities would turn this into a reload per push.
+  if (wroteSomething && identitySetChanged === true && target.kind === 'google') {
+    refreshSiteSessionViews(target.partition)
+  }
   let error = 'import_failed'
   if (rollbackFailed) error = 'session_restore_failed'
   else if (flushFailed) error = 'flush_failed'

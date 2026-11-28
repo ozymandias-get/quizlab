@@ -207,13 +207,20 @@ async function writeCookie(
   }
 }
 
-/** Flushes the cookie store of the session and reports whether it failed. */
+/**
+ * Flushes the cookie store of the session and reports whether it failed.
+ *
+ * `flushStorageData()` is the DOMStorage API; it does not write the cookie
+ * jar. The imported cookies live in memory until the cookie store is flushed,
+ * so a restart shortly after an import could load the previous session while
+ * the app reported the import as saved.
+ */
 async function flushStorage(targetSession: Session, context: string): Promise<boolean> {
   try {
-    await targetSession.flushStorageData()
+    await targetSession.cookies.flushStore()
     return false
   } catch (error) {
-    Logger.warn(`[SiteSessionImporter] Storage could not be flushed${context}:`, error)
+    Logger.warn(`[SiteSessionImporter] The cookie store could not be flushed${context}:`, error)
     return true
   }
 }
@@ -472,6 +479,19 @@ export interface ImportExternalCookiesResult {
    */
   duplicatesDropped?: number
   /**
+   * Whether the packet adds or removes a cookie identity compared with the
+   * session the import started from.
+   *
+   * A value-only change (Google rotates `__Secure-1PSIDTS` and the `*CC`
+   * tokens) is not an identity change. The bridge uses this to reload the open
+   * views of the site exactly when the set of cookies changed — a sign-in, a
+   * sign-out or an account switch — and not on every rotation.
+   *
+   * Only reported when the target was snapshotted before the write; without a
+   * snapshot the comparison has no baseline.
+   */
+  identitySetChanged?: boolean
+  /**
    * Stale cookies that were deliberately kept because Electron's removal API
    * cannot target their identity without touching an imported namesake.
    *
@@ -609,12 +629,29 @@ export async function importExternalCookies(
   // A rollback without a snapshot would be a guess. If the target cannot be
   // read, fail closed instead of writing cookies that can never be undone.
   let snapshot: ExternalBrowserCookie[] | null = null
+  /**
+   * The cookie identities the session held before the write, or null when the
+   * session could not be read (or a scope could not be told apart).
+   */
+  let snapshotIdentityKeys: Set<string> | null = null
   if (options.rollbackOnPartialFailure && writes.length > 0) {
     try {
       const existing = await targetSession.cookies.get({})
-      snapshot = existing
-        .filter((cookie) => isCookieDomainAllowed(cookie.domain, allowedDomains))
-        .map(toExternalCookie)
+      const siteCookies = existing.filter((cookie) =>
+        isCookieDomainAllowed(cookie.domain, allowedDomains)
+      )
+      snapshot = siteCookies.map(toExternalCookie)
+      // Preserved cookies are the guest's own layout state: the packet never
+      // writes them, so they must not make every import look like a change.
+      const compared = siteCookies.filter(
+        (cookie) => !cookie.name || !preserveCookieNames.has(cookie.name)
+      )
+      const keys = compared.map(electronCookieKey)
+      // A scope the session cannot report would make the comparison drift on
+      // every push; no comparison is better than a reload loop.
+      if (keys.every((key): key is string => key !== null)) {
+        snapshotIdentityKeys = new Set(keys)
+      }
     } catch {
       Logger.warn(
         '[SiteSessionImporter] The target could not be read for a rollback snapshot; refusing the import.'
@@ -626,6 +663,15 @@ export async function importExternalCookies(
         rollbackFailed: true
       }
     }
+  }
+
+  let identitySetChanged: boolean | undefined
+  if (snapshotIdentityKeys) {
+    const incomingKeys = new Set(writes.map((write) => write.key))
+    identitySetChanged =
+      incomingKeys.size !== snapshotIdentityKeys.size ||
+      [...incomingKeys].some((key) => !snapshotIdentityKeys.has(key)) ||
+      [...snapshotIdentityKeys].some((key) => !incomingKeys.has(key))
   }
 
   const outcomes = await Promise.all(
@@ -666,6 +712,7 @@ export async function importExternalCookies(
   const result = (): ImportExternalCookiesResult => ({
     imported,
     failed,
+    ...(identitySetChanged === true ? { identitySetChanged: true } : {}),
     ...(duplicatesDropped > 0 ? { duplicatesDropped } : {}),
     ...(staleCookiesKept > 0 ? { staleCookiesKept } : {}),
     ...(preserved > 0 ? { preserved } : {})

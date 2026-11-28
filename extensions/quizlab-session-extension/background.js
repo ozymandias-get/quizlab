@@ -690,11 +690,75 @@ async function containsAnyOrigin(patterns) {
   return false
 }
 
+/** The host patterns the extension manifest declares. */
+function manifestHostPatterns() {
+  try {
+    const manifest = chrome.runtime && chrome.runtime.getManifest()
+    const patterns = manifest && manifest.host_permissions
+    return Array.isArray(patterns) ? patterns : []
+  } catch {
+    return []
+  }
+}
+
+/** The bare host of a match pattern, or an empty string. */
+function patternHostOf(pattern) {
+  try {
+    return new URL(pattern).hostname.toLowerCase().replace(/^\*\./, '')
+  } catch {
+    return ''
+  }
+}
+
+/** The URL scheme of a match pattern, or an empty string. */
+function patternSchemeOf(pattern) {
+  try {
+    return new URL(pattern).protocol.replace(/:$/, '')
+  } catch {
+    return ''
+  }
+}
+
+/** Whether a host is the pattern host itself or one of its subdomains. */
+function hostIsCovered(host, patternHost) {
+  return host === patternHost || host.endsWith(`.${patternHost}`)
+}
+
+/**
+ * The URL schemes the manifest declares for a host.
+ *
+ * The cookies API filters every cookie by the permission held for the URL the
+ * cookie would be sent to: a `Secure` cookie is read under https, a plain one
+ * under http. Google's session cookies (`SID`, `HSID`, `APISID`, `SIDCC`) are
+ * plain, so a manifest that declares only the https pattern can never see them
+ * and the packet would be silently incomplete. The schemes are read from the
+ * manifest instead of a table here, so a site that needs http access declares
+ * it where its host permissions live.
+ */
+function declaredSchemes(host) {
+  const schemes = new Set()
+  for (const pattern of manifestHostPatterns()) {
+    const coveredHost = patternHostOf(pattern)
+    if (!coveredHost || !hostIsCovered(host, coveredHost)) continue
+    const scheme = patternSchemeOf(pattern)
+    if (scheme) schemes.add(scheme)
+  }
+  // A site requested through the optional wildcard has no manifest pattern of
+  // its own; it is read under https like every other site.
+  if (schemes.size === 0) schemes.add('https')
+  return [...schemes]
+}
+
 /**
  * Whether the extension may read the site.
  *
  * A site the extension may not read is reported as such, so that the app can
  * tell it apart from a site the browser simply holds no session for.
+ *
+ * Every scheme declared for a domain has to be granted. The cookie query
+ * includes subdomains, so an exact-host grant is not enough; and a scheme that
+ * is missing would hide its cookies rather than fail the read, so a partial
+ * grant is treated as no grant.
  */
 async function hasPermission(domains) {
   if (!chrome.permissions || typeof chrome.permissions.contains !== 'function') {
@@ -705,9 +769,10 @@ async function hasPermission(domains) {
   for (const domain of domains) {
     const host = typeof domain === 'string' ? domain.trim().toLowerCase().replace(/^\.+/, '') : ''
     if (!host) continue
-    // The cookie query includes subdomains, so an exact-host grant is not enough.
-    const granted = await containsAnyOrigin([`https://*.${host}/*`])
-    if (!granted) return false
+    for (const scheme of declaredSchemes(host)) {
+      const granted = await containsAnyOrigin([`${scheme}://*.${host}/*`])
+      if (!granted) return false
+    }
   }
   return true
 }
