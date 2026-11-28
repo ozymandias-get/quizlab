@@ -2438,17 +2438,11 @@ async function handleSelectorPickResult(message, sender) {
     }
 
     if (wasCancelled) {
-      if (!hasNewerTabSession) {
-        broadcastSelectorOutcome({
-          state: SELECTOR_REJECTED,
-          tabId: session.tabId,
-          hostname: session.hostname,
-          field: session.field,
-          selector: displaySelector,
-          at: Date.now(),
-          message: 'Seçim oturumu iptal edildi.'
-        })
-      }
+      // The cancel handler already announced the cancellation. Publishing a
+      // second outcome here turned the user's cancel into a generic "retry"
+      // error in the panel when the transfer failed afterwards; the caller
+      // still gets the rejected answer below, so nothing is hidden from the
+      // page that asked.
       return {
         ok: false,
         state: SELECTOR_REJECTED,

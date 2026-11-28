@@ -569,9 +569,10 @@ describe('extension selector transfer — cancellation racing the answer', () =>
       message: 'Seçim oturumu iptal edildi.'
     })
     // İptal edilen oturumun başarısız aktarımı, "site açık değil" gibi bir
-    // seçim hatası olarak sunulmaz: kullanıcı zaten durdurmuştu. Bu sonuç
-    // kalıcılaştırılmaz; panel onu yalnızca açıkken görür.
-    expect(outcomeStates(worker)).toEqual(['cancelled', 'rejected'])
+    // seçim hatası olarak sunulmaz: kullanıcı zaten durdurmuştu. İptal
+    // bildirimi cancel handler'ından bir kez gitti; buradan ikinci bir olay
+    // (panelde genel "tekrar dene" hatası olarak görünürdü) yayınlanmaz.
+    expect(outcomeStates(worker)).toEqual(['cancelled'])
     expect(worker.storage.session.selectorLastOutcome).toBeUndefined()
   })
 
