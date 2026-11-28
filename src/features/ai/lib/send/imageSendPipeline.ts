@@ -17,7 +17,7 @@ import {
   sleep,
   toAutomationConfig
 } from '../aiSenderSupport'
-import { mergePromptText } from '../aiSenderSupport'
+import { isContentCancelled, mergePromptText } from '../aiSenderSupport'
 import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { copyImageToClipboardWithRetry, createClipboardRestore } from './imageClipboard'
 import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmitDiagnosis'
@@ -207,6 +207,15 @@ export async function executeImageSendPipeline(
     let pasteSuccess = false
     const pasteStartedAt = nowMs()
     if (canUseContent(content, scheduledContent) && typeof content.paste === 'function') {
+      // İptal, focus betiği çalışırken gerçekleşebilir: betiğin kendi iptal
+      // kontrolü çalıştırmadan **önce**dir. Bu noktada panodaki görseli
+      // yapıştırmak, iptal edilmiş isteğin içeriğini yeni taslağa sokar.
+      // `canUseContent` yalnızca kimlik ve yok edilme durumunu kontrol eder.
+      if (isContentCancelled(content)) {
+        return finish(
+          attachDiagnostics({ success: false, error: 'cancelled' }, diagnostics, requestStartedAt)
+        )
+      }
       try {
         pasteSuccess = await content.paste()
       } catch (err) {
@@ -232,6 +241,13 @@ export async function executeImageSendPipeline(
             diagnostics,
             requestStartedAt
           )
+        )
+      }
+      // Native yapıştırma yanıtı beklenirken de iptal edilebilir; JS fallback'i
+      // de hedefe içerik yazar, bu yüzden aynı kontrol ondan önce de gerekir.
+      if (isContentCancelled(content)) {
+        return finish(
+          attachDiagnostics({ success: false, error: 'cancelled' }, diagnostics, requestStartedAt)
         )
       }
       const fallback = await safeContentPaste(content, { skipNative: true })

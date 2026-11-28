@@ -1,5 +1,6 @@
 import type { AiContentController } from '@shared-core/types/aiContent'
 
+import { cancelContentSends } from '@features/ai/lib/aiSenderSupport'
 import { resolveSendOutcome } from '@app/ui/aiSendComposer/sendOutcome'
 import { executeBulkSendPipeline } from '@features/ai/lib/send/bulkSendPipeline'
 import { nowMs } from '@features/ai/lib/send/sendDiagnostics'
@@ -599,4 +600,51 @@ describe('executeBulkSendPipeline — clipboard restore lifecycle', () => {
     expect(outcome.kind).toBe('incomplete')
     expect(outcome.resendSafe).toBe(false)
   }, 20000)
+})
+
+/**
+ * ## İptal ile pano arasındaki yarış
+ *
+ * Pano yazımı asenkron: kullanıcı görsel kopyalanırken yeni bir gönderim
+ * başlatırsa (ya da iptal ederse) eski isteğin görseli, yeni taslağa
+ * yapıştırılmamalıdır. `canUseContent` yalnızca kimlik ve yok edilme
+ * durumunu kontrol eder; iptal ayrı bir durumdur.
+ */
+describe('executeBulkSendPipeline — cancellation', () => {
+  beforeEach(() => {
+    mocks.resolveSendContext.mockResolvedValue({
+      aiConfig: { input: 'i', button: 'b', submitMode: 'mixed' },
+      currentUrl: 'https://chatgpt.com/'
+    })
+    mocks.safeContentPaste.mockResolvedValue(true)
+  })
+
+  it('does not paste an image copied before the request was cancelled', async () => {
+    const { content, scripts } = makeContent()
+    const params = baseParams(content, scripts)
+    let releaseCopy: (value: boolean) => void = () => undefined
+    const secondCopy = new Promise<boolean>((resolve) => {
+      releaseCopy = resolve
+    })
+    let copyCount = 0
+    params.copyImageToClipboard = vi.fn(async () => {
+      copyCount += 1
+      if (copyCount === 2) return secondCopy
+      return true
+    })
+
+    const run = executeBulkSendPipeline(params)
+    await vi.waitFor(() => expect(copyCount).toBe(2))
+
+    cancelContentSends(content)
+    releaseCopy(true)
+    const result = await run
+
+    // İlk görsel hedefe girdi, ikincisi iptalden sonra yapıştırılmadı.
+    expect(params.copyImageToClipboard).toHaveBeenCalledTimes(2)
+    expect(content.paste).toHaveBeenCalledTimes(1)
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('cancelled')
+    expect(result.stage).toBe('partial')
+  })
 })

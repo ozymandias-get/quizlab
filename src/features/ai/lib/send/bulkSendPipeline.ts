@@ -17,7 +17,7 @@ import {
   sleep,
   toAutomationConfig
 } from '../aiSenderSupport'
-import { mergePromptText } from '../aiSenderSupport'
+import { isContentCancelled, mergePromptText } from '../aiSenderSupport'
 import { reportSelectorRepair } from '../selectorRepair/reportSelectorRepair'
 import { copyImageToClipboardWithRetry, createClipboardRestore } from './imageClipboard'
 import { isPasteIgnoredByPage, reportSubmitReadyFailure } from './imageSendSubmitDiagnosis'
@@ -234,6 +234,16 @@ export async function executeBulkSendPipeline(
 
       let pasteSuccess = false
       if (canUseContent(content, scheduledContent) && typeof content.paste === 'function') {
+        // Pano yazımı asenkron: kullanıcı kopyalama sürerken iptal edebilir ya
+        // da yeni bir gönderim başlatabilir. Bu noktada yapıştırmak, iptal
+        // edilmiş isteğin görselini yeni taslağa sokar. `canUseContent`
+        // yalnızca kimlik ve yok edilme durumunu kontrol eder; iptal ayrı bir
+        // durumdur.
+        if (isContentCancelled(content)) {
+          return finish(
+            attachDiagnostics({ success: false, error: 'cancelled' }, diagnostics, requestStartedAt)
+          )
+        }
         try {
           pasteSuccess = await content.paste()
         } catch (err) {
@@ -258,6 +268,13 @@ export async function executeBulkSendPipeline(
               diagnostics,
               requestStartedAt
             )
+          )
+        }
+        // Native yapıştırma yanıtı beklenirken de iptal edilebilir; fallback de
+        // hedefe içerik yazar.
+        if (isContentCancelled(content)) {
+          return finish(
+            attachDiagnostics({ success: false, error: 'cancelled' }, diagnostics, requestStartedAt)
           )
         }
         const fallback = await safeContentPaste(content, { skipNative: true })
