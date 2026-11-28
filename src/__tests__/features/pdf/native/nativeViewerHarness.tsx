@@ -393,6 +393,8 @@ export interface HarnessProps {
   initialPage?: number
   isPanMode?: boolean
   isPanelResizing?: boolean
+  /** Off switches the viewer to the continuous-flow wheel behaviour. */
+  wheelPageTurnEnabled?: boolean
   containerSize?: { w: number; h: number }
   onController?: (controller: ReturnType<typeof useNativePdfController>) => void
   /**
@@ -420,6 +422,7 @@ export function NativeViewerHarness({
   initialPage,
   isPanMode = false,
   isPanelResizing = false,
+  wheelPageTurnEnabled = true,
   containerSize = { w: 800, h: 1000 },
   onController,
   textActions
@@ -439,6 +442,7 @@ export function NativeViewerHarness({
     adjustedContainerSize: containerSize,
     isPanMode,
     isPanelResizing,
+    isWheelPageTurnEnabled: wheelPageTurnEnabled,
     pdfPath: null,
     canvasRef,
     textLayerRef,

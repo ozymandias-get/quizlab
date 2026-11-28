@@ -312,6 +312,11 @@ export function useNativePdfController({
     if (!root) return
     let lastTurn = 0
     const onWheel = (event: WheelEvent) => {
+      // A pure horizontal gesture — a tilt wheel or a sideways trackpad swipe —
+      // carries no page direction. Reading `deltaY === 0` as "up" turned the
+      // page back at the top edge, so the direction is decided only when there
+      // is a vertical delta. The page-mode hook excludes it the same way.
+      if (event.deltaY === 0) return
       const scroller = root.querySelector<HTMLElement>('[data-native-pdf-scroll]') ?? root
       const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
       const atTop = scroller.scrollTop <= 0
