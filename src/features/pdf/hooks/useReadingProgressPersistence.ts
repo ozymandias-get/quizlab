@@ -65,6 +65,50 @@ const flushPendingDebounce = (path?: string): void => {
   }
 }
 
+/**
+ * Viewers that hold a page change inside their own debounce.
+ *
+ * The page state reports a turn after 300 ms so a burst of turns is one write.
+ * A window that closes inside that window never gives the timer a chance to
+ * run, and the store's teardown flush can only write what it has been told.
+ * A source is asked once, immediately before that flush, so its pending page
+ * joins the same write instead of being lost.
+ */
+const pendingProgressSources = new Set<() => ReadingProgressUpdate | null>()
+
+/**
+ * Registers the pending-page source of one viewer. The returned function
+ * unregisters it; a viewer that unmounts must stop being asked.
+ */
+export const registerPendingReadingProgressSource = (
+  source: () => ReadingProgressUpdate | null
+): (() => void) => {
+  pendingProgressSources.add(source)
+  return () => {
+    pendingProgressSources.delete(source)
+  }
+}
+
+/**
+ * Flushes every pending page.
+ *
+ * Sources are pulled before the debounce is drained, so a page that was still
+ * waiting inside a viewer is written by the same pass that flushes the store.
+ */
+const flushPendingReadingProgress = (): void => {
+  for (const source of pendingProgressSources) {
+    let pending: ReadingProgressUpdate | null = null
+    try {
+      pending = source()
+    } catch {
+      // A viewer that cannot answer must not stop the others from flushing.
+      pending = null
+    }
+    if (pending) updateReadingProgress(pending)
+  }
+  flushPendingDebounce()
+}
+
 interface ReadingProgressState {
   recentReadingInfo: LastReadingInfo[]
 }
@@ -286,7 +330,7 @@ export const useReadingProgressPersistence = () => {
     updateReadingProgress,
     upsertLastReadingInfo,
     recordPdfOpened,
-    flushPendingReadingProgress: flushPendingDebounce,
+    flushPendingReadingProgress,
     clearLastReading,
     restoreRecentReading
   }
@@ -294,7 +338,7 @@ export const useReadingProgressPersistence = () => {
 
 // Flush any pending debounced writes on tab/window teardown.
 if (typeof window !== 'undefined') {
-  const flush = () => flushPendingDebounce()
+  const flush = () => flushPendingReadingProgress()
   window.addEventListener('beforeunload', flush)
   window.addEventListener('pagehide', flush)
   document.addEventListener('visibilitychange', () => {

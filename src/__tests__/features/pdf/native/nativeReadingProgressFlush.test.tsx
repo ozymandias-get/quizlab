@@ -8,6 +8,8 @@
  * was before.
  */
 import { useNativePdfPageState } from '@features/pdf/native/useNativePdfPageState'
+import { readReadingHistory } from '@features/pdf/hooks/readingHistoryRepository'
+import { resetReadingProgressStore } from '@features/pdf/hooks/useReadingProgressPersistence'
 
 import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -43,6 +45,8 @@ function pageCalls(onChange: ReturnType<typeof vi.fn>) {
 
 beforeEach(() => {
   vi.useFakeTimers()
+  localStorage.clear()
+  resetReadingProgressStore()
 })
 
 afterEach(() => {
@@ -79,6 +83,23 @@ describe('reading progress inside the debounce window', () => {
     })
 
     expect(pageCalls(onChange)[0]).toMatchObject({ path: '/a.pdf', page: 2 })
+  })
+
+  it('writes the waiting page when the window is torn down without an unmount', () => {
+    // A window close tears the renderer down; React never unmounts. The store's
+    // teardown flush asks the viewer for the page it still holds, so the turn
+    // that is inside the 300 ms window reaches the disk with that same write.
+    const view = render(<Host path="/a.pdf" onChange={vi.fn()} />)
+
+    act(() => {
+      view.getByRole('button').click()
+    })
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'))
+    })
+
+    const entry = readReadingHistory().find((item) => item.path === '/a.pdf')
+    expect(entry?.page).toBe(2)
   })
 
   it('does not write the same page twice after the debounce already reported it', () => {

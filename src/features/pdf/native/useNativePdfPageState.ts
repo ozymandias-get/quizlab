@@ -27,6 +27,7 @@
  * untouched.
  */
 import type { ReadingProgressUpdate } from '@features/pdf/hooks/types'
+import { registerPendingReadingProgressSource } from '@features/pdf/hooks/useReadingProgressPersistence'
 import { clampPdfPage } from '@features/pdf/native/nativePdfBounds'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -138,6 +139,20 @@ export function useNativePdfPageState({
   // Declared after the timer effect so its cleanup runs after that timer was
   // cleared; a path change and an unmount both land here.
   useEffect(() => flushPendingReport, [pdfPath, flushPendingReport])
+
+  // The window can close before either cleanup runs: a close tears the renderer
+  // down without unmounting React. The store's teardown flush asks this source
+  // for the page it is still holding, so that page is written with it.
+  useEffect(
+    () =>
+      registerPendingReadingProgressSource(() => {
+        const pending = pendingReportRef.current
+        if (!pending) return null
+        pendingReportRef.current = null
+        return { path: pending.path, page: pending.page, lastOpenedAt: Date.now() }
+      }),
+    []
+  )
 
   useEffect(() => {
     if (!enabled || !pdfPath || totalPages <= 0) return
