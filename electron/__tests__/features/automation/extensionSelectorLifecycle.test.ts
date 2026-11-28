@@ -464,3 +464,144 @@ describe('extension selector transfer lifecycle', () => {
     })
   })
 })
+
+/**
+ * ## İptal ile aktarım sonucu arasındaki yarış
+ *
+ * Kullanıcı, aktarım sürerken seçimi iptal edebilir. İptal, sunucuda
+ * gerçekleşmiş bir kaydı geri almaz; bu yüzden gelen sonuç neyse o
+ * raporlanır. Bu bölüm üç sıralamayı sabitler:
+ *
+ * - iptal → sonra kayıt onayı: kayıt kazanır, panelde "kaydedildi" görünür
+ * - iptal → sonra doğrulama hatası: iptal edildi olarak döner
+ * - iptal + yeni seçim → eski isteğin geç onayı yeni seçimin sonucunu ezmez
+ */
+function outcomeStates(worker: ReturnType<typeof createWorkerSandbox>): string[] {
+  return worker.broadcasts
+    .map((message) => message as { type?: string; outcome?: { state?: string } })
+    .filter((message) => message.type === 'selector_outcome')
+    .map((message) => String(message.outcome?.state))
+}
+
+async function waitUntil(check: () => boolean, label: string): Promise<void> {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (check()) return
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  throw new Error(`timed out waiting for ${label}`)
+}
+
+function gatedAnswer() {
+  let release: (value: { status: number; body: Record<string, unknown> }) => void = () => {}
+  const answer = new Promise<{ status: number; body: Record<string, unknown> }>((resolve) => {
+    release = resolve
+  })
+  return { answer, release }
+}
+
+describe('extension selector transfer — cancellation racing the answer', () => {
+  it('keeps a save that lands after the user cancelled and reports it as saved', async () => {
+    // Gerçek zamanlayıcılar: pano/aktarım zinciri gerçek mikro/makro görev
+    // sırasıyla ilerlesin diye bu yarış testleri kendi zaman tabanını kurar.
+    vi.useRealTimers()
+    const { answer, release } = gatedAnswer()
+    const worker = createWorkerSandbox({ answerSelector: () => answer })
+    const started = await worker.send({ type: 'selector_start', tabId: 7, field: 'input' })
+    const sender = { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+
+    const pick = worker.send(
+      {
+        type: 'selector_pick_result',
+        sessionId: started.sessionId,
+        field: 'input',
+        payload: pickPayload()
+      },
+      sender
+    )
+    await waitUntil(() => worker.posts.length === 1, 'the transfer to start')
+
+    const cancelled = await worker.send(
+      { type: 'selector_pick_cancelled', sessionId: started.sessionId },
+      { tab: { id: 7 } }
+    )
+    expect(cancelled.ok).toBe(true)
+
+    release({ status: 200, body: { status: 'saved', saved: true } })
+    const result = await pick
+
+    // Sunucu kaydetti: sonuç "kaydedildi" olarak raporlanır, "iptal edildi"
+    // diye geri alınmış gibi gösterilmez.
+    expect(result).toMatchObject({ ok: true, state: 'saved' })
+    expect(outcomeStates(worker)).toEqual(['cancelled', 'saved'])
+    // `persistState` writes the session area: the outcome survives a worker
+    // restart, not a browser restart.
+    expect(worker.storage.session.selectorLastOutcome).toMatchObject({ state: 'saved' })
+  })
+
+  it('reports a cancelled transfer that then fails as cancelled, not as a pick failure', async () => {
+    vi.useRealTimers()
+    const { answer, release } = gatedAnswer()
+    const worker = createWorkerSandbox({ answerSelector: () => answer })
+    const started = await worker.send({ type: 'selector_start', tabId: 7, field: 'input' })
+    const sender = { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+
+    const pick = worker.send(
+      {
+        type: 'selector_pick_result',
+        sessionId: started.sessionId,
+        field: 'input',
+        payload: pickPayload()
+      },
+      sender
+    )
+    await waitUntil(() => worker.posts.length === 1, 'the transfer to start')
+    await worker.send(
+      { type: 'selector_pick_cancelled', sessionId: started.sessionId },
+      { tab: { id: 7 } }
+    )
+
+    release({ status: 409, body: { error: 'site_not_open' } })
+    const result = await pick
+
+    expect(result).toMatchObject({
+      ok: false,
+      state: 'rejected',
+      message: 'Seçim oturumu iptal edildi.'
+    })
+    // İptal edilen oturumun başarısız aktarımı, "site açık değil" gibi bir
+    // seçim hatası olarak sunulmaz: kullanıcı zaten durdurmuştu. Bu sonuç
+    // kalıcılaştırılmaz; panel onu yalnızca açıkken görür.
+    expect(outcomeStates(worker)).toEqual(['cancelled', 'rejected'])
+    expect(worker.storage.session.selectorLastOutcome).toBeUndefined()
+  })
+
+  it('does not let a late save overwrite the result of a newer selection', async () => {
+    vi.useRealTimers()
+    const { answer, release } = gatedAnswer()
+    const worker = createWorkerSandbox({ answerSelector: () => answer })
+    const first = await worker.send({ type: 'selector_start', tabId: 7, field: 'input' })
+    const sender = { tab: { id: 7 }, frameId: 0, documentId: 'doc-1' }
+
+    const pick = worker.send(
+      {
+        type: 'selector_pick_result',
+        sessionId: first.sessionId,
+        field: 'input',
+        payload: pickPayload()
+      },
+      sender
+    )
+    await waitUntil(() => worker.posts.length === 1, 'the first transfer to start')
+
+    // Kullanıcı aynı sekmede yeni bir seçim başlattı; eski oturum iptal edildi.
+    const second = await worker.send({ type: 'selector_start', tabId: 7, field: 'button' })
+    expect(second.success).toBe(true)
+
+    release({ status: 200, body: { status: 'saved', saved: true } })
+    expect(await pick).toMatchObject({ ok: true, state: 'saved' })
+
+    // Eski isteğin geç onayı yeni seçimin panel sonucunu ezmez.
+    expect(outcomeStates(worker)).toEqual([])
+    expect(worker.storage.session.selectorLastOutcome).toBeUndefined()
+  })
+})
