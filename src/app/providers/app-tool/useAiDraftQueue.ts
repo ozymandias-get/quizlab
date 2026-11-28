@@ -155,21 +155,51 @@ export function useAiDraftQueue(onReject?: () => void) {
 
   /** Tek öğe silindiğinde kaynağı **geçici olarak** yaşatan zamanlayıcılar. */
   const deferredRevokesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  /**
+   * The undo toast can outlive the retention window: hovering or focusing it
+   * pauses its timer with no upper bound. While the handle is still on screen
+   * the source is held and released only when the toast goes away; one
+   * subscription per URL watches that.
+   */
+  const deferredRevokeSubscriptionsRef = useRef(new Map<string, () => void>())
 
   const cancelDeferredRevoke = useCallback((url: string) => {
     const pending = deferredRevokesRef.current
     const timer = pending.get(url)
-    if (timer === undefined) return
-    clearTimeout(timer)
-    pending.delete(url)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      pending.delete(url)
+    }
+    const unsubscribe = deferredRevokeSubscriptionsRef.current.get(url)
+    if (unsubscribe) {
+      unsubscribe()
+      deferredRevokeSubscriptionsRef.current.delete(url)
+    }
   }, [])
 
   const scheduleDeferredRevoke = useCallback(
-    (url: string) => {
+    (url: string, undoToastId?: string) => {
       cancelDeferredRevoke(url)
       const timer = setTimeout(() => {
         deferredRevokesRef.current.delete(url)
-        revokeBlobUrl(url)
+        const toastStillThere =
+          undoToastId !== undefined &&
+          useToastStore.getState().toasts.some((toast) => toast.id === undoToastId)
+        if (!toastStillThere) {
+          revokeBlobUrl(url)
+          return
+        }
+        // The toast outlived the window because its timer is paused while the
+        // reader hovers or focuses it. Releasing the source now would let the
+        // undo handle restore a draft whose preview and send path are dead, so
+        // the toast's own dismissal decides when the source goes.
+        const unsubscribe = useToastStore.subscribe((state) => {
+          if (state.toasts.some((toast) => toast.id === undoToastId)) return
+          unsubscribe()
+          deferredRevokeSubscriptionsRef.current.delete(url)
+          revokeBlobUrl(url)
+        })
+        deferredRevokeSubscriptionsRef.current.set(url, unsubscribe)
       }, DRAFT_SOURCE_RETENTION_MS)
       deferredRevokesRef.current.set(url, timer)
     },
@@ -181,12 +211,18 @@ export function useAiDraftQueue(onReject?: () => void) {
     // okunur: etki gövdesi mount'ta çalışır ve o an kuyruk daha boştur. Bekleyen
     // "geri al" kaynakları da artık geri alınamaz; onları da hemen bırak.
     const pendingRevokes = deferredRevokesRef.current
+    const pendingSubscriptions = deferredRevokeSubscriptionsRef.current
     return () => {
       for (const [url, timer] of pendingRevokes) {
         clearTimeout(timer)
         revokeBlobUrl(url)
       }
       pendingRevokes.clear()
+      for (const [url, unsubscribe] of pendingSubscriptions) {
+        unsubscribe()
+        revokeBlobUrl(url)
+      }
+      pendingSubscriptions.clear()
 
       const remaining = itemsRef.current
       itemsRef.current = []
@@ -205,7 +241,7 @@ export function useAiDraftQueue(onReject?: () => void) {
    *   yalnızca artık hiçbir öğe tarafından kullanılmayanlar için.
    */
   const commit = useCallback(
-    (next: AiDraftItem[], options?: { deferSourceRelease?: boolean }) => {
+    (next: AiDraftItem[], options?: { deferSourceReleaseFor?: string }) => {
       const previous = itemsRef.current
       itemsRef.current = next
       setQueue(next)
@@ -219,7 +255,8 @@ export function useAiDraftQueue(onReject?: () => void) {
       // iptal edilmez. Referans sayısı burada "kalan küme boş mu" sorusudur.
       for (const url of survivingBlobUrls(previous)) {
         if (survivors.has(url)) continue
-        if (options?.deferSourceRelease) scheduleDeferredRevoke(url)
+        if (options?.deferSourceReleaseFor)
+          scheduleDeferredRevoke(url, options.deferSourceReleaseFor)
         else revokeBlobUrl(url)
       }
     },
@@ -424,8 +461,9 @@ export function useAiDraftQueue(onReject?: () => void) {
       commit(
         current.filter((draft) => draft.id !== id),
         // Bildirim gösterilemediyse (tür kapalı) geri alma yolu yok: kaynağı
-        // boşuna 30 saniye tutma.
-        { deferSourceRelease: Boolean(toastId) }
+        // boşuna 30 saniye tutma. Gösterildiyse kaynak, bildirim ekranda
+        // kaldığı sürece yaşar.
+        toastId ? { deferSourceReleaseFor: toastId } : undefined
       )
     },
     [commit]

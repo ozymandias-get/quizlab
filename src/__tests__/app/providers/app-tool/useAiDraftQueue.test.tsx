@@ -157,6 +157,14 @@ describe('useAiDraftQueue', () => {
         // Undo is still possible: the source is held, not revoked.
         expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:shared')
 
+        // The toast UI dismisses itself at 5 s; this harness mounts no toast, so
+        // the dismissal is applied by hand. Without it the source now stays for
+        // as long as the handle is on screen — which is the point of the undo
+        // lifetime.
+        act(() => {
+          useToastStore.getState().clearAll()
+        })
+
         act(() => {
           vi.advanceTimersByTime(DRAFT_SOURCE_RETENTION_MS)
         })
@@ -276,6 +284,82 @@ describe('useAiDraftQueue', () => {
         vi.useRealTimers()
       }
     })
+  })
+
+  it('keeps the source while the undo toast is still on screen', () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:preview')
+      })
+      const item = result.current.pendingAiItems[0]
+
+      act(() => {
+        result.current.removePendingAiItem(item!.id)
+      })
+
+      const toast = useToastStore
+        .getState()
+        .toasts.find((entry) => entry.message === 'ai_draft_item_removed')
+      expect(toast).toBeTruthy()
+
+      // The toast pauses while hovered or focused, with no upper bound, so the
+      // undo handle can outlive the 30 s retention window. Releasing the source
+      // then would restore a draft whose preview and send path are dead.
+      act(() => {
+        vi.advanceTimersByTime(DRAFT_SOURCE_RETENTION_MS + 5000)
+      })
+      expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:preview')
+
+      act(() => {
+        toast?.onAction?.()
+      })
+      expect(blobOf(result.current.pendingAiItems[0]!)).toBe('blob:preview')
+
+      // The handle is gone now, so the source can be released.
+      act(() => {
+        useToastStore.getState().removeToast(toast!.id)
+        vi.advanceTimersByTime(1000)
+      })
+      expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:preview')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('releases the source when the undo toast goes away without being used', () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = renderHook(() => useAiDraftQueue())
+
+      act(() => {
+        result.current.queueImageForAi('blob:preview')
+      })
+      const item = result.current.pendingAiItems[0]
+      act(() => {
+        result.current.removePendingAiItem(item!.id)
+      })
+
+      const toast = useToastStore
+        .getState()
+        .toasts.find((entry) => entry.message === 'ai_draft_item_removed')
+
+      act(() => {
+        vi.advanceTimersByTime(DRAFT_SOURCE_RETENTION_MS)
+      })
+      // The toast is still on screen (paused): source stays.
+      expect(mockRevokeObjectURL).not.toHaveBeenCalledWith('blob:preview')
+
+      act(() => {
+        useToastStore.getState().removeToast(toast!.id)
+      })
+      expect(mockRevokeObjectURL).toHaveBeenCalledWith('blob:preview')
+      expect(result.current.pendingAiItems).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   /**
