@@ -473,6 +473,13 @@ export function useNativePdfController({
       const page = document
         ? await document.getPage(pageNumber)
         : await instance.manager.getPage(pageNumber)
+      // The rail aborts every thumbnail it owns when it unmounts or the
+      // document is replaced. A page that arrives after that must not size the
+      // canvas or start a render: the canvas is detached, and cancelling a task
+      // whose promise nobody awaits leaves PDF.js' RenderingCancelledException
+      // unhandled. Nothing between this check and `render()` awaits, so no
+      // abort can slip into the gap.
+      if (signal?.aborted) return
       const baseViewport = page.getViewport({ scale: 1 })
       const scale = Math.min(1, Math.max(0.02, maxWidth / Math.max(1, baseViewport.width)))
       const viewport = page.getViewport({ scale })
@@ -489,10 +496,6 @@ export function useNativePdfController({
         ...(canvasContext ? { canvasContext } : {}),
         viewport
       })
-      if (signal?.aborted) {
-        task.cancel()
-        return
-      }
       const cancel = () => task.cancel()
       signal?.addEventListener('abort', cancel, { once: true })
       try {
