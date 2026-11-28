@@ -773,6 +773,31 @@ describe('the extension worker', () => {
     expect(worker.storage.local.autoSync).toBe(true)
   })
 
+  it('pushes the site again when automatic syncing is turned back on', async () => {
+    const worker = createHarness()
+    await worker.settle()
+    expect(worker.bridge.packets).toHaveLength(1)
+
+    // Otomatik aktarım kapalıyken çerez değişir: değişiklik kalıcı kuyruğa
+    // girer, fakat kapalı olduğu için gönderilmez ve kuyruk boşaltılır.
+    await worker.send({ type: 'set_auto_sync', enabled: false })
+    worker.cookies[0].value = 'v2'
+    worker.fireCookieChange({ domain: '.chatgpt.com', name: 'session', value: 'v2' })
+    await worker.settle()
+    worker.fireAlarm(HEARTBEAT_ALARM)
+    await worker.settle()
+    expect(worker.bridge.packets).toHaveLength(1)
+    expect(worker.read<string[]>('[...changedDomains]')).toEqual([])
+
+    // Yeniden açmak bir resync ister: kaçırılan değişiklik dahil bütün siteler
+    // yeniden gönderilir, yani kapalıyken biriken değişiklik kaybolmaz.
+    const enabled = await worker.send({ type: 'set_auto_sync', enabled: true })
+    await worker.settle()
+
+    expect(enabled).toMatchObject({ success: true, settingsSaved: true })
+    expect(worker.bridge.packets.map((packet) => packet.targetId)).toEqual(['chatgpt', 'chatgpt'])
+  })
+
   it('reports a manual transfer that found no browser session as such', async () => {
     const worker = createHarness({ cookies: [] })
     await worker.settle()
