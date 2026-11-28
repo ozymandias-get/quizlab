@@ -522,7 +522,7 @@ function AiSendComposer({
                 aria-label={t('ai_draft_close')}
                 aria-expanded
                 aria-controls="ai-draft-dock-body"
-                className="text-muted-foreground hover:text-foreground size-6 rounded-full hover:bg-white/5"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <ChevronDown className="size-3.5" aria-hidden />
               </IconButton>
