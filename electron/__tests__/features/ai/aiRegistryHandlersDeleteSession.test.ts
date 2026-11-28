@@ -20,7 +20,11 @@ const sessions = new Map<string, FakeSession>()
 
 interface FakeSession {
   partition: string
-  cookies: { get: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> }
+  cookies: {
+    get: ReturnType<typeof vi.fn>
+    remove: ReturnType<typeof vi.fn>
+    flushStore: ReturnType<typeof vi.fn>
+  }
   clearStorageData: ReturnType<typeof vi.fn>
   clearAuthCache: ReturnType<typeof vi.fn>
   flushStorageData: ReturnType<typeof vi.fn>
@@ -32,7 +36,8 @@ function makeSession(partition: string): FakeSession {
     partition,
     cookies: {
       get: vi.fn(async () => [{ name: 'session', domain, path: '/', secure: true }]),
-      remove: vi.fn(async () => ({}))
+      remove: vi.fn(async () => ({})),
+      flushStore: vi.fn(async () => undefined)
     },
     clearStorageData: vi.fn(async () => undefined),
     clearAuthCache: vi.fn(async () => undefined),

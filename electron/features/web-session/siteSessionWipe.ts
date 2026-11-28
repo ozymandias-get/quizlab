@@ -134,12 +134,27 @@ export async function wipeSiteSession(
 
   // The flush is part of the wipe: data that did not reach the disk can come
   // back after a restart, so a failed flush is a failed wipe.
+  //
+  // Two stores need two flushes. `flushStorageData()` writes the DOM storage;
+  // the cookie jar is written by `cookies.flushStore()`. Without the second
+  // call the cookies removed above live only in memory, and a restart shortly
+  // after the wipe loads them back while the app reported the site as cleared.
+  // The importer flushes the cookie store for the same reason; the eraser and
+  // the writer have to agree on what "saved" means.
   let flushFailed = false
   try {
     await targetSession.flushStorageData()
   } catch (error) {
     flushFailed = true
     Logger.warn('[SiteSessionWipe] Storage could not be flushed:', error)
+  }
+  // The two flushes are independent: a storage failure must not leave the
+  // removed cookies unflushed, and vice versa.
+  try {
+    await targetSession.cookies.flushStore()
+  } catch (error) {
+    flushFailed = true
+    Logger.warn('[SiteSessionWipe] The cookie store could not be flushed:', error)
   }
 
   const cookiesCleared = !cookieReadFailed && failuresByDomain.size === 0

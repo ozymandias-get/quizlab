@@ -4,7 +4,8 @@ const fakeSession = {
   cookies: {
     get: vi.fn(),
     set: vi.fn(),
-    remove: vi.fn()
+    remove: vi.fn(),
+    flushStore: vi.fn()
   },
   clearStorageData: vi.fn(),
   clearAuthCache: vi.fn(),
@@ -461,7 +462,12 @@ describe('SiteSessionService', () => {
       partition: CHATGPT.partition
     }
     const session = {
-      cookies: { get: vi.fn().mockResolvedValue([]), set: vi.fn(), remove: vi.fn() },
+      cookies: {
+        get: vi.fn().mockResolvedValue([]),
+        set: vi.fn(),
+        remove: vi.fn(),
+        flushStore: vi.fn().mockResolvedValue(undefined)
+      },
       clearStorageData: vi.fn().mockResolvedValue(undefined),
       clearAuthCache: vi.fn().mockResolvedValue(undefined),
       flushStorageData: vi.fn().mockResolvedValue(undefined)
@@ -670,7 +676,12 @@ describe('the Chrome profile selection', () => {
       cookieDomains: ['.google.com']
     }
     const sessionFor = (clearStorageData = vi.fn().mockResolvedValue(undefined)) => ({
-      cookies: { get: vi.fn().mockResolvedValue([]), set: vi.fn(), remove: vi.fn() },
+      cookies: {
+        get: vi.fn().mockResolvedValue([]),
+        set: vi.fn(),
+        remove: vi.fn(),
+        flushStore: vi.fn().mockResolvedValue(undefined)
+      },
       clearStorageData,
       clearAuthCache: vi.fn().mockResolvedValue(undefined),
       flushStorageData: vi.fn()

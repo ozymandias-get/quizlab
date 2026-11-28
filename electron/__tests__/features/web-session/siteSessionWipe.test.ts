@@ -6,6 +6,7 @@ const remove = vi.fn()
 const clearStorageData = vi.fn()
 const clearAuthCache = vi.fn()
 const flushStorageData = vi.fn()
+const flushStore = vi.fn()
 const get = vi.fn()
 
 const TARGET = {
@@ -20,7 +21,12 @@ const TARGET = {
 }
 
 function fakeSession() {
-  return { cookies: { get, remove }, clearStorageData, clearAuthCache, flushStorageData } as never
+  return {
+    cookies: { get, remove, flushStore },
+    clearStorageData,
+    clearAuthCache,
+    flushStorageData
+  } as never
 }
 
 describe('wipeSiteSession', () => {
@@ -31,6 +37,7 @@ describe('wipeSiteSession', () => {
     clearStorageData.mockReset().mockResolvedValue(undefined)
     clearAuthCache.mockReset().mockResolvedValue(undefined)
     flushStorageData.mockReset()
+    flushStore.mockReset().mockResolvedValue(undefined)
     get.mockReset().mockResolvedValue([
       { name: 'session', domain: '.chatgpt.com', path: '/', secure: true },
       { name: 'session', domain: '.openai.com', path: '/', secure: true }
@@ -173,6 +180,25 @@ describe('wipeSiteSession', () => {
 
   it('flushes the storage data when the session is done', async () => {
     await wipeSiteSession(fakeSession(), TARGET)
+    expect(flushStorageData).toHaveBeenCalled()
+  })
+
+  it('flushes the cookie store so the removed cookies do not come back', async () => {
+    // `flushStorageData()` is the DOMStorage API: it does not write the cookie
+    // jar. A restart shortly after the wipe would otherwise load the cookies
+    // that were only removed from memory.
+    const result = await wipeSiteSession(fakeSession(), TARGET)
+
+    expect(flushStore).toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: true, flushFailed: false })
+  })
+
+  it('treats a failed cookie-store flush as a failed wipe and still flushes the storage', async () => {
+    flushStore.mockRejectedValue(new Error('disk full'))
+
+    const result = await wipeSiteSession(fakeSession(), TARGET)
+
+    expect(result).toMatchObject({ ok: false, flushFailed: true })
     expect(flushStorageData).toHaveBeenCalled()
   })
 })
