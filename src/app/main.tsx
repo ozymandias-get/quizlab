@@ -8,16 +8,16 @@ if (import.meta.env.DEV) {
 
 import { createBrowserElectronApi } from '@platform/electron/createBrowserElectronApi'
 
-import { installPdfRenderErrorGuard, resetReadingProgressStore } from '@features/pdf'
+import { resetReadingProgressStore } from '@features/pdf'
 
 import App from '@app/App'
 import BrowserFallback from '@app/components/BrowserFallback'
+import { installErrorReporting } from '@app/lib/errorReporting'
 import { hydrateSettingsFromMain, installSettingsSync } from '@app/lib/settingsSync'
 import { AppProviders } from '@app/providers'
 import { STORAGE_KEYS } from '@shared/constants/storageKeys'
 import { getStorageItem } from '@shared/hooks/localStorageUtils'
 import { hasElectronApi } from '@shared/lib/electronApi'
-import { installGlobalErrorHandlers } from '@shared/lib/globalErrorHandlers'
 import { hydratePreferenceStores } from '@shared/stores/hydratePreferenceStores'
 import { useLanguageInit } from '@shared/stores/languageStore'
 import ErrorBoundary from '@ui/components/ErrorBoundary'
@@ -68,17 +68,10 @@ async function bootstrap() {
   // preferences survive restarts instead of silently reverting.
   installSettingsSync()
 
-  // Surface async/effect errors that React's ErrorBoundary cannot see.
-  installGlobalErrorHandlers()
-
-  // Keep PDF.js render-cancellation races out of the console. Registered *after*
-  // `installGlobalErrorHandlers`, which honours `defaultPrevented`, so marking the
-  // event here also suppresses the in-app toast. It is a window listener with no
-  // React or viewer dependency, so it belongs at boot rather than inside a
-  // renderer component: it used to hang off `PdfWorkerHost`, which meant it was
-  // installed lazily, once per mounted viewer, and only for as long as a PDF
-  // panel existed.
-  installPdfRenderErrorGuard()
+  // Surface async/effect errors that React's ErrorBoundary cannot see, and keep
+  // PDF.js render-cancellation races out of the toast. The two listeners have a
+  // required order, so they are installed together; see `installErrorReporting`.
+  installErrorReporting()
 
   const savedLang = getStorageItem(STORAGE_KEYS.APP_LANGUAGE)
 
