@@ -92,17 +92,52 @@ export function useNativePdfPageState({
     })
   }, [totalPages])
 
+  /**
+   * The page report that is scheduled but not delivered yet.
+   *
+   * The path travels with the page: a document that is replaced inside the
+   * debounce window must still write the page of the document it belonged to.
+   */
+  const pendingReportRef = useRef<{ path: string; page: number } | null>(null)
+
   useEffect(() => {
     if (!enabled || !pdfPath) return
+    const report = { path: pdfPath, page: currentPage }
+    pendingReportRef.current = report
     const timer = setTimeout(() => {
+      if (pendingReportRef.current === report) pendingReportRef.current = null
       onReadingProgressChangeRef.current?.({
-        path: pdfPath,
-        page: currentPage,
+        path: report.path,
+        page: report.page,
         lastOpenedAt: Date.now()
       })
     }, PROGRESS_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [enabled, pdfPath, currentPage])
+
+  /**
+   * Delivers the report that is still waiting, if any.
+   *
+   * Closing the tab or replacing the document tears this hook down and the
+   * timer above is cleared with it: without this the last page turn never
+   * reached the store, and the saved position stayed where the reader was
+   * before. A report that already went out is gone from the ref, so a later
+   * close does not write the same page a second time.
+   */
+  const flushPendingReport = useCallback(() => {
+    const pending = pendingReportRef.current
+    if (!pending) return
+    pendingReportRef.current = null
+    onReadingProgressChangeRef.current?.({
+      path: pending.path,
+      page: pending.page,
+      lastOpenedAt: Date.now()
+    })
+  }, [])
+
+  // Declared after the timer effect so its cleanup runs after that timer was
+  // cleared; a path change and an unmount both land here.
+  useEffect(() => flushPendingReport, [pdfPath, flushPendingReport])
 
   useEffect(() => {
     if (!enabled || !pdfPath || totalPages <= 0) return
